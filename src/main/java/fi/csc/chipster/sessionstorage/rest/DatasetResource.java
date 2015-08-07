@@ -77,11 +77,13 @@ public class DatasetResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response post(Dataset dataset, @Context UriInfo uriInfo) {	
     	        	
+		dataset = RestUtils.getRandomDataset();
+		dataset.setId(null);
+		
 		if (dataset.getId() != null) {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 
-		dataset = RestUtils.getRandomDataset();
 		
 		dataset.setId(RestUtils.createId());
 

@@ -142,7 +142,7 @@ public class SessionResource {
 //		Hibernate.session().createQuery("delete from Session_Job where sessionid = :sessionid").setParameter("sessionId", id);		
 		Hibernate.session().delete(Hibernate.session().load(SessionDatasets.class, id));
 //		Hibernate.session().delete(Hibernate.session().load(SessionJobs.class, id));
-		Hibernate.session().delete(Hibernate.session().load(Session.class, id));
+//		Hibernate.session().delete(Hibernate.session().load(Session.class, id));
 		Hibernate.commit();
 
 		Events.broadcast(new SessionEvent(id, EventType.DELETE));

@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
@@ -22,6 +24,9 @@ import fi.csc.chipster.sessionstorage.model.SessionDatasets;
  *
  */
 public class Main {
+	
+	private static Logger logger = Logger.getLogger(Main.class.getName());
+	
     // Base URI the Grizzly HTTP server will listen on
     public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
 
@@ -39,7 +44,6 @@ public class Main {
     	ch.setLevel(Level.ALL);
     	l.addHandler(ch);
     	
-    	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Session.class,
     			Dataset.class,
@@ -50,9 +54,11 @@ public class Main {
     	
     	// init Hibernate
     	Hibernate.buildSessionFactory(hibernateClasses);
+    	
         // create a resource config that scans for JAX-RS resources and providers
     	String jaxPackage = SessionResource.class.getPackage().getName();
-    	System.out.println("scanning JAX-RS resources from " + jaxPackage);
+    	
+    	logger.info("scanning JAX-RS resources from " + jaxPackage);
         final ResourceConfig rc = new ResourceConfig().packages(jaxPackage);
 
         // create and start a new instance of grizzly http server
@@ -71,7 +77,12 @@ public class Main {
         System.out.println(String.format("Jersey app started with WADL available at "
                 + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
         System.in.read();
-        server.stop();
+        GrizzlyFuture<HttpServer> future = server.shutdown();
+        try {
+			future.get();
+		} catch (InterruptedException | ExecutionException e) {
+			logger.log(Level.WARNING, "server shutdown failed", e);
+		}
         
         Hibernate.getSessionFactory().close();
     }

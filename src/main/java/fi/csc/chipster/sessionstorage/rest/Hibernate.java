@@ -1,18 +1,29 @@
 package fi.csc.chipster.sessionstorage.rest;
 
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.hibernate.SessionFactory;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
 import org.hibernate.dialect.H2Dialect;
 
 public class Hibernate {
 
+	private static Logger logger = Logger.getLogger(Hibernate.class.getName());
+	
     private static SessionFactory sessionFactory;
 
     public static void buildSessionFactory(List<Class<?>> hibernateClasses) {
-    	try {
-
+    	
+    	
+    	try {    		
+    		
+        	@SuppressWarnings("unused")
+			org.jboss.logging.Logger logger = org.jboss.logging.Logger.getLogger("org.hibernate");
+            java.util.logging.Logger.getLogger("org.hibernate").setLevel(java.util.logging.Level.WARNING);
+    		
     		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
 
     		String dbDriver;
@@ -43,21 +54,15 @@ public class Hibernate {
     		
     		for (Class<?> c : hibernateClasses) {
     			hibernateConf.addAnnotatedClass(c);
-    		}    		    		
-
-//    		final org.hibernate.service.ServiceRegistryBuilder serviceRegistryBuilder = new org.hibernate.service.ServiceRegistryBuilder();
-//
-//    		final org.hibernate.service.ServiceRegistry serviceRegistry = serviceRegistryBuilder
-//    				.applySettings(hibernateConf.getProperties())
-//    				.buildServiceRegistry();
-//
-//    		sessionFactory = hibernateConf.buildSessionFactory(serviceRegistry);
+    		}    		    	   
     		
-    		sessionFactory = hibernateConf.buildSessionFactory();
+    		sessionFactory = hibernateConf.buildSessionFactory(
+    				new StandardServiceRegistryBuilder()
+    				.applySettings(hibernateConf.getProperties())
+    				.build());
  
     	} catch (Throwable ex) {
-    		// Make sure you log the exception, as it might be swallowed
-    		System.err.println("Initial SessionFactory creation failed." + ex);
+    		logger.log(Level.SEVERE, "sessionFactory creation failed.", ex);
     		throw new ExceptionInInitializerError(ex);
     	}
     }

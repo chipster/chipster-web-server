@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Date;
 import java.util.Random;
+import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -43,8 +44,9 @@ public class RestUtils {
 
 	public static String createId() {
 		// FIXME replace with UUID
-		Random rand = new Random();
-		return "" + rand.nextInt(1000);
+//		Random rand = new Random();
+//		return "" + rand.nextInt();
+		return UUID.randomUUID().toString();
 	}
 	
     public static Session getRandomSession() {
@@ -57,7 +59,7 @@ public class RestUtils {
 //    	s.setDatasets(datasets);    	
     	
     	//s.setDatasets(Arrays.asList(new String[] { "d" + rand.nextInt(99), "d" + rand.nextInt(99), "d" + rand.nextInt(99) }));
-    	s.setId("s" + rand.nextInt(99));
+    	s.setId("s" + rand.nextInt());
     	//s.setJobs(Arrays.asList(new String[] { "j" + rand.nextInt(99), "j" + rand.nextInt(99), "j" + rand.nextInt(99) }));
     	s.setName("dataset" + s.getId());
     	s.setOwner("me");
