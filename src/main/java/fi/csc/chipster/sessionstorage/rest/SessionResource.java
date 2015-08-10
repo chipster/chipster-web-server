@@ -88,19 +88,19 @@ public class SessionResource {
     public Response post(Session session, @Context UriInfo uriInfo) {
 		
 		session = RestUtils.getRandomSession();
-		session.setId(null);
+		session.setSessionId(null);
     	        	
-		if (session.getId() != null) {
+		if (session.getSessionId() != null) {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 
-		session.setId(RestUtils.createId());
+		session.setSessionId(RestUtils.createId());
 
 		Hibernate.beginTransaction().save(session);
 		Hibernate.commit();
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(session.getId()).build();
-		Events.broadcast(new SessionEvent(session.getId(), EventType.CREATE));
+		URI uri = uriInfo.getAbsolutePathBuilder().path(session.getSessionId()).build();
+		Events.broadcast(new SessionEvent(session.getSessionId(), EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -111,7 +111,7 @@ public class SessionResource {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		session.setId(id);
+		session.setSessionId(id);
 		Hibernate.beginTransaction();
 		if (Hibernate.session().get(Session.class, id) == null) {
 			// transaction will commit, but we haven't changed anything

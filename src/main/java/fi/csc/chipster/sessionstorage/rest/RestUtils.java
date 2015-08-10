@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import fi.csc.chipster.sessionstorage.model.Dataset;
+import fi.csc.chipster.sessionstorage.model.File;
 import fi.csc.chipster.sessionstorage.model.Job;
 import fi.csc.chipster.sessionstorage.model.Parameter;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -54,9 +55,11 @@ public class RestUtils {
     public static Session getRandomSession() {
     	
     	Session s = new Session();    	    	
-    	s.setId(createId());
-    	s.setName("session" + s.getId());
+    	s.setSessionId(createId());
+    	s.setName("session" + s.getSessionId());
     	s.setOwner("me");
+    	s.setCreated(new Date());
+    	s.setAccessed(new Date());
     	
     	return s;
     }
@@ -64,15 +67,17 @@ public class RestUtils {
     public static Dataset getRandomDataset() {
     	
     	Dataset d = new Dataset();
-    	d.setAccessed(new Date());
-    	d.setChecksum("xyz");
-    	d.setCreated(new Date());
-    	d.setId(createId());
-    	d.setName("dataset" + d.getId());
-    	d.setSize(0);
+    	d.setDatasetId(createId());
+    	d.setName("dataset" + d.getDatasetId());
     	d.setSourceJob("j" + RestUtils.createId());
     	d.setX(100);
     	d.setY(100);
+    	
+    	File f = new File();
+    	f.setFileId(createId());
+    	f.setChecksum("xyz");
+    	f.setSize(0);
+    	d.setFile(f);
     	
     	return d;
     }
@@ -97,7 +102,7 @@ public class RestUtils {
 
 	private static Parameter getRandomParameter() {
 		Parameter p = new Parameter();
-		p.setId(createId());
+		p.setParameterId(createId());
 		p.setDisplayName("Tool parameter");
 		p.setDescription("Desckription of the tool parameter");
 		p.setType(ParameterType.STRING);

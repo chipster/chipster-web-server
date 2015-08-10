@@ -5,22 +5,22 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement // REST
 public class SessionEvent {
 
-	private String id;
+	private String sessionEventId;
 	private EventType type;
 	
 	public enum EventType { CREATE, UPDATE, DELETE }
 
 	public SessionEvent(String id, EventType type) {
-		this.id = id;
+		this.sessionEventId = id;
 		this.type = type;
 	}
 
-	public String getId() {
-		return id;
+	public String getSessionEventId() {
+		return sessionEventId;
 	}
 
-	public void setId(String id) {
-		this.id = id;
+	public void setSessionEventId(String id) {
+		this.sessionEventId = id;
 	}
 
 	public EventType getType() {

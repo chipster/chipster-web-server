@@ -1,34 +1,39 @@
 package fi.csc.chipster.sessionstorage.model;
 
-import java.util.Date;
-
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
 @XmlRootElement // rest
 public class Dataset {
 
 	@Id // db
-	private String id;
+	private String datasetId;
 	private String name;
-	private long size;
-	private String checksum;
 	private Integer x;
 	private Integer y;
-	private Date created;
-	private Date accessed;
 	private String sourceJob;
+	
+	@ManyToOne(cascade=CascadeType.ALL)
+	@JoinColumn(name="fileId")
+	// embed fields of the File object directly 
+	@JsonUnwrapped // rest
+	private File file;
 	
 	public Dataset() {} // JAXB needs this
 
-	public String getId() {
-		return id;
+	public String getDatasetId() {
+		return datasetId;
 	}
 
-	public void setId(String id) {
-		this.id = id;
+	public void setDatasetId(String id) {
+		this.datasetId = id;
 	}
 
 	public String getName() {
@@ -37,22 +42,6 @@ public class Dataset {
 
 	public void setName(String name) {
 		this.name = name;
-	}
-
-	public long getSize() {
-		return size;
-	}
-
-	public void setSize(long size) {
-		this.size = size;
-	}
-
-	public String getChecksum() {
-		return checksum;
-	}
-
-	public void setChecksum(String checksum) {
-		this.checksum = checksum;
 	}
 
 	public Integer getX() {
@@ -71,27 +60,19 @@ public class Dataset {
 		this.y = y;
 	}
 
-	public Date getCreated() {
-		return created;
-	}
-
-	public void setCreated(Date created) {
-		this.created = created;
-	}
-
-	public Date getAccessed() {
-		return accessed;
-	}
-
-	public void setAccessed(Date accessed) {
-		this.accessed = accessed;
-	}
-
 	public String getSourceJob() {
 		return sourceJob;
 	}
 
 	public void setSourceJob(String sourceJob) {
 		this.sourceJob = sourceJob;
+	}
+
+	public File getFile() {
+		return file;
+	}
+
+	public void setFile(File file) {
+		this.file = file;
 	}
 }

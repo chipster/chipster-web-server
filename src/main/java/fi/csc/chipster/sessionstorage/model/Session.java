@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessionstorage.model;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import javax.persistence.CascadeType;
@@ -17,10 +18,12 @@ public class Session {
 	public Session() {} // JAXB needs this
 	
 	@Id // db
-	private String id;
+	private String sessionId;
 	private String name;
 	private String owner;
 	private String notes;
+	private Date created;
+	private Date accessed;
 	
 	/* - cascade updates so that adding an object to the collection
 	 * persists also the object itself 
@@ -59,12 +62,12 @@ public class Session {
 		this.datasets = datasets;
 	}
 	
-	public String getId() {
-		return id;
+	public String getSessionId() {
+		return sessionId;
 	}
 
-	public void setId(String id) {
-		this.id = id;
+	public void setSessionId(String id) {
+		this.sessionId = id;
 	}
 
 	public String getName() {
@@ -89,5 +92,21 @@ public class Session {
 
 	public void setNotes(String notes) {
 		this.notes = notes;
+	}
+
+	public Date getCreated() {
+		return created;
+	}
+
+	public void setCreated(Date created) {
+		this.created = created;
+	}
+
+	public Date getAccessed() {
+		return accessed;
+	}
+
+	public void setAccessed(Date accessed) {
+		this.accessed = accessed;
 	}
 }

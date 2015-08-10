@@ -9,17 +9,17 @@ import fi.csc.microarray.description.SADLSyntax.ParameterType;
 public class Parameter {
 
 	@Id // db
-	private String id;
+	private String parameterId;
 	private String displayName;
 	private String description;
 	private ParameterType type;
 	private String value;
 	
-	public String getId() {
-		return id;
+	public String getParameterId() {
+		return parameterId;
 	}
-	public void setId(String id) {
-		this.id = id;
+	public void setParameterId(String parameterId) {
+		this.parameterId = parameterId;
 	}
 	public String getDisplayName() {
 		return displayName;

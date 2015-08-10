@@ -79,21 +79,21 @@ public class DatasetResource {
     public Response post(Dataset dataset, @Context UriInfo uriInfo) {	
     	        	
 		dataset = RestUtils.getRandomDataset();
-		dataset.setId(null);
+		dataset.setDatasetId(null);
 		
-		if (dataset.getId() != null) {
+		if (dataset.getDatasetId() != null) {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 
 		
-		dataset.setId(RestUtils.createId());
+		dataset.setDatasetId(RestUtils.createId());
 
 		Hibernate.beginTransaction();	
 		getSession().getDatasets().add(dataset);
 		Hibernate.commit();
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(dataset.getId()).build();
-		Events.broadcast(new SessionEvent(dataset.getId(), EventType.CREATE));
+		URI uri = uriInfo.getAbsolutePathBuilder().path(dataset.getDatasetId()).build();
+		Events.broadcast(new SessionEvent(dataset.getDatasetId(), EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -104,7 +104,7 @@ public class DatasetResource {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		dataset.setId(id);
+		dataset.setDatasetId(id);
 
 		Hibernate.beginTransaction();
 		if (Hibernate.session().get(Dataset.class, id) == null) {

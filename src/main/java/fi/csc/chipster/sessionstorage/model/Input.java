@@ -7,17 +7,17 @@ import javax.persistence.Id;
 public class Input {
 	
 	@Id
-	private String id;
+	private String inputId;
 	private String displayName;
 	private String description;
 	private String type;
 	private String datasetId;
 		
-	public String getId() {
-		return id;
+	public String getInputId() {
+		return inputId;
 	}
-	public void setId(String id) {
-		this.id = id;
+	public void setInputId(String id) {
+		this.inputId = id;
 	}
 	public String getDisplayName() {
 		return displayName;
