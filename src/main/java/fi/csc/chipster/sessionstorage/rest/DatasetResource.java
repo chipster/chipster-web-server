@@ -36,13 +36,16 @@ public class DatasetResource {
 	private static Logger logger = Logger.getLogger(DatasetResource.class.getName());
 	
 	final private String sessionId;
+	final private String username;
 	
 	public DatasetResource() {
 		sessionId = null;
+		username = null;
 	}
 	
-	public DatasetResource(String id) {
-		sessionId = id;
+	public DatasetResource(String id, String username) {
+		this.sessionId = id;
+		this.username = username;
 	}
 	
     // CRUD
@@ -51,6 +54,7 @@ public class DatasetResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response get(@PathParam("id") String id) {
     	Hibernate.beginTransaction();
+    	SessionResource.checkReadAuthorization(username, sessionId);
     	Dataset result = (Dataset) Hibernate.session().get(Dataset.class, id);
     	Hibernate.commit();
     	
@@ -65,7 +69,8 @@ public class DatasetResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAll() {
 
-		Hibernate.beginTransaction();				
+		Hibernate.beginTransaction();
+		SessionResource.checkReadAuthorization(username, sessionId);
 		List<Dataset> result = getSession().getDatasets();
 		result.size(); // trigger lazy loading before the transaction is closed
 		Hibernate.commit();
@@ -88,7 +93,8 @@ public class DatasetResource {
 		
 		dataset.setDatasetId(RestUtils.createId());
 
-		Hibernate.beginTransaction();	
+		Hibernate.beginTransaction();
+		SessionResource.checkWriteAuthorization(username, sessionId);
 		getSession().getDatasets().add(dataset);
 		Hibernate.commit();
 
@@ -112,6 +118,7 @@ public class DatasetResource {
 			return Response.status(Status.NOT_FOUND)
 					.entity("dataset doesn't exist").build();
 		}
+		SessionResource.checkWriteAuthorization(username, sessionId);
 		Hibernate.session().merge(dataset);
 		Hibernate.commit();
 
@@ -127,6 +134,7 @@ public class DatasetResource {
 		try {
 			// remove from session, hibernate will take care of the actual dataset table
 			Hibernate.beginTransaction();
+			SessionResource.checkWriteAuthorization(username, sessionId);
 			Dataset dataset = (Dataset) Hibernate.session().load(Dataset.class, datasetId);
 			getSession().getDatasets().remove(dataset);
 			Hibernate.commit();

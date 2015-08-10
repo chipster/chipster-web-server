@@ -36,13 +36,16 @@ public class JobResource {
 	private static Logger logger = Logger.getLogger(JobResource.class.getName());
 	
 	final private String sessionId;
+	final private String username;
 	
 	public JobResource() {
 		sessionId = null;
+		username = null;
 	}
 	
-	public JobResource(String id) {
-		sessionId = id;
+	public JobResource(String id, String username) {
+		this.sessionId = id;
+		this.username = username;
 	}
 	
     // CRUD
@@ -51,6 +54,7 @@ public class JobResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response get(@PathParam("id") String id) {
     	Hibernate.beginTransaction();
+    	SessionResource.checkReadAuthorization(username, sessionId);
     	Job result = (Job) Hibernate.session().get(Job.class, id);
     	Hibernate.commit();
     	
@@ -65,7 +69,8 @@ public class JobResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAll() {
 
-		Hibernate.beginTransaction();				
+		Hibernate.beginTransaction();
+		SessionResource.checkReadAuthorization(username, sessionId);
 		List<Job> result = getSession().getJobs();
 		result.size(); // trigger lazy loading before the transaction is closed
 		Hibernate.commit();
@@ -87,7 +92,8 @@ public class JobResource {
 		
 		job.setJobId(RestUtils.createId());
 
-		Hibernate.beginTransaction();	
+		Hibernate.beginTransaction();
+		SessionResource.checkWriteAuthorization(username, sessionId);
 		getSession().getJobs().add(job);
 		Hibernate.commit();
 
@@ -106,6 +112,7 @@ public class JobResource {
 		job.setJobId(id);
 
 		Hibernate.beginTransaction();
+		SessionResource.checkWriteAuthorization(username, sessionId);
 		if (Hibernate.session().get(Job.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
@@ -126,6 +133,7 @@ public class JobResource {
 		try {
 			// remove from session, hibernate will take care of the actual job table
 			Hibernate.beginTransaction();
+			SessionResource.checkWriteAuthorization(username, sessionId);
 			Job job = (Job) Hibernate.session().load(Job.class, jobId);
 			getSession().getJobs().remove(job);
 			Hibernate.commit();

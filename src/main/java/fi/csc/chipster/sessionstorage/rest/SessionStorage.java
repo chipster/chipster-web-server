@@ -15,6 +15,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.File;
 import fi.csc.chipster.sessionstorage.model.Job;
@@ -53,7 +54,8 @@ public class SessionStorage {
     			Job.class,
     			Parameter.class,
     			Input.class,
-    			File.class
+    			File.class,
+    			Authorization.class,
     	});
     	
     	// init Hibernate
