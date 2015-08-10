@@ -25,7 +25,7 @@ import javax.ws.rs.core.UriInfo;
 import org.hibernate.ObjectNotFoundException;
 
 import fi.csc.chipster.sessionstorage.model.Dataset;
-import fi.csc.chipster.sessionstorage.model.SessionDatasets;
+import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
 
@@ -66,7 +66,8 @@ public class DatasetResource {
     public Response getAll() {
 
 		Hibernate.beginTransaction();				
-		List<Dataset> result = getSession().getDatasets();		
+		List<Dataset> result = getSession().getDatasets();
+		result.size(); // trigger lazy loading before the transaction is closed
 		Hibernate.commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
@@ -142,8 +143,8 @@ public class DatasetResource {
 	 * 
 	 * @return
 	 */
-	private SessionDatasets getSession() {
-		return (SessionDatasets) Hibernate.session().load(SessionDatasets.class, sessionId);
+	private Session getSession() {
+		return (Session) Hibernate.session().load(Session.class, sessionId);
 	}
 	
     /**

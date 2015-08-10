@@ -16,8 +16,8 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.sessionstorage.model.Dataset;
+import fi.csc.chipster.sessionstorage.model.Job;
 import fi.csc.chipster.sessionstorage.model.Session;
-import fi.csc.chipster.sessionstorage.model.SessionDatasets;
 
 /**
  * Main class.
@@ -47,8 +47,8 @@ public class Main {
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Session.class,
     			Dataset.class,
-    			SessionDatasets.class,
-//    			Job.class,
+//    			SessionDatasets.class,
+    			Job.class,
 //    			SessionJobs.class,
     	});
     	

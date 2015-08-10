@@ -26,7 +26,6 @@ import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.SseFeature;
 
 import fi.csc.chipster.sessionstorage.model.Session;
-import fi.csc.chipster.sessionstorage.model.SessionDatasets;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
 
@@ -140,9 +139,9 @@ public class SessionResource {
 //				+ "(select jobId in Session_Job where sessionId=:sessionId)").setParameter("sessionId", id);
 //		Hibernate.session().createQuery("delete from Session_Dataset where sessionid = :sessionid").setParameter("sessionId", id);
 //		Hibernate.session().createQuery("delete from Session_Job where sessionid = :sessionid").setParameter("sessionId", id);		
-		Hibernate.session().delete(Hibernate.session().load(SessionDatasets.class, id));
+//		Hibernate.session().delete(Hibernate.session().load(SessionDatasets.class, id));
 //		Hibernate.session().delete(Hibernate.session().load(SessionJobs.class, id));
-//		Hibernate.session().delete(Hibernate.session().load(Session.class, id));
+		Hibernate.session().delete(Hibernate.session().load(Session.class, id));
 		Hibernate.commit();
 
 		Events.broadcast(new SessionEvent(id, EventType.DELETE));

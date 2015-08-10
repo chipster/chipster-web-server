@@ -25,8 +25,8 @@ import javax.ws.rs.core.UriInfo;
 import org.hibernate.ObjectNotFoundException;
 
 import fi.csc.chipster.sessionstorage.model.Job;
+import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
-import fi.csc.chipster.sessionstorage.model.SessionJobs;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
 
 @Singleton
@@ -66,7 +66,8 @@ public class JobResource {
     public Response getAll() {
 
 		Hibernate.beginTransaction();				
-		List<Job> result = getSession().getJobs();		
+		List<Job> result = getSession().getJobs();
+		result.size(); // trigger lazy loading before the transaction is closed
 		Hibernate.commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
@@ -77,11 +78,12 @@ public class JobResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response post(Job job, @Context UriInfo uriInfo) {	
     	        	
+		job = RestUtils.getRandomJob();
+		job.setJobId(null);
+		
 		if (job.getJobId() != null) {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
-
-		job = RestUtils.getRandomJob();
 		
 		job.setJobId(RestUtils.createId());
 
@@ -140,8 +142,8 @@ public class JobResource {
 	 * 
 	 * @return
 	 */
-	private SessionJobs getSession() {
-		return (SessionJobs) Hibernate.session().load(SessionJobs.class, sessionId);
+	private Session getSession() {
+		return (Session) Hibernate.session().load(Session.class, sessionId);
 	}
 	
     /**
