@@ -3,18 +3,16 @@ package fi.csc.chipster.sessionstorage.model;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
-import fi.csc.microarray.description.SADLSyntax.ParameterType;
-
-@Entity // db
-public class Parameter {
-
-	@Id // db
+@Entity
+public class Input {
+	
+	@Id
 	private String id;
 	private String displayName;
 	private String description;
-	private ParameterType type;
-	private String value;
-	
+	private String type;
+	private String datasetId;
+		
 	public String getId() {
 		return id;
 	}
@@ -33,16 +31,16 @@ public class Parameter {
 	public void setDescription(String description) {
 		this.description = description;
 	}
-	public ParameterType getType() {
+	public String getType() {
 		return type;
 	}
-	public void setType(ParameterType type) {
+	public void setType(String type) {
 		this.type = type;
 	}
-	public String getValue() {
-		return value;
+	public String getDatasetId() {
+		return datasetId;
 	}
-	public void setValue(String value) {
-		this.value = value;
+	public void setDatasetId(String datasetId) {
+		this.datasetId = datasetId;
 	}	
 }

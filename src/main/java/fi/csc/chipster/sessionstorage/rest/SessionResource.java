@@ -35,7 +35,7 @@ public class SessionResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(SessionResource.class.getName());
 	
-	// sub-resource locator
+	// sub-resource locators
 	@Path("{id}/datasets")
 	public Object getDatasetResource(@PathParam("id") String id) {
 		return new DatasetResource(id);
@@ -131,16 +131,7 @@ public class SessionResource {
     public Response delete(@PathParam("id") String id) {
 
 		Hibernate.beginTransaction();
-//		Hibernate.session().createQuery(
-//				"delete from Dataset where id in"
-//				+ "(select datasetId in Session_Dataset where sessionId=:sessionId)").setParameter("sessionId", id);
-//		Hibernate.session().createQuery(
-//				"delete from Job where jobId in"
-//				+ "(select jobId in Session_Job where sessionId=:sessionId)").setParameter("sessionId", id);
-//		Hibernate.session().createQuery("delete from Session_Dataset where sessionid = :sessionid").setParameter("sessionId", id);
-//		Hibernate.session().createQuery("delete from Session_Job where sessionid = :sessionid").setParameter("sessionId", id);		
-//		Hibernate.session().delete(Hibernate.session().load(SessionDatasets.class, id));
-//		Hibernate.session().delete(Hibernate.session().load(SessionJobs.class, id));
+		// this will delete also the referenced datasets and jobs
 		Hibernate.session().delete(Hibernate.session().load(Session.class, id));
 		Hibernate.commit();
 

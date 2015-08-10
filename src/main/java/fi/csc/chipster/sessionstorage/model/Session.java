@@ -7,8 +7,7 @@ import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 @Entity // db
@@ -26,14 +25,18 @@ public class Session {
 	/* - cascade updates so that adding an object to the collection
 	 * persists also the object itself 
 	 */
-	@ManyToMany(cascade=CascadeType.ALL)
-	// rename Datasets_id to Dataset_id
-	@JoinTable(inverseJoinColumns=@JoinColumn(name="Dataset_id"))
+//	@ManyToMany(cascade=CascadeType.ALL)
+//	// rename Datasets_id to Dataset_id
+//	@JoinTable(inverseJoinColumns=@JoinColumn(name="Dataset_id"))
+	@OneToMany(cascade=CascadeType.ALL)
+	@JoinColumn(name="sessionId")
 	private List<Dataset> datasets = new ArrayList<>();
 	
-	@ManyToMany(cascade=CascadeType.ALL)
-	// rename Jobs_id to Job_id
-	@JoinTable(inverseJoinColumns=@JoinColumn(name="Job_id"))
+//	@ManyToMany(cascade=CascadeType.ALL)
+//	// rename Jobs_id to Job_id
+//	@JoinTable(inverseJoinColumns=@JoinColumn(name="Job_id"))
+	@OneToMany(cascade=CascadeType.ALL)
+	@JoinColumn(name="sessionId")
 	private List<Job> jobs = new ArrayList<>();
 	
 	// not needed in session JSON, because there is a separate endpoint for this

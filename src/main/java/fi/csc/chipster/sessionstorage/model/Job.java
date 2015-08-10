@@ -1,25 +1,40 @@
 package fi.csc.chipster.sessionstorage.model;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import fi.csc.microarray.messaging.JobState;
 
 @Entity // db
 @XmlRootElement // rest
 public class Job {
+	 
 	@Id // db
 	private String jobId;
 	private String toolId;
+	private JobState state;
 	private String toolCategory;
 	private String toolName;
 	private String toolDescription;
 	private Date startTime;
 	private Date endTime;
 	
-	//private Map<String, String> parameters = new HashMap<>(); // parameter id, parameter value
-	//private Map<String, String> inputs = new HashMap<>(); // input id, input dataset id
+	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@JoinColumn(name="jobId")
+	private List<Parameter> parameters = new ArrayList<>();
+	
+	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@JoinColumn(name="jobId")
+	private List<Input> inputs = new ArrayList<>();
 	
 	public String getJobId() {
 		return jobId;
@@ -62,5 +77,17 @@ public class Job {
 	}
 	public void setEndTime(Date endTime) {
 		this.endTime = endTime;
+	}
+	public JobState getState() {
+		return state;
+	}
+	public void setState(JobState state) {
+		this.state = state;
+	}
+	public List<Parameter> getParameters() {
+		return parameters;
+	}
+	public void setParameters(List<Parameter> parameters) {
+		this.parameters = parameters;
 	}
 }

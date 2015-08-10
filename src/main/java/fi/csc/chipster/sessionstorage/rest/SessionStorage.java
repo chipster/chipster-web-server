@@ -17,15 +17,17 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.Job;
+import fi.csc.chipster.sessionstorage.model.Input;
+import fi.csc.chipster.sessionstorage.model.Parameter;
 import fi.csc.chipster.sessionstorage.model.Session;
 
 /**
  * Main class.
  *
  */
-public class Main {
+public class SessionStorage {
 	
-	private static Logger logger = Logger.getLogger(Main.class.getName());
+	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
     public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
@@ -47,9 +49,9 @@ public class Main {
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Session.class,
     			Dataset.class,
-//    			SessionDatasets.class,
     			Job.class,
-//    			SessionJobs.class,
+    			Parameter.class,
+    			Input.class,
     	});
     	
     	// init Hibernate

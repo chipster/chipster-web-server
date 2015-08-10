@@ -12,6 +12,6 @@ public class Tool {
 	public String helpURL;
 	
 	public List<Parameter> parameters;
-	public List<ToolInput> inputs;
+	public List<Input> inputs;
 	
 }

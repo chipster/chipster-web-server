@@ -3,8 +3,9 @@ package fi.csc.chipster.sessionstorage.rest;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.Random;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -13,7 +14,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.Job;
+import fi.csc.chipster.sessionstorage.model.Parameter;
 import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.microarray.description.SADLSyntax.ParameterType;
+import fi.csc.microarray.messaging.JobState;
 
 public class RestUtils {
 	/**
@@ -43,25 +47,15 @@ public class RestUtils {
 	
 
 	public static String createId() {
-		// FIXME replace with UUID
-//		Random rand = new Random();
-//		return "" + rand.nextInt();
+		// FIXME secure UUID generation
 		return UUID.randomUUID().toString();
 	}
 	
     public static Session getRandomSession() {
-    	Random rand = new Random();
     	
-    	Session s = new Session();
-//    	List<Dataset> datasets = new ArrayList<>();
-//    	datasets.add(getRandomDataset());
-//    	datasets.add(getRandomDataset());
-//    	s.setDatasets(datasets);    	
-    	
-    	//s.setDatasets(Arrays.asList(new String[] { "d" + rand.nextInt(99), "d" + rand.nextInt(99), "d" + rand.nextInt(99) }));
-    	s.setId("s" + rand.nextInt());
-    	//s.setJobs(Arrays.asList(new String[] { "j" + rand.nextInt(99), "j" + rand.nextInt(99), "j" + rand.nextInt(99) }));
-    	s.setName("dataset" + s.getId());
+    	Session s = new Session();    	    	
+    	s.setId(createId());
+    	s.setName("session" + s.getId());
     	s.setOwner("me");
     	
     	return s;
@@ -73,7 +67,7 @@ public class RestUtils {
     	d.setAccessed(new Date());
     	d.setChecksum("xyz");
     	d.setCreated(new Date());
-    	d.setId("d" + RestUtils.createId());
+    	d.setId(createId());
     	d.setName("dataset" + d.getId());
     	d.setSize(0);
     	d.setSourceJob("j" + RestUtils.createId());
@@ -86,12 +80,28 @@ public class RestUtils {
 	public static Job getRandomJob() {
 		Job j = new Job();
 		j.setEndTime(new Date());
-		j.setJobId("j" + createId());
+		j.setJobId(createId());
+		j.setState(JobState.COMPLETED);
 		j.setStartTime(new Date());
 		j.setToolCategory("utilities");
 		j.setToolDescription("very important tool");
 		j.setToolId("UtilTool.py");
 		j.setToolName("Utility tool");
+		
+		List<Parameter> p = new ArrayList<>();
+		p.add(getRandomParameter());
+		p.add(getRandomParameter());
+		j.setParameters(p);
 		return j;
+	}
+
+	private static Parameter getRandomParameter() {
+		Parameter p = new Parameter();
+		p.setId(createId());
+		p.setDisplayName("Tool parameter");
+		p.setDescription("Desckription of the tool parameter");
+		p.setType(ParameterType.STRING);
+		p.setValue("Parameter value");
+		return p;
 	}
 }

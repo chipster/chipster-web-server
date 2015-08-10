@@ -13,7 +13,7 @@ import javax.ws.rs.core.Response;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 
-import fi.csc.chipster.sessionstorage.rest.Main;
+import fi.csc.chipster.sessionstorage.rest.SessionStorage;
 
 public class TestServer {
 	
@@ -27,14 +27,14 @@ public class TestServer {
 		// create the client
 		Client c = ClientBuilder.newClient();
 
-		target = c.target(Main.BASE_URI);
+		target = c.target(SessionStorage.BASE_URI);
 				
 		try {
 			// check if the server is already running
-			target.path(Main.BASE_URI).request().get(Response.class);
+			target.path(SessionStorage.BASE_URI).request().get(Response.class);
 		} catch (ProcessingException e) {
 			// start the server
-			server = Main.startServer();
+			server = SessionStorage.startServer();
 		}
 
 		return target;
