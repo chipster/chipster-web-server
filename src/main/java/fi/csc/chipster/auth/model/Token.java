@@ -6,8 +6,6 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import fi.csc.chipster.auth.model.Credentials.Role;
-
 @Entity // db
 @XmlRootElement // json
 public class Token {

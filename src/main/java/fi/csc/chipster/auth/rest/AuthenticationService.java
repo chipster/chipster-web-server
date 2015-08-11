@@ -14,6 +14,7 @@ import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Hibernate;
@@ -58,7 +59,9 @@ public class AuthenticationService {
     			RollbackingExceptionMapper.class.getPackage().getName() };    	
     	
     	logger.info("scanning JAX-RS resources from " + Strings.delimit(Arrays.asList(jaxPackages), ", "));
-        final ResourceConfig rc = new ResourceConfig().packages(jaxPackages);
+        final ResourceConfig rc = new ResourceConfig()
+        	.packages(jaxPackages)
+        	.register(RolesAllowedDynamicFeature.class);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI

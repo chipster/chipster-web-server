@@ -7,11 +7,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -20,16 +21,15 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import fi.csc.chipster.auth.model.Credentials;
-import fi.csc.chipster.auth.model.Credentials.Hash;
-import fi.csc.chipster.auth.model.Credentials.Role;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.provider.NotAuthorizedException;
 
 @Path("tokens")
 public class AuthenticationResource {
-	
+		
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(AuthenticationResource.class.getName());
 		
@@ -45,49 +45,45 @@ public class AuthenticationResource {
 //    }
 	
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
+    @RolesAllowed(Role.CLIENT_CONSTANT)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response postCredentials(Credentials credentials) throws IOException {
+    public Response postCredentials(@HeaderParam("authorization") String authHeader) throws IOException {
     	
-    	//curl -i -H "Content-Type: application/json" -X POST http://localhost:8081/auth/tokens -d '{"username":"client","password":"clientpassword","role":"CLIENT","hashFunction":"PLAIN_TEXT"}'
+    	/* Usually Basic auth would be implemented in a ContainerRequestFilter 
+    	 * to protect all the resources. Here Basic auth is used only for this 
+    	 * one resource, so we can implement it directly in here. 
+    	 */
+    	
+    	// curl -i -H "Content-Type: application/json" --user client:clientpassword -X POST http://localhost:8081/auth/tokens
+    	
+    	if (authHeader == null) {
+    		throw new NotAuthorizedException("no authorization header");
+    	}
+    	
+    	String[] credentials = BasicAuth.decode(authHeader);
+    	String username = credentials[0];
+    	String password = credentials[1];
     	    
+    	if (credentials == null || credentials.length != 2) {
+    		throw new NotAuthorizedException("incorrect format for authorization header");
+    	}
+    	if (username == null || password == null) {
+    		throw new NotAuthorizedException("username or passwod is null");
+    	}
+    	
 		//TODO get from JAAS or file or something
-		Map<String, String> clients = new HashMap<>();
-		clients.put("client", "clientpassword");
-		Map<String, String> sessionStorages = new HashMap<>();
-		sessionStorages.put("sessionStorage", "sessionStoragePassword");
-		
-		if (credentials == null) {
-			throw new NotAuthorizedException("username, passwod or role is null");
-		}
-		
-		if (credentials.getHashFunction() != Hash.PLAIN_TEXT) {
-			throw new NotAuthorizedException("only plain paswords supported");
-		}
-		String username = credentials.getUsername();
-		String password = credentials.getPassword();
-		Role role = credentials.getRole();
-		
-		if (username == null || password == null || role == null) {
-			throw new NotAuthorizedException("username, passwod or role is null");
-		}
-		
-		if (Role.CLIENT == role) {
-			if (clients.containsKey(username) && clients.get(username).equals(password)) {
-				return Response.ok(createToken(username, role)).build();
-			}
-		}
-		
-		if (Role.SESSION_STORAGE == role) {
-			if (sessionStorages.containsKey(username) && sessionStorages.get(username).equals(password)) {
-				return Response.ok(createToken(username, role)).build();
-			}
+		Map<String, String> users = new HashMap<>();
+		users.put("client", "clientpassword");
+		users.put("sessionStorage", "sessionStoragePassword");
+								
+		if (users.containsKey(username) && users.get(username).equals(password)) {
+			return Response.ok(createToken(username)).build();
 		}
 		
 		throw new ForbiddenException();
     }
         
-	private Token createToken(String username, Role role) {
+	private Token createToken(String username) {
 		
 		cleanUp();
 		
@@ -97,7 +93,7 @@ public class AuthenticationResource {
 		LocalDateTime valid = LocalDateTime.now().minusMonths(1);
 
 		//Token token = new Token(username, role, tokenString, date);
-		Token token = new Token(username, role, tokenString, valid);
+		Token token = new Token(username, Role.CLIENT, tokenString, valid);
 		Hibernate.beginTransaction();
 		Hibernate.session().save(token);
 		Hibernate.commit();
@@ -121,7 +117,8 @@ public class AuthenticationResource {
 
 	@GET
 	@Path("{token}")
-	//@Consumes(MediaType.APPLICATION_JSON)
+	//@Consumes(MediaTye.APPLICATION_JSON)
+	@RolesAllowed(Role.SESSION_STORAGE_CONSTANT)
     @Produces(MediaType.APPLICATION_JSON)
     //public Response checkToken(Token requestToken) {
 	public Response checkToken(@PathParam("token") String token) {
