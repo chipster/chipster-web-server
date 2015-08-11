@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest;
+package fi.csc.chipster.auth.rest;
 
 import java.io.IOException;
 import java.net.URI;
@@ -15,26 +15,21 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.provider.RollbackingExceptionMapper;
-import fi.csc.chipster.sessionstorage.model.Authorization;
-import fi.csc.chipster.sessionstorage.model.Dataset;
-import fi.csc.chipster.sessionstorage.model.File;
-import fi.csc.chipster.sessionstorage.model.Input;
-import fi.csc.chipster.sessionstorage.model.Job;
-import fi.csc.chipster.sessionstorage.model.Parameter;
-import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.microarray.util.Strings;
 
 /**
  * Main class.
  *
  */
-public class SessionStorage {
+public class AuthenticationService {
 	
-	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
+	private static Logger logger = Logger.getLogger(AuthenticationService.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
+    public static final String BASE_URI = "http://localhost:8081/auth/";
 
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
@@ -51,24 +46,18 @@ public class SessionStorage {
     	l.addHandler(ch);
     	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-    			Session.class,
-    			Dataset.class,
-    			Job.class,
-    			Parameter.class,
-    			Input.class,
-    			File.class,
-    			Authorization.class,
+    			Token.class,
     	});
     	
     	// init Hibernate
-    	Hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
+    	Hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
         // create a resource config that scans for JAX-RS resources and providers
     	String[] jaxPackages = new String [] {
-    			SessionResource.class.getPackage().getName(),
-    			RollbackingExceptionMapper.class.getPackage().getName() };
+    			AuthenticationResource.class.getPackage().getName(),
+    			RollbackingExceptionMapper.class.getPackage().getName() };    	
     	
-    	logger.info("scanning JAX-RS resources from " + jaxPackages);
+    	logger.info("scanning JAX-RS resources from " + Strings.delimit(Arrays.asList(jaxPackages), ", "));
         final ResourceConfig rc = new ResourceConfig().packages(jaxPackages);
 
         // create and start a new instance of grizzly http server

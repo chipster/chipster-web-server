@@ -1,8 +1,10 @@
-package fi.csc.chipster.sessionstorage.rest;
+package fi.csc.chipster.rest;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -46,6 +48,14 @@ public class RestUtils {
 		return writer.toString();        
 	}
 	
+	public static Date toDate(LocalDateTime dateTime) {
+		return Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+	}
+	
+	public static LocalDateTime toLocalDateTime(Date date) {
+		return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+	}
+	
 
 	public static String createId() {
 		// FIXME secure UUID generation
@@ -58,8 +68,8 @@ public class RestUtils {
     	s.setSessionId(createId());
     	s.setName("session" + s.getSessionId());
     	s.setOwner("me");
-    	s.setCreated(new Date());
-    	s.setAccessed(new Date());
+    	s.setCreated(LocalDateTime.now());
+    	s.setAccessed(LocalDateTime.now());
     	
     	return s;
     }

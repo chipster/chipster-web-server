@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest;
+package fi.csc.chipster.rest;
 
 import java.util.List;
 import java.util.logging.Level;
@@ -15,7 +15,7 @@ public class Hibernate {
 	
     private static SessionFactory sessionFactory;
 
-    public static void buildSessionFactory(List<Class<?>> hibernateClasses) {
+    public static void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
     	
     	
     	try {    		
@@ -34,7 +34,7 @@ public class Hibernate {
     		// Not a real server
 
     		dbDriver = "org.h2.Driver";
-    		dbUrl = "jdbc:h2:database/chipster-session-storage";
+    		dbUrl = "jdbc:h2:database/" + dbName;
     		dbUsername = "sa";
     		dbPassword = "";
 
@@ -90,7 +90,7 @@ public class Hibernate {
 	}
 
 	public static void rollbackIfActive() {
-		if (session().getTransaction().isActive()) {
+		if (session().getTransaction().getStatus().canRollback()) {
 			session().getTransaction().rollback();
 		}		
 	}

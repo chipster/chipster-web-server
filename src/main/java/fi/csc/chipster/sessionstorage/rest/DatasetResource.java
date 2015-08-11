@@ -24,6 +24,8 @@ import javax.ws.rs.core.UriInfo;
 
 import org.hibernate.ObjectNotFoundException;
 
+import fi.csc.chipster.rest.Hibernate;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
@@ -76,7 +78,7 @@ public class DatasetResource {
 		Hibernate.commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
-		return Response.ok(toJaxbList(result)).build();
+		return Response.ok(toJaxbList(result)).build();		
     }	
 
 	@POST

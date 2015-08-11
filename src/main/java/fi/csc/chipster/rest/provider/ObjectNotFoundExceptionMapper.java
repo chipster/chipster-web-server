@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest.error;
+package fi.csc.chipster.rest.provider;
 
 import java.util.logging.Logger;
 
@@ -9,7 +9,7 @@ import javax.ws.rs.ext.Provider;
 
 import org.hibernate.ObjectNotFoundException;
 
-import fi.csc.chipster.sessionstorage.rest.Hibernate;
+import fi.csc.chipster.rest.Hibernate;
 
 /**
  * Don't log client errors
@@ -26,6 +26,6 @@ public class ObjectNotFoundExceptionMapper implements ExceptionMapper<ObjectNotF
 	public Response toResponse(ObjectNotFoundException e) {
 		// client error, no need to log
 		Hibernate.rollbackIfActive();
-		return Response.status(Status.NOT_FOUND).build();
+		return Response.status(Status.NOT_FOUND).entity(e.getMessage()).build();
 	}
 }

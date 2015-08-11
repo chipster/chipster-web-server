@@ -11,6 +11,7 @@ import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.OutboundEvent;
 import org.glassfish.jersey.media.sse.SseBroadcaster;
 
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 
 @Singleton

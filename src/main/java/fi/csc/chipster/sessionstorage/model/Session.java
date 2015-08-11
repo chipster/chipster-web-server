@@ -1,7 +1,7 @@
 package fi.csc.chipster.sessionstorage.model;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import javax.persistence.CascadeType;
@@ -22,8 +22,8 @@ public class Session {
 	private String name;
 	private String owner;
 	private String notes;
-	private Date created;
-	private Date accessed;
+	private LocalDateTime created;
+	private LocalDateTime accessed;
 	
 	/* - cascade updates so that adding an object to the collection
 	 * persists also the object itself 
@@ -94,19 +94,19 @@ public class Session {
 		this.notes = notes;
 	}
 
-	public Date getCreated() {
+	public LocalDateTime getCreated() {
 		return created;
 	}
 
-	public void setCreated(Date created) {
+	public void setCreated(LocalDateTime created) {
 		this.created = created;
 	}
 
-	public Date getAccessed() {
+	public LocalDateTime getAccessed() {
 		return accessed;
 	}
 
-	public void setAccessed(Date accessed) {
+	public void setAccessed(LocalDateTime accessed) {
 		this.accessed = accessed;
 	}
 }

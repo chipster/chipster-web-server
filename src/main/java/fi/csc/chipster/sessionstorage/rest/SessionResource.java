@@ -29,6 +29,8 @@ import javax.ws.rs.core.UriInfo;
 import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.SseFeature;
 
+import fi.csc.chipster.rest.Hibernate;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;

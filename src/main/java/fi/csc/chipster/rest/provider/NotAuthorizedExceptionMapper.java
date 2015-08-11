@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest.error;
+package fi.csc.chipster.rest.provider;
 
 import java.util.logging.Logger;
 
@@ -8,7 +8,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
-import fi.csc.chipster.sessionstorage.rest.Hibernate;
+import fi.csc.chipster.rest.Hibernate;
 
 /**
  * Don't log client errors
@@ -25,6 +25,6 @@ public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthoriz
 	public Response toResponse(NotAuthorizedException e) {
 		// client error, no need to log
 		Hibernate.rollbackIfActive();
-		return Response.status(Status.UNAUTHORIZED).build();
+		return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
 	}
 }

@@ -24,6 +24,8 @@ import javax.ws.rs.core.UriInfo;
 
 import org.hibernate.ObjectNotFoundException;
 
+import fi.csc.chipster.rest.Hibernate;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessionstorage.model.Job;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
