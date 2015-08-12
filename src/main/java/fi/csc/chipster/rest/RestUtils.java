@@ -1,7 +1,7 @@
 package fi.csc.chipster.rest;
 
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -9,9 +9,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import javax.ws.rs.InternalServerErrorException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import fi.csc.chipster.sessionstorage.model.Dataset;
@@ -23,29 +25,32 @@ import fi.csc.microarray.description.SADLSyntax.ParameterType;
 import fi.csc.microarray.messaging.JobState;
 
 public class RestUtils {
-	/**
-	 * Converts an object to json for debug messages. In case of errors, returns the
-	 * stack trace.
-	 * 
-	 * @param obj
-	 * @return
-	 */
-	public static String asJsonDebug(Object obj) {	
+	
+	private static Logger logger = Logger.getLogger(RestUtils.class.getName());
+	
+	public static String asJson(Object obj) {	
+		// using Jackson library
 		try {
-			return asJson(obj);        
+			StringWriter writer = new StringWriter();
+			ObjectMapper mapper = new ObjectMapper();
+			mapper.writeValue(writer, obj);
+			return writer.toString();        
 		} catch (IOException e) {
-			StringWriter trace = new StringWriter();
-			e.printStackTrace(new PrintWriter(trace));
-			return trace.toString();
+			logger.log(Level.SEVERE, "json conversion failed", e);
+			throw new InternalServerErrorException();
 		}
 	}
 	
-	public static String asJson(Object obj) throws JsonGenerationException, JsonMappingException, IOException {	
+	public static <T> T parseJson(Class<T> obj, String json) {	
 		// using Jackson library
-		StringWriter writer = new StringWriter();
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.writeValue(writer, obj);
-		return writer.toString();        
+		try {
+			StringReader reader= new StringReader(json);
+			ObjectMapper mapper = new ObjectMapper();
+			return mapper.readValue(reader, obj);
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "json parsing failed", e);
+			throw new InternalServerErrorException();
+		} 
 	}
 	
 	public static Date toDate(LocalDateTime dateTime) {

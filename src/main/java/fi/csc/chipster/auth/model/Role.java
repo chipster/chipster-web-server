@@ -1,8 +1,12 @@
 package fi.csc.chipster.auth.model;
-public enum Role {
+public class Role {
 	
-	CLIENT, SESSION_STORAGE;
+	// roles as String constants, because that's the only thing the RolesAllowed
+	// annotation accepts
 	
-	public static final String CLIENT_CONSTANT = "CLIENT";
-	public static final String SESSION_STORAGE_CONSTANT = "SESSION_STORAGE";
+	// special role for the first authentication step
+	public static final String PASSWORD = "PASSWORD";
+	public static final String CLIENT = "CLIENT";
+	public static final String SESSION_STORAGE = "SESSION_STORAGE";
+	public static final String SERVER = "SERVER";
 }

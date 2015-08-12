@@ -1,14 +1,10 @@
 package fi.csc.chipster.auth.rest;
 
-import java.io.IOException;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.security.RolesAllowed;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
@@ -16,10 +12,11 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.SecurityContext;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
@@ -30,7 +27,8 @@ import fi.csc.chipster.rest.provider.NotAuthorizedException;
 @Path("tokens")
 public class AuthenticationResource {
 		
-	@SuppressWarnings("unused")
+	private static final String TOKEN_HEADER = "chipster-token";
+
 	private static Logger logger = Logger.getLogger(AuthenticationResource.class.getName());
 		
 	// notifications
@@ -45,107 +43,71 @@ public class AuthenticationResource {
 //    }
 	
     @POST
-    @RolesAllowed(Role.CLIENT_CONSTANT)
+    @RolesAllowed(Role.PASSWORD)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response postCredentials(@HeaderParam("authorization") String authHeader) throws IOException {
+    public Response createToken(@Context SecurityContext sc) {
     	
-    	/* Usually Basic auth would be implemented in a ContainerRequestFilter 
-    	 * to protect all the resources. Here Basic auth is used only for this 
-    	 * one resource, so we can implement it directly in here. 
-    	 */
+    	// curl -i -H "Content-Type: application/json" --user client:clientpassword -X POST http://localhost:8081/auth/token
     	
-    	// curl -i -H "Content-Type: application/json" --user client:clientpassword -X POST http://localhost:8081/auth/tokens
+    	cleanUp();
     	
-    	if (authHeader == null) {
-    		throw new NotAuthorizedException("no authorization header");
-    	}
+    	AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
     	
-    	String[] credentials = BasicAuth.decode(authHeader);
-    	String username = credentials[0];
-    	String password = credentials[1];
+    	String username = sc.getUserPrincipal().getName();
     	    
-    	if (credentials == null || credentials.length != 2) {
-    		throw new NotAuthorizedException("incorrect format for authorization header");
-    	}
-    	if (username == null || password == null) {
-    		throw new NotAuthorizedException("username or passwod is null");
+    	if (username == null) {
+    		// RolesAllowed prevents this
+    		throw new NotAuthorizedException("username is null");
     	}
     	
-		//TODO get from JAAS or file or something
-		Map<String, String> users = new HashMap<>();
-		users.put("client", "clientpassword");
-		users.put("sessionStorage", "sessionStoragePassword");
-								
-		if (users.containsKey(username) && users.get(username).equals(password)) {
-			return Response.ok(createToken(username)).build();
-		}
-		
-		throw new ForbiddenException();
-    }
-        
-	private Token createToken(String username) {
-		
-		cleanUp();
-		
 		//FIXME has to be cryptographically secure
 		String tokenString = RestUtils.createId();
-		//LocalDateTime valid = LocalDateTime.now().plusMonths(1);
-		LocalDateTime valid = LocalDateTime.now().minusMonths(1);
+		LocalDateTime valid = LocalDateTime.now().plusMonths(1);
 
-		//Token token = new Token(username, role, tokenString, date);
-		Token token = new Token(username, Role.CLIENT, tokenString, valid);
+		String rolesJson = RestUtils.asJson(principal.getRoles());
+		
+		Token token = new Token(username, tokenString, valid, rolesJson);
 		Hibernate.beginTransaction();
 		Hibernate.session().save(token);
 		Hibernate.commit();
-		
-		return token;
-	}
+
+    									
+		return Response.ok(token).build();
+    }
 
 	/**
 	 * Remove all expired tokens
 	 */
 	private void cleanUp() {
 		
-		Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
-
 		Hibernate.beginTransaction();
-		Hibernate.session()
+		int rows = Hibernate.session()
 			.createQuery("delete from Token where valid < :timestamp")
-			.setParameter("timestamp", timestamp);
+			.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
+		
+		if (rows > 0) {
+			logger.log(Level.INFO, "deleted " + rows + " expired token(s)");
+		}
 		Hibernate.commit();
 	}
 
 	@GET
-	@Path("{token}")
-	//@Consumes(MediaTye.APPLICATION_JSON)
-	@RolesAllowed(Role.SESSION_STORAGE_CONSTANT)
+	@RolesAllowed(Role.SERVER)
     @Produces(MediaType.APPLICATION_JSON)
-    //public Response checkToken(Token requestToken) {
-	public Response checkToken(@PathParam("token") String token) {
+	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken) {
 		
-		//FIXME allow only for server roles
-		
-//		if (requestToken == null || requestToken.getTokenKey() == null) {
-//			throw new NotFoundException();
-//		}
-//
-//		Hibernate.beginTransaction();		
-//		Token dbToken = (Token) Hibernate.session().get(Token.class, requestToken.getTokenKey());
-//		Hibernate.commit();
-		
-		if (token == null) {
-			throw new NotFoundException();
+		if (requestToken == null) {
+			throw new NotFoundException("chipster-token header is null");
 		}
 
 		Hibernate.beginTransaction();		
-		Token dbToken = (Token) Hibernate.session().get(Token.class, token);
+		Token dbToken = (Token) Hibernate.session().get(Token.class, requestToken);
 		Hibernate.commit();
 	
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}
 		
-		//if (dbToken.getValid().after(new Date())) {
 		if (dbToken.getValid().isAfter(LocalDateTime.now())) {
 			return Response.ok(dbToken).build();
 		} else {
@@ -154,22 +116,19 @@ public class AuthenticationResource {
     }	
 
 	@DELETE
-	@Consumes(MediaType.APPLICATION_JSON)
-    public Response delete(Token requestToken) {
+	@RolesAllowed(Role.CLIENT)
+    public Response delete(@Context SecurityContext sc) {
 
-		if (requestToken.getTokenKey() == null) {
-			throw new NotFoundException();
-		}
-
+		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
+		
 		Hibernate.beginTransaction();		
-		Token dbToken = (Token) Hibernate.session().get(Token.class, requestToken.getTokenKey());
-		Hibernate.session().delete(dbToken);
-		Hibernate.commit();
-	
+		Token dbToken = (Token) Hibernate.session().get(Token.class, principal.getTokenKey());
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}
-		
+		Hibernate.session().delete(dbToken);
+		Hibernate.commit();
+			
 		return Response.noContent().build();
     }
 }

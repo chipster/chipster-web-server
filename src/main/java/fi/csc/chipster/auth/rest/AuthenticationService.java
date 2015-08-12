@@ -19,13 +19,14 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.provider.RollbackingExceptionMapper;
+import fi.csc.chipster.sessionstorage.rest.Server;
 import fi.csc.microarray.util.Strings;
 
 /**
  * Main class.
  *
  */
-public class AuthenticationService {
+public class AuthenticationService implements Server {
 	
 	private static Logger logger = Logger.getLogger(AuthenticationService.class.getName());
 	
@@ -36,7 +37,7 @@ public class AuthenticationService {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
-    public static HttpServer startServer() {
+    public HttpServer startServer() {
     	
     	// show jersey logs in console
     	Logger l = Logger.getLogger(HttpHandler.class.getName());
@@ -61,7 +62,7 @@ public class AuthenticationService {
     	logger.info("scanning JAX-RS resources from " + Strings.delimit(Arrays.asList(jaxPackages), ", "));
         final ResourceConfig rc = new ResourceConfig()
         	.packages(jaxPackages)
-        	.register(RolesAllowedDynamicFeature.class);
+        	.register(RolesAllowedDynamicFeature.class); // enable the RolesAllowed annotation
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -75,7 +76,7 @@ public class AuthenticationService {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = startServer();
+        final HttpServer server = new AuthenticationService().startServer();
         System.out.println(String.format("Jersey app started with WADL available at "
                 + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
         System.in.read();
@@ -88,5 +89,10 @@ public class AuthenticationService {
         
         Hibernate.getSessionFactory().close();
     }
+
+	@Override
+	public String getBaseUri() {
+		return BASE_URI;
+	}
 }
 

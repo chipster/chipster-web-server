@@ -1,7 +1,5 @@
 package fi.csc.chipster.sessionstorage.rest;
 
-import java.io.IOException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.inject.Singleton;
@@ -17,6 +15,7 @@ import fi.csc.chipster.sessionstorage.model.SessionEvent;
 @Singleton
 public class Events {
 	
+	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(Events.class.getName());
 
 	// works only inside one JVM
@@ -25,19 +24,16 @@ public class Events {
 	public static void broadcast(SessionEvent sessionEvent) {
 		OutboundEvent.Builder eventBuilder = new OutboundEvent.Builder();
 		OutboundEvent event;
-		try {
-			// why the connection is closed if we use JSON_TYPE?
-			event = eventBuilder.name("SessionEvent")
-					//.mediaType(MediaType.APPLICATION_JSON_TYPE)
-					//.data(SessionEvent.class, sessionEvent)
-					.mediaType(MediaType.TEXT_PLAIN_TYPE)
-					.data(String.class, RestUtils.asJson(sessionEvent))
-					.build();
-			
-			broadcaster.broadcast(event);
-		} catch (IOException e) {
-			logger.log(Level.SEVERE, "unable to broadcast session event", e);
-		}
+
+		// why the connection is closed if we use JSON_TYPE?
+		event = eventBuilder.name("SessionEvent")
+				//.mediaType(MediaType.APPLICATION_JSON_TYPE)
+				//.data(SessionEvent.class, sessionEvent)
+				.mediaType(MediaType.TEXT_PLAIN_TYPE)
+				.data(String.class, RestUtils.asJson(sessionEvent))
+				.build();
+
+		broadcaster.broadcast(event);
 	}
 
 	public static EventOutput getEventOutput() {

@@ -1,10 +1,13 @@
 package fi.csc.chipster.auth.model;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import fi.csc.chipster.rest.RestUtils;
 
 @Entity // db
 @XmlRootElement // json
@@ -13,31 +16,25 @@ public class Token {
 	@Id // db
 	private String tokenKey;
 	private String username;
-	private Role role;
 	private LocalDateTime valid;
+	private String rolesJson;
 	
 	public Token() {
 		// JAX-B needs this
 	}
 	
-	public Token(String username, Role role, String token,
-			LocalDateTime valid) {
+	public Token(String username, String token,
+			LocalDateTime valid, String rolesJson) {
 		this.username = username;
-		this.role = role;
 		this.tokenKey = token;
 		this.valid = valid;
+		this.setRolesJson(rolesJson);
 	}
 	public String getUsername() {
 		return username;
 	}
 	public void setUsername(String username) {
 		this.username = username;
-	}
-	public Role getRole() {
-		return role;
-	}
-	public void setRole(Role role) {
-		this.role = role;
 	}
 	public String getTokenKey() {
 		return tokenKey;
@@ -50,5 +47,18 @@ public class Token {
 	}
 	public void setValid(LocalDateTime valid) {
 		this.valid = valid;
+	}
+
+	public String getRolesJson() {
+		return rolesJson;
+	}
+
+	public void setRolesJson(String rolesJson) {
+		this.rolesJson = rolesJson;
+	}
+
+	@SuppressWarnings("unchecked")
+	public HashSet<String> getRoles() {
+		return RestUtils.parseJson(HashSet.class, rolesJson);
 	}
 }

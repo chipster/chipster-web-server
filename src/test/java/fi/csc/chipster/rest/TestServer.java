@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage;
+package fi.csc.chipster.rest;
 
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -12,29 +12,46 @@ import javax.ws.rs.core.Response;
 
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 
-import fi.csc.chipster.sessionstorage.rest.SessionStorage;
+import fi.csc.chipster.rest.provider.ObjectMapperContextResolver;
+import fi.csc.chipster.sessionstorage.rest.Server;
 
 public class TestServer {
 	
 	private static Logger logger = Logger.getLogger(TestServer.class.getName());
 	
 	public WebTarget target;
-	private HttpServer server;	
+	private HttpServer server;
+
+	private Server service;	
 	
-	public WebTarget getTarget(Object test) {
+	public TestServer(Server service) {
+		this.service = service;
+	}
+	
+	public WebTarget getTarget() {
+		return getTarget(true);
+	}
+
+	public WebTarget getTarget(boolean enableBasicAuth) {
 		
 		// create the client
 		Client c = ClientBuilder.newClient();
+		if (enableBasicAuth) {
+			HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic("user", "password");
+			c.register(feature);
+		}
+		c.register(ObjectMapperContextResolver.class);
 
-		target = c.target(SessionStorage.BASE_URI);
+		target = c.target(service.getBaseUri());
 				
 		try {
 			// check if the server is already running
-			target.path(SessionStorage.BASE_URI).request().get(Response.class);
+			target.path(service.getBaseUri()).request().get(Response.class);
 		} catch (ProcessingException e) {
 			// start the server
-			server = SessionStorage.startServer();
+			server = service.startServer();
 		}
 
 		return target;

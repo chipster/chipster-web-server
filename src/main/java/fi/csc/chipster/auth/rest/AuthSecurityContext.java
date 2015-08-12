@@ -1,33 +1,27 @@
 package fi.csc.chipster.auth.rest;
 
 import java.security.Principal;
-import java.util.Arrays;
-import java.util.HashSet;
 
 import javax.ws.rs.core.SecurityContext;
 
-import fi.csc.chipster.auth.model.Role;
-
 public class AuthSecurityContext implements SecurityContext {
 
-	private String username;
-	private HashSet<Role> roles;
 	private SecurityContext originalContext;
+	private AuthPrincipal principal;
 
-	public AuthSecurityContext(String username, SecurityContext originalContext, Role... roles) {
-		this.username = username;
-		this.roles = new HashSet<>(Arrays.asList(roles));
+	public AuthSecurityContext(AuthPrincipal principal, SecurityContext originalContext) {
+		this.principal = principal;
 		this.originalContext = originalContext;
 	}
 
 	@Override
 	public Principal getUserPrincipal() {
-		return new AuthPrincipal(username);
+		return principal;
 	}
 
 	@Override
 	public boolean isUserInRole(String role) {
-		return roles.contains(Role.valueOf(role));
+		return principal.getRoles().contains(role);
 	}
 
 	@Override
@@ -40,4 +34,7 @@ public class AuthSecurityContext implements SecurityContext {
 		return originalContext.getAuthenticationScheme();
 	}
 
+	public void setOriginalSecurityContext(SecurityContext securityContext) {
+		this.originalContext = securityContext;
+	}
 }

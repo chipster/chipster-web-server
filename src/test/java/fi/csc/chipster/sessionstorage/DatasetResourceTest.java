@@ -18,7 +18,9 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.TestServer;
 import fi.csc.chipster.sessionstorage.model.Dataset;
+import fi.csc.chipster.sessionstorage.rest.SessionStorage;
 
 public class DatasetResourceTest {
 
@@ -30,8 +32,8 @@ public class DatasetResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer();
-        target = server.getTarget(this);
+    	server = new TestServer(new SessionStorage());
+        target = server.getTarget();
         
         path = SessionResourceTest.postSession(target) + "/" + datasetsPath;
     }

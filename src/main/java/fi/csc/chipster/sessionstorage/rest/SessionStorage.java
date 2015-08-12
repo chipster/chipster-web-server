@@ -29,7 +29,7 @@ import fi.csc.chipster.sessionstorage.model.Session;
  * Main class.
  *
  */
-public class SessionStorage {
+public class SessionStorage implements Server {
 	
 	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
 	
@@ -40,7 +40,8 @@ public class SessionStorage {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
-    public static HttpServer startServer() {
+    @Override
+    public HttpServer startServer() {
     	
     	// show jersey logs in console
     	Logger l = Logger.getLogger(HttpHandler.class.getName());
@@ -83,7 +84,7 @@ public class SessionStorage {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = startServer();
+        final HttpServer server = new SessionStorage().startServer();
         System.out.println(String.format("Jersey app started with WADL available at "
                 + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
         System.in.read();
@@ -96,5 +97,10 @@ public class SessionStorage {
         
         Hibernate.getSessionFactory().close();
     }
+
+	@Override
+	public String getBaseUri() {
+		return BASE_URI;
+	}
 }
 
