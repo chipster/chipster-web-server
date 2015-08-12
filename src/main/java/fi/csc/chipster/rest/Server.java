@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest;
+package fi.csc.chipster.rest;
 
 import org.glassfish.grizzly.http.server.HttpServer;
 

@@ -15,65 +15,41 @@ import javax.ws.rs.ext.Provider;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Hibernate;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.provider.NotAuthorizedException;
+import fi.csc.chipster.rest.token.BasicAuthParser;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
-public class AuthorizationRequestFilter implements ContainerRequestFilter {
+public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	
-	public static final String TOKEN_USER = "token";
-
 	@Override
-	public void filter(ContainerRequestContext requestContext)
-			throws IOException {    	
+	public void filter(ContainerRequestContext requestContext) throws IOException {    	
 
-		//Get the authentification passed in HTTP headers parameters
-		String auth = requestContext.getHeaderString("authorization");
-		
-		//If the user does not have the right (does not provide any HTTP Basic Auth)
-		if(auth == null){
-			//requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).entity("username or password missing").build());
-			throw new NotAuthorizedException("no authorization header");
-		}
-
-		//lap : loginAndPassword
-		String[] credentials = BasicAuth.decode(auth);
-
-		//If login or password fail
-		if(credentials == null || credentials.length != 2){
-			throw new NotAuthorizedException("username or password missing");
-		}		
-
-		String username = credentials[0];
-		String password = credentials[1];
+		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
 		
 		AuthPrincipal principal = null;
 		
-		if (TOKEN_USER.equals(username)) {
+		if (TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
 			// throws an exception if fails
-			principal = tokenAuthentication(username, password);
+			principal = tokenAuthentication(parser.getPassword());
 		} else {
 			// throws an exception if fails
-			principal = passwordAuthentication(username, password);
+			principal = passwordAuthentication(parser.getUsername(), parser.getPassword());
 		}
 
-		if (requestContext.getSecurityContext() == null) {
-			throw new ForbiddenException();
-		}
 		// login ok
 		AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
 		requestContext.setSecurityContext(sc);		
 	}
-
-	private AuthPrincipal tokenAuthentication(String username, String tokenKey) {
+	
+	public static AuthPrincipal tokenAuthentication(String tokenKey) {
 		Hibernate.beginTransaction();
 		Token token = (Token) Hibernate.session().get(Token.class, tokenKey);
 		if (token == null) {
 			throw new ForbiddenException();
 		}
 		
-		return new AuthPrincipal(username, tokenKey, token.getRoles());
+		return new AuthPrincipal(token.getUsername(), tokenKey, token.getRoles());
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {

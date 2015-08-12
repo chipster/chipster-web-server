@@ -39,10 +39,18 @@ public class AuthenticationResourceTest {
     }
 
     @Test
-    public void postPassword() throws JsonGenerationException, JsonMappingException, IOException {	
+    public void correctPassword() throws JsonGenerationException, JsonMappingException, IOException {	
     	postClientToken(target);
+    }
+    
+    @Test
+    public void noAuth() throws JsonGenerationException, JsonMappingException, IOException {	
     	// no authorized header
     	assertEquals(401, postTokenResponse(server.getTarget(false), null, null).getStatus());
+    }
+    
+    @Test
+    public void wrongCredentials() throws JsonGenerationException, JsonMappingException, IOException {	
     	assertEquals(403, postTokenResponse(target, "client", "wrongPasword").getStatus());
     	assertEquals(403, postTokenResponse(target, "wrongUsername", "wrongPasword").getStatus());
     }

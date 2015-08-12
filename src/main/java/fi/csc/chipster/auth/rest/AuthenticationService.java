@@ -18,8 +18,8 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Hibernate;
+import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.provider.RollbackingExceptionMapper;
-import fi.csc.chipster.sessionstorage.rest.Server;
 import fi.csc.microarray.util.Strings;
 
 /**

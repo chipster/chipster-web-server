@@ -16,7 +16,9 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.rest.Hibernate;
+import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.provider.RollbackingExceptionMapper;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.File;
@@ -67,7 +69,8 @@ public class SessionStorage implements Server {
         // create a resource config that scans for JAX-RS resources and providers
     	String[] jaxPackages = new String [] {
     			SessionResource.class.getPackage().getName(),
-    			RollbackingExceptionMapper.class.getPackage().getName() };
+    			RollbackingExceptionMapper.class.getPackage().getName(),
+    			TokenRequestFilter.class.getPackage().getName() };
     	
     	logger.info("scanning JAX-RS resources from " + jaxPackages);
         final ResourceConfig rc = new ResourceConfig().packages(jaxPackages);

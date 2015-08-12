@@ -18,12 +18,12 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import org.glassfish.jersey.media.sse.EventOutput;
@@ -44,22 +44,22 @@ public class SessionResource {
 	
 	// sub-resource locators
 	@Path("{id}/datasets")
-	public Object getDatasetResource(@PathParam("id") String id, @QueryParam("username") String username) {
-		return new DatasetResource(id, username);
+	public Object getDatasetResource(@PathParam("id") String id, @Context SecurityContext sc) {
+		return new DatasetResource(id, sc.getUserPrincipal().getName());
 	}
 	
 	@Path("{id}/jobs")
-	public Object getJobResource(@PathParam("id") String id, @QueryParam("username") String username) {
-		return new JobResource(id, username);
+	public Object getJobResource(@PathParam("id") String id, @Context SecurityContext sc) {
+		return new JobResource(id, sc.getUserPrincipal().getName());
 	}
 	
 	// notifications
     @GET
     @Path("{id}/events")
     @Produces(SseFeature.SERVER_SENT_EVENTS)
-    public EventOutput listenToBroadcast(@PathParam("id") String id, @QueryParam("username") String username) {
+    public EventOutput listenToBroadcast(@PathParam("id") String id, @Context SecurityContext sc) {
 		Hibernate.beginTransaction();
-		checkReadAuthorization(username, id);
+		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
 		Hibernate.commit();
         return Events.getEventOutput();
     }
@@ -68,10 +68,10 @@ public class SessionResource {
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response get(@PathParam("id") String id, @QueryParam("username") String username) throws IOException {
+    public Response get(@PathParam("id") String id, @Context SecurityContext sc) throws IOException {
     	    
 		Hibernate.beginTransaction();
-		checkReadAuthorization(username, id);
+		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
     	Session result = (Session) Hibernate.session().get(Session.class, id);    	
     	Hibernate.commit();
     	
@@ -83,13 +83,13 @@ public class SessionResource {
         
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAll(@QueryParam("username") String username) {
+    public Response getAll(@Context SecurityContext sc) {
 
 		Hibernate.beginTransaction();
 		@SuppressWarnings("unchecked")
 		List<Authorization> result = Hibernate.session()
 			.createQuery("from Authorization where username=:username")
-			.setParameter("username", username)
+			.setParameter("username", sc.getUserPrincipal().getName())
 			.list();
 		
 		List<Session> sessions = new ArrayList<>();
@@ -107,7 +107,7 @@ public class SessionResource {
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response post(Session session, @Context UriInfo uriInfo, @QueryParam("username") String username) {
+    public Response post(Session session, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
 		session = RestUtils.getRandomSession();
 		session.setSessionId(null);
@@ -119,7 +119,7 @@ public class SessionResource {
 		session.setSessionId(RestUtils.createId());
 		
 		//FIXME null username
-		Authorization auth = new Authorization(username, session);
+		Authorization auth = new Authorization(sc.getUserPrincipal().getName(), session);
 
 		Hibernate.beginTransaction();
 		Hibernate.session().save(auth);
@@ -134,7 +134,7 @@ public class SessionResource {
 	@PUT
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response put(Session session, @PathParam("id") String id, @QueryParam("username") String username) {
+    public Response put(Session session, @PathParam("id") String id, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
@@ -145,7 +145,7 @@ public class SessionResource {
 			return Response.status(Status.NOT_FOUND)
 					.entity("session doesn't exist").build();
 		}
-		checkWriteAuthorization(username, id);
+		checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		Hibernate.session().merge(session);
 		Hibernate.commit();
 
@@ -156,10 +156,10 @@ public class SessionResource {
 
 	@DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") String id, @QueryParam("username") String username) {
+    public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 
 		Hibernate.beginTransaction();
-		Authorization auth = checkWriteAuthorization(username, id);
+		Authorization auth = checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		// this will delete also the referenced datasets and jobs
 		Hibernate.session().delete(auth);
 		//Hibernate.session().delete(Hibernate.session().load(Session.class, id));

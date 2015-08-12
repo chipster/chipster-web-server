@@ -5,17 +5,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-
-import fi.csc.chipster.rest.provider.ObjectMapperContextResolver;
-import fi.csc.chipster.sessionstorage.rest.Server;
 
 public class TestServer {
 	
@@ -36,15 +30,7 @@ public class TestServer {
 
 	public WebTarget getTarget(boolean enableBasicAuth) {
 		
-		// create the client
-		Client c = ClientBuilder.newClient();
-		if (enableBasicAuth) {
-			HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic("user", "password");
-			c.register(feature);
-		}
-		c.register(ObjectMapperContextResolver.class);
-
-		target = c.target(service.getBaseUri());
+		target = AuthenticatedTarget.getClient(null, null, enableBasicAuth).target(service.getBaseUri());
 				
 		try {
 			// check if the server is already running
