@@ -8,8 +8,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
-import fi.csc.chipster.rest.Hibernate;
-
 /**
  * Don't log client errors
  * 
@@ -24,8 +22,6 @@ public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenExcept
 	@Override
 	public Response toResponse(ForbiddenException e) {
 		// client error, no need to log
-		//Hibernate.rollbackIfActive();
-		
 		return Response.status(Status.FORBIDDEN).entity(e.getMessage()).build();
 	}
 }

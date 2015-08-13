@@ -15,9 +15,11 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.Server;
-import fi.csc.chipster.rest.provider.RollbackingExceptionMapper;
+import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
+import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
+import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Dataset;
@@ -68,15 +70,13 @@ public class SessionStorage implements Server {
     	// init Hibernate
     	hibernate = new Hibernate();
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
-    	
-        // create a resource config that scans for JAX-RS resources and providers
-    	String[] jaxPackages = new String [] {
-    			SessionResource.class.getPackage().getName(),
-    			RollbackingExceptionMapper.class.getPackage().getName(),
-    			TokenRequestFilter.class.getPackage().getName() };
-    	
-    	logger.info("scanning JAX-RS resources from " + jaxPackages);
-        final ResourceConfig rc = new ResourceConfig().packages(jaxPackages);
+    	        
+		final ResourceConfig rc = new ResourceConfig()
+        	.packages(NotFoundExceptionMapper.class.getPackage().getName())
+        	.register(new SessionResource(hibernate))
+        	.register(new HibernateRequestFilter(hibernate))
+        	.register(new HibernateResponseFilter(hibernate))
+        	.register(new TokenRequestFilter());
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI

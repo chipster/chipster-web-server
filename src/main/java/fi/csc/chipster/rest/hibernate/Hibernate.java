@@ -1,4 +1,4 @@
-package fi.csc.chipster.rest;
+package fi.csc.chipster.rest.hibernate;
 
 import java.util.List;
 import java.util.logging.Level;

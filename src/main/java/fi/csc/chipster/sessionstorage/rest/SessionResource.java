@@ -29,8 +29,9 @@ import javax.ws.rs.core.UriInfo;
 import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.SseFeature;
 
-import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
@@ -41,26 +42,31 @@ public class SessionResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(SessionResource.class.getName());
+	private Hibernate hibernate;
 	
+	public SessionResource(Hibernate hibernate) {
+		this.hibernate = hibernate;
+	}
+
 	// sub-resource locators
 	@Path("{id}/datasets")
 	public Object getDatasetResource(@PathParam("id") String id) {
-		return new DatasetResource(id);
+		return new DatasetResource(this, id);
 	}
 	
 	@Path("{id}/jobs")
 	public Object getJobResource(@PathParam("id") String id) {
-		return new JobResource(id);
+		return new JobResource(this, id);
 	}
 	
 	// notifications
     @GET
     @Path("{id}/events")
     @Produces(SseFeature.SERVER_SENT_EVENTS)
+    @Transaction
     public EventOutput listenToBroadcast(@PathParam("id") String id, @Context SecurityContext sc) {
-    	getHibernate().beginTransaction();
+
 		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
-		getHibernate().commit();
         return Events.getEventOutput();
     }
 	
@@ -68,12 +74,11 @@ public class SessionResource {
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
     public Response get(@PathParam("id") String id, @Context SecurityContext sc) throws IOException {
     	    
-    	getHibernate().beginTransaction();
 		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
     	Session result = (Session) getHibernate().session().get(Session.class, id);    	
-    	getHibernate().commit();
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -83,9 +88,9 @@ public class SessionResource {
         
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		getHibernate().beginTransaction();
 		@SuppressWarnings("unchecked")
 		List<Authorization> result = getHibernate().session()
 			.createQuery("from Authorization where username=:username")
@@ -95,19 +100,17 @@ public class SessionResource {
 		List<Session> sessions = new ArrayList<>();
 		for (Authorization auth : result) {
 			sessions.add(auth.getSession());
-		}
-		
-		//List<Session> result = Hibernate.session().createQuery("from Session").list();
-		getHibernate().commit();
+		}		
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
-		//return Response.ok(toJaxbList(result)).build();
     }	
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
     public Response post(Session session, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+//		long t = System.currentTimeMillis();
 		
 		session = RestUtils.getRandomSession();
 		session.setSessionId(null);
@@ -121,25 +124,25 @@ public class SessionResource {
 		//FIXME null username
 		Authorization auth = new Authorization(sc.getUserPrincipal().getName(), session, true);
 
-		getHibernate().beginTransaction();
 		getHibernate().session().save(auth);
-		//Hibernate.session().save(session);
-		getHibernate().commit();
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(session.getSessionId()).build();
 		Events.broadcast(new SessionEvent(session.getSessionId(), EventType.CREATE));
+		
+//		System.out.println("post session " + (System.currentTimeMillis() - t) + " ms");
 		return Response.created(uri).build();
     }
 
 	@PUT
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
     public Response put(Session session, @PathParam("id") String id, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		session.setSessionId(id);
-		getHibernate().beginTransaction();
+
 		if (getHibernate().session().get(Session.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
@@ -147,7 +150,6 @@ public class SessionResource {
 		}
 		checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		getHibernate().session().merge(session);
-		getHibernate().commit();
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
 		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
@@ -156,27 +158,26 @@ public class SessionResource {
 
 	@DELETE
     @Path("{id}")
+	@Transaction
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 
-		getHibernate().beginTransaction();
 		Authorization auth = checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 		//Hibernate.session().delete(Hibernate.session().load(Session.class, id));
-		getHibernate().commit();
 
 		Events.broadcast(new SessionEvent(id, EventType.DELETE));
 		return Response.noContent().build();
     }
 	
-	public static Authorization checkReadAuthorization(String username, String sessionId) {
+	public Authorization checkReadAuthorization(String username, String sessionId) {
     	return checkAuthorization(username, sessionId, false);
     }
-	public static Authorization checkWriteAuthorization(String username, String sessionId) {
+	public Authorization checkWriteAuthorization(String username, String sessionId) {
     	return checkAuthorization(username, sessionId, true);
     }
     
-	private static Authorization checkAuthorization(String username, String sessionId, boolean requireReadWrite) {
+	private Authorization checkAuthorization(String username, String sessionId, boolean requireReadWrite) {
 
 		if(username == null) {
 			throw new NotAuthorizedException(Response.noContent());
@@ -217,7 +218,7 @@ public class SessionResource {
 		return new GenericEntity<List<Session>>(result) {};
 	}
 	
-	private static Hibernate getHibernate() {
-		return SessionStorage.getHibernate();
+	public Hibernate getHibernate() {
+		return hibernate;
 	}
 }

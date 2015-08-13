@@ -43,12 +43,12 @@ public class DbPeroformanceTest {
     	server.stop();
     }
     
-//    @Test
+    @Test
     public void postOne() throws JsonGenerationException, JsonMappingException, IOException {
     	postSession(target);
     }
     
-//  @Test
+    @Test
     public void post() throws JsonGenerationException, JsonMappingException, IOException {
     	for (int i = 0; i < n ; i++) {
     		postSession(target);

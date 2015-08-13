@@ -9,8 +9,6 @@ import javax.ws.rs.ext.Provider;
 
 import org.hibernate.ObjectNotFoundException;
 
-import fi.csc.chipster.rest.Hibernate;
-
 /**
  * Don't log client errors
  * 
@@ -25,7 +23,6 @@ public class ObjectNotFoundExceptionMapper implements ExceptionMapper<ObjectNotF
 	@Override
 	public Response toResponse(ObjectNotFoundException e) {
 		// client error, no need to log
-		//Hibernate.rollbackIfActive();
 		return Response.status(Status.NOT_FOUND).entity(e.getMessage()).build();
 	}
 }

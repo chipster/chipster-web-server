@@ -9,7 +9,7 @@ import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.rest.AuthenticationService;
-import fi.csc.chipster.rest.provider.ObjectMapperContextResolver;
+import fi.csc.chipster.rest.provider.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 
 public class AuthenticatedTarget {
@@ -36,7 +36,7 @@ public class AuthenticatedTarget {
 			HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(username, password);
 			c.register(feature);
 		}
-		c.register(ObjectMapperContextResolver.class);
+		c.register(LocalDateTimeContextResolver.class);
 		return c;
 	}
 

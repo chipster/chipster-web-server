@@ -1,5 +1,8 @@
 package fi.csc.chipster.rest.token;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 
 import javax.annotation.Priority;
 import javax.ws.rs.ForbiddenException;
@@ -22,13 +25,18 @@ import fi.csc.chipster.rest.provider.NotAuthorizedException;
 public class TokenRequestFilter implements ContainerRequestFilter {
 	
 	public static final String TOKEN_USER = "token";
-	private String serverTokenKey;
+	private static final int CACHE_MAX_SIZE = 1000;
+	
 	//FIXME read credentials from config
 	private WebTarget authTarget = new AuthenticatedTarget("sessionStorage", "sessionStoragePassword").target(new AuthenticationService().getBaseUri());
+	
+	private LinkedHashMap<String, Token> tokenCache = new LinkedHashMap<>();
 
 	@Override
 	public void filter(ContainerRequestContext requestContext)
 			throws IOException {
+		
+//		long t = System.currentTimeMillis();
 		
 		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
 		
@@ -41,15 +49,33 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		
 		// login ok
 		requestContext.setSecurityContext(
-				new AuthSecurityContext(principal, requestContext.getSecurityContext()));		
+				new AuthSecurityContext(principal, requestContext.getSecurityContext()));
+		
+//		System.out.println("token validation " + (System.currentTimeMillis() - t) + " ms");
 	}
 
 	public AuthPrincipal tokenAuthentication(String clientTokenKey) {
         
+		Token dbClientToken = null;
 		
-		Token dbClientToken = getDbToken(clientTokenKey);
+		if (tokenCache.containsKey(clientTokenKey)) {
+			dbClientToken = tokenCache.get(clientTokenKey);
+		} else {
+			dbClientToken = getDbToken(clientTokenKey);
+			tokenCache.put(clientTokenKey, dbClientToken);
+			
+			Iterator<String> iter = tokenCache.keySet().iterator();
+			while (tokenCache.size() > CACHE_MAX_SIZE) {
+				//TODO is this the oldest?
+				iter.remove();
+			}			
+		}
     	
         if (dbClientToken == null) {
+        	throw new ForbiddenException();
+        }
+        
+        if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
         	throw new ForbiddenException();
         }
 		

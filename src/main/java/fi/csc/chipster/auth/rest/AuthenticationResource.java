@@ -20,8 +20,9 @@ import javax.ws.rs.core.SecurityContext;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.provider.NotAuthorizedException;
 
 @Path("tokens")
@@ -30,6 +31,8 @@ public class AuthenticationResource {
 	private static final String TOKEN_HEADER = "chipster-token";
 
 	private static Logger logger = Logger.getLogger(AuthenticationResource.class.getName());
+
+	private Hibernate hibernate;
 		
 	// notifications
 //    @GET
@@ -42,13 +45,19 @@ public class AuthenticationResource {
 //        return Events.getEventOutput();
 //    }
 	
-    @POST
+    public AuthenticationResource(Hibernate hibernate) {
+		this.hibernate = hibernate;
+	}
+
+	@POST
     @RolesAllowed(Role.PASSWORD)
     @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
     public Response createToken(@Context SecurityContext sc) {
     	
     	// curl -i -H "Content-Type: application/json" --user client:clientpassword -X POST http://localhost:8081/auth/token
     	
+    	// this shouldn't be executed on every request
     	cleanUp();
     	
     	AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
@@ -67,10 +76,8 @@ public class AuthenticationResource {
 		String rolesJson = RestUtils.asJson(principal.getRoles());
 		
 		Token token = new Token(username, tokenString, valid, rolesJson);
-		getHibernate().beginTransaction();
-		getHibernate().session().save(token);
-		getHibernate().commit();
 
+		getHibernate().session().save(token);
     									
 		return Response.ok(token).build();
     }
@@ -80,7 +87,6 @@ public class AuthenticationResource {
 	 */
 	private void cleanUp() {
 		
-		getHibernate().beginTransaction();
 		int rows = getHibernate().session()
 			.createQuery("delete from Token where valid < :timestamp")
 			.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
@@ -88,21 +94,19 @@ public class AuthenticationResource {
 		if (rows > 0) {
 			logger.log(Level.INFO, "deleted " + rows + " expired token(s)");
 		}
-		getHibernate().commit();
 	}
 
 	@GET
 	@RolesAllowed(Role.SERVER)
     @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
 	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken) {
 		
 		if (requestToken == null) {
 			throw new NotFoundException("chipster-token header is null");
 		}
-
-		getHibernate().beginTransaction();		
+		
 		Token dbToken = (Token) getHibernate().session().get(Token.class, requestToken);
-		getHibernate().commit();
 	
 		if (dbToken == null) {
 			throw new NotFoundException();
@@ -117,22 +121,21 @@ public class AuthenticationResource {
 
 	@DELETE
 	@RolesAllowed(Role.CLIENT)
+	@Transaction
     public Response delete(@Context SecurityContext sc) {
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
-		
-		getHibernate().beginTransaction();		
+			
 		Token dbToken = (Token) getHibernate().session().get(Token.class, principal.getTokenKey());
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}
 		getHibernate().session().delete(dbToken);
-		getHibernate().commit();
 			
 		return Response.noContent().build();
     }
 	
-	private static Hibernate getHibernate() {
-		return AuthenticationService.getHibernate();
+	private Hibernate getHibernate() {
+		return hibernate;
 	}
 }

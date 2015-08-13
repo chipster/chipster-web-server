@@ -24,8 +24,9 @@ import javax.ws.rs.core.UriInfo;
 
 import org.hibernate.ObjectNotFoundException;
 
-import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
@@ -37,12 +38,15 @@ public class DatasetResource {
 	private static Logger logger = Logger.getLogger(DatasetResource.class.getName());
 	
 	final private String sessionId;
+
+	private SessionResource sessionResource;
 	
 	public DatasetResource() {
 		sessionId = null;
 	}
 	
-	public DatasetResource(String id) {
+	public DatasetResource(SessionResource sessionResource, String id) {
+		this.sessionResource = sessionResource;
 		this.sessionId = id;
 	}
 	
@@ -50,11 +54,11 @@ public class DatasetResource {
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
     public Response get(@PathParam("id") String id, @Context SecurityContext sc) {
-    	getHibernate().beginTransaction();
-    	SessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+
+    	sessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
     	Dataset result = (Dataset) getHibernate().session().get(Dataset.class, id);
-    	getHibernate().commit();
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -65,13 +69,12 @@ public class DatasetResource {
     
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		getHibernate().beginTransaction();
-		SessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		List<Dataset> result = getSession().getDatasets();
 		result.size(); // trigger lazy loading before the transaction is closed
-		getHibernate().commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();		
@@ -79,6 +82,7 @@ public class DatasetResource {
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
     public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
     	        	
 		dataset = RestUtils.getRandomDataset();
@@ -91,10 +95,8 @@ public class DatasetResource {
 		
 		dataset.setDatasetId(RestUtils.createId());
 
-		getHibernate().beginTransaction();
-		SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		getSession().getDatasets().add(dataset);
-		getHibernate().commit();
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(dataset.getDatasetId()).build();
 		Events.broadcast(new SessionEvent(dataset.getDatasetId(), EventType.CREATE));
@@ -104,21 +106,20 @@ public class DatasetResource {
 	@PUT
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
     public Response put(Dataset dataset, @PathParam("id") String id, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		dataset.setDatasetId(id);
 
-		getHibernate().beginTransaction();
 		if (getHibernate().session().get(Dataset.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
 					.entity("dataset doesn't exist").build();
 		}
-		SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		getHibernate().session().merge(dataset);
-		getHibernate().commit();
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
 		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
@@ -127,15 +128,14 @@ public class DatasetResource {
 
 	@DELETE
     @Path("{id}")
+	@Transaction
     public Response delete(@PathParam("id") String datasetId, @Context SecurityContext sc) {
 
 		try {
 			// remove from session, hibernate will take care of the actual dataset table
-			getHibernate().beginTransaction();
-			SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+			sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 			Dataset dataset = (Dataset) getHibernate().session().load(Dataset.class, datasetId);
 			getSession().getDatasets().remove(dataset);
-			getHibernate().commit();
 
 			Events.broadcast(new SessionEvent(datasetId, EventType.DELETE));
 			return Response.noContent().build();
@@ -167,7 +167,7 @@ public class DatasetResource {
 		return new GenericEntity<List<Dataset>>(result) {};
 	}
 	
-	private static Hibernate getHibernate() {
-		return SessionStorage.getHibernate();
+	private Hibernate getHibernate() {
+		return sessionResource.getHibernate();
 	}
 }

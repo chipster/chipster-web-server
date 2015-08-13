@@ -17,10 +17,11 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.rest.Hibernate;
 import fi.csc.chipster.rest.Server;
-import fi.csc.chipster.rest.provider.RollbackingExceptionMapper;
-import fi.csc.microarray.util.Strings;
+import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
+import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
+import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
 
 /**
  * Main class.
@@ -55,17 +56,15 @@ public class AuthenticationService implements Server {
     	
     	// init Hibernate
     	hibernate = new Hibernate();
-    	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
+    	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");    	 
     	
-        // create a resource config that scans for JAX-RS resources and providers
-    	String[] jaxPackages = new String [] {
-    			AuthenticationResource.class.getPackage().getName(),
-    			RollbackingExceptionMapper.class.getPackage().getName() };    	
-    	
-    	logger.info("scanning JAX-RS resources from " + Strings.delimit(Arrays.asList(jaxPackages), ", "));
         final ResourceConfig rc = new ResourceConfig()
-        	.packages(jaxPackages)
-        	.register(RolesAllowedDynamicFeature.class); // enable the RolesAllowed annotation
+        	.packages(NotFoundExceptionMapper.class.getPackage().getName()) // all exception mappers from the package
+        	.register(RolesAllowedDynamicFeature.class) // enable the RolesAllowed annotation
+        	.register(new AuthenticationResource(hibernate))
+        	.register(new HibernateRequestFilter(hibernate))
+        	.register(new HibernateResponseFilter(hibernate))
+        	.register(new AuthenticationRequestFilter(hibernate));
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -98,7 +97,7 @@ public class AuthenticationService implements Server {
 		return BASE_URI;
 	}
 	
-	public static Hibernate getHibernate() {
+	public Hibernate getHibernate() {
 		return hibernate;
 	}
 }

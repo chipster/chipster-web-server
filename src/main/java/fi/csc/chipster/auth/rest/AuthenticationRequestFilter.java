@@ -14,7 +14,7 @@ import javax.ws.rs.ext.Provider;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.rest.Hibernate;
+import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 
@@ -22,6 +22,12 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	
+	private Hibernate hibernate;
+
+	public AuthenticationRequestFilter(Hibernate hibernate) {
+		this.hibernate = hibernate;
+	}
+
 	@Override
 	public void filter(ContainerRequestContext requestContext) throws IOException {    	
 
@@ -42,7 +48,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		requestContext.setSecurityContext(sc);		
 	}
 	
-	public static AuthPrincipal tokenAuthentication(String tokenKey) {
+	public AuthPrincipal tokenAuthentication(String tokenKey) {
 		getHibernate().beginTransaction();
 		Token token = (Token) getHibernate().session().get(Token.class, tokenKey);
 		if (token == null) {
@@ -75,7 +81,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));
 	}
 	
-	private static Hibernate getHibernate() {
-		return AuthenticationService.getHibernate();
+	private Hibernate getHibernate() {
+		return hibernate;
 	}
 }
