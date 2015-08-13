@@ -17,6 +17,7 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import fi.csc.chipster.auth.rest.AuthenticationService;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServer;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -32,13 +33,14 @@ public class DbPeroformanceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(new SessionStorage());
-        target = server.getTarget();
+    	server = new TestServer(new SessionStorage(), new AuthenticationService());
+        server.startServersIfNecessary();
+        target = server.getUser1Target();
     }
 
     @After
     public void tearDown() throws Exception {
-    	server.stop(this);
+    	server.stop();
     }
     
 //    @Test

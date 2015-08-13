@@ -44,13 +44,13 @@ public class SessionResource {
 	
 	// sub-resource locators
 	@Path("{id}/datasets")
-	public Object getDatasetResource(@PathParam("id") String id, @Context SecurityContext sc) {
-		return new DatasetResource(id, sc.getUserPrincipal().getName());
+	public Object getDatasetResource(@PathParam("id") String id) {
+		return new DatasetResource(id);
 	}
 	
 	@Path("{id}/jobs")
-	public Object getJobResource(@PathParam("id") String id, @Context SecurityContext sc) {
-		return new JobResource(id, sc.getUserPrincipal().getName());
+	public Object getJobResource(@PathParam("id") String id) {
+		return new JobResource(id);
 	}
 	
 	// notifications
@@ -58,9 +58,9 @@ public class SessionResource {
     @Path("{id}/events")
     @Produces(SseFeature.SERVER_SENT_EVENTS)
     public EventOutput listenToBroadcast(@PathParam("id") String id, @Context SecurityContext sc) {
-		Hibernate.beginTransaction();
+    	getHibernate().beginTransaction();
 		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
-		Hibernate.commit();
+		getHibernate().commit();
         return Events.getEventOutput();
     }
 	
@@ -70,10 +70,10 @@ public class SessionResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response get(@PathParam("id") String id, @Context SecurityContext sc) throws IOException {
     	    
-		Hibernate.beginTransaction();
+    	getHibernate().beginTransaction();
 		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
-    	Session result = (Session) Hibernate.session().get(Session.class, id);    	
-    	Hibernate.commit();
+    	Session result = (Session) getHibernate().session().get(Session.class, id);    	
+    	getHibernate().commit();
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -85,9 +85,9 @@ public class SessionResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAll(@Context SecurityContext sc) {
 
-		Hibernate.beginTransaction();
+		getHibernate().beginTransaction();
 		@SuppressWarnings("unchecked")
-		List<Authorization> result = Hibernate.session()
+		List<Authorization> result = getHibernate().session()
 			.createQuery("from Authorization where username=:username")
 			.setParameter("username", sc.getUserPrincipal().getName())
 			.list();
@@ -98,7 +98,7 @@ public class SessionResource {
 		}
 		
 		//List<Session> result = Hibernate.session().createQuery("from Session").list();
-		Hibernate.commit();
+		getHibernate().commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
@@ -119,12 +119,12 @@ public class SessionResource {
 		session.setSessionId(RestUtils.createId());
 		
 		//FIXME null username
-		Authorization auth = new Authorization(sc.getUserPrincipal().getName(), session);
+		Authorization auth = new Authorization(sc.getUserPrincipal().getName(), session, true);
 
-		Hibernate.beginTransaction();
-		Hibernate.session().save(auth);
+		getHibernate().beginTransaction();
+		getHibernate().session().save(auth);
 		//Hibernate.session().save(session);
-		Hibernate.commit();
+		getHibernate().commit();
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(session.getSessionId()).build();
 		Events.broadcast(new SessionEvent(session.getSessionId(), EventType.CREATE));
@@ -139,15 +139,15 @@ public class SessionResource {
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		session.setSessionId(id);
-		Hibernate.beginTransaction();
-		if (Hibernate.session().get(Session.class, id) == null) {
+		getHibernate().beginTransaction();
+		if (getHibernate().session().get(Session.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
 					.entity("session doesn't exist").build();
 		}
 		checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
-		Hibernate.session().merge(session);
-		Hibernate.commit();
+		getHibernate().session().merge(session);
+		getHibernate().commit();
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
 		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
@@ -158,12 +158,12 @@ public class SessionResource {
     @Path("{id}")
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 
-		Hibernate.beginTransaction();
+		getHibernate().beginTransaction();
 		Authorization auth = checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		// this will delete also the referenced datasets and jobs
-		Hibernate.session().delete(auth);
+		getHibernate().session().delete(auth);
 		//Hibernate.session().delete(Hibernate.session().load(Session.class, id));
-		Hibernate.commit();
+		getHibernate().commit();
 
 		Events.broadcast(new SessionEvent(id, EventType.DELETE));
 		return Response.noContent().build();
@@ -181,14 +181,17 @@ public class SessionResource {
 		if(username == null) {
 			throw new NotAuthorizedException(Response.noContent());
 		}
-		Session session = (Session) Hibernate.session().get(Session.class, sessionId);
-		Object authObj = Hibernate.session().createQuery(
+		Session session = (Session) getHibernate().session().get(Session.class, sessionId);
+		Object authObj = getHibernate().session().createQuery(
 				"from Authorization"
 				+ " where username=:username and session=:session")
 				.setParameter("username", username)
 				.setParameter("session", session).uniqueResult();
 		if (authObj == null) {
-			throw new ForbiddenException();
+			// Either the session doesn't exist or the user doesn't have access 
+			// rights to it. HTTP specifation allows 404 response in either case,
+			// so there is no need to make extra queries to find out.
+			throw new NotFoundException();
 		}
 		Authorization auth = (Authorization)authObj;
 		if (requireReadWrite) {
@@ -212,5 +215,9 @@ public class SessionResource {
 	 */
 	private GenericEntity<List<Session>> toJaxbList(List<Session> result) {
 		return new GenericEntity<List<Session>>(result) {};
+	}
+	
+	private static Hibernate getHibernate() {
+		return SessionStorage.getHibernate();
 	}
 }

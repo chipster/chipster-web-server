@@ -23,8 +23,7 @@ public class AuthenticatedTarget {
 		Token serverToken = authTarget
     			.path("tokens")
     			.request(MediaType.APPLICATION_JSON_TYPE)
-    		    .post(null, Token.class);
-    	
+    		    .post(null, Token.class);		
         
         String tokenKey = serverToken.getTokenKey();
         

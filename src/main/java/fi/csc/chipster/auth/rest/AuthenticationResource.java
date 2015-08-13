@@ -67,9 +67,9 @@ public class AuthenticationResource {
 		String rolesJson = RestUtils.asJson(principal.getRoles());
 		
 		Token token = new Token(username, tokenString, valid, rolesJson);
-		Hibernate.beginTransaction();
-		Hibernate.session().save(token);
-		Hibernate.commit();
+		getHibernate().beginTransaction();
+		getHibernate().session().save(token);
+		getHibernate().commit();
 
     									
 		return Response.ok(token).build();
@@ -80,15 +80,15 @@ public class AuthenticationResource {
 	 */
 	private void cleanUp() {
 		
-		Hibernate.beginTransaction();
-		int rows = Hibernate.session()
+		getHibernate().beginTransaction();
+		int rows = getHibernate().session()
 			.createQuery("delete from Token where valid < :timestamp")
 			.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
 		
 		if (rows > 0) {
 			logger.log(Level.INFO, "deleted " + rows + " expired token(s)");
 		}
-		Hibernate.commit();
+		getHibernate().commit();
 	}
 
 	@GET
@@ -100,9 +100,9 @@ public class AuthenticationResource {
 			throw new NotFoundException("chipster-token header is null");
 		}
 
-		Hibernate.beginTransaction();		
-		Token dbToken = (Token) Hibernate.session().get(Token.class, requestToken);
-		Hibernate.commit();
+		getHibernate().beginTransaction();		
+		Token dbToken = (Token) getHibernate().session().get(Token.class, requestToken);
+		getHibernate().commit();
 	
 		if (dbToken == null) {
 			throw new NotFoundException();
@@ -121,14 +121,18 @@ public class AuthenticationResource {
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
 		
-		Hibernate.beginTransaction();		
-		Token dbToken = (Token) Hibernate.session().get(Token.class, principal.getTokenKey());
+		getHibernate().beginTransaction();		
+		Token dbToken = (Token) getHibernate().session().get(Token.class, principal.getTokenKey());
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}
-		Hibernate.session().delete(dbToken);
-		Hibernate.commit();
+		getHibernate().session().delete(dbToken);
+		getHibernate().commit();
 			
 		return Response.noContent().build();
     }
+	
+	private static Hibernate getHibernate() {
+		return AuthenticationService.getHibernate();
+	}
 }

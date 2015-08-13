@@ -24,7 +24,7 @@ public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenExcept
 	@Override
 	public Response toResponse(ForbiddenException e) {
 		// client error, no need to log
-		Hibernate.rollbackIfActive();
+		//Hibernate.rollbackIfActive();
 		
 		return Response.status(Status.FORBIDDEN).entity(e.getMessage()).build();
 	}

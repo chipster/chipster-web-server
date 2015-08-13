@@ -24,7 +24,7 @@ public class BadRequestExceptionMapper implements ExceptionMapper<BadRequestExce
 	@Override
 	public Response toResponse(BadRequestException e) {
 		// client error, no need to log
-		Hibernate.rollbackIfActive();
+		//Hibernate.rollbackIfActive();
 		return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();	
 	}
 }

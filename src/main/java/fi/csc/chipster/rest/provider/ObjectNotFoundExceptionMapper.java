@@ -25,7 +25,7 @@ public class ObjectNotFoundExceptionMapper implements ExceptionMapper<ObjectNotF
 	@Override
 	public Response toResponse(ObjectNotFoundException e) {
 		// client error, no need to log
-		Hibernate.rollbackIfActive();
+		//Hibernate.rollbackIfActive();
 		return Response.status(Status.NOT_FOUND).entity(e.getMessage()).build();
 	}
 }

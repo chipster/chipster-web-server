@@ -16,7 +16,7 @@ public class RollbackingExceptionMapper implements ExceptionMapper<Throwable> {
 	
 	@Override
 	public Response toResponse(Throwable e) {
-		Hibernate.rollbackIfActive();
+		//Hibernate.rollbackIfActive();
 		logger.log(Level.SEVERE, "transaction failed", e);
 		// don't send the message of the unexpected exceptions, because those
 		// could contain sensitive information

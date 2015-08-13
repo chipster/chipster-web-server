@@ -24,7 +24,7 @@ public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthoriz
 	@Override
 	public Response toResponse(NotAuthorizedException e) {
 		// client error, no need to log
-		Hibernate.rollbackIfActive();
+		//Hibernate.rollbackIfActive();
 		return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
 	}
 }

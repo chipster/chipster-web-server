@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.logging.Logger;
 
-import javax.inject.Singleton;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -20,6 +19,7 @@ import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import org.hibernate.ObjectNotFoundException;
@@ -31,34 +31,30 @@ import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
 
-@Singleton
 public class JobResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(JobResource.class.getName());
 	
 	final private String sessionId;
-	final private String username;
 	
 	public JobResource() {
 		sessionId = null;
-		username = null;
 	}
 	
-	public JobResource(String id, String username) {
+	public JobResource(String id) {
 		this.sessionId = id;
-		this.username = username;
 	}
 	
     // CRUD
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response get(@PathParam("id") String id) {
-    	Hibernate.beginTransaction();
-    	SessionResource.checkReadAuthorization(username, sessionId);
-    	Job result = (Job) Hibernate.session().get(Job.class, id);
-    	Hibernate.commit();
+    public Response get(@PathParam("id") String id, @Context SecurityContext sc) {
+    	getHibernate().beginTransaction();
+    	SessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+    	Job result = (Job) getHibernate().session().get(Job.class, id);
+    	getHibernate().commit();
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -69,13 +65,13 @@ public class JobResource {
     
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAll() {
+    public Response getAll(@Context SecurityContext sc) {
 
-		Hibernate.beginTransaction();
-		SessionResource.checkReadAuthorization(username, sessionId);
+		getHibernate().beginTransaction();
+		SessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		List<Job> result = getSession().getJobs();
 		result.size(); // trigger lazy loading before the transaction is closed
-		Hibernate.commit();
+		getHibernate().commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
@@ -83,7 +79,7 @@ public class JobResource {
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response post(Job job, @Context UriInfo uriInfo) {	
+    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
     	        	
 		job = RestUtils.getRandomJob();
 		job.setJobId(null);
@@ -94,10 +90,10 @@ public class JobResource {
 		
 		job.setJobId(RestUtils.createId());
 
-		Hibernate.beginTransaction();
-		SessionResource.checkWriteAuthorization(username, sessionId);
+		getHibernate().beginTransaction();
+		SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		getSession().getJobs().add(job);
-		Hibernate.commit();
+		getHibernate().commit();
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(job.getJobId()).build();
 		Events.broadcast(new SessionEvent(job.getJobId(), EventType.CREATE));
@@ -107,21 +103,21 @@ public class JobResource {
 	@PUT
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response put(Job job, @PathParam("id") String id) {
+    public Response put(Job job, @PathParam("id") String id, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		job.setJobId(id);
 
-		Hibernate.beginTransaction();
-		SessionResource.checkWriteAuthorization(username, sessionId);
-		if (Hibernate.session().get(Job.class, id) == null) {
+		getHibernate().beginTransaction();
+		SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		if (getHibernate().session().get(Job.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
 					.entity("job doesn't exist").build();
 		}
-		Hibernate.session().merge(job);
-		Hibernate.commit();
+		getHibernate().session().merge(job);
+		getHibernate().commit();
 
 		// more fine-grained events are needed, like "job added" and "job removed"
 		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
@@ -130,15 +126,15 @@ public class JobResource {
 
 	@DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") String jobId) {
+    public Response delete(@PathParam("id") String jobId, @Context SecurityContext sc) {
 
 		try {
 			// remove from session, hibernate will take care of the actual job table
-			Hibernate.beginTransaction();
-			SessionResource.checkWriteAuthorization(username, sessionId);
-			Job job = (Job) Hibernate.session().load(Job.class, jobId);
+			getHibernate().beginTransaction();
+			SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+			Job job = (Job) getHibernate().session().load(Job.class, jobId);
 			getSession().getJobs().remove(job);
-			Hibernate.commit();
+			getHibernate().commit();
 
 			Events.broadcast(new SessionEvent(jobId, EventType.DELETE));
 			return Response.noContent().build();
@@ -153,7 +149,7 @@ public class JobResource {
 	 * @return
 	 */
 	private Session getSession() {
-		return (Session) Hibernate.session().load(Session.class, sessionId);
+		return (Session) getHibernate().session().load(Session.class, sessionId);
 	}
 	
     /**
@@ -168,5 +164,9 @@ public class JobResource {
 	 */
 	private GenericEntity<List<Job>> toJaxbList(List<Job> result) {
 		return new GenericEntity<List<Job>>(result) {};
+	}
+	
+	private static Hibernate getHibernate() {
+		return SessionStorage.getHibernate();
 	}
 }

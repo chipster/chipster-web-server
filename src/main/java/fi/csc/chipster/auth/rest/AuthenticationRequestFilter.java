@@ -43,11 +43,12 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 	
 	public static AuthPrincipal tokenAuthentication(String tokenKey) {
-		Hibernate.beginTransaction();
-		Token token = (Token) Hibernate.session().get(Token.class, tokenKey);
+		getHibernate().beginTransaction();
+		Token token = (Token) getHibernate().session().get(Token.class, tokenKey);
 		if (token == null) {
 			throw new ForbiddenException();
 		}
+		getHibernate().commit();
 		
 		return new AuthPrincipal(token.getUsername(), tokenKey, token.getRoles());
 	}
@@ -72,5 +73,9 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		}
 		
 		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));
+	}
+	
+	private static Hibernate getHibernate() {
+		return AuthenticationService.getHibernate();
 	}
 }

@@ -38,6 +38,8 @@ public class SessionStorage implements Server {
     // Base URI the Grizzly HTTP server will listen on
     public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
 
+	private static Hibernate hibernate;
+
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
@@ -64,7 +66,8 @@ public class SessionStorage implements Server {
     	});
     	
     	// init Hibernate
-    	Hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
+    	hibernate = new Hibernate();
+    	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
     	
         // create a resource config that scans for JAX-RS resources and providers
     	String[] jaxPackages = new String [] {
@@ -98,12 +101,16 @@ public class SessionStorage implements Server {
 			logger.log(Level.WARNING, "server shutdown failed", e);
 		}
         
-        Hibernate.getSessionFactory().close();
+        hibernate.getSessionFactory().close();
     }
 
 	@Override
 	public String getBaseUri() {
 		return BASE_URI;
+	}
+
+	public static Hibernate getHibernate() {
+		return hibernate;
 	}
 }
 

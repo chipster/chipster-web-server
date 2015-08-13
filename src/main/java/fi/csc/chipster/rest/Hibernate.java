@@ -13,9 +13,9 @@ public class Hibernate {
 
 	private static Logger logger = Logger.getLogger(Hibernate.class.getName());
 	
-    private static SessionFactory sessionFactory;
+    private SessionFactory sessionFactory;
 
-    public static void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
+    public void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
     	
     	
     	try {    		
@@ -67,29 +67,29 @@ public class Hibernate {
     	}
     }
 
-    public static SessionFactory getSessionFactory() {
+    public SessionFactory getSessionFactory() {
         return sessionFactory;
     }
 
-	public static org.hibernate.Session beginTransaction() {
+	public org.hibernate.Session beginTransaction() {
 		org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
 		return session;
 	}
 
-	public static void commit() {
+	public void commit() {
 		getSessionFactory().getCurrentSession().getTransaction().commit();
 	}
 	
-	public static void rollback() {
+	public void rollback() {
 		getSessionFactory().getCurrentSession().getTransaction().rollback();
 	}
 
-	public static org.hibernate.Session session() {
+	public org.hibernate.Session session() {
 		return getSessionFactory().getCurrentSession();
 	}
 
-	public static void rollbackIfActive() {
+	public void rollbackIfActive() {
 		if (session().getTransaction().getStatus().canRollback()) {
 			session().getTransaction().rollback();
 		}		

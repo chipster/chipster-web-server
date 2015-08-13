@@ -18,24 +18,27 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.rest.AuthenticationService;
+import fi.csc.chipster.rest.AuthenticatedTarget;
 import fi.csc.chipster.rest.TestServer;
 
 public class AuthenticationResourceTest {
 
     public static final String path = "tokens";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-    private WebTarget target;
 	private TestServer server;
+	private WebTarget target;
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(new AuthenticationService());
-        target = server.getTarget();
+    	server = new TestServer(null, new AuthenticationService());
+        server.startServersIfNecessary();
+        
+        target = AuthenticatedTarget.getClient(null, null, true).target(new AuthenticationService().getBaseUri());
     }
 
     @After
     public void tearDown() throws Exception {
-    	server.stop(this);
+    	server.stop();
     }
 
     @Test
@@ -46,7 +49,7 @@ public class AuthenticationResourceTest {
     @Test
     public void noAuth() throws JsonGenerationException, JsonMappingException, IOException {	
     	// no authorized header
-    	assertEquals(401, postTokenResponse(server.getTarget(false), null, null).getStatus());
+    	assertEquals(401, postTokenResponse(server.getNoAuthTarget(), null, null).getStatus());
     }
     
     @Test
@@ -69,8 +72,7 @@ public class AuthenticationResourceTest {
         
         assertEquals(403, getTokenResponse(target, "token", "wrongServerToken", clientToken).getStatus());
         assertEquals(404, getTokenResponse(target, "token", serverToken, "wrongClientToken").getStatus());
-     // no authorized header
-        assertEquals(401, getTokenResponse(server.getTarget(false), null, null, clientToken).getStatus());
+        assertEquals(401, getTokenResponse(server.getNoAuthTarget(), null, null, clientToken).getStatus());
     }
 	
 	@Test
@@ -81,8 +83,7 @@ public class AuthenticationResourceTest {
         
         getToken(target, "token", serverToken, clientToken);
      
-        // no authorized header
-        assertEquals(401, deleteTokenResponse(server.getTarget(false), "token", clientToken).getStatus());
+        assertEquals(401, deleteTokenResponse(server.getNoAuthTarget(), "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", "wrongClientToken").getStatus());
         assertEquals(204, deleteTokenResponse(target, "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", clientToken).getStatus());

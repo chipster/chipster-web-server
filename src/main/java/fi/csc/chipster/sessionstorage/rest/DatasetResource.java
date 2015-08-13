@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.logging.Logger;
 
-import javax.inject.Singleton;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -20,6 +19,7 @@ import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import org.hibernate.ObjectNotFoundException;
@@ -31,34 +31,30 @@ import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
 
-@Singleton
 public class DatasetResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(DatasetResource.class.getName());
 	
 	final private String sessionId;
-	final private String username;
 	
 	public DatasetResource() {
 		sessionId = null;
-		username = null;
 	}
 	
-	public DatasetResource(String id, String username) {
+	public DatasetResource(String id) {
 		this.sessionId = id;
-		this.username = username;
 	}
 	
     // CRUD
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response get(@PathParam("id") String id) {
-    	Hibernate.beginTransaction();
-    	SessionResource.checkReadAuthorization(username, sessionId);
-    	Dataset result = (Dataset) Hibernate.session().get(Dataset.class, id);
-    	Hibernate.commit();
+    public Response get(@PathParam("id") String id, @Context SecurityContext sc) {
+    	getHibernate().beginTransaction();
+    	SessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+    	Dataset result = (Dataset) getHibernate().session().get(Dataset.class, id);
+    	getHibernate().commit();
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -69,13 +65,13 @@ public class DatasetResource {
     
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAll() {
+    public Response getAll(@Context SecurityContext sc) {
 
-		Hibernate.beginTransaction();
-		SessionResource.checkReadAuthorization(username, sessionId);
+		getHibernate().beginTransaction();
+		SessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		List<Dataset> result = getSession().getDatasets();
 		result.size(); // trigger lazy loading before the transaction is closed
-		Hibernate.commit();
+		getHibernate().commit();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();		
@@ -83,7 +79,7 @@ public class DatasetResource {
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response post(Dataset dataset, @Context UriInfo uriInfo) {	
+    public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
     	        	
 		dataset = RestUtils.getRandomDataset();
 		dataset.setDatasetId(null);
@@ -95,10 +91,10 @@ public class DatasetResource {
 		
 		dataset.setDatasetId(RestUtils.createId());
 
-		Hibernate.beginTransaction();
-		SessionResource.checkWriteAuthorization(username, sessionId);
+		getHibernate().beginTransaction();
+		SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		getSession().getDatasets().add(dataset);
-		Hibernate.commit();
+		getHibernate().commit();
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(dataset.getDatasetId()).build();
 		Events.broadcast(new SessionEvent(dataset.getDatasetId(), EventType.CREATE));
@@ -108,21 +104,21 @@ public class DatasetResource {
 	@PUT
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response put(Dataset dataset, @PathParam("id") String id) {
+    public Response put(Dataset dataset, @PathParam("id") String id, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		dataset.setDatasetId(id);
 
-		Hibernate.beginTransaction();
-		if (Hibernate.session().get(Dataset.class, id) == null) {
+		getHibernate().beginTransaction();
+		if (getHibernate().session().get(Dataset.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
 					.entity("dataset doesn't exist").build();
 		}
-		SessionResource.checkWriteAuthorization(username, sessionId);
-		Hibernate.session().merge(dataset);
-		Hibernate.commit();
+		SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		getHibernate().session().merge(dataset);
+		getHibernate().commit();
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
 		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
@@ -131,15 +127,15 @@ public class DatasetResource {
 
 	@DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") String datasetId) {
+    public Response delete(@PathParam("id") String datasetId, @Context SecurityContext sc) {
 
 		try {
 			// remove from session, hibernate will take care of the actual dataset table
-			Hibernate.beginTransaction();
-			SessionResource.checkWriteAuthorization(username, sessionId);
-			Dataset dataset = (Dataset) Hibernate.session().load(Dataset.class, datasetId);
+			getHibernate().beginTransaction();
+			SessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+			Dataset dataset = (Dataset) getHibernate().session().load(Dataset.class, datasetId);
 			getSession().getDatasets().remove(dataset);
-			Hibernate.commit();
+			getHibernate().commit();
 
 			Events.broadcast(new SessionEvent(datasetId, EventType.DELETE));
 			return Response.noContent().build();
@@ -154,7 +150,7 @@ public class DatasetResource {
 	 * @return
 	 */
 	private Session getSession() {
-		return (Session) Hibernate.session().load(Session.class, sessionId);
+		return (Session) getHibernate().session().load(Session.class, sessionId);
 	}
 	
     /**
@@ -169,5 +165,9 @@ public class DatasetResource {
 	 */
 	private GenericEntity<List<Dataset>> toJaxbList(List<Dataset> result) {
 		return new GenericEntity<List<Dataset>>(result) {};
+	}
+	
+	private static Hibernate getHibernate() {
+		return SessionStorage.getHibernate();
 	}
 }

@@ -23,9 +23,10 @@ public class Authorization {
 	
 	public Authorization() { } // hibernate needs this			
 	
-	public Authorization(String username, Session session) {
+	public Authorization(String username, Session session, boolean readWrite) {
 		this.username = username;
 		this.session = session;
+		this.readWrite = readWrite;
 	}
 	public String getUsername() {
 		return username;
