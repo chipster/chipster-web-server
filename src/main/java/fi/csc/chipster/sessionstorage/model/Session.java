@@ -1,8 +1,7 @@
 package fi.csc.chipster.sessionstorage.model;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
@@ -28,37 +27,31 @@ public class Session {
 	/* - cascade updates so that adding an object to the collection
 	 * persists also the object itself 
 	 */
-//	@ManyToMany(cascade=CascadeType.ALL)
-//	// rename Datasets_id to Dataset_id
-//	@JoinTable(inverseJoinColumns=@JoinColumn(name="Dataset_id"))
 	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="sessionId")
-	private List<Dataset> datasets = new ArrayList<>();
+	private Map<String, Dataset> datasets;
 	
-//	@ManyToMany(cascade=CascadeType.ALL)
-//	// rename Jobs_id to Job_id
-//	@JoinTable(inverseJoinColumns=@JoinColumn(name="Job_id"))
 	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="sessionId")
-	private List<Job> jobs = new ArrayList<>();
+	private Map<String, Job> jobs;
 	
 	// not needed in session JSON, because there is a separate endpoint for this
 	@XmlTransient // rest
-	public List<Job> getJobs() {
+	public Map<String, Job> getJobs() {
 		return jobs;
 	}
 
-	public void setJobs(List<Job> jobs) {
+	public void setJobs(Map<String, Job> jobs) {
 		this.jobs = jobs;
 	}
 
 	// not needed in session JSON, because there is a separate endpoint for this
 	@XmlTransient // rest
-	public List<Dataset> getDatasets() {
+	public Map<String, Dataset> getDatasets() {
 		return datasets;
 	}
 
-	public void setDatasets(List<Dataset> datasets) {
+	public void setDatasets(Map<String, Dataset> datasets) {
 		this.datasets = datasets;
 	}
 	

@@ -2,7 +2,6 @@ package fi.csc.chipster.sessionstorage;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
 import java.io.IOException;
 
 import javax.ws.rs.client.Entity;
@@ -27,16 +26,21 @@ public class JobResourceTest {
 
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
     private static final String jobsPath = "jobs";
-    private WebTarget target;
-	private String path;
+    private WebTarget user1Target;
+    private WebTarget user2Target;
+	private String session1Path;
+	private String session2Path;
 	private TestServer server;
 
     @Before
     public void setUp() throws Exception {
     	server = new TestServer(new SessionStorage(), new AuthenticationService());
         server.startServersIfNecessary();
-        target = server.getUser1Target();
-        path = SessionResourceTest.postSession(target) + "/" + jobsPath;
+        user1Target = server.getUser1Target();
+        user2Target = server.getUser2Target();
+        
+        session1Path = SessionResourceTest.postSession(user1Target) + "/" + jobsPath;
+        session2Path = SessionResourceTest.postSession(user2Target) + "/" + jobsPath;
     }
 
     @After
@@ -46,10 +50,10 @@ public class JobResourceTest {
     
     private String postJob() {
     	Job job = RestUtils.getRandomJob();
-    	Response response = target.path(path).request(JSON).post(Entity.entity(job, JSON),Response.class);        
+    	Response response = user1Target.path(session1Path).request(JSON).post(Entity.entity(job, JSON),Response.class);        
         assertEquals(201, response.getStatus());
         
-        return path + "/" + new File(response.getLocation().getPath()).getName();
+        return session1Path + "/" + RestUtils.basename(response.getLocation().getPath());
 	}
     
     @Test
@@ -62,22 +66,36 @@ public class JobResourceTest {
     public void get() throws JsonGenerationException, JsonMappingException, IOException {
         
 		String objPath = postJob();        
-        Job dataset2 = target.path(objPath).request().get(Job.class);        
-        assertEquals(true, dataset2 != null);
+        assertEquals(false, user1Target.path(objPath).request().get(Job.class) == null);        
+        
+        // wrong user
+        assertEquals(404, user2Target.path(objPath).request().get(Response.class).getStatus());
+        
+        // wrong session
+        assertEquals(404, user1Target.path(changeSession(objPath)).request().get(Response.class).getStatus());
+        assertEquals(404, user2Target.path(changeSession(objPath)).request().get(Response.class).getStatus());
     }
 	
 	@Test
     public void getAll() {
         
-		String id1 = new File(postJob()).getName();
-		String id2 = new File(postJob()).getName();
+		String id1 = RestUtils.basename(postJob());
+		String id2 = RestUtils.basename(postJob());
 		
-        String json = target.path(path).request().get(String.class);
-        assertEquals(json == null, false);
+        String json = user1Target.path(session1Path).request().get(String.class);
+        assertEquals(false, json == null);
         
         //TODO parse json
         assertEquals(true, json.contains(id1));
         assertEquals(true, json.contains(id2));
+        
+        // wrong user
+        assertEquals(404, user2Target.path(session1Path).request().get(Response.class).getStatus());
+        
+        // wrong session
+        String session2Json = user2Target.path(session2Path).request().get(String.class);
+        //TODO parse json
+        assertEquals(false, session2Json.contains(id1));
     }
 	
 	@Test
@@ -85,15 +103,38 @@ public class JobResourceTest {
         
 		String objPath = postJob();
 		Job newObj = RestUtils.getRandomJob();
-		Response response = target.path(objPath).request(JSON).put(Entity.entity(newObj, JSON),Response.class);
-        assertEquals(204, response.getStatus());
+		assertEquals(204, user1Target.path(objPath).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
+        
+        // wrong user
+        assertEquals(404, user2Target.path(objPath).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
+        
+        // wrong session
+        assertEquals(404, user1Target.path(changeSession(objPath)).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
+        assertEquals(404, user2Target.path(changeSession(objPath)).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
     }
 	
+	private String changeSession(String objPath) {
+		String session1Id = RestUtils.basename(session1Path.replace("/" + jobsPath, ""));
+        String session2Id = RestUtils.basename(session2Path.replace("/" + jobsPath, ""));
+        
+        return objPath.replace(session1Id, session2Id);
+	}
+
 	@Test
     public void delete() {
         
 		String objPath = postJob();
-		Response response = target.path(objPath).request().delete(Response.class);        
-        assertEquals(204, response.getStatus());
+		// wrong user
+		assertEquals(404, user2Target.path(objPath).request().delete(Response.class).getStatus());
+		
+		// wrong session
+		assertEquals(404, user1Target.path(changeSession(objPath)).request().delete(Response.class).getStatus());
+		assertEquals(404, user2Target.path(changeSession(objPath)).request().delete(Response.class).getStatus());
+		
+		// delete
+        assertEquals(204, user1Target.path(objPath).request().delete(Response.class).getStatus());
+        
+        // doesn't exist anymore
+        assertEquals(404, user1Target.path(objPath).request().delete(Response.class).getStatus());
     }
 }

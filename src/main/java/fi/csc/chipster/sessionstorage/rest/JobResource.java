@@ -1,7 +1,8 @@
 package fi.csc.chipster.sessionstorage.rest;
 
 import java.net.URI;
-import java.util.List;
+import java.util.Collection;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
@@ -18,11 +19,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
-
-import org.hibernate.ObjectNotFoundException;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Hibernate;
@@ -55,10 +53,11 @@ public class JobResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") String id, @Context SecurityContext sc) {
+    public Response get(@PathParam("id") String jobId, @Context SecurityContext sc) {
 
-    	sessionResource.checkSessionReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
-    	Job result = (Job) getHibernate().session().get(Job.class, id);
+    	// checks authorization
+    	Session session = sessionResource.getSessionForReading(sc, sessionId);
+    	Job result = session.getJobs().get(jobId);
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -71,10 +70,8 @@ public class JobResource {
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
-
-		sessionResource.checkSessionReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
-		List<Job> result = getSession().getJobs();
-		result.size(); // trigger lazy loading before the transaction is closed
+		
+		Collection<Job> result = sessionResource.getSessionForReading(sc, sessionId).getJobs().values();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
@@ -83,8 +80,8 @@ public class JobResource {
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
-    	        	
+    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+		        	
 		job = RestUtils.getRandomJob();
 		job.setJobId(null);
 		
@@ -92,13 +89,13 @@ public class JobResource {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 		
-		job.setJobId(RestUtils.createId());
+		String id = RestUtils.createId();
+		job.setJobId(id);
+		
+		sessionResource.getSessionForWriting(sc, sessionId).getJobs().put(id, job);
 
-		sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
-		getSession().getJobs().add(job);
-
-		URI uri = uriInfo.getAbsolutePathBuilder().path(job.getJobId()).build();
-		Events.broadcast(new SessionEvent(job.getJobId(), EventType.CREATE));
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
+		Events.broadcast(new SessionEvent(id, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -106,22 +103,24 @@ public class JobResource {
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(Job job, @PathParam("id") String id, @Context SecurityContext sc) {
+    public Response put(Job requestJob, @PathParam("id") String jobId, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		job.setJobId(id);
+		requestJob.setJobId(jobId);
 
-		sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
-		if (getHibernate().session().get(Job.class, id) == null) {
-			// transaction will commit, but we haven't changed anything
-			return Response.status(Status.NOT_FOUND)
-					.entity("job doesn't exist").build();
+		/*
+		 * Checks that
+		 * - user has write authorization for the session
+		 * - the session contains this dataset
+		 */
+		if (!sessionResource.getSessionForWriting(sc, sessionId).getJobs().containsKey(jobId)) {
+			throw new NotFoundException("job doesn't exist");
 		}
-		getHibernate().session().merge(job);
+		getHibernate().session().merge(requestJob);
 
 		// more fine-grained events are needed, like "job added" and "job removed"
-		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
+		Events.broadcast(new SessionEvent(jobId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -130,28 +129,20 @@ public class JobResource {
 	@Transaction
     public Response delete(@PathParam("id") String jobId, @Context SecurityContext sc) {
 
-		try {
-			// remove from session, hibernate will take care of the actual job table
-			sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
-			Job job = (Job) getHibernate().session().load(Job.class, jobId);
-			getSession().getJobs().remove(job);
-
-			Events.broadcast(new SessionEvent(jobId, EventType.DELETE));
-			return Response.noContent().build();
-		} catch (ObjectNotFoundException e) {
-			return Response.status(Status.NOT_FOUND).build();
+		// checks authorization
+		Map<String, Job> jobs = sessionResource.getSessionForWriting(sc, sessionId).getJobs();
+		
+		if (!jobs.containsKey(jobId)) {
+			throw new NotFoundException("job not found");
 		}
+		
+		// remove from session, hibernate will take care of the actual dataset table
+		jobs.remove(jobId);
+
+		Events.broadcast(new SessionEvent(jobId, EventType.DELETE));
+		return Response.noContent().build();
     }
 
-	/**
-	 * Call inside a transaction
-	 * 
-	 * @return
-	 */
-	private Session getSession() {
-		return (Session) getHibernate().session().load(Session.class, sessionId);
-	}
-	
     /**
 	 * Make a list compatible with JSON conversion
 	 * 
@@ -162,8 +153,8 @@ public class JobResource {
 	 * @param result
 	 * @return
 	 */
-	private GenericEntity<List<Job>> toJaxbList(List<Job> result) {
-		return new GenericEntity<List<Job>>(result) {};
+	private GenericEntity<Collection<Job>> toJaxbList(Collection<Job> result) {
+		return new GenericEntity<Collection<Job>>(result) {};
 	}
 	
 	private Hibernate getHibernate() {

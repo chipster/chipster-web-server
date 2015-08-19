@@ -2,7 +2,6 @@ package fi.csc.chipster.sessionstorage;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
 import java.io.IOException;
 
 import javax.ws.rs.client.Entity;
@@ -62,8 +61,8 @@ public class DatasetResourceTest {
     	postDataset();
     }
 
-	@Test
-    public void simplePostAndGet() throws JsonGenerationException, JsonMappingException, IOException {
+	//@Test
+    public void postAndGetMany() throws JsonGenerationException, JsonMappingException, IOException {
         
 		String objPath = null;
 		for (int i = 0; i < 100; i++) {			
@@ -91,11 +90,11 @@ public class DatasetResourceTest {
 	@Test
     public void getAll() {
         
-		String id1 = new File(postDataset()).getName();
-		String id2 = new File(postDataset()).getName();
+		String id1 = RestUtils.basename(postDataset());
+		String id2 = RestUtils.basename(postDataset());
 		
         String json = user1Target.path(session1Path).request().get(String.class);
-        assertEquals(json == null, false);
+        assertEquals(false, json == null);
         
         //TODO parse json
         assertEquals(true, json.contains(id1));
@@ -126,8 +125,8 @@ public class DatasetResourceTest {
     }
 	
 	private String changeSession(String objPath) {
-		String session1Id = RestUtils.basename(session1Path.replace("/datasets", ""));
-        String session2Id = RestUtils.basename(session2Path.replace("/datasets", ""));
+		String session1Id = RestUtils.basename(session1Path.replace("/" + datasetsPath, ""));
+        String session2Id = RestUtils.basename(session2Path.replace("/" + datasetsPath, ""));
         
         return objPath.replace(session1Id, session2Id);
 	}

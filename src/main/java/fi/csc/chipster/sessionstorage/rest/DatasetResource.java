@@ -1,7 +1,8 @@
 package fi.csc.chipster.sessionstorage.rest;
 
 import java.net.URI;
-import java.util.List;
+import java.util.Collection;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
@@ -18,11 +19,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
-
-import org.hibernate.ObjectNotFoundException;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Hibernate;
@@ -56,10 +54,10 @@ public class DatasetResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") String datasetId, @Context SecurityContext sc) {
-
-    	checkDatasetReadAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId);
-
-    	Dataset result = (Dataset) getHibernate().session().get(Dataset.class, datasetId);
+    	
+    	// checks authorization
+    	Session session = sessionResource.getSessionForReading(sc, sessionId);
+    	Dataset result = session.getDatasets().get(datasetId);
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -73,9 +71,7 @@ public class DatasetResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		sessionResource.checkSessionReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
-		List<Dataset> result = getSession().getDatasets();
-		result.size(); // trigger lazy loading before the transaction is closed
+		Collection<Dataset> result = sessionResource.getSessionForReading(sc, sessionId).getDatasets().values();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();		
@@ -85,7 +81,7 @@ public class DatasetResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
-    	        	
+    	        			
 		dataset = RestUtils.getRandomDataset();
 		dataset.setDatasetId(null);
 		
@@ -93,14 +89,13 @@ public class DatasetResource {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 
-		
-		dataset.setDatasetId(RestUtils.createId());
+		String id = RestUtils.createId();
+		dataset.setDatasetId(id);
 
-		sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
-		getSession().getDatasets().add(dataset);
+		sessionResource.getSessionForWriting(sc, sessionId).getDatasets().put(id, dataset);
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(dataset.getDatasetId()).build();
-		Events.broadcast(new SessionEvent(dataset.getDatasetId(), EventType.CREATE));
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
+		Events.broadcast(new SessionEvent(id, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -108,22 +103,25 @@ public class DatasetResource {
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(Dataset dataset, @PathParam("id") String id, @Context SecurityContext sc) {
+    public Response put(Dataset requestDataset, @PathParam("id") String datasetId, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		dataset.setDatasetId(id);
+		requestDataset.setDatasetId(datasetId);
 
-		if (getHibernate().session().get(Dataset.class, id) == null) {
-			// transaction will commit, but we haven't changed anything
-			return Response.status(Status.NOT_FOUND)
-					.entity("dataset doesn't exist").build();
+		/*
+		 * Checks that
+		 * - user has write authorization for the session
+		 * - the session contains this dataset
+		 */
+		if (!sessionResource.getSessionForWriting(sc, sessionId).getDatasets().containsKey(datasetId)) {
+			throw new NotFoundException("dataset doesn't exist");
 		}
-		checkDatasetWriteAuthorization(sc.getUserPrincipal().getName(), sessionId, dataset.getDatasetId());
-		getHibernate().session().merge(dataset);
+
+		getHibernate().session().merge(requestDataset);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
+		Events.broadcast(new SessionEvent(datasetId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -132,61 +130,22 @@ public class DatasetResource {
 	@Transaction
     public Response delete(@PathParam("id") String datasetId, @Context SecurityContext sc) {
 
-		try {
-			// remove from session, hibernate will take care of the actual dataset table
-			checkDatasetWriteAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId);
-			Dataset dataset = (Dataset) getHibernate().session().load(Dataset.class, datasetId);
-			getSession().getDatasets().remove(dataset);
-
-			Events.broadcast(new SessionEvent(datasetId, EventType.DELETE));
-			return Response.noContent().build();
-		} catch (ObjectNotFoundException e) {
-			return Response.status(Status.NOT_FOUND).build();
+		// checks authorization
+		Map<String, Dataset> datasets = sessionResource.getSessionForWriting(sc, sessionId).getDatasets();
+		
+		if (!datasets.containsKey(datasetId)) {
+			throw new NotFoundException("dataset not found");
 		}
+		
+		// remove from session, hibernate will take care of the actual dataset table
+		datasets.remove(datasetId);
+
+		Events.broadcast(new SessionEvent(datasetId, EventType.DELETE));
+		return Response.noContent().build();
     }
 
 	/**
-	 * Call inside a transaction
-	 * 
-	 * @return
-	 */
-	private Session getSession() {
-		return (Session) getHibernate().session().load(Session.class, sessionId);
-	}
-	
-	private void checkDatasetReadAuthorization(String username, String sessionId, String datasetId) {
-		sessionResource.checkSessionReadAuthorization(username, sessionId);
-		checkThatSessionContains(sessionId, datasetId);
-	}
-	
-	private void checkDatasetWriteAuthorization(String username, String sessionId, String datasetId) {
-		sessionResource.checkSessionWriteAuthorization(username, sessionId);
-		checkThatSessionContains(sessionId, datasetId);
-	}
-	
-	/**
-	 * Critical part of authorization checks
-	 * 
-	 * The authorization is done in session level, so we must check on 
-	 * each request that the dataset really is in the session. Otherwise user
-	 * can bypass the checks by using her own sessionId. 
-	 * 
-	 * @param sessionId
-	 * @param datasetId
-	 */
-    private void checkThatSessionContains(String sessionId, String datasetId) {
-    	
-		Session session = getHibernate().session().get(Session.class, sessionId);
-		for (Dataset dataset : session.getDatasets()) {
-			if (datasetId.equals(dataset.getDatasetId())) {
-				return;
-			}
-		}
-		throw new NotFoundException();
-	}
-
-	/**
-	 * Make a list compatible with JSON conversion
+	 * Make a collection compatible with JSON conversion
 	 * 
 	 * Default Java collections don't define the XmlRootElement annotation and 
 	 * thus can't be converted directly to JSON. 
@@ -195,8 +154,8 @@ public class DatasetResource {
 	 * @param result
 	 * @return
 	 */
-	private GenericEntity<List<Dataset>> toJaxbList(List<Dataset> result) {
-		return new GenericEntity<List<Dataset>>(result) {};
+	private GenericEntity<Collection<Dataset>> toJaxbList(Collection<Dataset> result) {
+		return new GenericEntity<Collection<Dataset>>(result) {};
 	}
 	
 	private Hibernate getHibernate() {

@@ -22,7 +22,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
@@ -64,9 +63,9 @@ public class SessionResource {
     @Path("{id}/events")
     @Produces(SseFeature.SERVER_SENT_EVENTS)
     @Transaction
-    public EventOutput listenToBroadcast(@PathParam("id") String id, @Context SecurityContext sc) {
-
-		checkSessionReadAuthorization(sc.getUserPrincipal().getName(), id);
+    public EventOutput listenToBroadcast(@PathParam("id") String sessionId, @Context SecurityContext sc) {
+    	// checks authorization
+    	getReadAuthorization(sc, sessionId);
         return Events.getEventOutput();
     }
 	
@@ -75,10 +74,10 @@ public class SessionResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") String id, @Context SecurityContext sc) throws IOException {
+    public Response get(@PathParam("id") String sessionId, @Context SecurityContext sc) throws IOException {
     	    
-		checkSessionReadAuthorization(sc.getUserPrincipal().getName(), id);
-    	Session result = (Session) getHibernate().session().get(Session.class, id);    	
+    	// checks authorization
+    	Session result = getSessionForReading(sc, sessionId);    	
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -110,7 +109,6 @@ public class SessionResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Session session, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-//		long t = System.currentTimeMillis();
 		
 		session = RestUtils.getRandomSession();
 		session.setSessionId(null);
@@ -119,17 +117,20 @@ public class SessionResource {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 
-		session.setSessionId(RestUtils.createId());
+		String id = RestUtils.createId();
+		session.setSessionId(id);
 		
-		//FIXME null username
-		Authorization auth = new Authorization(sc.getUserPrincipal().getName(), session, true);
+		String username = sc.getUserPrincipal().getName();
+		if (username == null) {
+			throw new NotAuthorizedException("username is null");
+		}
+		Authorization auth = new Authorization(username, session, true);
 
 		getHibernate().session().save(auth);
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(session.getSessionId()).build();
-		Events.broadcast(new SessionEvent(session.getSessionId(), EventType.CREATE));
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
+		Events.broadcast(new SessionEvent(id, EventType.CREATE));
 		
-//		System.out.println("post session " + (System.currentTimeMillis() - t) + " ms");
 		return Response.created(uri).build();
     }
 
@@ -137,22 +138,19 @@ public class SessionResource {
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(Session session, @PathParam("id") String id, @Context SecurityContext sc) {
+    public Response put(Session requestSession, @PathParam("id") String sessionId, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		session.setSessionId(id);
-
-		if (getHibernate().session().get(Session.class, id) == null) {
-			// transaction will commit, but we haven't changed anything
-			return Response.status(Status.NOT_FOUND)
-					.entity("session doesn't exist").build();
-		}
-		checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), id);
-		getHibernate().session().merge(session);
+		requestSession.setSessionId(sessionId);
+		
+		// checks the authorization and verifies that the session exists
+		getWriteAuthorization(sc, sessionId);
+		
+		getHibernate().session().merge(requestSession);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		Events.broadcast(new SessionEvent(id, EventType.UPDATE));
+		Events.broadcast(new SessionEvent(sessionId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -161,24 +159,34 @@ public class SessionResource {
 	@Transaction
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 
-		Authorization auth = checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), id);
+		Authorization auth = getWriteAuthorization(sc, id);
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
-		//Hibernate.session().delete(Hibernate.session().load(Session.class, id));
 
 		Events.broadcast(new SessionEvent(id, EventType.DELETE));
 		return Response.noContent().build();
     }
 	
-	public Authorization checkSessionReadAuthorization(String username, String sessionId) {
-    	return checkAuthorization(username, sessionId, false);
+	public Session getSessionForReading(SecurityContext sc, String sessionId) {
+		Authorization auth = checkAuthorization(sc, sessionId, false);
+		return auth.getSession();
+	}
+	
+	public Session getSessionForWriting(SecurityContext sc, String sessionId) {
+		Authorization auth = checkAuthorization(sc, sessionId, true);
+		return auth.getSession();
+	}
+	
+	public Authorization getReadAuthorization(SecurityContext sc, String sessionId) {
+    	return checkAuthorization(sc, sessionId, false);
     }
-	public Authorization checkSessionWriteAuthorization(String username, String sessionId) {
-    	return checkAuthorization(username, sessionId, true);
+	public Authorization getWriteAuthorization(SecurityContext sc, String sessionId) {
+    	return checkAuthorization(sc, sessionId, true);
     }
     
-	private Authorization checkAuthorization(String username, String sessionId, boolean requireReadWrite) {
+	private Authorization checkAuthorization(SecurityContext sc, String sessionId, boolean requireReadWrite) {
 
+		String username = sc.getUserPrincipal().getName();
 		if(username == null) {
 			throw new NotAuthorizedException(Response.noContent());
 		}
