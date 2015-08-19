@@ -16,7 +16,6 @@ public class HibernateRequestFilter implements ContainerRequestFilter {
 	@Override
 	public void filter(ContainerRequestContext requestContext) {
 		
-		System.out.println("** Hibernate begin transaction");
 		hibernate.beginTransaction();
 	}
 }

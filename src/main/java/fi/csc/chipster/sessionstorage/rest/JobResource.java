@@ -57,7 +57,7 @@ public class JobResource {
     @Transaction
     public Response get(@PathParam("id") String id, @Context SecurityContext sc) {
 
-    	sessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+    	sessionResource.checkSessionReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
     	Job result = (Job) getHibernate().session().get(Job.class, id);
     	
     	if (result == null) {
@@ -72,7 +72,7 @@ public class JobResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		sessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkSessionReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		List<Job> result = getSession().getJobs();
 		result.size(); // trigger lazy loading before the transaction is closed
 
@@ -94,7 +94,7 @@ public class JobResource {
 		
 		job.setJobId(RestUtils.createId());
 
-		sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		getSession().getJobs().add(job);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(job.getJobId()).build();
@@ -112,7 +112,7 @@ public class JobResource {
 		// malicious client has changed it
 		job.setJobId(id);
 
-		sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		if (getHibernate().session().get(Job.class, id) == null) {
 			// transaction will commit, but we haven't changed anything
 			return Response.status(Status.NOT_FOUND)
@@ -132,7 +132,7 @@ public class JobResource {
 
 		try {
 			// remove from session, hibernate will take care of the actual job table
-			sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+			sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 			Job job = (Job) getHibernate().session().load(Job.class, jobId);
 			getSession().getJobs().remove(job);
 

@@ -48,8 +48,8 @@ public class DbPeroformanceTest {
     	postSession(target);
     }
     
-    @Test
-    public void post() throws JsonGenerationException, JsonMappingException, IOException {
+//    @Test
+    public void postMany() throws JsonGenerationException, JsonMappingException, IOException {
     	for (int i = 0; i < n ; i++) {
     		postSession(target);
     	}

@@ -55,10 +55,11 @@ public class DatasetResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") String id, @Context SecurityContext sc) {
+    public Response get(@PathParam("id") String datasetId, @Context SecurityContext sc) {
 
-    	sessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
-    	Dataset result = (Dataset) getHibernate().session().get(Dataset.class, id);
+    	checkDatasetReadAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId);
+
+    	Dataset result = (Dataset) getHibernate().session().get(Dataset.class, datasetId);
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -66,13 +67,13 @@ public class DatasetResource {
 
    		return Response.ok(result).build();
     }
-    
+
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		sessionResource.checkReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkSessionReadAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		List<Dataset> result = getSession().getDatasets();
 		result.size(); // trigger lazy loading before the transaction is closed
 
@@ -95,7 +96,7 @@ public class DatasetResource {
 		
 		dataset.setDatasetId(RestUtils.createId());
 
-		sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		sessionResource.checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
 		getSession().getDatasets().add(dataset);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(dataset.getDatasetId()).build();
@@ -118,7 +119,7 @@ public class DatasetResource {
 			return Response.status(Status.NOT_FOUND)
 					.entity("dataset doesn't exist").build();
 		}
-		sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+		checkDatasetWriteAuthorization(sc.getUserPrincipal().getName(), sessionId, dataset.getDatasetId());
 		getHibernate().session().merge(dataset);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
@@ -133,7 +134,7 @@ public class DatasetResource {
 
 		try {
 			// remove from session, hibernate will take care of the actual dataset table
-			sessionResource.checkWriteAuthorization(sc.getUserPrincipal().getName(), sessionId);
+			checkDatasetWriteAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId);
 			Dataset dataset = (Dataset) getHibernate().session().load(Dataset.class, datasetId);
 			getSession().getDatasets().remove(dataset);
 
@@ -153,7 +154,38 @@ public class DatasetResource {
 		return (Session) getHibernate().session().load(Session.class, sessionId);
 	}
 	
-    /**
+	private void checkDatasetReadAuthorization(String username, String sessionId, String datasetId) {
+		sessionResource.checkSessionReadAuthorization(username, sessionId);
+		checkThatSessionContains(sessionId, datasetId);
+	}
+	
+	private void checkDatasetWriteAuthorization(String username, String sessionId, String datasetId) {
+		sessionResource.checkSessionWriteAuthorization(username, sessionId);
+		checkThatSessionContains(sessionId, datasetId);
+	}
+	
+	/**
+	 * Critical part of authorization checks
+	 * 
+	 * The authorization is done in session level, so we must check on 
+	 * each request that the dataset really is in the session. Otherwise user
+	 * can bypass the checks by using her own sessionId. 
+	 * 
+	 * @param sessionId
+	 * @param datasetId
+	 */
+    private void checkThatSessionContains(String sessionId, String datasetId) {
+    	
+		Session session = getHibernate().session().get(Session.class, sessionId);
+		for (Dataset dataset : session.getDatasets()) {
+			if (datasetId.equals(dataset.getDatasetId())) {
+				return;
+			}
+		}
+		throw new NotFoundException();
+	}
+
+	/**
 	 * Make a list compatible with JSON conversion
 	 * 
 	 * Default Java collections don't define the XmlRootElement annotation and 

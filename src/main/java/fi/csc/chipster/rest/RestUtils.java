@@ -124,4 +124,8 @@ public class RestUtils {
 		p.setValue("Parameter value");
 		return p;
 	}
+
+	public static String basename(String path) {
+		return new java.io.File(path).getName();
+	}
 }

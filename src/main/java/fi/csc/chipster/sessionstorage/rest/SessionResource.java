@@ -66,7 +66,7 @@ public class SessionResource {
     @Transaction
     public EventOutput listenToBroadcast(@PathParam("id") String id, @Context SecurityContext sc) {
 
-		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
+		checkSessionReadAuthorization(sc.getUserPrincipal().getName(), id);
         return Events.getEventOutput();
     }
 	
@@ -77,7 +77,7 @@ public class SessionResource {
     @Transaction
     public Response get(@PathParam("id") String id, @Context SecurityContext sc) throws IOException {
     	    
-		checkReadAuthorization(sc.getUserPrincipal().getName(), id);
+		checkSessionReadAuthorization(sc.getUserPrincipal().getName(), id);
     	Session result = (Session) getHibernate().session().get(Session.class, id);    	
     	
     	if (result == null) {
@@ -148,7 +148,7 @@ public class SessionResource {
 			return Response.status(Status.NOT_FOUND)
 					.entity("session doesn't exist").build();
 		}
-		checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
+		checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		getHibernate().session().merge(session);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
@@ -161,7 +161,7 @@ public class SessionResource {
 	@Transaction
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 
-		Authorization auth = checkWriteAuthorization(sc.getUserPrincipal().getName(), id);
+		Authorization auth = checkSessionWriteAuthorization(sc.getUserPrincipal().getName(), id);
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 		//Hibernate.session().delete(Hibernate.session().load(Session.class, id));
@@ -170,10 +170,10 @@ public class SessionResource {
 		return Response.noContent().build();
     }
 	
-	public Authorization checkReadAuthorization(String username, String sessionId) {
+	public Authorization checkSessionReadAuthorization(String username, String sessionId) {
     	return checkAuthorization(username, sessionId, false);
     }
-	public Authorization checkWriteAuthorization(String username, String sessionId) {
+	public Authorization checkSessionWriteAuthorization(String username, String sessionId) {
     	return checkAuthorization(username, sessionId, true);
     }
     

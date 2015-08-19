@@ -63,6 +63,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		//TODO get from JAAS or file or something
 		Map<String, String> users = new HashMap<>();
 		users.put("client", "clientPassword");
+		users.put("client2", "client2Password");
 		users.put("sessionStorage", "sessionStoragePassword");
 
 		if (!users.containsKey(username)) {
