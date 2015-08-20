@@ -55,7 +55,7 @@ public class AuthenticationResource {
     @Transaction
     public Response createToken(@Context SecurityContext sc) {
     	
-    	// curl -i -H "Content-Type: application/json" --user client:clientpassword -X POST http://localhost:8081/auth/token
+    	// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
     	
     	// this shouldn't be executed on every request
     	cleanUp();

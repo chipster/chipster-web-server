@@ -1,6 +1,8 @@
 package fi.csc.chipster.rest;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,7 +61,12 @@ public class TestServer {
 			GrizzlyFuture<HttpServer> future = httpServer.shutdown();
 			try {
 				// wait for server to shutdown, otherwise the next test set will print ugly log messages
-				future.get();
+				try {
+					future.get(3, TimeUnit.SECONDS);
+				} catch (TimeoutException e) {
+					logger.log(Level.WARNING, "test server didn't stop gracefully");
+					httpServer.shutdownNow();
+				}
 			} catch (InterruptedException | ExecutionException e) {
 				logger.log(Level.WARNING, "failed to shutdown the test server", e);
 			}

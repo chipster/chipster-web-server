@@ -15,6 +15,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
@@ -41,6 +42,10 @@ public class SessionStorage implements Server {
     public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
 
 	private static Hibernate hibernate;
+
+	private String serverId;
+
+	private Events events;
 
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
@@ -70,10 +75,13 @@ public class SessionStorage implements Server {
     	// init Hibernate
     	hibernate = new Hibernate();
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
+    	
+    	this.serverId = RestUtils.createId();
+    	this.events = new Events(serverId);
     	        
 		final ResourceConfig rc = new ResourceConfig()
         	.packages(NotFoundExceptionMapper.class.getPackage().getName())
-        	.register(new SessionResource(hibernate))
+        	.register(new SessionResource(hibernate, events))
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	.register(new TokenRequestFilter());

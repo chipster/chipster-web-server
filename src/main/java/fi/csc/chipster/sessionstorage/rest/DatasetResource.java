@@ -29,6 +29,7 @@ import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
+import fi.csc.chipster.sessionstorage.model.SessionEvent.ResourceType;
 
 public class DatasetResource {
 	
@@ -38,14 +39,17 @@ public class DatasetResource {
 	final private String sessionId;
 
 	private SessionResource sessionResource;
+
+	private Events events;
 	
 	public DatasetResource() {
 		sessionId = null;
 	}
 	
-	public DatasetResource(SessionResource sessionResource, String id) {
+	public DatasetResource(SessionResource sessionResource, String id, Events events) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
+		this.events = events;
 	}
 	
     // CRUD
@@ -95,7 +99,7 @@ public class DatasetResource {
 		sessionResource.getSessionForWriting(sc, sessionId).getDatasets().put(id, dataset);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
-		Events.broadcast(new SessionEvent(id, EventType.CREATE));
+		events.broadcast(new SessionEvent(id, ResourceType.DATASET, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -121,7 +125,7 @@ public class DatasetResource {
 		getHibernate().session().merge(requestDataset);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		Events.broadcast(new SessionEvent(datasetId, EventType.UPDATE));
+		events.broadcast(new SessionEvent(datasetId, ResourceType.DATASET, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -140,7 +144,7 @@ public class DatasetResource {
 		// remove from session, hibernate will take care of the actual dataset table
 		datasets.remove(datasetId);
 
-		Events.broadcast(new SessionEvent(datasetId, EventType.DELETE));
+		events.broadcast(new SessionEvent(datasetId, ResourceType.DATASET, EventType.DELETE));
 		return Response.noContent().build();
     }
 

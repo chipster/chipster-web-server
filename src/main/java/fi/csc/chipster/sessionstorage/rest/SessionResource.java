@@ -35,6 +35,7 @@ import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
+import fi.csc.chipster.sessionstorage.model.SessionEvent.ResourceType;
 
 @Path("sessions")
 public class SessionResource {
@@ -42,20 +43,22 @@ public class SessionResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(SessionResource.class.getName());
 	private Hibernate hibernate;
+	private Events events;
 	
-	public SessionResource(Hibernate hibernate) {
+	public SessionResource(Hibernate hibernate, Events events) {
 		this.hibernate = hibernate;
+		this.events = events;
 	}
 
 	// sub-resource locators
 	@Path("{id}/datasets")
 	public Object getDatasetResource(@PathParam("id") String id) {
-		return new DatasetResource(this, id);
+		return new DatasetResource(this, id, events);
 	}
 	
 	@Path("{id}/jobs")
 	public Object getJobResource(@PathParam("id") String id) {
-		return new JobResource(this, id);
+		return new JobResource(this, id, events);
 	}
 	
 	// notifications
@@ -66,7 +69,7 @@ public class SessionResource {
     public EventOutput listenToBroadcast(@PathParam("id") String sessionId, @Context SecurityContext sc) {
     	// checks authorization
     	getReadAuthorization(sc, sessionId);
-        return Events.getEventOutput();
+        return events.getEventOutput(sessionId);
     }
 	
     // CRUD
@@ -110,6 +113,8 @@ public class SessionResource {
 	@Transaction
     public Response post(Session session, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
+		// curl -i -H "Content-Type: application/json" --user token:<TOKEN> -X POST http://localhost:8080/sessionstorage/session
+		
 		session = RestUtils.getRandomSession();
 		session.setSessionId(null);
     	        	
@@ -129,7 +134,7 @@ public class SessionResource {
 		getHibernate().session().save(auth);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
-		Events.broadcast(new SessionEvent(id, EventType.CREATE));
+		events.broadcast(new SessionEvent(id, ResourceType.SESSION, EventType.CREATE));
 		
 		return Response.created(uri).build();
     }
@@ -140,6 +145,8 @@ public class SessionResource {
 	@Transaction
     public Response put(Session requestSession, @PathParam("id") String sessionId, @Context SecurityContext sc) {
 				    		
+		requestSession = RestUtils.getRandomSession();
+		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		requestSession.setSessionId(sessionId);
@@ -150,7 +157,7 @@ public class SessionResource {
 		getHibernate().session().merge(requestSession);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		Events.broadcast(new SessionEvent(sessionId, EventType.UPDATE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.SESSION, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -163,7 +170,7 @@ public class SessionResource {
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 
-		Events.broadcast(new SessionEvent(id, EventType.DELETE));
+		events.broadcast(new SessionEvent(id, ResourceType.SESSION, EventType.DELETE));
 		return Response.noContent().build();
     }
 	
