@@ -14,6 +14,8 @@ import javax.ws.rs.core.Response;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 
+import fi.csc.chipster.rest.token.AuthenticatedTarget;
+
 public class TestServer {
 	
 	private static Logger logger = Logger.getLogger(TestServer.class.getName());

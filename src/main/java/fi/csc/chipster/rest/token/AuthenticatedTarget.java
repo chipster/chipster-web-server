@@ -1,4 +1,4 @@
-package fi.csc.chipster.rest;
+package fi.csc.chipster.rest.token;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -8,10 +8,9 @@ import javax.ws.rs.core.MediaType;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.media.sse.SseFeature;
 
+import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.auth.rest.AuthenticationService;
 import fi.csc.chipster.rest.provider.LocalDateTimeContextResolver;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 
 public class AuthenticatedTarget {
 

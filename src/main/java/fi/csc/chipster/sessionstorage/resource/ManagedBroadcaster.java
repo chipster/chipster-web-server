@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest;
+package fi.csc.chipster.sessionstorage.resource;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;

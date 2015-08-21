@@ -16,11 +16,11 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-import fi.csc.chipster.auth.rest.AuthenticationService;
+import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServer;
+import fi.csc.chipster.sessionstorage.SessionStorage;
 import fi.csc.chipster.sessionstorage.model.Job;
-import fi.csc.chipster.sessionstorage.rest.SessionStorage;
 
 public class JobResourceTest {
 

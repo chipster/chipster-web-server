@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.rest;
+package fi.csc.chipster.sessionstorage.resource;
 
 import java.net.URI;
 import java.util.Collection;

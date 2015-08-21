@@ -13,16 +13,16 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import fi.csc.chipster.auth.rest.AuthenticationService;
+import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.rest.AsyncEventInput;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServer;
+import fi.csc.chipster.sessionstorage.SessionStorage;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.ResourceType;
-import fi.csc.chipster.sessionstorage.rest.Events;
-import fi.csc.chipster.sessionstorage.rest.SessionStorage;
+import fi.csc.chipster.sessionstorage.resource.Events;
 
 public class EventTest {
 

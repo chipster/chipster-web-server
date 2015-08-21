@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.rest;
+package fi.csc.chipster.sessionstorage;
 
 import java.io.IOException;
 import java.net.URI;
@@ -14,32 +14,46 @@ import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
-import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.sessionstorage.model.Authorization;
+import fi.csc.chipster.sessionstorage.model.Dataset;
+import fi.csc.chipster.sessionstorage.model.File;
+import fi.csc.chipster.sessionstorage.model.Input;
+import fi.csc.chipster.sessionstorage.model.Job;
+import fi.csc.chipster.sessionstorage.model.Parameter;
+import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.chipster.sessionstorage.resource.Events;
+import fi.csc.chipster.sessionstorage.resource.SessionResource;
 
 /**
  * Main class.
  *
  */
-public class AuthenticationService implements Server {
+public class SessionStorage implements Server {
 	
-	private static Logger logger = Logger.getLogger(AuthenticationService.class.getName());
+	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8081/auth/";
+    public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
 
 	private static Hibernate hibernate;
+
+	private String serverId;
+
+	private Events events;
 
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
+    @Override
     public HttpServer startServer() {
     	
     	// show jersey logs in console
@@ -51,20 +65,28 @@ public class AuthenticationService implements Server {
     	l.addHandler(ch);
     	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-    			Token.class,
+    			Session.class,
+    			Dataset.class,
+    			Job.class,
+    			Parameter.class,
+    			Input.class,
+    			File.class,
+    			Authorization.class,
     	});
     	
     	// init Hibernate
     	hibernate = new Hibernate();
-    	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");    	 
+    	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
     	
-        final ResourceConfig rc = new ResourceConfig()
-        	.packages(NotFoundExceptionMapper.class.getPackage().getName()) // all exception mappers from the package
-        	.register(RolesAllowedDynamicFeature.class) // enable the RolesAllowed annotation
-        	.register(new AuthenticationResource(hibernate))
+    	this.serverId = RestUtils.createId();
+    	this.events = new Events(serverId);
+    	        
+		final ResourceConfig rc = new ResourceConfig()
+        	.packages(NotFoundExceptionMapper.class.getPackage().getName())
+        	.register(new SessionResource(hibernate, events))
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
-        	.register(new AuthenticationRequestFilter(hibernate));
+        	.register(new TokenRequestFilter());
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -78,7 +100,7 @@ public class AuthenticationService implements Server {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = new AuthenticationService().startServer();
+        final HttpServer server = new SessionStorage().startServer();
         System.out.println(String.format("Jersey app started with WADL available at "
                 + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
         System.in.read();
@@ -96,12 +118,14 @@ public class AuthenticationService implements Server {
 	public String getBaseUri() {
 		return BASE_URI;
 	}
-	
-	public Hibernate getHibernate() {
+
+	public static Hibernate getHibernate() {
 		return hibernate;
 	}
-	
+
+	@Override
 	public void close() {
+		events.close();
 	}
 }
 

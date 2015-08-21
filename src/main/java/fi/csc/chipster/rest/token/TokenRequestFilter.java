@@ -13,11 +13,10 @@ import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.ext.Provider;
 
+import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.auth.rest.AuthPrincipal;
-import fi.csc.chipster.auth.rest.AuthSecurityContext;
-import fi.csc.chipster.auth.rest.AuthenticationService;
-import fi.csc.chipster.rest.AuthenticatedTarget;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.auth.resource.AuthSecurityContext;
 import fi.csc.chipster.rest.provider.NotAuthorizedException;
 
 @Provider

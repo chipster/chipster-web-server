@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.rest;
+package fi.csc.chipster.auth.resource;
 
 import java.time.LocalDateTime;
 import java.util.logging.Level;
