@@ -1,7 +1,7 @@
 package fi.csc.chipster.sessionstorage.model;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import javax.persistence.CascadeType;
@@ -25,8 +25,8 @@ public class Job {
 	private String toolCategory;
 	private String toolName;
 	private String toolDescription;
-	private Date startTime;
-	private Date endTime;
+	private LocalDateTime startTime;
+	private LocalDateTime endTime;
 	
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="jobId")
@@ -66,16 +66,16 @@ public class Job {
 	public void setToolDescription(String toolDescription) {
 		this.toolDescription = toolDescription;
 	}
-	public Date getStartTime() {
+	public LocalDateTime getStartTime() {
 		return startTime;
 	}
-	public void setStartTime(Date startTime) {
+	public void setStartTime(LocalDateTime startTime) {
 		this.startTime = startTime;
 	}
-	public Date getEndTime() {
+	public LocalDateTime getEndTime() {
 		return endTime;
 	}
-	public void setEndTime(Date endTime) {
+	public void setEndTime(LocalDateTime endTime) {
 		this.endTime = endTime;
 	}
 	public JobState getState() {

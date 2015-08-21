@@ -99,10 +99,10 @@ public class RestUtils {
 
 	public static Job getRandomJob() {
 		Job j = new Job();
-		j.setEndTime(new Date());
+		j.setEndTime(LocalDateTime.now());
 		j.setJobId(createId());
 		j.setState(JobState.COMPLETED);
-		j.setStartTime(new Date());
+		j.setStartTime(LocalDateTime.now());
 		j.setToolCategory("utilities");
 		j.setToolDescription("very important tool");
 		j.setToolId("UtilTool.py");
