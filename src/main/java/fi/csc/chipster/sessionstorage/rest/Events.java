@@ -15,6 +15,8 @@ import fi.csc.chipster.sessionstorage.model.SessionEvent;
 
 public class Events {
 	
+	public static final String EVENT_NAME = "SessionEvent";
+
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(Events.class.getName());
 
@@ -36,7 +38,7 @@ public class Events {
 		OutboundEvent event;
 
 		// why the connection is closed if we use JSON_TYPE?
-		event = eventBuilder.name("SessionEvent")
+		event = eventBuilder.name(EVENT_NAME)
 				//.mediaType(MediaType.APPLICATION_JSON_TYPE)
 				//.data(SessionEvent.class, sessionEvent)
 				.mediaType(MediaType.TEXT_PLAIN_TYPE)
@@ -78,5 +80,11 @@ public class Events {
 
 	public void setServerId(String serverId) {
 		this.serverId = serverId;
+	}
+
+	public void close() {
+		for (ManagedBroadcaster broadcaster : broadcasters.values()) {
+			broadcaster.closeAll();
+		}
 	}
 }

@@ -99,7 +99,7 @@ public class DatasetResource {
 		sessionResource.getSessionForWriting(sc, sessionId).getDatasets().put(id, dataset);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
-		events.broadcast(new SessionEvent(id, ResourceType.DATASET, EventType.CREATE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -125,7 +125,7 @@ public class DatasetResource {
 		getHibernate().session().merge(requestDataset);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		events.broadcast(new SessionEvent(datasetId, ResourceType.DATASET, EventType.UPDATE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -144,7 +144,7 @@ public class DatasetResource {
 		// remove from session, hibernate will take care of the actual dataset table
 		datasets.remove(datasetId);
 
-		events.broadcast(new SessionEvent(datasetId, ResourceType.DATASET, EventType.DELETE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.DELETE));
 		return Response.noContent().build();
     }
 

@@ -10,13 +10,15 @@ public class SessionEvent {
 	private EventType type;
 	private String serverId;
 	private long eventNumber;
+	private String resourceId;
 	
 	public enum EventType { CREATE, UPDATE, DELETE }
 	public enum ResourceType { SESSION, DATASET, JOB }
 
-	public SessionEvent(String sessionId, ResourceType resource, EventType type) {
+	public SessionEvent(String sessionId, ResourceType resource, String resourceId, EventType type) {
 		this.resource = resource;
 		this.sessionId = sessionId;
+		this.resourceId = resourceId;
 		this.type = type;
 	}
 	
@@ -62,5 +64,13 @@ public class SessionEvent {
 
 	public void setResourceType(ResourceType resourceType) {
 		this.resource = resourceType;
+	}
+
+	public String getResourceId() {
+		return resourceId;
+	}
+
+	public void setResourceId(String resourceId) {
+		this.resourceId = resourceId;
 	}
 }

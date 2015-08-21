@@ -7,4 +7,6 @@ public interface Server {
 	public HttpServer startServer();
 	
 	public String getBaseUri();
+
+	public void close();
 }

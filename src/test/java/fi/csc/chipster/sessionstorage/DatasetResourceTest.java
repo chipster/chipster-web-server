@@ -24,13 +24,14 @@ import fi.csc.chipster.sessionstorage.rest.SessionStorage;
 
 public class DatasetResourceTest {
 
-	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-    private static final String datasetsPath = "datasets";
+    private static final String DATASETS = "/datasets";
     private WebTarget user1Target;
     private WebTarget user2Target;
 	private String session1Path;
 	private String session2Path;
 	private TestServer server;
+	private String datasets1Path;
+	private String datasets2Path;
 
     @Before
     public void setUp() throws Exception {
@@ -39,26 +40,20 @@ public class DatasetResourceTest {
         user1Target = server.getUser1Target();
         user2Target = server.getUser2Target();
         
-        session1Path = SessionResourceTest.postSession(user1Target) + "/" + datasetsPath;
-        session2Path = SessionResourceTest.postSession(user2Target) + "/" + datasetsPath;
+        session1Path = SessionResourceTest.postRandomSession(user1Target);
+        session2Path = SessionResourceTest.postRandomSession(user2Target);
+        datasets1Path = session1Path + DATASETS;
+        datasets2Path = session2Path + DATASETS;
     }
 
     @After
     public void tearDown() throws Exception {
     	server.stop();
     }           
-    
-    private String postDataset() {
-    	Dataset dataset = RestUtils.getRandomDataset();
-    	Response response = user1Target.path(session1Path).request(JSON).post(Entity.entity(dataset, JSON),Response.class);        
-        assertEquals(201, response.getStatus());
-        
-        return session1Path + "/" + RestUtils.basename(response.getLocation().getPath());
-	}
-    
-    @Test
+
+	@Test
     public void post() {
-    	postDataset();
+    	postRandomDataset(user1Target, session1Path);
     }
 
 	//@Test
@@ -66,34 +61,34 @@ public class DatasetResourceTest {
         
 		String objPath = null;
 		for (int i = 0; i < 100; i++) {			
-			objPath = postDataset();		
+			objPath = postRandomDataset(user1Target, datasets1Path);		
 		}
 		for (int i = 0; i < 1000; i++) {
-			assertEquals(false, user1Target.path(objPath).request().get(Dataset.class) == null);
+			assertEquals(false, getDataset(user1Target, objPath) == null);
 		}
     }
 
 	@Test
     public void get() throws JsonGenerationException, JsonMappingException, IOException {
         
-		String objPath = postDataset();        
-        assertEquals(false, user1Target.path(objPath).request().get(Dataset.class) == null);
+		String objPath = postRandomDataset(user1Target, session1Path);        
+        assertEquals(false, getDataset(user1Target, objPath) == null);
         
         // wrong user
-        assertEquals(404, user2Target.path(objPath).request().get(Response.class).getStatus());
+        assertEquals(404, get(user2Target, objPath));
         
         // wrong session
-        assertEquals(404, user1Target.path(changeSession(objPath)).request().get(Response.class).getStatus());
-        assertEquals(404, user2Target.path(changeSession(objPath)).request().get(Response.class).getStatus());
+        assertEquals(404, get(user1Target, changeSession(objPath)));
+        assertEquals(404, get(user2Target, changeSession(objPath)));
     }
 	
 	@Test
     public void getAll() {
         
-		String id1 = RestUtils.basename(postDataset());
-		String id2 = RestUtils.basename(postDataset());
+		String id1 = RestUtils.basename(postRandomDataset(user1Target, session1Path));
+		String id2 = RestUtils.basename(postRandomDataset(user1Target, session1Path));
 		
-        String json = user1Target.path(session1Path).request().get(String.class);
+		String json = getString(user1Target, datasets1Path);
         assertEquals(false, json == null);
         
         //TODO parse json
@@ -101,10 +96,10 @@ public class DatasetResourceTest {
         assertEquals(true, json.contains(id2));
         
         // wrong user
-        assertEquals(404, user2Target.path(session1Path).request().get(Response.class).getStatus());
+        assertEquals(404, get(user2Target, datasets1Path));
         
         // wrong session
-        String session2Json = user2Target.path(session2Path).request().get(String.class);
+        String session2Json = getString(user2Target, datasets2Path);
         //TODO parse json
         assertEquals(false, session2Json.contains(id1));
     }
@@ -112,41 +107,73 @@ public class DatasetResourceTest {
 	@Test
     public void put() {
         
-		String objPath = postDataset();
+		String objPath = postRandomDataset(user1Target, session1Path);
 		Dataset newObj = RestUtils.getRandomDataset();
-        assertEquals(204, user1Target.path(objPath).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
+        assertEquals(204, put(user1Target, objPath, newObj));
         
         // wrong user
-        assertEquals(404, user2Target.path(objPath).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
+        assertEquals(404, put(user2Target, objPath, newObj));
         
         // wrong session
-        assertEquals(404, user1Target.path(changeSession(objPath)).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
-        assertEquals(404, user2Target.path(changeSession(objPath)).request(JSON).put(Entity.entity(newObj, JSON),Response.class).getStatus());
+        assertEquals(404, put(user1Target, changeSession(objPath), newObj));
+        assertEquals(404, put(user2Target, changeSession(objPath), newObj));
     }
-	
-	private String changeSession(String objPath) {
-		String session1Id = RestUtils.basename(session1Path.replace("/" + datasetsPath, ""));
-        String session2Id = RestUtils.basename(session2Path.replace("/" + datasetsPath, ""));
-        
-        return objPath.replace(session1Id, session2Id);
-	}
 
 	@Test
     public void delete() {
         
-		String objPath = postDataset();
+		String objPath = postRandomDataset(user1Target, session1Path);
 		
 		// wrong user
-		assertEquals(404, user2Target.path(objPath).request().delete(Response.class).getStatus());
+		assertEquals(404, delete(user2Target, objPath));
 		
 		// wrong session
-		assertEquals(404, user1Target.path(changeSession(objPath)).request().delete(Response.class).getStatus());
-		assertEquals(404, user2Target.path(changeSession(objPath)).request().delete(Response.class).getStatus());
+		assertEquals(404, delete(user1Target, changeSession(objPath)));
+		assertEquals(404, delete(user2Target, changeSession(objPath)));
 		
 		// delete
-        assertEquals(204, user1Target.path(objPath).request().delete(Response.class).getStatus());
+        assertEquals(204, delete(user1Target, objPath));
         
         // doesn't exist anymore
-        assertEquals(404, user1Target.path(objPath).request().delete(Response.class).getStatus());
+        assertEquals(404, delete(user1Target, objPath));
     }
+	
+	private String changeSession(String objPath) {
+		String session1Id = RestUtils.basename(session1Path);
+        String session2Id = RestUtils.basename(session2Path);
+        
+        return objPath.replace(session1Id, session2Id);
+	}
+	
+    public static String postRandomDataset(WebTarget target, String sessionPath) {
+    	Dataset dataset = RestUtils.getRandomDataset();
+    	Response response = post(target, sessionPath + DATASETS, dataset);
+        assertEquals(201, response.getStatus());
+        
+        return sessionPath + DATASETS + "/" + RestUtils.basename(response.getLocation().getPath());
+	}
+	
+	public static int delete(WebTarget target, String path) {
+		return target.path(path).request().delete(Response.class).getStatus();
+	}
+	
+    public static Response post(WebTarget target, String path, Dataset dataset) {
+    	return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(dataset, MediaType.APPLICATION_JSON_TYPE),Response.class);
+	}
+    
+	public static int put(WebTarget target, String path, Dataset dataset) {
+		return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity(dataset,  MediaType.APPLICATION_JSON_TYPE), Response.class).getStatus();
+	}
+	
+	public static Dataset getDataset(WebTarget target, String path) {
+		return target.path(path).request().get(Dataset.class);
+	}
+	
+	public static String getString(WebTarget target, String path) {
+		return target.path(path).request().get(String.class);
+	}
+	
+	public static int get(WebTarget target, String path) {
+		return target.path(path).request().get(Response.class).getStatus();
+	}
 }

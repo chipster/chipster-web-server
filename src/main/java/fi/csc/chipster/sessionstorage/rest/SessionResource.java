@@ -134,7 +134,7 @@ public class SessionResource {
 		getHibernate().session().save(auth);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
-		events.broadcast(new SessionEvent(id, ResourceType.SESSION, EventType.CREATE));
+		events.broadcast(new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
 		
 		return Response.created(uri).build();
     }
@@ -157,7 +157,7 @@ public class SessionResource {
 		getHibernate().session().merge(requestSession);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		events.broadcast(new SessionEvent(sessionId, ResourceType.SESSION, EventType.UPDATE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -170,7 +170,7 @@ public class SessionResource {
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 
-		events.broadcast(new SessionEvent(id, ResourceType.SESSION, EventType.DELETE));
+		events.broadcast(new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));
 		return Response.noContent().build();
     }
 	

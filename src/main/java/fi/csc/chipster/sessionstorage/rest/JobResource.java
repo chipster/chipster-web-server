@@ -99,7 +99,7 @@ public class JobResource {
 		sessionResource.getSessionForWriting(sc, sessionId).getJobs().put(id, job);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
-		events.broadcast(new SessionEvent(id, ResourceType.JOB, EventType.CREATE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -124,7 +124,7 @@ public class JobResource {
 		getHibernate().session().merge(requestJob);
 
 		// more fine-grained events are needed, like "job added" and "job removed"
-		events.broadcast(new SessionEvent(jobId, ResourceType.JOB, EventType.UPDATE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -143,7 +143,7 @@ public class JobResource {
 		// remove from session, hibernate will take care of the actual dataset table
 		jobs.remove(jobId);
 
-		events.broadcast(new SessionEvent(jobId, ResourceType.JOB, EventType.DELETE));
+		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.DELETE));
 		return Response.noContent().build();
     }
 

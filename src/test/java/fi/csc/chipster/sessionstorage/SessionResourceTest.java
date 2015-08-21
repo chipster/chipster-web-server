@@ -72,52 +72,38 @@ public class SessionResourceTest {
     @Test
     public void post() throws JsonGenerationException, JsonMappingException, IOException {
     	
-    	postSession(user1Target);
+    	postRandomSession(user1Target);
     	
-    	assertEquals(404, postSessionResponse(tokenFailTarget).getStatus());
-    	assertEquals(401, postSessionResponse(authFailTarget).getStatus());
-    	assertEquals(401, postSessionResponse(noAuthTarget).getStatus());    	
+    	assertEquals(404, post(tokenFailTarget, RestUtils.getRandomSession()).getStatus());
+    	assertEquals(401, post(authFailTarget, RestUtils.getRandomSession()).getStatus());
+    	assertEquals(401, post(noAuthTarget, RestUtils.getRandomSession()).getStatus());    	
     }
-    
-    public static String postSession(WebTarget target) {
-    	Response response = postSessionResponse(target);
-        assertEquals(201, response.getStatus());
-        
-        return path + "/" + RestUtils.basename(response.getLocation().getPath());
-	}
-    
-    public static Response postSessionResponse(WebTarget target) {
-    	Session session = RestUtils.getRandomSession();
-    	Response response = target.path(path).request(JSON).post(Entity.entity(session, JSON),Response.class);
-    	return response;
-	}
-
 
 	@Test
     public void get() throws JsonGenerationException, JsonMappingException, IOException {
         
-		String obj1Path = postSession(user1Target);
-		String obj2Path = postSession(user2Target);
-        assertEquals(false, user1Target.path(obj1Path).request().get(Session.class) == null);
+		String obj1Path = postRandomSession(user1Target);
+		String obj2Path = postRandomSession(user2Target);
+        assertEquals(false, getSession(user1Target, obj1Path) == null);
         // check that user2Target works, other tests rely on it
-        assertEquals(false, user2Target.path(obj2Path).request().get(Session.class) == null);
+        assertEquals(false, getSession(user2Target, obj2Path) == null);
 
         // wrong user
-        assertEquals(404, user1Target.path(obj2Path).request().get(Response.class).getStatus());
-        assertEquals(404, user2Target.path(obj1Path).request().get(Response.class).getStatus());
+        assertEquals(404, get(user1Target, obj2Path));
+        assertEquals(404, get(user2Target, obj1Path));
         
-        assertEquals(404, tokenFailTarget.path(obj1Path).request().get(Response.class).getStatus());
-        assertEquals(401, authFailTarget.path(obj1Path).request().get(Response.class).getStatus());
-        assertEquals(401, noAuthTarget.path(obj1Path).request().get(Response.class).getStatus());
+        assertEquals(404, get(tokenFailTarget, obj1Path));
+        assertEquals(401, get(authFailTarget, obj1Path));
+        assertEquals(401, get(noAuthTarget, obj1Path));
     }
 	
 	@Test
     public void getAll() {
         
-		String id1 = new File(postSession(user1Target)).getName();
-		String id2 = new File(postSession(user1Target)).getName();
+		String id1 = new File(postRandomSession(user1Target)).getName();
+		String id2 = new File(postRandomSession(user1Target)).getName();
 		
-        String json = user1Target.path(path).request().get(String.class);        
+        String json = getString(user1Target, path);        
         assertEquals(json == null, false);
         
         //TODO parse json
@@ -125,47 +111,79 @@ public class SessionResourceTest {
         assertEquals(true, json.contains(id2));
         
         // wrong user
-        String user2Json = user2Target.path(path).request().get(String.class);        
+        String user2Json = getString(user2Target, path);        
         //TODO parse json
         assertEquals(false, user2Json.contains(id1));
         
-        assertEquals(404, tokenFailTarget.path(path).request().get(Response.class).getStatus());
-        assertEquals(401, authFailTarget.path(path).request().get(Response.class).getStatus());
-        assertEquals(401, noAuthTarget.path(path).request().get(Response.class).getStatus());
+        assertEquals(404, get(tokenFailTarget, path));
+        assertEquals(401, get(authFailTarget, path));
+        assertEquals(401, get(noAuthTarget, path));
     }
 	
 	@Test
     public void put() {
         
-		String objPath = postSession(user1Target);
+		String objPath = postRandomSession(user1Target);
 		
 		Session newSession = RestUtils.getRandomSession();        
-        assertEquals(204, user1Target.path(objPath).request(JSON).put(Entity.entity(newSession, JSON),Response.class).getStatus());
+        assertEquals(204, put(user1Target, objPath, newSession));
         // wrong user
-        assertEquals(404, user2Target.path(objPath).request(JSON).put(Entity.entity(newSession, JSON),Response.class).getStatus());
+        assertEquals(404, put(user2Target, objPath, newSession));
         
-        assertEquals(404, tokenFailTarget.path(objPath).request(JSON).put(Entity.entity(newSession, JSON),Response.class).getStatus());
-        assertEquals(401, authFailTarget.path(objPath).request(JSON).put(Entity.entity(newSession, JSON),Response.class).getStatus());
-        assertEquals(401, noAuthTarget.path(objPath).request(JSON).put(Entity.entity(newSession, JSON),Response.class).getStatus());
+        assertEquals(404, put(tokenFailTarget, objPath, newSession));
+        assertEquals(401, put(authFailTarget, objPath, newSession));
+        assertEquals(401, put(noAuthTarget, objPath, newSession));
     }
 	
 	@Test
     public void delete() {
         				
-		String objPath = postSession(user1Target);
+		String objPath = postRandomSession(user1Target);
 
 		// wrong user
-		assertEquals(404, user2Target.path(objPath).request().delete(Response.class).getStatus());
+		assertEquals(404, delete(user2Target, objPath));
 
 		// auth errors
-		assertEquals(404, tokenFailTarget.path(objPath).request().delete(Response.class).getStatus());
-		assertEquals(401, authFailTarget.path(objPath).request().delete(Response.class).getStatus());
-		assertEquals(401, noAuthTarget.path(objPath).request().delete(Response.class).getStatus());
+		assertEquals(404, delete(tokenFailTarget, objPath));
+		assertEquals(401, delete(authFailTarget, objPath));
+		assertEquals(401, delete(noAuthTarget, objPath));
 		
 		// delete
-        assertEquals(204, user1Target.path(objPath).request().delete(Response.class).getStatus());
+        assertEquals(204, delete(user1Target, objPath));
         
         // doesn't exist anymore
-        assertEquals(404, user1Target.path(objPath).request().delete(Response.class).getStatus());
-    }	
+        assertEquals(404, delete(user1Target, objPath));
+    }
+	
+	public static String postRandomSession(WebTarget target) {
+    	Session session = RestUtils.getRandomSession();
+    	Response response = target.path(path).request(JSON).post(Entity.entity(session, JSON),Response.class);
+        assertEquals(201, response.getStatus());
+        
+        return path + "/" + RestUtils.basename(response.getLocation().getPath());
+	}
+
+	public static int delete(WebTarget target, String path) {
+		return target.path(path).request().delete(Response.class).getStatus();
+	}
+	
+	public static int put(WebTarget target, String path, Session newSession) {
+		return target.path(path).request(JSON).put(Entity.entity(newSession, JSON),Response.class).getStatus();
+	}
+	
+    public static Response post(WebTarget target, Session session) {
+    	return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(session, MediaType.APPLICATION_JSON_TYPE),Response.class);
+	}
+    
+	public static Session getSession(WebTarget target, String path) {
+		return target.path(path).request().get(Session.class);
+	}
+	
+	public static String getString(WebTarget target, String path) {
+		return target.path(path).request().get(String.class);
+	}
+	
+	public static int get(WebTarget target, String path) {
+		return target.path(path).request().get(Response.class).getStatus();
+	}
 }

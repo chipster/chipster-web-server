@@ -120,5 +120,10 @@ public class SessionStorage implements Server {
 	public static Hibernate getHibernate() {
 		return hibernate;
 	}
+
+	@Override
+	public void close() {
+		events.close();
+	}
 }
 

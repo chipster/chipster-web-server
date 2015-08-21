@@ -1,5 +1,6 @@
 package fi.csc.chipster.rest;
 
+import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -18,8 +19,7 @@ public class TestServer {
 	private static Logger logger = Logger.getLogger(TestServer.class.getName());
 	
 	public WebTarget testTarget;
-	private HttpServer httpServer;
-	private HttpServer httpAuthServer;
+	HashMap<Server, HttpServer> httpServers = new HashMap<>();
 
 	private Server server;
 	private Server authServer;	
@@ -31,11 +31,11 @@ public class TestServer {
 	
 	public void startServersIfNecessary() {
 
-		httpAuthServer = startServerIfNecessary(authServer);
-		httpServer = startServerIfNecessary(server);
+		startServerIfNecessary(authServer);
+		startServerIfNecessary(server);
 	}
 	
-	private HttpServer startServerIfNecessary(Server server) {
+	private void startServerIfNecessary(Server server) {
 		if (server != null) {
 			testTarget = AuthenticatedTarget.getClient(null, null, false).target(server.getBaseUri());
 
@@ -44,20 +44,21 @@ public class TestServer {
 				testTarget.path(server.getBaseUri()).request().get(Response.class);
 			} catch (ProcessingException e) {
 				// start the server
-				return server.startServer();
+				httpServers.put(server, server.startServer());
 			}
-		}
-		return null; 
+		} 
 	}
 
 	public void stop() {
-		stop(httpServer);
-		stop(httpAuthServer);
+		stop(server);
+		stop(authServer);
 	}
 		
-	private void stop(HttpServer httpServer) {
+	private void stop(Server server) {
 		
-		if (httpServer != null) {
+		if (httpServers.containsKey(server)) {
+			server.close();
+			HttpServer httpServer = httpServers.get(server);
 			GrizzlyFuture<HttpServer> future = httpServer.shutdown();
 			try {
 				// wait for server to shutdown, otherwise the next test set will print ugly log messages

@@ -100,5 +100,8 @@ public class AuthenticationService implements Server {
 	public Hibernate getHibernate() {
 		return hibernate;
 	}
+	
+	public void close() {
+	}
 }
 
