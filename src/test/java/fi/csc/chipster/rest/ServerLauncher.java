@@ -16,9 +16,9 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.rest.token.AuthenticatedTarget;
 
-public class TestServer {
+public class ServerLauncher {
 	
-	private static Logger logger = Logger.getLogger(TestServer.class.getName());
+	private static Logger logger = Logger.getLogger(ServerLauncher.class.getName());
 	
 	public WebTarget testTarget;
 	HashMap<Server, HttpServer> httpServers = new HashMap<>();
@@ -26,7 +26,7 @@ public class TestServer {
 	private Server server;
 	private Server authServer;	
 	
-	public TestServer(Server server, Server authServer) {
+	public ServerLauncher(Server server, Server authServer) {
 		this.server = server;
 		this.authServer = authServer;
 	}
@@ -102,5 +102,9 @@ public class TestServer {
 			return server.getBaseUri();
 		}
 		return authServer.getBaseUri();
+	}
+
+	public Server getServer() {
+		return server;
 	}
 }

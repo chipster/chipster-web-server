@@ -19,6 +19,8 @@ public class AsyncEventInput {
 		 
 		// EventSource hides all errors, so connect first with EventInput to check
 		// that server accepts this request
+		// https://java.net/jira/browse/JERSEY-2354
+		// How to notice connection close?
 		EventInput eventInput = target.path(path).request().get(EventInput.class);
 		eventInput.close();
 
@@ -50,5 +52,9 @@ public class AsyncEventInput {
 			Thread.sleep(100);
 		}
 		return null;
+	}
+
+	public EventSource getEventSource() {
+		return eventSource;
 	}
 }

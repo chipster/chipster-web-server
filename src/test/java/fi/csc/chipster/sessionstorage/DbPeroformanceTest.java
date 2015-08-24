@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.TestServer;
+import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.sessionstorage.SessionStorage;
 import fi.csc.chipster.sessionstorage.model.Session;
 
@@ -28,12 +28,12 @@ public class DbPeroformanceTest {
     public static final String path = "sessions";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
     private WebTarget target;
-	private TestServer server;
+	private ServerLauncher server;
 	private int n = 1_000;
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(new SessionStorage(), new AuthenticationService());
+    	server = new ServerLauncher(new SessionStorage(), new AuthenticationService());
         server.startServersIfNecessary();
         target = server.getUser1Target();
     }

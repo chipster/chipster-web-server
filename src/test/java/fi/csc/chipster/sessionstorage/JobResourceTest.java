@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.TestServer;
+import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.sessionstorage.SessionStorage;
 import fi.csc.chipster.sessionstorage.model.Job;
 
@@ -29,13 +29,13 @@ public class JobResourceTest {
     private WebTarget user2Target;
 	private String session1Path;
 	private String session2Path;
-	private TestServer server;
+	private ServerLauncher server;
 	private String jobs1Path;
 	private String jobs2Path;
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(new SessionStorage(), new AuthenticationService());
+    	server = new ServerLauncher(new SessionStorage(), new AuthenticationService());
         server.startServersIfNecessary();
         user1Target = server.getUser1Target();
         user2Target = server.getUser2Target();

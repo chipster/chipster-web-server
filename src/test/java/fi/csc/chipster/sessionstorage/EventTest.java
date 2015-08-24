@@ -16,8 +16,7 @@ import org.junit.Test;
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.rest.AsyncEventInput;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.TestServer;
-import fi.csc.chipster.sessionstorage.SessionStorage;
+import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
@@ -28,7 +27,7 @@ public class EventTest {
 
 	private static final String EVENTS_PATH = "/events";
 	
-	private TestServer server;
+	private ServerLauncher serverLauncher;
 	private WebTarget user1Target;
 	private WebTarget user2Target;
 	private WebTarget tokenFailTarget;
@@ -39,19 +38,19 @@ public class EventTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(new SessionStorage(), new AuthenticationService());
-        server.startServersIfNecessary();
+    	serverLauncher = new ServerLauncher(new SessionStorage(), new AuthenticationService());
+        serverLauncher.startServersIfNecessary();
         
-        user1Target = server.getUser1Target();
-        user2Target = server.getUser2Target();
-        tokenFailTarget = server.getTokenFailTarget();
-        authFailTarget = server.getAuthFailTarget();
-        noAuthTarget = server.getNoAuthTarget();
+        user1Target = serverLauncher.getUser1Target();
+        user2Target = serverLauncher.getUser2Target();
+        tokenFailTarget = serverLauncher.getTokenFailTarget();
+        authFailTarget = serverLauncher.getAuthFailTarget();
+        noAuthTarget = serverLauncher.getNoAuthTarget();
     }
 
     @After
     public void tearDown() throws Exception {
-    	server.stop();
+    	serverLauncher.stop();
     }
     
     @Test
@@ -78,6 +77,36 @@ public class EventTest {
     		new AsyncEventInput(noAuthTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);        
     		assertEquals(true, false);
     	} catch (NotAuthorizedException e) { }
+    }
+    
+    @Test
+    public void connectionClose() throws InterruptedException {
+    	
+    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
+    	String sessionId = RestUtils.basename(sessionPath);
+    	
+    	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
+    	
+    	assertEquals(null, eventInput.pollAndWait());
+    	
+    	System.out.println(eventInput.getEventSource().isOpen());
+    	// close broadcasters
+    	((SessionStorage)serverLauncher.getServer()).close();
+    	
+    	assertEquals(null, eventInput.pollAndWait());
+    	
+    	System.out.println(eventInput.getEventSource().isOpen());
+    	Thread.sleep(3000);
+    	System.out.println(eventInput.getEventSource().isOpen());
+    	
+        assertEquals(204, SessionResourceTest.delete(user1Target, sessionPath));
+        
+        InboundEvent event = eventInput.pollAndWait();
+        System.out.println(event);
+        SessionEvent sessionEvent = event.readData(SessionEvent.class);
+        assertEquals(sessionId, sessionEvent.getSessionId());
+        
+        close(eventInput);    
     }
     
     @Test

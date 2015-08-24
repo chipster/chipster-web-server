@@ -18,19 +18,19 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.rest.TestServer;
+import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.rest.token.AuthenticatedTarget;
 
 public class AuthenticationResourceTest {
 
     public static final String path = "tokens";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-	private TestServer server;
+	private ServerLauncher server;
 	private WebTarget target;
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(null, new AuthenticationService());
+    	server = new ServerLauncher(null, new AuthenticationService());
         server.startServersIfNecessary();
         
         target = AuthenticatedTarget.getClient(null, null, true).target(new AuthenticationService().getBaseUri());

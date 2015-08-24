@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.TestServer;
+import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.rest.token.AuthenticatedTarget;
 import fi.csc.chipster.sessionstorage.SessionStorage;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -30,7 +30,7 @@ public class SessionResourceTest {
     public static final String path = "sessions";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
 	
-	private TestServer server;
+	private ServerLauncher server;
 	private WebTarget user1Target;
 	private WebTarget user2Target;
 	private WebTarget tokenFailTarget;
@@ -39,7 +39,7 @@ public class SessionResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new TestServer(new SessionStorage(), new AuthenticationService());
+    	server = new ServerLauncher(new SessionStorage(), new AuthenticationService());
         server.startServersIfNecessary();
         
         user1Target = server.getUser1Target();
