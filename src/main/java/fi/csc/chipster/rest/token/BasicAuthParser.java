@@ -10,12 +10,6 @@ public class BasicAuthParser {
 	private String password;
 
 	public BasicAuthParser(String auth) {
-
-    	// the header values is missing
-		if(auth == null){
-			//requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).entity("username or password missing").build());
-			throw new NotAuthorizedException("no authorization header");
-		}
 		
         // remove auth type
         auth = auth.replaceFirst("[B|b]asic ", "");

@@ -1,6 +1,7 @@
 package fi.csc.chipster.auth.resource;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,19 +69,23 @@ public class AuthenticationResource {
     		// RolesAllowed prevents this
     		throw new NotAuthorizedException("username is null");
     	}
-    	
-		//FIXME has to be cryptographically secure
-		String tokenString = RestUtils.createId();
-		LocalDateTime valid = LocalDateTime.now().plusMonths(1);
 
-		String rolesJson = RestUtils.asJson(principal.getRoles());
-		
-		Token token = new Token(username, tokenString, valid, rolesJson);
+    	Token token = createToken(username, principal.getRoles());
 
 		getHibernate().session().save(token);
     									
 		return Response.ok(token).build();
     }
+
+	public Token createToken(String username, HashSet<String> roles) {
+		//FIXME has to be cryptographically secure
+		String tokenString = RestUtils.createId();
+		LocalDateTime valid = LocalDateTime.now().plusMonths(1);
+
+		String rolesJson = RestUtils.asJson(roles);
+		
+		return new Token(username, tokenString, valid, rolesJson);
+	}
 
 	/**
 	 * Remove all expired tokens

@@ -16,6 +16,8 @@ import javax.ws.rs.InternalServerErrorException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.File;
 import fi.csc.chipster.sessionstorage.model.Job;
@@ -127,5 +129,13 @@ public class RestUtils {
 
 	public static String basename(String path) {
 		return new java.io.File(path).getName();
+	}
+
+	public static Service getRandomService() {
+		Service s = new Service();
+		s.setRole(Role.SESSION_STORAGE);
+		s.setServiceId(createId());
+		s.setUri("http://localhost:8080/sessionstorage");
+		return s;
 	}
 }

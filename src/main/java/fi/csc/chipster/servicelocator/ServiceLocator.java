@@ -1,9 +1,7 @@
-package fi.csc.chipster.auth;
+package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -16,32 +14,39 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
-import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
-import fi.csc.chipster.auth.resource.AuthenticationResource;
+import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
-import fi.csc.chipster.rest.hibernate.Hibernate;
-import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
-import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.servicelocator.resource.Service;
+import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
+import fi.csc.chipster.servicelocator.resource.ServiceResource;
+import fi.csc.chipster.sessionstorage.resource.Events;
 
 /**
  * Main class.
  *
  */
-public class AuthenticationService implements Server {
+public class ServiceLocator implements Server {
 	
-	private static Logger logger = Logger.getLogger(AuthenticationService.class.getName());
+	private static Logger logger = Logger.getLogger(ServiceLocator.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8081/auth/";
+    public static final String BASE_URI = "http://localhost:8082/servicelocator/";
 
-	private static Hibernate hibernate;
+	private String serverId;
+
+	private Events events;
+
+	private ServiceCatalog serviceCatalog;
 
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
+    @Override
     public HttpServer startServer() {
     	
     	// show jersey logs in console
@@ -52,24 +57,23 @@ public class AuthenticationService implements Server {
     	ch.setLevel(Level.ALL);
     	l.addHandler(ch);
     	
-    	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-    			Token.class,
-    	});
+    	this.serverId = RestUtils.createId();
+    	this.events = new Events(serverId);
+    	this.serviceCatalog = new ServiceCatalog();
     	
-    	// init Hibernate
-    	hibernate = new Hibernate();
-    	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
+    	//FIXME make configurable
+    	Service auth = new Service(Role.AUTHENTICATION_SERVICE, AuthenticationService.BASE_URI);
+    	serviceCatalog.add(Role.AUTHENTICATION_SERVICE, auth);
     	
-    	AuthenticationResource authResource = new AuthenticationResource(hibernate);
-    	
-        final ResourceConfig rc = new ResourceConfig()
-        	.packages(NotFoundExceptionMapper.class.getPackage().getName()) // all exception mappers from the package
-        	.register(RolesAllowedDynamicFeature.class) // enable the RolesAllowed annotation
-        	.register(authResource)
-        	.register(new HibernateRequestFilter(hibernate))
-        	.register(new HibernateResponseFilter(hibernate))
-        	.register(new AuthenticationRequestFilter(hibernate));
-        
+    	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter();
+    	tokenRequestFilter.authenticationRequired(false);
+    	        
+		final ResourceConfig rc = new ResourceConfig()
+        	.packages(NotFoundExceptionMapper.class.getPackage().getName())
+        	.register(new ServiceResource(serviceCatalog, events))
+        	.register(RolesAllowedDynamicFeature.class)
+        	.register(tokenRequestFilter);
+
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
         return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
@@ -82,7 +86,7 @@ public class AuthenticationService implements Server {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = new AuthenticationService().startServer();
+        final HttpServer server = new ServiceLocator().startServer();
         System.out.println(String.format("Jersey app started with WADL available at "
                 + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
         System.in.read();
@@ -92,20 +96,16 @@ public class AuthenticationService implements Server {
 		} catch (InterruptedException | ExecutionException e) {
 			logger.log(Level.WARNING, "server shutdown failed", e);
 		}
-        
-        hibernate.getSessionFactory().close();
     }
 
 	@Override
 	public String getBaseUri() {
 		return BASE_URI;
 	}
-	
-	public Hibernate getHibernate() {
-		return hibernate;
-	}
-	
+
+	@Override
 	public void close() {
+		events.close();
 	}
 }
 

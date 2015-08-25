@@ -1,6 +1,8 @@
 package fi.csc.chipster.rest;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -9,12 +11,16 @@ import java.util.logging.Logger;
 
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 
+import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.token.AuthenticatedTarget;
+import fi.csc.chipster.servicelocator.ServiceLocator;
 
 public class ServerLauncher {
 	
@@ -24,16 +30,47 @@ public class ServerLauncher {
 	HashMap<Server, HttpServer> httpServers = new HashMap<>();
 
 	private Server server;
-	private Server authServer;	
-	
-	public ServerLauncher(Server server, Server authServer) {
-		this.server = server;
-		this.authServer = authServer;
+	private Server authServer;
+
+	private ServiceLocator serviceLocator;
+
+	private String authUri;
+
+	public ServerLauncher(Server server) {
+		this(ServiceLocator.BASE_URI, server);
 	}
-	
+	public ServerLauncher(String serviceLocatorUri, Server server) {
+		if (serviceLocatorUri != null) {
+			WebTarget serviceTarget = AuthenticatedTarget.getClient(null, null, false).target(serviceLocatorUri).path("services");
+			try {
+				// check if the server is already running
+				serviceTarget.request().get(Response.class);
+			} catch (ProcessingException e) {
+				authServer = new AuthenticationService();
+				httpServers.put(authServer, authServer.startServer());
+
+				// start the server
+				serviceLocator = new ServiceLocator();
+				httpServers.put(serviceLocator, serviceLocator.startServer());
+			}
+
+			String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+
+			List<LinkedHashMap<String, String>> servicesList = RestUtils.parseJson(List.class, servicesJson);
+
+			for (LinkedHashMap<String, String> service : servicesList) {
+
+				if (Role.AUTHENTICATION_SERVICE.equals(service.get("role"))) {
+					authUri = service.get("uri");
+					break;
+				}
+			}
+		}
+		this.server = server;
+	}
+
 	public void startServersIfNecessary() {
 
-		startServerIfNecessary(authServer);
 		startServerIfNecessary(server);
 	}
 	
@@ -53,6 +90,7 @@ public class ServerLauncher {
 
 	public void stop() {
 		stop(server);
+		stop(serviceLocator);
 		stop(authServer);
 	}
 		

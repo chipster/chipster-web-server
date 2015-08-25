@@ -9,19 +9,30 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
+import fi.csc.chipster.rest.token.AuthenticatedTarget;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.servicelocator.ServiceLocator;
+import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.File;
@@ -45,7 +56,7 @@ public class SessionStorage implements Server {
 
 	private static Hibernate hibernate;
 
-	private String serverId;
+	private String serviceId;
 
 	private Events events;
 
@@ -55,6 +66,14 @@ public class SessionStorage implements Server {
      */
     @Override
     public HttpServer startServer() {
+    	
+    	WebTarget serviceLocator = new AuthenticatedTarget("sessionStorage", "sessionStoragePassword").target(ServiceLocator.BASE_URI).path("services");
+    	Service service = new Service(Role.SESSION_STORAGE, BASE_URI);
+    	Response response = serviceLocator.request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(service, MediaType.APPLICATION_JSON_TYPE),Response.class);
+    	if (response.getStatus() != 201) {
+    		throw new InternalServerErrorException("incorrect status code when registering to service locator: " + response.getStatus() + " " +  response.getEntity());
+    	}
+    	this.serviceId = RestUtils.basename(response.getLocation().toString());
     	
     	// show jersey logs in console
     	Logger l = Logger.getLogger(HttpHandler.class.getName());
@@ -78,14 +97,14 @@ public class SessionStorage implements Server {
     	hibernate = new Hibernate();
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
     	
-    	this.serverId = RestUtils.createId();
-    	this.events = new Events(serverId);
+    	this.events = new Events(serviceId);
     	        
 		final ResourceConfig rc = new ResourceConfig()
         	.packages(NotFoundExceptionMapper.class.getPackage().getName())
         	.register(new SessionResource(hibernate, events))
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
+        	.register(RolesAllowedDynamicFeature.class)
         	.register(new TokenRequestFilter());
 
         // create and start a new instance of grizzly http server

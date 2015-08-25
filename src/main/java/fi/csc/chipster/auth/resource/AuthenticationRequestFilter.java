@@ -15,6 +15,7 @@ import javax.ws.rs.ext.Provider;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.provider.NotAuthorizedException;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 
@@ -31,6 +32,12 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	@Override
 	public void filter(ContainerRequestContext requestContext) throws IOException {    	
 
+		String authHeader = requestContext.getHeaderString("authorization");
+		
+		if (authHeader == null) {
+			throw new NotAuthorizedException("no authorization header found");
+		}
+		
 		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
 		
 		AuthPrincipal principal = null;

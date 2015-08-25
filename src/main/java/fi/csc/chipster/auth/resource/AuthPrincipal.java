@@ -1,6 +1,7 @@
 package fi.csc.chipster.auth.resource;
 
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.HashSet;
 
 public class AuthPrincipal implements Principal {
@@ -9,6 +10,10 @@ public class AuthPrincipal implements Principal {
 	private HashSet<String> roles;
 	private String tokenKey;
 
+	public AuthPrincipal(String username, String role) {
+		this(username, null, new HashSet<String>(Arrays.asList(role)));
+	}
+	
 	public AuthPrincipal(String username, HashSet<String> roles) {
 		this(username, null, roles);
 	}

@@ -14,6 +14,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.ext.Provider;
 
 import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
@@ -26,10 +27,11 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	public static final String TOKEN_USER = "token";
 	private static final int CACHE_MAX_SIZE = 1000;
 	
-	//FIXME read credentials from config
+	//FIXME read credentials and auth URI from config
 	private WebTarget authTarget = new AuthenticatedTarget("sessionStorage", "sessionStoragePassword").target(new AuthenticationService().getBaseUri());
 	
 	private LinkedHashMap<String, Token> tokenCache = new LinkedHashMap<>();
+	private boolean authenticationRequired = true;
 
 	@Override
 	public void filter(ContainerRequestContext requestContext)
@@ -37,7 +39,20 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		
 //		long t = System.currentTimeMillis();
 		
-		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
+		String authHeader = requestContext.getHeaderString("authorization");
+		
+		if (authHeader == null) {
+			if (authenticationRequired) {
+				//requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).entity("username or password missing").build());
+				throw new NotAuthorizedException("no authorization header");
+			} else {
+				// this filter is configured to pass non-authenticated users through
+				requestContext.setSecurityContext(
+						new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
+				return;
+			}
+		}
+		BasicAuthParser parser = new BasicAuthParser(authHeader);
 		
 		if (!TOKEN_USER.equals(parser.getUsername())) {
 			throw new NotAuthorizedException("only tokens allowed");
@@ -87,5 +102,9 @@ public class TokenRequestFilter implements ContainerRequestFilter {
     			.request(MediaType.APPLICATION_JSON_TYPE)
     		    .header("chipster-token", clientTokenKey)
     		    .get(Token.class);
+	}
+
+	public void authenticationRequired(boolean authenticationRequired) {
+		this.authenticationRequired  = authenticationRequired;
 	}
 }
