@@ -7,13 +7,11 @@ import java.util.LinkedHashMap;
 import javax.annotation.Priority;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.Priorities;
-import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.ext.Provider;
 
-import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
@@ -27,11 +25,14 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	public static final String TOKEN_USER = "token";
 	private static final int CACHE_MAX_SIZE = 1000;
 	
-	//FIXME read credentials and auth URI from config
-	private WebTarget authTarget = new AuthenticatedTarget("sessionStorage", "sessionStoragePassword").target(new AuthenticationService().getBaseUri());
-	
 	private LinkedHashMap<String, Token> tokenCache = new LinkedHashMap<>();
 	private boolean authenticationRequired = true;
+	
+	private AuthenticationClient authService;
+
+	public TokenRequestFilter(AuthenticationClient authService) {
+		this.authService = authService;
+	}
 
 	@Override
 	public void filter(ContainerRequestContext requestContext)
@@ -75,7 +76,10 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		if (tokenCache.containsKey(clientTokenKey)) {
 			dbClientToken = tokenCache.get(clientTokenKey);
 		} else {
-			dbClientToken = getDbToken(clientTokenKey);
+			dbClientToken = authService.getDbToken(clientTokenKey);
+			if (dbClientToken == null) {
+				throw new ForbiddenException("token not found");	
+			}
 			tokenCache.put(clientTokenKey, dbClientToken);
 			
 			Iterator<String> iter = tokenCache.keySet().iterator();
@@ -84,24 +88,12 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 				iter.remove();
 			}			
 		}
-    	
-        if (dbClientToken == null) {
-        	throw new ForbiddenException();
-        }
         
         if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
         	throw new ForbiddenException();
         }
 		
 		return new AuthPrincipal(dbClientToken.getUsername(), clientTokenKey, dbClientToken.getRoles());
-	}
-
-	private Token getDbToken(String clientTokenKey) {
-		return authTarget
-    			.path("tokens")
-    			.request(MediaType.APPLICATION_JSON_TYPE)
-    		    .header("chipster-token", clientTokenKey)
-    		    .get(Token.class);
 	}
 
 	public void authenticationRequired(boolean authenticationRequired) {

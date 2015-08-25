@@ -27,11 +27,13 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.provider.NotAuthorizedException;
 
 @Path("tokens")
-public class AuthenticationResource {
-		
+public class TokenResource {
+	
+	public static final String TOKENS = "tokens";
+	
 	private static final String TOKEN_HEADER = "chipster-token";
 
-	private static Logger logger = Logger.getLogger(AuthenticationResource.class.getName());
+	private static Logger logger = Logger.getLogger(TokenResource.class.getName());
 
 	private Hibernate hibernate;
 		
@@ -46,7 +48,7 @@ public class AuthenticationResource {
 //        return Events.getEventOutput();
 //    }
 	
-    public AuthenticationResource(Hibernate hibernate) {
+    public TokenResource(Hibernate hibernate) {
 		this.hibernate = hibernate;
 	}
 

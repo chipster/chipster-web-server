@@ -6,6 +6,7 @@ import java.io.StringWriter;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +54,19 @@ public class RestUtils {
 			logger.log(Level.SEVERE, "json parsing failed", e);
 			throw new InternalServerErrorException();
 		} 
+	}
+	
+
+	public static List<Service> parseJson(@SuppressWarnings("rawtypes") Class<? extends Collection> collectionType, Class<?> itemType, String json) {
+		// using Jackson library
+		try {
+			StringReader reader= new StringReader(json);
+			ObjectMapper mapper = new ObjectMapper();
+			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "json parsing failed", e);
+			throw new InternalServerErrorException();
+		}
 	}
 	
 	public static Date toDate(LocalDateTime dateTime) {

@@ -25,6 +25,8 @@ import fi.csc.chipster.sessionstorage.resource.Events;
 @Path("services")
 public class ServiceResource {
 	
+	public static final String SERVICES = "services";
+	
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(ServiceResource.class.getName());
 //	private Events events;

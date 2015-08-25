@@ -16,10 +16,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.rest.token.AuthenticatedTarget;
 
 public class AuthenticationResourceTest {
 
@@ -30,10 +28,11 @@ public class AuthenticationResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new ServerLauncher(null, new AuthenticationService());
+    	server = new ServerLauncher(null, new AuthenticationService(), AuthenticationService.BASE_URI);
         server.startServersIfNecessary();
         
-        target = AuthenticatedTarget.getClient(null, null, true).target(new AuthenticationService().getBaseUri());
+        // client with authentication enabled, but each test will set the credentials later
+        target = AuthenticationClient.getClient(null, null, true).target(new AuthenticationService().getBaseUri());
     }
 
     @After

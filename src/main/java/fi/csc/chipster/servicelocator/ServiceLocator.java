@@ -2,6 +2,8 @@ package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -15,6 +17,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
@@ -42,12 +45,20 @@ public class ServiceLocator implements Server {
 
 	private ServiceCatalog serviceCatalog;
 
+	private AuthenticationClient authService;
+
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
     @Override
     public HttpServer startServer() {
+    	
+    	String username = "serviceLocator";
+    	String password = "serviceLocatorPassword";
+    	List<String> auths = Arrays.asList(new String[] { AuthenticationService.BASE_URI });
+    	    	
+    	this.authService = new AuthenticationClient(auths, username, password);
     	
     	// show jersey logs in console
     	Logger l = Logger.getLogger(HttpHandler.class.getName());
@@ -65,7 +76,7 @@ public class ServiceLocator implements Server {
     	Service auth = new Service(Role.AUTHENTICATION_SERVICE, AuthenticationService.BASE_URI);
     	serviceCatalog.add(Role.AUTHENTICATION_SERVICE, auth);
     	
-    	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter();
+    	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	tokenRequestFilter.authenticationRequired(false);
     	        
 		final ResourceConfig rc = new ResourceConfig()

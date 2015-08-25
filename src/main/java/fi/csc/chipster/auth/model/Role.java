@@ -13,4 +13,5 @@ public class Role {
 	public static final String SERVER = "server";
 	public static final String AUTHENTICATION_SERVICE = "authentication-service";
 	public static final String UNAUTHENTICATED = "unauthenticated";
+	public static final String SERVICE_LOCATOR = "service-locator";
 }

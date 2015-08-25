@@ -1,8 +1,6 @@
 package fi.csc.chipster.rest;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -11,22 +9,22 @@ import java.util.logging.Logger;
 
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.token.AuthenticatedTarget;
 import fi.csc.chipster.servicelocator.ServiceLocator;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessionstorage.SessionStorage;
 
 public class ServerLauncher {
 	
 	private static Logger logger = Logger.getLogger(ServerLauncher.class.getName());
 	
-	public WebTarget testTarget;
 	HashMap<Server, HttpServer> httpServers = new HashMap<>();
 
 	private Server server;
@@ -34,39 +32,34 @@ public class ServerLauncher {
 
 	private ServiceLocator serviceLocator;
 
-	private String authUri;
+	private ServiceLocatorClient serviceLocatorClient;
 
-	public ServerLauncher(Server server) {
-		this(ServiceLocator.BASE_URI, server);
+	private String targetUri;
+
+	public ServerLauncher(Server server, String targetUri) {
+		this(ServiceLocator.BASE_URI, server, targetUri);
 	}
-	public ServerLauncher(String serviceLocatorUri, Server server) {
+	public ServerLauncher(String serviceLocatorUri, Server server, String targetUri) {
 		if (serviceLocatorUri != null) {
-			WebTarget serviceTarget = AuthenticatedTarget.getClient(null, null, false).target(serviceLocatorUri).path("services");
 			try {
 				// check if the server is already running
-				serviceTarget.request().get(Response.class);
+				new ServiceLocatorClient(serviceLocatorUri).getServices(Role.AUTHENTICATION_SERVICE);
 			} catch (ProcessingException e) {
+				System.err.println("service locator didn't respond");
+				System.err.println("starting auth");
 				authServer = new AuthenticationService();
 				httpServers.put(authServer, authServer.startServer());
 
+				System.err.println("starting service locator");
 				// start the server
 				serviceLocator = new ServiceLocator();
 				httpServers.put(serviceLocator, serviceLocator.startServer());
 			}
 
-			String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
-
-			List<LinkedHashMap<String, String>> servicesList = RestUtils.parseJson(List.class, servicesJson);
-
-			for (LinkedHashMap<String, String> service : servicesList) {
-
-				if (Role.AUTHENTICATION_SERVICE.equals(service.get("role"))) {
-					authUri = service.get("uri");
-					break;
-				}
-			}
+			this.serviceLocatorClient = new ServiceLocatorClient(serviceLocatorUri);
 		}
 		this.server = server;
+		this.targetUri = targetUri;
 	}
 
 	public void startServersIfNecessary() {
@@ -76,7 +69,7 @@ public class ServerLauncher {
 	
 	private void startServerIfNecessary(Server server) {
 		if (server != null) {
-			testTarget = AuthenticatedTarget.getClient(null, null, false).target(server.getBaseUri());
+			WebTarget testTarget = AuthenticationClient.getClient().target(server.getBaseUri());
 
 			try {
 				// check if the server is already running
@@ -115,34 +108,40 @@ public class ServerLauncher {
 	}
 	
 	public WebTarget getUser1Target() {
-		return new AuthenticatedTarget("client", "clientPassword").target(getBaseUri());
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient().target(getBaseUri());
 	}
 	
 	public WebTarget getUser2Target() {
-		return new AuthenticatedTarget("client2", "client2Password").target(getBaseUri());
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(getBaseUri());
+	}
+	
+	public WebTarget getSessionStorageUserTarget() {
+		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(getBaseUri());
 	}
 	
 	public WebTarget getTokenFailTarget() {
-		return AuthenticatedTarget.getClient("token", "wrongToken", true).target(getBaseUri());
+		return AuthenticationClient.getClient("token", "wrongToken", true).target(getBaseUri());
 	}
 	
 	public WebTarget getAuthFailTarget() {
 		// password login should be enabled only on auth, but this tries to use it on the sessions storage
-		return AuthenticatedTarget.getClient("client", "clientPassword", true).target(getBaseUri());
+		return AuthenticationClient.getClient("client", "clientPassword", true).target(getBaseUri());
 	}
 	
 	public WebTarget getNoAuthTarget() {
-		return AuthenticatedTarget.getClient(null, null, false).target(getBaseUri());
+		return AuthenticationClient.getClient().target(getBaseUri());
 	}
 
 	private String getBaseUri() {
-		if (server != null) {
-			return server.getBaseUri();
-		}
-		return authServer.getBaseUri();
+		return targetUri;
 	}
 
 	public Server getServer() {
 		return server;
+	}
+	
+	public static void main(String[] args) {
+		ServerLauncher launcher = new ServerLauncher(new SessionStorage(), null);
+		launcher.startServersIfNecessary();
 	}
 }

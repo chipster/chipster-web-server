@@ -18,7 +18,7 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
-import fi.csc.chipster.auth.resource.AuthenticationResource;
+import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
@@ -60,7 +60,7 @@ public class AuthenticationService implements Server {
     	hibernate = new Hibernate();
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
-    	AuthenticationResource authResource = new AuthenticationResource(hibernate);
+    	TokenResource authResource = new TokenResource(hibernate);
     	
         final ResourceConfig rc = new ResourceConfig()
         	.packages(NotFoundExceptionMapper.class.getPackage().getName()) // all exception mappers from the package

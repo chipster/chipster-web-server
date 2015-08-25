@@ -33,7 +33,7 @@ public class JobResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new ServerLauncher(new SessionStorage());
+    	server = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
         server.startServersIfNecessary();
         user1Target = server.getUser1Target();
         user2Target = server.getUser2Target();

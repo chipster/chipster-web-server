@@ -5,7 +5,6 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
 
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -20,7 +19,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.rest.token.AuthenticatedTarget;
 import fi.csc.chipster.sessionstorage.model.Session;
 
 public class SessionResourceTest {
@@ -28,7 +26,7 @@ public class SessionResourceTest {
     public static final String path = "sessions";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
 	
-	private ServerLauncher server;
+	private ServerLauncher launcher;
 	private WebTarget user1Target;
 	private WebTarget user2Target;
 	private WebTarget tokenFailTarget;
@@ -37,34 +35,19 @@ public class SessionResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new ServerLauncher(new SessionStorage());
-        server.startServersIfNecessary();
+    	launcher = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
+        launcher.startServersIfNecessary();
         
-        user1Target = server.getUser1Target();
-        user2Target = server.getUser2Target();
-        tokenFailTarget = server.getTokenFailTarget();
-        authFailTarget = server.getAuthFailTarget();
-        noAuthTarget = server.getNoAuthTarget();
+        user1Target = launcher.getUser1Target();
+        user2Target = launcher.getUser2Target();
+        tokenFailTarget = launcher.getTokenFailTarget();
+        authFailTarget = launcher.getAuthFailTarget();
+        noAuthTarget = launcher.getNoAuthTarget();
     }
 
     @After
     public void tearDown() throws Exception {
-    	server.stop();
-    }
-    
-    @Test
-    public void authFail() throws JsonGenerationException, JsonMappingException, IOException {
-    	try {
-    		new AuthenticatedTarget("wrongUsername", "clientPassword").target(new SessionStorage().getBaseUri());
-    		assertEquals(true, false);
-    	} catch (ForbiddenException e) { 
-    	}
-    	
-    	try {
-    		new AuthenticatedTarget("client", "wrongPassword").target(new SessionStorage().getBaseUri());
-    		assertEquals(true, false);
-    	} catch (ForbiddenException e) {
-    	}
+    	launcher.stop();
     }
 
     @Test

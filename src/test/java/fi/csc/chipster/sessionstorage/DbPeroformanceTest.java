@@ -31,7 +31,7 @@ public class DbPeroformanceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new ServerLauncher(new SessionStorage());
+    	server = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
         server.startServersIfNecessary();
         target = server.getUser1Target();
     }

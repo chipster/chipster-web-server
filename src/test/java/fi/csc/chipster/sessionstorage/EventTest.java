@@ -37,7 +37,7 @@ public class EventTest {
 
     @Before
     public void setUp() throws Exception {
-    	serverLauncher = new ServerLauncher(new SessionStorage());
+    	serverLauncher = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
         serverLauncher.startServersIfNecessary();
         
         user1Target = serverLauncher.getUser1Target();
