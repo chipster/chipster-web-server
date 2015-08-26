@@ -40,6 +40,12 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		
 //		long t = System.currentTimeMillis();
 		
+		if ("OPTIONS".equals(requestContext.getMethod())) {
+			
+			// CORS preflight checks require unauthenticated OPTIONS
+			return;
+		}
+		
 		String authHeader = requestContext.getHeaderString("authorization");
 		
 		if (authHeader == null) {

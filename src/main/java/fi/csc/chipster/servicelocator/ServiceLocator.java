@@ -21,6 +21,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
+import fi.csc.chipster.rest.provider.CORSResponseFilter;
 import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
@@ -83,6 +84,7 @@ public class ServiceLocator implements Server {
         	.packages(NotFoundExceptionMapper.class.getPackage().getName())
         	.register(new ServiceResource(serviceCatalog, events))
         	.register(RolesAllowedDynamicFeature.class)
+        	.register(CORSResponseFilter.class)
         	.register(tokenRequestFilter);
 
         // create and start a new instance of grizzly http server

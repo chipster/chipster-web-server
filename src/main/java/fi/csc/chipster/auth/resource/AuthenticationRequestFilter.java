@@ -32,6 +32,11 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	@Override
 	public void filter(ContainerRequestContext requestContext) throws IOException {    	
 
+		if ("OPTIONS".equals(requestContext.getMethod())) {
+			
+			// CORS preflight checks require unauthenticated OPTIONS
+			return;
+		}
 		String authHeader = requestContext.getHeaderString("authorization");
 		
 		if (authHeader == null) {

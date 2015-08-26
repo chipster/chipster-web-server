@@ -23,6 +23,7 @@ import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
+import fi.csc.chipster.rest.provider.CORSResponseFilter;
 import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
 
 /**
@@ -68,6 +69,7 @@ public class AuthenticationService implements Server {
         	.register(authResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
+        	.register(CORSResponseFilter.class)
         	.register(new AuthenticationRequestFilter(hibernate));
         
         // create and start a new instance of grizzly http server
