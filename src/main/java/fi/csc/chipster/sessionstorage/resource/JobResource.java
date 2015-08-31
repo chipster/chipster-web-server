@@ -84,13 +84,10 @@ public class JobResource {
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-		        	
-		job = RestUtils.getRandomJob();
-		job.setJobId(null);
+    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {		        	
 		
 		if (job.getJobId() != null) {
-			throw new BadRequestException("session already has an id, post not allowed");
+			throw new BadRequestException("job already has an id, post not allowed");
 		}
 		
 		String id = RestUtils.createId();

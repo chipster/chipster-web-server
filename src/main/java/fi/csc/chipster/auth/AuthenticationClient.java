@@ -17,7 +17,7 @@ import org.hibernate.service.spi.ServiceException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.TokenResource;
-import fi.csc.chipster.rest.provider.LocalDateTimeContextResolver;
+import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 

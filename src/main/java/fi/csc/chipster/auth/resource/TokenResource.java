@@ -22,9 +22,9 @@ import javax.ws.rs.core.SecurityContext;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.rest.provider.NotAuthorizedException;
 
 @Path("tokens")
 public class TokenResource {

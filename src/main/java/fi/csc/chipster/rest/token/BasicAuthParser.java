@@ -2,7 +2,7 @@ package fi.csc.chipster.rest.token;
 
 import javax.xml.bind.DatatypeConverter;
 
-import fi.csc.chipster.rest.provider.NotAuthorizedException;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 
 public class BasicAuthParser {
 

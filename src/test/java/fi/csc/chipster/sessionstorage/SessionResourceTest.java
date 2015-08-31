@@ -138,6 +138,7 @@ public class SessionResourceTest {
 	
 	public static String postRandomSession(WebTarget target) {
     	Session session = RestUtils.getRandomSession();
+    	session.setSessionId(null);
     	Response response = target.path(path).request(JSON).post(Entity.entity(session, JSON),Response.class);
         assertEquals(201, response.getStatus());
         

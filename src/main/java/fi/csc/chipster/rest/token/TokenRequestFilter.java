@@ -16,7 +16,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
-import fi.csc.chipster.rest.provider.NotAuthorizedException;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
@@ -39,7 +39,6 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			throws IOException {
 		
 //		long t = System.currentTimeMillis();
-		
 		if ("OPTIONS".equals(requestContext.getMethod())) {
 			
 			// CORS preflight checks require unauthenticated OPTIONS

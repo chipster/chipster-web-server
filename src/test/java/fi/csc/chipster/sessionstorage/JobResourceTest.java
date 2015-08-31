@@ -133,6 +133,7 @@ public class JobResourceTest {
 	 
     public static String postRandomJob(WebTarget target, String sessionPath) {
     	Job job = RestUtils.getRandomJob();
+    	job.setJobId(null);
     	Response response = post(target, sessionPath + JOBS, job);
         assertEquals(201, response.getStatus());
         

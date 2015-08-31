@@ -18,11 +18,14 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.CORSResponseFilter;
+import fi.csc.chipster.rest.RequestLoggingFilter;
+import fi.csc.chipster.rest.ResponseLoggingFilter;
 import fi.csc.chipster.rest.Server;
+import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
-import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -102,6 +105,9 @@ public class SessionStorage implements Server {
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	.register(RolesAllowedDynamicFeature.class)
+        	.register(CORSResponseFilter.class)
+        	.register(new RequestLoggingFilter(false))
+        	.register(new ResponseLoggingFilter(true, false, false))
         	.register(new TokenRequestFilter(authService));
 
         // create and start a new instance of grizzly http server

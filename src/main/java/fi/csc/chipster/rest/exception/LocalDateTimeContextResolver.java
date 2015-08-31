@@ -1,4 +1,4 @@
-package fi.csc.chipster.rest.provider;
+package fi.csc.chipster.rest.exception;
 
 import java.io.IOException;
 import java.time.Instant;

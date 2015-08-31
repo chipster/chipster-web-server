@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessionstorage.model;
 
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
 import fi.csc.microarray.description.SADLSyntax.ParameterType;
@@ -8,7 +9,10 @@ import fi.csc.microarray.description.SADLSyntax.ParameterType;
 @Entity // db
 public class Parameter {
 
-	@Id // db
+	@Id 
+	@GeneratedValue
+	private int dbId;
+	
 	private String parameterId;
 	private String displayName;
 	private String description;

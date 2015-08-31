@@ -55,6 +55,7 @@ public class DbPeroformanceTest {
     
     public static String postSession(WebTarget target) {
     	Session session = RestUtils.getRandomSession();
+    	session.setSessionId(null);
     	Response response = target.path(path).request(JSON).post(Entity.entity(session, JSON),Response.class);
         assertEquals(201, response.getStatus());
         

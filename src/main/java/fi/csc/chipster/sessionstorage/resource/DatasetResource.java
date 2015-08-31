@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
@@ -26,6 +27,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessionstorage.model.Dataset;
+import fi.csc.chipster.sessionstorage.model.File;
 import fi.csc.chipster.sessionstorage.model.Session;
 import fi.csc.chipster.sessionstorage.model.SessionEvent;
 import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
@@ -85,23 +87,33 @@ public class DatasetResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
-    	        			
-		dataset = RestUtils.getRandomDataset();
-		dataset.setDatasetId(null);
-		
+    	        					
 		if (dataset.getDatasetId() != null) {
-			throw new BadRequestException("session already has an id, post not allowed");
+			throw new BadRequestException("dataset already has an id, post not allowed");
 		}
 
 		String id = RestUtils.createId();
 		dataset.setDatasetId(id);
 
-		sessionResource.getSessionForWriting(sc, sessionId).getDatasets().put(id, dataset);
+		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		checkFileModification(dataset);
+		session.getDatasets().put(id, dataset);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
 		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
+
+	private void checkFileModification(Dataset dataset) {
+		// if the file exists, don't allow it to be modified 
+		File file = getHibernate().session().get(File.class, dataset.getFile().getFileId());
+		if (file != null) {
+			if (!file.equals(dataset.getFile())) {
+				throw new ForbiddenException("modification of existing file is forbidden");
+			}
+			dataset.setFile(file);
+		}
+	}
 
 	@PUT
 	@Path("{id}")
@@ -121,7 +133,7 @@ public class DatasetResource {
 		if (!sessionResource.getSessionForWriting(sc, sessionId).getDatasets().containsKey(datasetId)) {
 			throw new NotFoundException("dataset doesn't exist");
 		}
-
+		checkFileModification(requestDataset);
 		getHibernate().session().merge(requestDataset);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"

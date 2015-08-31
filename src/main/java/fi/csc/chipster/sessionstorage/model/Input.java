@@ -1,12 +1,17 @@
 package fi.csc.chipster.sessionstorage.model;
 
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
 @Entity
 public class Input {
 	
-	@Id
+	
+	@Id 
+	@GeneratedValue
+	private int dbId;
+
 	private String inputId;
 	private String displayName;
 	private String description;

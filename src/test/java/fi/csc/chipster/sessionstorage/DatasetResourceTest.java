@@ -53,6 +53,19 @@ public class DatasetResourceTest {
     public void post() {
     	postRandomDataset(user1Target, session1Path);
     }
+	
+	@Test
+    public void postModification() {
+    	Dataset dataset1 = RestUtils.getRandomDataset();
+    	dataset1.setDatasetId(null);
+    	Dataset dataset2 = RestUtils.getRandomDataset();
+    	dataset2.setDatasetId(null);
+    	// check that properties of the existing File can't be modified
+    	dataset2.getFile().setFileId(dataset1.getFile().getFileId());
+    	dataset2.getFile().setSize(101);
+    	assertEquals(201, post(user1Target, session1Path + DATASETS, dataset1).getStatus());
+    	assertEquals(403, post(user1Target, session1Path + DATASETS, dataset2).getStatus());
+    }
 
 	//@Test
     public void postAndGetMany() throws JsonGenerationException, JsonMappingException, IOException {
@@ -145,6 +158,7 @@ public class DatasetResourceTest {
 	
     public static String postRandomDataset(WebTarget target, String sessionPath) {
     	Dataset dataset = RestUtils.getRandomDataset();
+    	dataset.setDatasetId(null);
     	Response response = post(target, sessionPath + DATASETS, dataset);
         assertEquals(201, response.getStatus());
         

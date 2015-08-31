@@ -19,12 +19,12 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
+import fi.csc.chipster.rest.CORSResponseFilter;
 import fi.csc.chipster.rest.Server;
+import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.hibernate.Hibernate;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
-import fi.csc.chipster.rest.provider.CORSResponseFilter;
-import fi.csc.chipster.rest.provider.NotFoundExceptionMapper;
 
 /**
  * Main class.

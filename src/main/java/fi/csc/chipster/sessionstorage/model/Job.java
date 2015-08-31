@@ -6,7 +6,6 @@ import java.util.List;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
@@ -28,11 +27,11 @@ public class Job {
 	private LocalDateTime startTime;
 	private LocalDateTime endTime;
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="jobId")
 	private List<Parameter> parameters = new ArrayList<>();
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="jobId")
 	private List<Input> inputs = new ArrayList<>();
 	
@@ -89,5 +88,13 @@ public class Job {
 	}
 	public void setParameters(List<Parameter> parameters) {
 		this.parameters = parameters;
+	}
+	
+	public List<Input> getInputs() {
+		return inputs;
+	}
+	
+	public void setInputs(List<Input> inputs) {
+		this.inputs = inputs;
 	}
 }

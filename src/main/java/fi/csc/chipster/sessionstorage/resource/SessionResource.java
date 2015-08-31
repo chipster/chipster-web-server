@@ -112,12 +112,12 @@ public class SessionResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Session session, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+	//public Response post(String json, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
 		// curl -i -H "Content-Type: application/json" --user token:<TOKEN> -X POST http://localhost:8080/sessionstorage/session
-		
-		session = RestUtils.getRandomSession();
-		session.setSessionId(null);
-    	        	
+//		System.out.println("POST JSON: " + json);
+//		Session session = RestUtils.parseJson(Session.class, json);				
+//		
 		if (session.getSessionId() != null) {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
@@ -144,16 +144,18 @@ public class SessionResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Session requestSession, @PathParam("id") String sessionId, @Context SecurityContext sc) {
-				    		
-		requestSession = RestUtils.getRandomSession();
-		
+				    				
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
 		getWriteAuthorization(sc, sessionId);
-		
+		Session dbSession = getHibernate().session().get(Session.class, requestSession.getSessionId());
+		// keep the old datasets and jobs
+		requestSession.setDatasets(dbSession.getDatasets());
+		requestSession.setJobs(dbSession.getJobs());
+		// persist
 		getHibernate().session().merge(requestSession);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"

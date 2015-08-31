@@ -21,6 +21,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.File;
+import fi.csc.chipster.sessionstorage.model.Input;
 import fi.csc.chipster.sessionstorage.model.Job;
 import fi.csc.chipster.sessionstorage.model.Parameter;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -128,7 +129,23 @@ public class RestUtils {
 		p.add(getRandomParameter());
 		p.add(getRandomParameter());
 		j.setParameters(p);
+		
+		List<Input> i = new ArrayList<>();
+		i.add(getRandomInput());
+		i.add(getRandomInput());
+		j.setInputs(i);
+		
 		return j;
+	}
+
+	private static Input getRandomInput() {
+		Input i = new Input();
+		i.setInputId("inFile");
+		i.setDisplayName("Input file");
+		i.setDescription("Input file to process");
+		i.setType("GENERIC");
+		i.setDatasetId("apsodifupoiwuerpoiu");
+		return i;
 	}
 
 	private static Parameter getRandomParameter() {

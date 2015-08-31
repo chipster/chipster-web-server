@@ -14,8 +14,8 @@ import javax.ws.rs.ext.Provider;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.Hibernate;
-import fi.csc.chipster.rest.provider.NotAuthorizedException;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 

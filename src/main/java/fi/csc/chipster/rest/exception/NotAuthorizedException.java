@@ -1,4 +1,4 @@
-package fi.csc.chipster.rest.provider;
+package fi.csc.chipster.rest.exception;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
