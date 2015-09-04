@@ -15,7 +15,7 @@ import javax.ws.rs.ext.Provider;
 public class CORSResponseFilter implements ContainerResponseFilter {
 	
 	@Override
-	public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {
+	public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {			
 		 
 		MultivaluedMap<String, Object> headers = responseContext.getHeaders();
  

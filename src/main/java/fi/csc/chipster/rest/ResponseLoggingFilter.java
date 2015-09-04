@@ -54,14 +54,18 @@ public class ResponseLoggingFilter implements ContainerResponseFilter {
 //		logResponses = true;
 //		logResponseHeaders = true;
 //		logResponseBody = true;
+		
+		// printing everything at once makes it less likely for other parallel
+		// requests to come in between
+		String log = "";
 
 		if (logRequests) {
-			System.out.println(requestContext.getMethod() + " " + requestContext.getUriInfo().getBaseUri() + requestContext.getUriInfo().getPath());
+			log += requestContext.getMethod() + " " + requestContext.getUriInfo().getBaseUri() + requestContext.getUriInfo().getPath() + "\n";
 		}
 		
 		if (logRequestHeaders) {
 			for (String key : requestContext.getHeaders().keySet()) {
-				System.out.println(key + ": " + requestContext.getHeaderString(key));
+				log += key + ": " + requestContext.getHeaderString(key) + "\n";
 			}
 		}
 		
@@ -72,12 +76,12 @@ public class ResponseLoggingFilter implements ContainerResponseFilter {
  
 		
 		if (logResponses) {
-			System.out.println(responseContext.getStatus() + " " + responseContext.getStatusInfo().getReasonPhrase());
+			log += responseContext.getStatus() + " " + responseContext.getStatusInfo().getReasonPhrase() + "\n";
 		}
 		
 		if (logResponseHeaders) {
 			for (String key : responseContext.getHeaders().keySet()) {
-				System.out.println(key + ": " + responseContext.getHeaderString(key));
+				log += key + ": " + responseContext.getHeaderString(key) + "\n";
 			}
 		}
 		
@@ -86,7 +90,9 @@ public class ResponseLoggingFilter implements ContainerResponseFilter {
 			if (entity instanceof InputStream) {
 				entity = IOUtils.toString((InputStream)entity);
 			}
-			System.out.println(RestUtils.asJson(entity));
+			log += RestUtils.asJson(entity) + "\n";
 		}
+		
+		System.out.println(log);
 	}
 }

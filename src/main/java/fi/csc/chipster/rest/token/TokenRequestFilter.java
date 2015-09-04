@@ -46,8 +46,21 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		}
 		
 		String authHeader = requestContext.getHeaderString("authorization");
+		// allow token to be sent also as a query parameter, because JS EventSource doesn't allow setting headers 
+		String authParameter = requestContext.getUriInfo().getQueryParameters().getFirst("token");
 		
-		if (authHeader == null) {
+		String password = null;
+		if (authHeader != null) {
+			BasicAuthParser parser = new BasicAuthParser(authHeader);
+			if (!TOKEN_USER.equals(parser.getUsername())) {
+				throw new NotAuthorizedException("only tokens allowed");
+			}
+			password = parser.getPassword();
+		} else {
+			password = authParameter;
+		}
+		
+		if (password == null) {
 			if (authenticationRequired) {
 				//requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).entity("username or password missing").build());
 				throw new NotAuthorizedException("no authorization header");
@@ -57,15 +70,10 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 						new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
 				return;
 			}
-		}
-		BasicAuthParser parser = new BasicAuthParser(authHeader);
-		
-		if (!TOKEN_USER.equals(parser.getUsername())) {
-			throw new NotAuthorizedException("only tokens allowed");
-		}
+		}		
 
 		// throws an exception if fails
-		AuthPrincipal principal = tokenAuthentication(parser.getPassword());
+		AuthPrincipal principal = tokenAuthentication(password);
 		
 		// login ok
 		requestContext.setSecurityContext(

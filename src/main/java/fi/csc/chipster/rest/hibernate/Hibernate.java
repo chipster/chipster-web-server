@@ -43,14 +43,14 @@ public class Hibernate {
     		hibernateConf.setProperty(Environment.USER, dbUsername);
     		hibernateConf.setProperty(Environment.PASS, dbPassword);
     		hibernateConf.setProperty(Environment.DIALECT, H2Dialect.class.getName());
-    		hibernateConf.setProperty(Environment.SHOW_SQL, "true");
+    		hibernateConf.setProperty(Environment.SHOW_SQL, "false");
     		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
     		// check schema
 //    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "validate");
     		// simple schema updates (but hibernate docs don't recommend for production use)
-//    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "update");    		
+    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "update");    		
     		// drop old table and create new one
-    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
+//    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
     		
     		for (Class<?> c : hibernateClasses) {
     			hibernateConf.addAnnotatedClass(c);

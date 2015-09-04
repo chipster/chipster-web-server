@@ -106,8 +106,8 @@ public class SessionStorage implements Server {
         	.register(new HibernateResponseFilter(hibernate))
         	.register(RolesAllowedDynamicFeature.class)
         	.register(CORSResponseFilter.class)
-        	.register(new RequestLoggingFilter(false))
-        	.register(new ResponseLoggingFilter(true, false, false))
+        	.register(new RequestLoggingFilter(true, true, false))
+        	.register(new ResponseLoggingFilter(false, false, false, true, true, true))
         	.register(new TokenRequestFilter(authService));
 
         // create and start a new instance of grizzly http server

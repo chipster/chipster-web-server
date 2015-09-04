@@ -207,7 +207,7 @@ public class SessionResource {
 				.setParameter("session", session).uniqueResult();
 		if (authObj == null) {
 			// Either the session doesn't exist or the user doesn't have access 
-			// rights to it. HTTP specifation allows 404 response in either case,
+			// rights to it. HTTP specification allows 404 response in either case,
 			// so there is no need to make extra queries to find out.
 			throw new NotFoundException();
 		}
