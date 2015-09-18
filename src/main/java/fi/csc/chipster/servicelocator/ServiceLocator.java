@@ -38,7 +38,7 @@ public class ServiceLocator implements Server {
 	private static Logger logger = Logger.getLogger(ServiceLocator.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8082/servicelocator/";
+    public static final String BASE_URI = "http://0.0.0.0:8082/servicelocator/";
 
 	private String serverId;
 

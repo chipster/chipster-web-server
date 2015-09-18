@@ -29,7 +29,7 @@ import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.SseFeature;
 
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -42,10 +42,10 @@ public class SessionResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(SessionResource.class.getName());
-	private Hibernate hibernate;
+	private HibernateUtil hibernate;
 	private Events events;
 	
-	public SessionResource(Hibernate hibernate, Events events) {
+	public SessionResource(HibernateUtil hibernate, Events events) {
 		this.hibernate = hibernate;
 		this.events = events;
 	}
@@ -235,7 +235,7 @@ public class SessionResource {
 		return new GenericEntity<List<Session>>(result) {};
 	}
 	
-	public Hibernate getHibernate() {
+	public HibernateUtil getHibernate() {
 		return hibernate;
 	}
 }

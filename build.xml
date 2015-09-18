@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project name="Chipster session storage" default="package-jar" basedir="." xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+<project name="Chipster web" default="package-jar" basedir="." xmlns:artifact="antlib:org.apache.maven.artifact.ant">
 	<description>
 		The Chipster session storage server
     	</description>
@@ -49,7 +49,7 @@
 					<include name="**/*.jar" />
 				</fileset>
 			</classpath>
-		</javac>
+		</javac>		
 	</target>
 
 	<target name="package-jar" depends="compile" description="Create chipster session storage jar">
@@ -59,6 +59,32 @@
 			</manifest>
 			<fileset dir="${build}/" />
 		</jar>
-	</target>	
+		<copy todir="dist" flatten="true">
+			<fileset refid="deps.fileset" />
+			<fileset dir="ext/lib/">
+				<include name="*.jar"/>
+			</fileset>
+		</copy>
+	</target>
+	<target name="docker-build" description="Build docker image">
+	    <exec executable="docker">
+	    	<arg value="build" />
+	        <arg value="-t" />
+	    	<arg value="chipster/session-storage" />
+	    	<arg value="." />	
+	    </exec>
+	</target>
+	<target name="docker-run" description="Run docker image">
+	    <exec executable="docker">
+	    	<arg value="run" />
+	        <arg value="-p" />
+	    	<arg value="8080:8080" />
+	    	<arg value="-p" />
+	    	<arg value="8081:8081" />
+	    	<arg value="-p" />
+	    	<arg value="8082:8082" />	
+	    	<arg value="chipster/session-storage" />
+	    </exec>
+	</target>
 </project>
 

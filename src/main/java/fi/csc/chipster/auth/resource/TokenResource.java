@@ -23,7 +23,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 @Path("tokens")
@@ -35,7 +35,7 @@ public class TokenResource {
 
 	private static Logger logger = Logger.getLogger(TokenResource.class.getName());
 
-	private Hibernate hibernate;
+	private HibernateUtil hibernate;
 		
 	// notifications
 //    @GET
@@ -48,7 +48,7 @@ public class TokenResource {
 //        return Events.getEventOutput();
 //    }
 	
-    public TokenResource(Hibernate hibernate) {
+    public TokenResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
 
@@ -142,7 +142,7 @@ public class TokenResource {
 		return Response.noContent().build();
     }
 	
-	private Hibernate getHibernate() {
+	private HibernateUtil getHibernate() {
 		return hibernate;
 	}
 }

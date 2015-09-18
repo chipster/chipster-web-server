@@ -7,9 +7,9 @@ import javax.ws.rs.ext.Provider;
 @Transaction
 public class HibernateRequestFilter implements ContainerRequestFilter {
 	
-	private Hibernate hibernate;
+	private HibernateUtil hibernate;
 
-	public HibernateRequestFilter(Hibernate hibernate) {
+	public HibernateRequestFilter(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
 

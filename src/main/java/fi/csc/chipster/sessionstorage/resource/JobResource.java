@@ -23,7 +23,7 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessionstorage.model.Job;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -158,7 +158,7 @@ public class JobResource {
 		return new GenericEntity<Collection<Job>>(result) {};
 	}
 	
-	private Hibernate getHibernate() {
+	private HibernateUtil getHibernate() {
 		return sessionResource.getHibernate();
 	}
 }

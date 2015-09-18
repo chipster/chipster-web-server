@@ -23,7 +23,7 @@ import fi.csc.chipster.rest.RequestLoggingFilter;
 import fi.csc.chipster.rest.ResponseLoggingFilter;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
@@ -48,9 +48,9 @@ public class SessionStorage implements Server {
 	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8080/sessionstorage/";
+    public static final String BASE_URI = "http://0.0.0.0:8080/sessionstorage/";
 
-	private static Hibernate hibernate;
+	private static HibernateUtil hibernate;
 
 	private String serviceId;
 
@@ -94,7 +94,7 @@ public class SessionStorage implements Server {
     	});
     	
     	// init Hibernate
-    	hibernate = new Hibernate();
+    	hibernate = new HibernateUtil();
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
     	
     	this.events = new Events(serviceId);
@@ -141,7 +141,7 @@ public class SessionStorage implements Server {
 		return BASE_URI;
 	}
 
-	public static Hibernate getHibernate() {
+	public static HibernateUtil getHibernate() {
 		return hibernate;
 	}
 

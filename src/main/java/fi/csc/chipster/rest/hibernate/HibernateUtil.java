@@ -9,9 +9,9 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
 import org.hibernate.dialect.H2Dialect;
 
-public class Hibernate {
+public class HibernateUtil {
 
-	private static Logger logger = Logger.getLogger(Hibernate.class.getName());
+	private static Logger logger = Logger.getLogger(HibernateUtil.class.getName());
 	
     private SessionFactory sessionFactory;
 

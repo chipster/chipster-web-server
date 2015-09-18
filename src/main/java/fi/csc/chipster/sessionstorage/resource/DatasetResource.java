@@ -24,7 +24,7 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessionstorage.model.Dataset;
 import fi.csc.chipster.sessionstorage.model.File;
@@ -174,7 +174,7 @@ public class DatasetResource {
 		return new GenericEntity<Collection<Dataset>>(result) {};
 	}
 	
-	private Hibernate getHibernate() {
+	private HibernateUtil getHibernate() {
 		return sessionResource.getHibernate();
 	}
 }

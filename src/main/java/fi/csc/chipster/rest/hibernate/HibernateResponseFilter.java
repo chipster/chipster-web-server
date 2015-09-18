@@ -10,9 +10,9 @@ import org.glassfish.jersey.server.ContainerResponse;
 @Transaction
 public class HibernateResponseFilter implements ContainerResponseFilter {
 
-	private Hibernate hibernate;
+	private HibernateUtil hibernate;
 
-	public HibernateResponseFilter(Hibernate hibernate) {
+	public HibernateResponseFilter(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
 

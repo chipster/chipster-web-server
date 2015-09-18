@@ -15,7 +15,7 @@ import javax.ws.rs.ext.Provider;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 
@@ -23,9 +23,9 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	
-	private Hibernate hibernate;
+	private HibernateUtil hibernate;
 
-	public AuthenticationRequestFilter(Hibernate hibernate) {
+	public AuthenticationRequestFilter(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
 
@@ -98,7 +98,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));
 	}
 	
-	private Hibernate getHibernate() {
+	private HibernateUtil getHibernate() {
 		return hibernate;
 	}
 }

@@ -22,7 +22,7 @@ import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CORSResponseFilter;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
-import fi.csc.chipster.rest.hibernate.Hibernate;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 
@@ -35,9 +35,9 @@ public class AuthenticationService implements Server {
 	private static Logger logger = Logger.getLogger(AuthenticationService.class.getName());
 	
     // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8081/auth/";
+    public static final String BASE_URI = "http://0.0.0.0:8081/auth/";
 
-	private static Hibernate hibernate;
+	private static HibernateUtil hibernate;
 
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
@@ -58,7 +58,7 @@ public class AuthenticationService implements Server {
     	});
     	
     	// init Hibernate
-    	hibernate = new Hibernate();
+    	hibernate = new HibernateUtil();
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
     	TokenResource authResource = new TokenResource(hibernate);
@@ -103,7 +103,7 @@ public class AuthenticationService implements Server {
 		return BASE_URI;
 	}
 	
-	public Hibernate getHibernate() {
+	public HibernateUtil getHibernate() {
 		return hibernate;
 	}
 	
