@@ -36,30 +36,32 @@ public class ServerLauncher {
 
 	private String targetUri;
 
-	public ServerLauncher(Server server, String targetUri) {
-		this(ServiceLocator.BASE_URI, server, targetUri);
-	}
-	public ServerLauncher(String serviceLocatorUri, Server server, String targetUri) {
-		if (serviceLocatorUri != null) {
+	private String role;
+
+	private Config config;
+
+	public ServerLauncher(Config config, Server server, String role) {
+		if (config != null) {
 			try {
 				// check if the server is already running
-				new ServiceLocatorClient(serviceLocatorUri).getServices(Role.AUTHENTICATION_SERVICE);
+				new ServiceLocatorClient(config).getServices(Role.AUTHENTICATION_SERVICE);
 			} catch (ProcessingException e) {
 				System.err.println("service locator didn't respond");
 				System.err.println("starting auth");
-				authServer = new AuthenticationService();
+				authServer = new AuthenticationService(config);
 				httpServers.put(authServer, authServer.startServer());
 
 				System.err.println("starting service locator");
 				// start the server
-				serviceLocator = new ServiceLocator();
+				serviceLocator = new ServiceLocator(config);
 				httpServers.put(serviceLocator, serviceLocator.startServer());
 			}
 
-			this.serviceLocatorClient = new ServiceLocatorClient(serviceLocatorUri);
+			this.serviceLocatorClient = new ServiceLocatorClient(config);
 		}
+		this.config = config;
 		this.server = server;
-		this.targetUri = targetUri;
+		this.role = role;
 	}
 
 	public void startServersIfNecessary() {
@@ -78,7 +80,13 @@ public class ServerLauncher {
 				// start the server
 				httpServers.put(server, server.startServer());
 			}
-		} 
+		}
+		
+		if (Role.SERVICE_LOCATOR.equals(role)) {
+			this.targetUri = config.getString("service-locator");
+		} else if (role != null) {
+			this.targetUri = serviceLocatorClient.get(role).get(0);
+		}
 	}
 
 	public void stop() {
@@ -141,7 +149,8 @@ public class ServerLauncher {
 	}
 	
 	public static void main(String[] args) {
-		ServerLauncher launcher = new ServerLauncher(new SessionStorage(), null);
+		Config config = new Config();
+		ServerLauncher launcher = new ServerLauncher(config, new SessionStorage(config), null);
 		launcher.startServersIfNecessary();
 	}
 }

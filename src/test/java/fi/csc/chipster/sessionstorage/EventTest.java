@@ -13,7 +13,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AsyncEventInput;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -37,7 +39,8 @@ public class EventTest {
 
     @Before
     public void setUp() throws Exception {
-    	serverLauncher = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
+    	Config config = new Config();
+    	serverLauncher = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
         serverLauncher.startServersIfNecessary();
         
         user1Target = serverLauncher.getUser1Target();
@@ -65,7 +68,9 @@ public class EventTest {
     	try {    		
     		new AsyncEventInput(tokenFailTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     		assertEquals(true, false);
-    	} catch (NotFoundException e) { }
+    	} catch (NotFoundException e) {
+    		e.printStackTrace();
+    	}
     	
     	try {
     		new AsyncEventInput(authFailTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);

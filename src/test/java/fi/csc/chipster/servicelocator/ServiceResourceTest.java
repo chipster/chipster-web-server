@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.servicelocator.resource.Service;
@@ -39,7 +40,8 @@ public class ServiceResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	launcher = new ServerLauncher(null, ServiceLocator.BASE_URI);
+    	Config config = new Config();
+    	launcher = new ServerLauncher(config, null, Role.SERVICE_LOCATOR);
         launcher.startServersIfNecessary();
         
         noAuthTarget = launcher.getNoAuthTarget();
@@ -82,12 +84,11 @@ public class ServiceResourceTest {
 		assertEquals(true, json.contains(id2));
 		
 		// test client library
-		List<Service> services = new ServiceLocatorClient(ServiceLocator.BASE_URI).getServices(Role.SESSION_STORAGE);
+		List<Service> services = new ServiceLocatorClient(new Config()).getServices(Role.SESSION_STORAGE);
 		
 		HashSet<String> ids = new HashSet<>();
 		for (Service service : services) {
 			ids.add(service.getServiceId());
-			System.out.println(path);
 		}
 		
 		assertEquals(true, ids.contains(id1));

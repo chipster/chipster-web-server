@@ -4,13 +4,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.glassfish.grizzly.GrizzlyFuture;
-import org.glassfish.grizzly.http.server.HttpHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -19,15 +14,14 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CORSResponseFilter;
-import fi.csc.chipster.rest.RequestLoggingFilter;
-import fi.csc.chipster.rest.ResponseLoggingFilter;
+import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessionstorage.model.Authorization;
 import fi.csc.chipster.sessionstorage.model.Dataset;
@@ -45,10 +39,8 @@ import fi.csc.chipster.sessionstorage.resource.SessionResource;
  */
 public class SessionStorage implements Server {
 	
+	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
-	
-    // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://0.0.0.0:8080/sessionstorage/";
 
 	private static HibernateUtil hibernate;
 
@@ -60,6 +52,12 @@ public class SessionStorage implements Server {
 
 	private AuthenticationClient authService;
 
+	private Config config;
+	
+	public SessionStorage(Config config) {
+		this.config = config;
+	}
+
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
@@ -69,19 +67,10 @@ public class SessionStorage implements Server {
     	    	
     	String username = "sessionStorage";
     	String password = "sessionStoragePassword";
-    	String serviceLocatorUri = ServiceLocator.BASE_URI;
-    	    	
-    	this.serviceLocator = new ServiceLocatorClient(serviceLocatorUri);
-    	this.authService = new AuthenticationClient(serviceLocator, username, password);
-    	this.serviceId = serviceLocator.register(Role.SESSION_STORAGE, BASE_URI, authService);
     	
-    	// show jersey logs in console
-    	Logger l = Logger.getLogger(HttpHandler.class.getName());
-    	l.setLevel(Level.FINE);
-    	l.setUseParentHandlers(false);
-    	ConsoleHandler ch = new ConsoleHandler();
-    	ch.setLevel(Level.ALL);
-    	l.addHandler(ch);
+    	this.serviceLocator = new ServiceLocatorClient(config);
+    	this.authService = new AuthenticationClient(serviceLocator, username, password);
+    	this.serviceId = serviceLocator.register(Role.SESSION_STORAGE, authService, config.getString("session-storage"));
     	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Session.class,
@@ -106,13 +95,12 @@ public class SessionStorage implements Server {
         	.register(new HibernateResponseFilter(hibernate))
         	.register(RolesAllowedDynamicFeature.class)
         	.register(CORSResponseFilter.class)
-        	.register(new RequestLoggingFilter(true, true, false))
-        	.register(new ResponseLoggingFilter(false, false, false, true, true, true))
+        	//.register(new LoggingFilter())
         	.register(new TokenRequestFilter(authService));
-
+		
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-        return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
+        return GrizzlyHttpServerFactory.createHttpServer(URI.create(getBaseUri()), rc);
     }
 
     /**
@@ -122,24 +110,11 @@ public class SessionStorage implements Server {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = new SessionStorage().startServer();
-        System.out.println(String.format("Jersey app started with WADL available at "
-                + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
-        System.in.read();
-        GrizzlyFuture<HttpServer> future = server.shutdown();
-        try {
-			future.get();
-		} catch (InterruptedException | ExecutionException e) {
-			logger.log(Level.WARNING, "server shutdown failed", e);
-		}
+        final HttpServer server = new SessionStorage(new Config()).startServer();
+        RestUtils.waitForShutdown("session storage", server);
         
         hibernate.getSessionFactory().close();
     }
-
-	@Override
-	public String getBaseUri() {
-		return BASE_URI;
-	}
 
 	public static HibernateUtil getHibernate() {
 		return hibernate;
@@ -148,6 +123,11 @@ public class SessionStorage implements Server {
 	@Override
 	public void close() {
 		events.close();
+	}
+
+	@Override
+	public String getBaseUri() {
+		return this.config.getString("session-storage-bind");
 	}
 }
 

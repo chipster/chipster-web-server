@@ -10,6 +10,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
@@ -18,8 +19,8 @@ public class ServiceLocatorClient {
 
 	private String baseUri;
 
-	public ServiceLocatorClient(String baseUri) {
-		this.baseUri = baseUri;
+	public ServiceLocatorClient(Config config) {
+		this.baseUri = config.getString("service-locator");
 	}
 
 	public List<String> get(String role) {
@@ -46,7 +47,7 @@ public class ServiceLocatorClient {
 		return services;
 	}
 
-	public String register(String role, String serviceBaseUri, AuthenticationClient authService) {
+	public String register(String role, AuthenticationClient authService, String serviceBaseUri) {
 		
 		WebTarget target = authService.getAuthenticatedClient().target(this.baseUri).path(ServiceResource.SERVICES);
 		Service service = new Service(role, serviceBaseUri);

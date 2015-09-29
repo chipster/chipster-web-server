@@ -8,24 +8,22 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+
 /**
- * General exception mapper. Makes sure that the filters, especially the
- * CORSResponseFilter is executed also in case of unexpected exceptions, because
- * otherwise client's sees strange CORS errors instead of the
- * InternalServerError.
- * 
+ * Why GeneralExceptionMapper doesn't catch this?
  * 
  * @author klemela
  */
 @Provider
-public class GeneralExceptionMapper implements ExceptionMapper<Throwable> {
+public class JsonExceptionMapper implements ExceptionMapper<JsonMappingException> {
 
 	private static Logger logger = Logger
-			.getLogger(GeneralExceptionMapper.class.getName());
+			.getLogger(JsonExceptionMapper.class.getName());
 
 	@Override
-	public Response toResponse(Throwable e) {
-		logger.log(Level.SEVERE, "unexpected exception", e);
+	public Response toResponse(JsonMappingException e) {
+		logger.log(Level.SEVERE, "JSON mapping exception", e);
 		//TODO configure logging to show in eclipse console
 		e.printStackTrace();
 		// don't send exception message, because, it could contain some

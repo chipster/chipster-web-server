@@ -16,6 +16,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.sessionstorage.model.Job;
@@ -33,8 +35,10 @@ public class JobResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	server = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
-        server.startServersIfNecessary();
+    	Config config = new Config();
+    	server = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
+    	server.startServersIfNecessary();
+    	
         user1Target = server.getUser1Target();
         user2Target = server.getUser2Target();
         

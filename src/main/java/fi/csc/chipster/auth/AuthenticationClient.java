@@ -89,6 +89,7 @@ public class AuthenticationClient {
 		}
 		c.register(LocalDateTimeContextResolver.class);
 		c.register(SseFeature.class);
+		//c.register(new LoggingFilter());
 		return c;
 	}
 	

@@ -10,10 +10,14 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.ws.rs.InternalServerErrorException;
+
+import org.glassfish.grizzly.GrizzlyFuture;
+import org.glassfish.grizzly.http.server.HttpServer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -168,5 +172,20 @@ public class RestUtils {
 		s.setServiceId(createId());
 		s.setUri("http://localhost:8080/sessionstorage");
 		return s;
+	}
+
+	public static void waitForShutdown(String name, HttpServer server) {
+		System.out.println(name + " started, hit enter to stop it.");
+        try {
+			System.in.read();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+        GrizzlyFuture<HttpServer> future = server.shutdown();
+        try {
+			future.get();
+		} catch (InterruptedException | ExecutionException e) {
+			logger.log(Level.WARNING, name + " server shutdown failed", e);
+		}
 	}
 }

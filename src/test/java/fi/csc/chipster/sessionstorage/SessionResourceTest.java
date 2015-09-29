@@ -17,6 +17,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.sessionstorage.model.Session;
@@ -35,7 +37,8 @@ public class SessionResourceTest {
 
     @Before
     public void setUp() throws Exception {
-    	launcher = new ServerLauncher(new SessionStorage(), SessionStorage.BASE_URI);
+    	Config config = new Config();
+    	launcher = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
         launcher.startServersIfNecessary();
         
         user1Target = launcher.getUser1Target();
