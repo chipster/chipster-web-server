@@ -3,8 +3,10 @@ package fi.csc.chipster.sessionstorage.model;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
@@ -19,7 +21,8 @@ import fi.csc.microarray.messaging.JobState;
 public class Job {
 	 
 	@Id // db
-	private String jobId;
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	private UUID jobId;
 	private String toolId;
 	private JobState state;
 	private String toolCategory;
@@ -36,10 +39,10 @@ public class Job {
 	@JoinColumn(name="jobId")
 	private List<Input> inputs = new ArrayList<>();
 	
-	public String getJobId() {
-		return jobId;
+	public UUID getJobId() {
+		return this.jobId;
 	}
-	public void setJobId(String jobId) {
+	public void setJobId(UUID jobId) {
 		this.jobId = jobId;
 	}
 	public String getToolId() {

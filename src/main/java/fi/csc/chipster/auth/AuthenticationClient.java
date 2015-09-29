@@ -1,6 +1,7 @@
 package fi.csc.chipster.auth;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,7 +28,7 @@ public class AuthenticationClient {
 
 	private ServiceLocatorClient serviceLocator;
 
-	private String token;
+	private UUID token;
 
 	private List<String> authenticationServiceUris;
 
@@ -61,7 +62,7 @@ public class AuthenticationClient {
 		}
 	}
 
-	private String getToken(String authUri, String username, String password) {
+	private UUID getToken(String authUri, String username, String password) {
 		Client authClient = getClient(username, password, true);
 		WebTarget authTarget = authClient.target(authUri);
 		
@@ -98,7 +99,7 @@ public class AuthenticationClient {
 	}
 
 	public Client getAuthenticatedClient() {
-		return getClient(TokenRequestFilter.TOKEN_USER, token, true);
+		return getClient(TokenRequestFilter.TOKEN_USER, token.toString(), true);
 	}
 
 	public Token getDbToken(String tokenKey) {

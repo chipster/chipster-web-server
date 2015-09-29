@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.Priority;
 import javax.ws.rs.ForbiddenException;
@@ -62,7 +63,13 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	
 	public AuthPrincipal tokenAuthentication(String tokenKey) {
 		getHibernate().beginTransaction();
-		Token token = (Token) getHibernate().session().get(Token.class, tokenKey);
+		UUID uuid;
+		try {
+			uuid = UUID.fromString(tokenKey);
+		} catch (IllegalArgumentException e) {
+			throw new ForbiddenException("tokenKey is not a valid UUID");
+		}
+		Token token = (Token) getHibernate().session().get(Token.class, uuid);
 		if (token == null) {
 			throw new ForbiddenException();
 		}

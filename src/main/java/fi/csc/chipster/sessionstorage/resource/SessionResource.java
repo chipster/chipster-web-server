@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
@@ -52,12 +53,12 @@ public class SessionResource {
 
 	// sub-resource locators
 	@Path("{id}/datasets")
-	public Object getDatasetResource(@PathParam("id") String id) {
+	public Object getDatasetResource(@PathParam("id") UUID id) {
 		return new DatasetResource(this, id, events);
 	}
 	
 	@Path("{id}/jobs")
-	public Object getJobResource(@PathParam("id") String id) {
+	public Object getJobResource(@PathParam("id") UUID id) {
 		return new JobResource(this, id, events);
 	}
 	
@@ -66,7 +67,7 @@ public class SessionResource {
     @Path("{id}/events")
     @Produces(SseFeature.SERVER_SENT_EVENTS)
     @Transaction
-    public EventOutput listenToBroadcast(@PathParam("id") String sessionId, @Context SecurityContext sc) {
+    public EventOutput listenToBroadcast(@PathParam("id") UUID sessionId, @Context SecurityContext sc) {
     	// checks authorization
     	getReadAuthorization(sc, sessionId);
         return events.getEventOutput(sessionId);
@@ -77,7 +78,7 @@ public class SessionResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") String sessionId, @Context SecurityContext sc) throws IOException {
+    public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc) throws IOException {
     	    
     	// checks authorization
     	Session result = getSessionForReading(sc, sessionId);    	
@@ -122,7 +123,7 @@ public class SessionResource {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}
 
-		String id = RestUtils.createId();
+		UUID id = RestUtils.createUUID();
 		session.setSessionId(id);
 		
 		String username = sc.getUserPrincipal().getName();
@@ -133,7 +134,7 @@ public class SessionResource {
 
 		getHibernate().session().save(auth);
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		events.broadcast(new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
 		
 		return Response.created(uri).build();
@@ -143,7 +144,7 @@ public class SessionResource {
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(Session requestSession, @PathParam("id") String sessionId, @Context SecurityContext sc) {
+    public Response put(Session requestSession, @PathParam("id") UUID sessionId, @Context SecurityContext sc) {
 				    				
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
@@ -166,7 +167,7 @@ public class SessionResource {
 	@DELETE
     @Path("{id}")
 	@Transaction
-    public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
+    public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		Authorization auth = getWriteAuthorization(sc, id);
 		// this will delete also the referenced datasets and jobs
@@ -176,24 +177,24 @@ public class SessionResource {
 		return Response.noContent().build();
     }
 	
-	public Session getSessionForReading(SecurityContext sc, String sessionId) {
+	public Session getSessionForReading(SecurityContext sc, UUID sessionId) {
 		Authorization auth = checkAuthorization(sc, sessionId, false);
 		return auth.getSession();
 	}
 	
-	public Session getSessionForWriting(SecurityContext sc, String sessionId) {
+	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
 		Authorization auth = checkAuthorization(sc, sessionId, true);
 		return auth.getSession();
 	}
 	
-	public Authorization getReadAuthorization(SecurityContext sc, String sessionId) {
+	public Authorization getReadAuthorization(SecurityContext sc, UUID sessionId) {
     	return checkAuthorization(sc, sessionId, false);
     }
-	public Authorization getWriteAuthorization(SecurityContext sc, String sessionId) {
+	public Authorization getWriteAuthorization(SecurityContext sc, UUID sessionId) {
     	return checkAuthorization(sc, sessionId, true);
     }
     
-	private Authorization checkAuthorization(SecurityContext sc, String sessionId, boolean requireReadWrite) {
+	private Authorization checkAuthorization(SecurityContext sc, UUID sessionId, boolean requireReadWrite) {
 
 		String username = sc.getUserPrincipal().getName();
 		if(username == null) {
@@ -220,8 +221,7 @@ public class SessionResource {
 		return auth;
 	}
 
-    
-    /**
+	/**
 	 * Make a list compatible with JSON conversion
 	 * 
 	 * Default Java collections don't define the XmlRootElement annotation and 

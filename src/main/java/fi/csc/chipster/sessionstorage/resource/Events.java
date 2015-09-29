@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessionstorage.resource;
 
 import java.util.Iterator;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -20,7 +21,7 @@ public class Events {
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(Events.class.getName());
 
-	ConcurrentHashMap<String, ManagedBroadcaster> broadcasters = new ConcurrentHashMap<>();
+	ConcurrentHashMap<UUID, ManagedBroadcaster> broadcasters = new ConcurrentHashMap<>();
 
 	private String serverId;
 	private volatile long eventNumber = 0;
@@ -45,7 +46,7 @@ public class Events {
 				.data(String.class, RestUtils.asJson(sessionEvent))
 				.build();
 		
-		String sessionId = sessionEvent.getSessionId();
+		UUID sessionId = sessionEvent.getSessionId();
 
 		if (sessionId == null) {
 			throw new InternalServerErrorException("unable to send events when sessionId is null");
@@ -55,7 +56,7 @@ public class Events {
 		}
 	}
 
-	public EventOutput getEventOutput(String sessionId) {
+	public EventOutput getEventOutput(UUID sessionId) {
 		
 		cleanUp();
 		
@@ -68,10 +69,10 @@ public class Events {
 	}
 
 	private void cleanUp() {
-		Iterator<String> iter = broadcasters.keySet().iterator();
+		Iterator<UUID> iter = broadcasters.keySet().iterator();
 		
 		while (iter.hasNext()) {
-			String id = iter.next();
+			UUID id = iter.next();
 			if (broadcasters.get(id).isEmpty()) {
 				iter.remove();
 			}

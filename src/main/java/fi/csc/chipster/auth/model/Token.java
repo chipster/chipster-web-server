@@ -2,7 +2,9 @@ package fi.csc.chipster.auth.model;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.UUID;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -14,7 +16,8 @@ import fi.csc.chipster.rest.RestUtils;
 public class Token {
 		
 	@Id // db
-	private String tokenKey;
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	private UUID tokenKey;
 	private String username;
 	private LocalDateTime valid;
 	private String rolesJson;
@@ -23,7 +26,7 @@ public class Token {
 		// JAX-B needs this
 	}
 	
-	public Token(String username, String token,
+	public Token(String username, UUID token,
 			LocalDateTime valid, String rolesJson) {
 		this.username = username;
 		this.tokenKey = token;
@@ -36,10 +39,10 @@ public class Token {
 	public void setUsername(String username) {
 		this.username = username;
 	}
-	public String getTokenKey() {
+	public UUID getTokenKey() {
 		return tokenKey;
 	}
-	public void setTokenKey(String token) {
+	public void setTokenKey(UUID token) {
 		this.tokenKey = token;
 	}
 	public LocalDateTime getValid() {

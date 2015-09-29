@@ -84,14 +84,18 @@ public class RestUtils {
 	
 
 	public static String createId() {
+		return createUUID().toString();
+	}
+	
+	public static UUID createUUID() {
 		// FIXME secure UUID generation
-		return UUID.randomUUID().toString();
+		return UUID.randomUUID();
 	}
 	
     public static Session getRandomSession() {
     	
     	Session s = new Session();    	    	
-    	s.setSessionId(createId());
+    	s.setSessionId(createUUID());
     	s.setName("session" + s.getSessionId());
     	s.setOwner("me");
     	s.setCreated(LocalDateTime.now());
@@ -103,14 +107,14 @@ public class RestUtils {
     public static Dataset getRandomDataset() {
     	
     	Dataset d = new Dataset();
-    	d.setDatasetId(createId());
+    	d.setDatasetId(createUUID());
     	d.setName("dataset" + d.getDatasetId());
-    	d.setSourceJob("j" + RestUtils.createId());
+    	d.setSourceJob(RestUtils.createUUID());
     	d.setX(100);
     	d.setY(100);
     	
     	File f = new File();
-    	f.setFileId(createId());
+    	f.setFileId(createUUID());
     	f.setChecksum("xyz");
     	f.setSize(0);
     	d.setFile(f);
@@ -121,7 +125,7 @@ public class RestUtils {
 	public static Job getRandomJob() {
 		Job j = new Job();
 		j.setEndTime(LocalDateTime.now());
-		j.setJobId(createId());
+		j.setJobId(createUUID());
 		j.setState(JobState.COMPLETED);
 		j.setStartTime(LocalDateTime.now());
 		j.setToolCategory("utilities");

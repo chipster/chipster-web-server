@@ -3,6 +3,7 @@ package fi.csc.chipster.sessionstorage.resource;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
@@ -38,7 +39,7 @@ public class DatasetResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(DatasetResource.class.getName());
 	
-	final private String sessionId;
+	final private UUID sessionId;
 
 	private SessionResource sessionResource;
 
@@ -48,7 +49,7 @@ public class DatasetResource {
 		sessionId = null;
 	}
 	
-	public DatasetResource(SessionResource sessionResource, String id, Events events) {
+	public DatasetResource(SessionResource sessionResource, UUID id, Events events) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
 		this.events = events;
@@ -59,7 +60,7 @@ public class DatasetResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") String datasetId, @Context SecurityContext sc) {
+    public Response get(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
     	
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
@@ -92,14 +93,14 @@ public class DatasetResource {
 			throw new BadRequestException("dataset already has an id, post not allowed");
 		}
 
-		String id = RestUtils.createId();
+		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
 
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		checkFileModification(dataset);
 		session.getDatasets().put(id, dataset);
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
@@ -119,12 +120,12 @@ public class DatasetResource {
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(Dataset requestDataset, @PathParam("id") String datasetId, @Context SecurityContext sc) {
+    public Response put(Dataset requestDataset, @PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		requestDataset.setDatasetId(datasetId);
-
+		
 		/*
 		 * Checks that
 		 * - user has write authorization for the session
@@ -144,10 +145,10 @@ public class DatasetResource {
 	@DELETE
     @Path("{id}")
 	@Transaction
-    public Response delete(@PathParam("id") String datasetId, @Context SecurityContext sc) {
+    public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Map<String, Dataset> datasets = sessionResource.getSessionForWriting(sc, sessionId).getDatasets();
+		Map<UUID, Dataset> datasets = sessionResource.getSessionForWriting(sc, sessionId).getDatasets();
 		
 		if (!datasets.containsKey(datasetId)) {
 			throw new NotFoundException("dataset not found");

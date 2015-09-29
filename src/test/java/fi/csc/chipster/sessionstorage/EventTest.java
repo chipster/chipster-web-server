@@ -3,6 +3,7 @@ package fi.csc.chipster.sessionstorage;
 import static org.junit.Assert.assertEquals;
 
 import java.util.HashSet;
+import java.util.UUID;
 
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.NotFoundException;
@@ -117,7 +118,7 @@ public class EventTest {
     public void deleteSession() throws InterruptedException {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String sessionId = RestUtils.basename(sessionPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     	// no events yet
@@ -141,7 +142,7 @@ public class EventTest {
     public void putSession() throws InterruptedException {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String sessionId = RestUtils.basename(sessionPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
     	Session newSession = RestUtils.getRandomSession();
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
@@ -162,11 +163,11 @@ public class EventTest {
     public void postDataset() throws InterruptedException {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String sessionId = RestUtils.basename(sessionPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
         String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
-        String datasetId = RestUtils.basename(datasetPath);
+        UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
         
         InboundEvent event = eventInput.pollAndWait();
         SessionEvent sessionEvent = event.readData(SessionEvent.class);
@@ -183,8 +184,8 @@ public class EventTest {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
     	String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
-    	String sessionId = RestUtils.basename(sessionPath);
-    	String datasetId = RestUtils.basename(datasetPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+    	UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     	assertEquals(204, DatasetResourceTest.put(user1Target, datasetPath, RestUtils.getRandomDataset()));
@@ -204,8 +205,8 @@ public class EventTest {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
     	String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
-    	String sessionId = RestUtils.basename(sessionPath);
-    	String datasetId = RestUtils.basename(datasetPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+    	UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     	assertEquals(204, DatasetResourceTest.delete(user1Target, datasetPath));
@@ -224,11 +225,11 @@ public class EventTest {
     public void postJob() throws InterruptedException {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String sessionId = RestUtils.basename(sessionPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
         String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
-        String jobId = RestUtils.basename(jobPath);
+        UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
         
         InboundEvent event = eventInput.pollAndWait();
         SessionEvent sessionEvent = event.readData(SessionEvent.class);
@@ -245,8 +246,8 @@ public class EventTest {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
     	String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
-    	String sessionId = RestUtils.basename(sessionPath);
-    	String jobId = RestUtils.basename(jobPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+    	UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     	assertEquals(204, JobResourceTest.put(user1Target, jobPath, RestUtils.getRandomJob()));
@@ -266,8 +267,8 @@ public class EventTest {
     	
 		String sessionPath = SessionResourceTest.postRandomSession(user1Target);
     	String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
-    	String sessionId = RestUtils.basename(sessionPath);
-    	String jobId = RestUtils.basename(jobPath);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+    	UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
     	
     	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     	assertEquals(204, JobResourceTest.delete(user1Target, jobPath));

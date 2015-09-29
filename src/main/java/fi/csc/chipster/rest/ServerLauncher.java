@@ -127,12 +127,16 @@ public class ServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(getBaseUri());
 	}
 	
+	public WebTarget getUnparseableTokenTarget() {
+		return AuthenticationClient.getClient("token", "unparseableToken", true).target(getBaseUri());
+	}
+	
 	public WebTarget getTokenFailTarget() {
-		return AuthenticationClient.getClient("token", "wrongToken", true).target(getBaseUri());
+		return AuthenticationClient.getClient("token", RestUtils.createId(), true).target(getBaseUri());
 	}
 	
 	public WebTarget getAuthFailTarget() {
-		// password login should be enabled only on auth, but this tries to use it on the sessions storage
+		// password login should be enabled only on auth, but this tries to use it on the session storage
 		return AuthenticationClient.getClient("client", "clientPassword", true).target(getBaseUri());
 	}
 	

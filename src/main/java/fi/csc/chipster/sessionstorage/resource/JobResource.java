@@ -3,6 +3,7 @@ package fi.csc.chipster.sessionstorage.resource;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
@@ -36,7 +37,7 @@ public class JobResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(JobResource.class.getName());
 	
-	final private String sessionId;
+	final private UUID sessionId;
 
 	private SessionResource sessionResource;
 
@@ -46,7 +47,7 @@ public class JobResource {
 		sessionId = null;
 	}
 	
-	public JobResource(SessionResource sessionResource, String id, Events events) {
+	public JobResource(SessionResource sessionResource, UUID id, Events events) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
 		this.events = events;
@@ -57,7 +58,7 @@ public class JobResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") String jobId, @Context SecurityContext sc) {
+    public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
@@ -90,12 +91,12 @@ public class JobResource {
 			throw new BadRequestException("job already has an id, post not allowed");
 		}
 		
-		String id = RestUtils.createId();
+		UUID id = RestUtils.createUUID();
 		job.setJobId(id);
 		
 		sessionResource.getSessionForWriting(sc, sessionId).getJobs().put(id, job);
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(id).build();
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
@@ -104,12 +105,12 @@ public class JobResource {
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(Job requestJob, @PathParam("id") String jobId, @Context SecurityContext sc) {
+    public Response put(Job requestJob, @PathParam("id") UUID jobId, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		requestJob.setJobId(jobId);
-
+		
 		/*
 		 * Checks that
 		 * - user has write authorization for the session
@@ -128,10 +129,10 @@ public class JobResource {
 	@DELETE
     @Path("{id}")
 	@Transaction
-    public Response delete(@PathParam("id") String jobId, @Context SecurityContext sc) {
+    public Response delete(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Map<String, Job> jobs = sessionResource.getSessionForWriting(sc, sessionId).getJobs();
+		Map<UUID, Job> jobs = sessionResource.getSessionForWriting(sc, sessionId).getJobs();
 		
 		if (!jobs.containsKey(jobId)) {
 			throw new NotFoundException("job not found");

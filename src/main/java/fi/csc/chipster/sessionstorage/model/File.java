@@ -1,5 +1,8 @@
 package fi.csc.chipster.sessionstorage.model;
 
+import java.util.UUID;
+
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
@@ -7,7 +10,8 @@ import javax.persistence.Id;
 public class File {
 
 	@Id // db
-	private String fileId;
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	private UUID fileId;
 	private long size;
 	private String checksum;
 	
@@ -29,11 +33,11 @@ public class File {
 		this.checksum = checksum;
 	}
 
-	public String getFileId() {
+	public UUID getFileId() {
 		return fileId;
 	}
 
-	public void setFileId(String fileId) {
+	public void setFileId(UUID fileId) {
 		this.fileId = fileId;
 	}
 

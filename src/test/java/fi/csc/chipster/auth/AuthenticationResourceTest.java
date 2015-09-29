@@ -3,6 +3,7 @@ package fi.csc.chipster.auth;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
 
 public class AuthenticationResourceTest {
@@ -69,11 +71,14 @@ public class AuthenticationResourceTest {
     public void validate() throws JsonGenerationException, JsonMappingException, IOException {
         String clientToken = postClientToken(target);
         String serverToken = postServerToken(target);
+        String wrongToken = RestUtils.createId();
         
         getToken(target, "token", serverToken, clientToken);
         
-        assertEquals(403, getTokenResponse(target, "token", "wrongServerToken", clientToken).getStatus());
-        assertEquals(404, getTokenResponse(target, "token", serverToken, "wrongClientToken").getStatus());
+        assertEquals(403, getTokenResponse(target, "token", "unparseableServerToken", clientToken).getStatus());
+        assertEquals(403, getTokenResponse(target, "token", wrongToken, clientToken).getStatus());
+        assertEquals(401, getTokenResponse(target, "token", serverToken, "unparseableClientToken").getStatus());
+        assertEquals(404, getTokenResponse(target, "token", serverToken, wrongToken).getStatus());
         assertEquals(401, getTokenResponse(server.getNoAuthTarget(), null, null, clientToken).getStatus());
     }
 	
@@ -101,7 +106,7 @@ public class AuthenticationResourceTest {
     	return postToken(target, "sessionStorage", "sessionStoragePassword");
 	}
 
-    public static String getToken(WebTarget target, String username, String password, String clientToken) {
+    public static UUID getToken(WebTarget target, String username, String password, String clientToken) {
     	Token token = target
     			.path(path)
     			.request(JSON)
@@ -148,7 +153,7 @@ public class AuthenticationResourceTest {
     	
         assertEquals(false, token == null);
         
-        return token.getTokenKey();
+        return token.getTokenKey().toString();
 	}
     
     public static Response postTokenResponse(WebTarget target, String username, String password) {

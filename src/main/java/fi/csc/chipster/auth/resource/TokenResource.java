@@ -2,6 +2,7 @@ package fi.csc.chipster.auth.resource;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -81,12 +82,12 @@ public class TokenResource {
 
 	public Token createToken(String username, HashSet<String> roles) {
 		//FIXME has to be cryptographically secure
-		String tokenString = RestUtils.createId();
+		UUID tokenKey = RestUtils.createUUID();
 		LocalDateTime valid = LocalDateTime.now().plusMonths(1);
 
 		String rolesJson = RestUtils.asJson(roles);
 		
-		return new Token(username, tokenString, valid, rolesJson);
+		return new Token(username, tokenKey, valid, rolesJson);
 	}
 
 	/**
@@ -113,7 +114,9 @@ public class TokenResource {
 			throw new NotFoundException("chipster-token header is null");
 		}
 		
-		Token dbToken = (Token) getHibernate().session().get(Token.class, requestToken);
+		UUID uuid = parseUUID(requestToken);
+		
+		Token dbToken = (Token) getHibernate().session().get(Token.class, uuid);
 	
 		if (dbToken == null) {
 			throw new NotFoundException();
@@ -126,14 +129,24 @@ public class TokenResource {
 		}				
     }	
 
+	private UUID parseUUID(String token) {
+		try {
+			return UUID.fromString(token);
+		} catch (IllegalArgumentException e) {
+			throw new NotAuthorizedException("token is not a valid UUID");
+		}
+	}
+
 	@DELETE
 	@RolesAllowed(Role.CLIENT)
 	@Transaction
     public Response delete(@Context SecurityContext sc) {
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
+		
+		UUID uuid = parseUUID(principal.getTokenKey());
 			
-		Token dbToken = (Token) getHibernate().session().get(Token.class, principal.getTokenKey());
+		Token dbToken = (Token) getHibernate().session().get(Token.class, uuid);
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}

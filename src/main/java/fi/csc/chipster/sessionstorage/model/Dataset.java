@@ -1,6 +1,9 @@
 package fi.csc.chipster.sessionstorage.model;
 
+import java.util.UUID;
+
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
@@ -14,11 +17,12 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 public class Dataset {
 
 	@Id // db
-	private String datasetId;
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	private UUID datasetId;
 	private String name;
 	private Integer x;
 	private Integer y;
-	private String sourceJob;
+	private UUID sourceJob;
 	
 	@ManyToOne(cascade=CascadeType.ALL)
 	@JoinColumn(name="fileId")
@@ -28,11 +32,11 @@ public class Dataset {
 	
 	public Dataset() {} // JAXB needs this
 
-	public String getDatasetId() {
+	public UUID getDatasetId() {
 		return datasetId;
 	}
 
-	public void setDatasetId(String id) {
+	public void setDatasetId(UUID id) {
 		this.datasetId = id;
 	}
 
@@ -60,11 +64,11 @@ public class Dataset {
 		this.y = y;
 	}
 
-	public String getSourceJob() {
+	public UUID getSourceJob() {
 		return sourceJob;
 	}
 
-	public void setSourceJob(String sourceJob) {
+	public void setSourceJob(UUID sourceJob) {
 		this.sourceJob = sourceJob;
 	}
 

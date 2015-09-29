@@ -2,8 +2,10 @@ package fi.csc.chipster.sessionstorage.model;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
@@ -17,7 +19,8 @@ public class Session {
 	public Session() {} // JAXB needs this
 	
 	@Id // db
-	private String sessionId;
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	private UUID sessionId;
 	private String name;
 	private String owner;
 	private String notes;
@@ -29,37 +32,37 @@ public class Session {
 	 */
 	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="sessionId")
-	private Map<String, Dataset> datasets;
+	private Map<UUID, Dataset> datasets;
 	
 	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="sessionId")
-	private Map<String, Job> jobs;
+	private Map<UUID, Job> jobs;
 	
 	// not needed in session JSON, because there is a separate endpoint for this
 	@XmlTransient // rest
-	public Map<String, Job> getJobs() {
+	public Map<UUID, Job> getJobs() {
 		return jobs;
 	}
 
-	public void setJobs(Map<String, Job> jobs) {
+	public void setJobs(Map<UUID, Job> jobs) {
 		this.jobs = jobs;
 	}
 
 	// not needed in session JSON, because there is a separate endpoint for this
 	@XmlTransient // rest
-	public Map<String, Dataset> getDatasets() {
+	public Map<UUID, Dataset> getDatasets() {
 		return datasets;
 	}
 
-	public void setDatasets(Map<String, Dataset> datasets) {
+	public void setDatasets(Map<UUID, Dataset> datasets) {
 		this.datasets = datasets;
 	}
 	
-	public String getSessionId() {
-		return sessionId;
+	public UUID getSessionId() {
+		return this.sessionId;
 	}
 
-	public void setSessionId(String id) {
+	public void setSessionId(UUID id) {
 		this.sessionId = id;
 	}
 

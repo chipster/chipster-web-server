@@ -1,21 +1,23 @@
 package fi.csc.chipster.sessionstorage.model;
 
+import java.util.UUID;
+
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement // REST
 public class SessionEvent {
 
-	private String sessionId;
+	private UUID sessionId;
 	private ResourceType resource;
 	private EventType type;
 	private String serverId;
 	private long eventNumber;
-	private String resourceId;
+	private UUID resourceId;
 	
 	public enum EventType { CREATE, UPDATE, DELETE }
 	public enum ResourceType { SESSION, DATASET, JOB }
 
-	public SessionEvent(String sessionId, ResourceType resource, String resourceId, EventType type) {
+	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {
 		this.resource = resource;
 		this.sessionId = sessionId;
 		this.resourceId = resourceId;
@@ -50,11 +52,11 @@ public class SessionEvent {
 		this.eventNumber = eventNumber;
 	}
 
-	public String getSessionId() {
+	public UUID getSessionId() {
 		return sessionId;
 	}
 
-	public void setSessionId(String sessionId) {
+	public void setSessionId(UUID sessionId) {
 		this.sessionId = sessionId;
 	}
 
@@ -66,11 +68,11 @@ public class SessionEvent {
 		this.resource = resourceType;
 	}
 
-	public String getResourceId() {
+	public UUID getResourceId() {
 		return resourceId;
 	}
 
-	public void setResourceId(String resourceId) {
+	public void setResourceId(UUID resourceId) {
 		this.resourceId = resourceId;
 	}
 }
