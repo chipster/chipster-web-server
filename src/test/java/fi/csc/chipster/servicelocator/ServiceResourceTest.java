@@ -37,6 +37,7 @@ public class ServiceResourceTest {
 	private WebTarget tokenFailTarget;
 	private WebTarget authFailTarget;
 	private WebTarget noAuthTarget;
+	private WebTarget unparseableTokenTarget;
 
     @Before
     public void setUp() throws Exception {
@@ -48,6 +49,7 @@ public class ServiceResourceTest {
         user1Target = launcher.getUser1Target();
         serverTarget = launcher.getSessionStorageUserTarget();
         
+        unparseableTokenTarget = launcher.getUnparseableTokenTarget();
         tokenFailTarget = launcher.getTokenFailTarget();
         authFailTarget = launcher.getAuthFailTarget();
     }
@@ -66,6 +68,7 @@ public class ServiceResourceTest {
     	assertEquals(403, post(noAuthTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(403, post(user1Target, RestUtils.getRandomSession()).getStatus());
     	
+    	assertEquals(401, post(unparseableTokenTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(404, post(tokenFailTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(401, post(authFailTarget, RestUtils.getRandomSession()).getStatus());
     }
@@ -94,6 +97,7 @@ public class ServiceResourceTest {
 		assertEquals(true, ids.contains(id1));
         assertEquals(true, ids.contains(id2));
                 
+        assertEquals(401, get(unparseableTokenTarget, path));
         assertEquals(404, get(tokenFailTarget, path));
         assertEquals(401, get(authFailTarget, path));
     }

@@ -38,6 +38,8 @@ public class EventTest {
 	
 	HashSet<AsyncEventInput> inputsToClose = new HashSet<>();
 
+	private WebTarget unparseableTokenTarget;
+
     @Before
     public void setUp() throws Exception {
     	Config config = new Config();
@@ -46,6 +48,7 @@ public class EventTest {
         
         user1Target = serverLauncher.getUser1Target();
         user2Target = serverLauncher.getUser2Target();
+        unparseableTokenTarget = serverLauncher.getUnparseableTokenTarget();
         tokenFailTarget = serverLauncher.getTokenFailTarget();
         authFailTarget = serverLauncher.getAuthFailTarget();
         noAuthTarget = serverLauncher.getNoAuthTarget();
@@ -65,6 +68,11 @@ public class EventTest {
     		new AsyncEventInput(user2Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     		assertEquals(true, false);
     	} catch (NotFoundException e) { }
+    	
+    	try {    		
+    		new AsyncEventInput(unparseableTokenTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
+    		assertEquals(true, false);
+    	} catch (NotAuthorizedException e) { }
     	
     	try {    		
     		new AsyncEventInput(tokenFailTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);

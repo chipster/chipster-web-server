@@ -34,6 +34,7 @@ public class SessionResourceTest {
 	private WebTarget tokenFailTarget;
 	private WebTarget authFailTarget;
 	private WebTarget noAuthTarget;
+	private WebTarget unparseableTokenTarget;
 
     @Before
     public void setUp() throws Exception {
@@ -43,6 +44,7 @@ public class SessionResourceTest {
         
         user1Target = launcher.getUser1Target();
         user2Target = launcher.getUser2Target();
+        unparseableTokenTarget = launcher.getUnparseableTokenTarget();
         tokenFailTarget = launcher.getTokenFailTarget();
         authFailTarget = launcher.getAuthFailTarget();
         noAuthTarget = launcher.getNoAuthTarget();
@@ -58,6 +60,7 @@ public class SessionResourceTest {
     	
     	postRandomSession(user1Target);
     	
+    	assertEquals(401, post(unparseableTokenTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(404, post(tokenFailTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(401, post(authFailTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(401, post(noAuthTarget, RestUtils.getRandomSession()).getStatus());    	
@@ -76,6 +79,7 @@ public class SessionResourceTest {
         assertEquals(404, get(user1Target, obj2Path));
         assertEquals(404, get(user2Target, obj1Path));
         
+        assertEquals(401, get(unparseableTokenTarget, obj1Path));
         assertEquals(404, get(tokenFailTarget, obj1Path));
         assertEquals(401, get(authFailTarget, obj1Path));
         assertEquals(401, get(noAuthTarget, obj1Path));
@@ -99,6 +103,7 @@ public class SessionResourceTest {
         //TODO parse json
         assertEquals(false, user2Json.contains(id1));
         
+        assertEquals(401, get(unparseableTokenTarget, path));
         assertEquals(404, get(tokenFailTarget, path));
         assertEquals(401, get(authFailTarget, path));
         assertEquals(401, get(noAuthTarget, path));
@@ -114,6 +119,7 @@ public class SessionResourceTest {
         // wrong user
         assertEquals(404, put(user2Target, objPath, newSession));
         
+        assertEquals(401, put(unparseableTokenTarget, objPath, newSession));
         assertEquals(404, put(tokenFailTarget, objPath, newSession));
         assertEquals(401, put(authFailTarget, objPath, newSession));
         assertEquals(401, put(noAuthTarget, objPath, newSession));
@@ -128,6 +134,7 @@ public class SessionResourceTest {
 		assertEquals(404, delete(user2Target, objPath));
 
 		// auth errors
+		assertEquals(401, delete(unparseableTokenTarget, objPath));
 		assertEquals(404, delete(tokenFailTarget, objPath));
 		assertEquals(401, delete(authFailTarget, objPath));
 		assertEquals(401, delete(noAuthTarget, objPath));
