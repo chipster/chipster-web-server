@@ -45,6 +45,7 @@ public class HibernateUtil {
     		hibernateConf.setProperty(Environment.DIALECT, H2Dialect.class.getName());
     		hibernateConf.setProperty(Environment.SHOW_SQL, "false");
     		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
+    		hibernateConf.setProperty("hibernate.c3p0.min_size", "3");
     		// check schema
 //    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "validate");
     		// simple schema updates (but hibernate docs don't recommend for production use)

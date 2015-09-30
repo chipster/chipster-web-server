@@ -56,6 +56,11 @@
 			<groupId>org.hibernate</groupId>
 			<artifactId>hibernate-java8</artifactId>
 			<version>5.0.0.CR4</version>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-c3p0</artifactId>
+			<version>5.0.0.CR4</version>
 		</dependency>		
 		<dependency>
 			<groupId>com.h2database</groupId>

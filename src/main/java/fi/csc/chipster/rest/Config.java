@@ -12,6 +12,11 @@ import org.glassfish.grizzly.http.server.HttpHandler;
 public class Config {
 	
 	public Config() {
+		
+		// silence the Hibernate's connection pool c3p0
+		System.setProperty("com.mchange.v2.log.MLog", "com.mchange.v2.log.FallbackMLog");
+		System.setProperty("com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL", "WARNING");
+		
     	// show jersey logs in console
     	Logger l = Logger.getLogger(HttpHandler.class.getName());
     	l.setLevel(Level.FINE);

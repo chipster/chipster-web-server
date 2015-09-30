@@ -4,6 +4,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -11,7 +16,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -27,21 +34,34 @@ public class DbPeroformanceTest {
 
     public static final String path = "sessions";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-    private WebTarget target;
-	private ServerLauncher server;
-	private int n = 1_000;
-
-    @Before
-    public void setUp() throws Exception {
-    	Config config = new Config();
+    private static WebTarget target;
+	private static ServerLauncher server;
+	private static int n = 100;
+	private static Queue<String> paths;
+	
+	@BeforeClass
+	public static void setUpBeforeClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+		// once per class
+		Config config = new Config();
     	server = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
         server.startServersIfNecessary();
         target = server.getUser1Target();
+		paths = postManyParallel();
+	}
+	
+	@AfterClass
+	public static void tearDownAfterClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+		server.stop();
+	}
+
+    @Before
+    public void setUp() throws Exception {
+    	// before every test
     }
 
     @After
     public void tearDown() throws Exception {
-    	server.stop();
+    	
     }
     
     @Test
@@ -56,7 +76,58 @@ public class DbPeroformanceTest {
     	}
     }
     
-    public static String postSession(WebTarget target) {
+    @Test
+    public void postManyParallelTest() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    	postManyParallel();
+    }
+    
+    public static Queue<String> postManyParallel() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    	
+    	final Queue<String> paths = new ConcurrentLinkedQueue<>();
+    	ExecutorService executor = Executors.newFixedThreadPool(10);
+    	for (int i = 0; i < n ; i++) {
+    		executor.submit(new Runnable() {
+				@Override
+				public void run() {
+					paths.add(postSession(target));		
+				}
+			});
+    	}
+    	executor.shutdown();
+    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+    	assertEquals(false, timeout);
+    	return paths;
+    }
+    
+    @Test
+    public void getManyParallel() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    	ExecutorService executor = Executors.newFixedThreadPool(10);
+    	for (final String path : paths) {
+    		executor.submit(new Runnable() {
+				@Override
+				public void run() {
+					getSession(path);
+				}
+			});
+    	}
+    	executor.shutdown();
+    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+    	assertEquals(false, timeout);
+    }
+    
+    @Test
+    public void getMany() throws JsonGenerationException, JsonMappingException, IOException {
+    	for (String objPath : paths) {
+    		getSession(objPath);
+    	}
+    }
+    
+    private void getSession(String objPath) {
+    	Session sessionObj = target.path(objPath).request().get(Session.class);        
+        assertEquals(true, sessionObj != null);
+	}
+
+	public static String postSession(WebTarget target) {
     	Session session = RestUtils.getRandomSession();
     	session.setSessionId(null);
     	Response response = target.path(path).request(JSON).post(Entity.entity(session, JSON),Response.class);
