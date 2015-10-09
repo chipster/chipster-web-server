@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage;
+package fi.csc.chipster.sessiondb;
 
 import java.io.IOException;
 import java.net.URI;
@@ -7,43 +7,37 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
-
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.CORSResponseFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
-import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessionstorage.model.Authorization;
-import fi.csc.chipster.sessionstorage.model.Dataset;
-import fi.csc.chipster.sessionstorage.model.File;
-import fi.csc.chipster.sessionstorage.model.Input;
-import fi.csc.chipster.sessionstorage.model.Job;
-import fi.csc.chipster.sessionstorage.model.Parameter;
-import fi.csc.chipster.sessionstorage.model.Session;
-import fi.csc.chipster.sessionstorage.resource.Events;
-import fi.csc.chipster.sessionstorage.resource.SessionResource;
+import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Input;
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.resource.Events;
+import fi.csc.chipster.sessiondb.resource.SessionResource;
 
 /**
  * Main class.
  *
  */
-public class SessionStorage implements Server {
+public class SessionDb implements Server {
 
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(SessionStorage.class
+	private static Logger logger = Logger.getLogger(SessionDb.class
 			.getName());
 
 	private static HibernateUtil hibernate;
@@ -58,7 +52,7 @@ public class SessionStorage implements Server {
 
 	private Config config;
 
-	public SessionStorage(Config config) {
+	public SessionDb(Config config) {
 		this.config = config;
 	}
 
@@ -78,7 +72,7 @@ public class SessionStorage implements Server {
 		this.authService = new AuthenticationClient(serviceLocator, username,
 				password);
 		this.serviceId = serviceLocator.register(Role.SESSION_STORAGE,
-				authService, config.getString("session-storage"));
+				authService, config.getString("session-db"));
 
 		List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
 				Session.class, Dataset.class, Job.class, Parameter.class,
@@ -86,27 +80,14 @@ public class SessionStorage implements Server {
 
 		// init Hibernate
 		hibernate = new HibernateUtil();
-		hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
+		hibernate.buildSessionFactory(hibernateClasses, "session-db");
 
 		this.events = new Events(serviceId);
 
-		final ResourceConfig rc = new ResourceConfig()
-		/*
-		 * Disable auto discovery so that we can decide what we want to register
-		 * and what not. Don't register JacksonFeature, because it will register
-		 * JacksonMappingExceptionMapper, which annoyingly swallows response's
-		 * JsonMappingExceptions. Register directly the JacksonJaxbJsonProvider
-		 * which is enough for the actual JSON conversion (see the code of
-		 * JacksonFeature).
-		 */
-				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
-				.register(JacksonJaxbJsonProvider.class)
-				.packages(NotFoundExceptionMapper.class.getPackage().getName())
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(new SessionResource(hibernate, events))
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
-				.register(RolesAllowedDynamicFeature.class)
-				.register(CORSResponseFilter.class)
 				// .register(new LoggingFilter())
 				.register(new TokenRequestFilter(authService));
 
@@ -124,9 +105,9 @@ public class SessionStorage implements Server {
 	 */
 	public static void main(String[] args) throws IOException {
 
-		final HttpServer server = new SessionStorage(new Config())
+		final HttpServer server = new SessionDb(new Config())
 				.startServer();
-		RestUtils.waitForShutdown("session storage", server);
+		RestUtils.waitForShutdown("session-db", server);
 
 		hibernate.getSessionFactory().close();
 	}
@@ -142,6 +123,6 @@ public class SessionStorage implements Server {
 
 	@Override
 	public String getBaseUri() {
-		return this.config.getString("session-storage-bind");
+		return this.config.getString("session-db-bind");
 	}
 }

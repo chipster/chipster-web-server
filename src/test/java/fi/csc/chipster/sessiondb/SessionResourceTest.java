@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage;
+package fi.csc.chipster.sessiondb;
 
 import static org.junit.Assert.assertEquals;
 
@@ -21,7 +21,8 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessiondb.model.Session;
 
 public class SessionResourceTest {
 
@@ -39,7 +40,7 @@ public class SessionResourceTest {
     @Before
     public void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
+    	launcher = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
         launcher.startServersIfNecessary();
         
         user1Target = launcher.getUser1Target();

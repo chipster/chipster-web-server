@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.resource;
+package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.util.Collection;
@@ -27,12 +27,12 @@ import javax.ws.rs.core.UriInfo;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessionstorage.model.Dataset;
-import fi.csc.chipster.sessionstorage.model.File;
-import fi.csc.chipster.sessionstorage.model.Session;
-import fi.csc.chipster.sessionstorage.model.SessionEvent;
-import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
-import fi.csc.chipster.sessionstorage.model.SessionEvent.ResourceType;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class DatasetResource {
 	

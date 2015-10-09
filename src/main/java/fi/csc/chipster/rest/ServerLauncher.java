@@ -19,11 +19,12 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessionstorage.SessionStorage;
+import fi.csc.chipster.sessiondb.SessionDb;
 
 public class ServerLauncher {
 	
-	private static final Logger logger = LogManager.getLogger();
+	// this must not be static, otherwise logging configuration fails
+	private final Logger logger = LogManager.getLogger();
 	
 	HashMap<Server, HttpServer> httpServers = new HashMap<>();
 
@@ -154,7 +155,7 @@ public class ServerLauncher {
 	
 	public static void main(String[] args) {
 		Config config = new Config();
-		ServerLauncher launcher = new ServerLauncher(config, new SessionStorage(config), null);
+		ServerLauncher launcher = new ServerLauncher(config, new SessionDb(config), null);
 		launcher.startServersIfNecessary();
 	}
 }

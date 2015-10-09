@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage;
+package fi.csc.chipster.sessiondb;
 
 import static org.junit.Assert.assertEquals;
 
@@ -28,7 +28,8 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessiondb.model.Session;
 
 public class DbPeroformanceTest {
 
@@ -43,7 +44,7 @@ public class DbPeroformanceTest {
 	public static void setUpBeforeClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
 		// once per class
 		Config config = new Config();
-    	server = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
+    	server = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
         server.startServersIfNecessary();
         target = server.getUser1Target();
 		paths = postManyParallel();

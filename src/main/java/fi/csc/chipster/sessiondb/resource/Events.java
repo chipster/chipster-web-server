@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.resource;
+package fi.csc.chipster.sessiondb.resource;
 
 import java.util.Iterator;
 import java.util.UUID;
@@ -12,7 +12,7 @@ import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.OutboundEvent;
 
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.sessionstorage.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
 
 public class Events {
 	

@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.model;
+package fi.csc.chipster.sessiondb.model;
 
 import java.util.UUID;
 

@@ -18,17 +18,22 @@ import javax.ws.rs.InternalServerErrorException;
 
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.CommonProperties;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.servicelocator.resource.Service;
-import fi.csc.chipster.sessionstorage.model.Dataset;
-import fi.csc.chipster.sessionstorage.model.File;
-import fi.csc.chipster.sessionstorage.model.Input;
-import fi.csc.chipster.sessionstorage.model.Job;
-import fi.csc.chipster.sessionstorage.model.Parameter;
-import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Input;
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.microarray.description.SADLSyntax.ParameterType;
 import fi.csc.microarray.messaging.JobState;
 
@@ -191,5 +196,25 @@ public class RestUtils {
 		} catch (InterruptedException | ExecutionException e) {
 			logger.log(Level.WARNING, name + " server shutdown failed", e);
 		}
+	}
+
+	public static ResourceConfig getDefaultResourceConfig() {
+		return new ResourceConfig()
+				/*
+				 * Disable auto discovery so that we can decide what we want to register
+				 * and what not. Don't register JacksonFeature, because it will register
+				 * JacksonMappingExceptionMapper, which annoyingly swallows response's
+				 * JsonMappingExceptions. Register directly the JacksonJaxbJsonProvider
+				 * which is enough for the actual JSON conversion (see the code of
+				 * JacksonFeature).
+				 */
+				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
+				.register(JacksonJaxbJsonProvider.class)
+				 // register all exception mappers
+				.packages(NotFoundExceptionMapper.class.getPackage().getName())
+				// add CORS headers
+				.register(CORSResponseFilter.class)
+				// enable the RolesAllowed annotation
+				.register(RolesAllowedDynamicFeature.class); 
 	}
 }

@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage.resource;
+package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,11 +32,11 @@ import org.glassfish.jersey.media.sse.SseFeature;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessionstorage.model.Authorization;
-import fi.csc.chipster.sessionstorage.model.Session;
-import fi.csc.chipster.sessionstorage.model.SessionEvent;
-import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
-import fi.csc.chipster.sessionstorage.model.SessionEvent.ResourceType;
+import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 @Path("sessions")
 public class SessionResource {

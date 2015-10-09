@@ -24,7 +24,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
-import fi.csc.chipster.sessionstorage.model.Session;
+import fi.csc.chipster.sessiondb.model.Session;
 
 public class ServiceResourceTest {
 

@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage;
+package fi.csc.chipster.sessiondb;
 
 import static org.junit.Assert.assertEquals;
 
@@ -19,11 +19,12 @@ import fi.csc.chipster.rest.AsyncEventInput;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessionstorage.model.Session;
-import fi.csc.chipster.sessionstorage.model.SessionEvent;
-import fi.csc.chipster.sessionstorage.model.SessionEvent.EventType;
-import fi.csc.chipster.sessionstorage.model.SessionEvent.ResourceType;
-import fi.csc.chipster.sessionstorage.resource.Events;
+import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import fi.csc.chipster.sessiondb.resource.Events;
 
 public class EventTest {
 
@@ -43,7 +44,7 @@ public class EventTest {
     @Before
     public void setUp() throws Exception {
     	Config config = new Config();
-    	serverLauncher = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
+    	serverLauncher = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
         serverLauncher.startServersIfNecessary();
         
         user1Target = serverLauncher.getUser1Target();

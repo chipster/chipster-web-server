@@ -9,16 +9,13 @@ import java.util.logging.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
-import fi.csc.chipster.rest.CORSResponseFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
-import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -56,13 +53,10 @@ public class AuthenticationService implements Server {
     	
     	TokenResource authResource = new TokenResource(hibernate);
     	
-        final ResourceConfig rc = new ResourceConfig()
-        	.packages(NotFoundExceptionMapper.class.getPackage().getName()) // all exception mappers from the package
-        	.register(RolesAllowedDynamicFeature.class) // enable the RolesAllowed annotation
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
-        	.register(CORSResponseFilter.class)
         	.register(new AuthenticationRequestFilter(hibernate));
         	//.register(new LoggingFilter())
 

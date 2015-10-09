@@ -4,9 +4,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.regex.Pattern;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configurator;
 
 public class Config {
 	
@@ -14,21 +12,24 @@ public class Config {
 	private LoggerContext log4jContext;
 
 	public Config() {    	
-		configureLog4J();
+		configureLog4j();
 	}
 
-	private void configureLog4J() {
-		// send everything from java.util.logging to log4j
-		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+	public static void configureLog4j() {
 		
-		// configure logging levels using log4j
-		Configurator.setRootLevel(Level.INFO);
-		Configurator.setLevel("org.glassfish.grizzly", Level.WARN);
-		Configurator.setLevel("org.glassfish.jersey.filter.LoggingFilter", Level.INFO);
-		Configurator.setLevel("com.mchange.v2", Level.WARN);
-		Configurator.setLevel("com.mchange.v2.c3p0", Level.WARN);
-		Configurator.setLevel("org.hibernate", Level.WARN);
-		Configurator.setLevel("fi.csc.chipster", Level.INFO);
+		// send everything from java.util.logging (JUL) to log4j
+	    String cn = "org.apache.logging.log4j.jul.LogManager";
+	    System.setProperty("java.util.logging.manager", cn);
+	    // check that the JUL logging manager was successfully changed
+	    java.util.logging.LogManager lm = java.util.logging.LogManager.getLogManager();
+	    if (!cn.equals(lm.getClass().getName())) {
+	       try {
+	           ClassLoader.getSystemClassLoader().loadClass(cn);
+	       } catch (ClassNotFoundException cnfe) {
+	          throw new IllegalStateException("log4j-jul jar not found from the class path. Logging to  can't be configured with log4j", cnfe);
+	       }
+	       throw new IllegalStateException("JUL to log4j bridge couldn't be initialized, because Logger or LoggerManager was already created. Make sure the logger field of the startup class isn't static and call this mehtod before instantiating it.");
+	    }
 	}
 
 	private HashMap<String, String> defaults = new HashMap<>();
@@ -36,9 +37,9 @@ public class Config {
 	{
 		defaults.put("service-locator", "http://{{public-ip}}:8082/servicelocator/"); 
 		defaults.put("authentication-service", "http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
-		defaults.put("session-storage", "http://{{public-ip}}:8080/sessionstorage/"); // uri for service registration
+		defaults.put("session-db", "http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
 		defaults.put("service-locator-bind", "http://{{bind-ip}}:8082/servicelocator/");
-		defaults.put("session-storage-bind", "http://{{bind-ip}}:8080/sessionstorage/");
+		defaults.put("session-db-bind", "http://{{bind-ip}}:8080/sessiondb/");
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
 	}
 	

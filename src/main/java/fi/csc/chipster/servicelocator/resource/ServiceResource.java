@@ -20,7 +20,7 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.sessionstorage.resource.Events;
+import fi.csc.chipster.sessiondb.resource.Events;
 
 @Path("services")
 public class ServiceResource {

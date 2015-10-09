@@ -9,20 +9,17 @@ import java.util.logging.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.CORSResponseFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.Server;
-import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
-import fi.csc.chipster.sessionstorage.resource.Events;
+import fi.csc.chipster.sessiondb.resource.Events;
 
 /**
  * Main class.
@@ -71,11 +68,8 @@ public class ServiceLocator implements Server {
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	tokenRequestFilter.authenticationRequired(false);
     	        
-		final ResourceConfig rc = new ResourceConfig()
-        	.packages(NotFoundExceptionMapper.class.getPackage().getName())
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ServiceResource(serviceCatalog, events))
-        	.register(RolesAllowedDynamicFeature.class)
-        	.register(CORSResponseFilter.class)
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
 

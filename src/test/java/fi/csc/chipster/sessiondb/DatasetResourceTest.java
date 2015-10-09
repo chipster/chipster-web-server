@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionstorage;
+package fi.csc.chipster.sessiondb;
 
 import static org.junit.Assert.assertEquals;
 
@@ -20,50 +20,74 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessionstorage.model.Job;
+import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessiondb.model.Dataset;
 
-public class JobResourceTest {
+public class DatasetResourceTest {
 
-    private static final String JOBS = "/jobs";
+    private static final String DATASETS = "/datasets";
     private WebTarget user1Target;
     private WebTarget user2Target;
 	private String session1Path;
 	private String session2Path;
 	private ServerLauncher server;
-	private String jobs1Path;
-	private String jobs2Path;
+	private String datasets1Path;
+	private String datasets2Path;
 
     @Before
     public void setUp() throws Exception {
     	Config config = new Config();
-    	server = new ServerLauncher(config, new SessionStorage(config), Role.SESSION_STORAGE);
-    	server.startServersIfNecessary();
-    	
+    	server = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
+        server.startServersIfNecessary();
         user1Target = server.getUser1Target();
         user2Target = server.getUser2Target();
         
         session1Path = SessionResourceTest.postRandomSession(user1Target);
         session2Path = SessionResourceTest.postRandomSession(user2Target);
-        jobs1Path = session1Path + JOBS;
-        jobs2Path = session2Path + JOBS;
+        datasets1Path = session1Path + DATASETS;
+        datasets2Path = session2Path + DATASETS;
     }
 
     @After
     public void tearDown() throws Exception {
     	server.stop();
     }           
-    
-    @Test
+
+	@Test
     public void post() {
-    	postRandomJob(user1Target, session1Path);
+    	postRandomDataset(user1Target, session1Path);
+    }
+	
+	@Test
+    public void postModification() {
+    	Dataset dataset1 = RestUtils.getRandomDataset();
+    	dataset1.setDatasetId(null);
+    	Dataset dataset2 = RestUtils.getRandomDataset();
+    	dataset2.setDatasetId(null);
+    	// check that properties of the existing File can't be modified
+    	dataset2.getFile().setFileId(dataset1.getFile().getFileId());
+    	dataset2.getFile().setSize(101);
+    	assertEquals(201, post(user1Target, session1Path + DATASETS, dataset1).getStatus());
+    	assertEquals(403, post(user1Target, session1Path + DATASETS, dataset2).getStatus());
     }
 
+	//@Test
+    public void postAndGetMany() throws JsonGenerationException, JsonMappingException, IOException {
+        
+		String objPath = null;
+		for (int i = 0; i < 100; i++) {			
+			objPath = postRandomDataset(user1Target, datasets1Path);		
+		}
+		for (int i = 0; i < 1000; i++) {
+			assertEquals(false, getDataset(user1Target, objPath) == null);
+		}
+    }
 
 	@Test
     public void get() throws JsonGenerationException, JsonMappingException, IOException {
         
-		String objPath = postRandomJob(user1Target, session1Path);        
-        assertEquals(false, getJob(user1Target, objPath) == null);        
+		String objPath = postRandomDataset(user1Target, session1Path);        
+        assertEquals(false, getDataset(user1Target, objPath) == null);
         
         // wrong user
         assertEquals(404, get(user2Target, objPath));
@@ -76,10 +100,10 @@ public class JobResourceTest {
 	@Test
     public void getAll() {
         
-		String id1 = RestUtils.basename(postRandomJob(user1Target, session1Path));
-		String id2 = RestUtils.basename(postRandomJob(user1Target, session1Path));
+		String id1 = RestUtils.basename(postRandomDataset(user1Target, session1Path));
+		String id2 = RestUtils.basename(postRandomDataset(user1Target, session1Path));
 		
-		String json = getString(user1Target, jobs1Path);
+		String json = getString(user1Target, datasets1Path);
         assertEquals(false, json == null);
         
         //TODO parse json
@@ -87,10 +111,10 @@ public class JobResourceTest {
         assertEquals(true, json.contains(id2));
         
         // wrong user
-        assertEquals(404, get(user2Target, jobs1Path));
+        assertEquals(404, get(user2Target, datasets1Path));
         
         // wrong session
-        String session2Json = getString(user2Target, jobs2Path);
+        String session2Json = getString(user2Target, datasets2Path);
         //TODO parse json
         assertEquals(false, session2Json.contains(id1));
     }
@@ -98,8 +122,8 @@ public class JobResourceTest {
 	@Test
     public void put() {
         
-		String objPath = postRandomJob(user1Target, session1Path);
-		Job newObj = RestUtils.getRandomJob();
+		String objPath = postRandomDataset(user1Target, session1Path);
+		Dataset newObj = RestUtils.getRandomDataset();
         assertEquals(204, put(user1Target, objPath, newObj));
         
         // wrong user
@@ -113,7 +137,8 @@ public class JobResourceTest {
 	@Test
     public void delete() {
         
-		String objPath = postRandomJob(user1Target, session1Path);
+		String objPath = postRandomDataset(user1Target, session1Path);
+		
 		// wrong user
 		assertEquals(404, delete(user2Target, objPath));
 		
@@ -134,30 +159,30 @@ public class JobResourceTest {
         
         return objPath.replace(session1Id, session2Id);
 	}
-	 
-    public static String postRandomJob(WebTarget target, String sessionPath) {
-    	Job job = RestUtils.getRandomJob();
-    	job.setJobId(null);
-    	Response response = post(target, sessionPath + JOBS, job);
+	
+    public static String postRandomDataset(WebTarget target, String sessionPath) {
+    	Dataset dataset = RestUtils.getRandomDataset();
+    	dataset.setDatasetId(null);
+    	Response response = post(target, sessionPath + DATASETS, dataset);
         assertEquals(201, response.getStatus());
         
-        return sessionPath + JOBS + "/" + RestUtils.basename(response.getLocation().getPath());
+        return sessionPath + DATASETS + "/" + RestUtils.basename(response.getLocation().getPath());
 	}
 	
 	public static int delete(WebTarget target, String path) {
 		return target.path(path).request().delete(Response.class).getStatus();
 	}
 	
-    public static Response post(WebTarget target, String path, Job job) {
-    	return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(job, MediaType.APPLICATION_JSON_TYPE),Response.class);
+    public static Response post(WebTarget target, String path, Dataset dataset) {
+    	return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(dataset, MediaType.APPLICATION_JSON_TYPE),Response.class);
 	}
     
-	public static int put(WebTarget target, String path, Job job) {
-		return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity(job,  MediaType.APPLICATION_JSON_TYPE), Response.class).getStatus();
+	public static int put(WebTarget target, String path, Dataset dataset) {
+		return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity(dataset,  MediaType.APPLICATION_JSON_TYPE), Response.class).getStatus();
 	}
 	
-	public static Job getJob(WebTarget target, String path) {
-		return target.path(path).request().get(Job.class);
+	public static Dataset getDataset(WebTarget target, String path) {
+		return target.path(path).request().get(Dataset.class);
 	}
 	
 	public static String getString(WebTarget target, String path) {
