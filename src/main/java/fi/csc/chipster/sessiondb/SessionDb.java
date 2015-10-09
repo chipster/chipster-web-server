@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.media.sse.SseFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -88,7 +89,8 @@ public class SessionDb implements Server {
 				.register(new SessionResource(hibernate, events))
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
-				// .register(new LoggingFilter())
+				.register(SseFeature.class)
+				//.register(new LoggingFilter())
 				.register(new TokenRequestFilter(authService));
 
 		// create and start a new instance of grizzly http server

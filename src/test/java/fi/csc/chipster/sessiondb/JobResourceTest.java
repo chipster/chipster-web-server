@@ -9,8 +9,8 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -20,22 +20,21 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Job;
 
 public class JobResourceTest {
 
     private static final String JOBS = "/jobs";
-    private WebTarget user1Target;
-    private WebTarget user2Target;
-	private String session1Path;
-	private String session2Path;
-	private ServerLauncher server;
-	private String jobs1Path;
-	private String jobs2Path;
+    private static WebTarget user1Target;
+    private static WebTarget user2Target;
+	private static String session1Path;
+	private static String session2Path;
+	private static ServerLauncher server;
+	private static String jobs1Path;
+	private static String jobs2Path;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
     	Config config = new Config();
     	server = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
     	server.startServersIfNecessary();
@@ -49,8 +48,8 @@ public class JobResourceTest {
         jobs2Path = session2Path + JOBS;
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterClass
+    public static void tearDown() throws Exception {
     	server.stop();
     }           
     

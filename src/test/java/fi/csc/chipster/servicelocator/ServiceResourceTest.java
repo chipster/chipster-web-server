@@ -11,8 +11,8 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -31,16 +31,16 @@ public class ServiceResourceTest {
     public static final String path = ServiceResource.SERVICES;
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
 	
-	private ServerLauncher launcher;
-	private WebTarget user1Target;
-	private WebTarget serverTarget;
-	private WebTarget tokenFailTarget;
-	private WebTarget authFailTarget;
-	private WebTarget noAuthTarget;
-	private WebTarget unparseableTokenTarget;
+	private static ServerLauncher launcher;
+	private static WebTarget user1Target;
+	private static WebTarget serverTarget;
+	private static WebTarget tokenFailTarget;
+	private static WebTarget authFailTarget;
+	private static WebTarget noAuthTarget;
+	private static WebTarget unparseableTokenTarget;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new ServerLauncher(config, null, Role.SERVICE_LOCATOR);
         launcher.startServersIfNecessary();
@@ -54,8 +54,8 @@ public class ServiceResourceTest {
         authFailTarget = launcher.getAuthFailTarget();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterClass
+    public static void tearDown() throws Exception {
     	launcher.stop();
     }
 

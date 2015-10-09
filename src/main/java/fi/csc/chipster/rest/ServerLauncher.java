@@ -5,17 +5,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 
-import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -40,26 +38,20 @@ public class ServerLauncher {
 	private String role;
 
 	private Config config;
-
+	
 	public ServerLauncher(Config config, Server server, String role) {
-		if (config != null) {
-			try {
-				// check if the server is already running
-				new ServiceLocatorClient(config).getServices(Role.AUTHENTICATION_SERVICE);
-			} catch (ProcessingException e) {
-				logger.error("service locator didn't respond");
-				logger.info("starting auth");
-				authServer = new AuthenticationService(config);
-				httpServers.put(authServer, authServer.startServer());
 
-				logger.info("starting service locator");
-				// start the server
-				serviceLocator = new ServiceLocator(config);
-				httpServers.put(serviceLocator, serviceLocator.startServer());
-			}
+		logger.info("starting auth");
+		authServer = new AuthenticationService(config);
+		httpServers.put(authServer, authServer.startServer());
 
-			this.serviceLocatorClient = new ServiceLocatorClient(config);
-		}
+		logger.info("starting service locator");
+		// start the server
+		serviceLocator = new ServiceLocator(config);
+		httpServers.put(serviceLocator, serviceLocator.startServer());
+
+		this.serviceLocatorClient = new ServiceLocatorClient(config);
+		
 		this.config = config;
 		this.server = server;
 		this.role = role;
@@ -72,15 +64,8 @@ public class ServerLauncher {
 	
 	private void startServerIfNecessary(Server server) {
 		if (server != null) {
-			WebTarget testTarget = AuthenticationClient.getClient().target(server.getBaseUri());
-
-			try {
-				// check if the server is already running
-				testTarget.path(server.getBaseUri()).request().get(Response.class);
-			} catch (ProcessingException e) {
-				// start the server
-				httpServers.put(server, server.startServer());
-			}
+			// start the server
+			httpServers.put(server, server.startServer());
 		}
 		
 		if (Role.SERVICE_LOCATOR.equals(role)) {
@@ -147,10 +132,6 @@ public class ServerLauncher {
 
 	private String getBaseUri() {
 		return targetUri;
-	}
-
-	public Server getServer() {
-		return server;
 	}
 	
 	public static void main(String[] args) {

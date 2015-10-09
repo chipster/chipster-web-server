@@ -10,8 +10,8 @@ import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.WebTarget;
 
 import org.glassfish.jersey.media.sse.InboundEvent;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -19,7 +19,6 @@ import fi.csc.chipster.rest.AsyncEventInput;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -30,19 +29,19 @@ public class EventTest {
 
 	private static final String EVENTS_PATH = "/events";
 	
-	private ServerLauncher serverLauncher;
-	private WebTarget user1Target;
-	private WebTarget user2Target;
-	private WebTarget tokenFailTarget;
-	private WebTarget authFailTarget;
-	private WebTarget noAuthTarget;
+	private static ServerLauncher serverLauncher;
+	private static WebTarget user1Target;
+	private static WebTarget user2Target;
+	private static WebTarget tokenFailTarget;
+	private static WebTarget authFailTarget;
+	private static WebTarget noAuthTarget;
+	private static WebTarget unparseableTokenTarget;
 	
 	HashSet<AsyncEventInput> inputsToClose = new HashSet<>();
 
-	private WebTarget unparseableTokenTarget;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
     	Config config = new Config();
     	serverLauncher = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
         serverLauncher.startServersIfNecessary();
@@ -55,8 +54,8 @@ public class EventTest {
         noAuthTarget = serverLauncher.getNoAuthTarget();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterClass
+    public static void tearDown() throws Exception {
     	serverLauncher.stop();
     }
     

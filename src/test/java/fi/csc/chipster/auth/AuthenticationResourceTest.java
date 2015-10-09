@@ -10,8 +10,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -27,21 +27,21 @@ public class AuthenticationResourceTest {
 
     public static final String path = "tokens";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-	private ServerLauncher server;
-	private WebTarget target;
+	private static ServerLauncher server;
+	private static WebTarget target;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
     	Config config = new Config();
-    	server = new ServerLauncher(config, new AuthenticationService(config), Role.AUTHENTICATION_SERVICE);
+    	server = new ServerLauncher(config, null, Role.AUTHENTICATION_SERVICE);
         server.startServersIfNecessary();
         
         // client with authentication enabled, but each test will set the credentials later
         target = AuthenticationClient.getClient(null, null, true).target(new AuthenticationService(config).getBaseUri());
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterClass
+    public static void tearDown() throws Exception {
     	server.stop();
     }
 
