@@ -26,8 +26,6 @@ public class GeneralExceptionMapper implements ExceptionMapper<Throwable> {
 	@Override
 	public Response toResponse(Throwable e) {
 		logger.log(Level.SEVERE, "unexpected exception", e);
-		//TODO configure logging to show in eclipse console
-		e.printStackTrace();
 		// don't send exception message, because, it could contain some
 		// sensitive information
 		return Response.status(Status.INTERNAL_SERVER_ERROR).build();

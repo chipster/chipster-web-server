@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
+
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -38,9 +41,10 @@ import fi.csc.chipster.sessionstorage.resource.SessionResource;
  *
  */
 public class SessionStorage implements Server {
-	
+
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(SessionStorage.class.getName());
+	private static Logger logger = Logger.getLogger(SessionStorage.class
+			.getName());
 
 	private static HibernateUtil hibernate;
 
@@ -53,68 +57,79 @@ public class SessionStorage implements Server {
 	private AuthenticationClient authService;
 
 	private Config config;
-	
+
 	public SessionStorage(Config config) {
 		this.config = config;
 	}
 
-    /**
-     * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
-     * @return Grizzly HTTP server.
-     */
-    @Override
-    public HttpServer startServer() {
-    	    	
-    	String username = "sessionStorage";
-    	String password = "sessionStoragePassword";
-    	
-    	this.serviceLocator = new ServiceLocatorClient(config);
-    	this.authService = new AuthenticationClient(serviceLocator, username, password);
-    	this.serviceId = serviceLocator.register(Role.SESSION_STORAGE, authService, config.getString("session-storage"));
-    	
-    	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-    			Session.class,
-    			Dataset.class,
-    			Job.class,
-    			Parameter.class,
-    			Input.class,
-    			File.class,
-    			Authorization.class,
-    	});
-    	
-    	// init Hibernate
-    	hibernate = new HibernateUtil();
-    	hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
-    	
-    	this.events = new Events(serviceId);
-    	        
-		final ResourceConfig rc = new ResourceConfig()
-        	.packages(NotFoundExceptionMapper.class.getPackage().getName())
-        	.register(new SessionResource(hibernate, events))
-        	.register(new HibernateRequestFilter(hibernate))
-        	.register(new HibernateResponseFilter(hibernate))
-        	.register(RolesAllowedDynamicFeature.class)
-        	.register(CORSResponseFilter.class)
-        	//.register(new LoggingFilter())
-        	.register(new TokenRequestFilter(authService));
-		
-        // create and start a new instance of grizzly http server
-        // exposing the Jersey application at BASE_URI
-        return GrizzlyHttpServerFactory.createHttpServer(URI.create(getBaseUri()), rc);
-    }
+	/**
+	 * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
+	 * application.
+	 * 
+	 * @return Grizzly HTTP server.
+	 */
+	@Override
+	public HttpServer startServer() {
 
-    /**
-     * Main method.
-     * @param args
-     * @throws IOException
-     */
-    public static void main(String[] args) throws IOException {
-    	
-        final HttpServer server = new SessionStorage(new Config()).startServer();
-        RestUtils.waitForShutdown("session storage", server);
-        
-        hibernate.getSessionFactory().close();
-    }
+		String username = "sessionStorage";
+		String password = "sessionStoragePassword";
+
+		this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username,
+				password);
+		this.serviceId = serviceLocator.register(Role.SESSION_STORAGE,
+				authService, config.getString("session-storage"));
+
+		List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
+				Session.class, Dataset.class, Job.class, Parameter.class,
+				Input.class, File.class, Authorization.class, });
+
+		// init Hibernate
+		hibernate = new HibernateUtil();
+		hibernate.buildSessionFactory(hibernateClasses, "chipster-session-db");
+
+		this.events = new Events(serviceId);
+
+		final ResourceConfig rc = new ResourceConfig()
+		/*
+		 * Disable auto discovery so that we can decide what we want to register
+		 * and what not. Don't register JacksonFeature, because it will register
+		 * JacksonMappingExceptionMapper, which annoyingly swallows response's
+		 * JsonMappingExceptions. Register directly the JacksonJaxbJsonProvider
+		 * which is enough for the actual JSON conversion (see the code of
+		 * JacksonFeature).
+		 */
+				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
+				.register(JacksonJaxbJsonProvider.class)
+				.packages(NotFoundExceptionMapper.class.getPackage().getName())
+				.register(new SessionResource(hibernate, events))
+				.register(new HibernateRequestFilter(hibernate))
+				.register(new HibernateResponseFilter(hibernate))
+				.register(RolesAllowedDynamicFeature.class)
+				.register(CORSResponseFilter.class)
+				// .register(new LoggingFilter())
+				.register(new TokenRequestFilter(authService));
+
+		// create and start a new instance of grizzly http server
+		// exposing the Jersey application at BASE_URI
+		return GrizzlyHttpServerFactory.createHttpServer(
+				URI.create(getBaseUri()), rc);
+	}
+
+	/**
+	 * Main method.
+	 * 
+	 * @param args
+	 * @throws IOException
+	 */
+	public static void main(String[] args) throws IOException {
+
+		final HttpServer server = new SessionStorage(new Config())
+				.startServer();
+		RestUtils.waitForShutdown("session storage", server);
+
+		hibernate.getSessionFactory().close();
+	}
 
 	public static HibernateUtil getHibernate() {
 		return hibernate;
@@ -130,4 +145,3 @@ public class SessionStorage implements Server {
 		return this.config.getString("session-storage-bind");
 	}
 }
-

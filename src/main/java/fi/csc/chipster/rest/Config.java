@@ -2,34 +2,33 @@ package fi.csc.chipster.rest;
 
 import java.net.URI;
 import java.util.HashMap;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import org.glassfish.grizzly.http.server.HttpHandler;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configurator;
 
 public class Config {
 	
-	public Config() {
+	@SuppressWarnings("unused")
+	private LoggerContext log4jContext;
+
+	public Config() {    	
+		configureLog4J();
+	}
+
+	private void configureLog4J() {
+		// send everything from java.util.logging to log4j
+		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
 		
-		// silence the Hibernate's connection pool c3p0
-		System.setProperty("com.mchange.v2.log.MLog", "com.mchange.v2.log.FallbackMLog");
-		System.setProperty("com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL", "WARNING");
-		
-    	// show jersey logs in console
-    	Logger l = Logger.getLogger(HttpHandler.class.getName());
-    	l.setLevel(Level.FINE);
-    	l.setUseParentHandlers(false);
-    	
-    	Logger c = Logger.getLogger("fi.csc.chipster");
-    	c.setLevel(Level.FINE);
-    	c.setUseParentHandlers(false);
-    	    	    	
-    	ConsoleHandler ch = new ConsoleHandler();
-    	ch.setLevel(Level.ALL);
-    	l.addHandler(ch);
-    	c.addHandler(ch);
+		// configure logging levels using log4j
+		Configurator.setRootLevel(Level.INFO);
+		Configurator.setLevel("org.glassfish.grizzly", Level.WARN);
+		Configurator.setLevel("org.glassfish.jersey.filter.LoggingFilter", Level.INFO);
+		Configurator.setLevel("com.mchange.v2", Level.WARN);
+		Configurator.setLevel("com.mchange.v2.c3p0", Level.WARN);
+		Configurator.setLevel("org.hibernate", Level.WARN);
+		Configurator.setLevel("fi.csc.chipster", Level.INFO);
 	}
 
 	private HashMap<String, String> defaults = new HashMap<>();
