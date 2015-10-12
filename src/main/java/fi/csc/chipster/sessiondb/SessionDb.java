@@ -38,7 +38,7 @@ import fi.csc.chipster.sessiondb.resource.SessionResource;
 public class SessionDb {
 
 	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+	private Logger logger = LogManager.getLogger();
 
 	private static HibernateUtil hibernate;
 

@@ -4,9 +4,13 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 public class Config {
+	
+	private Logger logger;
 	
 	@SuppressWarnings("unused")
 	private LoggerContext log4jContext;
@@ -15,20 +19,21 @@ public class Config {
 		configureLog4j();
 	}
 
-	public static void configureLog4j() {
+	public void configureLog4j() {
 		
 		// send everything from java.util.logging (JUL) to log4j
 	    String cn = "org.apache.logging.log4j.jul.LogManager";
 	    System.setProperty("java.util.logging.manager", cn);
+	    logger = LogManager.getLogger();
 	    // check that the JUL logging manager was successfully changed
 	    java.util.logging.LogManager lm = java.util.logging.LogManager.getLogManager();
 	    if (!cn.equals(lm.getClass().getName())) {
 	       try {
 	           ClassLoader.getSystemClassLoader().loadClass(cn);
 	       } catch (ClassNotFoundException cnfe) {
-	          throw new IllegalStateException("log4j-jul jar not found from the class path. Logging to  can't be configured with log4j", cnfe);
+	          logger.warn("log4j-jul jar not found from the class path. Logging to  can't be configured with log4j", cnfe);
 	       }
-	       throw new IllegalStateException("JUL to log4j bridge couldn't be initialized, because Logger or LoggerManager was already created. Make sure the logger field of the startup class isn't static and call this mehtod before instantiating it.");
+	       logger.warn("JUL to log4j bridge couldn't be initialized, because Logger or LoggerManager was already created. Make sure the logger field of the startup class isn't static and call this mehtod before instantiating it.");
 	    }
 	}
 

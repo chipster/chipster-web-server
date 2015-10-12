@@ -27,7 +27,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 public class AuthenticationService {
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+	private Logger logger = LogManager.getLogger();
 
 	private static HibernateUtil hibernate;
 

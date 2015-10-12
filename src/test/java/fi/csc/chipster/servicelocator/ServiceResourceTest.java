@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.ServerLauncher;
+import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -31,7 +31,7 @@ public class ServiceResourceTest {
     public static final String path = ServiceResource.SERVICES;
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
 	
-	private static ServerLauncher launcher;
+	private static TestServerLauncher launcher;
 	private static WebTarget user1Target;
 	private static WebTarget serverTarget;
 	private static WebTarget tokenFailTarget;
@@ -42,7 +42,7 @@ public class ServiceResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, Role.SERVICE_LOCATOR);
+    	launcher = new TestServerLauncher(config, Role.SERVICE_LOCATOR);
         
         noAuthTarget = launcher.getNoAuthTarget();
         user1Target = launcher.getUser1Target();

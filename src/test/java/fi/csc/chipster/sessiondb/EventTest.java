@@ -18,7 +18,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AsyncEventInput;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.ServerLauncher;
+import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -29,7 +29,7 @@ public class EventTest {
 
 	private static final String EVENTS_PATH = "/events";
 	
-	private static ServerLauncher launcher;
+	private static TestServerLauncher launcher;
 	private static WebTarget user1Target;
 	private static WebTarget user2Target;
 	private static WebTarget tokenFailTarget;
@@ -43,7 +43,7 @@ public class EventTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
         
         user1Target = launcher.getUser1Target();
         user2Target = launcher.getUser2Target();

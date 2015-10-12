@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.ServerLauncher;
+import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Job;
 
 public class JobResourceTest {
@@ -29,14 +29,14 @@ public class JobResourceTest {
     private static WebTarget user2Target;
 	private static String session1Path;
 	private static String session2Path;
-	private static ServerLauncher launcher;
+	private static TestServerLauncher launcher;
 	private static String jobs1Path;
 	private static String jobs2Path;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
     	
         user1Target = launcher.getUser1Target();
         user2Target = launcher.getUser2Target();

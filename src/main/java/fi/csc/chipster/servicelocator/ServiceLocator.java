@@ -28,7 +28,7 @@ import fi.csc.chipster.sessiondb.resource.Events;
 public class ServiceLocator {
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+	private Logger logger = LogManager.getLogger();
 	
 	private String serverId;
 

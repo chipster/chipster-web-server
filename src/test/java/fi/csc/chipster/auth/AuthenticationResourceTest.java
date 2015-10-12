@@ -21,19 +21,19 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.ServerLauncher;
+import fi.csc.chipster.rest.TestServerLauncher;
 
 public class AuthenticationResourceTest {
 
     public static final String path = "tokens";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-	private static ServerLauncher launcher;
+	private static TestServerLauncher launcher;
 	private static WebTarget target;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, Role.AUTHENTICATION_SERVICE);
+    	launcher = new TestServerLauncher(config, Role.AUTHENTICATION_SERVICE);
         
         // client with authentication enabled, but each test will set the credentials later
         target = AuthenticationClient.getClient(null, null, true).target(config.getString("authentication-service"));
