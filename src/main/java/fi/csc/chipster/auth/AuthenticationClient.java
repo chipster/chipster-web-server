@@ -2,8 +2,6 @@ package fi.csc.chipster.auth;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.client.Client;
@@ -11,6 +9,8 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.media.sse.SseFeature;
 import org.hibernate.service.spi.ServiceException;
@@ -24,7 +24,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 public class AuthenticationClient {
 	
-	private static Logger logger = Logger.getLogger(AuthenticationClient.class.getName());
+	private static Logger logger = LogManager.getLogger();
 
 	private ServiceLocatorClient serviceLocator;
 
@@ -57,7 +57,7 @@ public class AuthenticationClient {
 				token = getToken(authUri, username, password);
 				break;
 			} catch (ServiceException e) {
-				logger.log(Level.WARNING, "auth not available", e);
+				logger.warn("auth not available", e);
 			}
 		}
 	}
@@ -118,7 +118,7 @@ public class AuthenticationClient {
 					return dbToken;
 				}
 			} catch (ServiceException e) {
-				logger.log(Level.WARNING, "auth not available", e);
+				logger.warn("auth not available", e);
 			}
 		}
 		return null;

@@ -1,7 +1,5 @@
 package fi.csc.chipster.rest.exception;
 
-import java.util.logging.Logger;
-
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -14,10 +12,7 @@ import javax.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthorizedException> {
-	
-	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(NotAuthorizedExceptionMapper.class.getName());
+public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthorizedException> {	
 	
 	@Override
 	public Response toResponse(NotAuthorizedException e) {

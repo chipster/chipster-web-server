@@ -15,7 +15,6 @@ import fi.csc.chipster.sessiondb.SessionDb;
 public class ServerLauncher {
 	
 	// this must not be static, otherwise logging configuration fails
-	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
 	
 	private ServiceLocatorClient serviceLocatorClient;
@@ -24,25 +23,41 @@ public class ServerLauncher {
 
 	private AuthenticationService auth;
 	private ServiceLocator serviceLocator;
-	private SessionDb sessionDb;	
+	private SessionDb sessionDb;
 	
 	public ServerLauncher(Config config, String role) {
+		this(config, role, false);
+	}
+	
+	public ServerLauncher(Config config, String role, boolean verbose) {
+		if (verbose) {
+			logger.info("starting authentication-service");
+		}
 		auth = new AuthenticationService(config);
 		auth.startServer();
 		if (Role.AUTHENTICATION_SERVICE.equals(role)) {
 			this.targetUri = config.getString("authentication-service");
-			return;
+		} else {
+			if (verbose) {
+				logger.info("starting service-locator");
+			}
+			serviceLocator = new ServiceLocator(config);
+			serviceLocator.startServer();
+			serviceLocatorClient = new ServiceLocatorClient(config);
+			if (Role.SERVICE_LOCATOR.equals(role)) {
+				this.targetUri = config.getString("service-locator");
+			} else {
+				if (verbose) {
+					logger.info("starting session-db");
+				}
+				sessionDb = new SessionDb(config);
+				sessionDb.startServer();
+				this.targetUri = serviceLocatorClient.get(Role.SESSION_DB).get(0);
+			}
 		}
-		serviceLocator = new ServiceLocator(config);
-		serviceLocator.startServer();
-		serviceLocatorClient = new ServiceLocatorClient(config);
-		if (Role.SERVICE_LOCATOR.equals(role)) {
-			this.targetUri = config.getString("service-locator");
-			return;
+		if (verbose) {
+			logger.info("up and running");
 		}
-		sessionDb = new SessionDb(config);
-		sessionDb.startServer();
-		this.targetUri = serviceLocatorClient.get(Role.SESSION_DB).get(0);
 	}		
 
 	public void stop() {
@@ -88,6 +103,6 @@ public class ServerLauncher {
 	
 	public static void main(String[] args) {
 		Config config = new Config();
-		new ServerLauncher(config, Role.SESSION_DB);
+		new ServerLauncher(config, Role.SESSION_DB, true);
 	}
 }

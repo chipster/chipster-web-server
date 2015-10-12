@@ -1,9 +1,9 @@
 package fi.csc.chipster.rest.hibernate;
 
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
@@ -11,18 +11,15 @@ import org.hibernate.dialect.H2Dialect;
 
 public class HibernateUtil {
 
-	private static Logger logger = Logger.getLogger(HibernateUtil.class.getName());
+	//private static Logger logger = Logger.getLogger(HibernateUtil.class.getName());
+	private static Logger logger = LogManager.getLogger();
 	
     private SessionFactory sessionFactory;
 
     public void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
     	
     	
-    	try {    		
-    		
-        	@SuppressWarnings("unused")
-			org.jboss.logging.Logger logger = org.jboss.logging.Logger.getLogger("org.hibernate");
-            java.util.logging.Logger.getLogger("org.hibernate").setLevel(java.util.logging.Level.WARNING);
+    	try {    		    	
     		
     		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
 
@@ -63,7 +60,7 @@ public class HibernateUtil {
     				.build());
  
     	} catch (Throwable ex) {
-    		logger.log(Level.SEVERE, "sessionFactory creation failed.", ex);
+    		logger.error("sessionFactory creation failed.", ex);
     		throw new ExceptionInInitializerError(ex);
     	}
     }

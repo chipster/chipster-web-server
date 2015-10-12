@@ -2,7 +2,6 @@ package fi.csc.chipster.servicelocator.resource;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.logging.Logger;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
@@ -19,6 +18,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.sessiondb.resource.Events;
 
@@ -28,7 +30,8 @@ public class ServiceResource {
 	public static final String SERVICES = "services";
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(ServiceResource.class.getName());
+	private static Logger logger = LogManager.getLogger();
+	
 //	private Events events;
 	private ServiceCatalog serviceCatalog;
 	

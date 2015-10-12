@@ -3,11 +3,12 @@ package fi.csc.chipster.sessiondb.resource;
 import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.OutboundEvent;
 
@@ -19,7 +20,7 @@ public class Events {
 	public static final String EVENT_NAME = "SessionEvent";
 
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(Events.class.getName());
+	private static Logger logger = LogManager.getLogger();
 
 	ConcurrentHashMap<UUID, ManagedBroadcaster> broadcasters = new ConcurrentHashMap<>();
 
