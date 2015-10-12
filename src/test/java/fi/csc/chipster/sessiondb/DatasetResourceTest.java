@@ -29,17 +29,17 @@ public class DatasetResourceTest {
     private static WebTarget user2Target;
 	private static String session1Path;
 	private static String session2Path;
-	private static ServerLauncher server;
+	private static ServerLauncher launcher;
 	private static String datasets1Path;
 	private static String datasets2Path;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	server = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
-        server.startServersIfNecessary();
-        user1Target = server.getUser1Target();
-        user2Target = server.getUser2Target();
+    	launcher = new ServerLauncher(config, Role.SESSION_DB);
+
+        user1Target = launcher.getUser1Target();
+        user2Target = launcher.getUser2Target();
         
         session1Path = SessionResourceTest.postRandomSession(user1Target);
         session2Path = SessionResourceTest.postRandomSession(user2Target);
@@ -49,7 +49,7 @@ public class DatasetResourceTest {
 
     @AfterClass
     public static void tearDown() throws Exception {
-    	server.stop();
+    	launcher.stop();
     }           
 
 	@Test

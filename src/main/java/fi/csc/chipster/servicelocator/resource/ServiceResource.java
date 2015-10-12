@@ -62,7 +62,7 @@ public class ServiceResource {
     }	
 
 	@POST
-	@RolesAllowed(Role.SESSION_STORAGE)
+	@RolesAllowed(Role.SESSION_DB)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response post(Service service, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
@@ -70,7 +70,7 @@ public class ServiceResource {
 		
 		//service = RestUtils.getRandomService();
 		
-		String serviceId = serviceCatalog.add(Role.SESSION_STORAGE, service);
+		String serviceId = serviceCatalog.add(Role.SESSION_DB, service);
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(serviceId).build();
 		
@@ -78,7 +78,7 @@ public class ServiceResource {
     }
 
 	@DELETE
-	@RolesAllowed(Role.SESSION_STORAGE)
+	@RolesAllowed(Role.SESSION_DB)
     @Path("{id}")
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 

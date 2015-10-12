@@ -27,22 +27,21 @@ public class AuthenticationResourceTest {
 
     public static final String path = "tokens";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-	private static ServerLauncher server;
+	private static ServerLauncher launcher;
 	private static WebTarget target;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	server = new ServerLauncher(config, null, Role.AUTHENTICATION_SERVICE);
-        server.startServersIfNecessary();
+    	launcher = new ServerLauncher(config, Role.AUTHENTICATION_SERVICE);
         
         // client with authentication enabled, but each test will set the credentials later
-        target = AuthenticationClient.getClient(null, null, true).target(new AuthenticationService(config).getBaseUri());
+        target = AuthenticationClient.getClient(null, null, true).target(config.getString("authentication-service"));
     }
 
     @AfterClass
     public static void tearDown() throws Exception {
-    	server.stop();
+    	launcher.stop();
     }
 
     @Test
@@ -53,7 +52,7 @@ public class AuthenticationResourceTest {
     @Test
     public void noAuth() throws JsonGenerationException, JsonMappingException, IOException {	
     	// no authorized header
-    	assertEquals(401, postTokenResponse(server.getNoAuthTarget(), null, null).getStatus());
+    	assertEquals(401, postTokenResponse(launcher.getNoAuthTarget(), null, null).getStatus());
     }
     
     @Test
@@ -79,7 +78,7 @@ public class AuthenticationResourceTest {
         assertEquals(403, getTokenResponse(target, "token", wrongToken, clientToken).getStatus());
         assertEquals(401, getTokenResponse(target, "token", serverToken, "unparseableClientToken").getStatus());
         assertEquals(404, getTokenResponse(target, "token", serverToken, wrongToken).getStatus());
-        assertEquals(401, getTokenResponse(server.getNoAuthTarget(), null, null, clientToken).getStatus());
+        assertEquals(401, getTokenResponse(launcher.getNoAuthTarget(), null, null, clientToken).getStatus());
     }
 	
 	@Test
@@ -90,7 +89,7 @@ public class AuthenticationResourceTest {
         
         getToken(target, "token", serverToken, clientToken);
      
-        assertEquals(401, deleteTokenResponse(server.getNoAuthTarget(), "token", clientToken).getStatus());
+        assertEquals(401, deleteTokenResponse(launcher.getNoAuthTarget(), "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", "wrongClientToken").getStatus());
         assertEquals(204, deleteTokenResponse(target, "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", clientToken).getStatus());

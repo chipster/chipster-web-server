@@ -15,7 +15,6 @@ import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -24,7 +23,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
  * Main class.
  *
  */
-public class AuthenticationService implements Server {
+public class AuthenticationService {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = Logger.getLogger(AuthenticationService.class.getName());
@@ -32,6 +31,8 @@ public class AuthenticationService implements Server {
 	private static HibernateUtil hibernate;
 
 	private Config config;
+
+	private HttpServer httpServer;
 	
 	public AuthenticationService(Config config) {
 		this.config = config;
@@ -41,7 +42,7 @@ public class AuthenticationService implements Server {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
-    public HttpServer startServer() {
+    public void startServer() {
     	    	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Token.class,
@@ -62,7 +63,8 @@ public class AuthenticationService implements Server {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-        return GrizzlyHttpServerFactory.createHttpServer(URI.create(getBaseUri()), rc);
+    	URI baseUri = URI.create(this.config.getString("authentication-service-bind"));
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     }
 
     /**
@@ -72,22 +74,23 @@ public class AuthenticationService implements Server {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = new AuthenticationService(new Config()).startServer();
-        RestUtils.waitForShutdown("authentication service", server);
+        final AuthenticationService server = new AuthenticationService(new Config());
+        server.startServer();
+        RestUtils.waitForShutdown("authentication service", server.getHttpServer());
         
         hibernate.getSessionFactory().close();
     }
 	
+	private HttpServer getHttpServer() {
+		return httpServer;
+	}
+
 	public HibernateUtil getHibernate() {
 		return hibernate;
 	}
 	
 	public void close() {
-	}
-
-	@Override
-	public String getBaseUri() {
-		return this.config.getString("authentication-service-bind");
+		RestUtils.shutdown(httpServer);
 	}
 }
 

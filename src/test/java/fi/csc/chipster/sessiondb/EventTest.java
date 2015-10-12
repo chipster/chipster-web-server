@@ -29,7 +29,7 @@ public class EventTest {
 
 	private static final String EVENTS_PATH = "/events";
 	
-	private static ServerLauncher serverLauncher;
+	private static ServerLauncher launcher;
 	private static WebTarget user1Target;
 	private static WebTarget user2Target;
 	private static WebTarget tokenFailTarget;
@@ -43,20 +43,19 @@ public class EventTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	serverLauncher = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
-        serverLauncher.startServersIfNecessary();
+    	launcher = new ServerLauncher(config, Role.SESSION_DB);
         
-        user1Target = serverLauncher.getUser1Target();
-        user2Target = serverLauncher.getUser2Target();
-        unparseableTokenTarget = serverLauncher.getUnparseableTokenTarget();
-        tokenFailTarget = serverLauncher.getTokenFailTarget();
-        authFailTarget = serverLauncher.getAuthFailTarget();
-        noAuthTarget = serverLauncher.getNoAuthTarget();
+        user1Target = launcher.getUser1Target();
+        user2Target = launcher.getUser2Target();
+        unparseableTokenTarget = launcher.getUnparseableTokenTarget();
+        tokenFailTarget = launcher.getTokenFailTarget();
+        authFailTarget = launcher.getAuthFailTarget();
+        noAuthTarget = launcher.getNoAuthTarget();
     }
 
     @AfterClass
     public static void tearDown() throws Exception {
-    	serverLauncher.stop();
+    	launcher.stop();
     }
     
     @Test

@@ -15,9 +15,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -28,7 +26,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerLauncher;
-import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class DbPeroformanceTest {
@@ -36,7 +33,7 @@ public class DbPeroformanceTest {
     public static final String path = "sessions";
 	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
     private static WebTarget target;
-	private static ServerLauncher server;
+	private static ServerLauncher launcher;
 	private static int n = 100;
 	private static Queue<String> paths;
 	
@@ -44,26 +41,16 @@ public class DbPeroformanceTest {
 	public static void setUpBeforeClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
 		// once per class
 		Config config = new Config();
-    	server = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
-        server.startServersIfNecessary();
-        target = server.getUser1Target();
+    	launcher = new ServerLauncher(config, Role.SESSION_DB);
+
+        target = launcher.getUser1Target();
 		paths = postManyParallel();
 	}
 	
 	@AfterClass
 	public static void tearDownAfterClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
-		server.stop();
+		launcher.stop();
 	}
-
-    @Before
-    public void setUp() throws Exception {
-    	// before every test
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    	
-    }
     
     @Test
     public void postOne() throws JsonGenerationException, JsonMappingException, IOException {
