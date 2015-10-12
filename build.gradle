@@ -1,4 +1,5 @@
 apply plugin: 'java'
+apply plugin: 'application'
 
 repositories {
     mavenCentral()
@@ -7,6 +8,8 @@ repositories {
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
+
+mainClassName = "fi.csc.chipster.toolrepository.ToolRepository"
 
 
 dependencies {
