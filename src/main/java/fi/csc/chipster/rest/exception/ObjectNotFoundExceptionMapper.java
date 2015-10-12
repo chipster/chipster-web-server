@@ -1,7 +1,5 @@
 package fi.csc.chipster.rest.exception;
 
-import java.util.logging.Logger;
-
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
@@ -16,9 +14,6 @@ import org.hibernate.ObjectNotFoundException;
  */
 @Provider
 public class ObjectNotFoundExceptionMapper implements ExceptionMapper<ObjectNotFoundException> {
-	
-	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(ObjectNotFoundExceptionMapper.class.getName());
 	
 	@Override
 	public Response toResponse(ObjectNotFoundException e) {

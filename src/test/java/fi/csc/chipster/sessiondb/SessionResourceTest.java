@@ -39,8 +39,7 @@ public class SessionResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, new SessionDb(config), Role.SESSION_STORAGE);
-        launcher.startServersIfNecessary();
+    	launcher = new ServerLauncher(config, Role.SESSION_DB);
         
         user1Target = launcher.getUser1Target();
         user2Target = launcher.getUser2Target();

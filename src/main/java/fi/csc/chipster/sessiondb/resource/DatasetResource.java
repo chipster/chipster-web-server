@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -24,6 +23,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -37,7 +39,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 public class DatasetResource {
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(DatasetResource.class.getName());
+	private static Logger logger = LogManager.getLogger();
 	
 	final private UUID sessionId;
 

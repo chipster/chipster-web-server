@@ -57,7 +57,11 @@ public class Config {
 			return value;
 		} else {
 			//TODO check configuration file before returning the default
-			return replaceVariables(defaults.get(key));
+			String template = defaults.get(key);
+			if (template == null) {
+				throw new IllegalArgumentException("configuration key not found: " + key);
+			}
+			return replaceVariables(template);
 		}
 	}
 

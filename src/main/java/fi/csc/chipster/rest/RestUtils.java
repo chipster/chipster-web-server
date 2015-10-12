@@ -11,11 +11,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.InternalServerErrorException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.CommonProperties;
@@ -39,7 +41,7 @@ import fi.csc.microarray.messaging.JobState;
 
 public class RestUtils {
 	
-	private static Logger logger = Logger.getLogger(RestUtils.class.getName());
+	private static Logger logger = LogManager.getLogger();
 	
 	public static String asJson(Object obj) {	
 		// using Jackson library
@@ -49,7 +51,7 @@ public class RestUtils {
 			mapper.writeValue(writer, obj);
 			return writer.toString();        
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "json conversion failed", e);
+			logger.error("json conversion failed", e);
 			throw new InternalServerErrorException();
 		}
 	}
@@ -61,7 +63,7 @@ public class RestUtils {
 			ObjectMapper mapper = new ObjectMapper();
 			return mapper.readValue(reader, obj);
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "json parsing failed", e);
+			logger.error("json parsing failed", e);
 			throw new InternalServerErrorException();
 		} 
 	}
@@ -74,7 +76,7 @@ public class RestUtils {
 			ObjectMapper mapper = new ObjectMapper();
 			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "json parsing failed", e);
+			logger.error("json parsing failed", e);
 			throw new InternalServerErrorException();
 		}
 	}
@@ -177,7 +179,7 @@ public class RestUtils {
 
 	public static Service getRandomService() {
 		Service s = new Service();
-		s.setRole(Role.SESSION_STORAGE);
+		s.setRole(Role.SESSION_DB);
 		s.setServiceId(createId());
 		s.setUri("http://localhost:8080/sessionstorage");
 		return s;
@@ -194,7 +196,7 @@ public class RestUtils {
         try {
 			future.get();
 		} catch (InterruptedException | ExecutionException e) {
-			logger.log(Level.WARNING, name + " server shutdown failed", e);
+			logger.warn(name + " server shutdown failed", e);
 		}
 	}
 
@@ -216,5 +218,20 @@ public class RestUtils {
 				.register(CORSResponseFilter.class)
 				// enable the RolesAllowed annotation
 				.register(RolesAllowedDynamicFeature.class); 
+	}
+
+	public static void shutdown(HttpServer httpServer) {
+		GrizzlyFuture<HttpServer> future = httpServer.shutdown();
+		try {
+			// wait for server to shutdown, otherwise the next test set will print ugly log messages
+			try {
+				future.get(3, TimeUnit.SECONDS);
+			} catch (TimeoutException e) {
+				logger.warn("server didn't stop gracefully");
+				httpServer.shutdownNow();
+			}
+		} catch (InterruptedException | ExecutionException e) {
+			logger.warn("failed to shutdown the server", e);
+		}
 	}
 }

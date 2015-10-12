@@ -1,7 +1,5 @@
 package fi.csc.chipster.rest.exception;
 
-import java.util.logging.Logger;
-
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -14,10 +12,7 @@ import javax.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class BadRequestExceptionMapper implements ExceptionMapper<BadRequestException> {
-	
-	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(BadRequestExceptionMapper.class.getName());
+public class BadRequestExceptionMapper implements ExceptionMapper<BadRequestException> {	
 	
 	@Override
 	public Response toResponse(BadRequestException e) {

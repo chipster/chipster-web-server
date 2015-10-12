@@ -96,7 +96,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		
 		String[] roles = new String[] { Role.PASSWORD, Role.CLIENT};
 		if ("sessionStorage".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SESSION_STORAGE, Role.SERVER };
+			roles = new String[] { Role.PASSWORD, Role.SESSION_DB, Role.SERVER };
 		}
 		if ("serviceLocator".equals(username)) {
 			roles = new String[] { Role.PASSWORD, Role.SERVICE_LOCATOR, Role.SERVER };

@@ -3,8 +3,6 @@ package fi.csc.chipster.auth.resource;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
@@ -20,6 +18,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.RestUtils;
@@ -34,7 +35,7 @@ public class TokenResource {
 	
 	private static final String TOKEN_HEADER = "chipster-token";
 
-	private static Logger logger = Logger.getLogger(TokenResource.class.getName());
+	private static Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
 		
@@ -100,7 +101,7 @@ public class TokenResource {
 			.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
 		
 		if (rows > 0) {
-			logger.log(Level.INFO, "deleted " + rows + " expired token(s)");
+			logger.info("deleted " + rows + " expired token(s)");
 		}
 	}
 

@@ -42,8 +42,7 @@ public class ServiceResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new ServerLauncher(config, null, Role.SERVICE_LOCATOR);
-        launcher.startServersIfNecessary();
+    	launcher = new ServerLauncher(config, Role.SERVICE_LOCATOR);
         
         noAuthTarget = launcher.getNoAuthTarget();
         user1Target = launcher.getUser1Target();
@@ -87,7 +86,7 @@ public class ServiceResourceTest {
 		assertEquals(true, json.contains(id2));
 		
 		// test client library
-		List<Service> services = new ServiceLocatorClient(new Config()).getServices(Role.SESSION_STORAGE);
+		List<Service> services = new ServiceLocatorClient(new Config()).getServices(Role.SESSION_DB);
 		
 		HashSet<String> ids = new HashSet<>();
 		for (Service service : services) {

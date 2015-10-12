@@ -1,16 +1,9 @@
 package fi.csc.chipster.rest;
 
-import java.util.HashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.grizzly.GrizzlyFuture;
-import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.AuthenticationService;
@@ -24,119 +17,92 @@ public class ServerLauncher {
 	// this must not be static, otherwise logging configuration fails
 	private final Logger logger = LogManager.getLogger();
 	
-	HashMap<Server, HttpServer> httpServers = new HashMap<>();
-
-	private Server server;
-	private Server authServer;
-
-	private ServiceLocator serviceLocator;
-
 	private ServiceLocatorClient serviceLocatorClient;
 
 	private String targetUri;
 
-	private String role;
-
-	private Config config;
+	private AuthenticationService auth;
+	private ServiceLocator serviceLocator;
+	private SessionDb sessionDb;
 	
-	public ServerLauncher(Config config, Server server, String role) {
-
-		logger.info("starting auth");
-		authServer = new AuthenticationService(config);
-		httpServers.put(authServer, authServer.startServer());
-
-		logger.info("starting service locator");
-		// start the server
-		serviceLocator = new ServiceLocator(config);
-		httpServers.put(serviceLocator, serviceLocator.startServer());
-
-		this.serviceLocatorClient = new ServiceLocatorClient(config);
-		
-		this.config = config;
-		this.server = server;
-		this.role = role;
-	}
-
-	public void startServersIfNecessary() {
-
-		startServerIfNecessary(server);
+	public ServerLauncher(Config config, String role) {
+		this(config, role, false);
 	}
 	
-	private void startServerIfNecessary(Server server) {
-		if (server != null) {
-			// start the server
-			httpServers.put(server, server.startServer());
+	public ServerLauncher(Config config, String role, boolean verbose) {
+		if (verbose) {
+			logger.info("starting authentication-service");
 		}
-		
-		if (Role.SERVICE_LOCATOR.equals(role)) {
-			this.targetUri = config.getString("service-locator");
-		} else if (role != null) {
-			this.targetUri = serviceLocatorClient.get(role).get(0);
-		}
-	}
-
-	public void stop() {
-		stop(server);
-		stop(serviceLocator);
-		stop(authServer);
-	}
-		
-	private void stop(Server server) {
-		
-		if (httpServers.containsKey(server)) {
-			server.close();
-			HttpServer httpServer = httpServers.get(server);
-			GrizzlyFuture<HttpServer> future = httpServer.shutdown();
-			try {
-				// wait for server to shutdown, otherwise the next test set will print ugly log messages
-				try {
-					future.get(3, TimeUnit.SECONDS);
-				} catch (TimeoutException e) {
-					logger.warn("test server didn't stop gracefully");
-					httpServer.shutdownNow();
+		auth = new AuthenticationService(config);
+		auth.startServer();
+		if (Role.AUTHENTICATION_SERVICE.equals(role)) {
+			this.targetUri = config.getString("authentication-service");
+		} else {
+			if (verbose) {
+				logger.info("starting service-locator");
+			}
+			serviceLocator = new ServiceLocator(config);
+			serviceLocator.startServer();
+			serviceLocatorClient = new ServiceLocatorClient(config);
+			if (Role.SERVICE_LOCATOR.equals(role)) {
+				this.targetUri = config.getString("service-locator");
+			} else {
+				if (verbose) {
+					logger.info("starting session-db");
 				}
-			} catch (InterruptedException | ExecutionException e) {
-				logger.warn("failed to shutdown the test server", e);
+				sessionDb = new SessionDb(config);
+				sessionDb.startServer();
+				this.targetUri = serviceLocatorClient.get(Role.SESSION_DB).get(0);
 			}
 		}
-	}
+		if (verbose) {
+			logger.info("up and running");
+		}
+	}		
+
+	public void stop() {
+		if (sessionDb != null) {
+			sessionDb.close();
+		}
+		if (serviceLocator != null) {
+			serviceLocator.close();
+		}
+		if (auth != null) {
+			auth.close();			
+		}		
+	}	
 	
 	public WebTarget getUser1Target() {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient().target(getBaseUri());
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient().target(targetUri);
 	}
 	
 	public WebTarget getUser2Target() {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(getBaseUri());
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(targetUri);
 	}
 	
 	public WebTarget getSessionStorageUserTarget() {
-		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(getBaseUri());
+		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(targetUri);
 	}
 	
 	public WebTarget getUnparseableTokenTarget() {
-		return AuthenticationClient.getClient("token", "unparseableToken", true).target(getBaseUri());
+		return AuthenticationClient.getClient("token", "unparseableToken", true).target(targetUri);
 	}
 	
 	public WebTarget getTokenFailTarget() {
-		return AuthenticationClient.getClient("token", RestUtils.createId(), true).target(getBaseUri());
+		return AuthenticationClient.getClient("token", RestUtils.createId(), true).target(targetUri);
 	}
 	
 	public WebTarget getAuthFailTarget() {
 		// password login should be enabled only on auth, but this tries to use it on the session storage
-		return AuthenticationClient.getClient("client", "clientPassword", true).target(getBaseUri());
+		return AuthenticationClient.getClient("client", "clientPassword", true).target(targetUri);
 	}
 	
 	public WebTarget getNoAuthTarget() {
-		return AuthenticationClient.getClient().target(getBaseUri());
-	}
-
-	private String getBaseUri() {
-		return targetUri;
+		return AuthenticationClient.getClient().target(targetUri);
 	}
 	
 	public static void main(String[] args) {
 		Config config = new Config();
-		ServerLauncher launcher = new ServerLauncher(config, new SessionDb(config), null);
-		launcher.startServersIfNecessary();
+		new ServerLauncher(config, Role.SESSION_DB, true);
 	}
 }

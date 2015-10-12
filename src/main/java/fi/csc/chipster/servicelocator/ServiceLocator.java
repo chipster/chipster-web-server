@@ -4,8 +4,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -14,7 +15,6 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
@@ -25,10 +25,10 @@ import fi.csc.chipster.sessiondb.resource.Events;
  * Main class.
  *
  */
-public class ServiceLocator implements Server {
+public class ServiceLocator {
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(ServiceLocator.class.getName());
+	private static Logger logger = LogManager.getLogger();
 	
 	private String serverId;
 
@@ -39,6 +39,8 @@ public class ServiceLocator implements Server {
 	private AuthenticationClient authService;
 
 	private Config config;
+
+	private HttpServer httpServer;
 	
 	public ServiceLocator(Config config) {
 		this.config = config;
@@ -48,8 +50,7 @@ public class ServiceLocator implements Server {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      */
-    @Override
-    public HttpServer startServer() {
+    public void startServer() {
     	
     	String username = "serviceLocator";
     	String password = "serviceLocatorPassword";
@@ -75,7 +76,8 @@ public class ServiceLocator implements Server {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-        return GrizzlyHttpServerFactory.createHttpServer(URI.create(getBaseUri()), rc);
+    	URI baseUri = URI.create(this.config.getString("service-locator-bind"));
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     }
 
     /**
@@ -85,18 +87,18 @@ public class ServiceLocator implements Server {
      */
     public static void main(String[] args) throws IOException {
     	
-        final HttpServer server = new ServiceLocator(new Config()).startServer();
-        RestUtils.waitForShutdown("service locator", server);
+        final ServiceLocator server = new ServiceLocator(new Config());
+        server.startServer();
+        RestUtils.waitForShutdown("service locator", server.getHttpServer());
     }
 
-	@Override
-	public void close() {
-		events.close();
+	private HttpServer getHttpServer() {
+		return this.httpServer;
 	}
 
-	@Override
-	public String getBaseUri() {
-		return this.config.getString("service-locator-bind");
+	public void close() {
+		events.close();
+		RestUtils.shutdown(httpServer);
 	}
 }
 

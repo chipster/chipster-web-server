@@ -5,7 +5,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -26,6 +25,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.SseFeature;
 
@@ -42,7 +43,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 public class SessionResource {
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(SessionResource.class.getName());
+	private static Logger logger = LogManager.getLogger();
+	
 	private HibernateUtil hibernate;
 	private Events events;
 	

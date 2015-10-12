@@ -2,7 +2,6 @@ package fi.csc.chipster.servicelocator.resource;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.logging.Logger;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
@@ -19,6 +18,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.sessiondb.resource.Events;
 
@@ -28,7 +30,8 @@ public class ServiceResource {
 	public static final String SERVICES = "services";
 	
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(ServiceResource.class.getName());
+	private static Logger logger = LogManager.getLogger();
+	
 //	private Events events;
 	private ServiceCatalog serviceCatalog;
 	
@@ -62,7 +65,7 @@ public class ServiceResource {
     }	
 
 	@POST
-	@RolesAllowed(Role.SESSION_STORAGE)
+	@RolesAllowed(Role.SESSION_DB)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response post(Service service, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
@@ -70,7 +73,7 @@ public class ServiceResource {
 		
 		//service = RestUtils.getRandomService();
 		
-		String serviceId = serviceCatalog.add(Role.SESSION_STORAGE, service);
+		String serviceId = serviceCatalog.add(Role.SESSION_DB, service);
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(serviceId).build();
 		
@@ -78,7 +81,7 @@ public class ServiceResource {
     }
 
 	@DELETE
-	@RolesAllowed(Role.SESSION_STORAGE)
+	@RolesAllowed(Role.SESSION_DB)
     @Path("{id}")
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 

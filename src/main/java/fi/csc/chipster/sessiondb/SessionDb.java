@@ -4,8 +4,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.media.sse.SseFeature;
@@ -15,7 +16,6 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.Server;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -35,11 +35,10 @@ import fi.csc.chipster.sessiondb.resource.SessionResource;
  * Main class.
  *
  */
-public class SessionDb implements Server {
+public class SessionDb {
 
 	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(SessionDb.class
-			.getName());
+	private static Logger logger = LogManager.getLogger();
 
 	private static HibernateUtil hibernate;
 
@@ -53,6 +52,8 @@ public class SessionDb implements Server {
 
 	private Config config;
 
+	private HttpServer httpServer;
+
 	public SessionDb(Config config) {
 		this.config = config;
 	}
@@ -63,8 +64,7 @@ public class SessionDb implements Server {
 	 * 
 	 * @return Grizzly HTTP server.
 	 */
-	@Override
-	public HttpServer startServer() {
+	public void startServer() {
 
 		String username = "sessionStorage";
 		String password = "sessionStoragePassword";
@@ -72,7 +72,7 @@ public class SessionDb implements Server {
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username,
 				password);
-		this.serviceId = serviceLocator.register(Role.SESSION_STORAGE,
+		this.serviceId = serviceLocator.register(Role.SESSION_DB,
 				authService, config.getString("session-db"));
 
 		List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
@@ -95,8 +95,8 @@ public class SessionDb implements Server {
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
-		return GrizzlyHttpServerFactory.createHttpServer(
-				URI.create(getBaseUri()), rc);
+		URI baseUri = URI.create(this.config.getString("session-db-bind"));
+		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 
 	/**
@@ -107,9 +107,9 @@ public class SessionDb implements Server {
 	 */
 	public static void main(String[] args) throws IOException {
 
-		final HttpServer server = new SessionDb(new Config())
-				.startServer();
-		RestUtils.waitForShutdown("session-db", server);
+		final SessionDb server = new SessionDb(new Config());
+		server.startServer();
+		RestUtils.waitForShutdown("session-db", server.getHttpServer());
 
 		hibernate.getSessionFactory().close();
 	}
@@ -118,13 +118,12 @@ public class SessionDb implements Server {
 		return hibernate;
 	}
 
-	@Override
 	public void close() {
-		events.close();
+		events.close();		
+		RestUtils.shutdown(httpServer);
 	}
-
-	@Override
-	public String getBaseUri() {
-		return this.config.getString("session-db-bind");
+	
+	public HttpServer getHttpServer() {
+		return httpServer;
 	}
 }

@@ -1,7 +1,5 @@
 package fi.csc.chipster.rest.exception;
 
-import java.util.logging.Logger;
-
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -14,10 +12,7 @@ import javax.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenException> {
-	
-	@SuppressWarnings("unused")
-	private static Logger logger = Logger.getLogger(ForbiddenExceptionMapper.class.getName());
+public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenException> {	
 	
 	@Override
 	public Response toResponse(ForbiddenException e) {
