@@ -4,9 +4,12 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 
 public class Config {
 	
@@ -36,17 +39,27 @@ public class Config {
 	       logger.warn("JUL to log4j bridge couldn't be initialized, because Logger or LoggerManager was already created. Make sure the logger field of the startup class isn't static and call this mehtod before instantiating it.");
 	    }
 	}
+	
+	public void setLoggingLevel(String logger, Level level) {
+		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+		Configuration config = ctx.getConfiguration();
+		LoggerConfig loggerConfig = config.getLoggerConfig(logger); 
+		loggerConfig.setLevel(level);
+		ctx.updateLoggers();
+	}
 
 	private HashMap<String, String> defaults = new HashMap<>();
 	
 	{
-		defaults.put("service-locator", "http://{{public-ip}}:8082/servicelocator/"); 
-		defaults.put("authentication-service", "http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
-		defaults.put("session-db", "http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
-		defaults.put("service-locator-bind", "http://{{bind-ip}}:8082/servicelocator/");
-		defaults.put("session-db-bind", "http://{{bind-ip}}:8080/sessiondb/");
+		defaults.put("service-locator", 			"http://{{public-ip}}:8082/servicelocator/"); 
+		defaults.put("authentication-service", 		"http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
+		defaults.put("session-db", 					"http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
+		defaults.put("scheduler", 					"ws://{{public-ip}}:8083/scheduler/");
+		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8082/servicelocator/");
+		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/");
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
-		defaults.put("tool-repository-bind", "http://{{bind-ip}}:8083/toolrepository/");
+		defaults.put("tool-repository-bind", 		"http://{{bind-ip}}:8083/toolrepository/");
+		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
 	}
 	
 	private HashMap<String, String> variableDefaults = new HashMap<>();

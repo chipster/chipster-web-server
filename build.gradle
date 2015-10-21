@@ -24,9 +24,13 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-api:+"
     compile "org.apache.logging.log4j:log4j-core:+"
     compile "org.apache.logging.log4j:log4j-jul:+"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:+"
+    compile "javax.websocket:javax.websocket-api:+"
+    compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:+"
+    compile "org.glassfish.tyrus:tyrus-client:+"
+    compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
 
     compile files("ext/lib/chipster-3.5.1.jar")
  
     testCompile "junit:junit:4.+"
-
 }

@@ -28,6 +28,7 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.resource.AdminResource;
 import fi.csc.chipster.sessiondb.resource.Events;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
@@ -87,6 +88,7 @@ public class SessionDb {
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(new SessionResource(hibernate, events))
+				.register(new AdminResource(events))
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
 				.register(SseFeature.class)
@@ -120,7 +122,7 @@ public class SessionDb {
 
 	public void close() {
 		events.close();		
-		RestUtils.shutdown(httpServer);
+		RestUtils.shutdown("session-db", httpServer);
 	}
 	
 	public HttpServer getHttpServer() {

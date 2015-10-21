@@ -10,6 +10,8 @@ public class Role {
 	public static final String PASSWORD = "password";
 	public static final String CLIENT = "client";
 	public static final String SESSION_DB = "session-db";
+	public static final String SCHEDULER = "scheduler";
+	public static final String COMP = "comp";
 	public static final String SERVER = "server";
 	public static final String AUTHENTICATION_SERVICE = "authentication-service";
 	public static final String UNAUTHENTICATED = "unauthenticated";

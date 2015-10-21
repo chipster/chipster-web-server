@@ -11,7 +11,6 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -30,7 +29,9 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.media.sse.EventOutput;
 import org.glassfish.jersey.media.sse.SseFeature;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Authorization;
@@ -200,9 +201,14 @@ public class SessionResource {
 
 		String username = sc.getUserPrincipal().getName();
 		if(username == null) {
-			throw new NotAuthorizedException(Response.noContent());
+			throw new NotAuthorizedException("not authorized for null username");
 		}
 		Session session = (Session) getHibernate().session().get(Session.class, sessionId);
+		
+		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP)) {		
+			return new Authorization(username, session, true);
+		}
+
 		Object authObj = getHibernate().session().createQuery(
 				"from Authorization"
 				+ " where username=:username and session=:session")
@@ -212,12 +218,12 @@ public class SessionResource {
 			// Either the session doesn't exist or the user doesn't have access 
 			// rights to it. HTTP specification allows 404 response in either case,
 			// so there is no need to make extra queries to find out.
-			throw new NotFoundException();
+			throw new NotFoundException("session doesn't exist or you are not authorized to access it");
 		}
 		Authorization auth = (Authorization)authObj;
 		if (requireReadWrite) {
 			if (!auth.isReadWrite()) {
-				throw new ForbiddenException();
+				throw new ForbiddenException("read-write access denied");
 			}
 		}
 		return auth;

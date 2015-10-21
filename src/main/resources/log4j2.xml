@@ -12,6 +12,8 @@
     <Logger name="com.mchange.v2" level="warn" />
     <!--  logging level of c3p0 connection pool -->
     <Logger name="com.mchange.v2.c3p0" level="warn" />
+
+    <Logger name="org.eclipse.jetty" level="warn" />
     
     <!--  log from libraries only when something is wrong -->
     <Logger name="org.glassfish.grizzly" level="warn" />

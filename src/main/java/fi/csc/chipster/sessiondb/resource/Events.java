@@ -14,6 +14,7 @@ import org.glassfish.jersey.media.sse.OutboundEvent;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class Events {
 	
@@ -22,7 +23,8 @@ public class Events {
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
-	ConcurrentHashMap<UUID, ManagedBroadcaster> broadcasters = new ConcurrentHashMap<>();
+	ConcurrentHashMap<UUID, ManagedBroadcaster> sessionBroadcasters = new ConcurrentHashMap<>();
+	ConcurrentHashMap<ResourceType, ManagedBroadcaster> resourceTypeBroadcasters = new ConcurrentHashMap<>();
 
 	private String serverId;
 	private volatile long eventNumber = 0;
@@ -48,12 +50,16 @@ public class Events {
 				.build();
 		
 		UUID sessionId = sessionEvent.getSessionId();
+		ResourceType resource = sessionEvent.getResourceType();
 
 		if (sessionId == null) {
 			throw new InternalServerErrorException("unable to send events when sessionId is null");
 		}
-		if (broadcasters.containsKey(sessionId)) {
-			broadcasters.get(sessionId).broadcast(event);
+		if (sessionBroadcasters.containsKey(sessionId)) {
+			sessionBroadcasters.get(sessionId).broadcast(event);
+		}
+		if (resourceTypeBroadcasters.containsKey(resource)) {
+			resourceTypeBroadcasters.get(resource).broadcast(event);
 		}
 	}
 
@@ -62,20 +68,39 @@ public class Events {
 		cleanUp();
 		
 		final EventOutput eventOutput = new EventOutput();
-		if (!broadcasters.containsKey(sessionId)) {
-			broadcasters.put(sessionId, new ManagedBroadcaster());
+		if (!sessionBroadcasters.containsKey(sessionId)) {
+			sessionBroadcasters.put(sessionId, new ManagedBroadcaster());
 		}
-		broadcasters.get(sessionId).add(eventOutput);
+		sessionBroadcasters.get(sessionId).add(eventOutput);
+        return eventOutput;
+	}
+	
+	public EventOutput getEventOutput(ResourceType resource) {
+		
+		cleanUp();
+		
+		final EventOutput eventOutput = new EventOutput();
+		if (!resourceTypeBroadcasters.containsKey(resource)) {
+			resourceTypeBroadcasters.put(resource, new ManagedBroadcaster());
+		}
+		resourceTypeBroadcasters.get(resource).add(eventOutput);
         return eventOutput;
 	}
 
 	private void cleanUp() {
-		Iterator<UUID> iter = broadcasters.keySet().iterator();
-		
+		Iterator<UUID> iter = sessionBroadcasters.keySet().iterator();		
 		while (iter.hasNext()) {
 			UUID id = iter.next();
-			if (broadcasters.get(id).isEmpty()) {
+			if (sessionBroadcasters.get(id).isEmpty()) {
 				iter.remove();
+			}
+		}
+		
+		Iterator<ResourceType> iter2 = resourceTypeBroadcasters.keySet().iterator();		
+		while (iter2.hasNext()) {
+			ResourceType resource = iter2.next();
+			if (resourceTypeBroadcasters.get(resource).isEmpty()) {
+				iter2.remove();
 			}
 		}
 	}
@@ -85,7 +110,10 @@ public class Events {
 	}
 
 	public void close() {
-		for (ManagedBroadcaster broadcaster : broadcasters.values()) {
+		for (ManagedBroadcaster broadcaster : sessionBroadcasters.values()) {
+			broadcaster.closeAll();
+		}
+		for (ManagedBroadcaster broadcaster : resourceTypeBroadcasters.values()) {
 			broadcaster.closeAll();
 		}
 	}
