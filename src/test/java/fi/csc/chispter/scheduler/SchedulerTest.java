@@ -13,8 +13,8 @@ import java.util.concurrent.TimeUnit;
 import javax.websocket.DeploymentException;
 import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.UriBuilder;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
@@ -46,7 +46,7 @@ public class SchedulerTest {
     public static void setUp() throws Exception {
     	Config config = new Config();
     	// hide info level messages about websocket connection status 
-    	config.setLoggingLevel("fi.csc.chipster", Level.WARN);
+    	//config.setLoggingLevel("fi.csc.chipster", Level.WARN);
     	launcher = new TestServerLauncher(config, Role.SESSION_DB);  
         user1Target = launcher.getUser1Target();        
         session1Path = SessionResourceTest.postRandomSession(user1Target);        	
@@ -64,6 +64,22 @@ public class SchedulerTest {
     
     @Test
     public void connect() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
+    	
+    	String noTokenUri = UriBuilder.fromUri(uri).replaceQuery(null).toString();
+    	String wrongTokenUri = UriBuilder.fromUri(uri).replaceQueryParam("token", RestUtils.createUUID()).toString();
+    	
+    	try {
+    		new WebsocketClient(noTokenUri, null, false);
+    		assertEquals(true, false);
+    	} catch (DeploymentException e) {
+    	}
+    	
+    	try {
+    		new WebsocketClient(wrongTokenUri, null, false);
+    		assertEquals(true, false);
+    	} catch (DeploymentException e) {
+    	}
+    	
     	WebsocketClient client = new WebsocketClient(uri, null);
     	client.shutdown();
     }

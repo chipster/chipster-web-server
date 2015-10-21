@@ -33,15 +33,24 @@ public class WebsocketClient {
 	}
 	
 	public WebsocketClient(final String uri, final Whole<String> messageHandler) throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-		connect(uri, messageHandler);
+		connect(uri, messageHandler, true);
+	}
+	
+	public WebsocketClient(final String uri, final Whole<String> messageHandler, boolean retry) throws DeploymentException, IOException, URISyntaxException, InterruptedException {
+		connect(uri, messageHandler, retry);
 	}
 
 	public void connect(final String uri, final Whole<String> messageHandler) throws DeploymentException, IOException, URISyntaxException, InterruptedException {
+		connect(uri, messageHandler, true);
+	}
+	public void connect(final String uri, final Whole<String> messageHandler, boolean retry) throws DeploymentException, IOException, URISyntaxException, InterruptedException {
 		this.messageHandler = messageHandler;
 		
 		final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-		client = ClientManager.createClient();			
-		client.getProperties().put(ClientProperties.RECONNECT_HANDLER, new RetryHandler());			
+		client = ClientManager.createClient();
+		if (retry) {
+			client.getProperties().put(ClientProperties.RECONNECT_HANDLER, new RetryHandler());
+		}
 		// HTTP Basic authentication
 		//client.getProperties().put(ClientProperties.CREDENTIALS, new Credentials("ws_user", "password"));
 
