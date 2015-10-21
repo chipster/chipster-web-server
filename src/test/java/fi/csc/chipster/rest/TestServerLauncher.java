@@ -56,6 +56,14 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(targetUri);
 	}
 	
+	public WebTarget getSchedulerTarget() {
+		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getAuthenticatedClient().target(targetUri);
+	}
+	
+	public WebTarget getCompTarget() {
+		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getAuthenticatedClient().target(targetUri);
+	}
+	
 	public WebTarget getSessionStorageUserTarget() {
 		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(targetUri);
 	}

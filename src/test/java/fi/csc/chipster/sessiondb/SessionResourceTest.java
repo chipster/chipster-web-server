@@ -31,6 +31,8 @@ public class SessionResourceTest {
 	private static TestServerLauncher launcher;
 	private static WebTarget user1Target;
 	private static WebTarget user2Target;
+	private static WebTarget schedulerTarget;
+	private static WebTarget compTarget;
 	private static WebTarget tokenFailTarget;
 	private static WebTarget authFailTarget;
 	private static WebTarget noAuthTarget;
@@ -43,6 +45,8 @@ public class SessionResourceTest {
         
         user1Target = launcher.getUser1Target();
         user2Target = launcher.getUser2Target();
+        schedulerTarget = launcher.getSchedulerTarget();
+        compTarget = launcher.getCompTarget();
         unparseableTokenTarget = launcher.getUnparseableTokenTarget();
         tokenFailTarget = launcher.getTokenFailTarget();
         authFailTarget = launcher.getAuthFailTarget();
@@ -62,7 +66,7 @@ public class SessionResourceTest {
     	assertEquals(401, post(unparseableTokenTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(404, post(tokenFailTarget, RestUtils.getRandomSession()).getStatus());
     	assertEquals(401, post(authFailTarget, RestUtils.getRandomSession()).getStatus());
-    	assertEquals(401, post(noAuthTarget, RestUtils.getRandomSession()).getStatus());    	
+    	assertEquals(401, post(noAuthTarget, RestUtils.getRandomSession()).getStatus());
     }
 
 	@Test
@@ -73,6 +77,9 @@ public class SessionResourceTest {
         assertEquals(false, getSession(user1Target, obj1Path) == null);
         // check that user2Target works, other tests rely on it
         assertEquals(false, getSession(user2Target, obj2Path) == null);
+        // servers can read any session
+        assertEquals(false, getSession(schedulerTarget, obj1Path) == null);
+        assertEquals(false, getSession(compTarget, obj1Path) == null);
 
         // wrong user
         assertEquals(404, get(user1Target, obj2Path));
@@ -115,6 +122,9 @@ public class SessionResourceTest {
 		
 		Session newSession = RestUtils.getRandomSession();        
         assertEquals(204, put(user1Target, objPath, newSession));
+        // servers can modify any session
+        assertEquals(204, put(schedulerTarget, objPath, newSession));
+        assertEquals(204, put(compTarget, objPath, newSession));
         // wrong user
         assertEquals(404, put(user2Target, objPath, newSession));
         

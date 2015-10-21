@@ -203,7 +203,7 @@ public class SessionResource {
 		if(username == null) {
 			throw new NotAuthorizedException("not authorized for null username");
 		}
-		Session session = (Session) getHibernate().session().get(Session.class, sessionId);
+		Session session = (Session) getHibernate().session().get(Session.class, sessionId);	
 		
 		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP)) {		
 			return new Authorization(username, session, true);
@@ -215,9 +215,6 @@ public class SessionResource {
 				.setParameter("username", username)
 				.setParameter("session", session).uniqueResult();
 		if (authObj == null) {
-			// Either the session doesn't exist or the user doesn't have access 
-			// rights to it. HTTP specification allows 404 response in either case,
-			// so there is no need to make extra queries to find out.
 			throw new NotFoundException("session doesn't exist or you are not authorized to access it");
 		}
 		Authorization auth = (Authorization)authObj;
