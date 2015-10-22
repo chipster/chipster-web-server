@@ -103,8 +103,8 @@ public class SchedulerTest {
 				// it would be good to check the jobId, but it's not easy to 
 				// get it here
 				if (
-						threadSafeAssertEquals(Command.SCHEDULE, cmd.getCommand()) &&
-						threadSafeAssertEquals(RestUtils.basename(session1Path), cmd.getSessionId().toString())) {
+						TestUtils.threadSafeAssert(Command.SCHEDULE, cmd.getCommand()) &&
+						TestUtils.threadSafeAssert(RestUtils.basename(session1Path), cmd.getSessionId().toString())) {
 					latch.countDown();
 				}
 			}
@@ -113,14 +113,6 @@ public class SchedulerTest {
     	assertEquals(true, latch.await(1, TimeUnit.SECONDS));
     	client.shutdown();
     }
-    
-	private boolean threadSafeAssertEquals(Object o1, Object o2) {
-		if (!o1.equals(o2)) {
-			logger.error("assert failed, was: " + o2 + "(" + o1.getClass().getSimpleName() + "), expected: " + o1 + "(" + o2.getClass().getSimpleName() + ")");
-			return false;
-		}
-		return true;
-	}
     
     /**
      * Test the complete Job scheduling process 
@@ -179,13 +171,14 @@ public class SchedulerTest {
 						logger.error("failed to send an offer", e);
 					}
 				} else if (
-							threadSafeAssertEquals(Command.CHOOSE, cmd.getCommand()) &&
-							threadSafeAssertEquals(RestUtils.basename(session1Path), cmd.getSessionId().toString())) {
+						TestUtils.threadSafeAssert(Command.CHOOSE, cmd.getCommand()) &&
+						TestUtils.threadSafeAssert(RestUtils.basename(session1Path), cmd.getSessionId().toString())) {
 
 					if (serverId.equals(cmd.getCompId())) {
 						chosenComps.add(serverId);
 					}
 					latch.countDown();
+					logger.debug("latch count: " + latch.getCount());
 				}
 			}
 		});

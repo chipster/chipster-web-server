@@ -29,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.scheduler.PubSubServer;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -45,13 +46,13 @@ public class DatasetResource {
 
 	private SessionResource sessionResource;
 
-	private Events events;
+	private PubSubServer events;
 	
 	public DatasetResource() {
 		sessionId = null;
 	}
 	
-	public DatasetResource(SessionResource sessionResource, UUID id, Events events) {
+	public DatasetResource(SessionResource sessionResource, UUID id, PubSubServer events) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
 		this.events = events;
@@ -103,7 +104,7 @@ public class DatasetResource {
 		session.getDatasets().put(id, dataset);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -140,7 +141,7 @@ public class DatasetResource {
 		getHibernate().session().merge(requestDataset);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -159,7 +160,7 @@ public class DatasetResource {
 		// remove from session, hibernate will take care of the actual dataset table
 		datasets.remove(datasetId);
 
-		events.broadcast(new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.DELETE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.DELETE));
 		return Response.noContent().build();
     }
 

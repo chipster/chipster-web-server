@@ -46,9 +46,9 @@ public class HibernateUtil {
     		// check schema
 //    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "validate");
     		// simple schema updates (but hibernate docs don't recommend for production use)
-//    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "update");    		
+    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "update");    		
     		// drop old table and create new one
-    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
+//    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
     		
     		for (Class<?> c : hibernateClasses) {
     			hibernateConf.addAnnotatedClass(c);

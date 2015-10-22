@@ -10,6 +10,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.servlet.ServletException;
+import javax.websocket.DeploymentException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -38,7 +40,7 @@ public class DbPeroformanceTest {
 	private static Queue<String> paths;
 	
 	@BeforeClass
-	public static void setUpBeforeClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+	public static void setUpBeforeClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException, ServletException, DeploymentException {
 		// once per class
 		Config config = new Config();
     	launcher = new TestServerLauncher(config, Role.SESSION_DB);

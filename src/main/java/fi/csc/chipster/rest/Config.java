@@ -54,9 +54,11 @@ public class Config {
 		defaults.put("service-locator", 			"http://{{public-ip}}:8082/servicelocator/"); 
 		defaults.put("authentication-service", 		"http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
 		defaults.put("session-db", 					"http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
+		defaults.put("session-db-events", 			"ws://{{public-ip}}:8084/sessiondbevents/");
 		defaults.put("scheduler", 					"ws://{{public-ip}}:8083/scheduler/");
 		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8082/servicelocator/");
-		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/");
+		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/"); // uri for the server to bind
+		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8084/sessiondbevents/");
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
 		defaults.put("tool-repository-bind", 		"http://{{bind-ip}}:8083/toolrepository/");
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");

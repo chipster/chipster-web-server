@@ -3,6 +3,8 @@ package fi.csc.chipster.scheduler;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import javax.servlet.ServletException;
+import javax.websocket.DeploymentException;
 import javax.websocket.MessageHandler;
 
 import org.apache.logging.log4j.LogManager;
@@ -47,11 +49,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
+     * @throws DeploymentException 
+     * @throws ServletException 
      * @throws Exception 
      */
-    public void startServer() {
+    public void startServer() throws ServletException, DeploymentException {
     	
-    	//FIXME own credentials
     	String username = "scheduler";
     	String password = "schedulerPassword";
     	    	
@@ -60,17 +63,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.serviceId = serviceLocator.register(Role.SCHEDULER, authService, config.getString("scheduler"));	      
     	
     	this.sessionDb = new SessionDbClient(serviceLocator, authService);
-    	this.sessionDb.addJobListener(this);
+    	//this.sessionDb.addJobListener(this);
     	    	
     	TokenServletFilter filter = new TokenServletFilter(authService);
     	
-    	try {
-			this.pubSubServer = new PubSubServer(config.getString("scheduler-bind") + "events", filter, this);
-			this.pubSubServer.getServer().start();
-			//this.pubSubServer.getServer().join();
-		} catch (Exception e) {
-			logger.error("starting PubSubServer failed", e);
-		}
+    	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "events", filter, this);
+    	this.pubSubServer.start();		
     }  
 
     /**
@@ -86,11 +84,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 
 	public void close() {
 		sessionDb.close();
-		try {
-			pubSubServer.getServer().stop();
-		} catch (Exception e) {
-			logger.warn("failed to stop PubSubServer", e);
-		}
+		pubSubServer.stop();
 	}
 
 	@Override
@@ -118,14 +112,14 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	private void cancel(UUID sessionId, Job job) {
 		logger.info("cancel job " + job.getJobId());
 		JobCommand cmd = new JobCommand(sessionId, job.getJobId(), null, Command.CANCEL);
-		pubSubServer.publish(RestUtils.asJson(cmd));
+		pubSubServer.publish(cmd);
 	}
 
 	private void schedule(UUID sessionId, Job job) {
 		logger.debug("schedule job " + job.getJobId());
 		scheduledJobs.add(job.getJobId());
 		JobCommand cmd = new JobCommand(sessionId, job.getJobId(), null, Command.SCHEDULE);
-		pubSubServer.publish(RestUtils.asJson(cmd));
+		pubSubServer.publish(cmd);
 	}
 
 	@Override
@@ -140,7 +134,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			boolean firstOffer = scheduledJobs.remove(compMsg.getJobId());
 			if (firstOffer) {
 				logger.debug("choose offer " + compMsg.getCompId());
-				pubSubServer.publish(RestUtils.asJson(new JobCommand(compMsg.getSessionId(), compMsg.getJobId(), compMsg.getCompId(), Command.CHOOSE)));				
+				pubSubServer.publish(new JobCommand(compMsg.getSessionId(), compMsg.getJobId(), compMsg.getCompId(), Command.CHOOSE));				
 			}
 			break;
 		case BUSY:

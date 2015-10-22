@@ -3,6 +3,7 @@ package fi.csc.chipster.scheduler;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 
 import org.apache.logging.log4j.LogManager;
@@ -18,25 +19,36 @@ public class PubSubEndpoint extends Endpoint {
 	
 	public static final Logger logger = LogManager.getLogger();
 	
+	public static final String TOPIC_KEY = "topic-name";
+	
     @Override
-    public void onOpen(final Session session, EndpointConfig config) {    
-    	// subscribe for server messages
-    	subscribe(session);
-    	// listen for client replies
-        session.addMessageHandler(getServer(session).getMessageHandler());
-    }
-    
-    private void subscribe(Session session) {
+    public void onOpen(final Session session, EndpointConfig config) {
+    	// get topic from path params (null if this endpoint was deployed without a path parameter)
+    	String topicName = session.getPathParameters().get(TOPIC_KEY);
+    	
+    	// store topic to user properties, because we need it when unsubscribing
+    	session.getUserProperties().put(TOPIC_KEY, topicName);
+    	
+    	// jetty seems to offer remote address, which is convenient for debug prints
     	String remoteAddress = session.getUserProperties().get("javax.websocket.endpoint.remoteAddress").toString();
-    	getServer(session).subscribe(session.getBasicRemote(), remoteAddress);
-	}
+
+    	// subscribe for server messages
+    	getServer(session).subscribe(topicName, new PubSubServer.Subscriber(session.getBasicRemote(), remoteAddress));
+    	
+    	// listen for client replies
+    	MessageHandler messageHandler = getServer(session).getMessageHandler();
+    	if (messageHandler != null) {
+    		session.addMessageHandler(messageHandler);
+    	}
+    }
     
     private PubSubServer getServer(Session session) {
 		return (PubSubServer) session.getUserProperties().get(PubSubServer.class.getName());
 	}
 
 	private void unsubscribe(Session session) {
-    	getServer(session).unsubscribe(session.getBasicRemote());
+		String topicName = (String) session.getUserProperties().get(TOPIC_KEY);
+    	getServer(session).unsubscribe(topicName, session.getBasicRemote());
 	}
 
 	@Override

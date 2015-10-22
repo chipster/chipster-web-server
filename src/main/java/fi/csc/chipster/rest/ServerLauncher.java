@@ -1,5 +1,8 @@
 package fi.csc.chipster.rest;
 
+import javax.servlet.ServletException;
+import javax.websocket.DeploymentException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,7 +23,7 @@ public class ServerLauncher {
 
 	private Scheduler scheduler;
 	
-	public ServerLauncher(Config config, String role, boolean verbose) {
+	public ServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException {
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -65,8 +68,12 @@ public class ServerLauncher {
 		}		
 	}	
 		
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ServletException, DeploymentException {
 		Config config = new Config();
 		new ServerLauncher(config, Role.SESSION_DB, true);
+	}
+
+	public SessionDb getSessionDb() {
+		return sessionDb;
 	}
 }

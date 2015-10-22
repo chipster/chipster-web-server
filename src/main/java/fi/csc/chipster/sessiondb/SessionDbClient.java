@@ -84,6 +84,6 @@ public class SessionDbClient {
 	}
 
 	public void close() {
-		eventInput.close();
+		//eventInput.close();
 	}
 }
