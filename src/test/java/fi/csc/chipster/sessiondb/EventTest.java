@@ -77,7 +77,6 @@ public class EventTest {
     		new AsyncEventInput(tokenFailTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
     		assertEquals(true, false);
     	} catch (NotFoundException e) {
-    		e.printStackTrace();
     	}
     	
     	try {
