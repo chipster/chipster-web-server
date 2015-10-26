@@ -1,6 +1,6 @@
 apply plugin: 'java'
 apply plugin: 'application'
-apply plugin: 'checkstyle'
+//apply plugin: 'checkstyle'
 
 
 repositories {
@@ -16,6 +16,22 @@ run {
     standardInput = System.in
 }
 
+
+//checkstyle {
+//    configFile = 'config/checkstyle/google_checks.xml' as File
+//    ignoreFailures = true
+//}
+
+//tasks.withType(Checkstyle) {
+//    include "fi/csc/chipster/toolbox/**"
+//}
+
+test {
+    exclude "fi/csc/chipster/sessiondb/AdminResourceTest.class"
+    exclude "fi/csc/chipster/sessiondb/EventTest.class"
+    exclude "fi/csc/chipster/scheduler/SchedulerTest.class"
+
+}
 
 
 dependencies {
