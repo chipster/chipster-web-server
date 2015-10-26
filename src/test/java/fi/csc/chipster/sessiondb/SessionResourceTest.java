@@ -59,7 +59,7 @@ public class SessionResourceTest {
     }
 
     @Test
-    public void post() throws JsonGenerationException, JsonMappingException, IOException {
+    public void post() throws IOException {
     	
     	postRandomSession(user1Target);
     	
@@ -70,7 +70,7 @@ public class SessionResourceTest {
     }
 
 	@Test
-    public void get() throws JsonGenerationException, JsonMappingException, IOException {
+    public void get() throws IOException {
         
 		String obj1Path = postRandomSession(user1Target);
 		String obj2Path = postRandomSession(user2Target);

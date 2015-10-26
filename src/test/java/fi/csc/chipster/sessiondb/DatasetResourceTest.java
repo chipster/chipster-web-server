@@ -71,7 +71,7 @@ public class DatasetResourceTest {
     }
 
 	//@Test
-    public void postAndGetMany() throws JsonGenerationException, JsonMappingException, IOException {
+    public void postAndGetMany() throws IOException {
         
 		String objPath = null;
 		for (int i = 0; i < 100; i++) {			
@@ -83,7 +83,7 @@ public class DatasetResourceTest {
     }
 
 	@Test
-    public void get() throws JsonGenerationException, JsonMappingException, IOException {
+    public void get() throws IOException {
         
 		String objPath = postRandomDataset(user1Target, session1Path);        
         assertEquals(false, getDataset(user1Target, objPath) == null);

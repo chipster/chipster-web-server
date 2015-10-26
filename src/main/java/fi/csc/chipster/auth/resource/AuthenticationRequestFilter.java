@@ -69,7 +69,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		} catch (IllegalArgumentException e) {
 			throw new ForbiddenException("tokenKey is not a valid UUID");
 		}
-		Token token = (Token) getHibernate().session().get(Token.class, uuid);
+		Token token = getHibernate().session().get(Token.class, uuid);
 		if (token == null) {
 			throw new ForbiddenException();
 		}

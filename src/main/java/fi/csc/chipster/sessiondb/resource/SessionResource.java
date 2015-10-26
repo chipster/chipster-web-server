@@ -191,7 +191,7 @@ public class SessionResource {
 		if(username == null) {
 			throw new NotAuthorizedException("not authorized for null username");
 		}
-		Session session = (Session) getHibernate().session().get(Session.class, sessionId);	
+		Session session = getHibernate().session().get(Session.class, sessionId);
 		
 		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP)) {		
 			return new Authorization(username, session, true);

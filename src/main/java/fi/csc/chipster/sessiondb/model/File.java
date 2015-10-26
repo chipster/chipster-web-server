@@ -69,9 +69,6 @@ public class File {
 		} else if (!fileId.equals(other.fileId)) {
 			return false;
 		}
-		if (size != other.size) {
-			return false;
-		}
-		return true;
+		return size == other.size;
 	}
 }

@@ -59,7 +59,7 @@ public class JobResourceTest {
 
 
 	@Test
-    public void get() throws JsonGenerationException, JsonMappingException, IOException {
+    public void get() throws IOException {
         
 		String objPath = postRandomJob(user1Target, session1Path);        
         assertEquals(false, getJob(user1Target, objPath) == null);        

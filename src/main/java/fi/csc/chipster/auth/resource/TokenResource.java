@@ -117,7 +117,7 @@ public class TokenResource {
 		
 		UUID uuid = parseUUID(requestToken);
 		
-		Token dbToken = (Token) getHibernate().session().get(Token.class, uuid);
+		Token dbToken = getHibernate().session().get(Token.class, uuid);
 	
 		if (dbToken == null) {
 			throw new NotFoundException();
@@ -147,7 +147,7 @@ public class TokenResource {
 		
 		UUID uuid = parseUUID(principal.getTokenKey());
 			
-		Token dbToken = (Token) getHibernate().session().get(Token.class, uuid);
+		Token dbToken = getHibernate().session().get(Token.class, uuid);
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}

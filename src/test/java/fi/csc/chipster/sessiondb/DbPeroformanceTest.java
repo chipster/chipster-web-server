@@ -40,7 +40,7 @@ public class DbPeroformanceTest {
 	private static Queue<String> paths;
 	
 	@BeforeClass
-	public static void setUpBeforeClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException, ServletException, DeploymentException {
+	public static void setUpBeforeClass() throws IOException, InterruptedException, ServletException, DeploymentException {
 		// once per class
 		Config config = new Config();
     	launcher = new TestServerLauncher(config, Role.SESSION_DB);
@@ -50,28 +50,28 @@ public class DbPeroformanceTest {
 	}
 	
 	@AfterClass
-	public static void tearDownAfterClass() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+	public static void tearDownAfterClass() throws IOException, InterruptedException {
 		launcher.stop();
 	}
     
     @Test
-    public void postOne() throws JsonGenerationException, JsonMappingException, IOException {
+    public void postOne() throws IOException {
     	postSession(target);
     }
     
     @Test
-    public void postMany() throws JsonGenerationException, JsonMappingException, IOException {
+    public void postMany() throws IOException {
     	for (int i = 0; i < n ; i++) {
     		postSession(target);
     	}
     }
     
     @Test
-    public void postManyParallelTest() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    public void postManyParallelTest() throws IOException, InterruptedException {
     	postManyParallel();
     }
     
-    public static Queue<String> postManyParallel() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    public static Queue<String> postManyParallel() throws IOException, InterruptedException {
     	
     	final Queue<String> paths = new ConcurrentLinkedQueue<>();
     	ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -90,7 +90,7 @@ public class DbPeroformanceTest {
     }
     
     @Test
-    public void getManyParallel() throws JsonGenerationException, JsonMappingException, IOException, InterruptedException {
+    public void getManyParallel() throws IOException, InterruptedException {
     	ExecutorService executor = Executors.newFixedThreadPool(10);
     	for (final String path : paths) {
     		executor.submit(new Runnable() {
@@ -106,7 +106,7 @@ public class DbPeroformanceTest {
     }
     
     @Test
-    public void getMany() throws JsonGenerationException, JsonMappingException, IOException {
+    public void getMany() throws IOException {
     	for (String objPath : paths) {
     		getSession(objPath);
     	}
@@ -128,7 +128,7 @@ public class DbPeroformanceTest {
 
 
 //	@Test
-    public void get() throws JsonGenerationException, JsonMappingException, IOException {
+    public void get() throws IOException {
         
 		String objPath = postSession(target);        
         Session session2 = target.path(objPath).request().get(Session.class);        

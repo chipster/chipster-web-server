@@ -59,7 +59,7 @@ public class ServiceResourceTest {
     }
 
     @Test
-    public void post() throws JsonGenerationException, JsonMappingException, IOException {
+    public void post() throws IOException {
     	
     	postRandomService(serverTarget);
     	

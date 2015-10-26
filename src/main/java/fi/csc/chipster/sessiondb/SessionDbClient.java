@@ -24,7 +24,7 @@ import fi.csc.chipster.sessiondb.resource.Events;
 public class SessionDbClient {
 	
 	public interface SessionEventListener {
-		public void onEvent(SessionEvent e);
+		void onEvent(SessionEvent e);
 	}
 	
 	private static final Logger logger = LogManager.getLogger();

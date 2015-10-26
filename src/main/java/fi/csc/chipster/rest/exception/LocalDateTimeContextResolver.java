@@ -51,9 +51,9 @@ public class LocalDateTimeContextResolver implements ContextResolver<ObjectMappe
 
         @Override
         public LocalDateTime deserialize(JsonParser jp, 
-                DeserializationContext dc) throws IOException, JsonProcessingException {
+                DeserializationContext dc) throws IOException {
             ObjectCodec codec = jp.getCodec();
-            TextNode node = (TextNode)codec.readTree(jp);
+            TextNode node = codec.readTree(jp);
             String dateString = node.textValue();
             Instant instant = Instant.parse(dateString);
             LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
@@ -65,7 +65,7 @@ public class LocalDateTimeContextResolver implements ContextResolver<ObjectMappe
 
         @Override
         public void serialize(LocalDateTime dateTime, JsonGenerator jg, 
-                SerializerProvider sp) throws IOException, JsonProcessingException {
+                SerializerProvider sp) throws IOException {
             Instant instant = dateTime.toInstant(ZoneOffset.UTC);
             jg.writeString(DateTimeFormatter.ISO_INSTANT.format(instant));
         } 
