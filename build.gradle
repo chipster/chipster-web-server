@@ -9,7 +9,7 @@ repositories {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-mainClassName = "fi.csc.chipster.toolrepository.ToolRepository"
+mainClassName = "fi.csc.chipster.toolbox.Toolbox"
 run {
     standardInput = System.in
 }

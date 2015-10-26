@@ -46,7 +46,7 @@ public class Config {
 		defaults.put("service-locator-bind", "http://{{bind-ip}}:8082/servicelocator/");
 		defaults.put("session-db-bind", "http://{{bind-ip}}:8080/sessiondb/");
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
-		defaults.put("tool-repository-bind", "http://{{bind-ip}}:8083/toolrepository/");
+		defaults.put("toolbox-bind", "http://{{bind-ip}}:8083/toolbox/");
 	}
 	
 	private HashMap<String, String> variableDefaults = new HashMap<>();
