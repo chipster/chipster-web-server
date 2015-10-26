@@ -1,4 +1,4 @@
-package fi.csc.chispter.scheduler;
+package fi.csc.chipster.scheduler;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

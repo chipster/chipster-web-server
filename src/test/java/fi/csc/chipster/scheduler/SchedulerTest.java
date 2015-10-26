@@ -1,4 +1,4 @@
-package fi.csc.chispter.scheduler;
+package fi.csc.chipster.scheduler;
 
 import static org.junit.Assert.assertEquals;
 
@@ -27,7 +27,6 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.WebsocketClient;
-import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.JobResourceTest;
