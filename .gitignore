@@ -7,3 +7,5 @@
 /.classpath
 /.project
 /.settings
+/.idea
+/chipster-web-server.iml
