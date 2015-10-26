@@ -10,6 +10,10 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 mainClassName = "fi.csc.chipster.toolrepository.ToolRepository"
+run {
+    standardInput = System.in
+}
+
 
 
 dependencies {
