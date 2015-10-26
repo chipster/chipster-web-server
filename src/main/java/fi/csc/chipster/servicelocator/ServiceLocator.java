@@ -98,7 +98,7 @@ public class ServiceLocator {
 
 	public void close() {
 		events.close();
-		RestUtils.shutdown(httpServer);
+		RestUtils.shutdown("service locator", httpServer);
 	}
 }
 

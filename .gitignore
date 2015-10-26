@@ -2,3 +2,8 @@
 /bin
 /database
 /dist
+/build/
+/.gradle
+/.classpath
+/.project
+/.settings

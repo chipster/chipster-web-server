@@ -5,6 +5,9 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.servlet.ServletException;
+import javax.websocket.DeploymentException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
@@ -20,6 +23,8 @@ import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.scheduler.PubSubEndpoint;
+import fi.csc.chipster.scheduler.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -28,7 +33,6 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.resource.Events;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
 /**
@@ -42,9 +46,8 @@ public class SessionDb {
 
 	private static HibernateUtil hibernate;
 
+	@SuppressWarnings("unused")
 	private String serviceId;
-
-	private Events events;
 
 	private ServiceLocatorClient serviceLocator;
 
@@ -53,6 +56,8 @@ public class SessionDb {
 	private Config config;
 
 	private HttpServer httpServer;
+
+	private PubSubServer pubSubServer;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -63,8 +68,10 @@ public class SessionDb {
 	 * application.
 	 * 
 	 * @return Grizzly HTTP server.
+	 * @throws DeploymentException 
+	 * @throws ServletException 
 	 */
-	public void startServer() {
+	public void startServer() throws ServletException, DeploymentException {
 
 		String username = "sessionStorage";
 		String password = "sessionStoragePassword";
@@ -72,8 +79,8 @@ public class SessionDb {
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username,
 				password);
-		this.serviceId = serviceLocator.register(Role.SESSION_DB,
-				authService, config.getString("session-db"));
+		this.serviceId = serviceLocator.register(Role.SESSION_DB, authService, config.getString("session-db"));
+		serviceLocator.register(Role.SESSION_DB_EVENTS, authService, config.getString("session-db-events"));
 
 		List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
 				Session.class, Dataset.class, Job.class, Parameter.class,
@@ -83,10 +90,11 @@ public class SessionDb {
 		hibernate = new HibernateUtil();
 		hibernate.buildSessionFactory(hibernateClasses, "session-db");
 
-		this.events = new Events(serviceId);
+		startPubSubServer();
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				.register(new SessionResource(hibernate, events))
+				.register(new SessionResource(hibernate, pubSubServer))
+				//.register(new AdminResource(events))
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
 				.register(SseFeature.class)
@@ -99,13 +107,28 @@ public class SessionDb {
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 
+	public void startPubSubServer() throws ServletException, DeploymentException {
+
+		String pubSubUri = config.getString("session-db-events-bind");
+		String path = "sessions/{" + PubSubEndpoint.TOPIC_KEY + "}/events";
+
+		this.pubSubServer = new PubSubServer(pubSubUri, path, null, null);
+		this.pubSubServer.start();
+	}
+	
+	public PubSubServer getPubSubServer() {
+		return pubSubServer;
+	}
+
 	/**
 	 * Main method.
 	 * 
 	 * @param args
 	 * @throws IOException
+	 * @throws DeploymentException 
+	 * @throws ServletException 
 	 */
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, ServletException, DeploymentException {
 
 		final SessionDb server = new SessionDb(new Config());
 		server.startServer();
@@ -119,8 +142,8 @@ public class SessionDb {
 	}
 
 	public void close() {
-		events.close();		
-		RestUtils.shutdown(httpServer);
+		getPubSubServer();		
+		RestUtils.shutdown("session-db", httpServer);
 	}
 	
 	public HttpServer getHttpServer() {

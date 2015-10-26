@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.scheduler.PubSubServer;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -43,13 +44,13 @@ public class JobResource {
 
 	private SessionResource sessionResource;
 
-	private Events events;
+	private PubSubServer events;
 	
 	public JobResource() {
 		sessionId = null;
 	}
 	
-	public JobResource(SessionResource sessionResource, UUID id, Events events) {
+	public JobResource(SessionResource sessionResource, UUID id, PubSubServer events) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
 		this.events = events;
@@ -99,7 +100,7 @@ public class JobResource {
 		sessionResource.getSessionForWriting(sc, sessionId).getJobs().put(id, job);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
 
@@ -124,7 +125,7 @@ public class JobResource {
 		getHibernate().session().merge(requestJob);
 
 		// more fine-grained events are needed, like "job added" and "job removed"
-		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.UPDATE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -143,7 +144,7 @@ public class JobResource {
 		// remove from session, hibernate will take care of the actual dataset table
 		jobs.remove(jobId);
 
-		events.broadcast(new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.DELETE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.DELETE));
 		return Response.noContent().build();
     }
 

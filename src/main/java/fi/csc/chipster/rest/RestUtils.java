@@ -133,7 +133,7 @@ public class RestUtils {
 		Job j = new Job();
 		j.setEndTime(LocalDateTime.now());
 		j.setJobId(createUUID());
-		j.setState(JobState.COMPLETED);
+		j.setState(JobState.NEW);
 		j.setStartTime(LocalDateTime.now());
 		j.setToolCategory("utilities");
 		j.setToolDescription("very important tool");
@@ -220,18 +220,18 @@ public class RestUtils {
 				.register(RolesAllowedDynamicFeature.class); 
 	}
 
-	public static void shutdown(HttpServer httpServer) {
+	public static void shutdown(String name, HttpServer httpServer) {
 		GrizzlyFuture<HttpServer> future = httpServer.shutdown();
 		try {
 			// wait for server to shutdown, otherwise the next test set will print ugly log messages
 			try {
 				future.get(3, TimeUnit.SECONDS);
 			} catch (TimeoutException e) {
-				logger.warn("server didn't stop gracefully");
+				logger.warn(name + " server didn't stop gracefully");
 				httpServer.shutdownNow();
 			}
 		} catch (InterruptedException | ExecutionException e) {
-			logger.warn("failed to shutdown the server", e);
+			logger.warn("failed to shutdown the server " + name, e);
 		}
-	}
+	}	
 }

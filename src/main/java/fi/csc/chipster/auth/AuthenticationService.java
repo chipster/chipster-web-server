@@ -91,7 +91,7 @@ public class AuthenticationService {
 	}
 	
 	public void close() {
-		RestUtils.shutdown(httpServer);
+		RestUtils.shutdown("auth", httpServer);
 	}
 }
 

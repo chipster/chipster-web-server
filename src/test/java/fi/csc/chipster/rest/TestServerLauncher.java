@@ -1,5 +1,7 @@
 package fi.csc.chipster.rest;
 
+import javax.servlet.ServletException;
+import javax.websocket.DeploymentException;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.LogManager;
@@ -21,11 +23,11 @@ public class TestServerLauncher {
 
 	private ServerLauncher serverLauncher;
 	
-	public TestServerLauncher(Config config, String role) {
+	public TestServerLauncher(Config config, String role) throws ServletException, DeploymentException {
 		this(config, role, false);
 	}
 	
-	public TestServerLauncher(Config config, String role, boolean verbose) {
+	public TestServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException {
 		
 		this.serverLauncher = new ServerLauncher(config, role, false);
 
@@ -56,6 +58,14 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(targetUri);
 	}
 	
+	public WebTarget getSchedulerTarget() {
+		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getAuthenticatedClient().target(targetUri);
+	}
+	
+	public WebTarget getCompTarget() {
+		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getAuthenticatedClient().target(targetUri);
+	}
+	
 	public WebTarget getSessionStorageUserTarget() {
 		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(targetUri);
 	}
@@ -75,5 +85,9 @@ public class TestServerLauncher {
 	
 	public WebTarget getNoAuthTarget() {
 		return AuthenticationClient.getClient().target(targetUri);
+	}
+
+	public ServerLauncher getServerLauncher() {
+		return serverLauncher;
 	}
 }

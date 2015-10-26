@@ -123,4 +123,8 @@ public class AuthenticationClient {
 		}
 		return null;
 	}
+
+	public UUID getToken() {
+		return token;
+	}
 }

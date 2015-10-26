@@ -65,7 +65,7 @@ public class ServiceResource {
     }	
 
 	@POST
-	@RolesAllowed(Role.SESSION_DB)
+	@RolesAllowed(Role.SERVER)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response post(Service service, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
@@ -81,7 +81,7 @@ public class ServiceResource {
     }
 
 	@DELETE
-	@RolesAllowed(Role.SESSION_DB)
+	@RolesAllowed(Role.SERVER)
     @Path("{id}")
     public Response delete(@PathParam("id") String id, @Context SecurityContext sc) {
 

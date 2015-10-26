@@ -11,7 +11,6 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -27,12 +26,13 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.jersey.media.sse.EventOutput;
-import org.glassfish.jersey.media.sse.SseFeature;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.scheduler.PubSubServer;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -46,11 +46,11 @@ public class SessionResource {
 	private static Logger logger = LogManager.getLogger();
 	
 	private HibernateUtil hibernate;
-	private Events events;
+	private PubSubServer events;
 	
-	public SessionResource(HibernateUtil hibernate, Events events) {
+	public SessionResource(HibernateUtil hibernate, PubSubServer pubSubServer) {
 		this.hibernate = hibernate;
-		this.events = events;
+		this.events = pubSubServer;
 	}
 
 	// sub-resource locators
@@ -63,17 +63,6 @@ public class SessionResource {
 	public Object getJobResource(@PathParam("id") UUID id) {
 		return new JobResource(this, id, events);
 	}
-	
-	// notifications
-    @GET
-    @Path("{id}/events")
-    @Produces(SseFeature.SERVER_SENT_EVENTS)
-    @Transaction
-    public EventOutput listenToBroadcast(@PathParam("id") UUID sessionId, @Context SecurityContext sc) {
-    	// checks authorization
-    	getReadAuthorization(sc, sessionId);
-        return events.getEventOutput(sessionId);
-    }
 	
     // CRUD
     @GET
@@ -137,7 +126,7 @@ public class SessionResource {
 		getHibernate().session().save(auth);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		events.broadcast(new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
+		events.publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
 		
 		return Response.created(uri).build();
     }
@@ -162,7 +151,7 @@ public class SessionResource {
 		getHibernate().session().merge(requestSession);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		events.broadcast(new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE));
+		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -175,7 +164,7 @@ public class SessionResource {
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 
-		events.broadcast(new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));
+		events.publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));
 		return Response.noContent().build();
     }
 	
@@ -200,24 +189,26 @@ public class SessionResource {
 
 		String username = sc.getUserPrincipal().getName();
 		if(username == null) {
-			throw new NotAuthorizedException(Response.noContent());
+			throw new NotAuthorizedException("not authorized for null username");
 		}
-		Session session = (Session) getHibernate().session().get(Session.class, sessionId);
+		Session session = (Session) getHibernate().session().get(Session.class, sessionId);	
+		
+		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP)) {		
+			return new Authorization(username, session, true);
+		}
+
 		Object authObj = getHibernate().session().createQuery(
 				"from Authorization"
 				+ " where username=:username and session=:session")
 				.setParameter("username", username)
 				.setParameter("session", session).uniqueResult();
 		if (authObj == null) {
-			// Either the session doesn't exist or the user doesn't have access 
-			// rights to it. HTTP specification allows 404 response in either case,
-			// so there is no need to make extra queries to find out.
-			throw new NotFoundException();
+			throw new NotFoundException("session doesn't exist or you are not authorized to access it");
 		}
 		Authorization auth = (Authorization)authObj;
 		if (requireReadWrite) {
 			if (!auth.isReadWrite()) {
-				throw new ForbiddenException();
+				throw new ForbiddenException("read-write access denied");
 			}
 		}
 		return auth;
