@@ -191,7 +191,7 @@ public class SessionResource {
 		if(username == null) {
 			throw new NotAuthorizedException("username is null");
 		}
-		Session session = (Session) getHibernate().session().get(Session.class, sessionId);	
+		Session session = getHibernate().session().get(Session.class, sessionId);
 		
 		if (session == null) {
 			throw new NotFoundException("session not found");

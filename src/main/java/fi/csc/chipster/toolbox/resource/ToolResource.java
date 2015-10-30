@@ -9,12 +9,12 @@ import javax.ws.rs.core.MediaType;
  * Created by hupponen on 12/10/2015.
  */
 
-@Path("tools" )
+@Path("tools")
 public class ToolResource {
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    public String get() {
+    public final String get() {
         return "tool test";
     }
 

@@ -1,4 +1,4 @@
-package fi.csc.chispter.scheduler;
+package fi.csc.chipster.scheduler;
 
 import static org.junit.Assert.assertEquals;
 

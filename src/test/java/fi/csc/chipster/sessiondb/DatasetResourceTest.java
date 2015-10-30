@@ -13,9 +13,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -71,7 +68,7 @@ public class DatasetResourceTest {
     }
 
 	//@Test
-    public void postAndGetMany() throws JsonGenerationException, JsonMappingException, IOException {
+    public void postAndGetMany() throws IOException {
         
 		String objPath = null;
 		for (int i = 0; i < 100; i++) {			
@@ -83,7 +80,7 @@ public class DatasetResourceTest {
     }
 
 	@Test
-    public void get() throws JsonGenerationException, JsonMappingException, IOException {
+    public void get() throws IOException {
         
 		String objPath = postRandomDataset(user1Target, session1Path);        
         assertEquals(false, getDataset(user1Target, objPath) == null);

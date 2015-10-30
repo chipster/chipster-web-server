@@ -53,7 +53,7 @@ public class ServiceLocator {
     	String username = "serviceLocator";
     	String password = "serviceLocatorPassword";
     	String authUri = this.config.getString("authentication-service");
-    	List<String> auths = Arrays.asList(new String[] { authUri });
+    	List<String> auths = Arrays.asList(authUri);
     	    	
     	this.authService = new AuthenticationClient(auths, username, password);    
     	

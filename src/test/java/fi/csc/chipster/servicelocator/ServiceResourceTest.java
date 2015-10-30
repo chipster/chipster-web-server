@@ -15,9 +15,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -59,7 +56,7 @@ public class ServiceResourceTest {
     }
 
     @Test
-    public void post() throws JsonGenerationException, JsonMappingException, IOException {
+    public void post() throws IOException {
     	
     	postRandomService(serverTarget);
     	

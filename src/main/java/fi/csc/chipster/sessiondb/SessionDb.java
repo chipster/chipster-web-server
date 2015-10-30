@@ -88,9 +88,8 @@ public class SessionDb implements TopicCheck {
 		this.serviceId = serviceLocator.register(Role.SESSION_DB, authService, config.getString("session-db"));
 		serviceLocator.register(Role.SESSION_DB_EVENTS, authService, config.getString("session-db-events"));
 
-		List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-				Session.class, Dataset.class, Job.class, Parameter.class,
-				Input.class, File.class, Authorization.class, });
+		List<Class<?>> hibernateClasses = Arrays.asList(Session.class, Dataset.class, Job.class, Parameter.class,
+				Input.class, File.class, Authorization.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil();

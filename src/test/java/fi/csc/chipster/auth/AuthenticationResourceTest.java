@@ -14,9 +14,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Config;
@@ -45,29 +42,29 @@ public class AuthenticationResourceTest {
     }
 
     @Test
-    public void correctPassword() throws JsonGenerationException, JsonMappingException, IOException {	
+    public void correctPassword() throws IOException {
     	postClientToken(target);
     }
     
     @Test
-    public void noAuth() throws JsonGenerationException, JsonMappingException, IOException {	
+    public void noAuth() throws IOException {
     	// no authorized header
     	assertEquals(401, postTokenResponse(launcher.getNoAuthTarget(), null, null).getStatus());
     }
     
     @Test
-    public void wrongCredentials() throws JsonGenerationException, JsonMappingException, IOException {	
+    public void wrongCredentials() throws IOException {
     	assertEquals(403, postTokenResponse(target, "client", "wrongPasword").getStatus());
     	assertEquals(403, postTokenResponse(target, "wrongUsername", "wrongPasword").getStatus());
     }
     
     @Test
-    public void postServer() throws JsonGenerationException, JsonMappingException, IOException {	
+    public void postServer() throws IOException {
     	postServerToken(target);                          
     }
 
 	@Test
-    public void validate() throws JsonGenerationException, JsonMappingException, IOException {
+    public void validate() throws IOException {
         String clientToken = postClientToken(target);
         String serverToken = postServerToken(target);
         String wrongToken = RestUtils.createId();
