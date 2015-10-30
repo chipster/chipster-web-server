@@ -4,27 +4,31 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
+import javax.ws.rs.WebApplicationException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.media.sse.SseFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.auth.resource.AuthSecurityContext;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.scheduler.PubSubEndpoint;
-import fi.csc.chipster.scheduler.PubSubServer;
+import fi.csc.chipster.rest.websocket.PubSubEndpoint;
+import fi.csc.chipster.rest.websocket.PubSubServer;
+import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -39,10 +43,12 @@ import fi.csc.chipster.sessiondb.resource.SessionResource;
  * Main class.
  *
  */
-public class SessionDb {
+public class SessionDb implements TopicCheck {
 
-	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
+	
+	public static final String EVENTS_PATH = "events";
+	public static final String JOBS_TOPIC = "jobs";
 
 	private static HibernateUtil hibernate;
 
@@ -50,14 +56,14 @@ public class SessionDb {
 	private String serviceId;
 
 	private ServiceLocatorClient serviceLocator;
-
 	private AuthenticationClient authService;
 
 	private Config config;
 
 	private HttpServer httpServer;
-
 	private PubSubServer pubSubServer;
+
+	private SessionResource sessionResource;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -90,14 +96,20 @@ public class SessionDb {
 		hibernate = new HibernateUtil();
 		hibernate.buildSessionFactory(hibernateClasses, "session-db");
 
-		startPubSubServer();
+		this.sessionResource = new SessionResource(hibernate);
+		
+		String pubSubUri = config.getString("session-db-events-bind");
+		String path = "/" + EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
+
+		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");
+		this.pubSubServer.start();
+		
+		sessionResource.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				.register(new SessionResource(hibernate, pubSubServer))
-				//.register(new AdminResource(events))
+				.register(sessionResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
-				.register(SseFeature.class)
 				//.register(new LoggingFilter())
 				.register(new TokenRequestFilter(authService));
 
@@ -105,15 +117,6 @@ public class SessionDb {
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getString("session-db-bind"));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
-	}
-
-	public void startPubSubServer() throws ServletException, DeploymentException {
-
-		String pubSubUri = config.getString("session-db-events-bind");
-		String path = "sessions/{" + PubSubEndpoint.TOPIC_KEY + "}/events";
-
-		this.pubSubServer = new PubSubServer(pubSubUri, path, null, null);
-		this.pubSubServer.start();
 	}
 	
 	public PubSubServer getPubSubServer() {
@@ -142,11 +145,34 @@ public class SessionDb {
 	}
 
 	public void close() {
-		getPubSubServer();		
+		getPubSubServer().stop();		
 		RestUtils.shutdown("session-db", httpServer);
 	}
 	
 	public HttpServer getHttpServer() {
 		return httpServer;
+	}
+
+	@Override
+	public boolean isAuthorized(AuthPrincipal principal, String topic) {
+		logger.debug("check topic authorization for topic " + topic);
+		if (JOBS_TOPIC.equals(topic)) {
+			return principal.getRoles().contains(Role.SERVER);
+		} else {
+			AuthSecurityContext sc = new AuthSecurityContext(principal, null);
+			UUID sessionId = UUID.fromString(topic);
+			hibernate.beginTransaction();
+			try {
+				Session auth = sessionResource.getSessionForReading(sc, sessionId);
+				hibernate.commit();
+				return auth != null;
+			} catch (fi.csc.chipster.rest.exception.NotAuthorizedException e) {
+				hibernate.commit();
+				return false;
+			} catch (WebApplicationException e) {
+				hibernate.rollback();
+				throw e;
+			}
+		} 
 	}
 }

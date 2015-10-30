@@ -4,11 +4,13 @@ import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 public class TestServerLauncher {
@@ -22,12 +24,20 @@ public class TestServerLauncher {
 	private String targetUri;
 
 	private ServerLauncher serverLauncher;
+
+	private Level webSocketLoggingLevel;
 	
-	public TestServerLauncher(Config config, String role) throws ServletException, DeploymentException {
-		this(config, role, false);
+	public TestServerLauncher(Config config, String role) throws ServletException, DeploymentException, InterruptedException {
+		this(config, role, true);
 	}
 	
-	public TestServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException {
+	public TestServerLauncher(Config config, String role, boolean quiet) throws ServletException, DeploymentException, InterruptedException {
+		
+		if (quiet) {
+			webSocketLoggingLevel = Config.getLoggingLevel(WebSocketClient.class.getName());
+			// hide messages about websocket connection status
+			Config.setLoggingLevel(WebSocketClient.class.getName(), Level.OFF);
+		}
 		
 		this.serverLauncher = new ServerLauncher(config, role, false);
 
@@ -48,6 +58,10 @@ public class TestServerLauncher {
 
 	public void stop() {
 		serverLauncher.stop();
+		if (webSocketLoggingLevel != null) {
+			// revert websocket logging
+			Config.setLoggingLevel(WebSocketClient.class.getName(), webSocketLoggingLevel);
+		}
 	}	
 	
 	public WebTarget getUser1Target() {

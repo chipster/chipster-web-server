@@ -32,7 +32,8 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.scheduler.PubSubServer;
+import fi.csc.chipster.rest.websocket.PubSubServer;
+import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -48,20 +49,19 @@ public class SessionResource {
 	private HibernateUtil hibernate;
 	private PubSubServer events;
 	
-	public SessionResource(HibernateUtil hibernate, PubSubServer pubSubServer) {
+	public SessionResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
-		this.events = pubSubServer;
 	}
 
 	// sub-resource locators
 	@Path("{id}/datasets")
 	public Object getDatasetResource(@PathParam("id") UUID id) {
-		return new DatasetResource(this, id, events);
+		return new DatasetResource(this, id);
 	}
 	
 	@Path("{id}/jobs")
 	public Object getJobResource(@PathParam("id") UUID id) {
-		return new JobResource(this, id, events);
+		return new JobResource(this, id);
 	}
 	
     // CRUD
@@ -126,7 +126,7 @@ public class SessionResource {
 		getHibernate().session().save(auth);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		events.publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
+		publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
 		
 		return Response.created(uri).build();
     }
@@ -151,7 +151,7 @@ public class SessionResource {
 		getHibernate().session().merge(requestSession);
 
 		// more fine-grained events are needed, like "job added" and "dataset removed"
-		events.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE));
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE));
 		return Response.noContent().build();
     }
 
@@ -164,7 +164,7 @@ public class SessionResource {
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 
-		events.publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));
+		publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));
 		return Response.noContent().build();
     }
 	
@@ -189,21 +189,25 @@ public class SessionResource {
 
 		String username = sc.getUserPrincipal().getName();
 		if(username == null) {
-			throw new NotAuthorizedException("not authorized for null username");
+			throw new NotAuthorizedException("username is null");
 		}
 		Session session = (Session) getHibernate().session().get(Session.class, sessionId);	
+		
+		if (session == null) {
+			throw new NotFoundException("session not found");
+		}
 		
 		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP)) {		
 			return new Authorization(username, session, true);
 		}
-
+		
 		Object authObj = getHibernate().session().createQuery(
 				"from Authorization"
 				+ " where username=:username and session=:session")
 				.setParameter("username", username)
 				.setParameter("session", session).uniqueResult();
 		if (authObj == null) {
-			throw new NotFoundException("session doesn't exist or you are not authorized to access it");
+			throw new NotAuthorizedException("access denied");
 		}
 		Authorization auth = (Authorization)authObj;
 		if (requireReadWrite) {
@@ -230,5 +234,16 @@ public class SessionResource {
 	
 	public HibernateUtil getHibernate() {
 		return hibernate;
+	}
+
+	public void setPubSubServer(PubSubServer pubSubServer) {
+		this.events = pubSubServer;
+	}
+	
+	public void publish(String topic, SessionEvent obj) {
+		events.publish(topic, obj);
+		if (ResourceType.JOB == obj.getResourceType()) {
+			events.publish(SessionDb.JOBS_TOPIC, obj);
+		}
 	}
 }

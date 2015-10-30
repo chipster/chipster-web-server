@@ -22,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.sessiondb.resource.Events;
 
 @Path("services")
 public class ServiceResource {
@@ -32,24 +31,11 @@ public class ServiceResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
-//	private Events events;
 	private ServiceCatalog serviceCatalog;
 	
-	public ServiceResource(ServiceCatalog serviceCatalog, Events events) {
+	public ServiceResource(ServiceCatalog serviceCatalog) {
 		this.serviceCatalog = serviceCatalog;
-//		this.events = events;
 	}
-
-//	// notifications
-//    @GET
-//    @Path("{id}/events")
-//    @Produces(SseFeature.SERVER_SENT_EVENTS)
-//    @Transaction
-//    public EventOutput listenToBroadcast(@PathParam("id") String sessionId, @Context SecurityContext sc) {
-//    	// checks authorization
-//    	getReadAuthorization(sc, sessionId);
-//        return events.getEventOutput(sessionId);
-//    }
 	
     // CRUD
         

@@ -1,4 +1,4 @@
-package fi.csc.chipster.scheduler;
+package fi.csc.chipster.rest.websocket;
 
 import java.io.IOException;
 import java.net.URI;
@@ -19,6 +19,10 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
+import com.mchange.rmi.NotAuthorizedException;
+
+import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
 
 public class PubSubServer {
@@ -94,13 +98,23 @@ public class PubSubServer {
 
 	private String path;
 
-	private TokenServletFilter filter;
+	private AuthenticationClient authService;
 
-	public PubSubServer(String baseUri, String path, TokenServletFilter filter, MessageHandler.Whole<String> replyHandler) throws ServletException, DeploymentException {
+	private TopicCheck topicAuthorization;
+
+	private String name;
+	
+	public interface TopicCheck {
+		public boolean isAuthorized(AuthPrincipal principal, String topicName);
+	}
+
+	public PubSubServer(String baseUri, String path, AuthenticationClient authService, MessageHandler.Whole<String> replyHandler, TopicCheck topicCheck, String name) throws ServletException, DeploymentException {
 		this.baseUri = baseUri;
 		this.path = path;
-		this.filter = filter;
+		this.authService = authService;
 		this.replyHandler = replyHandler;
+		this.topicAuthorization = topicCheck;
+		this.name = name;
 		
 		init();                    
 	}
@@ -119,16 +133,20 @@ public class PubSubServer {
         // This is also known as the handler tree (in jetty speak)
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);       
 
-        context.setContextPath("/");
-        if (filter != null) {
-        	context.addFilter(new FilterHolder(filter), "/*", null);
-        }
+        String contextPath = uri.getPath().replaceAll("/$", "");
+        logger.debug("context path " + contextPath);
+        context.setContextPath(contextPath);
+
+        TokenServletFilter filter = new TokenServletFilter(authService, topicAuthorization, contextPath + path);
+        context.addFilter(new FilterHolder(filter), "/*", null);
+
         server.setHandler(context);
-        		
+		
         // Initialize javax.websocket layer
         ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
-
-        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, uri.getPath() + path).build();
+        
+        // add this instance to user properties, so that we can call it from the PubSubEndpoint
+        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, path).build();
         serverConfig.getUserProperties().put(this.getClass().getName(), this);
         // Add WebSocket endpoint to javax.websocket layer
         wscontainer.addEndpoint(serverConfig);
@@ -138,12 +156,11 @@ public class PubSubServer {
 		publish(DEFAULT_TOPIC, RestUtils.asJson(obj));
 	}
 
-	public void publish(String topicName, Object obj) {
-		publish(topicName, RestUtils.asJson(obj));
+	public void publish(String topic, Object obj) {
+		publish(topic, RestUtils.asJson(obj));
 	}
 
 	private void publish(String topicName, String msg) {
-		
 		Topic topic = topics.get(topicName);
 		if (topic != null) {
 			topic.publish(msg);
@@ -153,9 +170,11 @@ public class PubSubServer {
 	}
 
 	public void subscribe(String topicName, Subscriber s) {
+		
 		if (topicName == null) {
 			topicName = DEFAULT_TOPIC;
 		}
+		
 		synchronized (topics) {
 			if (!topics.containsKey(topicName)) {
 				logger.debug("topic " + topicName + " not found, create it");
@@ -167,9 +186,11 @@ public class PubSubServer {
 	}
 
 	public void unsubscribe(String topicName, Basic basicRemote) {
+
 		if (topicName == null) {
 			topicName = DEFAULT_TOPIC;
 		}
+
 		synchronized (topics) {
 			Topic topic = topics.get(topicName);
 			topic.remove(basicRemote);
@@ -187,16 +208,26 @@ public class PubSubServer {
 	public void stop() {
 		try {
 			this.server.stop();
+			logger.info("stopped a pub-sub server: " + name);
 		} catch (Exception e) {
-			logger.warn("failed to stop PubSubServer", e);
+			logger.warn("failed to stop the pub-sub server", e);
 		}
 	}
 
 	public void start() {
 		try {
+			logger.debug("start a pub-sub server: " + name);
 			this.server.start();
 		} catch (Exception e) {
 			logger.error("failed to start PubSubServer", e);
+		}
+	}
+
+	public boolean isTopicAuthorized(AuthPrincipal principal, String topic) throws NotAuthorizedException {
+		if (topicAuthorization != null) {
+			return topicAuthorization.isAuthorized(principal, topic);			
+		} else {
+			return true;
 		}
 	}
 }

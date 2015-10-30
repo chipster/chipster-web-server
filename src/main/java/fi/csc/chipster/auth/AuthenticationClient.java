@@ -12,7 +12,6 @@ import javax.ws.rs.core.MediaType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.glassfish.jersey.media.sse.SseFeature;
 import org.hibernate.service.spi.ServiceException;
 
 import fi.csc.chipster.auth.model.Role;
@@ -89,7 +88,6 @@ public class AuthenticationClient {
 			c.register(feature);
 		}
 		c.register(LocalDateTimeContextResolver.class);
-		c.register(SseFeature.class);
 		//c.register(new LoggingFilter());
 		return c;
 	}

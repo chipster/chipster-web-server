@@ -89,10 +89,10 @@ public class DatasetResourceTest {
         assertEquals(false, getDataset(user1Target, objPath) == null);
         
         // wrong user
-        assertEquals(404, get(user2Target, objPath));
+        assertEquals(401, get(user2Target, objPath));
         
         // wrong session
-        assertEquals(404, get(user1Target, changeSession(objPath)));
+        assertEquals(401, get(user1Target, changeSession(objPath)));
         assertEquals(404, get(user2Target, changeSession(objPath)));
     }
 	
@@ -110,7 +110,7 @@ public class DatasetResourceTest {
         assertEquals(true, json.contains(id2));
         
         // wrong user
-        assertEquals(404, get(user2Target, datasets1Path));
+        assertEquals(401, get(user2Target, datasets1Path));
         
         // wrong session
         String session2Json = getString(user2Target, datasets2Path);
@@ -126,10 +126,10 @@ public class DatasetResourceTest {
         assertEquals(204, put(user1Target, objPath, newObj));
         
         // wrong user
-        assertEquals(404, put(user2Target, objPath, newObj));
+        assertEquals(401, put(user2Target, objPath, newObj));
         
         // wrong session
-        assertEquals(404, put(user1Target, changeSession(objPath), newObj));
+        assertEquals(401, put(user1Target, changeSession(objPath), newObj));
         assertEquals(404, put(user2Target, changeSession(objPath), newObj));
     }
 
@@ -139,10 +139,10 @@ public class DatasetResourceTest {
 		String objPath = postRandomDataset(user1Target, session1Path);
 		
 		// wrong user
-		assertEquals(404, delete(user2Target, objPath));
+		assertEquals(401, delete(user2Target, objPath));
 		
 		// wrong session
-		assertEquals(404, delete(user1Target, changeSession(objPath)));
+		assertEquals(401, delete(user1Target, changeSession(objPath)));
 		assertEquals(404, delete(user2Target, changeSession(objPath)));
 		
 		// delete

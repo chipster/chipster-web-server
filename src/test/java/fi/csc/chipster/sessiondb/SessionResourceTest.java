@@ -82,8 +82,8 @@ public class SessionResourceTest {
         assertEquals(false, getSession(compTarget, obj1Path) == null);
 
         // wrong user
-        assertEquals(404, get(user1Target, obj2Path));
-        assertEquals(404, get(user2Target, obj1Path));
+        assertEquals(401, get(user1Target, obj2Path));
+        assertEquals(401, get(user2Target, obj1Path));
         
         assertEquals(401, get(unparseableTokenTarget, obj1Path));
         assertEquals(404, get(tokenFailTarget, obj1Path));
@@ -126,7 +126,7 @@ public class SessionResourceTest {
         assertEquals(204, put(schedulerTarget, objPath, newSession));
         assertEquals(204, put(compTarget, objPath, newSession));
         // wrong user
-        assertEquals(404, put(user2Target, objPath, newSession));
+        assertEquals(401, put(user2Target, objPath, newSession));
         
         assertEquals(401, put(unparseableTokenTarget, objPath, newSession));
         assertEquals(404, put(tokenFailTarget, objPath, newSession));
@@ -140,7 +140,7 @@ public class SessionResourceTest {
 		String objPath = postRandomSession(user1Target);
 
 		// wrong user
-		assertEquals(404, delete(user2Target, objPath));
+		assertEquals(401, delete(user2Target, objPath));
 
 		// auth errors
 		assertEquals(401, delete(unparseableTokenTarget, objPath));
