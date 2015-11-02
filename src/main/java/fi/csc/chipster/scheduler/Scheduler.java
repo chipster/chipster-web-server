@@ -1,5 +1,6 @@
 package fi.csc.chipster.scheduler;
 
+import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -12,8 +13,11 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.websocket.PubSubServer;
+import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -24,7 +28,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.microarray.messaging.JobState;
 
-public class Scheduler implements SessionEventListener, MessageHandler.Whole<String> {
+public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, TopicCheck {
 	
 	private Logger logger = LogManager.getLogger();
 	
@@ -36,7 +40,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	@SuppressWarnings("unused")
 	private String serviceId;
 
-	private SessionDbClient sessionDb;
+	private SessionDbClient sessionDbClient;
 
 	private PubSubServer pubSubServer;
 	
@@ -51,9 +55,10 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
      * @return Grizzly HTTP server.
      * @throws DeploymentException 
      * @throws ServletException 
+     * @throws InterruptedException 
      * @throws Exception 
      */
-    public void startServer() throws ServletException, DeploymentException {
+    public void startServer() throws ServletException, DeploymentException, InterruptedException {
     	
     	String username = "scheduler";
     	String password = "schedulerPassword";
@@ -62,14 +67,18 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		this.serviceId = serviceLocator.register(Role.SCHEDULER, authService, config.getString("scheduler"));	      
     	
-    	this.sessionDb = new SessionDbClient(serviceLocator, authService);
-    	//this.sessionDb.addJobListener(this);
-    	    	
-    	TokenServletFilter filter = new TokenServletFilter(authService);
+    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService);
+    	this.sessionDbClient.addJobListener(this);    	
     	
-    	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "events", filter, this);
+    	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "/events", authService, this, this, "scheduler-events");
     	this.pubSubServer.start();		
-    }  
+    }
+    
+
+	@Override
+	public boolean isAuthorized(AuthPrincipal principal, String topic) {
+		return principal.getRoles().contains(Role.SERVER);			
+	}
 
     /**
      * Main method.
@@ -83,7 +92,11 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     }
 
 	public void close() {
-		sessionDb.close();
+		try {
+			sessionDbClient.close();
+		} catch (IOException e) {
+			logger.warn("failed to stop the session-db client", e);
+		}
 		pubSubServer.stop();
 	}
 
@@ -93,11 +106,11 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		if (ResourceType.JOB == e.getResourceType()) {
 			if (EventType.CREATE == e.getType() || EventType.UPDATE == e.getType()) {
 				logger.debug("get job");
-				Job job = sessionDb.getJob(e.getSessionId(), e.getResourceId());
+				Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
 				logger.debug("handle event");
 				handleSessionDbEvent(e.getSessionId(), job);
 			}		
-		}
+		}		
 	}
 
 	private void handleSessionDbEvent(UUID sessionId, Job job) {

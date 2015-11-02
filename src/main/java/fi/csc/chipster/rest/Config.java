@@ -40,12 +40,19 @@ public class Config {
 	    }
 	}
 	
-	public void setLoggingLevel(String logger, Level level) {
+	public static void setLoggingLevel(String logger, Level level) {
 		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
 		Configuration config = ctx.getConfiguration();
 		LoggerConfig loggerConfig = config.getLoggerConfig(logger); 
 		loggerConfig.setLevel(level);
 		ctx.updateLoggers();
+	}
+	
+	public static Level getLoggingLevel(String logger) {
+		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+		Configuration config = ctx.getConfiguration();
+		LoggerConfig loggerConfig = config.getLoggerConfig(logger); 
+		return loggerConfig.getLevel();
 	}
 
 	private HashMap<String, String> defaults = new HashMap<>();

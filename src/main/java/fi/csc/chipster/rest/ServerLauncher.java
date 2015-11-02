@@ -23,7 +23,7 @@ public class ServerLauncher {
 
 	private Scheduler scheduler;
 	
-	public ServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException {
+	public ServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException, InterruptedException {
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -56,7 +56,7 @@ public class ServerLauncher {
 	public void stop() {
 		if (scheduler != null) {
 			scheduler.close();			
-		}
+		}			
 		if (sessionDb != null) {
 			sessionDb.close();
 		}
@@ -65,10 +65,10 @@ public class ServerLauncher {
 		}
 		if (auth != null) {
 			auth.close();			
-		}		
+		}
 	}	
 		
-	public static void main(String[] args) throws ServletException, DeploymentException {
+	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException {
 		Config config = new Config();
 		new ServerLauncher(config, Role.SESSION_DB, true);
 	}

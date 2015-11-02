@@ -2,9 +2,11 @@ package fi.csc.chipster.toolbox;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.toolbox.resource.ToolResource;
+
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -18,8 +20,8 @@ import java.net.URI;
  */
 public class ToolboxService {
 
+	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
-
 
 	private Config config;
 

@@ -1,10 +1,13 @@
 package fi.csc.chipster.rest;
 
 import javax.websocket.CloseReason;
+import javax.websocket.CloseReason.CloseCodes;
+import javax.websocket.DeploymentException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.core.HandshakeException;
 
 public class RetryHandler extends ClientManager.ReconnectHandler {
 
@@ -13,11 +16,30 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 	private int counter = 0;
 	private int retries = 30;
 
+	private String name;
+
+	private volatile boolean close = false;
+
+	public RetryHandler(String name) {
+		this.name = name;
+	}
+
 	@Override
-	public boolean onDisconnect(CloseReason closeReason) {		
+	public boolean onDisconnect(CloseReason closeReason) {
+		if (close) {
+			// don't reconnect when we are trying to close the connection on purpose
+			return false;
+		}
+		
+		logger.info("websocket client " + name + " disconnected: " + closeReason.getReasonPhrase());
+		
+		if (CloseCodes.VIOLATED_POLICY == closeReason.getCloseCode()) {
+			logger.error("reconnection cancelled");
+			throw new RuntimeException(closeReason.getReasonPhrase());
+		}
 		counter++;
 		if (counter <= retries) {
-			logger.info("websocket disconnected: " + closeReason.getReasonPhrase() + " Reconnecting... (" + counter + "/" + retries + ")");
+			logger.info("reconnecting... (" + counter + "/" + retries + ")");
 			return true;
 		} else {
 			return false;
@@ -26,9 +48,15 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 
 	@Override
 	public boolean onConnectFailure(Exception exception) {
+		logger.info("websocket client " + name + " connection failure", exception);
+		
+		if (exception instanceof DeploymentException && exception.getCause() instanceof HandshakeException) {
+			logger.error("unrecoverable connection failure, reconnection cancelled");
+			return false;
+		}
 		counter++;
 		if (counter <= retries) {
-			logger.info("websocket connection failure: " + exception.getMessage() + " Reconnecting... (" + counter + "/" + retries + ")");
+			logger.info("reconnecting... (" + counter + "/" + retries + ")");
 			// Thread.sleep(...) or something other "sleep-like" expression can be put here - you might want
 			// to do it here to avoid potential DDoS when you don't limit number of reconnects.					
 			return true;
@@ -48,5 +76,9 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 		} else {
 			return 60;
 		}				
+	}
+
+	public void close() {
+		this.close = true;
 	}
 }

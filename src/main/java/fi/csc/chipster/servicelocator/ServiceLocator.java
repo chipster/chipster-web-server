@@ -19,7 +19,6 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
-import fi.csc.chipster.sessiondb.resource.Events;
 
 /**
  * Main class.
@@ -30,9 +29,8 @@ public class ServiceLocator {
 	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
 	
+	@SuppressWarnings("unused")
 	private String serverId;
-
-	private Events events;
 
 	private ServiceCatalog serviceCatalog;
 
@@ -60,7 +58,6 @@ public class ServiceLocator {
     	this.authService = new AuthenticationClient(auths, username, password);    
     	
     	this.serverId = RestUtils.createId();
-    	this.events = new Events(serverId);
     	this.serviceCatalog = new ServiceCatalog();
     	
     	Service auth = new Service(Role.AUTHENTICATION_SERVICE, authUri);
@@ -70,7 +67,7 @@ public class ServiceLocator {
     	tokenRequestFilter.authenticationRequired(false);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-        	.register(new ServiceResource(serviceCatalog, events))
+        	.register(new ServiceResource(serviceCatalog))
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
 
@@ -97,7 +94,6 @@ public class ServiceLocator {
 	}
 
 	public void close() {
-		events.close();
 		RestUtils.shutdown("service locator", httpServer);
 	}
 }

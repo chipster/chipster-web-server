@@ -3,63 +3,53 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.websocket.MessageHandler;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.WebTarget;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.AsyncEventInput;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.rest.WebsocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
-import fi.csc.chipster.sessiondb.resource.Events;
 
 public class EventTest {
-
-	private static final String EVENTS_PATH = "/events";
 	
 	private static TestServerLauncher launcher;
-	private static WebTarget user1Target;
-	private static WebTarget user2Target;
-	private static WebTarget tokenFailTarget;
-	private static WebTarget authFailTarget;
-	private static WebTarget noAuthTarget;
-	private static WebTarget unparseableTokenTarget;
+	private static WebTarget user1Target;	
 
 	private static String uri;
 	private static Config config;
-	
-	HashSet<AsyncEventInput> inputsToClose = new HashSet<>();
 
+	private static String token;
+	private static String token2;
+	private static String schedulerToken;	
 
     @BeforeClass
     public static void setUp() throws Exception {
     	config = new Config();
     	launcher = new TestServerLauncher(config, Role.SESSION_DB);
         ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
-        uri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0);
+        uri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0) + SessionDb.EVENTS_PATH + "/";
+        token = new AuthenticationClient(serviceLocator, "client", "clientPassword").getToken().toString();
+        token2 = new AuthenticationClient(serviceLocator, "client2", "client2Password").getToken().toString();
+        schedulerToken = new AuthenticationClient(serviceLocator, "scheduler", "schedulerPassword").getToken().toString();
         user1Target = launcher.getUser1Target();
-//        user2Target = launcher.getUser2Target();
-//        unparseableTokenTarget = launcher.getUnparseableTokenTarget();
-//        tokenFailTarget = launcher.getTokenFailTarget();
-//        authFailTarget = launcher.getAuthFailTarget();
-//        noAuthTarget = launcher.getNoAuthTarget();
     }
 
     @AfterClass
@@ -67,66 +57,81 @@ public class EventTest {
     	launcher.stop();
     }
     
-    //@Test
-    public void auth() throws InterruptedException {
-    	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	
-    	try {
-    		new AsyncEventInput(user2Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
-    		assertEquals(true, false);
-    	} catch (NotFoundException e) { }
-    	
-    	try {    		
-    		new AsyncEventInput(unparseableTokenTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
-    		assertEquals(true, false);
-    	} catch (NotAuthorizedException e) { }
-    	
-    	try {    		
-    		new AsyncEventInput(tokenFailTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
-    		assertEquals(true, false);
-    	} catch (NotFoundException e) {
-    	}
-    	
-    	try {
-    		new AsyncEventInput(authFailTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
-    		assertEquals(true, false);
-    	} catch (NotAuthorizedException e) { }
-
-    	try {
-    		new AsyncEventInput(noAuthTarget, sessionPath + EVENTS_PATH, Events.EVENT_NAME);        
-    		assertEquals(true, false);
-    	} catch (NotAuthorizedException e) { }
+    @Test
+    public void authErrors() throws Exception {
+    	auth(false);    	
     }
     
     @Test
-    public void connectionClose() throws InterruptedException {
+    public void authErrorsCancelRetry() throws Exception {
+    	auth(true);    	
+    }
+    
+    public void auth(boolean retry) throws Exception {
     	
-//    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-//    	String sessionId = RestUtils.basename(sessionPath);
-//    	
-//    	AsyncEventInput eventInput = new AsyncEventInput(user1Target, sessionPath + EVENTS_PATH, Events.EVENT_NAME);
-//    	
-//    	assertEquals(null, eventInput.pollAndWait());
-//    	
-//    	System.out.println(eventInput.getEventSource().isOpen());
-//    	// close broadcasters
-//    	((SessionStorage)serverLauncher.getServer()).close();
-//    	
-//    	assertEquals(null, eventInput.pollAndWait());
-//    	
-//    	System.out.println(eventInput.getEventSource().isOpen());
-//    	Thread.sleep(3000);
-//    	System.out.println(eventInput.getEventSource().isOpen());
-//    	
-//        assertEquals(204, SessionResourceTest.delete(user1Target, sessionPath));
-//        
-//        InboundEvent event = eventInput.pollAndWait();
-//        System.out.println(event);
-//        SessionEvent sessionEvent = event.readData(SessionEvent.class);
-//        assertEquals(sessionId, sessionEvent.getSessionId());
-//        
-//        close(eventInput);    
+    	String sessionId = RestUtils.basename(SessionResourceTest.postRandomSession(user1Target));
+    	
+    	ArrayList<String> messages = new ArrayList<>(); 
+    	CountDownLatch latch = new CountDownLatch(1);
+    	
+    	// jobs topic with client credentials
+    	try {       
+    		getTestClient(uri + SessionDb.JOBS_TOPIC, messages, latch, retry, token);
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}
+    	
+    	// wrong user
+    	try {       
+    		getTestClient(uri + sessionId, messages, latch, retry, token2);
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}    	
+    	
+    	// unparseable token
+    	try {       
+    		getTestClient(uri + sessionId, messages, latch, retry, "unparseableToken");
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}
+    	
+    	// wrong token
+    	try {       
+    		getTestClient(uri + sessionId, messages, latch, retry, RestUtils.createId());
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}    
+
+    	// no token
+    	try {       
+    		getTestClient(uri + sessionId, messages, latch, retry, null);
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}
+    }
+    
+    @Test
+    public void connectionClose() throws Exception {
+    	
+    	String sessionId = RestUtils.basename(SessionResourceTest.postRandomSession(user1Target));
+    	
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = getTestClient(uri + sessionId, messages, latch, false, token);
+    	
+    	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
+    	
+    	// should we have a hook for connection close? now we can only check
+    	// that attempt to use the connection throws an appropriate exception 
+    	try {
+    		client.ping();
+    		assertEquals(true, false);
+    	} catch (IllegalStateException e) { }
+    	
+        // start server again
+        launcher.getServerLauncher().getSessionDb().getPubSubServer().init();
+    	launcher.getServerLauncher().getSessionDb().getPubSubServer().start();
+    	
     }
     
     @Test
@@ -137,7 +142,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);    	
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);    	
     	
         assertEquals(204, SessionResourceTest.delete(user1Target, sessionPath));
         
@@ -157,22 +162,31 @@ public class EventTest {
     public void reconnect() throws Exception {    	
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
+    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch, true);
-    	
-//    	launcher.getServerLauncher().getSessionDb().close();
-//    	launcher.getServerLauncher().getSessionDb().startServer();
+    	WebSocketClient client = getTestClient(uri + sessionId, messages, latch, true, token);
     	
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().init();
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().start();
     	
-    	// there is a race condition between the connection initialization and the session deletion
-    	// give a small head start for the former
-    	Thread.sleep(1000);
-    	
+    	// wait for reconnection
+    	boolean pong = false;
+    	for (int i = 0; i < 100; i++) {
+	    	try {
+	    		client.ping();
+	    		pong = true;
+	    		break;
+	    	} catch (IllegalStateException e) {
+	    		Thread.sleep(100);
+	    	}
+    	}
+    	if (!pong) {
+    		throw new TimeoutException("timeout while waiting for reconnect");
+    	}
+    		
         assertEquals(204, SessionResourceTest.delete(user1Target, sessionPath));
         
         // wait for the message
@@ -182,21 +196,28 @@ public class EventTest {
         client.shutdown();
     }
     
-    private WebsocketClient getClient(String sessionPath, final ArrayList<String> messages, final CountDownLatch latch) throws Exception {
-    	return getClient(sessionPath, messages, latch, false);
+    private WebSocketClient getTestClient(String topic, final ArrayList<String> messages, final CountDownLatch latch) throws Exception {
+    	return getTestClient(uri + topic, messages, latch, false, token);
     }
     
-    private WebsocketClient getClient(String sessionPath, final ArrayList<String> messages, final CountDownLatch latch, boolean retry) throws Exception {
-    	WebsocketClient client =  new WebsocketClient(uri + sessionPath + EVENTS_PATH, new MessageHandler.Whole<String>() {
+    public static WebSocketClient getTestClient(String requestUri, final ArrayList<String> messages, final CountDownLatch latch, boolean retry, String token) throws Exception {
+
+    	if (token != null) {
+    		requestUri += "?token=" + token;
+    	}
+    	WebSocketClient client =  new WebSocketClient(requestUri, new MessageHandler.Whole<String>() {
     		@Override
     		public void onMessage(String msg) {
     			messages.add(msg);
     			latch.countDown();
     		}
-    	}, retry);
+    	}, retry, "websocket-test-client");
     	
     	// no events yet
     	assertEquals(1, latch.getCount());
+    	
+    	// wait until the connection is really working
+    	client.ping();
     	    	
     	return client;
 	}
@@ -210,7 +231,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
         assertEquals(204, SessionResourceTest.put(user1Target, sessionPath, newSession));
         
@@ -234,7 +255,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
         String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
         UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
@@ -261,7 +282,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
     	assertEquals(204, DatasetResourceTest.put(user1Target, datasetPath, RestUtils.getRandomDataset()));
         
@@ -287,7 +308,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
     	assertEquals(204, DatasetResourceTest.delete(user1Target, datasetPath));
         
@@ -311,7 +332,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
         String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
         UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
@@ -329,7 +350,16 @@ public class EventTest {
     }
 	
 	@Test
-    public void putJob() throws Exception {
+	public void putJobAsClientSubscriber() throws Exception {
+		putJob(token);
+	}
+	
+	@Test
+	public void putJobAsSchedulerSubscriber() throws Exception {
+		putJob(schedulerToken);
+	}
+	
+    public void putJob(String eventToken) throws Exception {
     	
     	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
     	String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
@@ -338,7 +368,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(uri + sessionId.toString(), messages, latch, false, eventToken);
     	
     	assertEquals(204, JobResourceTest.put(user1Target, jobPath, RestUtils.getRandomJob()));
         
@@ -364,7 +394,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebsocketClient client = getClient(sessionPath, messages, latch);
+    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
     	assertEquals(204, JobResourceTest.delete(user1Target, jobPath));
         

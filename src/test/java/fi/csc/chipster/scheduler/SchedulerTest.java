@@ -2,18 +2,13 @@ package fi.csc.chipster.scheduler;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import javax.websocket.DeploymentException;
-import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,14 +21,18 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.rest.WebsocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
+import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.EventTest;
 import fi.csc.chipster.sessiondb.JobResourceTest;
 import fi.csc.chipster.sessiondb.SessionResourceTest;
 
 public class SchedulerTest {
 	
+	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
 		
     private static WebTarget user1Target;
@@ -41,19 +40,21 @@ public class SchedulerTest {
 	private static TestServerLauncher launcher;
 	private static String uri;
 
+	private static String token;
+	private static String userToken;
+
     @BeforeClass
     public static void setUp() throws Exception {
-    	Config config = new Config();
-    	// hide info level messages about websocket connection status 
-    	//config.setLoggingLevel("fi.csc.chipster", Level.WARN);
+    	Config config = new Config();    	
+
     	launcher = new TestServerLauncher(config, Role.SESSION_DB);  
         user1Target = launcher.getUser1Target();        
         session1Path = SessionResourceTest.postRandomSession(user1Target);        	
 		
 		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(new Config());
-		AuthenticationClient auth = new AuthenticationClient(serviceLocator, "comp", "compPassword");
-		String tokenKey = auth.getToken().toString();		
-		uri = serviceLocator.get(Role.SCHEDULER).get(0) + "events?token=" + tokenKey;
+		token = new AuthenticationClient(serviceLocator, "comp", "compPassword").getToken().toString();
+		userToken = new AuthenticationClient(serviceLocator, "client", "clientPassword").getToken().toString();
+		uri = serviceLocator.get(Role.SCHEDULER).get(0) + "events";
     }
 
     @AfterClass
@@ -62,55 +63,75 @@ public class SchedulerTest {
     }           
     
     @Test
-    public void connect() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
+    public void connect() throws Exception {
     	
-    	String noTokenUri = UriBuilder.fromUri(uri).replaceQuery(null).toString();
-    	String wrongTokenUri = UriBuilder.fromUri(uri).replaceQueryParam("token", RestUtils.createUUID()).toString();
+    	ArrayList<String> messages = new ArrayList<>(); 
+    	CountDownLatch latch = new CountDownLatch(1);    	
     	
-    	try {
-    		new WebsocketClient(noTokenUri, null, false);
+    	// wrong user
+    	try {       
+    		EventTest.getTestClient(uri, messages, latch, false, userToken);
     		assertEquals(true, false);
-    	} catch (DeploymentException e) {
+    	} catch (WebSocketErrorException e) {
     	}
     	
-    	try {
-    		new WebsocketClient(wrongTokenUri, null, false);
+    	// unparseable token
+    	try {       
+    		EventTest.getTestClient(uri, messages, latch, false, "unparseableToken");
     		assertEquals(true, false);
-    	} catch (DeploymentException e) {
+    	} catch (WebSocketErrorException e) {
     	}
     	
-    	WebsocketClient client = new WebsocketClient(uri, null);
+    	// wrong token
+    	try {       
+    		EventTest.getTestClient(uri, messages, latch, false, RestUtils.createId());
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}    
+
+    	// no token
+    	try {       
+    		EventTest.getTestClient(uri, messages, latch, false, null);
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}
+    }
+    
+    @Test
+    public void ping() throws Exception {
+    	ArrayList<String> messages = new ArrayList<>(); 
+    	CountDownLatch latch = new CountDownLatch(1);
+    	
+    	// correct settings
+    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	client.ping();
     	client.shutdown();
     }
 
     /**
 	 * Test that the scheduler sends scheduler messages, when a new job is
 	 * created in the session-db
-	 * 
-	 * @throws DeploymentException
-	 * @throws IOException
-	 * @throws URISyntaxException
-	 * @throws InterruptedException
+     * @throws Exception 
 	 */
     @Test
-    public void schedule() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-    	final CountDownLatch latch = new CountDownLatch(1);
-    	WebsocketClient client = new WebsocketClient(uri, new Whole<String>() {			
-			@Override
-			public void onMessage(String message) {
-				JobCommand cmd = RestUtils.parseJson(JobCommand.class, message);
-				// it would be good to check the jobId, but it's not easy to 
-				// get it here
-				if (
-						TestUtils.threadSafeAssert(Command.SCHEDULE, cmd.getCommand()) &&
-						TestUtils.threadSafeAssert(RestUtils.basename(session1Path), cmd.getSessionId().toString())) {
-					latch.countDown();
-				}
-			}
-		});
-    	JobResourceTest.postRandomJob(user1Target, session1Path);
-    	assertEquals(true, latch.await(1, TimeUnit.SECONDS));
-    	client.shutdown();
+    public void schedule() throws Exception {    
+        
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	
+    	String jobPath = JobResourceTest.postRandomJob(user1Target, session1Path);
+    	
+        // wait for the message
+        assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+        JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
+                       
+        assertEquals(Command.SCHEDULE, cmd.getCommand());
+        assertEquals(RestUtils.basename(session1Path), cmd.getSessionId().toString());
+        assertEquals(RestUtils.basename(jobPath), cmd.getJobId().toString());
+        assertEquals(null, cmd.getCompId());
+        
+        client.shutdown();
     }
     
     /**
@@ -119,87 +140,87 @@ public class SchedulerTest {
 	 * <li>wait for schedule command from scheduler</li> 
 	 * <li>reply with offer</li>
 	 * <li>wait for choose command from scheduler</li>
-	 * 
-     * 
-     * @throws DeploymentException
-     * @throws IOException
-     * @throws URISyntaxException
-     * @throws InterruptedException
+     * @throws Exception 
      */
     @Test
-    public void choose() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-    	final CountDownLatch latch = new CountDownLatch(1);
-    	final ConcurrentLinkedQueue<UUID> chosenComps = new ConcurrentLinkedQueue<>();
-    	WebsocketClient client = createCompMock(chosenComps, latch);
-    	JobResourceTest.postRandomJob(user1Target, session1Path);
-    	assertEquals(true, latch.await(1, TimeUnit.SECONDS));
-    	assertEquals(1, chosenComps.size());
-    	client.shutdown();
+    public void choose() throws Exception {
+    	
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	
+    	String jobPath = JobResourceTest.postRandomJob(user1Target, session1Path);
+    	
+        // wait for the schedule message
+        assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+        JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));                       
+        
+        /*
+         * TestClient can wait only once, but we can create a new one to wait 
+         * for the next message.
+         */
+    	final ArrayList<String> messages2 = new ArrayList<>(); 
+    	final CountDownLatch latch2 = new CountDownLatch(1);    	
+    	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
+        
+        // imaginary comp responds with offer
+        UUID compId = RestUtils.createUUID();
+        client.sendText(RestUtils.asJson(new JobCommand(cmd.getSessionId(), cmd.getJobId(), compId, Command.OFFER)));
+        
+        // wait for the offer message
+        assertEquals(true, latch2.await(1, TimeUnit.SECONDS));        
+        JobCommand cmd2 = RestUtils.parseJson(JobCommand.class, messages2.get(0));      
+        
+        // scheduler responds with a choose message
+        assertEquals(Command.CHOOSE, cmd2.getCommand());
+        assertEquals(RestUtils.basename(session1Path), cmd2.getSessionId().toString());
+        assertEquals(RestUtils.basename(jobPath), cmd2.getJobId().toString());
+        assertEquals(compId, cmd2.getCompId());
+        
+        client.shutdown();
+        client2.shutdown();    
     }
     
     @Test
-    public void chooseFromMany() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-    	int count = 10;
-    	final CountDownLatch latch = new CountDownLatch(count);
-    	final ConcurrentLinkedQueue<UUID> chosenComps = new ConcurrentLinkedQueue<>();
-    	ArrayList<WebsocketClient> clients = new ArrayList<>();
-    	for (int i = 0; i < count; i++) {
-    		clients.add(createCompMock(chosenComps, latch));
-    	}
+    public void chooseFromMany() throws Exception {
+    	
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	
     	JobResourceTest.postRandomJob(user1Target, session1Path);
-    	assertEquals(true, latch.await(5, TimeUnit.SECONDS));
-    	assertEquals(1, chosenComps.size());
-    	for (WebsocketClient client : clients) {
-    		client.shutdown();
+    	
+        // wait for the schedule message
+        assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+        JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));                       
+        
+        /*
+         * TestClient can wait only once, but we can create a new one to wait 
+         * for the next message.
+         */
+    	final ArrayList<String> messages2 = new ArrayList<>(); 
+    	final CountDownLatch latch2 = new CountDownLatch(1);    	
+    	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
+        
+        // imaginary comps respond with offer
+    	HashSet<UUID> compIds = new HashSet<>();
+    	for (int i = 0; i < 10; i++) {
+    		UUID compId = RestUtils.createUUID();
+    		client.sendText(RestUtils.asJson(new JobCommand(cmd.getSessionId(), cmd.getJobId(), compId, Command.OFFER)));
+    		compIds.add(compId);
     	}
-    }
-    
-    private WebsocketClient createCompMock(final ConcurrentLinkedQueue<UUID> chosenComps, final CountDownLatch latch) throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-    	final UUID serverId = RestUtils.createUUID();
-    	final WebsocketClient client = new WebsocketClient();
-    	client.connect(uri, new Whole<String>() {			
-			@Override
-			public void onMessage(String message) {				
-				JobCommand cmd = RestUtils.parseJson(JobCommand.class, message);
-				logger.debug("got command: " + message);
-				if (Command.SCHEDULE == cmd.getCommand()) {
-					try {
-						// client may not be completely initialized yet, but I guess this is good enough for a test
-						client.sendText(RestUtils.asJson(new JobCommand(cmd.getSessionId(), cmd.getJobId(), serverId, Command.OFFER)));
-					} catch (InterruptedException | IOException e) {
-						logger.error("failed to send an offer", e);
-					}
-				} else if (
-						TestUtils.threadSafeAssert(Command.CHOOSE, cmd.getCommand()) &&
-						TestUtils.threadSafeAssert(RestUtils.basename(session1Path), cmd.getSessionId().toString())) {
+        // wait for the offer message
+        assertEquals(true, latch2.await(1, TimeUnit.SECONDS));
+        JobCommand cmd2 = RestUtils.parseJson(JobCommand.class, messages2.get(0));              
+        assertEquals(true, compIds.contains(cmd2.getCompId()));
 
-					if (serverId.equals(cmd.getCompId())) {
-						chosenComps.add(serverId);
-					}
-					latch.countDown();
-					logger.debug("latch count: " + latch.getCount());
-				}
-			}
-		});
-    	return client;
-	}
-		
-//	public SchedulerTest() {
-//
-//		try {
-//			
-//			Object replyRemote = RestUtils.createWebsocketClient(uri, null);
-//			RestUtils.waitForShutdown("scheduler test", null);
-//
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//	}
-//
-//	public static void main(String [] args){
-//		
-//		new SchedulerTest();		
-//	}
+        // wait a little bit more to make sure that there is no more messages
+        Thread.sleep(100);
+        assertEquals(1, messages2.size());             
+        
+        client.shutdown();
+        client2.shutdown();
+    }	
 	
 //	@Override
 //	public void onMessage(String message) {

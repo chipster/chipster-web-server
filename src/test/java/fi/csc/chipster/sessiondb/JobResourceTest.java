@@ -9,12 +9,11 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -23,10 +22,14 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Job;
 
 public class JobResourceTest {
+	
+	@SuppressWarnings("unused")
+	private final Logger logger = LogManager.getLogger();
 
     private static final String JOBS = "/jobs";
     private static WebTarget user1Target;
     private static WebTarget user2Target;
+    private static WebTarget compTarget;
 	private static String session1Path;
 	private static String session2Path;
 	private static TestServerLauncher launcher;
@@ -40,6 +43,7 @@ public class JobResourceTest {
     	
         user1Target = launcher.getUser1Target();
         user2Target = launcher.getUser2Target();
+        compTarget = launcher.getCompTarget();
         
         session1Path = SessionResourceTest.postRandomSession(user1Target);
         session2Path = SessionResourceTest.postRandomSession(user2Target);
@@ -62,15 +66,16 @@ public class JobResourceTest {
     public void get() throws IOException {
         
 		String objPath = postRandomJob(user1Target, session1Path);        
-        assertEquals(false, getJob(user1Target, objPath) == null);        
+        assertEquals(false, getJob(user1Target, objPath) == null);
+        assertEquals(false, getJob(compTarget, objPath) == null);
         
         // wrong user
-        assertEquals(404, get(user2Target, objPath));
+        assertEquals(401, get(user2Target, objPath));
         
         // wrong session
-        assertEquals(404, get(user1Target, changeSession(objPath)));
+        assertEquals(401, get(user1Target, changeSession(objPath)));
         assertEquals(404, get(user2Target, changeSession(objPath)));
-    }
+    }	
 	
 	@Test
     public void getAll() {
@@ -86,7 +91,7 @@ public class JobResourceTest {
         assertEquals(true, json.contains(id2));
         
         // wrong user
-        assertEquals(404, get(user2Target, jobs1Path));
+        assertEquals(401, get(user2Target, jobs1Path));
         
         // wrong session
         String session2Json = getString(user2Target, jobs2Path);
@@ -100,24 +105,26 @@ public class JobResourceTest {
 		String objPath = postRandomJob(user1Target, session1Path);
 		Job newObj = RestUtils.getRandomJob();
         assertEquals(204, put(user1Target, objPath, newObj));
+        assertEquals(204, put(compTarget, objPath, newObj));
         
         // wrong user
-        assertEquals(404, put(user2Target, objPath, newObj));
+        assertEquals(401, put(user2Target, objPath, newObj));
         
         // wrong session
-        assertEquals(404, put(user1Target, changeSession(objPath), newObj));
+        assertEquals(401, put(user1Target, changeSession(objPath), newObj));
         assertEquals(404, put(user2Target, changeSession(objPath), newObj));
     }
 
 	@Test
-    public void delete() {
+    public void delete() throws InterruptedException {
         
 		String objPath = postRandomJob(user1Target, session1Path);
+		
 		// wrong user
-		assertEquals(404, delete(user2Target, objPath));
+		assertEquals(401, delete(user2Target, objPath));
 		
 		// wrong session
-		assertEquals(404, delete(user1Target, changeSession(objPath)));
+		assertEquals(401, delete(user1Target, changeSession(objPath)));
 		assertEquals(404, delete(user2Target, changeSession(objPath)));
 		
 		// delete
@@ -133,14 +140,17 @@ public class JobResourceTest {
         
         return objPath.replace(session1Id, session2Id);
 	}
-	 
+	 	
+	public static String postJob(WebTarget target, String sessionPath, Job job) {
+		Response response = post(target, sessionPath + JOBS, job);
+        assertEquals(201, response.getStatus());
+        
+        return sessionPath + JOBS + "/" + RestUtils.basename(response.getLocation().getPath());		
+	}
     public static String postRandomJob(WebTarget target, String sessionPath) {
     	Job job = RestUtils.getRandomJob();
     	job.setJobId(null);
-    	Response response = post(target, sessionPath + JOBS, job);
-        assertEquals(201, response.getStatus());
-        
-        return sessionPath + JOBS + "/" + RestUtils.basename(response.getLocation().getPath());
+    	return postJob(target, sessionPath, job);
 	}
 	
 	public static int delete(WebTarget target, String path) {
