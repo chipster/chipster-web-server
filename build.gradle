@@ -5,13 +5,18 @@ apply plugin: 'application'
 
 repositories {
     mavenCentral()
+    flatDir {
+        dirs "../chipster/dist"
+    }
+
 }
+
 
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-mainClassName = "fi.csc.chipster.toolbox.Toolbox"
+mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
 run {
     standardInput = System.in
 }
@@ -27,9 +32,9 @@ run {
 //}
 
 test {
-    exclude "fi/csc/chipster/sessiondb/AdminResourceTest.class"
-    exclude "fi/csc/chipster/sessiondb/EventTest.class"
-    exclude "fi/csc/chipster/scheduler/SchedulerTest.class"
+    //exclude "fi/csc/chipster/sessiondb/AdminResourceTest.class"
+    //exclude "fi/csc/chipster/sessiondb/EventTest.class"
+    //exclude "fi/csc/chipster/scheduler/SchedulerTest.class"
 
 }
 
@@ -51,8 +56,10 @@ dependencies {
     compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:+"
     compile "org.glassfish.tyrus:tyrus-client:+"
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
+    compile "org.apache.logging.log4j:log4j-1.2-api:2.4.1"
 
-    compile files("ext/lib/chipster-3.5.1.jar")
+    compile ":chipster:+"
+//    compile files("ext/lib/chipster-3.6.1.jar")
  
     testCompile "junit:junit:4.+"
 }
