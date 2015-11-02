@@ -69,6 +69,7 @@ public class Config {
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
 		defaults.put("toolbox-bind", 				"http://{{bind-ip}}:8083/toolbox/");
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
+		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8000/");
 	}
 	
 	private HashMap<String, String> variableDefaults = new HashMap<>();
