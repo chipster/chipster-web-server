@@ -16,14 +16,14 @@ import java.net.URI;
  * Main class.
  *
  */
-public class Toolbox {
+public class ToolboxService {
 
 	private Logger logger = LogManager.getLogger();
 
 
 	private Config config;
 
-	public Toolbox(Config config) {
+	public ToolboxService(Config config) {
 		this.config = config;
 	}
 
@@ -32,7 +32,7 @@ public class Toolbox {
 	 * application.
      * @return Grizzly HTTP server.
      */
-    public HttpServer startServer() {
+    public HttpServer startServer() throws IOException {
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ToolResource());
@@ -49,7 +49,7 @@ public class Toolbox {
      */
     public static void main(String[] args) throws IOException {
 
-        final HttpServer server = new Toolbox(new Config()).startServer();
+        final HttpServer server = new ToolboxService(new Config()).startServer();
         RestUtils.waitForShutdown("toolbox", server);
     }
 
