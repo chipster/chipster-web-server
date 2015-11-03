@@ -1,6 +1,7 @@
 package fi.csc.chipster.rest.websocket;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 import javax.websocket.CloseReason;
 import javax.websocket.CloseReason.CloseCodes;
@@ -27,7 +28,8 @@ public class PubSubEndpoint extends Endpoint {
 	public static final String TOPIC_KEY = "topic-name";
 	
     @Override
-    public void onOpen(final Session session, EndpointConfig config) {   
+    public void onOpen(final Session session, EndpointConfig config) {    	    	
+    	
     	// get topic from path params    	
     	String topic = session.getPathParameters().get(TOPIC_KEY);
     	
@@ -53,11 +55,8 @@ public class PubSubEndpoint extends Endpoint {
 		// store topic to user properties, because we need it when we unsubscribe
 		session.getUserProperties().put(TOPIC_KEY, topic);
 
-		// jetty seems to offer remote address, which is convenient for debug prints
-		String remoteAddress = session.getUserProperties().get("javax.websocket.endpoint.remoteAddress").toString();
-
 		// subscribe for server messages
-		getServer(session).subscribe(topic, new PubSubServer.Subscriber(session.getBasicRemote(), remoteAddress));
+		getServer(session).subscribe(topic, new PubSubServer.Subscriber(session.getBasicRemote(), getRemoteAddress(session)));
 
 		// listen for client replies
 		MessageHandler messageHandler = getServer(session).getMessageHandler();
@@ -66,7 +65,12 @@ public class PubSubEndpoint extends Endpoint {
 		}
     }
     
-    private void close(Session session, CloseCodes closeCode, String reason) {
+    private String getRemoteAddress(Session session) {
+    	// jetty seems to offer remote address, which is convenient for debug prints
+    	return session.getUserProperties().get("javax.websocket.endpoint.remoteAddress").toString();
+	}
+
+	private void close(Session session, CloseCodes closeCode, String reason) {
     	try {
 			session.close(new CloseReason(closeCode, reason));
 		} catch (IOException ex) {
@@ -91,7 +95,11 @@ public class PubSubEndpoint extends Endpoint {
     
     @Override
     public void onError(Session session, Throwable thr) {
-    	logger.error("websocket error", thr);
-    	unsubscribe(session);
+    	if (thr instanceof SocketTimeoutException) {
+    		logger.warn("idle timeout, unsubscribe a pub-sub client " + getRemoteAddress(session)); 
+    	} else {
+    		logger.error("websocket error", thr);
+    	}
+    	unsubscribe(session);    	
     }
 }

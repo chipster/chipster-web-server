@@ -17,6 +17,7 @@ import javax.ws.rs.core.UriBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.rest.RetryHandler;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 
@@ -31,11 +32,13 @@ public class WebSocketClientEndpoint extends Endpoint {
 	private CloseReason closeReason;
 	private Throwable throwable;
 	private Session session;
+	private RetryHandler retryHandler;
 	
-	public WebSocketClientEndpoint(String uri, String name, MessageHandler.Whole<String> messageHandler) {
+	public WebSocketClientEndpoint(String uri, String name, MessageHandler.Whole<String> messageHandler, RetryHandler retryHandler) {
 		this.uri = uri;
 		this.name = name;
 		this.messageHandler = messageHandler;
+		this.retryHandler = retryHandler;
 	}
 
 	@Override
@@ -52,6 +55,8 @@ public class WebSocketClientEndpoint extends Endpoint {
 		
 		disconnectLatch = new CountDownLatch(1);
 		connectLatch.countDown();
+		// reset the retry counter after a successful reconnection 
+		retryHandler.reset();
 	}							
 
 	@Override

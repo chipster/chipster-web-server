@@ -81,4 +81,8 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 	public void close() {
 		this.close = true;
 	}
+
+	public void reset() {
+		counter = 0;
+	}
 }

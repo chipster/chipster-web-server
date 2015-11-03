@@ -4,8 +4,8 @@ import java.net.URI;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.websocket.CloseReason;
-import javax.websocket.DeploymentException;
 import javax.websocket.CloseReason.CloseCodes;
+import javax.websocket.DeploymentException;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig;
 
@@ -19,15 +19,12 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
-import fi.csc.chipster.rest.Config;
-
 public class ProxyServer {
 	
-	private final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
 	private Server server;
-
-	private Config config;
+	private ServletContextHandler context;
 	
 	public static final String PATH_PARAM = "pathParam";
 	public static final String PREFIX = "prefix";
@@ -35,41 +32,43 @@ public class ProxyServer {
 
     public static void main(String[] args) throws Exception {
 
-    	new ProxyServer(new Config());
+    	// bind to localhost port 8000
+    	ProxyServer proxy = new ProxyServer(new URI("http://127.0.0.1:8000"));
+    	
+    	// proxy requests from localhost:8000/test to chipster.csc.fi
+    	proxy.addHttpProxyRule("test", "http://chipster.csc.fi");    	
+    	
+    	// proxying websockets is almost as easy
+    	//proxy.addWebSocketProxyRule("websocket-path-on-proxy", "http://websocket-server-host", 2);
+    	
+    	proxy.startServer();
+    	logger.info("proxy up and running");
     }
     
-    public ProxyServer(Config config) {
-    	this.config =  config;       
+    public ProxyServer(URI baseUri) {
+    	
+        this.server = new Server();
+        ServerConnector connector = new ServerConnector(server);
+        connector.setPort(baseUri.getPort());
+        connector.setHost(baseUri.getHost());
+        server.addConnector(connector);
+
+        HandlerCollection handlers = new HandlerCollection();
+        server.setHandler(handlers);
+
+        this.context = new ServletContextHandler(handlers, "/", ServletContextHandler.SESSIONS);
     }
     
 
 	public void startServer() {
-        try {
-        	URI baseUri = URI.create(config.getString("proxy-bind"));
-        	
-            this.server = new Server();
-            ServerConnector connector = new ServerConnector(server);
-            connector.setPort(baseUri.getPort());
-            connector.setHost(baseUri.getHost());
-            server.addConnector(connector);
-
-            HandlerCollection handlers = new HandlerCollection();
-            server.setHandler(handlers);
-
-            ServletContextHandler context = new ServletContextHandler(handlers, "/", ServletContextHandler.SESSIONS);
-            
-            addHttpProxyRule(context, 		"sessiondb", 		config.getString("session-db"));
-            addWebSocketProxyRule(context, 	"sessiondbevents", 	config.getString("session-db-events"), 2);
-            addHttpProxyRule(context, 		"auth", 			config.getString("authentication-service"));
-            addHttpProxyRule(context, 		"discovery", 		config.getString("service-locator"));
-            
+        try {        	        
 			server.start();
 		} catch (Exception e) {
 			logger.error("failed to start proxy", e);
 		}
 	}
     
-    private static void addWebSocketProxyRule(ServletContextHandler context, String proxyPath, String targetUri, int pathParams) throws ServletException, DeploymentException {
+	public void addWebSocketProxyRule(String proxyPath, String targetUri, int pathParams) throws ServletException, DeploymentException {
         // Initialize javax.websocket layer
         ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
         
@@ -87,7 +86,7 @@ public class ProxyServer {
         wscontainer.addEndpoint(serverConfig);
 	}
 
-    private static void addHttpProxyRule(ServletContextHandler context, String proxyPath, String targetUri) {
+    public void addHttpProxyRule(String proxyPath, String targetUri) {
     	ServletHolder proxyServlet = new ServletHolder(LoggingProxyServlet.class);
         proxyServlet.setInitParameter(PROXY_TO, targetUri);
         proxyServlet.setInitParameter(PREFIX, "/" + proxyPath);
@@ -100,12 +99,11 @@ public class ProxyServer {
     	
         @Override
         protected String rewriteTarget(HttpServletRequest request)
-        {
-        	
-    		StringBuffer original = request.getRequestURL();    		
+        {        	
             String rewritten =  super.rewriteTarget(request);
             
-            logger.info("proxy " + original  + " \t -> " + rewritten);
+            StringBuffer original = request.getRequestURL();    		
+            logger.debug("proxy " + original  + " \t -> " + rewritten);
             
             return rewritten;
         }       

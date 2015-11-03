@@ -1,76 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project name="Chipster web" default="package-jar" basedir="." xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+<project name="Chipster web" default="docker-build" basedir="." xmlns:artifact="antlib:org.apache.maven.artifact.ant">
 	<description>
 		The Chipster session storage server
-    	</description>
-	
-	<!-- get the environment variables -->
-	<property environment="env" />
+    	</description>	
 
-	<!-- the project folder configuration -->
-	<property name="src" location="src/main/java" />
-	<property name="test-src" location="src/test/java" />
-	<property name="lib" location="ext/lib" />
-	<property name="build" location="bin/ant" />	
-	<property name="dist" location="dist" />
-
-	<!-- version numbering -->
-	<property name="release-version" value="4.0.0" />
-	<property name="release-jar" value="${dist}/chipster-session-storage-${release-version}.jar" />
-	<property name="javac-target" value="1.8" />
-	<property name="javac-source" value="1.8" />
-	
-	<path id="maven-ant-tasks.classpath" path="ext/lib-build/maven-ant-tasks-2.1.3.jar" />
-	<typedef resource="org/apache/maven/artifact/ant/antlib.xml"
-	           uri="antlib:org.apache.maven.artifact.ant"
-	           classpathref="maven-ant-tasks.classpath" />
-	
-    <artifact:dependencies filesetId="deps.fileset" useScope="compile">
-      <pom file="pom.xml"/>
-    </artifact:dependencies>
-
-	<target name="clean" description="Remove previously compiled and generated files">
-		<delete dir="${build}" />
-		<mkdir dir="${build}" />
-	</target>
-
-	<target name="compile" depends="clean" description="Compile the source code">
-		
-		<!-- compile chipster main -->
-		<delete dir="${build}" quiet="true" />
-		<mkdir dir="${build}" />
-		<javac destdir="${build}" target="${javac-target}" source="${javac-source}" debug="true" failonerror="true" includeantruntime="false">
-			<src path="${src}" />
-			<src path="${test-src}" />
-			<classpath>
-				<fileset refid="deps.fileset" />
-				<fileset dir="${lib}">
-					<include name="**/*.jar" />
-				</fileset>
-			</classpath>
-		</javac>		
-	</target>
-
-	<target name="package-jar" depends="compile" description="Create chipster session storage jar">
-		<jar destfile="${release-jar}">
-			<manifest>
-				<attribute name="Main-Class" value="fi.csc.chipster.rest.ServerLauncher" />
-			</manifest>
-			<fileset dir="${build}/" />
-		</jar>
-		<copy todir="dist" flatten="true">
-			<fileset refid="deps.fileset" />
-			<fileset dir="ext/lib/">
-				<include name="*.jar"/>
-			</fileset>
-		</copy>
-	</target>
 	<target name="docker-build" description="Build docker image">
 	    <exec executable="docker">
 	    	<arg value="build" />
 	        <arg value="-t" />
-	    	<arg value="chipster/session-storage" />
+	    	<arg value="chipster/chipster-web-server" />
 	    	<arg value="." />	
 	    </exec>
 	</target>
@@ -78,12 +17,8 @@
 	    <exec executable="docker">
 	    	<arg value="run" />
 	        <arg value="-p" />
-	    	<arg value="8080:8080" />
-	    	<arg value="-p" />
-	    	<arg value="8081:8081" />
-	    	<arg value="-p" />
-	    	<arg value="8082:8082" />	
-	    	<arg value="chipster/session-storage" />
+	    	<arg value="8000:8000" />
+	    	<arg value="chipster/chipster-web-server" />
 	    </exec>
 	</target>
 </project>

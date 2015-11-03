@@ -8,7 +8,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.proxy.ProxyServer;
+import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -24,7 +24,7 @@ public class ServerLauncher {
 
 	private Scheduler scheduler;
 
-	private ProxyServer proxy;
+	private ChipsterProxyServer proxy;
 	
 	public ServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException, InterruptedException {
 		if (verbose) {
@@ -54,7 +54,7 @@ public class ServerLauncher {
 		if (verbose) {
 			logger.info("starting proxy");
 		}		
-		proxy = new ProxyServer(config);
+		proxy = new ChipsterProxyServer(config);
 		proxy.startServer();
 		
 		if (verbose) {

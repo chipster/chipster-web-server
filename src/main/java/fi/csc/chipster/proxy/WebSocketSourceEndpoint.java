@@ -29,9 +29,8 @@ public class WebSocketSourceEndpoint extends Endpoint {
     	
     	this.sourceSession = sourceSession;
 
-    	String targetUri = getTargetUri(sourceSession, config);    	    
-    	
-    	logger.info("proxy " + sourceSession.getRequestURI() + " \t -> " + targetUri);
+    	String targetUri = getTargetUri(sourceSession, config);    	        	
+    	logger.debug("proxy " + sourceSession.getRequestURI() + " \t -> " + targetUri);
     	
    		connectToTarget(targetUri);					
     }       

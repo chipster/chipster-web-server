@@ -3,6 +3,8 @@ package fi.csc.chipster.rest.websocket;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeoutException;
 
 import javax.websocket.ClientEndpointConfig;
@@ -19,13 +21,16 @@ import fi.csc.chipster.rest.RetryHandler;
 
 public class WebSocketClient {
 	
-	public static final Logger logger = LogManager.getLogger();	
+	public static final Logger logger = LogManager.getLogger();
+
+	private static final long PING_INTERVAL = 60_000;	
 
 	private String name;
 
 	private ClientManager client;
 	private WebSocketClientEndpoint endpoint;	
 	private RetryHandler retryHandler;
+	private Timer pingTimer = new Timer();	
 	
 	public WebSocketClient(final String uri, final Whole<String> messageHandler, boolean retry, final String name) throws InterruptedException, WebSocketErrorException, WebSocketClosedException {
 	
@@ -41,13 +46,25 @@ public class WebSocketClient {
 		//client.getProperties().put(ClientProperties.CREDENTIALS, new Credentials("ws_user", "password"));	
 
 		try {
-			endpoint = new WebSocketClientEndpoint(uri, name, messageHandler);
+			endpoint = new WebSocketClientEndpoint(uri, name, messageHandler, retryHandler);
 			client.connectToServer(endpoint, cec, new URI(uri));
 		} catch (DeploymentException | IOException | URISyntaxException e) {
 			throw new WebSocketErrorException(e);
 		}
 		
-		endpoint.waitForConnection();						
+		endpoint.waitForConnection();
+		 
+		// prevent jetty from closing this connection if it is idle for 5 minutes  
+		pingTimer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				try {
+					ping();
+				} catch (IOException | TimeoutException | InterruptedException e) {
+					logger.error("failed to send a ping", e);
+				}
+			}			
+		}, PING_INTERVAL, PING_INTERVAL);
 	}	
 	
 	public static class WebSocketClosedException extends Exception {
@@ -73,6 +90,7 @@ public class WebSocketClient {
 		if (retryHandler != null) {
 			retryHandler.close();
 		}
+		pingTimer.cancel();
 		endpoint.close();		
 		client.shutdown();
 	}
