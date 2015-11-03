@@ -55,8 +55,10 @@ public class WebSocketClientEndpoint extends Endpoint {
 		
 		disconnectLatch = new CountDownLatch(1);
 		connectLatch.countDown();
-		// reset the retry counter after a successful reconnection 
-		retryHandler.reset();
+		// reset the retry counter after a successful reconnection
+		if (retryHandler != null) {
+			retryHandler.reset();
+		}
 	}							
 
 	@Override
