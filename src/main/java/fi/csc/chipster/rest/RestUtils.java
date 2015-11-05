@@ -31,7 +31,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
@@ -120,11 +119,11 @@ public class RestUtils {
     	d.setX(100);
     	d.setY(100);
     	
-    	File f = new File();
-    	f.setFileId(createUUID());
-    	f.setChecksum("xyz");
-    	f.setSize(0);
-    	d.setFile(f);
+//    	File f = new File();
+//    	f.setFileId(createUUID());
+//    	f.setChecksum("xyz");
+//    	f.setSize(0);
+//    	d.setFile(f);
     	
     	return d;
     }
@@ -233,5 +232,9 @@ public class RestUtils {
 		} catch (InterruptedException | ExecutionException e) {
 			logger.warn("failed to shutdown the server " + name, e);
 		}
+	}
+
+	public static boolean isSuccessful(int status) {
+		return status >= 200 && status < 300;
 	}	
 }

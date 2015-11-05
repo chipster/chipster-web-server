@@ -23,7 +23,6 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
-import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.EventTest;
@@ -47,8 +46,8 @@ public class SchedulerTest {
     public static void setUp() throws Exception {
     	Config config = new Config();    	
 
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);  
-        user1Target = launcher.getUser1Target();        
+    	launcher = new TestServerLauncher(config);  
+        user1Target = launcher.getUser1Target(Role.SESSION_DB);        
         session1Path = SessionResourceTest.postRandomSession(user1Target);        	
 		
 		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(new Config());

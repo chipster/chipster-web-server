@@ -26,6 +26,11 @@
     
     <!--  default level for our code -->
     <Logger name="fi.csc.chipster" level="info" />
+        
+    <!--  We want to hide these when running tests, but the TestServerLauncher 
+    is only able to modify existing loggers. Without this it will get the 
+    logger for fi.csc.chipster and disable it. -->
+    <Logger name="fi.csc.chipster.rest.websocket" level="info" />
     
     <!--  info level by default so that we see if new libraries have anything interesting to say. Set a higher level for noisy libraries above. -->
     <Root level="info">

@@ -63,6 +63,7 @@ public class Config {
 		defaults.put("session-db", 					"http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
 		defaults.put("session-db-events", 			"ws://{{public-ip}}:8084/sessiondbevents/");
 		defaults.put("scheduler", 					"ws://{{public-ip}}:8083/scheduler/");
+		defaults.put("file-broker", 				"http://{{public-ip}}:8085/filebroker/");
 		
 		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8082/servicelocator/");
 		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/"); // uri for the server to bind
@@ -71,6 +72,7 @@ public class Config {
 		defaults.put("toolbox-bind", 				"http://{{bind-ip}}:8083/toolbox/");
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
 		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8000/");
+		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8085/filebroker/");
 	}
 	
 	private HashMap<String, String> variableDefaults = new HashMap<>();

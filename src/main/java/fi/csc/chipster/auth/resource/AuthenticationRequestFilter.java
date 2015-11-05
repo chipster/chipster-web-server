@@ -87,6 +87,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		users.put("serviceLocator", "serviceLocatorPassword");
 		users.put("scheduler", "schedulerPassword");
 		users.put("comp", "compPassword");
+		users.put("fileBroker", "fileBrokerPassword");
 
 		if (!users.containsKey(username)) {
 			throw new ForbiddenException();
@@ -110,6 +111,10 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		
 		if ("comp".equals(username)) {
 			roles = new String[] { Role.PASSWORD, Role.COMP, Role.SERVER };
+		}
+		
+		if ("fileBroker".equals(username)) {
+			roles = new String[] { Role.PASSWORD, Role.FILE_BROKER, Role.SERVER };
 		}
 		
 		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));

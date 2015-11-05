@@ -38,16 +38,16 @@ public class SessionResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
         
-        user1Target = launcher.getUser1Target();
-        user2Target = launcher.getUser2Target();
-        schedulerTarget = launcher.getSchedulerTarget();
-        compTarget = launcher.getCompTarget();
-        unparseableTokenTarget = launcher.getUnparseableTokenTarget();
-        tokenFailTarget = launcher.getTokenFailTarget();
-        authFailTarget = launcher.getAuthFailTarget();
-        noAuthTarget = launcher.getNoAuthTarget();
+        user1Target = launcher.getUser1Target(Role.SESSION_DB);
+        user2Target = launcher.getUser2Target(Role.SESSION_DB);
+        schedulerTarget = launcher.getSchedulerTarget(Role.SESSION_DB);
+        compTarget = launcher.getCompTarget(Role.SESSION_DB);
+        unparseableTokenTarget = launcher.getUnparseableTokenTarget(Role.SESSION_DB);
+        tokenFailTarget = launcher.getTokenFailTarget(Role.SESSION_DB);
+        authFailTarget = launcher.getAuthFailTarget(Role.SESSION_DB);
+        noAuthTarget = launcher.getNoAuthTarget(Role.SESSION_DB);
     }
 
     @AfterClass

@@ -40,9 +40,9 @@ public class DbPeroformanceTest {
 	public static void setUpBeforeClass() throws IOException, InterruptedException, ServletException, DeploymentException {
 		// once per class
 		Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
 
-        target = launcher.getUser1Target();
+        target = launcher.getUser1Target(Role.SESSION_DB);
 		paths = postManyParallel();
 	}
 	

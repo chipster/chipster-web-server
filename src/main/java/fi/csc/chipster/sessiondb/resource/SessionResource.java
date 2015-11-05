@@ -9,7 +9,6 @@ import java.util.UUID;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
@@ -27,7 +26,6 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -48,9 +46,12 @@ public class SessionResource {
 	
 	private HibernateUtil hibernate;
 	private PubSubServer events;
+
+	private AuthorizationResource authorizationResource;
 	
-	public SessionResource(HibernateUtil hibernate) {
+	public SessionResource(HibernateUtil hibernate, AuthorizationResource authorizationResource) {
 		this.hibernate = hibernate;
+		this.authorizationResource = authorizationResource;
 	}
 
 	// sub-resource locators
@@ -85,11 +86,7 @@ public class SessionResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		@SuppressWarnings("unchecked")
-		List<Authorization> result = getHibernate().session()
-			.createQuery("from Authorization where username=:username")
-			.setParameter("username", sc.getUserPrincipal().getName())
-			.list();
+		List<Authorization> result = authorizationResource.getAuthorizations(sc.getUserPrincipal().getName());
 		
 		List<Session> sessions = new ArrayList<>();
 		for (Authorization auth : result) {
@@ -142,7 +139,7 @@ public class SessionResource {
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		getWriteAuthorization(sc, sessionId);
+		authorizationResource.getWriteAuthorization(sc, sessionId);
 		Session dbSession = getHibernate().session().get(Session.class, requestSession.getSessionId());
 		// keep the old datasets and jobs
 		requestSession.setDatasets(dbSession.getDatasets());
@@ -160,7 +157,7 @@ public class SessionResource {
 	@Transaction
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
-		Authorization auth = getWriteAuthorization(sc, id);
+		Authorization auth = authorizationResource.getWriteAuthorization(sc, id);
 		// this will delete also the referenced datasets and jobs
 		getHibernate().session().delete(auth);
 
@@ -169,55 +166,15 @@ public class SessionResource {
     }
 	
 	public Session getSessionForReading(SecurityContext sc, UUID sessionId) {
-		Authorization auth = checkAuthorization(sc, sessionId, false);
+		Authorization auth = authorizationResource.checkAuthorization(sc, sessionId, false);
 		return auth.getSession();
 	}
 	
 	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
-		Authorization auth = checkAuthorization(sc, sessionId, true);
+		Authorization auth = authorizationResource.checkAuthorization(sc, sessionId, true);
 		return auth.getSession();
 	}
-	
-	public Authorization getReadAuthorization(SecurityContext sc, UUID sessionId) {
-    	return checkAuthorization(sc, sessionId, false);
-    }
-	public Authorization getWriteAuthorization(SecurityContext sc, UUID sessionId) {
-    	return checkAuthorization(sc, sessionId, true);
-    }
-    
-	private Authorization checkAuthorization(SecurityContext sc, UUID sessionId, boolean requireReadWrite) {
-
-		String username = sc.getUserPrincipal().getName();
-		if(username == null) {
-			throw new NotAuthorizedException("username is null");
-		}
-		Session session = getHibernate().session().get(Session.class, sessionId);
-		
-		if (session == null) {
-			throw new NotFoundException("session not found");
-		}
-		
-		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP)) {		
-			return new Authorization(username, session, true);
-		}
-		
-		Object authObj = getHibernate().session().createQuery(
-				"from Authorization"
-				+ " where username=:username and session=:session")
-				.setParameter("username", username)
-				.setParameter("session", session).uniqueResult();
-		if (authObj == null) {
-			throw new NotAuthorizedException("access denied");
-		}
-		Authorization auth = (Authorization)authObj;
-		if (requireReadWrite) {
-			if (!auth.isReadWrite()) {
-				throw new ForbiddenException("read-write access denied");
-			}
-		}
-		return auth;
-	}
-
+    	
 	/**
 	 * Make a list compatible with JSON conversion
 	 * 

@@ -18,10 +18,11 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
 
 public class DatasetResourceTest {
 
-    private static final String DATASETS = "/datasets";
+    public static final String DATASETS = "/datasets";
     private static WebTarget user1Target;
     private static WebTarget user2Target;
 	private static String session1Path;
@@ -33,10 +34,10 @@ public class DatasetResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
 
-        user1Target = launcher.getUser1Target();
-        user2Target = launcher.getUser2Target();
+        user1Target = launcher.getUser1Target(Role.SESSION_DB);
+        user2Target = launcher.getUser2Target(Role.SESSION_DB);
         
         session1Path = SessionResourceTest.postRandomSession(user1Target);
         session2Path = SessionResourceTest.postRandomSession(user2Target);
@@ -61,8 +62,18 @@ public class DatasetResourceTest {
     	Dataset dataset2 = RestUtils.getRandomDataset();
     	dataset2.setDatasetId(null);
     	// check that properties of the existing File can't be modified
-    	dataset2.getFile().setFileId(dataset1.getFile().getFileId());
-    	dataset2.getFile().setSize(101);
+    	
+    	File file1 = new File();
+    	file1.setFileId(RestUtils.createUUID());
+    	file1.setSize(1);
+    	
+    	File file2 = new File();
+    	file2.setFileId(file1.getFileId());
+    	file2.setSize(2);
+    	
+    	dataset1.setFile(file1);
+    	dataset2.setFile(file2);
+    	
     	assertEquals(201, post(user1Target, session1Path + DATASETS, dataset1).getStatus());
     	assertEquals(403, post(user1Target, session1Path + DATASETS, dataset2).getStatus());
     }
@@ -149,7 +160,7 @@ public class DatasetResourceTest {
         assertEquals(404, delete(user1Target, objPath));
     }
 	
-	private String changeSession(String objPath) {
+	public String changeSession(String objPath) {
 		String session1Id = RestUtils.basename(session1Path);
         String session2Id = RestUtils.basename(session2Path);
         

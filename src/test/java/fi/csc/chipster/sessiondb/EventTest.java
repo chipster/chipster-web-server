@@ -43,13 +43,13 @@ public class EventTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
         ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
         uri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0) + SessionDb.EVENTS_PATH + "/";
         token = new AuthenticationClient(serviceLocator, "client", "clientPassword").getToken().toString();
         token2 = new AuthenticationClient(serviceLocator, "client2", "client2Password").getToken().toString();
         schedulerToken = new AuthenticationClient(serviceLocator, "scheduler", "schedulerPassword").getToken().toString();
-        user1Target = launcher.getUser1Target();
+        user1Target = launcher.getUser1Target(Role.SESSION_DB);
     }
 
     @AfterClass

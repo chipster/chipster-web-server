@@ -91,11 +91,12 @@ public class DatasetResource {
 		if (dataset.getDatasetId() != null) {
 			throw new BadRequestException("dataset already has an id, post not allowed");
 		}
-
+		
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
 
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		
 		checkFileModification(dataset);
 		session.getDatasets().put(id, dataset);
 
@@ -106,12 +107,15 @@ public class DatasetResource {
 
 	private void checkFileModification(Dataset dataset) {
 		// if the file exists, don't allow it to be modified 
-		File file = getHibernate().session().get(File.class, dataset.getFile().getFileId());
-		if (file != null) {
-			if (!file.equals(dataset.getFile())) {
+		if (dataset.getFile() == null || dataset.getFile().isEmpty()) {
+			return;
+		}
+		File dbFile = getHibernate().session().get(File.class, dataset.getFile().getFileId());
+		if (dbFile != null) {
+			if (!dbFile.equals(dataset.getFile())) {
 				throw new ForbiddenException("modification of existing file is forbidden");
 			}
-			dataset.setFile(file);
+			dataset.setFile(dbFile);
 		}
 	}
 
@@ -136,7 +140,6 @@ public class DatasetResource {
 		checkFileModification(requestDataset);
 		getHibernate().session().merge(requestDataset);
 
-		// more fine-grained events are needed, like "job added" and "dataset removed"
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
 		return Response.noContent().build();
     }

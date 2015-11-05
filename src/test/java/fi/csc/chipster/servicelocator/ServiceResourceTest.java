@@ -39,15 +39,15 @@ public class ServiceResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SERVICE_LOCATOR);
+    	launcher = new TestServerLauncher(config);
         
-        noAuthTarget = launcher.getNoAuthTarget();
-        user1Target = launcher.getUser1Target();
-        serverTarget = launcher.getSessionStorageUserTarget();
+        noAuthTarget = launcher.getNoAuthTarget(Role.SERVICE_LOCATOR);
+        user1Target = launcher.getUser1Target(Role.SERVICE_LOCATOR);
+        serverTarget = launcher.getSessionStorageUserTarget(Role.SERVICE_LOCATOR);
         
-        unparseableTokenTarget = launcher.getUnparseableTokenTarget();
-        tokenFailTarget = launcher.getTokenFailTarget();
-        authFailTarget = launcher.getAuthFailTarget();
+        unparseableTokenTarget = launcher.getUnparseableTokenTarget(Role.SERVICE_LOCATOR);
+        tokenFailTarget = launcher.getTokenFailTarget(Role.SERVICE_LOCATOR);
+        authFailTarget = launcher.getAuthFailTarget(Role.SERVICE_LOCATOR);
     }
 
     @AfterClass

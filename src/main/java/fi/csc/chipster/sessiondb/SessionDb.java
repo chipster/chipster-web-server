@@ -37,6 +37,7 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
 /**
@@ -64,6 +65,8 @@ public class SessionDb implements TopicCheck {
 	private PubSubServer pubSubServer;
 
 	private SessionResource sessionResource;
+
+	private AuthorizationResource authorizationResource;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -95,7 +98,8 @@ public class SessionDb implements TopicCheck {
 		hibernate = new HibernateUtil();
 		hibernate.buildSessionFactory(hibernateClasses, "session-db");
 
-		this.sessionResource = new SessionResource(hibernate);
+		this.authorizationResource = new AuthorizationResource(hibernate);
+		this.sessionResource = new SessionResource(hibernate, authorizationResource);
 		
 		String pubSubUri = config.getString("session-db-events-bind");
 		String path = "/" + EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
@@ -106,6 +110,7 @@ public class SessionDb implements TopicCheck {
 		sessionResource.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+				.register(authorizationResource)
 				.register(sessionResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))

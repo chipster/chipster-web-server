@@ -39,11 +39,11 @@ public class JobResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
     	
-        user1Target = launcher.getUser1Target();
-        user2Target = launcher.getUser2Target();
-        compTarget = launcher.getCompTarget();
+        user1Target = launcher.getUser1Target(Role.SESSION_DB);
+        user2Target = launcher.getUser2Target(Role.SESSION_DB);
+        compTarget = launcher.getCompTarget(Role.SESSION_DB);
         
         session1Path = SessionResourceTest.postRandomSession(user1Target);
         session2Path = SessionResourceTest.postRandomSession(user2Target);
@@ -126,6 +126,10 @@ public class JobResourceTest {
 		// wrong session
 		assertEquals(401, delete(user1Target, changeSession(objPath)));
 		assertEquals(404, delete(user2Target, changeSession(objPath)));
+		
+		// wait a minute so that scheduler can process the job creation event
+		// otherwise it will complain in a log
+		Thread.sleep(500);
 		
 		// delete
         assertEquals(204, delete(user1Target, objPath));

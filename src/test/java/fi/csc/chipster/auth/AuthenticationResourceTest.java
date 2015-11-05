@@ -30,7 +30,7 @@ public class AuthenticationResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.AUTHENTICATION_SERVICE);
+    	launcher = new TestServerLauncher(config);
         
         // client with authentication enabled, but each test will set the credentials later
         target = AuthenticationClient.getClient(null, null, true).target(config.getString("authentication-service"));
@@ -49,7 +49,7 @@ public class AuthenticationResourceTest {
     @Test
     public void noAuth() throws IOException {
     	// no authorized header
-    	assertEquals(401, postTokenResponse(launcher.getNoAuthTarget(), null, null).getStatus());
+    	assertEquals(401, postTokenResponse(launcher.getNoAuthTarget(Role.AUTHENTICATION_SERVICE), null, null).getStatus());
     }
     
     @Test
@@ -75,7 +75,7 @@ public class AuthenticationResourceTest {
         assertEquals(403, getTokenResponse(target, "token", wrongToken, clientToken).getStatus());
         assertEquals(401, getTokenResponse(target, "token", serverToken, "unparseableClientToken").getStatus());
         assertEquals(404, getTokenResponse(target, "token", serverToken, wrongToken).getStatus());
-        assertEquals(401, getTokenResponse(launcher.getNoAuthTarget(), null, null, clientToken).getStatus());
+        assertEquals(401, getTokenResponse(launcher.getNoAuthTarget(Role.AUTHENTICATION_SERVICE), null, null, clientToken).getStatus());
     }
 	
 	@Test
@@ -86,7 +86,7 @@ public class AuthenticationResourceTest {
         
         getToken(target, "token", serverToken, clientToken);
      
-        assertEquals(401, deleteTokenResponse(launcher.getNoAuthTarget(), "token", clientToken).getStatus());
+        assertEquals(401, deleteTokenResponse(launcher.getNoAuthTarget(Role.AUTHENTICATION_SERVICE), "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", "wrongClientToken").getStatus());
         assertEquals(204, deleteTokenResponse(target, "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", clientToken).getStatus());
