@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.util.UUID;
 
 import javax.ws.rs.Consumes;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
@@ -24,13 +23,16 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.microarray.util.IOUtils;
 
 @Path("sessions")
-public class FileResource {
+public class FileResource implements SessionEventListener {
 	
-	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
 	private static final String SESSION_ID = "sessionId";
@@ -51,9 +53,8 @@ public class FileResource {
 		
 		// check authorization
 		UUID fileId = getFileId(sc, sessionId, datasetId, false);		
-					
-		// having a fileId as UUID makes sure that it doesn't point to other dirs
-	    File f = new File(storage, fileId.toString());	    
+
+		File f = getStorageFile(fileId);
 
 	    if (!f.exists()) {
 	        throw new NotFoundException("no such file");
@@ -62,6 +63,11 @@ public class FileResource {
 	    return Response.ok(f).build();
 	}
 	
+	private File getStorageFile(UUID fileId) {
+		// having a fileId as UUID makes sure that it doesn't point to other dirs
+	    return new File(storage, fileId.toString());	    
+	}
+
 	@PUT
 	@Path("{" + SESSION_ID + "}/datasets/{" + DATASET_ID + "}")
 	@Consumes(MediaType.APPLICATION_OCTET_STREAM)
@@ -76,7 +82,7 @@ public class FileResource {
 		
 		UUID fileId = RestUtils.createUUID();
 			
-	    File f = new File(storage, fileId.toString());
+	    File f = getStorageFile(fileId);
 	    
 	    if (f.exists()) {
 	        return Response.status(Response.Status.CONFLICT).build();
@@ -111,9 +117,23 @@ public class FileResource {
 		Dataset dataset = sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, requireReadWrite);
 		
 		if (dataset == null) {
-			throw new ForbiddenException("dataset not found");
+			throw new NotFoundException("dataset not found");
 		}
 		
 		return dataset;
+	}
+	
+	@Override
+	public void onEvent(SessionEvent e) {
+		logger.debug("received a file event: " + e.getResourceType() + " " + e.getType());
+		if (ResourceType.FILE == e.getResourceType()) {
+			if (EventType.DELETE == e.getType()) {
+				if (e.getResourceId() != null) {					
+					getStorageFile(e.getResourceId()).delete();
+				} else {
+					logger.warn("received a file deletion event with null id");
+				}
+			}		
+		}		
 	}
 }

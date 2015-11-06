@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.ServiceUnavailableException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
@@ -57,11 +58,11 @@ public class SessionDbClient {
 		}
 	}
 
-	public void addJobListener(final SessionEventListener listener) throws InterruptedException {
+	public void subscribe(String topic, final SessionEventListener listener) throws InterruptedException {
 		
 		for (String sessionDbEventsUri : sessionDbEventsList) {
 			try {
-				this.client = new WebSocketClient(sessionDbEventsUri + SessionDb.EVENTS_PATH + "/" + SessionDb.JOBS_TOPIC + "?token=" + authService.getToken().toString(), new Whole<String>() {
+				this.client = new WebSocketClient(sessionDbEventsUri + SessionDb.EVENTS_PATH + "/" + topic + "?token=" + authService.getToken().toString(), new Whole<String>() {
 
 					@Override
 					public void onMessage(String message) {
@@ -116,11 +117,16 @@ public class SessionDbClient {
 					return dataset;
 				}
 				return null;
-				
+			
 			} catch (ServiceUnavailableException e) {
 				logger.warn("session-db not available: " + sessionDbUri, e);
+				// try other session-dbs
+			} catch (NotFoundException e) {
+				// nothing unusual
+				return null;
 			} catch (WebApplicationException e) {
 				logger.error("failed to get the dataset " + target.getUri() + " " + e.getClass().getName() + ": " + e.getMessage());
+				return null;
 			}
 		}	
 		throw new ServiceException("there isn't any sessionDbs available");		

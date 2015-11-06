@@ -16,6 +16,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
 
@@ -34,6 +35,8 @@ public class FileBroker {
 
 	private SessionDbClient sessionDbClient;
 
+	private FileResource fileResource;
+
 	public FileBroker(Config config) {
 		this.config = config;
 	}
@@ -41,24 +44,27 @@ public class FileBroker {
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
+     * @throws InterruptedException 
      */
-    public void startServer() {
+    public void startServer() throws InterruptedException {
     	
     	String username = "fileBroker";
-    	String password = "fileBrokerPassword";
+    	String password = "fileBrokerPassword";    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		this.serviceId = serviceLocator.register(Role.FILE_BROKER, authService, config.getString("file-broker-bind"));
-		this.sessionDbClient = new SessionDbClient(serviceLocator, authService);
+		this.sessionDbClient = new SessionDbClient(serviceLocator, authService);		
     	
-    	File storage = new File("storage");
-    	storage.mkdir();    
+		File storage = new File("storage");
+		storage.mkdir();    
+		this.fileResource = new FileResource(storage, sessionDbClient);
+		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileResource);
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-        	.register(new FileResource(storage, sessionDbClient))
+        	.register(fileResource)
         	//.register(new LoggingFilter())
         	.register(tokenRequestFilter);
 
@@ -72,8 +78,9 @@ public class FileBroker {
      * Main method.
      * @param args
      * @throws IOException
+     * @throws InterruptedException 
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
     	
         final FileBroker server = new FileBroker(new Config());
         server.startServer();

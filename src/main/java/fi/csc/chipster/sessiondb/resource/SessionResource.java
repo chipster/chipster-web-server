@@ -33,6 +33,7 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -158,7 +159,14 @@ public class SessionResource {
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		Authorization auth = authorizationResource.getWriteAuthorization(sc, id);
-		// this will delete also the referenced datasets and jobs
+		
+		// we have to delete each dataset to check if the file can be deleted also
+		ArrayList<Dataset> datasetsCopy = new ArrayList<>(auth.getSession().getDatasets().values());
+		for (Dataset dataset : datasetsCopy) {
+			DatasetResource.deleteDataset(id, dataset.getDatasetId(), sc, this);
+		}
+		
+		// this will delete also the referenced jobs
 		getHibernate().session().delete(auth);
 
 		publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));

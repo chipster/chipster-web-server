@@ -8,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -21,9 +22,11 @@ import org.junit.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.DatasetResourceTest;
 import fi.csc.chipster.sessiondb.SessionResourceTest;
+import fi.csc.chipster.sessiondb.model.Dataset;
 
 public class FileResourceTest {
 	
@@ -69,7 +72,7 @@ public class FileResourceTest {
 	@Test
     public void putWrongUser() throws FileNotFoundException {
 		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(403, uploadFile(fileBrokerTarget2, datasetPath).getStatus());		
+		assertEquals(404, uploadFile(fileBrokerTarget2, datasetPath).getStatus());		
     }
 	
 	@Test
@@ -151,6 +154,66 @@ public class FileResourceTest {
 		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));		
     }
 	
+	@Test
+    public void getSharedFile() throws IOException {
+        
+		String dataset1Path = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
+		assertEquals(200, uploadFile(fileBrokerTarget1, dataset1Path).getStatus());
+		// dataset should now have a file id
+		fi.csc.chipster.sessiondb.model.File file = DatasetResourceTest.getDataset(sessionDbTarget1, dataset1Path).getFile();
+		assertEquals(true, file.getFileId() != null);
+		
+		// create a new dataset of the same file
+		Dataset dataset = RestUtils.getRandomDataset();
+		dataset.setFile(file);
+		String dataset2Path = DatasetResourceTest.postDataset(sessionDbTarget1, session1Path, dataset);
+
+		// we should be able to read both datasets, although we haven't uploaded the second dataset
+		checkFile(dataset1Path);
+		checkFile(dataset2Path);
+		
+		// remove the original dataset
+		DatasetResourceTest.delete(sessionDbTarget1, dataset1Path);
+		
+		// the first dataset must not work anymore
+		try {
+			checkFile(dataset1Path);
+			assertEquals(true, false);
+		} catch (NotFoundException e) {}
+		
+		// and the second must be still readable
+		checkFile(dataset2Path);
+    }
+	
+	@Test
+    public void delete() throws IOException, InterruptedException {
+        
+		String dataset1Path = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
+		assertEquals(200, uploadFile(fileBrokerTarget1, dataset1Path).getStatus());
+
+		// dataset should now have a file id
+		fi.csc.chipster.sessiondb.model.File file = DatasetResourceTest.getDataset(sessionDbTarget1, dataset1Path).getFile();
+		assertEquals(true, file.getFileId() != null);
+		
+		// check that we can find the file
+		File storageFile = new File("storage", file.getFileId().toString());
+		assertEquals(true, storageFile.exists());
+		
+		// remove the dataset
+		DatasetResourceTest.delete(sessionDbTarget1, dataset1Path);
+		
+		
+		// wait a while and check that the file is removed also
+		Thread.sleep(100);
+		assertEquals(false, storageFile.exists());
+    }
+	
+	private void checkFile(String dataset1Path) throws IOException {
+		InputStream remoteStream = fileBrokerTarget1.path(dataset1Path).request().get(InputStream.class);
+		InputStream fileStream = new FileInputStream(new File(TEST_FILE));
+		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));
+	}
+
 	@Test
     public void getAuthFail() throws IOException {        
 		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				

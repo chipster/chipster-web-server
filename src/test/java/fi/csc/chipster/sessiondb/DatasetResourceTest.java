@@ -169,13 +169,17 @@ public class DatasetResourceTest {
 	
     public static String postRandomDataset(WebTarget target, String sessionPath) {
     	Dataset dataset = RestUtils.getRandomDataset();
-    	dataset.setDatasetId(null);
+    	return postDataset(target, sessionPath, dataset);
+	}
+	
+	public static String postDataset(WebTarget target, String sessionPath, Dataset dataset) {
+		dataset.setDatasetId(null);
     	Response response = post(target, sessionPath + DATASETS, dataset);
         assertEquals(201, response.getStatus());
         
         return sessionPath + DATASETS + "/" + RestUtils.basename(response.getLocation().getPath());
 	}
-	
+
 	public static int delete(WebTarget target, String path) {
 		return target.path(path).request().delete(Response.class).getStatus();
 	}

@@ -20,6 +20,7 @@ import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -68,7 +69,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.serviceId = serviceLocator.register(Role.SCHEDULER, authService, config.getString("scheduler"));	      
     	
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService);
-    	this.sessionDbClient.addJobListener(this);    	
+    	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this);    	
     	
     	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "/events", authService, this, this, "scheduler-events");
     	this.pubSubServer.start();		

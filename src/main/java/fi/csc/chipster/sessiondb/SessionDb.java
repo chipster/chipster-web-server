@@ -50,6 +50,7 @@ public class SessionDb implements TopicCheck {
 	
 	public static final String EVENTS_PATH = "events";
 	public static final String JOBS_TOPIC = "jobs";
+	public static final String FILES_TOPIC = "files";
 
 	private static HibernateUtil hibernate;
 
@@ -160,7 +161,7 @@ public class SessionDb implements TopicCheck {
 	@Override
 	public boolean isAuthorized(AuthPrincipal principal, String topic) {
 		logger.debug("check topic authorization for topic " + topic);
-		if (JOBS_TOPIC.equals(topic)) {
+		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SERVER);
 		} else {
 			AuthSecurityContext sc = new AuthSecurityContext(principal, null);
