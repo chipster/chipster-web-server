@@ -25,6 +25,7 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.BaseSessionEventListener;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
@@ -206,9 +207,16 @@ public class SessionResource {
 	}
 	
 	public void publish(String topic, SessionEvent obj) {
-		events.publish(topic, obj);
-		if (ResourceType.JOB == obj.getResourceType()) {
-			events.publish(SessionDb.JOBS_TOPIC, obj);
-		}
+		// publish the event only after the transaction is completed to make 
+		// sure that the modifications are visible
+		hibernate.session().addEventListeners(new BaseSessionEventListener() {
+			@Override
+			public void transactionCompletion(boolean successful) {
+				events.publish(topic, obj);
+				if (ResourceType.JOB == obj.getResourceType()) {
+					events.publish(SessionDb.JOBS_TOPIC, obj);
+				}				
+			}				
+		});	
 	}
 }

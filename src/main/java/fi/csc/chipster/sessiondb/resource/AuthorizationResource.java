@@ -108,7 +108,7 @@ public class AuthorizationResource {
 		Authorization auth = getAuthorization(username, session);
 		
 		if (auth == null) {
-			throw new NotAuthorizedException("access denied");
+			throw new ForbiddenException("access denied");
 		}
 		
 		if (requireReadWrite) {

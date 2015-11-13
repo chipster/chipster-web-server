@@ -120,7 +120,7 @@ public class TokenResource {
 		Token dbToken = getHibernate().session().get(Token.class, uuid);
 	
 		if (dbToken == null) {
-			throw new NotFoundException();
+			throw new NotFoundException("token not found");
 		}
 		
 		if (dbToken.getValid().isAfter(LocalDateTime.now())) {

@@ -11,6 +11,7 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 
@@ -27,9 +28,17 @@ public class Job {
 	private JobState state;
 	private String toolCategory;
 	private String toolName;
+	@Lob
 	private String toolDescription;
 	private LocalDateTime startTime;
 	private LocalDateTime endTime;
+	private String module;
+	@Lob
+	private String sourceCode;
+	@Lob
+	private String screenOutput;
+	@Lob
+	private String stateDetail;
 	
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="jobId")
@@ -100,5 +109,29 @@ public class Job {
 	
 	public void setInputs(List<Input> inputs) {
 		this.inputs = inputs;
+	}
+	public String getModule() {
+		return module;
+	}
+	public void setModule(String module) {
+		this.module = module;
+	}
+	public String getSourceCode() {
+		return sourceCode;
+	}
+	public void setSourceCode(String sourceCode) {
+		this.sourceCode = sourceCode;
+	}
+	public String getScreenOutput() {
+		return screenOutput;
+	}
+	public void setScreenOutput(String screenOutput) {
+		this.screenOutput = screenOutput;
+	}
+	public String getStateDetail() {
+		return stateDetail;
+	}
+	public void setStateDetail(String stateDetail) {
+		this.stateDetail = stateDetail;
 	}
 }

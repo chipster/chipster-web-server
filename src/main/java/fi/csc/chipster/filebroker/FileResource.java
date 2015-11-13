@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.UUID;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
@@ -22,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -73,22 +75,26 @@ public class FileResource implements SessionEventListener {
 	@Consumes(MediaType.APPLICATION_OCTET_STREAM)
 	public Response putFile(@PathParam(SESSION_ID) UUID sessionId, @PathParam(DATASET_ID) UUID datasetId, InputStream inputStream, @Context SecurityContext sc) {
 				
-		// check authorization
-		Dataset dataset = getDataset(sc, sessionId, datasetId, true);
-		
-		if (dataset.getFile() != null) {
-			return Response.status(Response.Status.CONFLICT).build();
-		}
-		
-		UUID fileId = RestUtils.createUUID();
-			
-	    File f = getStorageFile(fileId);
-	    
-	    if (f.exists()) {
-	        return Response.status(Response.Status.CONFLICT).build();
-	    }
-	    
 		try {
+			// check authorization
+			Dataset dataset = sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, true);
+
+			if (dataset == null) {
+				throw new ForbiddenException("dataset not found");
+			}
+
+			if (dataset.getFile() != null) {
+				return Response.status(Response.Status.CONFLICT).build();
+			}
+
+			UUID fileId = RestUtils.createUUID();
+
+			File f = getStorageFile(fileId);
+
+			if (f.exists()) {
+				return Response.status(Response.Status.CONFLICT).build();
+			}
+
 			IOUtils.copy(inputStream, f);
 			
 			fi.csc.chipster.sessiondb.model.File file = new fi.csc.chipster.sessiondb.model.File();
@@ -97,30 +103,30 @@ public class FileResource implements SessionEventListener {
 			sessionDbClient.updateDataset(sessionId, dataset);
 			
 			return Response.ok().build();
-		} catch (IOException e) {
+		} catch (IOException | RestException e) {
 			throw new InternalServerErrorException("upload failed", e);
 		}
 	}
 
 	private UUID getFileId(SecurityContext sc, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
 		
-		Dataset dataset = getDataset(sc, sessionId, datasetId, requireReadWrite);			
-		
-		if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
-			throw new NotFoundException("file id is null");
-		}
-		
-		return dataset.getFile().getFileId();
-	}
-
-	private Dataset getDataset(SecurityContext sc, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
-		Dataset dataset = sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, requireReadWrite);
-		
-		if (dataset == null) {
-			throw new NotFoundException("dataset not found");
-		}
-		
-		return dataset;
+		Dataset dataset;
+		try {
+			dataset = sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, requireReadWrite);
+			
+			if (dataset == null) {
+				throw new ForbiddenException("dataset not found");
+			}
+			
+			if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
+				throw new NotFoundException("file id is null");
+			}
+			
+			return dataset.getFile().getFileId();
+			
+		} catch (RestException e) {
+			throw new InternalServerErrorException("failed to get the dataset", e);
+		}					
 	}
 	
 	@Override

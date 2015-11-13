@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -17,6 +18,8 @@ import org.hibernate.service.spi.ServiceException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.TokenResource;
+import fi.csc.chipster.rest.CredentialsProvider;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -117,6 +120,8 @@ public class AuthenticationClient {
 				}
 			} catch (ServiceException e) {
 				logger.warn("auth not available", e);
+			} catch (NotFoundException e) {
+				return null;
 			}
 		}
 		return null;
@@ -124,5 +129,12 @@ public class AuthenticationClient {
 
 	public UUID getToken() {
 		return token;
+	}
+	
+	/**
+	 * @return
+	 */
+	public CredentialsProvider getCredentials() {
+		return new StaticCredentials(TokenRequestFilter.TOKEN_USER, token.toString());		
 	}
 }

@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb.model;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 
 @Entity
 public class Input {
@@ -14,6 +15,7 @@ public class Input {
 
 	private String inputId;
 	private String displayName;
+	@Lob
 	private String description;
 	private String type;
 	private String datasetId;

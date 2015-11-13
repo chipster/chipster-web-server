@@ -7,8 +7,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.UUID;
 
-import javax.ws.rs.NotFoundException;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -24,34 +25,34 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.sessiondb.DatasetResourceTest;
-import fi.csc.chipster.sessiondb.SessionResourceTest;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 
 public class FileResourceTest {
 	
     private static final String TEST_FILE = "build.gradle";
-	private static WebTarget sessionDbTarget1;
-    private static WebTarget sessionDbTarget2;
-	private static String session1Path;
-	private static String session2Path;
 	private static TestServerLauncher launcher;
 	private static WebTarget fileBrokerTarget1;
 	private static WebTarget fileBrokerTarget2;
+	private static SessionDbClient sessionDbClient1;
+	private static SessionDbClient sessionDbClient2;
+	private static UUID sessionId1;
+	private static UUID sessionId2;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
 
-        sessionDbTarget1 = launcher.getUser1Target(Role.SESSION_DB);
-        sessionDbTarget2 = launcher.getUser2Target(Role.SESSION_DB);
-        
+    	sessionDbClient1 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+    	sessionDbClient2 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
+		
         fileBrokerTarget1 = launcher.getUser1Target(Role.FILE_BROKER);
         fileBrokerTarget2 = launcher.getUser2Target(Role.FILE_BROKER);
         
-        session1Path = SessionResourceTest.postRandomSession(sessionDbTarget1);
-        session2Path = SessionResourceTest.postRandomSession(sessionDbTarget2);
+        sessionId1 = sessionDbClient1.createSession(RestUtils.getRandomSession());
+        sessionId2 = sessionDbClient2.createSession(RestUtils.getRandomSession());   
     }
 
     @AfterClass
@@ -60,66 +61,69 @@ public class FileResourceTest {
     }
     
 	@Test
-    public void putAndChange() throws FileNotFoundException {
+    public void putAndChange() throws FileNotFoundException, RestException {
 		
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
 		
 		// not possible to upload a new file, if the dataset has one already
-		assertEquals(409, uploadFile(fileBrokerTarget1, datasetPath).getStatus());
+		assertEquals(409, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
     }
 
 	@Test
-    public void putWrongUser() throws FileNotFoundException {
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(404, uploadFile(fileBrokerTarget2, datasetPath).getStatus());		
+    public void putWrongUser() throws FileNotFoundException, RestException {
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(403, uploadFile(fileBrokerTarget2, sessionId1, datasetId).getStatus());		
     }
 	
 	@Test
-    public void putAuthFail() throws FileNotFoundException {
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(401, uploadFile(launcher.getAuthFailTarget(Role.FILE_BROKER), datasetPath).getStatus());		
+    public void putAuthFail() throws FileNotFoundException, RestException {
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(401, uploadFile(launcher.getAuthFailTarget(Role.FILE_BROKER), sessionId1, datasetId).getStatus());		
     }
 	
 	@Test
-    public void putTokenFail() throws FileNotFoundException {
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(404, uploadFile(launcher.getTokenFailTarget(Role.FILE_BROKER), datasetPath).getStatus());		
+    public void putTokenFail() throws FileNotFoundException, RestException {
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(403, uploadFile(launcher.getTokenFailTarget(Role.FILE_BROKER), sessionId1, datasetId).getStatus());		
     }
 	
 	@Test
-    public void putUnparseableToken() throws FileNotFoundException {
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(401, uploadFile(launcher.getUnparseableTokenTarget(Role.FILE_BROKER), datasetPath).getStatus());		
+    public void putUnparseableToken() throws FileNotFoundException, RestException {
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(401, uploadFile(launcher.getUnparseableTokenTarget(Role.FILE_BROKER), sessionId1, datasetId).getStatus());		
     }
 	
 	@Test
-    public void putWrongSession() throws FileNotFoundException {
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);
-		datasetPath.replace(session1Path, session2Path);
-		assertEquals(401, uploadFile(launcher.getUnparseableTokenTarget(Role.FILE_BROKER), datasetPath).getStatus());		
+    public void putWrongSession() throws FileNotFoundException, RestException {
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(401, uploadFile(launcher.getUnparseableTokenTarget(Role.FILE_BROKER), sessionId2, datasetId).getStatus());		
     }
 	
 	//@Test
-    public void putLargeFile() throws FileNotFoundException {
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadInputStream(fileBrokerTarget1, datasetPath, new DummyInputStream(6)).getStatus());		
+    public void putLargeFile() throws FileNotFoundException, RestException {
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId, new DummyInputStream(6)).getStatus());		
     }	
 
-	private Response uploadFile(WebTarget target, String datasetPath) throws FileNotFoundException {
+	private Response uploadFile(WebTarget target, UUID sessionId, UUID datasetId) throws FileNotFoundException {
         InputStream fileInStream = new FileInputStream(new File(TEST_FILE));
               
-        return uploadInputStream(target, datasetPath, fileInStream);
+        return uploadInputStream(target, sessionId, datasetId, fileInStream);
 	}
 	
-	private Response uploadInputStream(WebTarget target, String datasetPath,
+	private Response uploadInputStream(WebTarget target, UUID sessionId, UUID datasetId,
 			InputStream inputStream) {
         // Use chunked encoding to disable buffering. HttpUrlConnector in 
         // Jersey buffers the whole file before sending it by default, which 
         // won't work with big files.
         target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
-        Response response = target.path(datasetPath).request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),Response.class);
+        Response response = target.path(getDatasetPath(sessionId, datasetId)).request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),Response.class);
         return response;
+	}
+
+	private String getDatasetPath(UUID sessionId, UUID datasetId) {
+		return "sessions/" + sessionId.toString() + "/datasets/" + datasetId.toString();
 	}
 
 	class DummyInputStream extends InputStream {
@@ -143,56 +147,56 @@ public class FileResourceTest {
 	}
 
 	@Test
-    public void get() throws IOException {
+    public void get() throws IOException, RestException {
         
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
 		
-		InputStream remoteStream = fileBrokerTarget1.path(datasetPath).request().get(InputStream.class);
+		InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request().get(InputStream.class);
 		InputStream fileStream = new FileInputStream(new File(TEST_FILE));
 		
 		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));		
     }
 	
 	@Test
-    public void getSharedFile() throws IOException {
+    public void getSharedFile() throws IOException, RestException {
         
-		String dataset1Path = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, dataset1Path).getStatus());
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
 		// dataset should now have a file id
-		fi.csc.chipster.sessiondb.model.File file = DatasetResourceTest.getDataset(sessionDbTarget1, dataset1Path).getFile();
+		fi.csc.chipster.sessiondb.model.File file = sessionDbClient1.getDataset(sessionId1, datasetId).getFile();
 		assertEquals(true, file.getFileId() != null);
 		
 		// create a new dataset of the same file
 		Dataset dataset = RestUtils.getRandomDataset();
 		dataset.setFile(file);
-		String dataset2Path = DatasetResourceTest.postDataset(sessionDbTarget1, session1Path, dataset);
+		UUID datasetId2 = sessionDbClient1.createDataset(sessionId1, dataset);				
 
 		// we should be able to read both datasets, although we haven't uploaded the second dataset
-		checkFile(dataset1Path);
-		checkFile(dataset2Path);
+		checkFile(sessionId1, datasetId);
+		checkFile(sessionId1, datasetId2);
 		
 		// remove the original dataset
-		DatasetResourceTest.delete(sessionDbTarget1, dataset1Path);
+		sessionDbClient1.deleteDataset(sessionId1, datasetId);
 		
 		// the first dataset must not work anymore
 		try {
-			checkFile(dataset1Path);
+			checkFile(sessionId1, datasetId);
 			assertEquals(true, false);
-		} catch (NotFoundException e) {}
+		} catch (ForbiddenException e) {}
 		
 		// and the second must be still readable
-		checkFile(dataset2Path);
+		checkFile(sessionId1, datasetId2);
     }
 	
 	@Test
-    public void delete() throws IOException, InterruptedException {
+    public void delete() throws IOException, InterruptedException, RestException {
         
-		String dataset1Path = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, dataset1Path).getStatus());
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
 
 		// dataset should now have a file id
-		fi.csc.chipster.sessiondb.model.File file = DatasetResourceTest.getDataset(sessionDbTarget1, dataset1Path).getFile();
+		fi.csc.chipster.sessiondb.model.File file = sessionDbClient1.getDataset(sessionId1, datasetId).getFile();
 		assertEquals(true, file.getFileId() != null);
 		
 		// check that we can find the file
@@ -200,7 +204,7 @@ public class FileResourceTest {
 		assertEquals(true, storageFile.exists());
 		
 		// remove the dataset
-		DatasetResourceTest.delete(sessionDbTarget1, dataset1Path);
+		sessionDbClient1.deleteDataset(sessionId1, datasetId);
 		
 		
 		// wait a while and check that the file is removed also
@@ -208,45 +212,44 @@ public class FileResourceTest {
 		assertEquals(false, storageFile.exists());
     }
 	
-	private void checkFile(String dataset1Path) throws IOException {
-		InputStream remoteStream = fileBrokerTarget1.path(dataset1Path).request().get(InputStream.class);
+	private void checkFile(UUID sessionId, UUID datasetId) throws IOException {
+		InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId, datasetId)).request().get(InputStream.class);
 		InputStream fileStream = new FileInputStream(new File(TEST_FILE));
 		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));
 	}
 
 	@Test
-    public void getAuthFail() throws IOException {        
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());		
-		assertEquals(401, launcher.getAuthFailTarget(Role.FILE_BROKER).path(datasetPath).request().get(Response.class).getStatus());
+    public void getAuthFail() throws IOException, RestException {        
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());		
+		assertEquals(401, launcher.getAuthFailTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId1, datasetId)).request().get(Response.class).getStatus());
     }
 	
 	@Test
-    public void getNoAuth() throws IOException {        
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());		
-		assertEquals(401, launcher.getNoAuthTarget(Role.FILE_BROKER).path(datasetPath).request().get(Response.class).getStatus());
+    public void getNoAuth() throws IOException, RestException {        
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());		
+		assertEquals(401, launcher.getNoAuthTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId1, datasetId)).request().get(Response.class).getStatus());
     }
 	
 	@Test
-    public void getTokenFail() throws IOException {        
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());		
-		assertEquals(404, launcher.getTokenFailTarget(Role.FILE_BROKER).path(datasetPath).request().get(Response.class).getStatus());
+    public void getTokenFail() throws IOException, RestException {        
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());		
+		assertEquals(403, launcher.getTokenFailTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId1, datasetId)).request().get(Response.class).getStatus());
     }
 	
 	@Test
-    public void getUnparseableToken() throws IOException {        
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());		
-		assertEquals(401, launcher.getUnparseableTokenTarget(Role.FILE_BROKER).path(datasetPath).request().get(Response.class).getStatus());
+    public void getUnparseableToken() throws IOException, RestException {        
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());		
+		assertEquals(401, launcher.getUnparseableTokenTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId1, datasetId)).request().get(Response.class).getStatus());
     }
 	
 	@Test
-    public void getWrongSession() throws IOException {        
-		String datasetPath = DatasetResourceTest.postRandomDataset(sessionDbTarget1, session1Path);				
-		assertEquals(200, uploadFile(fileBrokerTarget1, datasetPath).getStatus());
-		datasetPath.replace(session1Path, session2Path);
-		assertEquals(401, launcher.getUnparseableTokenTarget(Role.FILE_BROKER).path(datasetPath).request().get(Response.class).getStatus());
+    public void getWrongSession() throws IOException, RestException {        
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
+		assertEquals(401, launcher.getUnparseableTokenTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId2, datasetId)).request().get(Response.class).getStatus());
     }
 }

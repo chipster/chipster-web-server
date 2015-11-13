@@ -12,6 +12,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.RestException;
 
 public class TestServerLauncher {
 	
@@ -24,11 +25,11 @@ public class TestServerLauncher {
 	private Level webSocketLoggingLevel;
 	private Config config;
 	
-	public TestServerLauncher(Config config) throws ServletException, DeploymentException, InterruptedException {
+	public TestServerLauncher(Config config) throws ServletException, DeploymentException, RestException, InterruptedException {
 		this(config, true);
 	}
 	
-	public TestServerLauncher(Config config, boolean quiet) throws ServletException, DeploymentException, InterruptedException {
+	public TestServerLauncher(Config config, boolean quiet) throws ServletException, DeploymentException, RestException, InterruptedException {
 		
 		this.config = config;
 		
@@ -105,6 +106,38 @@ public class TestServerLauncher {
 	
 	public WebTarget getNoAuthTarget(String role) {
 		return AuthenticationClient.getClient().target(getTargetUri(role));
+	}
+	
+	public CredentialsProvider getUser1Token() {
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getCredentials();
+	}
+
+	public CredentialsProvider getUser2Token() {
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getCredentials();
+	}
+	
+	public CredentialsProvider getSchedulerToken() {
+		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getCredentials();
+	}
+	
+	public CredentialsProvider getCompToken() {
+		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getCredentials();
+	}
+	
+	public CredentialsProvider getSessionStorageUserToken() {
+		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getCredentials();
+	}
+	
+	public CredentialsProvider getUnparseableToken() {
+		return new StaticCredentials("token", "unparseableToken");
+	}
+		
+	public CredentialsProvider getWrongToken() {
+		return new StaticCredentials("token", RestUtils.createId());
+	}
+	
+	public CredentialsProvider getUsernameAndPassword() {
+		return new StaticCredentials("client", "clientPassword");
 	}
 
 	public ServerLauncher getServerLauncher() {

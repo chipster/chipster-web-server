@@ -15,7 +15,10 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
@@ -44,9 +47,12 @@ public class FileBroker {
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
+     * @throws RestException 
      * @throws InterruptedException 
+     * @throws WebSocketClosedException 
+     * @throws WebSocketErrorException 
      */
-    public void startServer() throws InterruptedException {
+    public void startServer() throws RestException {
     	
     	String username = "fileBroker";
     	String password = "fileBrokerPassword";    	
@@ -54,7 +60,7 @@ public class FileBroker {
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		this.serviceId = serviceLocator.register(Role.FILE_BROKER, authService, config.getString("file-broker-bind"));
-		this.sessionDbClient = new SessionDbClient(serviceLocator, authService);		
+		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());		
     	
 		File storage = new File("storage");
 		storage.mkdir();    
@@ -77,10 +83,11 @@ public class FileBroker {
     /**
      * Main method.
      * @param args
+     * @throws RestException 
      * @throws IOException
      * @throws InterruptedException 
      */
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws RestException {
     	
         final FileBroker server = new FileBroker(new Config());
         server.startServer();

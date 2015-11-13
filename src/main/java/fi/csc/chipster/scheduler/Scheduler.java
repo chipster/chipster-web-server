@@ -20,6 +20,7 @@ import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
@@ -57,9 +58,10 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
      * @throws DeploymentException 
      * @throws ServletException 
      * @throws InterruptedException 
+     * @throws RestException 
      * @throws Exception 
      */
-    public void startServer() throws ServletException, DeploymentException, InterruptedException {
+    public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException {
     	
     	String username = "scheduler";
     	String password = "schedulerPassword";
@@ -68,7 +70,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		this.serviceId = serviceLocator.register(Role.SCHEDULER, authService, config.getString("scheduler"));	      
     	
-    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService);
+    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
     	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this);    	
     	
     	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "/events", authService, this, this, "scheduler-events");
@@ -107,9 +109,14 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		if (ResourceType.JOB == e.getResourceType()) {
 			if (EventType.CREATE == e.getType() || EventType.UPDATE == e.getType()) {
 				logger.debug("get job");
-				Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-				logger.debug("handle event");
-				handleSessionDbEvent(e.getSessionId(), job);
+				try {
+					Job job;
+					job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
+					logger.debug("handle event");
+					handleSessionDbEvent(e.getSessionId(), job);
+				} catch (RestException ex) {
+					logger.error("failed to handle a session event", ex);
+				}
 			}		
 		}		
 	}

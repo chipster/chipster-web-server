@@ -11,6 +11,7 @@ import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
+import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDb;
 
 public class ServerLauncher {
@@ -26,7 +27,7 @@ public class ServerLauncher {
 	private FileBroker fileBroker;
 	
 	
-	public ServerLauncher(Config config, boolean verbose) throws ServletException, DeploymentException, InterruptedException {
+	public ServerLauncher(Config config, boolean verbose) throws ServletException, DeploymentException, RestException, InterruptedException {
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -90,7 +91,7 @@ public class ServerLauncher {
 		}
 	}	
 		
-	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException {
+	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException, RestException {
 		Config config = new Config();
 		new ServerLauncher(config, true);
 	}

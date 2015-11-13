@@ -2,9 +2,9 @@ package fi.csc.chipster.sessiondb;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -12,38 +12,30 @@ import java.util.concurrent.TimeUnit;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.sessiondb.model.Session;
 
 public class DbPeroformanceTest {
 
-    public static final String path = "sessions";
-	private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-    private static WebTarget target;
 	private static TestServerLauncher launcher;
 	private static int n = 10;
-	private static Queue<String> paths;
+	private static Queue<UUID> ids;
+	private static SessionDbClient client;
 	
 	@BeforeClass
-	public static void setUpBeforeClass() throws IOException, InterruptedException, ServletException, DeploymentException {
+	public static void setUpBeforeClass() throws ServletException, DeploymentException, RestException, InterruptedException, IOException {
 		// once per class
 		Config config = new Config();
     	launcher = new TestServerLauncher(config);
 
-        target = launcher.getUser1Target(Role.SESSION_DB);
-		paths = postManyParallel();
+    	client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+		ids = postManyParallel();
 	}
 	
 	@AfterClass
@@ -52,14 +44,14 @@ public class DbPeroformanceTest {
 	}
     
     @Test
-    public void postOne() throws IOException {
-    	postSession(target);
+    public void postOne() throws RestException {
+    	client.createSession(RestUtils.getRandomSession());
     }
     
     @Test
-    public void postMany() throws IOException {
+    public void postMany() throws RestException {
     	for (int i = 0; i < n ; i++) {
-    		postSession(target);
+    		client.createSession(RestUtils.getRandomSession());
     	}
     }
     
@@ -68,32 +60,40 @@ public class DbPeroformanceTest {
     	postManyParallel();
     }
     
-    public static Queue<String> postManyParallel() throws IOException, InterruptedException {
+    public static Queue<UUID> postManyParallel() throws IOException, InterruptedException {
     	
-    	final Queue<String> paths = new ConcurrentLinkedQueue<>();
+    	final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
     	ExecutorService executor = Executors.newFixedThreadPool(10);
     	for (int i = 0; i < n ; i++) {
     		executor.submit(new Runnable() {
 				@Override
 				public void run() {
-					paths.add(postSession(target));		
+					try {
+						ids.add(client.createSession(RestUtils.getRandomSession()));
+					} catch (RestException e) {
+						e.printStackTrace();
+					}		
 				}
 			});
     	}
     	executor.shutdown();
     	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
     	assertEquals(false, timeout);
-    	return paths;
+    	return ids;
     }
     
     @Test
     public void getManyParallel() throws IOException, InterruptedException {
     	ExecutorService executor = Executors.newFixedThreadPool(10);
-    	for (final String path : paths) {
+    	for (final UUID id : ids) {
     		executor.submit(new Runnable() {
 				@Override
 				public void run() {
-					getSession(path);
+					try {
+						client.getSession(id);
+					} catch (RestException e) {
+						e.printStackTrace();
+					}
 				}
 			});
     	}
@@ -103,63 +103,9 @@ public class DbPeroformanceTest {
     }
     
     @Test
-    public void getMany() throws IOException {
-    	for (String objPath : paths) {
-    		getSession(objPath);
+    public void getMany() throws RestException {
+    	for (UUID id : ids) {
+    		client.getSession(id);
     	}
-    }
-    
-    private void getSession(String objPath) {
-    	Session sessionObj = target.path(objPath).request().get(Session.class);        
-        assertEquals(true, sessionObj != null);
-	}
-
-	public static String postSession(WebTarget target) {
-    	Session session = RestUtils.getRandomSession();
-    	session.setSessionId(null);
-    	Response response = target.path(path).request(JSON).post(Entity.entity(session, JSON),Response.class);
-        assertEquals(201, response.getStatus());
-        
-        return path + "/" + new File(response.getLocation().getPath()).getName();
-	}
-
-
-//	@Test
-    public void get() throws IOException {
-        
-		String objPath = postSession(target);        
-        Session session2 = target.path(objPath).request().get(Session.class);        
-        assertEquals(true, session2 != null);
-    }
-	
-//	@Test
-    public void getAll() {
-        
-		String id1 = new File(postSession(target)).getName();
-		String id2 = new File(postSession(target)).getName();
-		
-        String json = target.path(path).request().get(String.class);        
-        assertEquals(json == null, false);
-        
-        //TODO parse json
-        assertEquals(true, json.contains(id1));
-        assertEquals(true, json.contains(id2));
-    }
-	
-//	@Test
-    public void put() {
-        
-		String objPath = postSession(target);
-		Session newSession = RestUtils.getRandomSession();
-		Response response = target.path(objPath).request(JSON).put(Entity.entity(newSession, JSON),Response.class);        
-        assertEquals(204, response.getStatus());
-    }
-	
-//	@Test
-    public void delete() {
-        
-		String objPath = postSession(target);
-		Response response = target.path(objPath).request().delete(Response.class);        
-        assertEquals(204, response.getStatus());
     }	
 }

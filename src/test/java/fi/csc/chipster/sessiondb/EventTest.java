@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.websocket.MessageHandler;
-import javax.ws.rs.client.WebTarget;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -23,6 +22,8 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -31,14 +32,14 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 public class EventTest {
 	
 	private static TestServerLauncher launcher;
-	private static WebTarget user1Target;	
-
+	
 	private static String uri;
 	private static Config config;
 
 	private static String token;
 	private static String token2;
-	private static String schedulerToken;	
+	private static String schedulerToken;
+	private static SessionDbClient user1Client;	
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -49,7 +50,7 @@ public class EventTest {
         token = new AuthenticationClient(serviceLocator, "client", "clientPassword").getToken().toString();
         token2 = new AuthenticationClient(serviceLocator, "client2", "client2Password").getToken().toString();
         schedulerToken = new AuthenticationClient(serviceLocator, "scheduler", "schedulerPassword").getToken().toString();
-        user1Target = launcher.getUser1Target(Role.SESSION_DB);
+        user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
     }
 
     @AfterClass
@@ -69,7 +70,7 @@ public class EventTest {
     
     public void auth(boolean retry) throws Exception {
     	
-    	String sessionId = RestUtils.basename(SessionResourceTest.postRandomSession(user1Target));
+    	String sessionId = user1Client.createSession(RestUtils.getRandomSession()).toString();
     	
     	ArrayList<String> messages = new ArrayList<>(); 
     	CountDownLatch latch = new CountDownLatch(1);
@@ -113,7 +114,7 @@ public class EventTest {
     @Test
     public void connectionClose() throws Exception {
     	
-    	String sessionId = RestUtils.basename(SessionResourceTest.postRandomSession(user1Target));
+    	String sessionId = user1Client.createSession(RestUtils.getRandomSession()).toString();
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
@@ -137,15 +138,14 @@ public class EventTest {
     @Test
     public void deleteSession() throws Exception {    	
     	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);    	
     	
-        assertEquals(204, SessionResourceTest.delete(user1Target, sessionPath));
-        
+    	user1Client.deleteSession(sessionId);
+    	
         // wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
         SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
@@ -161,8 +161,7 @@ public class EventTest {
     @Test
     public void reconnect() throws Exception {    	
     	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
@@ -187,8 +186,8 @@ public class EventTest {
     		throw new TimeoutException("timeout while waiting for reconnect");
     	}
     		
-        assertEquals(204, SessionResourceTest.delete(user1Target, sessionPath));
-        
+    	user1Client.deleteSession(sessionId);
+    	
         // wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
         assertEquals(1, messages.size());
@@ -224,17 +223,17 @@ public class EventTest {
 
 	@Test
     public void putSession() throws Exception {
-    	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
-    	Session newSession = RestUtils.getRandomSession();
-    	
+    			
+		Session session = RestUtils.getRandomSession();
+    	UUID sessionId = user1Client.createSession(session);
+
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+
+    	session.setName("new name");
+    	user1Client.updateSession(session);
     	
-        assertEquals(204, SessionResourceTest.put(user1Target, sessionPath, newSession));
-        
         // wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
         SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
@@ -249,16 +248,14 @@ public class EventTest {
 
 	@Test
     public void postDataset() throws Exception {
-    	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+		
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
-    	
-        String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
-        UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
+
+    	UUID datasetId = user1Client.createDataset(sessionId, RestUtils.getRandomDataset());
         
         // wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
@@ -275,17 +272,17 @@ public class EventTest {
 	@Test
     public void putDataset() throws Exception {
     	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
-    	UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+    	Dataset dataset = RestUtils.getRandomDataset();
+    	UUID datasetId = user1Client.createDataset(sessionId, dataset);
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
-    	assertEquals(204, DatasetResourceTest.put(user1Target, datasetPath, RestUtils.getRandomDataset()));
-        
+    	dataset.setName("new name");
+    	user1Client.updateDataset(sessionId, dataset);
+    	
     	// wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
         SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
@@ -300,17 +297,15 @@ public class EventTest {
 	
 	@Test
     public void deleteDataset() throws Exception {
-    	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String datasetPath = DatasetResourceTest.postRandomDataset(user1Target, sessionPath);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
-    	UUID datasetId = UUID.fromString(RestUtils.basename(datasetPath));
+		
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+    	UUID datasetId = user1Client.createDataset(sessionId, RestUtils.getRandomDataset());
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
-    	assertEquals(204, DatasetResourceTest.delete(user1Target, datasetPath));
+    	user1Client.deleteDataset(sessionId, datasetId);
         
     	// wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
@@ -326,16 +321,14 @@ public class EventTest {
 	
 	@Test
     public void postJob() throws Exception {
-    	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
+		
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
-    	
-        String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
-        UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
+
+    	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
         
         // wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
@@ -361,16 +354,16 @@ public class EventTest {
 	
     public void putJob(String eventToken) throws Exception {
     	
-    	String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
-    	UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+    	Job job = RestUtils.getRandomJob();
+    	UUID jobId = user1Client.createJob(sessionId, job);
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(uri + sessionId.toString(), messages, latch, false, eventToken);
     	
-    	assertEquals(204, JobResourceTest.put(user1Target, jobPath, RestUtils.getRandomJob()));
+    	job.setToolName("new name");
+    	user1Client.updateJob(sessionId, job);
         
     	// wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
@@ -386,18 +379,16 @@ public class EventTest {
 	
 	@Test
     public void deleteJob() throws Exception {
-    	
-		String sessionPath = SessionResourceTest.postRandomSession(user1Target);
-    	String jobPath = JobResourceTest.postRandomJob(user1Target, sessionPath);
-    	UUID sessionId = UUID.fromString(RestUtils.basename(sessionPath));
-    	UUID jobId = UUID.fromString(RestUtils.basename(jobPath));
+		
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+    	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
     	
-    	assertEquals(204, JobResourceTest.delete(user1Target, jobPath));
-        
+    	user1Client.deleteJob(sessionId, jobId);
+    	
     	// wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));   
         SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));

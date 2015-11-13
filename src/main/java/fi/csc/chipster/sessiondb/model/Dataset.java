@@ -7,6 +7,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.xml.bind.annotation.XmlRootElement;
 
@@ -20,6 +21,8 @@ public class Dataset {
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	private UUID datasetId;
 	private String name;
+	@Lob
+	private String notes;
 	private Integer x;
 	private Integer y;
 	private UUID sourceJob;
@@ -81,5 +84,13 @@ public class Dataset {
 		if (!file.isEmpty()) {
 			this.file = file;
 		}
+	}
+
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(String notes) {
+		this.notes = notes;
 	}
 }

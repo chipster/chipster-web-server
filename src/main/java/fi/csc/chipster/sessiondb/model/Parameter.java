@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb.model;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 
 import fi.csc.microarray.description.SADLSyntax.ParameterType;
 
@@ -15,6 +16,7 @@ public class Parameter {
 	
 	private String parameterId;
 	private String displayName;
+	@Lob
 	private String description;
 	private ParameterType type;
 	private String value;
