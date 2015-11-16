@@ -58,7 +58,7 @@ public class JobResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
-
+    	
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
     	Job result = session.getJobs().get(jobId);
@@ -97,6 +97,7 @@ public class JobResource {
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
+		
 		return Response.created(uri).build();
     }
 

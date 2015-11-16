@@ -42,6 +42,7 @@ public class ServiceLocatorClient {
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 		
+		@SuppressWarnings("unchecked")
 		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
 
 		return services;

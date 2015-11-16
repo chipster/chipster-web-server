@@ -12,7 +12,7 @@ public class File {
 	@Id // db
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	private UUID fileId;
-	private long size;
+	private long size = -1;
 	private String checksum;
 	
 	public File() {} // JAXB needs this	
@@ -70,5 +70,9 @@ public class File {
 			return false;
 		}
 		return size == other.size;
+	}
+
+	public boolean isEmpty() {
+		return fileId == null && checksum == null && size == -1;
 	}
 }

@@ -1,4 +1,4 @@
-package fi.csc.chipster.rest;
+package fi.csc.chipster.rest.websocket;
 
 import javax.websocket.CloseReason;
 import javax.websocket.CloseReason.CloseCodes;

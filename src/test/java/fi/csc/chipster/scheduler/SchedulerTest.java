@@ -8,8 +8,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import javax.ws.rs.client.WebTarget;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
@@ -23,33 +21,32 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
-import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.EventTest;
-import fi.csc.chipster.sessiondb.JobResourceTest;
-import fi.csc.chipster.sessiondb.SessionResourceTest;
+import fi.csc.chipster.sessiondb.SessionDbClient;
 
 public class SchedulerTest {
 	
 	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
 		
-    private static WebTarget user1Target;
-	private static String session1Path;
 	private static TestServerLauncher launcher;
 	private static String uri;
 
 	private static String token;
 	private static String userToken;
 
+	private static SessionDbClient user1Client;
+	private static UUID sessionId;
+
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();    	
 
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);  
-        user1Target = launcher.getUser1Target();        
-        session1Path = SessionResourceTest.postRandomSession(user1Target);        	
+    	launcher = new TestServerLauncher(config);  
+    	user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+    	sessionId = user1Client.createSession(RestUtils.getRandomSession());        	
 		
 		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(new Config());
 		token = new AuthenticationClient(serviceLocator, "comp", "compPassword").getToken().toString();
@@ -120,15 +117,15 @@ public class SchedulerTest {
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
     	
-    	String jobPath = JobResourceTest.postRandomJob(user1Target, session1Path);
+    	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
         // wait for the message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
         JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
                        
         assertEquals(Command.SCHEDULE, cmd.getCommand());
-        assertEquals(RestUtils.basename(session1Path), cmd.getSessionId().toString());
-        assertEquals(RestUtils.basename(jobPath), cmd.getJobId().toString());
+        assertEquals(sessionId, cmd.getSessionId());
+        assertEquals(jobId, cmd.getJobId());
         assertEquals(null, cmd.getCompId());
         
         client.shutdown();
@@ -149,7 +146,7 @@ public class SchedulerTest {
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
     	
-    	String jobPath = JobResourceTest.postRandomJob(user1Target, session1Path);
+    	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
         // wait for the schedule message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
@@ -173,8 +170,8 @@ public class SchedulerTest {
         
         // scheduler responds with a choose message
         assertEquals(Command.CHOOSE, cmd2.getCommand());
-        assertEquals(RestUtils.basename(session1Path), cmd2.getSessionId().toString());
-        assertEquals(RestUtils.basename(jobPath), cmd2.getJobId().toString());
+        assertEquals(sessionId, cmd.getSessionId());
+        assertEquals(jobId, cmd.getJobId());
         assertEquals(compId, cmd2.getCompId());
         
         client.shutdown();
@@ -188,7 +185,7 @@ public class SchedulerTest {
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
     	
-    	JobResourceTest.postRandomJob(user1Target, session1Path);
+    	user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
         // wait for the schedule message
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));        

@@ -1,28 +1,35 @@
 package fi.csc.chipster.sessiondb;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.ServiceUnavailableException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.service.spi.ServiceException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.microarray.exception.MicroarrayException;
 
 public class SessionDbClient {
 	
@@ -36,14 +43,16 @@ public class SessionDbClient {
 	private ServiceLocatorClient serviceLocator;
 	private List<String> sessionDbList;
 	private List<String> sessionDbEventsList;
-	private AuthenticationClient authService;
+	private CredentialsProvider credentials;
 
 	private WebSocketClient client;
 
+	private WebTarget sessionDbTarget;
+	private String sessionDbEventsUri;
 
-	public SessionDbClient(ServiceLocatorClient serviceLocator, AuthenticationClient authService) {
+	public SessionDbClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
 		this.serviceLocator = serviceLocator;
-		this.authService = authService;
+		this.credentials = credentials;
 		
 		this.sessionDbList = serviceLocator.get(Role.SESSION_DB);
 		this.sessionDbEventsList = serviceLocator.get(Role.SESSION_DB_EVENTS);
@@ -51,45 +60,300 @@ public class SessionDbClient {
 		if (sessionDbList.isEmpty()) {
 			throw new InternalServerErrorException("no session-dbs registered to service-locator");
 		}
-	}
-
-	public void addJobListener(final SessionEventListener listener) throws InterruptedException {
-		
-		for (String sessionDbEventsUri : sessionDbEventsList) {
-			try {
-				this.client = new WebSocketClient(sessionDbEventsUri + SessionDb.EVENTS_PATH + "/" + SessionDb.JOBS_TOPIC + "?token=" + authService.getToken().toString(), new Whole<String>() {
-
-					@Override
-					public void onMessage(String message) {
-						listener.onEvent(RestUtils.parseJson(SessionEvent.class, message));
-					}
-					
-				}, true, "scheduler-job-listener"); 
-				return;
-			} catch (WebSocketErrorException | WebSocketClosedException e) {
-				logger.warn("session-db-events not available: " + sessionDbEventsUri);
-			}
+		if (sessionDbEventsList.isEmpty()) {
+			throw new InternalServerErrorException("no session-db-events registered to service-locator");
 		}
+		
+		// just take the first one for now
+		String sessionDbUri = sessionDbList.get(0);
+		if (credentials != null) {
+			sessionDbTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(sessionDbUri);
+		} else {
+			// for testing
+			sessionDbTarget = AuthenticationClient.getClient().target(sessionDbUri);
+		}
+		sessionDbEventsUri = sessionDbEventsList.get(0);
 	}
+	
+	// events
 
-	public Job getJob(UUID sessionId, UUID jobId) {
-		for (String sessionDbUri : sessionDbList) {
-			WebTarget target = authService.getAuthenticatedClient().target(sessionDbUri).path("sessions/" + sessionId + "/jobs/" + jobId);
-			try {
-				Job job = target.request().get(Job.class);
-				return job;
-			} catch (ServiceUnavailableException e) {
-				logger.warn("session-db not available: " + sessionDbUri, e);
-			} catch (WebApplicationException e) {
-				logger.error("failed to get the job " + target.getUri() + " " + e.getClass().getName() + ": " + e.getMessage());
-			}
-		}	
-		throw new ServiceException("there isn't any sessionDbs available");
+	public void subscribe(String topic, final SessionEventListener listener) throws RestException {
+		
+		String queryParams = "";
+		if (credentials != null) {
+			queryParams = "?token=" + credentials.getPassword().toString();
+		}
+		try {
+			this.client = new WebSocketClient(sessionDbEventsUri + SessionDb.EVENTS_PATH + "/" + topic + queryParams, new Whole<String>() {
+
+				@Override
+				public void onMessage(String message) {
+					listener.onEvent(RestUtils.parseJson(SessionEvent.class, message));
+				}
+
+			}, true, "scheduler-job-listener");
+		} catch (InterruptedException | WebSocketErrorException | WebSocketClosedException e) {
+			throw new RestException("websocket error", e);
+		} 
+		return;
 	}
 
 	public void close() throws IOException {
 		if (this.client != null) {
 			client.shutdown();
 		}
+	}
+	
+	// targets
+	
+	private WebTarget getSessionsTarget() {
+		return sessionDbTarget.path("sessions");
+	}
+	
+	private WebTarget getSessionTarget(UUID sessionId) {
+		return sessionDbTarget.path("sessions/" + sessionId);
+	}
+	
+	private WebTarget getDatasetsTarget(UUID sessionId) {
+		return sessionDbTarget.path("sessions/" + sessionId + "/datasets");
+	}
+	
+	private WebTarget getDatasetTarget(UUID sessionId, UUID datasetId) {
+		return sessionDbTarget.path("sessions/" + sessionId + "/datasets/" + datasetId);
+	}
+	
+	private WebTarget getJobsTarget(UUID sessionId) {
+		return sessionDbTarget.path("sessions/" + sessionId + "/jobs");
+	}
+	
+	private WebTarget getJobTarget(UUID sessionId, UUID jobId) {
+		return sessionDbTarget.path("sessions/" + sessionId + "/jobs/" + jobId);
+	}
+	
+	// methods 
+	
+	@SuppressWarnings("unchecked")
+	private <T> List<T> getList(WebTarget target, Class<T> type) throws RestException {
+		Response response = target.request().get(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("get a list of " + type.getSimpleName() + " failed ", response, target.getUri());
+		}
+		String json = response.readEntity(String.class);
+		return RestUtils.parseJson(List.class, type, json);
+	}
+	
+	private <T> T get(WebTarget target, Class<T> type) throws RestException {
+		Response response = target.request().get(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("get " + type.getSimpleName() + " failed ", response, target.getUri());
+		}		
+		return response.readEntity(type);
+	}
+	
+	private UUID post(WebTarget target, Object obj) throws RestException {
+		Response response = target.request().post(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("post " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
+		}
+        return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));
+	}
+	
+	private void put(WebTarget target, Object obj) throws RestException {
+		Response response = target.request().put(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("put " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
+		}
+	}
+	
+	private void delete(WebTarget target) throws RestException {
+		Response response = target.request().delete(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("delete failed ", response, target.getUri());
+		}
+	}
+	
+	// sessions
+	
+	/**
+	 * @return a list of session objects without datasets and jobs
+	 * @throws MicroarrayException
+	 */
+	public HashMap<UUID, Session> getSessions() throws RestException {		
+		List<Session> sessionList = getList(getSessionsTarget(), Session.class);
+		
+		HashMap<UUID, Session> map = new HashMap<>();
+		
+		for (Session session : sessionList) {
+			map.put(session.getSessionId(), session);
+		}
+		
+		return map;
+	}
+
+	/**
+	 * @param sessionId
+	 * @return get a session object and it's datasets and jobs
+	 * @throws RestException
+	 */
+	public fi.csc.chipster.sessiondb.model.Session getSession(UUID sessionId) throws RestException {
+		
+		Session session = get(getSessionTarget(sessionId), Session.class);
+		
+		HashMap<UUID, Dataset> datasets = getDatasets(sessionId);
+		HashMap<UUID, Job> jobs = getJobs(sessionId);
+		
+		session.setDatasets(datasets);
+		session.setJobs(jobs);
+		
+        return session;
+	}
+
+	/**
+	 * Upload a session. The server assigns the id for the session. It must be
+	 * null when this method is called, and the new id will be set to the 
+	 * session object.
+	 * 
+	 * @param session
+	 * @return
+	 * @throws RestException
+	 */
+	public UUID createSession(Session session) throws RestException {
+		UUID id =  post(getSessionsTarget(), session);
+		session.setSessionId(id);
+		return id;
+	}
+
+	public void updateSession(Session session) throws RestException {
+		put(getSessionTarget(session.getSessionId()), session);
+	}
+
+	public void deleteSession(UUID sessionId) throws RestException {
+		delete(getSessionTarget(sessionId));
+	}	
+	
+	// dataset
+	
+	public HashMap<UUID, Dataset> getDatasets(UUID sessionId) throws RestException {
+		List<Dataset> datasetList = getList(getDatasetsTarget(sessionId), Dataset.class);
+		
+		HashMap<UUID, Dataset> datasetMap = new HashMap<>();
+		
+		for (Dataset dataset : datasetList) {
+			datasetMap.put(dataset.getDatasetId(), dataset);
+		}
+		
+		return datasetMap;
+	}
+	
+	public Dataset getDataset(UUID sessionId, UUID datasetId) throws RestException {
+		return get(getDatasetTarget(sessionId, datasetId), Dataset.class);
+	}
+	
+	/**
+	 * Check that the user is authorized to access the requested dataset
+	 *  
+	 * @param username
+	 * @param sessionId
+	 * @param datasetId
+	 * @param requireReadWrite
+	 * @return
+	 * @throws RestException 
+	 */
+	public Dataset getDataset(String username, UUID sessionId, UUID datasetId, boolean requireReadWrite) throws RestException {
+		try {				
+			// check that user has necessary access right to the session
+			int status = sessionDbTarget
+					.path("authorizations")
+					.queryParam("session-id", sessionId)
+					.queryParam("username", username)
+					.queryParam("read-write", requireReadWrite)
+					.request()
+					.get(Response.class).getStatus();
+
+			if (RestUtils.isSuccessful(status)) {
+				// check that the session contains the dataset
+				return getDataset(sessionId, datasetId);
+			}
+			return null;
+
+		} catch (NotFoundException e) {
+			// nothing unusual
+			return null;
+		} catch (RestException e) {
+			if (e.isNotFound()) {
+				// nothing unusual
+				return null;
+			} else {
+				throw e;
+			}
+		} catch (WebApplicationException e) {
+			logger.error("failed to get the dataset " + sessionDbTarget.getUri() + " " + e.getClass().getName() + ": " + e.getMessage(), e);
+			return null;
+		}			
+	}
+
+	/**
+	 * Upload a dataset. The server assigns the id for the dataset. It must be
+	 * null when this method is called, and the new id will be set to the 
+	 * dataset object.
+	 * 
+	 * @param sessionId
+	 * @param dataset
+	 * @return
+	 * @throws RestException
+	 */
+	public UUID createDataset(UUID sessionId, Dataset dataset) throws RestException {
+		UUID id = post(getDatasetsTarget(sessionId), dataset);
+		dataset.setDatasetId(id);
+		return id;
+	}
+	
+	public void updateDataset(UUID sessionId, Dataset dataset) throws RestException {
+		put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
+	}
+	
+	public void deleteDataset(UUID sessionId, UUID datasetId) throws RestException {
+		delete(getDatasetTarget(sessionId, datasetId));
+	}	
+	
+	// jobs
+	
+	public HashMap<UUID, Job> getJobs(UUID sessionId) throws RestException {
+		List<Job> jobsList = getList(getJobsTarget(sessionId), Job.class);
+		
+		HashMap<UUID, Job> jobMap = new HashMap<>();
+		
+		for (Job job : jobsList) {
+			jobMap.put(job.getJobId(), job);
+		}
+		return jobMap;
+	}
+	
+	public Job getJob(UUID sessionId, UUID jobId) throws RestException {
+		return get(getJobTarget(sessionId, jobId), Job.class);	
+	}
+	
+	/**
+	 * Upload a job. The server assigns the id for the job. It must be
+	 * null when this method is called, and the new id will be set to the 
+	 * job object.
+	 * 
+	 * @param sessionId
+	 * @param job
+	 * @return
+	 * @throws RestException
+	 */
+	public UUID createJob(UUID sessionId, Job job) throws RestException {
+		UUID id = post(getJobsTarget(sessionId), job);
+		job.setJobId(id);
+		return id;
+	}
+	
+	public void updateJob(UUID sessionId, Job job) throws RestException {
+		put(getJobTarget(sessionId, job.getJobId()), job);
+	}
+	
+	public void deleteJob(UUID sessionId, UUID jobId) throws RestException {
+		delete(getJobTarget(sessionId, jobId));
 	}
 }

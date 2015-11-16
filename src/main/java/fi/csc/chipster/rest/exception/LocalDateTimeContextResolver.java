@@ -46,7 +46,7 @@ public class LocalDateTimeContextResolver implements ContextResolver<ObjectMappe
         return mapper;
     }
     
-    public class LocalDateTimeDeserializer extends JsonDeserializer<LocalDateTime> {
+    public static class LocalDateTimeDeserializer extends JsonDeserializer<LocalDateTime> {
 
         @Override
         public LocalDateTime deserialize(JsonParser jp, 
@@ -60,7 +60,7 @@ public class LocalDateTimeContextResolver implements ContextResolver<ObjectMappe
         } 
     }
 
-    public class LocalDateTimeSerializer extends JsonSerializer<LocalDateTime> {
+    public static class LocalDateTimeSerializer extends JsonSerializer<LocalDateTime> {
 
         @Override
         public void serialize(LocalDateTime dateTime, JsonGenerator jg, 

@@ -3,11 +3,7 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,7 +11,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -26,29 +21,26 @@ public class JobResourceTest {
 	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
 
-    private static final String JOBS = "/jobs";
-    private static WebTarget user1Target;
-    private static WebTarget user2Target;
-    private static WebTarget compTarget;
-	private static String session1Path;
-	private static String session2Path;
 	private static TestServerLauncher launcher;
-	private static String jobs1Path;
-	private static String jobs2Path;
+
+	private static SessionDbClient user1Client;
+	private static SessionDbClient user2Client;
+	private static SessionDbClient compClient;
+
+	private static UUID sessionId1;
+	private static UUID sessionId2;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
     	
-        user1Target = launcher.getUser1Target();
-        user2Target = launcher.getUser2Target();
-        compTarget = launcher.getCompTarget();
-        
-        session1Path = SessionResourceTest.postRandomSession(user1Target);
-        session2Path = SessionResourceTest.postRandomSession(user2Target);
-        jobs1Path = session1Path + JOBS;
-        jobs2Path = session2Path + JOBS;
+    	user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
+		compClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken());
+		    	
+		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
     }
 
     @AfterClass
@@ -57,123 +49,124 @@ public class JobResourceTest {
     }           
     
     @Test
-    public void post() {
-    	postRandomJob(user1Target, session1Path);
+    public void post() throws RestException {
+    	user1Client.createJob(sessionId1, RestUtils.getRandomJob());
     }
 
 
 	@Test
-    public void get() throws IOException {
+    public void get() throws IOException, RestException {
         
-		String objPath = postRandomJob(user1Target, session1Path);        
-        assertEquals(false, getJob(user1Target, objPath) == null);
-        assertEquals(false, getJob(compTarget, objPath) == null);
-        
-        // wrong user
-        assertEquals(401, get(user2Target, objPath));
-        
-        // wrong session
-        assertEquals(401, get(user1Target, changeSession(objPath)));
-        assertEquals(404, get(user2Target, changeSession(objPath)));
-    }	
-	
-	@Test
-    public void getAll() {
-        
-		String id1 = RestUtils.basename(postRandomJob(user1Target, session1Path));
-		String id2 = RestUtils.basename(postRandomJob(user1Target, session1Path));
-		
-		String json = getString(user1Target, jobs1Path);
-        assertEquals(false, json == null);
-        
-        //TODO parse json
-        assertEquals(true, json.contains(id1));
-        assertEquals(true, json.contains(id2));
-        
-        // wrong user
-        assertEquals(401, get(user2Target, jobs1Path));
-        
-        // wrong session
-        String session2Json = getString(user2Target, jobs2Path);
-        //TODO parse json
-        assertEquals(false, session2Json.contains(id1));
-    }
-	
-	@Test
-    public void put() {
-        
-		String objPath = postRandomJob(user1Target, session1Path);
-		Job newObj = RestUtils.getRandomJob();
-        assertEquals(204, put(user1Target, objPath, newObj));
-        assertEquals(204, put(compTarget, objPath, newObj));
-        
-        // wrong user
-        assertEquals(401, put(user2Target, objPath, newObj));
-        
-        // wrong session
-        assertEquals(401, put(user1Target, changeSession(objPath), newObj));
-        assertEquals(404, put(user2Target, changeSession(objPath), newObj));
-    }
-
-	@Test
-    public void delete() throws InterruptedException {
-        
-		String objPath = postRandomJob(user1Target, session1Path);
+		UUID jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+		assertEquals(true, user1Client.getJob(sessionId1, jobId) != null);
+		assertEquals(true, compClient.getJob(sessionId1, jobId) != null);
 		
 		// wrong user
-		assertEquals(401, delete(user2Target, objPath));
+		testGetJob(403, sessionId1, jobId, user2Client);
+		        
+		// wrong session
+		testGetJob(403, sessionId2, jobId, user1Client);
+		testGetJob(404, sessionId2, jobId, user2Client);	
+    }	
+	
+	private void testGetJob(int expected, UUID sessionId, UUID jobId, SessionDbClient client) {
+		try {
+    		client.getJob(sessionId, jobId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
+	@Test
+    public void getAll() throws RestException {
+        
+		UUID id1 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+		UUID id2 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+
+		assertEquals(true, user1Client.getJobs(sessionId1).containsKey(id1));
+		assertEquals(true, user1Client.getJobs(sessionId1).containsKey(id2));
+		
+		// wrong user
+		
+		testGetJobs(403, sessionId1, user2Client);
 		
 		// wrong session
-		assertEquals(401, delete(user1Target, changeSession(objPath)));
-		assertEquals(404, delete(user2Target, changeSession(objPath)));
-		
-		// delete
-        assertEquals(204, delete(user1Target, objPath));
+		assertEquals(false, user2Client.getJobs(sessionId2).containsKey(id1));
+	}
+	
+	private void testGetJobs(int expected, UUID sessionId, SessionDbClient client) {
+		try {
+    		client.getJobs(sessionId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
+	@Test
+    public void put() throws RestException {
         
-        // doesn't exist anymore
-        assertEquals(404, delete(user1Target, objPath));
+		Job job = RestUtils.getRandomJob();
+		UUID jobId = user1Client.createJob(sessionId1, job);
+		
+		// client
+		job.setToolName("new name");
+		user1Client.updateJob(sessionId1, job);
+		assertEquals("new name", user1Client.getJob(sessionId1, jobId).getToolName());
+
+		// comp
+		job.setToolName("new name2");
+		user1Client.updateJob(sessionId1, job);
+		assertEquals("new name2", compClient.getJob(sessionId1, jobId).getToolName());
+
+		// wrong user
+		testUpdateJob(403, sessionId1, job, user2Client);
+        
+        // wrong session
+		testUpdateJob(403, sessionId2, job, user1Client);
+		testUpdateJob(404, sessionId2, job, user2Client);
     }
 	
-	private String changeSession(String objPath) {
-		String session1Id = RestUtils.basename(session1Path);
-        String session2Id = RestUtils.basename(session2Path);
+	private void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
+		try {
+    		client.updateJob(sessionId, job);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+
+	@Test
+    public void delete() throws RestException, InterruptedException {
         
-        return objPath.replace(session1Id, session2Id);
-	}
-	 	
-	public static String postJob(WebTarget target, String sessionPath, Job job) {
-		Response response = post(target, sessionPath + JOBS, job);
-        assertEquals(201, response.getStatus());
+		UUID jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+
+		// wrong user
+		testDeleteJob(403, sessionId1, jobId, user2Client);
+		
+		// wrong session
+		testDeleteJob(403, sessionId2, jobId, user1Client);
+		testDeleteJob(404, sessionId2, jobId, user2Client);
+		
+		
+		// wait a minute so that scheduler can process the job creation event
+		// otherwise it will complain in a log
+		Thread.sleep(500);
+		
+		// delete
+		user1Client.deleteJob(sessionId1, jobId);
         
-        return sessionPath + JOBS + "/" + RestUtils.basename(response.getLocation().getPath());		
-	}
-    public static String postRandomJob(WebTarget target, String sessionPath) {
-    	Job job = RestUtils.getRandomJob();
-    	job.setJobId(null);
-    	return postJob(target, sessionPath, job);
-	}
+        // doesn't exist anymore
+		testDeleteJob(404, sessionId1, jobId, user1Client);
+    }
 	
-	public static int delete(WebTarget target, String path) {
-		return target.path(path).request().delete(Response.class).getStatus();
-	}
-	
-    public static Response post(WebTarget target, String path, Job job) {
-    	return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(job, MediaType.APPLICATION_JSON_TYPE),Response.class);
-	}
-    
-	public static int put(WebTarget target, String path, Job job) {
-		return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity(job,  MediaType.APPLICATION_JSON_TYPE), Response.class).getStatus();
-	}
-	
-	public static Job getJob(WebTarget target, String path) {
-		return target.path(path).request().get(Job.class);
-	}
-	
-	public static String getString(WebTarget target, String path) {
-		return target.path(path).request().get(String.class);
-	}
-	
-	public static int get(WebTarget target, String path) {
-		return target.path(path).request().get(Response.class).getStatus();
+	private void testDeleteJob(int expected, UUID sessionId, UUID jobId, SessionDbClient client) {
+		try {
+    		client.deleteJob(sessionId, jobId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
 	}
 }

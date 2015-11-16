@@ -17,8 +17,6 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.client.ClientProperties;
 
-import fi.csc.chipster.rest.RetryHandler;
-
 public class WebSocketClient {
 	
 	public static final Logger logger = LogManager.getLogger();

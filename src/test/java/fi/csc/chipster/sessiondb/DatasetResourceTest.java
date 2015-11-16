@@ -3,45 +3,36 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import java.util.UUID;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
 
 public class DatasetResourceTest {
-
-    private static final String DATASETS = "/datasets";
-    private static WebTarget user1Target;
-    private static WebTarget user2Target;
-	private static String session1Path;
-	private static String session2Path;
 	private static TestServerLauncher launcher;
-	private static String datasets1Path;
-	private static String datasets2Path;
+
+	private static SessionDbClient user1Client;
+	private static SessionDbClient user2Client;
+	private static UUID sessionId1;
+	private static UUID sessionId2;
 
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
-    	launcher = new TestServerLauncher(config, Role.SESSION_DB);
+    	launcher = new TestServerLauncher(config);
+    	
+		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
 
-        user1Target = launcher.getUser1Target();
-        user2Target = launcher.getUser2Target();
-        
-        session1Path = SessionResourceTest.postRandomSession(user1Target);
-        session2Path = SessionResourceTest.postRandomSession(user2Target);
-        datasets1Path = session1Path + DATASETS;
-        datasets2Path = session2Path + DATASETS;
+		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
     }
 
     @AfterClass
@@ -50,142 +41,144 @@ public class DatasetResourceTest {
     }           
 
 	@Test
-    public void post() {
-    	postRandomDataset(user1Target, session1Path);
+    public void post() throws RestException {
+		user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
     }
 	
 	@Test
-    public void postModification() {
+    public void postModification() throws RestException {
     	Dataset dataset1 = RestUtils.getRandomDataset();
     	dataset1.setDatasetId(null);
     	Dataset dataset2 = RestUtils.getRandomDataset();
     	dataset2.setDatasetId(null);
     	// check that properties of the existing File can't be modified
-    	dataset2.getFile().setFileId(dataset1.getFile().getFileId());
-    	dataset2.getFile().setSize(101);
-    	assertEquals(201, post(user1Target, session1Path + DATASETS, dataset1).getStatus());
-    	assertEquals(403, post(user1Target, session1Path + DATASETS, dataset2).getStatus());
+    	
+    	File file1 = new File();
+    	file1.setFileId(RestUtils.createUUID());
+    	file1.setSize(1);
+    	
+    	File file2 = new File();
+    	file2.setFileId(file1.getFileId());
+    	file2.setSize(2);
+    	
+    	dataset1.setFile(file1);
+    	dataset2.setFile(file2);
+    	
+    	user1Client.createDataset(sessionId1, dataset1);
+    	
+    	testCreateDataset(403, sessionId1, dataset2, user1Client);
     }
 
-	//@Test
-    public void postAndGetMany() throws IOException {
-        
-		String objPath = null;
-		for (int i = 0; i < 100; i++) {			
-			objPath = postRandomDataset(user1Target, datasets1Path);		
-		}
-		for (int i = 0; i < 1000; i++) {
-			assertEquals(false, getDataset(user1Target, objPath) == null);
-		}
-    }
+	private void testCreateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
+		try {
+    		client.createDataset(sessionId, dataset);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
 
 	@Test
-    public void get() throws IOException {
+    public void get() throws IOException, RestException {
         
-		String objPath = postRandomDataset(user1Target, session1Path);        
-        assertEquals(false, getDataset(user1Target, objPath) == null);
-        
-        // wrong user
-        assertEquals(401, get(user2Target, objPath));
-        
-        // wrong session
-        assertEquals(401, get(user1Target, changeSession(objPath)));
-        assertEquals(404, get(user2Target, changeSession(objPath)));
-    }
-	
-	@Test
-    public void getAll() {
-        
-		String id1 = RestUtils.basename(postRandomDataset(user1Target, session1Path));
-		String id2 = RestUtils.basename(postRandomDataset(user1Target, session1Path));
+		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+		assertEquals(true, user1Client.getDataset(sessionId1, datasetId) != null);
 		
-		String json = getString(user1Target, datasets1Path);
-        assertEquals(false, json == null);
-        
-        //TODO parse json
-        assertEquals(true, json.contains(id1));
-        assertEquals(true, json.contains(id2));
-        
         // wrong user
-        assertEquals(401, get(user2Target, datasets1Path));
+		testGetDataset(403, sessionId1, datasetId, user2Client);
         
         // wrong session
-        String session2Json = getString(user2Target, datasets2Path);
-        //TODO parse json
-        assertEquals(false, session2Json.contains(id1));
+		testGetDataset(403, sessionId2, datasetId, user1Client);
+		testGetDataset(404, sessionId2, datasetId, user2Client);	
     }
 	
+	private void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
+		try {
+    		client.getDataset(sessionId, datasetId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
 	@Test
-    public void put() {
-        
-		String objPath = postRandomDataset(user1Target, session1Path);
-		Dataset newObj = RestUtils.getRandomDataset();
-        assertEquals(204, put(user1Target, objPath, newObj));
+    public void getAll() throws RestException {
+		
+		UUID id1 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+		UUID id2 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+
+        assertEquals(true, user1Client.getDatasets(sessionId1).containsKey(id1));
+        assertEquals(true, user1Client.getDatasets(sessionId1).containsKey(id2));
         
         // wrong user
-        assertEquals(401, put(user2Target, objPath, newObj));
+        
+        testGetDatasets(403, sessionId1, user2Client);
         
         // wrong session
-        assertEquals(401, put(user1Target, changeSession(objPath), newObj));
-        assertEquals(404, put(user2Target, changeSession(objPath), newObj));
+        assertEquals(false, user2Client.getDatasets(sessionId2).containsKey(id1));
     }
-
+	
+	private void testGetDatasets(int expected, UUID sessionId, SessionDbClient client) {
+		try {
+    		client.getDatasets(sessionId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
 	@Test
-    public void delete() {
+    public void put() throws RestException {
         
-		String objPath = postRandomDataset(user1Target, session1Path);
+		Dataset dataset = RestUtils.getRandomDataset();
+		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
+		
+		dataset.setName("new name");
+		user1Client.updateDataset(sessionId1, dataset);
+		assertEquals("new name", user1Client.getDataset(sessionId1, datasetId).getName());
 		
 		// wrong user
-		assertEquals(401, delete(user2Target, objPath));
-		
-		// wrong session
-		assertEquals(401, delete(user1Target, changeSession(objPath)));
-		assertEquals(404, delete(user2Target, changeSession(objPath)));
-		
-		// delete
-        assertEquals(204, delete(user1Target, objPath));
+		testUpdateDataset(403, sessionId1, dataset, user2Client);
         
-        // doesn't exist anymore
-        assertEquals(404, delete(user1Target, objPath));
+        // wrong session
+		testUpdateDataset(403, sessionId2, dataset, user1Client);
+		testUpdateDataset(404, sessionId2, dataset, user2Client);
     }
 	
-	private String changeSession(String objPath) {
-		String session1Id = RestUtils.basename(session1Path);
-        String session2Id = RestUtils.basename(session2Path);
+	private void testUpdateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
+		try {
+    		client.updateDataset(sessionId, dataset);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+
+	@Test
+    public void delete() throws RestException {
         
-        return objPath.replace(session1Id, session2Id);
-	}
-	
-    public static String postRandomDataset(WebTarget target, String sessionPath) {
-    	Dataset dataset = RestUtils.getRandomDataset();
-    	dataset.setDatasetId(null);
-    	Response response = post(target, sessionPath + DATASETS, dataset);
-        assertEquals(201, response.getStatus());
+		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+		
+		// wrong user
+		testDeleteDataset(403, sessionId1, datasetId, user2Client);
+		
+		// wrong session
+		testDeleteDataset(403, sessionId2, datasetId, user1Client);
+		testDeleteDataset(404, sessionId2, datasetId, user2Client);
+		
+		// delete
+		user1Client.deleteDataset(sessionId1, datasetId);
         
-        return sessionPath + DATASETS + "/" + RestUtils.basename(response.getLocation().getPath());
-	}
+        // doesn't exist anymore
+		testGetDataset(404, sessionId1, datasetId, user1Client);
+    }
 	
-	public static int delete(WebTarget target, String path) {
-		return target.path(path).request().delete(Response.class).getStatus();
-	}
-	
-    public static Response post(WebTarget target, String path, Dataset dataset) {
-    	return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(dataset, MediaType.APPLICATION_JSON_TYPE),Response.class);
-	}
-    
-	public static int put(WebTarget target, String path, Dataset dataset) {
-		return target.path(path).request(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity(dataset,  MediaType.APPLICATION_JSON_TYPE), Response.class).getStatus();
-	}
-	
-	public static Dataset getDataset(WebTarget target, String path) {
-		return target.path(path).request().get(Dataset.class);
-	}
-	
-	public static String getString(WebTarget target, String path) {
-		return target.path(path).request().get(String.class);
-	}
-	
-	public static int get(WebTarget target, String path) {
-		return target.path(path).request().get(Response.class).getStatus();
+	private void testDeleteDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
+		try {
+    		client.deleteDataset(sessionId, datasetId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
 	}
 }

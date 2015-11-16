@@ -37,6 +37,7 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
 /**
@@ -49,6 +50,7 @@ public class SessionDb implements TopicCheck {
 	
 	public static final String EVENTS_PATH = "events";
 	public static final String JOBS_TOPIC = "jobs";
+	public static final String FILES_TOPIC = "files";
 
 	private static HibernateUtil hibernate;
 
@@ -64,6 +66,8 @@ public class SessionDb implements TopicCheck {
 	private PubSubServer pubSubServer;
 
 	private SessionResource sessionResource;
+
+	private AuthorizationResource authorizationResource;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -95,7 +99,8 @@ public class SessionDb implements TopicCheck {
 		hibernate = new HibernateUtil();
 		hibernate.buildSessionFactory(hibernateClasses, "session-db");
 
-		this.sessionResource = new SessionResource(hibernate);
+		this.authorizationResource = new AuthorizationResource(hibernate);
+		this.sessionResource = new SessionResource(hibernate, authorizationResource);
 		
 		String pubSubUri = config.getString("session-db-events-bind");
 		String path = "/" + EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
@@ -106,6 +111,7 @@ public class SessionDb implements TopicCheck {
 		sessionResource.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+				.register(authorizationResource)
 				.register(sessionResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
@@ -155,7 +161,7 @@ public class SessionDb implements TopicCheck {
 	@Override
 	public boolean isAuthorized(AuthPrincipal principal, String topic) {
 		logger.debug("check topic authorization for topic " + topic);
-		if (JOBS_TOPIC.equals(topic)) {
+		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SERVER);
 		} else {
 			AuthSecurityContext sc = new AuthSecurityContext(principal, null);

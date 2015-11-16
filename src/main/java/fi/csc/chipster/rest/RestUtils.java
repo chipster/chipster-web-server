@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -28,10 +29,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
@@ -43,11 +44,14 @@ public class RestUtils {
 	
 	private static Logger logger = LogManager.getLogger();
 	
+	private static Random rand = new Random();
+	
 	public static String asJson(Object obj) {	
 		// using Jackson library
 		try {
 			StringWriter writer = new StringWriter();
-			ObjectMapper mapper = new ObjectMapper();
+			// support for LocalDateTime
+			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
 			mapper.writeValue(writer, obj);
 			return writer.toString();        
 		} catch (IOException e) {
@@ -60,7 +64,8 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			ObjectMapper mapper = new ObjectMapper();
+			// support for LocalDateTime
+			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
 			return mapper.readValue(reader, obj);
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);
@@ -68,12 +73,13 @@ public class RestUtils {
 		} 
 	}
 	
-
-	public static List<Service> parseJson(@SuppressWarnings("rawtypes") Class<? extends Collection> collectionType, Class<?> itemType, String json) {
+	@SuppressWarnings("rawtypes")
+	public static List parseJson(Class<? extends Collection> collectionType, Class<?> itemType, String json) {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			ObjectMapper mapper = new ObjectMapper();
+			// support for LocalDateTime
+			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);			
 			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);
@@ -82,11 +88,19 @@ public class RestUtils {
 	}
 	
 	public static Date toDate(LocalDateTime dateTime) {
-		return Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+		if (dateTime != null) {
+			return Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+		} else {
+			return null;
+		}
 	}
 	
 	public static LocalDateTime toLocalDateTime(Date date) {
-		return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+		if (date != null) {
+			return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+		} else {
+			return null;
+		}
 	}
 	
 
@@ -102,9 +116,8 @@ public class RestUtils {
     public static Session getRandomSession() {
     	
     	Session s = new Session();    	    	
-    	s.setSessionId(createUUID());
-    	s.setName("session" + s.getSessionId());
-    	s.setOwner("me");
+    	//s.setSessionId(createUUID());
+    	s.setName("session" + rand.nextInt(1000));
     	s.setCreated(LocalDateTime.now());
     	s.setAccessed(LocalDateTime.now());
     	
@@ -114,17 +127,17 @@ public class RestUtils {
     public static Dataset getRandomDataset() {
     	
     	Dataset d = new Dataset();
-    	d.setDatasetId(createUUID());
+    	//d.setDatasetId(createUUID());
     	d.setName("dataset" + d.getDatasetId());
     	d.setSourceJob(RestUtils.createUUID());
     	d.setX(100);
     	d.setY(100);
     	
-    	File f = new File();
-    	f.setFileId(createUUID());
-    	f.setChecksum("xyz");
-    	f.setSize(0);
-    	d.setFile(f);
+//    	File f = new File();
+//    	f.setFileId(createUUID());
+//    	f.setChecksum("xyz");
+//    	f.setSize(0);
+//    	d.setFile(f);
     	
     	return d;
     }
@@ -132,7 +145,7 @@ public class RestUtils {
 	public static Job getRandomJob() {
 		Job j = new Job();
 		j.setEndTime(LocalDateTime.now());
-		j.setJobId(createUUID());
+		//j.setJobId(createUUID());
 		j.setState(JobState.NEW);
 		j.setStartTime(LocalDateTime.now());
 		j.setToolCategory("utilities");
@@ -214,6 +227,7 @@ public class RestUtils {
 				.register(JacksonJaxbJsonProvider.class)
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
+				//.register(LocalDateTimeContextResolver.class)
 				// add CORS headers
 				.register(CORSResponseFilter.class)
 				// enable the RolesAllowed annotation
@@ -233,5 +247,9 @@ public class RestUtils {
 		} catch (InterruptedException | ExecutionException e) {
 			logger.warn("failed to shutdown the server " + name, e);
 		}
+	}
+
+	public static boolean isSuccessful(int status) {
+		return status >= 200 && status < 300;
 	}	
 }

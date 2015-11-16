@@ -7,10 +7,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationService;
-import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
+import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDb;
 
 public class ServerLauncher {
@@ -21,12 +22,12 @@ public class ServerLauncher {
 	private AuthenticationService auth;
 	private ServiceLocator serviceLocator;
 	private SessionDb sessionDb;
-
 	private Scheduler scheduler;
-
 	private ChipsterProxyServer proxy;
+	private FileBroker fileBroker;
 	
-	public ServerLauncher(Config config, String role, boolean verbose) throws ServletException, DeploymentException, InterruptedException {
+	
+	public ServerLauncher(Config config, boolean verbose) throws ServletException, DeploymentException, RestException, InterruptedException {
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -44,6 +45,12 @@ public class ServerLauncher {
 		}		
 		sessionDb = new SessionDb(config);
 		sessionDb.startServer();
+		
+		if (verbose) {
+			logger.info("starting file-broker");
+		}		
+		fileBroker = new FileBroker(config);
+		fileBroker.startServer();
 		
 		if (verbose) {
 			logger.info("starting scheduler");
@@ -69,7 +76,10 @@ public class ServerLauncher {
 		}
 		if (scheduler != null) {
 			scheduler.close();			
-		}			
+		}
+		if (fileBroker != null) {
+			fileBroker.close();
+		}
 		if (sessionDb != null) {
 			sessionDb.close();
 		}
@@ -81,9 +91,9 @@ public class ServerLauncher {
 		}
 	}	
 		
-	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException {
+	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException, RestException {
 		Config config = new Config();
-		new ServerLauncher(config, Role.SESSION_DB, true);
+		new ServerLauncher(config, true);
 	}
 
 	public SessionDb getSessionDb() {

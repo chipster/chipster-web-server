@@ -9,6 +9,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -22,7 +23,7 @@ public class Session {
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	private UUID sessionId;
 	private String name;
-	private String owner;
+	@Lob
 	private String notes;
 	private LocalDateTime created;
 	private LocalDateTime accessed;
@@ -72,14 +73,6 @@ public class Session {
 
 	public void setName(String name) {
 		this.name = name;
-	}
-
-	public String getOwner() {
-		return owner;
-	}
-
-	public void setOwner(String owner) {
-		this.owner = owner;
 	}
 
 	public String getNotes() {

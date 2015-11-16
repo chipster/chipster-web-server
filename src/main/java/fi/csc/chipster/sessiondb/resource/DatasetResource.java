@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -91,11 +93,12 @@ public class DatasetResource {
 		if (dataset.getDatasetId() != null) {
 			throw new BadRequestException("dataset already has an id, post not allowed");
 		}
-
+		
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
 
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		
 		checkFileModification(dataset);
 		session.getDatasets().put(id, dataset);
 
@@ -106,12 +109,15 @@ public class DatasetResource {
 
 	private void checkFileModification(Dataset dataset) {
 		// if the file exists, don't allow it to be modified 
-		File file = getHibernate().session().get(File.class, dataset.getFile().getFileId());
-		if (file != null) {
-			if (!file.equals(dataset.getFile())) {
+		if (dataset.getFile() == null || dataset.getFile().isEmpty()) {
+			return;
+		}
+		File dbFile = getHibernate().session().get(File.class, dataset.getFile().getFileId());
+		if (dbFile != null) {
+			if (!dbFile.equals(dataset.getFile())) {
 				throw new ForbiddenException("modification of existing file is forbidden");
 			}
-			dataset.setFile(file);
+			dataset.setFile(dbFile);
 		}
 	}
 
@@ -136,7 +142,6 @@ public class DatasetResource {
 		checkFileModification(requestDataset);
 		getHibernate().session().merge(requestDataset);
 
-		// more fine-grained events are needed, like "job added" and "dataset removed"
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
 		return Response.noContent().build();
     }
@@ -146,19 +151,44 @@ public class DatasetResource {
 	@Transaction
     public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
-		// checks authorization
-		Map<UUID, Dataset> datasets = sessionResource.getSessionForWriting(sc, sessionId).getDatasets();
-		
-		if (!datasets.containsKey(datasetId)) {
-			throw new NotFoundException("dataset not found");
-		}
-		
-		// remove from session, hibernate will take care of the actual dataset table
-		datasets.remove(datasetId);
+		deleteDataset(sessionId, datasetId, sc, sessionResource);
 
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.DELETE));
 		return Response.noContent().build();
     }
+
+	public static void deleteDataset(UUID sessionId, UUID datasetId, SecurityContext sc, SessionResource sessionResource) {
+		// checks authorization
+		Map<UUID, Dataset> sessionDatasets = sessionResource.getSessionForWriting(sc, sessionId).getDatasets();
+		
+		if (!sessionDatasets.containsKey(datasetId)) {
+			throw new NotFoundException("dataset not found");
+		}
+		
+		// remove from session, hibernate will take care of the actual dataset table
+		Dataset dataset = sessionDatasets.remove(datasetId);
+		
+		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
+			UUID fileId = dataset.getFile().getFileId();		
+			
+			@SuppressWarnings("unchecked")
+			List<Dataset> fileDatasets =  sessionResource.getHibernate().session()
+					.createQuery("from Dataset where file=:file")
+					.setParameter("file", dataset.getFile())
+					.list();
+			
+			// don't care about the dataset that is being deleted
+			// why do we still see it?
+			fileDatasets.remove(dataset);
+
+			// there isn't anymore anyone using this file and the file-broker
+			// can delete it
+			if (fileDatasets.isEmpty()) {
+				// only for file-broker
+				sessionResource.publish(SessionDb.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE));
+			}
+		}
+	}
 
 	/**
 	 * Make a collection compatible with JSON conversion
@@ -170,7 +200,7 @@ public class DatasetResource {
 	 * @param result
 	 * @return
 	 */
-	private GenericEntity<Collection<Dataset>> toJaxbList(Collection<Dataset> result) {
+	public static GenericEntity<Collection<Dataset>> toJaxbList(Collection<Dataset> result) {
 		return new GenericEntity<Collection<Dataset>>(result) {};
 	}
 	

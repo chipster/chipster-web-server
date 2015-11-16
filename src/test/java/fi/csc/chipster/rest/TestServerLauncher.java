@@ -10,8 +10,9 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.websocket.WebSocketClient;
+import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.RestException;
 
 public class TestServerLauncher {
 	
@@ -20,88 +21,130 @@ public class TestServerLauncher {
 	private final Logger logger = LogManager.getLogger();
 	
 	private ServiceLocatorClient serviceLocatorClient;
-
-	private String targetUri;
-
 	private ServerLauncher serverLauncher;
-
 	private Level webSocketLoggingLevel;
+	private Config config;
 	
-	public TestServerLauncher(Config config, String role) throws ServletException, DeploymentException, InterruptedException {
-		this(config, role, true);
+	public TestServerLauncher(Config config) throws ServletException, DeploymentException, RestException, InterruptedException {
+		this(config, true);
 	}
 	
-	public TestServerLauncher(Config config, String role, boolean quiet) throws ServletException, DeploymentException, InterruptedException {
+	public TestServerLauncher(Config config, boolean quiet) throws ServletException, DeploymentException, RestException, InterruptedException {
+		
+		this.config = config;
 		
 		if (quiet) {
-			webSocketLoggingLevel = Config.getLoggingLevel(WebSocketClient.class.getName());
+			webSocketLoggingLevel = Config.getLoggingLevel(PubSubServer.class.getPackage().getName());
 			// hide messages about websocket connection status
-			Config.setLoggingLevel(WebSocketClient.class.getName(), Level.OFF);
+			Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), Level.OFF);
 		}
 		
-		this.serverLauncher = new ServerLauncher(config, role, false);
-
-		if (Role.AUTHENTICATION_SERVICE.equals(role)) {
-			this.targetUri = config.getString("authentication-service");
-			return;
-		} 
-		if (Role.SERVICE_LOCATOR.equals(role)) {
-			this.targetUri = config.getString("service-locator");
-		}
+		this.serverLauncher = new ServerLauncher(config, false);
 		
-		this.serviceLocatorClient = new ServiceLocatorClient(config);
-		
-		if (Role.SESSION_DB.equals(role)) {			
-			this.targetUri = serviceLocatorClient.get(Role.SESSION_DB).get(0);			
-		}
+		this.serviceLocatorClient = new ServiceLocatorClient(config);		
 	}		
 
 	public void stop() {
 		serverLauncher.stop();
 		if (webSocketLoggingLevel != null) {
 			// revert websocket logging
-			Config.setLoggingLevel(WebSocketClient.class.getName(), webSocketLoggingLevel);
+			Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), webSocketLoggingLevel);
 		}
 	}	
 	
-	public WebTarget getUser1Target() {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient().target(targetUri);
+	private String getTargetUri(String role) {
+		if (Role.AUTHENTICATION_SERVICE.equals(role)) {
+			return config.getString("authentication-service");
+		} 
+		if (Role.SERVICE_LOCATOR.equals(role)) {
+			return config.getString("service-locator");
+		}
+		
+		if (Role.SESSION_DB.equals(role)) {			
+			return serviceLocatorClient.get(Role.SESSION_DB).get(0);			
+		}
+		
+		if (Role.FILE_BROKER.equals(role)) {			
+			return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
+		}
+				
+		throw new IllegalArgumentException("no target uri for role " + role);
 	}
 	
-	public WebTarget getUser2Target() {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(targetUri);
+	public WebTarget getUser1Target(String role) {
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient().target(getTargetUri(role));
+	}
+
+	public WebTarget getUser2Target(String role) {
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
-	public WebTarget getSchedulerTarget() {
-		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getAuthenticatedClient().target(targetUri);
+	public WebTarget getSchedulerTarget(String role) {
+		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
-	public WebTarget getCompTarget() {
-		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getAuthenticatedClient().target(targetUri);
+	public WebTarget getCompTarget(String role) {
+		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
-	public WebTarget getSessionStorageUserTarget() {
-		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(targetUri);
+	public WebTarget getSessionStorageUserTarget(String role) {
+		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
-	public WebTarget getUnparseableTokenTarget() {
-		return AuthenticationClient.getClient("token", "unparseableToken", true).target(targetUri);
+	public WebTarget getUnparseableTokenTarget(String role) {
+		return AuthenticationClient.getClient("token", "unparseableToken", true).target(getTargetUri(role));
 	}
 	
-	public WebTarget getTokenFailTarget() {
-		return AuthenticationClient.getClient("token", RestUtils.createId(), true).target(targetUri);
+	public WebTarget getTokenFailTarget(String role) {
+		return AuthenticationClient.getClient("token", RestUtils.createId(), true).target(getTargetUri(role));
 	}
 	
-	public WebTarget getAuthFailTarget() {
+	public WebTarget getAuthFailTarget(String role) {
 		// password login should be enabled only on auth, but this tries to use it on the session storage
-		return AuthenticationClient.getClient("client", "clientPassword", true).target(targetUri);
+		return AuthenticationClient.getClient("client", "clientPassword", true).target(getTargetUri(role));
 	}
 	
-	public WebTarget getNoAuthTarget() {
-		return AuthenticationClient.getClient().target(targetUri);
+	public WebTarget getNoAuthTarget(String role) {
+		return AuthenticationClient.getClient().target(getTargetUri(role));
+	}
+	
+	public CredentialsProvider getUser1Token() {
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getCredentials();
+	}
+
+	public CredentialsProvider getUser2Token() {
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getCredentials();
+	}
+	
+	public CredentialsProvider getSchedulerToken() {
+		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getCredentials();
+	}
+	
+	public CredentialsProvider getCompToken() {
+		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getCredentials();
+	}
+	
+	public CredentialsProvider getSessionStorageUserToken() {
+		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getCredentials();
+	}
+	
+	public CredentialsProvider getUnparseableToken() {
+		return new StaticCredentials("token", "unparseableToken");
+	}
+		
+	public CredentialsProvider getWrongToken() {
+		return new StaticCredentials("token", RestUtils.createId());
+	}
+	
+	public CredentialsProvider getUsernameAndPassword() {
+		return new StaticCredentials("client", "clientPassword");
 	}
 
 	public ServerLauncher getServerLauncher() {
 		return serverLauncher;
+	}
+
+	public ServiceLocatorClient getServiceLocator() {
+		return serviceLocatorClient;
 	}
 }
