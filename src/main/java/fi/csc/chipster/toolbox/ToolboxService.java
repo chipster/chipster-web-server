@@ -1,21 +1,19 @@
 package fi.csc.chipster.toolbox;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.pretty.JsonPrettryPrintQueryParamContainerResponseFilter;
-import fi.csc.chipster.toolbox.resource.ModuleResource;
-import fi.csc.chipster.toolbox.resource.ToolResource;
-
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
+import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.toolbox.resource.ModuleResource;
+import fi.csc.chipster.toolbox.resource.ToolResource;
 
 /**
  * Main class.
@@ -42,9 +40,8 @@ public class ToolboxService {
     	Toolbox toolbox = new Toolbox(new File("../chipster/src/main/modules"));
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ToolResource(toolbox))
-        	.register(new ModuleResource(toolbox)).
-        	register(JsonPrettryPrintQueryParamContainerResponseFilter.class);;
-			//.register(new LoggingFilter())
+        	.register(new ModuleResource(toolbox));
+        	//.register(new LoggingFilter())
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
