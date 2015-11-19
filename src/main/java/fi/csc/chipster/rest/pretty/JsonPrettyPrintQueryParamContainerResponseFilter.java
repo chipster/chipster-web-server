@@ -10,7 +10,7 @@ import javax.ws.rs.ext.Provider;
 import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterInjector;
 
 @Provider
-public class JsonPrettryPrintQueryParamContainerResponseFilter implements javax.ws.rs.container.ContainerResponseFilter {
+public class JsonPrettyPrintQueryParamContainerResponseFilter implements javax.ws.rs.container.ContainerResponseFilter {
 
     private static final String QUERY_PARAM_PRETTY = "pretty";
 
