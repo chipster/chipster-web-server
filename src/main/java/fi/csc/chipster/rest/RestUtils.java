@@ -31,6 +31,7 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
+import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
@@ -231,7 +232,8 @@ public class RestUtils {
 				// add CORS headers
 				.register(CORSResponseFilter.class)
 				// enable the RolesAllowed annotation
-				.register(RolesAllowedDynamicFeature.class); 
+				.register(RolesAllowedDynamicFeature.class)
+				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class); 
 	}
 
 	public static void shutdown(String name, HttpServer httpServer) {
