@@ -65,14 +65,23 @@ public class SessionDbClient {
 		}
 		
 		// just take the first one for now
-		String sessionDbUri = sessionDbList.get(0);
+		init(sessionDbList.get(0), sessionDbEventsList.get(0));
+	}	
+	
+	public SessionDbClient(String sessionDbUri, String sessionDbEventsUri, CredentialsProvider credentials) {		
+		this.credentials = credentials;
+		init(sessionDbUri, sessionDbEventsUri);		
+	}
+	
+	private void init(String sessionDbUri, String sessionDbEventsUri) {
+
 		if (credentials != null) {
 			sessionDbTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(sessionDbUri);
 		} else {
 			// for testing
 			sessionDbTarget = AuthenticationClient.getClient().target(sessionDbUri);
 		}
-		sessionDbEventsUri = sessionDbEventsList.get(0);
+		this.sessionDbEventsUri = sessionDbEventsUri; 		
 	}
 	
 	// events

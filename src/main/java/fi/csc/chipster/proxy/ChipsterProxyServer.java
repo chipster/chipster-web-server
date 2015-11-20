@@ -9,12 +9,20 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 
 public class ChipsterProxyServer {
 	
 	private final Logger logger = LogManager.getLogger();
 	
     private ProxyServer proxy;
+    
+    public static void main(String[] args) {
+    	ChipsterProxyServer server = new ChipsterProxyServer(new Config());
+    	server.startServer();
+    	RestUtils.waitForShutdown("proxy", null);
+    	server.close();
+    }
 
 	public ChipsterProxyServer(Config config) {
     	

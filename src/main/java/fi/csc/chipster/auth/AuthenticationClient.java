@@ -1,5 +1,6 @@
 package fi.csc.chipster.auth;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,6 +37,13 @@ public class AuthenticationClient {
 
 	public AuthenticationClient(ServiceLocatorClient serviceLocator, String username, String password) {
 		this.serviceLocator = serviceLocator;
+		
+		construct(username, password);
+	}
+	
+	public AuthenticationClient(String authUri, String username,
+			String password) {
+		this.authenticationServiceUris = Arrays.asList(new String[] {authUri});
 		
 		construct(username, password);
 	}
