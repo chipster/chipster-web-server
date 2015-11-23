@@ -9,11 +9,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.jaxrs.annotation.JacksonFeatures;
 
 import fi.csc.chipster.toolbox.Toolbox;
 import fi.csc.chipster.toolbox.ToolboxModule;
@@ -58,7 +56,10 @@ public class ModuleResource {
 				ArrayNode tools = factory.arrayNode();
 				category.set("tools", tools);
     			for (ToolboxTool toolboxTool : toolboxCategory.getTools()) {
-    				tools.add(toolboxTool.getId());
+    				ObjectNode tool = factory.objectNode();
+    				tool.put("id", toolboxTool.getId());
+    				tool.put("name", toolboxTool.getSadlDescription().getName().getDisplayName());
+    				tools.add(tool);
     			}
     			categories.add(category);
     		}
