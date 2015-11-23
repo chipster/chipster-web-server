@@ -76,6 +76,7 @@ public class Config {
 		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8085/filebroker/");
 	}
 	
+	private HashMap<String, String> variables = new HashMap<>();
 	private HashMap<String, String> variableDefaults = new HashMap<>();
 	
 	{
@@ -96,10 +97,20 @@ public class Config {
 			return replaceVariables(template);
 		}
 	}
+	
+	public void setVariable(String key, String value) {
+		variables.put(key, value);
+	}
 
 	private String replaceVariables(String template) {
 		for (String variableName : variableDefaults.keySet()) {
-			String variableValue = System.getenv(variableName);
+			// if set programmatically
+			String variableValue = variables.get(variableName);
+			// if set in environment variable
+			if (variableValue == null) {
+				variableValue = System.getenv(variableName);
+			}
+			// use default
 			if (variableValue == null) {
 				variableValue = variableDefaults.get(variableName);
 			}
