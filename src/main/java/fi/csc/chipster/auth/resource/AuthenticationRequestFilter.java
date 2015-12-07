@@ -79,7 +79,9 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {
+		
 		//TODO get from JAAS or file or something
+		//TODO make sure that external usernames matching AuthorizationnResource.serverUsers are blocked
 		Map<String, String> users = new HashMap<>();
 		users.put("client", "clientPassword");
 		users.put("client2", "client2Password");
@@ -96,6 +98,9 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		if (!users.get(username).equals(password)) {
 			throw new ForbiddenException();
 		}
+		
+		// are these of any use, because the file broker authorization is anyway
+		// based solely on the username?
 		
 		String[] roles = new String[] { Role.PASSWORD, Role.CLIENT};
 		if ("sessionStorage".equals(username)) {

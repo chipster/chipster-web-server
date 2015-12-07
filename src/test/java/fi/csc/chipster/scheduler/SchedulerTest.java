@@ -218,37 +218,4 @@ public class SchedulerTest {
         client.shutdown();
         client2.shutdown();
     }	
-	
-//	@Override
-//	public void onMessage(String message) {
-//		
-//		JobCommand schedulerMsg = RestUtils.parseJson(JobCommand.class, message);
-//		
-//		switch (schedulerMsg.getCommand()) {
-//		case SCHEDULE:
-//			logger.info("received a schedule message for a job " + schedulerMsg.getJobId());
-//			try {
-//				logger.info("send an offer");
-//				this.replyRemote.sendText(RestUtils.asJson(new JobCommand(schedulerMsg.getSessionId(), schedulerMsg.getJobId(), serverId, Command.OFFER )));
-//			} catch (IOException e) {
-//				logger.error("unable to send an offer", e);
-//			}
-//			break;
-//		case CHOOSE:
-//			if (serverId.equals(schedulerMsg.getCompId())) {				
-//				logger.info("offer chosen, running the job...");
-//			} else {
-//				logger.info("offer rejected");
-//			}
-//			break;
-//			
-//		case CANCEL:
-//			logger.info("cancelling the job...");
-//			break;
-//
-//		default:
-//			logger.warn("unknown command: " + schedulerMsg.getCommand());
-//			break;
-//		}
-//	}
 }

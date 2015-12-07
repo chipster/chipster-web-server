@@ -72,7 +72,7 @@ public class WebSocketClientEndpoint extends Endpoint {
 
 	@Override
     public void onError(Session session, Throwable thr) {
-		logger.info("websocket client " + name + " error: " + thr.getMessage());
+		logger.info("websocket client " + name + " error: " + thr.getMessage(), thr);
 		throwable = thr;
 		connectLatch.countDown();
 		disconnectLatch.countDown();
