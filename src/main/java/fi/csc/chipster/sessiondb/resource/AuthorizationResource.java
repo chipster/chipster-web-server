@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +30,13 @@ import fi.csc.chipster.sessiondb.model.Session;
 
 @Path("/")
 public class AuthorizationResource {
+	
+	public static final HashSet<String> serverUsers = new HashSet<String>();
+	{
+		serverUsers.add("scheduler");
+		serverUsers.add("comp");
+		serverUsers.add("fileBroker");
+	}
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
@@ -101,10 +109,6 @@ public class AuthorizationResource {
 			throw new NotFoundException("session not found");
 		}
 		
-		if (sc.isUserInRole(Role.SCHEDULER) || sc.isUserInRole(Role.COMP) || sc.isUserInRole(Role.FILE_BROKER)) {		
-			return new Authorization(username, session, true);
-		}
-		
 		Authorization auth = getAuthorization(username, session);
 		
 		if (auth == null) {
@@ -131,7 +135,11 @@ public class AuthorizationResource {
 		return hibernate.session().get(Session.class, sessionId);
 	}
 	
-	public Authorization getAuthorization(String username, Session session) {			
+	public Authorization getAuthorization(String username, Session session) {
+		
+		if (serverUsers.contains(username)) {
+			return new Authorization(username, session, true);
+		}
 		
 		return (Authorization) hibernate.session()
 				.createQuery("from Authorization where username=:username and session=:session")

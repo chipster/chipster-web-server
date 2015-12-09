@@ -3,6 +3,8 @@ package fi.csc.chipster.rest;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -254,4 +256,12 @@ public class RestUtils {
 	public static boolean isSuccessful(int status) {
 		return status >= 200 && status < 300;
 	}	
+	
+	public static String getHostname() {
+		try {
+			return InetAddress.getLocalHost().getHostName();
+		} catch (UnknownHostException e) {
+			return "unknown";
+		}
+	}
 }
