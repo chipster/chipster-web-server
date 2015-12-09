@@ -3,6 +3,7 @@ package fi.csc.chipster.toolbox;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,10 +35,11 @@ public class ToolboxService {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
 	 * application.
      * @return Grizzly HTTP server.
+     * @throws URISyntaxException 
      */
-    public HttpServer startServer() throws IOException {
+    public HttpServer startServer() throws IOException, URISyntaxException {
 
-    	Toolbox toolbox = new Toolbox(new File("../chipster/src/main/modules"));
+    	Toolbox toolbox = new Toolbox(new File("../chipster-tools/modules"));
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ToolResource(toolbox))
         	.register(new ModuleResource(toolbox));
@@ -51,8 +53,9 @@ public class ToolboxService {
 
     /**
      * Main method.
+     * @throws URISyntaxException 
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, URISyntaxException {
 
         final HttpServer server = new ToolboxService(new Config()).startServer();
         RestUtils.waitForShutdown("toolbox", server);
