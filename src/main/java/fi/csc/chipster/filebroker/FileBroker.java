@@ -59,7 +59,7 @@ public class FileBroker {
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
-		this.serviceId = serviceLocator.register(Role.FILE_BROKER, authService, config.getString("file-broker-bind"));
+		this.serviceId = serviceLocator.register(Role.FILE_BROKER, authService, config.getString("file-broker"));
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());		
     	
 		File storage = new File("storage");
