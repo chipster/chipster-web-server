@@ -84,25 +84,53 @@ public class ServerLauncher {
 	public void stop() {
 		
 		if (proxy != null) {
-			proxy.close();
+			try {
+				proxy.close();
+			} catch (Exception e) {
+				logger.warn("closing proxy failed", e);
+			}
 		}
 		if (toolbox != null) {
-			toolbox.close();			
+			try {
+				toolbox.close();
+			} catch (Exception e) {
+				logger.warn("closing toolbox failed", e);
+			}
 		}
 		if (scheduler != null) {
-			scheduler.close();			
+			try {
+				scheduler.close();
+			} catch (Exception e) {
+				logger.warn("closing scheduler failed", e);
+			}
 		}
 		if (fileBroker != null) {
-			fileBroker.close();
+			try {
+				fileBroker.close();
+			} catch (Exception e) {
+				logger.warn("closing filebroker failed", e);
+			}
 		}
 		if (sessionDb != null) {
-			sessionDb.close();
+			try {
+				sessionDb.close();
+			} catch (Exception e) {
+				logger.warn("closing session-db failed", e);
+			}
 		}
 		if (serviceLocator != null) {
-			serviceLocator.close();
+			try {
+				serviceLocator.close();
+			} catch (Exception e) {
+				logger.warn("closing service-locator failed", e);
+			}
 		}
 		if (auth != null) {
-			auth.close();			
+			try {
+				auth.close();
+			} catch (Exception e) {
+				logger.warn("closing auth failed", e);
+			}
 		}
 	}	
 		
