@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -29,7 +30,7 @@ public class DbPeroformanceTest {
 	private static SessionDbClient client;
 	
 	@BeforeClass
-	public static void setUpBeforeClass() throws ServletException, DeploymentException, RestException, InterruptedException, IOException {
+	public static void setUpBeforeClass() throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
 		// once per class
 		Config config = new Config();
     	launcher = new TestServerLauncher(config);

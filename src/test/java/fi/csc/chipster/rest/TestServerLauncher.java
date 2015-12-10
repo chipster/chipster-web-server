@@ -1,5 +1,8 @@
 package fi.csc.chipster.rest;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
+
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 import javax.ws.rs.client.WebTarget;
@@ -25,11 +28,11 @@ public class TestServerLauncher {
 	private Level webSocketLoggingLevel;
 	private Config config;
 	
-	public TestServerLauncher(Config config) throws ServletException, DeploymentException, RestException, InterruptedException {
+	public TestServerLauncher(Config config) throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
 		this(config, true);
 	}
 	
-	public TestServerLauncher(Config config, boolean quiet) throws ServletException, DeploymentException, RestException, InterruptedException {
+	public TestServerLauncher(Config config, boolean quiet) throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
 		
 		this.config = config;
 		
