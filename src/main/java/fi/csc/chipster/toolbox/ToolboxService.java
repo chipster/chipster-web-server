@@ -53,7 +53,7 @@ public class ToolboxService {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-    	URI baseUri = URI.create(this.config.getString(Config.KEY_TOOLBOX_BIND));
+    	URI baseUri = URI.create(this.config.getString(Config.KEY_TOOLBOX_BIND_URL));
     	this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 
     	// try to register this toolbox to the service locator
@@ -90,7 +90,7 @@ public class ToolboxService {
 		ServiceLocatorClient locatorClient = new ServiceLocatorClient(config);
 		AuthenticationClient authClient = new AuthenticationClient(locatorClient, username, password);
 
-		this.serviceId = locatorClient.register(Role.TOOLBOX, authClient, config.getString(Config.KEY_TOOLBOX));
+		this.serviceId = locatorClient.register(Role.TOOLBOX, authClient, config.getString(Config.KEY_TOOLBOX_URL));
 	}
 	
 	

@@ -15,8 +15,8 @@ public class Config {
 	
 	public static final String KEY_TOOLBOX_USERNAME = "toolbox-username";
 	public static final String KEY_TOOLBOX_PASSWORD = "toolbox-password";
-	public static final String KEY_TOOLBOX = "toolbox";
-	public static final String KEY_TOOLBOX_BIND = "toolbox-bind";
+	public static final String KEY_TOOLBOX_URL = "toolbox-url";
+	public static final String KEY_TOOLBOX_BIND_URL = "toolbox-bind-url";
 	
 	
 	private Logger logger;
@@ -67,7 +67,7 @@ public class Config {
 		defaults.put("service-locator", 			"http://{{public-ip}}:8082/servicelocator/"); 
 		defaults.put("authentication-service", 		"http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
 		defaults.put("session-db", 					"http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
-        defaults.put(KEY_TOOLBOX, 					"http://{{public-ip}}:8086/toolbox");
+        defaults.put(KEY_TOOLBOX_URL, 					"http://{{public-ip}}:8086/toolbox");
         defaults.put("session-db-events", 			"ws://{{public-ip}}:8084/sessiondbevents/");
 		defaults.put("scheduler", 					"ws://{{public-ip}}:8083/scheduler/");
 		defaults.put("file-broker", 				"http://{{public-ip}}:8085/filebroker/");
@@ -76,7 +76,7 @@ public class Config {
 		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/"); // uri for the server to bind
 		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8084/sessiondbevents/");
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
-		defaults.put(KEY_TOOLBOX_BIND, 				"http://{{bind-ip}}:8086/toolbox/");
+		defaults.put(KEY_TOOLBOX_BIND_URL, 				"http://{{bind-ip}}:8086/toolbox/");
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
 		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8000/");
 		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8085/filebroker/");
