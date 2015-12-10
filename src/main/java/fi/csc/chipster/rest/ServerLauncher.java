@@ -1,5 +1,8 @@
 package fi.csc.chipster.rest;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
+
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
@@ -13,6 +16,7 @@ import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.toolbox.ToolboxService;
 
 public class ServerLauncher {
 	
@@ -23,11 +27,12 @@ public class ServerLauncher {
 	private ServiceLocator serviceLocator;
 	private SessionDb sessionDb;
 	private Scheduler scheduler;
+	private ToolboxService toolbox;
 	private ChipsterProxyServer proxy;
 	private FileBroker fileBroker;
 	
 	
-	public ServerLauncher(Config config, boolean verbose) throws ServletException, DeploymentException, RestException, InterruptedException {
+	public ServerLauncher(Config config, boolean verbose) throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -57,6 +62,13 @@ public class ServerLauncher {
 		}		
 		scheduler = new Scheduler(config);
 		scheduler.startServer();
+
+		if (verbose) {
+			logger.info("starting toolbox");
+		}		
+		toolbox = new ToolboxService(config);
+		toolbox.startServer();
+
 		
 		if (verbose) {
 			logger.info("starting proxy");
@@ -73,6 +85,9 @@ public class ServerLauncher {
 		
 		if (proxy != null) {
 			proxy.close();
+		}
+		if (toolbox != null) {
+			toolbox.close();			
 		}
 		if (scheduler != null) {
 			scheduler.close();			
@@ -91,7 +106,7 @@ public class ServerLauncher {
 		}
 	}	
 		
-	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException, RestException {
+	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException, RestException, IOException, URISyntaxException {
 		Config config = new Config();
 		new ServerLauncher(config, true);
 	}
