@@ -26,7 +26,8 @@ public class ToolboxService {
 	private Logger logger = LogManager.getLogger();
 
 	private Config config;
-
+	private HttpServer httpServer;
+	
 	public ToolboxService(Config config) {
 		this.config = config;
 	}
@@ -37,8 +38,10 @@ public class ToolboxService {
      * @return Grizzly HTTP server.
      * @throws URISyntaxException 
      */
-    public HttpServer startServer() throws IOException, URISyntaxException {
+    public void startServer() throws IOException, URISyntaxException {
 
+    	// TODO service locator
+    	
     	Toolbox toolbox = new Toolbox(new File("../chipster-tools/modules"));
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ToolResource(toolbox))
@@ -47,8 +50,8 @@ public class ToolboxService {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-        return GrizzlyHttpServerFactory.createHttpServer(
-                URI.create(getBaseUri()), rc);
+    	URI baseUri = URI.create(this.config.getString("toolbox-bind"));
+    	this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     }
 
     /**
@@ -56,16 +59,18 @@ public class ToolboxService {
      * @throws URISyntaxException 
      */
     public static void main(String[] args) throws IOException, URISyntaxException {
-
-        final HttpServer server = new ToolboxService(new Config()).startServer();
-        RestUtils.waitForShutdown("toolbox", server);
+        final ToolboxService server = new ToolboxService(new Config());
+        server.startServer();
+        RestUtils.waitForShutdown("toolbox", server.getHttpServer());
     }
 
-	public void close() {
+	private HttpServer getHttpServer() {
+		return this.httpServer;
 	}
 
-	public final String getBaseUri() {
-		return this.config.getString("toolbox-bind");
+	public void close() {
+		RestUtils.shutdown("toolbox", httpServer);
 	}
+	
 }
 
