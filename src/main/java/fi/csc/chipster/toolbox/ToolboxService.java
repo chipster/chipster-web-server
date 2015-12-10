@@ -11,10 +11,13 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.ToolResource;
+import fi.csc.chipster.auth.model.Role;
 
 /**
  * Main class.
@@ -22,11 +25,13 @@ import fi.csc.chipster.toolbox.resource.ToolResource;
  */
 public class ToolboxService {
 
-	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
 
 	private Config config;
 	private HttpServer httpServer;
+
+	@SuppressWarnings("unused")
+	private String serviceId;
 	
 	public ToolboxService(Config config) {
 		this.config = config;
@@ -40,8 +45,6 @@ public class ToolboxService {
      */
     public void startServer() throws IOException, URISyntaxException {
 
-    	// TODO service locator
-    	
     	Toolbox toolbox = new Toolbox(new File("../chipster-tools/modules"));
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ToolResource(toolbox))
@@ -50,8 +53,16 @@ public class ToolboxService {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-    	URI baseUri = URI.create(this.config.getString("toolbox-bind"));
+    	URI baseUri = URI.create(this.config.getString(Config.KEY_TOOLBOX_BIND));
     	this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+
+    	// try to register this toolbox to the service locator
+    	// fails if service locator not up, toolbox service will still be functional though
+    	try {
+    		registerToServiceLocator(config);
+    	} catch (Exception e) {
+    		logger.info("register to service locator failed");
+    	}
     }
 
     /**
@@ -71,6 +82,17 @@ public class ToolboxService {
 	public void close() {
 		RestUtils.shutdown("toolbox", httpServer);
 	}
+
+	private void registerToServiceLocator(Config config) {
+    	String username = config.getString(Config.KEY_TOOLBOX_USERNAME);
+    	String password = config.getString(Config.KEY_TOOLBOX_PASSWORD);
+
+		ServiceLocatorClient locatorClient = new ServiceLocatorClient(config);
+		AuthenticationClient authClient = new AuthenticationClient(locatorClient, username, password);
+
+		this.serviceId = locatorClient.register(Role.TOOLBOX, authClient, config.getString(Config.KEY_TOOLBOX));
+	}
+	
 	
 }
 

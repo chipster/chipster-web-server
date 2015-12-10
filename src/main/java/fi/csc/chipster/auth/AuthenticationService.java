@@ -59,7 +59,7 @@ public class AuthenticationService {
         	.register(authResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
-        	.register(new AuthenticationRequestFilter(hibernate));
+        	.register(new AuthenticationRequestFilter(hibernate, config));
         	//.register(new LoggingFilter())
 
         // create and start a new instance of grizzly http server

@@ -15,6 +15,7 @@ import javax.ws.rs.ext.Provider;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.BasicAuthParser;
@@ -25,9 +26,12 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	
 	private HibernateUtil hibernate;
+	private Config config;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate) {
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) {
 		this.hibernate = hibernate;
+		this.config = config;
+		
 	}
 
 	@Override
@@ -90,7 +94,10 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		users.put("scheduler", "schedulerPassword");
 		users.put("comp", "compPassword");
 		users.put("fileBroker", "fileBrokerPassword");
+		users.put("toolbox", "toolboxPasssword");
+		users.put(config.getString(Config.KEY_TOOLBOX_USERNAME), config.getString(Config.KEY_TOOLBOX_PASSWORD));
 
+		
 		if (!users.containsKey(username)) {
 			throw new ForbiddenException();
 		}
@@ -121,6 +128,11 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		if ("fileBroker".equals(username)) {
 			roles = new String[] { Role.PASSWORD, Role.FILE_BROKER, Role.SERVER };
 		}
+
+		if ("toolbox".equals(username)) {
+			roles = new String[] { Role.PASSWORD, Role.TOOLBOX, Role.SERVER };
+		}
+
 		
 		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));
 	}
