@@ -16,7 +16,10 @@ repositories {
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
+//mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
+mainClassName = "fi.csc.chipster.rest.ServerLauncher"
+
+
 run {
     standardInput = System.in
 }
