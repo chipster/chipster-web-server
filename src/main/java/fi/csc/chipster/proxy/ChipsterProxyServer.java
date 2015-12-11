@@ -33,7 +33,7 @@ public class ChipsterProxyServer {
     		proxy.addWebSocketProxyRule("sessiondbevents", 	config.getString("session-db-events"), 2);
     		proxy.addHttpProxyRule(		"auth", 			config.getString("authentication-service"));
     		proxy.addHttpProxyRule(		"filebroker", 		config.getString("file-broker"));
-    		proxy.addHttpProxyRule(		"toolbox", 			config.getString("toolbox"));
+    		proxy.addHttpProxyRule(		"toolbox", 			config.getString(Config.KEY_TOOLBOX_URL));
     		
     	} catch (ServletException | DeploymentException e) {
     		logger.error("failed to add a proxy rule", e);
