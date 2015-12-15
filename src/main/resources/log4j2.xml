@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+PLEASE NOTE!
+
+When developing / debugging, copy log4j2.xml to log4j2-test.xml and make development / debugging
+related modifications there.
+
+If log4j2-test.xml is present, it takes precedence over log4j2.xml. Log4j2-test.xml is excluded 
+when building the jar and it is also ignored in git.
+
+The idea with this approach is to make it easy to make logging config changes when debugging or
+developing, without having to worry about committing them accidentally. 
+
+ -->
+
+
 <!--  level of the log4j2 internal logging -->
 <Configuration status="error">
   <Appenders>
@@ -8,6 +25,13 @@
       	<!--  A concise pattern for everything else -->
       	<PatternLayout pattern="[%d] %m (in %C{1}:%L)%n" />
     </Console>
+  
+     <File name="toolbox" fileName="logs/toolbox.log">
+      <PatternLayout>
+        <Pattern>[%d] %m (in %C{1}:%L)%n</Pattern>
+      </PatternLayout>
+    </File>
+  
   </Appenders>
   <Loggers>
     <!--  hide initialization messages of MLog -->
@@ -26,6 +50,11 @@
     
     <!--  default level for our code -->
     <Logger name="fi.csc.chipster" level="info" />
+
+    <!--  toolbox logging -->
+    <Logger name="fi.csc.chipster.toolbox" level="info" >
+ 		<AppenderRef ref="toolbox"/>
+ 	</Logger>	
         
     <!--  We want to hide these when running tests, but the TestServerLauncher 
     is only able to modify existing loggers. Without this it will get the 

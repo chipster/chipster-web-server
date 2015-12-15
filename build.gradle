@@ -11,14 +11,16 @@ repositories {
 
 }
 
-
-
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 //mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
 mainClassName = "fi.csc.chipster.rest.ServerLauncher"
 
+jar { 
+	exclude('log4j2-test.xml') 
+} 
+  
 
 run {
     standardInput = System.in
