@@ -23,14 +23,38 @@ developing, without having to worry about committing them accidentally.
     	<!--  Detailed pattern for fine tuning logging (with packages and log levels) -->
       	<!--  <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>  -->
       	<!--  A concise pattern for everything else -->
-      	<PatternLayout pattern="[%d] %m (in %C{1}:%L)%n" />
+      	<PatternLayout pattern="[%d] %m%n" />
     </Console>
+
+    <Console name="WarnConsole" target="SYSTEM_OUT">
+    	<!--  Detailed pattern for fine tuning logging (with packages and log levels) -->
+      	<!--  <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>  -->
+      	<!--  A concise pattern for everything else -->
+      	<PatternLayout pattern="[%d] %p: %m (in %C{1}:%L)%n" />
+      	<ThresholdFilter level="warn"/>
+    </Console>
+
+
+     <File name="WarnFile" fileName="logs/error.log">
+      <PatternLayout>
+        <Pattern>[%d] %m (in %C{1}:%L)%n</Pattern>
+      </PatternLayout>
+      	<ThresholdFilter level="warn"/>
+    </File>
   
+     <File name="chipster" fileName="logs/chipster.log">
+      <PatternLayout>
+        <Pattern>[%d] %m (in %C{1}:%L)%n</Pattern>
+      </PatternLayout>
+    </File>
+
      <File name="toolbox" fileName="logs/toolbox.log">
       <PatternLayout>
         <Pattern>[%d] %m (in %C{1}:%L)%n</Pattern>
       </PatternLayout>
     </File>
+
+
   
   </Appenders>
   <Loggers>
@@ -49,12 +73,22 @@ developing, without having to worry about committing them accidentally.
     <Logger name="org.glassfish.jersey.filter.LoggingFilter" level="info" />
     
     <!--  default level for our code -->
-    <Logger name="fi.csc.chipster" level="info" />
+    <Logger name="fi.csc.chipster" level="info" additivity="false">
+    	<AppenderRef ref="chipster"/>
+ 		<AppenderRef ref="WarnConsole"/>
+ 		<AppenderRef ref="WarnFile"/>
+     </Logger>
 
-    <!--  toolbox logging -->
+    <!--  ServerLauncher logs to console -->
+    <Logger name="fi.csc.chipster.rest.ServerLauncher" level="info" >
+ 		<AppenderRef ref="Console"/>
+ 	</Logger>	
+
+
     <Logger name="fi.csc.chipster.toolbox" level="info" >
  		<AppenderRef ref="toolbox"/>
  	</Logger>	
+
         
     <!--  We want to hide these when running tests, but the TestServerLauncher 
     is only able to modify existing loggers. Without this it will get the 

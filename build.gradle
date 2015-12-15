@@ -18,8 +18,17 @@ targetCompatibility = 1.8
 mainClassName = "fi.csc.chipster.rest.ServerLauncher"
 
 jar { 
-	exclude('log4j2-test.xml') 
+	exclude 'log4j2-test.xml' 
 } 
+
+// use log4j2.xml when running
+sourceSets {
+  main {
+    resources {
+      exclude 'log4j2-test.xml'
+    }
+  }
+}
   
 
 run {
