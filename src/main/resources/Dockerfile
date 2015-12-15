@@ -3,12 +3,14 @@ FROM java:8
 
 RUN groupadd -r chipster && useradd -r -g chipster chipster
 
-WORKDIR /opt/chipster/sessionstorage
+WORKDIR /opt/chipster
 RUN chown -R chipster:chipster /opt/chipster
 
 USER chipster
 
 COPY dist/*.jar lib/
 
-EXPOSE 8080 8081 8082  
+COPY dist/chipster-tools-*.tar.gz /opt/chipster/
+
+EXPOSE 8000  
 CMD ["java", "-cp", "lib/*:","fi.csc.chipster.rest.ServerLauncher"]
