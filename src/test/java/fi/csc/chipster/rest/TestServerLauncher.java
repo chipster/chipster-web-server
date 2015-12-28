@@ -1,10 +1,5 @@
 package fi.csc.chipster.rest;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.Level;
@@ -15,7 +10,6 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.RestException;
 
 public class TestServerLauncher {
 	
@@ -28,11 +22,11 @@ public class TestServerLauncher {
 	private Level webSocketLoggingLevel;
 	private Config config;
 	
-	public TestServerLauncher(Config config) throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
+	public TestServerLauncher(Config config) throws Exception {
 		this(config, true);
 	}
 	
-	public TestServerLauncher(Config config, boolean quiet) throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
+	public TestServerLauncher(Config config, boolean quiet) throws Exception {
 		
 		this.config = config;
 		

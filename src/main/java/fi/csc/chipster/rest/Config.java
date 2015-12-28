@@ -17,7 +17,13 @@ public class Config {
 	public static final String KEY_TOOLBOX_PASSWORD = "toolbox-password";
 	public static final String KEY_TOOLBOX_URL = "toolbox-url";
 	public static final String KEY_TOOLBOX_BIND_URL = "toolbox-bind-url";
-	
+	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
+	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
+	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay";
+	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sqeep-work-dir";
+	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
+	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
+	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";	
 	
 	private Logger logger;
 	
@@ -67,7 +73,7 @@ public class Config {
 		defaults.put("service-locator", 			"http://{{public-ip}}:8082/servicelocator/"); 
 		defaults.put("authentication-service", 		"http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
 		defaults.put("session-db", 					"http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
-        defaults.put(KEY_TOOLBOX_URL, 					"http://{{public-ip}}:8086/toolbox");
+        defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8086/toolbox");
         defaults.put("session-db-events", 			"ws://{{public-ip}}:8084/sessiondbevents/");
 		defaults.put("scheduler", 					"ws://{{public-ip}}:8083/scheduler/");
 		defaults.put("file-broker", 				"http://{{public-ip}}:8085/filebroker/");
@@ -76,7 +82,7 @@ public class Config {
 		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/"); // uri for the server to bind
 		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8084/sessiondbevents/");
 		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
-		defaults.put(KEY_TOOLBOX_BIND_URL, 				"http://{{bind-ip}}:8086/toolbox/");
+		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8086/toolbox/");
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
 		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8000/");
 		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8085/filebroker/");
@@ -84,6 +90,13 @@ public class Config {
 		defaults.put(KEY_TOOLBOX_USERNAME, 			"toolbox");
 		defaults.put(KEY_TOOLBOX_PASSWORD, 			"toolboxPassword");
 		
+		defaults.put(KEY_COMP_MAX_JOBS,								"" + Integer.MAX_VALUE); // max number of jobs run simultaneusly
+		defaults.put(KEY_COMP_SCHEDULE_TIMEOUT, 					"10"); // time after which a scheuduled job is removed if there is no reponse from the scheduler
+		defaults.put(KEY_COMP_OFFER_DELAY, 							"100"); // delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
+		defaults.put(KEY_COMP_SWEEP_WORK_DIR,						"true"); // should job specific temporary directory be sweeped after job execution
+		defaults.put(KEY_COMP_TIMEOUT_CHECK_INTERVAL, 				"1000"); // schedule timeout check interval, milliseconds
+		defaults.put(KEY_COMP_JOB_HEARTBEAT_INTERVAL, 				"15000"); // job heartbeat interval, milliseconds
+		defaults.put(KEY_COMP_AVAILABLE_INTERVAL,					"60000"); // send comp available frequency, milliseconds
 	}
 	
 	private HashMap<String, String> variables = new HashMap<>();
@@ -131,5 +144,13 @@ public class Config {
 
 	public URI getURI(String key) {
 		return URI.create(getString(key));
+	}
+
+	public int getInt(String key) {
+		return Integer.parseInt(getString(key));
+	}
+
+	public boolean getBoolean(String key) {
+		return "true".equalsIgnoreCase(getString(key));
 	}
 }

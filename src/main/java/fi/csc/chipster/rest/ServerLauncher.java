@@ -1,20 +1,14 @@
 package fi.csc.chipster.rest;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
-import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.toolbox.ToolboxService;
 
@@ -30,9 +24,11 @@ public class ServerLauncher {
 	private ToolboxService toolbox;
 	private ChipsterProxyServer proxy;
 	private FileBroker fileBroker;
+
+	private RestCompServer comp;
 	
 	
-	public ServerLauncher(Config config, boolean verbose) throws ServletException, DeploymentException, RestException, InterruptedException, IOException, URISyntaxException {
+	public ServerLauncher(Config config, boolean verbose) throws Exception {
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -69,6 +65,10 @@ public class ServerLauncher {
 		toolbox = new ToolboxService(config);
 		toolbox.startServer();
 
+		if (verbose) {
+			logger.info("starting comp");
+		}		
+		comp = new RestCompServer(null);
 		
 		if (verbose) {
 			logger.info("starting proxy");
@@ -90,6 +90,15 @@ public class ServerLauncher {
 				logger.warn("closing proxy failed", e);
 			}
 		}
+		
+		if (comp != null) {
+			try {
+				comp.shutdown();
+			} catch (Exception e) {
+				logger.warn("closing toolbox failed", e);
+			}
+		}
+		
 		if (toolbox != null) {
 			try {
 				toolbox.close();
@@ -134,7 +143,7 @@ public class ServerLauncher {
 		}
 	}	
 		
-	public static void main(String[] args) throws ServletException, DeploymentException, InterruptedException, RestException, IOException, URISyntaxException {
+	public static void main(String[] args) throws Exception {
 		Config config = new Config();
 		new ServerLauncher(config, true);
 	}

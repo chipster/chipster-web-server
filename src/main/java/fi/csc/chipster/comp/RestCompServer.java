@@ -3,7 +3,6 @@ package fi.csc.chipster.comp;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Timer;
@@ -37,8 +36,6 @@ import fi.csc.microarray.comp.OldToolboxClient;
 import fi.csc.microarray.comp.ResultCallback;
 import fi.csc.microarray.comp.RuntimeRepository;
 import fi.csc.microarray.comp.ToolRuntime;
-import fi.csc.microarray.config.Configuration;
-import fi.csc.microarray.config.DirectoryLayout;
 import fi.csc.microarray.constants.ApplicationConstants;
 import fi.csc.microarray.filebroker.FileBrokerClient;
 import fi.csc.microarray.messaging.JobState;
@@ -124,19 +121,21 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	public RestCompServer(String configURL) throws Exception {
 		
 		// initialise dir, config and logging
-		DirectoryLayout.initialiseServerLayout(
-		        Arrays.asList(new String[] {"comp"}), configURL);
-		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
+//		DirectoryLayout.initialiseServerLayout(
+//		        Arrays.asList(new String[] {"comp"}), configURL);
+//		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
 
+		Config config = new Config();
+		
 		// Initialise instance variables
-		this.scheduleTimeout = configuration.getInt("comp", "schedule-timeout");
-		this.offerDelay = configuration.getInt("comp", "offer-delay");
-		this.timeoutCheckInterval = configuration.getInt("comp", "timeout-check-interval");
-		this.heartbeatInterval = configuration.getInt("comp", "job-heartbeat-interval");
-		this.compAvailableInterval = configuration.getInt("comp", "comp-available-interval");
-		this.sweepWorkDir= configuration.getBoolean("comp", "sweep-work-dir");
-		this.maxJobs = configuration.getInt("comp", "max-jobs");
-		this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp", "local-filebroker-user-data-path"));		
+		this.scheduleTimeout = config.getInt(Config.KEY_COMP_SCHEDULE_TIMEOUT);
+		this.offerDelay = config.getInt(Config.KEY_COMP_OFFER_DELAY);
+		this.timeoutCheckInterval = config.getInt(Config.KEY_COMP_TIMEOUT_CHECK_INTERVAL);
+		this.heartbeatInterval = config.getInt(Config.KEY_COMP_JOB_HEARTBEAT_INTERVAL);
+		this.compAvailableInterval = config.getInt(Config.KEY_COMP_AVAILABLE_INTERVAL);
+		this.sweepWorkDir= config.getBoolean(Config.KEY_COMP_SWEEP_WORK_DIR);
+		this.maxJobs = config.getInt(Config.KEY_COMP_MAX_JOBS);
+		//this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp", "local-filebroker-user-data-path"));		
 		
 		logger = Logger.getLogger(RestCompServer.class);
 		loggerJobs = Logger.getLogger("jobs");
@@ -145,14 +144,17 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		// initialize working directory
 		logger.info("starting compute service...");
-		this.workDir = DirectoryLayout.getInstance().getJobsDataDirBase(compId.toString());
+		this.workDir = new File("jobs-data", compId.toString());
+		if (!this.workDir.mkdirs()) {
+			throw new IllegalStateException("creating working directory failed");
+		}
 		
 		// initialize executor service
 		this.executorService = Executors.newCachedThreadPool();
 
 		// initialize runtime and tools
-		this.runtimeRepository = new RuntimeRepository(this.workDir);
-		this.toolbox = new Toolbox(DirectoryLayout.getInstance().getModulesDir());
+		this.runtimeRepository = new RuntimeRepository(this.workDir, this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"));
+		this.toolbox = new Toolbox(new File("../chipster-tools/modules"));
 		this.toolboxClient = new OldToolboxClient(this.toolbox);
 					
 		// initialize timeout checker
@@ -415,6 +417,11 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		// get tool from toolbox along with the runtime name
 		ToolboxTool toolboxTool = toolboxClient.getTool(dbJob.getToolId());
+		
+		if (toolboxTool == null) {
+			logger.warn("tool not found: " + dbJob.getToolId() + ", jobId " + dbJob.getJobId());
+			return;
+		}
 		
 		// ... and the runtime from runtime repo
 		ToolRuntime runtime = runtimeRepository.getRuntime(toolboxTool.getRuntime());

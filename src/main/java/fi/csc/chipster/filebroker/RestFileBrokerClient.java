@@ -27,6 +27,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.microarray.client.session.SessionManager;
 import fi.csc.microarray.filebroker.ChecksumException;
 import fi.csc.microarray.filebroker.ChecksumInputStream;
@@ -67,10 +68,19 @@ public class RestFileBrokerClient implements FileBrokerClient {
 	}
 
 	@Override
-	public void addFile(UUID sessionId, String dataId, FileBrokerArea area, File file, CopyProgressListener progressListener) throws FileBrokerException, IOException {
+	public void addFile(UUID jobId, UUID sessionId, String dataId, FileBrokerArea area, File file, CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
 		
+		Dataset dataset = new Dataset();
+		dataset.setSourceJob(jobId);
+		dataset.setName(datsetName);
+		UUID datasetId;
+		try {
+			datasetId = sessionDbClient.createDataset(sessionId, dataset);
 		InputStream inputStream = new FileInputStream(file);
-		upload(sessionId, dataId, inputStream);
+		upload(sessionId, datasetId.toString(), inputStream);
+		} catch (RestException e) {
+			throw new FileBrokerException("failed to create a result dataset", e);
+		}
 	}
 	
 	private void upload(UUID sessionId, String dataId, InputStream inputStream) throws IOException {
