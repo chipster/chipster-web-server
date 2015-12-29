@@ -86,6 +86,10 @@ dependencies {
     compile "org.eclipse.jetty:jetty-proxy:+"
     compile "commons-io:commons-io:2.4"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
+    compile "net.sourceforge.argparse4j:argparse4j:0.7.0"
+    compile "org.apache.commons:commons-lang3:3.4"
+    
+    
     // old codebase
     compile ":chipster:+"
  
