@@ -27,6 +27,7 @@ import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
@@ -64,11 +65,16 @@ public class RestUtils {
 	}
 	
 	public static <T> T parseJson(Class<T> obj, String json) {	
+		return parseJson(obj, json, true);
+	}
+	
+	public static <T> T parseJson(Class<T> obj, String json, boolean failOnUnknownProperties) {	
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
 			// support for LocalDateTime
 			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
+		    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
 			return mapper.readValue(reader, obj);
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);
@@ -78,11 +84,18 @@ public class RestUtils {
 	
 	@SuppressWarnings("rawtypes")
 	public static List parseJson(Class<? extends Collection> collectionType, Class<?> itemType, String json) {
+		return parseJson(collectionType, itemType, json, true);
+	}
+		
+	
+	@SuppressWarnings("rawtypes")
+	public static List parseJson(Class<? extends Collection> collectionType, Class<?> itemType, String json, boolean failOnUnknownProperties) {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
 			// support for LocalDateTime
-			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);			
+			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
+		    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
 			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);

@@ -17,7 +17,7 @@ import org.apache.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.RestFileBrokerClient;
+import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
@@ -177,7 +177,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		schedulerUri = serviceLocator.get(Role.SCHEDULER).get(0) + "events?token=" + authClient.getToken();
 		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client");
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials());
-		fileBroker = new RestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
+		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
 		
 		// create keep-alive thread and register shutdown hook
 		KeepAliveShutdownHandler.init(this);
