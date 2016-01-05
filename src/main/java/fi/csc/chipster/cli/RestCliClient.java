@@ -99,7 +99,7 @@ public class RestCliClient {
 		ArgumentParser parser = getArgumentParser();
 	    try {
 	    	Namespace namespace = parser.parseArgs(args);
-	        System.out.println(namespace);
+	        //System.out.println(namespace);
 	        execute(namespace);
 	    } catch (ArgumentParserException e) {
 	        parser.handleError(e);
