@@ -81,8 +81,10 @@ public class Dataset {
 
 	public void setFile(File file) {
 		// jackson creates an empty object even when the client didn't set it
-		if (!file.isEmpty()) {
+		if (file != null && !file.isEmpty()) {
 			this.file = file;
+		} else {
+			this.file = null;
 		}
 	}
 

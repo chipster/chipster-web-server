@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,12 +14,15 @@ import java.util.UUID;
 import javax.ws.rs.WebApplicationException;
 
 import org.apache.commons.compress.utils.IOUtils;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.CredentialsProvider;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -40,7 +44,7 @@ import net.sourceforge.argparse4j.inf.Subparser;
 import net.sourceforge.argparse4j.inf.Subparsers;
 
 /**
- * Chipster 4 command line client
+ * Chipster command line client for the Rest API
  * 
  * To run this on command line:
  * - run gradle task installDist, which copies all the dependencies to one directory
@@ -52,6 +56,9 @@ import net.sourceforge.argparse4j.inf.Subparsers;
  */
 public class RestCliClient {
 	
+	private static final String DIR = "DIR";
+	private static final String IMPORT = "import";
+	private static final String EXPORT = "export";
 	private static final String PARAMETER = "parameter";
 	private static final String FILE = "FILE";
 	private static final String FILTER = "FILTER";
@@ -82,23 +89,38 @@ public class RestCliClient {
 	private static final String SESSION = "session";
 	private static final String SUBSUBCOMMAND = "subsubcommand";
 	private static final String SUBCOMMAND = "subcommand";
+	private static Long t;
 	
 	private String proxy;
 	private CredentialsProvider credentials;
-	private Boolean verbose;
-	private Boolean quiet;
+	private Boolean verbose = false;
+	private Boolean quiet = false;
 	private SessionDbClient sessionDbClient;
 	private ToolboxClientRest toolboxClient;
 	private RestFileBrokerClient fileBrokerClient;
 
 	public static void main(String[] args) throws IOException {
+		time("");
 	    new RestCliClient(args);
 	}
 	
+	/**
+	 * Print the given string and time elapsed since the previous call. Useful for quick performance checks.
+	 * 
+	 * @param string
+	 */
+	private static void time(String string) {
+		if (t != null) {
+			//System.out.println("## " + string + " " + (System.currentTimeMillis() - t) + "ms");
+		}
+		t = System.currentTimeMillis();
+	}
+
 	public RestCliClient(String[] args) throws IOException {
 		ArgumentParser parser = getArgumentParser();
 	    try {
 	    	Namespace namespace = parser.parseArgs(args);
+	    	time("parse");
 	        //System.out.println(namespace);
 	        execute(namespace);
 	    } catch (ArgumentParserException e) {
@@ -147,6 +169,13 @@ public class RestCliClient {
 	    sessionSubparsers.addParser(DETAILS).help("view session details");
 	    
 	    sessionSubparsers.addParser(DELETE).help("delete session");
+	    
+	    Subparser sessionExportParser = sessionSubparsers.addParser(EXPORT).help("copy the whole session to a local directory");
+	    sessionExportParser.addArgument(DIR);
+
+	    Subparser sessionImportParser = sessionSubparsers.addParser(IMPORT).help("import a session from the local directory");
+	    sessionImportParser.addArgument(DIR);
+	    sessionImportParser.addArgument(NAME).nargs("?").help("rename the imported session");
 	    	    
 	    // datasets
 	    
@@ -207,7 +236,8 @@ public class RestCliClient {
 		if (username != null || password != null) {
 			String authURI = proxy + "auth/";
 			verbose("authenticating to " + authURI);
-			credentials = new AuthenticationClient(authURI, username, password).getCredentials();		
+			credentials = new AuthenticationClient(authURI, username, password).getCredentials();
+			time("authenticate");
 		}
 			
 		String subcommand = namespace.getString(SUBCOMMAND);
@@ -298,7 +328,7 @@ public class RestCliClient {
 		}
 	}
 	
-	private void executeSessionSubcommand(Namespace namespace) throws RestException {
+	private void executeSessionSubcommand(Namespace namespace) throws RestException, IOException {
 		String subcommand = namespace.getString(SUBSUBCOMMAND);
 		switch (subcommand) {
 		case CREATE:
@@ -312,6 +342,12 @@ public class RestCliClient {
 			break;
 		case DELETE:
 			sessionDelete(namespace);
+			break;
+		case EXPORT:
+			sessionExport(namespace);
+			break;
+		case IMPORT:
+			sessionImport(namespace);
 			break;
 		default:
 			throw new IllegalArgumentException("unknown subcommand: " + subcommand);
@@ -401,6 +437,7 @@ public class RestCliClient {
 
 	private void datasetList(Namespace namespace) throws RestException {
 		HashMap<UUID, Dataset> datasets = getSessionDbClient().getDatasets(getSessionId(namespace));
+		time("list datasets");
 		
 		for (Dataset dataset : datasets.values()) {
 			printFixed(dataset.getDatasetId().toString(), 36);
@@ -657,8 +694,9 @@ public class RestCliClient {
 		
 	private Dataset getDataset(String str, Namespace namespace) throws RestException {
 
-		if (str != null) {			
+		if (str != null) {	
 			HashMap<UUID, Dataset> datasets = getSessionDbClient().getDatasets(getSessionId(namespace));
+			time("list datasets");
 			for (Dataset dataset : datasets.values()) {
 				if (str.equals(dataset.getName())) {
 					return dataset;
@@ -675,8 +713,9 @@ public class RestCliClient {
 	
 	private Job getJob(String str, Namespace namespace) throws RestException {
 		
-		if (str != null) {			
+		if (str != null) {		
 			HashMap<UUID, Job> jobs = getSessionDbClient().getJobs(getSessionId(namespace));
+			time("list datasets");
 			for (Job job : jobs.values()) {
 				if (str.equals(job.getToolName())) {
 					return job;
@@ -698,6 +737,7 @@ public class RestCliClient {
 		
 		if (str != null) {			
 			HashMap<UUID, Session> sessions = getSessionDbClient().getSessions();
+			time("list sessions");
 			for (Session session : sessions.values()) {
 				if (str.equals(session.getName())) {
 					return session;
@@ -733,6 +773,115 @@ public class RestCliClient {
 		getSessionDbClient().createSession(session);
 	}
 	
+	private void sessionExport(Namespace namespace) throws RestException, IOException {
+		File dir = new File(namespace.getString(DIR));
+		File jobLinks = new File(dir, "jobs");
+		File datasetLinks = new File(dir, "datasets");
+		File fileLinks = new File(dir, "files");
+		File jobs = new File(jobLinks, "UUID");
+		File datasets = new File(datasetLinks, "UUID");
+		File files = new File(fileLinks, "UUID");
+		
+		dir.mkdirs();
+		jobs.mkdirs();
+		datasets.mkdirs();
+		files.mkdirs();
+		
+		Session session = getSessionDbClient().getSession(getSessionId(namespace));
+		
+		FileUtils.writeStringToFile(new File(dir,  "session.json"), RestUtils.asJson(session));
+		
+		for (Dataset dataset : session.getDatasets().values()) {
+			verbose(dataset.getName());
+			FileUtils.writeStringToFile(new File(datasets,  dataset.getDatasetId().toString()), RestUtils.asJson(dataset));
+			// I guess we can use datasetId for the file also, because there should be no need for file deduplication within a session
+			getFileBrokerClient().download(getSessionId(namespace),dataset.getDatasetId(), new File(files, dataset.getDatasetId().toString()));
+			
+			Files.createSymbolicLink(getUniqueFile(datasetLinks, dataset.getName()).toPath(), new File("UUID", dataset.getDatasetId().toString()).toPath());
+			Files.createSymbolicLink(getUniqueFile(fileLinks, dataset.getName()).toPath(), new File("UUID", dataset.getDatasetId().toString()).toPath());
+		}
+		
+		for (Job job : session.getJobs().values()) {
+			FileUtils.writeStringToFile(new File(jobs,  job.getJobId().toString()), RestUtils.asJson(job));
+			Files.createSymbolicLink(getUniqueFile(jobLinks, job.getToolId()).toPath(), new File("UUID", job.getJobId().toString()).toPath());
+		}	
+	}
+
+	private void sessionImport(Namespace namespace) throws RestException, IOException {
+		String name = namespace.getString(NAME);
+		File dir = new File(namespace.getString(DIR));
+		File jobLinks = new File(dir, "jobs");
+		File datasetLinks = new File(dir, "datasets");
+		File fileLinks = new File(dir, "files");
+		File jobs = new File(jobLinks, "UUID");
+		File datasets = new File(datasetLinks, "UUID");
+		File files = new File(fileLinks, "UUID");
+		
+		Session session = RestUtils.parseJson(Session.class, FileUtils.readFileToString(new File(dir,  "session.json")));
+		if (name != null) {
+			session.setName(name);
+		}	
+		
+		session.setSessionId(null);
+		UUID sessionId = getSessionDbClient().createSession(session);
+		
+		for (File file : getUUIDFiles(datasets)) {
+			Dataset dataset = RestUtils.parseJson(Dataset.class, FileUtils.readFileToString(file));
+			verbose(dataset.getName());
+			dataset.setDatasetId(null);
+			dataset.setFile(null);
+			getSessionDbClient().createDataset(sessionId, dataset);
+			getFileBrokerClient().upload(sessionId, dataset.getDatasetId(), new File(files, file.getName()));
+		}
+		
+		for (File file : getUUIDFiles(jobs)) {
+			Job job = RestUtils.parseJson(Job.class, FileUtils.readFileToString(file));
+			job.setJobId(null);
+			getSessionDbClient().createJob(sessionId, job);
+		}	
+	}
+	
+	/**
+	 * Create a unique filename in the given directory
+	 * 
+	 * Return the original name, if it doesn't exist yet. If it does, add an index between the basename and 
+	 * file extension and increase it until the name is unique.
+	 * 
+	 * @param dir
+	 * @param name
+	 * @return
+	 */
+	private File getUniqueFile(File dir, String name) {
+		String basename = FilenameUtils.getBaseName(name);
+		// including the ".", if exists
+		String extension = name.substring(basename.length());
+
+		for (int i = 2; new File(dir, name).exists(); i++) {
+			name = basename + "-" + i + extension;
+		}
+		return new File(dir, name);
+	}
+	
+	/**
+	 * List all the filenames in the directory and return all that can be parsed to a UUID 
+	 * 
+	 * @param dir
+	 * @return
+	 */
+	private List<File> getUUIDFiles(File dir) {
+		List<File> files = new ArrayList<>();
+		for (File file : dir.listFiles()) {
+			try {
+				// try to parse
+				UUID.fromString(file.getName());
+				files.add(file);
+			} catch (IllegalArgumentException e){
+				System.err.println("skpping file " + file.getName());
+			}
+		}
+		return files;
+	}
+
 	private RestFileBrokerClient getFileBrokerClient() {
 		if (fileBrokerClient == null) {
 			fileBrokerClient = new RestFileBrokerClient(proxy + "filebroker", credentials);
