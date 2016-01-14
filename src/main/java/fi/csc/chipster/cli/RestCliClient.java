@@ -56,37 +56,41 @@ import net.sourceforge.argparse4j.inf.Subparsers;
  */
 public class RestCliClient {
 	
-	private static final String DIR = "DIR";
-	private static final String IMPORT = "import";
-	private static final String EXPORT = "export";
-	private static final String PARAMETER = "parameter";
-	private static final String FILE = "FILE";
-	private static final String FILTER = "FILTER";
-	private static final String VALUE = "VALUE";
-	private static final String DETAIL = "DETAIL";
-	private static final String NOTES = "notes";
-	private static final String NAME = "name";
-	private static final String SESSION_ARG = "SESSION";
-	private static final String DATASET_ARG = "DATASET";
-	private static final String TOOL_ARG = "TOOL";
-	private static final String QUIET = "quiet";
-	private static final String VERBOSE = "verbose";
-	private static final String HOST = "HOST";
-	private static final String PASSWORD = "password";
-	private static final String USERNAME = "username";
-	private static final String RUN = "run";
-	private static final String DOWNLOAD = "download";
-	private static final String DETAILS = "details";
-	private static final String PRINT = "print";
-	private static final String SET = "set";
-	private static final String UPLOAD = "upload";
-	private static final String DELETE = "delete";
-	private static final String LIST = "list";
-	private static final String CREATE = "create";
-	private static final String DATASET = "dataset";
-	private static final String JOB = "job";
-	private static final String TOOL = "tool";
+	private static final String ARG_DIR = "DIR";
+	private static final String ARG_FILE = "FILE";
+	private static final String ARG_FILTER = "FILTER";
+	private static final String ARG_VALUE = "VALUE";
+	private static final String ARG_DETAIL = "DETAIL";
+	private static final String ARG_SESSION = "SESSION";
+	private static final String ARG_DATASET = "DATASET";
+	private static final String ARG_TOOL = "TOOL";
+	private static final String ARG_HOST = "HOST";
+	
+	private static final String OPT_QUIET = "quiet";
+	private static final String OPT_VERBOSE = "verbose";
+	private static final String OPT_PASSWORD = "password";
+	private static final String OPT_USERNAME = "username";
+	
+	private static final String CMD_RUN = "run";
+	private static final String CMD_IMPORT = "import";
+	private static final String CMD_EXPORT = "export";
+	private static final String CMD_PARAMETER = "parameter";
+	private static final String CMD_NOTES = "notes";
+	private static final String CMD_NAME = "name";
+	private static final String CMD_DOWNLOAD = "download";
+	private static final String CMD_DETAILS = "details";
+	private static final String CMD_PRINT = "print";
+	private static final String CMD_SET = "set";
+	private static final String CMD_UPLOAD = "upload";
+	private static final String CMD_DELETE = "delete";
+	private static final String CMD_LIST = "list";
+	private static final String CMD_CREATE = "create";
+	private static final String CMD_DATASET = "dataset";
+	private static final String CMD_JOB = "job";
+	private static final String CMD_TOOL = "tool";
+	// this is used as command and option
 	private static final String SESSION = "session";
+	
 	private static final String SUBSUBCOMMAND = "subsubcommand";
 	private static final String SUBCOMMAND = "subcommand";
 	private static Long t;
@@ -146,92 +150,92 @@ public class RestCliClient {
 	
 	private ArgumentParser getArgumentParser() {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("chipster-cli");
-	    parser.addArgument(HOST).help("hostname or IP address of the Chipster server and [:PORT]");
-	    parser.addArgument("-u", "--" + USERNAME).action(Arguments.store()).help("username");
-	    parser.addArgument("-p", "--" + PASSWORD).action(Arguments.store()).help("password");
+	    parser.addArgument(ARG_HOST).help("hostname or IP address of the Chipster server and [:PORT]");
+	    parser.addArgument("-u", "--" + OPT_USERNAME).action(Arguments.store()).help("username");
+	    parser.addArgument("-p", "--" + OPT_PASSWORD).action(Arguments.store()).help("password");
 	    parser.addArgument("-s", "--" + SESSION).action(Arguments.store()).help("session name or ID to work on");
 	    
-	    parser.addArgument("-v", "--" + VERBOSE).action(Arguments.storeTrue()).help("more verbose output");
-	    parser.addArgument("-q", "--" + QUIET).action(Arguments.storeTrue()).help("quieter output");
+	    parser.addArgument("-v", "--" + OPT_VERBOSE).action(Arguments.storeTrue()).help("more verbose output");
+	    parser.addArgument("-q", "--" + OPT_QUIET).action(Arguments.storeTrue()).help("quieter output");
 	    
 	    Subparsers subparsers = parser.addSubparsers().title("subcommands").metavar("COMMAND").dest(SUBCOMMAND);
 	    Subparsers sessionSubparsers = subparsers.addParser(SESSION).help("manage sessions").addSubparsers().title("session subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
-	    Subparsers toolSubparsers    = subparsers.addParser(TOOL).help("get information about tools").addSubparsers().title("tool subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
-	    Subparsers jobSubparsers     = subparsers.addParser(JOB).help("run and follow jobs").addSubparsers().title("job subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
-	    Subparsers datasetSubparsers = subparsers.addParser(DATASET).help("manage datasets").addSubparsers().title("dataset subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
+	    Subparsers toolSubparsers    = subparsers.addParser(CMD_TOOL).help("get information about tools").addSubparsers().title("tool subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
+	    Subparsers jobSubparsers     = subparsers.addParser(CMD_JOB).help("run and follow jobs").addSubparsers().title("job subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
+	    Subparsers datasetSubparsers = subparsers.addParser(CMD_DATASET).help("manage datasets").addSubparsers().title("dataset subcommands").metavar("COMMAND").dest(SUBSUBCOMMAND);
 
 	    // sessions
 	    
-	    Subparser sessionCreateParser = sessionSubparsers.addParser(CREATE).help("create new session");
-	    sessionCreateParser.addArgument(SESSION_ARG).help("name of the session to be created");
+	    Subparser sessionCreateParser = sessionSubparsers.addParser(CMD_CREATE).help("create new session");
+	    sessionCreateParser.addArgument(ARG_SESSION).help("name of the session to be created");
 	    
-	    sessionSubparsers.addParser(LIST).help("list sessions");
-	    sessionSubparsers.addParser(DETAILS).help("view session details");
+	    sessionSubparsers.addParser(CMD_LIST).help("list sessions");
+	    sessionSubparsers.addParser(CMD_DETAILS).help("view session details");
 	    
-	    sessionSubparsers.addParser(DELETE).help("delete session");
+	    sessionSubparsers.addParser(CMD_DELETE).help("delete session");
 	    
-	    Subparser sessionExportParser = sessionSubparsers.addParser(EXPORT).help("copy the whole session to a local directory");
-	    sessionExportParser.addArgument(DIR);
+	    Subparser sessionExportParser = sessionSubparsers.addParser(CMD_EXPORT).help("copy the whole session to a local directory");
+	    sessionExportParser.addArgument(ARG_DIR);
 
-	    Subparser sessionImportParser = sessionSubparsers.addParser(IMPORT).help("import a session from the local directory");
-	    sessionImportParser.addArgument(DIR);
-	    sessionImportParser.addArgument(NAME).nargs("?").help("rename the imported session");
+	    Subparser sessionImportParser = sessionSubparsers.addParser(CMD_IMPORT).help("import a session from the local directory");
+	    sessionImportParser.addArgument(ARG_DIR);
+	    sessionImportParser.addArgument(CMD_NAME).nargs("?").help("rename the imported session");
 	    	    
 	    // datasets
 	    
-	    datasetSubparsers.addParser(LIST).help("list all datasets in the session");
-	    Subparser datasetUploadParser = datasetSubparsers.addParser(UPLOAD).help("upload a dataset");
-	    datasetUploadParser.addArgument(FILE).help("file to upload or - to read from the standard in");
-	    datasetUploadParser.addArgument(NAME).nargs("?").help("name for the uploaded dataset");
+	    datasetSubparsers.addParser(CMD_LIST).help("list all datasets in the session");
+	    Subparser datasetUploadParser = datasetSubparsers.addParser(CMD_UPLOAD).help("upload a dataset");
+	    datasetUploadParser.addArgument(ARG_FILE).help("file to upload or - to read from the standard in");
+	    datasetUploadParser.addArgument(CMD_NAME).nargs("?").help("name for the uploaded dataset");
 	    
-	    Subparser datasetDownlaodParser = datasetSubparsers.addParser(DOWNLOAD).help("download a dataset");
-	    datasetDownlaodParser.addArgument(DATASET_ARG).help("dataset to download");
-	    datasetDownlaodParser.addArgument(FILE).nargs("?").help("destination file (dataset name by default)");
+	    Subparser datasetDownlaodParser = datasetSubparsers.addParser(CMD_DOWNLOAD).help("download a dataset");
+	    datasetDownlaodParser.addArgument(ARG_DATASET).help("dataset to download");
+	    datasetDownlaodParser.addArgument(ARG_FILE).nargs("?").help("destination file (dataset name by default)");
 	    
-	    Subparser datasetSetParser = datasetSubparsers.addParser(SET).help("edit dataset details");
-	    datasetSetParser.addArgument(DATASET_ARG);
-	    datasetSetParser.addArgument(DETAIL).choices(NAME, NOTES);
-	    datasetSetParser.addArgument(VALUE);
+	    Subparser datasetSetParser = datasetSubparsers.addParser(CMD_SET).help("edit dataset details");
+	    datasetSetParser.addArgument(ARG_DATASET);
+	    datasetSetParser.addArgument(ARG_DETAIL).choices(CMD_NAME, CMD_NOTES);
+	    datasetSetParser.addArgument(ARG_VALUE);
 	    
-	    Subparser datasetPrintParser = datasetSubparsers.addParser(PRINT).help("print the dataset contents to the standard output");
-	    datasetPrintParser.addArgument(DATASET_ARG);
+	    Subparser datasetPrintParser = datasetSubparsers.addParser(CMD_PRINT).help("print the dataset contents to the standard output");
+	    datasetPrintParser.addArgument(ARG_DATASET);
 	    
-	    Subparser datasetDetailsParser = datasetSubparsers.addParser(DETAILS).help("view dataset details");
-	    datasetDetailsParser.addArgument(DATASET_ARG);
+	    Subparser datasetDetailsParser = datasetSubparsers.addParser(CMD_DETAILS).help("view dataset details");
+	    datasetDetailsParser.addArgument(ARG_DATASET);
 	    
-	    datasetSubparsers.addParser(DELETE).help("delete dataset");
+	    datasetSubparsers.addParser(CMD_DELETE).help("delete dataset");
 	    
 	    // tools
 	    
-	    Subparser toolListParser = toolSubparsers.addParser(LIST).help("list tools");
-	    toolListParser.addArgument(FILTER).nargs("?").help("list only tools that have this string in its name");
+	    Subparser toolListParser = toolSubparsers.addParser(CMD_LIST).help("list tools");
+	    toolListParser.addArgument(ARG_FILTER).nargs("?").help("list only tools that have this string in its name");
 	    
-	    Subparser toolDetailsParser = toolSubparsers.addParser(DETAILS).help("view tool details");
-	    toolDetailsParser.addArgument(TOOL_ARG);
+	    Subparser toolDetailsParser = toolSubparsers.addParser(CMD_DETAILS).help("view tool details");
+	    toolDetailsParser.addArgument(ARG_TOOL);
 	    
 	    // jobs
 	    
-	    jobSubparsers.addParser(LIST).help("list jobs");
-	    Subparser jobDetailsParser = jobSubparsers.addParser(DETAILS).help("view job details");
-	    jobDetailsParser.addArgument(JOB).help("view job details");
+	    jobSubparsers.addParser(CMD_LIST).help("list jobs");
+	    Subparser jobDetailsParser = jobSubparsers.addParser(CMD_DETAILS).help("view job details");
+	    jobDetailsParser.addArgument(CMD_JOB).help("view job details");
 	    
-	    Subparser jobRunParser = jobSubparsers.addParser(RUN).help("start new job");
-	    jobRunParser.addArgument(TOOL_ARG).help("tool to run");
-	    jobRunParser.addArgument("-D", "--" + DATASET).nargs("*").action(Arguments.append()).help("input datasets");
-	    jobRunParser.addArgument("-P", "--" + PARAMETER).nargs(2).metavar("PARAMETER", VALUE).action(Arguments.append()).help("parameter name and value");
+	    Subparser jobRunParser = jobSubparsers.addParser(CMD_RUN).help("start new job");
+	    jobRunParser.addArgument(ARG_TOOL).help("tool to run");
+	    jobRunParser.addArgument("-D", "--" + CMD_DATASET).nargs("*").action(Arguments.append()).help("input datasets");
+	    jobRunParser.addArgument("-P", "--" + CMD_PARAMETER).nargs(2).metavar("PARAMETER", ARG_VALUE).action(Arguments.append()).help("parameter name and value");
 
 	    return parser;
 	}
 	
 	private void execute(Namespace namespace) throws RestException, IOException {
 		
-		verbose = namespace.getBoolean(VERBOSE);
-		quiet = namespace.getBoolean(QUIET);
+		verbose = namespace.getBoolean(OPT_VERBOSE);
+		quiet = namespace.getBoolean(OPT_QUIET);
 		
-		proxy = "http://" + namespace.getString(HOST) + "/";
+		proxy = "http://" + namespace.getString(ARG_HOST) + "/";
 		
-		String username = namespace.getString(USERNAME);
-		String password = namespace.getString(PASSWORD);
+		String username = namespace.getString(OPT_USERNAME);
+		String password = namespace.getString(OPT_PASSWORD);
 		
 		if (username != null || password != null) {
 			String authURI = proxy + "auth/";
@@ -246,13 +250,13 @@ public class RestCliClient {
 		case SESSION:
 			executeSessionSubcommand(namespace);
 			break;
-		case TOOL:
+		case CMD_TOOL:
 			executeToolSubcommand(namespace);
 			break;
-		case JOB:
+		case CMD_JOB:
 			executeJobSubcommand(namespace);
 			break;
-		case DATASET:
+		case CMD_DATASET:
 			executeDatasetSubcommand(namespace);
 			break;
 		default:
@@ -269,25 +273,25 @@ public class RestCliClient {
 	private void executeDatasetSubcommand(Namespace namespace) throws RestException, IOException {
 		String subcommand = namespace.getString(SUBSUBCOMMAND);
 		switch (subcommand) {
-		case LIST:
+		case CMD_LIST:
 			datasetList(namespace);
 			break;
-		case UPLOAD:
+		case CMD_UPLOAD:
 			datasetUpload(namespace);
 			break;
-		case SET:
+		case CMD_SET:
 			datasetSet(namespace);
 			break;
-		case DETAILS:
+		case CMD_DETAILS:
 			datasetDetails(namespace);
 			break;
-		case PRINT:
+		case CMD_PRINT:
 			datasetPrint(namespace);
 			break;
-		case DELETE:
+		case CMD_DELETE:
 			datasetDelete(namespace);
 			break;
-		case DOWNLOAD:
+		case CMD_DOWNLOAD:
 			datasetDownload(namespace);
 			break;
 		default:
@@ -299,13 +303,13 @@ public class RestCliClient {
 	private void executeJobSubcommand(Namespace namespace) throws RestException {
 		String subcommand = namespace.getString(SUBSUBCOMMAND);
 		switch (subcommand) {
-		case LIST:
+		case CMD_LIST:
 			jobList(namespace);
 			break;
-		case DETAILS:
+		case CMD_DETAILS:
 			jobDetais(namespace);
 			break;
-		case RUN:
+		case CMD_RUN:
 			jobRun(namespace);
 			break;
 		default:
@@ -317,10 +321,10 @@ public class RestCliClient {
 	private void executeToolSubcommand(Namespace namespace) {
 		String subcommand = namespace.getString(SUBSUBCOMMAND);
 		switch (subcommand) {
-		case LIST:
+		case CMD_LIST:
 			toolList(namespace);
 			break;
-		case DETAILS:
+		case CMD_DETAILS:
 			toolDetails(namespace);
 			break;
 		default:
@@ -331,22 +335,22 @@ public class RestCliClient {
 	private void executeSessionSubcommand(Namespace namespace) throws RestException, IOException {
 		String subcommand = namespace.getString(SUBSUBCOMMAND);
 		switch (subcommand) {
-		case CREATE:
+		case CMD_CREATE:
 			sessionCreate(namespace);
 			break;
-		case LIST:
+		case CMD_LIST:
 			sessionList(namespace);
 			break;
-		case DETAILS:
+		case CMD_DETAILS:
 			sessionDetails(namespace);
 			break;
-		case DELETE:
+		case CMD_DELETE:
 			sessionDelete(namespace);
 			break;
-		case EXPORT:
+		case CMD_EXPORT:
 			sessionExport(namespace);
 			break;
-		case IMPORT:
+		case CMD_IMPORT:
 			sessionImport(namespace);
 			break;
 		default:
@@ -356,7 +360,7 @@ public class RestCliClient {
 
 	private void datasetDownload(Namespace namespace) throws RestException, IOException {
 		Dataset dataset = getDataset(namespace);
-		String filePath = namespace.getString(FILE);
+		String filePath = namespace.getString(ARG_FILE);
 		if (filePath == null) {
 			filePath = dataset.getName();
 		}
@@ -378,8 +382,8 @@ public class RestCliClient {
 
 	private void datasetDetails(Namespace namespace) throws RestException {
 		Dataset dataset = getDataset(namespace);
-		printKeyValue(NAME, dataset.getName());
-		printKeyValue(NOTES, dataset.getNotes());
+		printKeyValue(CMD_NAME, dataset.getName());
+		printKeyValue(CMD_NOTES, dataset.getNotes());
 		printKeyValue("dataset ID", dataset.getDatasetId());
 		if (dataset.getFile() != null) {
 			printKeyValue("size", dataset.getFile().getSize());
@@ -394,12 +398,12 @@ public class RestCliClient {
 
 	private void datasetSet(Namespace namespace) throws RestException {
 		Dataset dataset = getDataset(namespace);
-		String value = namespace.getString(VALUE);
-		switch (namespace.getString(DETAIL)) {
-		case NAME:
+		String value = namespace.getString(ARG_VALUE);
+		switch (namespace.getString(ARG_DETAIL)) {
+		case CMD_NAME:
 			dataset.setName(value);
 			break;
-		case NOTES:
+		case CMD_NOTES:
 			dataset.setNotes(value);
 			break;
 		}
@@ -407,8 +411,8 @@ public class RestCliClient {
 	}
 
 	private void datasetUpload(Namespace namespace) throws RestException, FileNotFoundException {
-		String filePath = namespace.getString(FILE);
-		String name = namespace.getString(NAME);
+		String filePath = namespace.getString(ARG_FILE);
+		String name = namespace.getString(CMD_NAME);
 		if (name == null) {
 			if ("-".equals(filePath)) {
 				name = "upload";
@@ -448,20 +452,20 @@ public class RestCliClient {
 	
 	@SuppressWarnings("unchecked")
 	private void jobRun(Namespace namespace) throws RestException {
-		ToolboxTool tool = getToolboxClient().getTool(namespace.getString(TOOL_ARG));
+		ToolboxTool tool = getToolboxClient().getTool(namespace.getString(ARG_TOOL));
 		List<Dataset> datasets = new ArrayList<>();
 		HashMap<String, String> parameters = new HashMap<>();
 
-		if (namespace.getList(DATASET) != null) {
-			for (Object innerList : namespace.getList(DATASET)) {
+		if (namespace.getList(CMD_DATASET) != null) {
+			for (Object innerList : namespace.getList(CMD_DATASET)) {
 				for (Object dataset : (List<Object>)innerList) {
 					datasets.add(getDataset("" + dataset, namespace));
 				}
 			}
 		}
 		
-		if (namespace.getList(PARAMETER) != null) {
-			for (Object paramObj : namespace.getList(PARAMETER)) {
+		if (namespace.getList(CMD_PARAMETER) != null) {
+			for (Object paramObj : namespace.getList(CMD_PARAMETER)) {
 				List<String> paramList = (List<String>) paramObj;
 				parameters.put(paramList.get(0), paramList.get(1));
 			}
@@ -528,7 +532,7 @@ public class RestCliClient {
 	}
 
 	private void jobDetais(Namespace namespace) throws RestException {
-		Job job = getJob(namespace.getString(JOB), namespace);
+		Job job = getJob(namespace.getString(CMD_JOB), namespace);
 		
 		printKeyValue("module", job.getModule());
 		printKeyValue("category", job.getToolCategory());
@@ -595,7 +599,7 @@ public class RestCliClient {
 	}
 
 	private void toolDetails(Namespace namespace) {
-		ToolboxTool tool = getToolboxClient().getTool(namespace.getString(TOOL_ARG));
+		ToolboxTool tool = getToolboxClient().getTool(namespace.getString(ARG_TOOL));
 		printKeyValue("module", tool.getModule());
 		printKeyValue("tool ID", tool.getSadlDescription().getName().getID());
 		printKeyValue("name", tool.getSadlDescription().getName().getDisplayName());
@@ -656,7 +660,7 @@ public class RestCliClient {
 	}
 
 	private void toolList(Namespace namespace) {
-		String filter = namespace.getString(FILTER);
+		String filter = namespace.getString(ARG_FILTER);
 		HashMap<String, SADLDescription> tools = getToolboxClient().getTools();
 		
 		for (SADLDescription tool : tools.values()) {
@@ -679,16 +683,16 @@ public class RestCliClient {
 	
 	private void sessionDetails(Namespace namespace) throws RestException {
 		Session session = getSession(namespace);
-		printKeyValue(NAME, session.getName());
+		printKeyValue(CMD_NAME, session.getName());
 		printKeyValue("created", session.getCreated());
 		printKeyValue("accessed", session.getAccessed());
 		printKeyValue("session ID", session.getSessionId());
-		printKeyValue(NOTES, session.getNotes());
+		printKeyValue(CMD_NOTES, session.getNotes());
 	}
 
 	private Dataset getDataset(Namespace namespace) throws RestException {
 		
-		String str = namespace.getString(DATASET_ARG);
+		String str = namespace.getString(ARG_DATASET);
 		return getDataset(str, namespace);
 	}
 		
@@ -769,12 +773,12 @@ public class RestCliClient {
 	
 	private void sessionCreate(Namespace namespace) throws RestException {
 		Session session = new Session();
-		session.setName(namespace.getString(SESSION_ARG));
+		session.setName(namespace.getString(ARG_SESSION));
 		getSessionDbClient().createSession(session);
 	}
 	
 	private void sessionExport(Namespace namespace) throws RestException, IOException {
-		File dir = new File(namespace.getString(DIR));
+		File dir = new File(namespace.getString(ARG_DIR));
 		File jobLinks = new File(dir, "jobs");
 		File datasetLinks = new File(dir, "datasets");
 		File fileLinks = new File(dir, "files");
@@ -808,8 +812,8 @@ public class RestCliClient {
 	}
 
 	private void sessionImport(Namespace namespace) throws RestException, IOException {
-		String name = namespace.getString(NAME);
-		File dir = new File(namespace.getString(DIR));
+		String name = namespace.getString(CMD_NAME);
+		File dir = new File(namespace.getString(ARG_DIR));
 		File jobLinks = new File(dir, "jobs");
 		File datasetLinks = new File(dir, "datasets");
 		File fileLinks = new File(dir, "files");

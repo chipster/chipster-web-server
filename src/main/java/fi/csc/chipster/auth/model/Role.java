@@ -19,5 +19,6 @@ public class Role {
 	public static final String SERVICE_LOCATOR = "service-locator";
 	public static final String FILE_BROKER = "file-broker";
 	public static final String TOOLBOX = "toolbox";
-
+	public static final String ADMIN = "admin";
+	public static final String PROXY = null;
 }
