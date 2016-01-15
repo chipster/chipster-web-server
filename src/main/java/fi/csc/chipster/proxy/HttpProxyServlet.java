@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.proxy.ProxyServlet;
 
 import fi.csc.chipster.proxy.model.Connection;
+import fi.csc.chipster.proxy.model.Route;
 
 /**
  * HTTP proxy servlet based on Jetty's transparent ProxyServlet
@@ -41,8 +42,7 @@ public class HttpProxyServlet extends ProxyServlet.Transparent {
 		Connection connection = new Connection();
         connection.setSourceAddress(request.getRemoteAddr());
         connection.setRequestURI(request.getRequestURL().toString());
-        connection.setProxyPath(getProxyPath());
-        connection.setProxyTo(getProxyTo());
+        connection.setRoute(new Route(getProxyPath(), getProxyTo()));
         connection.setOpenTime(LocalDateTime.now());
 		
         connectionManager.addConnection(connection);

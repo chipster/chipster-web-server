@@ -141,6 +141,7 @@ public class SessionDb implements TopicCheck {
 
 		final SessionDb server = new SessionDb(new Config());
 		server.startServer();
+		
 		RestUtils.waitForShutdown("session-db", server.getHttpServer());
 
 		hibernate.getSessionFactory().close();

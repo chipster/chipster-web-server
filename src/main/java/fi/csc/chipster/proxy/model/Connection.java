@@ -15,10 +15,9 @@ public class Connection {
 	
 	private static final Logger logger = LogManager.getLogger();
 	
+	private Route route;
 	private String sourceAddress;
-	private String proxyPath;
 	private String requestURI;
-	private String proxyTo;
 	private LocalDateTime openTime;
 	private LocalDateTime closeTime;
 	
@@ -27,12 +26,6 @@ public class Connection {
 	}
 	public void setSourceAddress(String sourceAddress) {
 		this.sourceAddress = sourceAddress;
-	}
-	public String getProxyTo() {
-		return proxyTo;
-	}
-	public void setProxyTo(String targetAddress) {
-		this.proxyTo = targetAddress;
 	}
 	public LocalDateTime getOpenTime() {
 		return openTime;
@@ -59,10 +52,10 @@ public class Connection {
 			logger.error("invalid request URI", e);
 		}
 	}
-	public String getProxyPath() {
-		return proxyPath;
+	public Route getRoute() {
+		return route;
 	}
-	public void setProxyPath(String proxyPath) {
-		this.proxyPath = proxyPath;
+	public void setRoute(Route route) {
+		this.route = route;
 	}
 }

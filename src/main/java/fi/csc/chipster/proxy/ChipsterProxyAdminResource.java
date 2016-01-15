@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.proxy.model.Connection;
 import fi.csc.chipster.proxy.model.Route;
+import fi.csc.chipster.proxy.model.RouteStats;
 
 /**
  * Management Rest API for the Chipster's proxy
@@ -58,7 +59,7 @@ public class ChipsterProxyAdminResource {
 	@Path("routes")
     public Response getRoutes(@Context SecurityContext sc) {
 
-		List<Route> routes = proxy.getRoutes();
+		List<RouteStats> routes = proxy.getRouteStats();
 		
 		return Response.ok(routes).build();
     }
@@ -69,7 +70,7 @@ public class ChipsterProxyAdminResource {
 	@Path("routes")
     public Response addRoute(Route route, @Context SecurityContext sc) {
 		try {
-			proxy.addRoute(route.getProxyPath(), route.getTargetURI());
+			proxy.addRoute(route.getProxyPath(), route.getProxyTo());
 		} catch (URISyntaxException e) {
 			throw new BadRequestException("invalid URI: " + e.getMessage());
 		}

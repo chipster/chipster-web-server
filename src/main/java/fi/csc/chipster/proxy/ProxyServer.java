@@ -21,6 +21,7 @@ import org.eclipse.jetty.servlet.ServletMapping;
 import fi.csc.chipster.proxy.ConnectionManager.ConnectionListener;
 import fi.csc.chipster.proxy.model.Connection;
 import fi.csc.chipster.proxy.model.Route;
+import fi.csc.chipster.proxy.model.RouteStats;
 
 /**
  * Switchover proxy
@@ -151,12 +152,19 @@ public class ProxyServer {
 			}
 			Route route = new Route();
 			route.setProxyPath(getProxyPath(pathSpec));
-			route.setTargetURI(getServlet(getProxyPath(pathSpec), mappings).getInitParameter(PROXY_TO));
-			route.setConnections(connectionManager.getConnections(route.getProxyPath(), route.getTargetURI()).size());
+			route.setProxyTo(getServlet(getProxyPath(pathSpec), mappings).getInitParameter(PROXY_TO));
 			routes.add(route);
 		}
 		
 		return routes;
+	}
+	
+	public List<RouteStats> getRouteStats() {
+		ArrayList<RouteStats> stats = new ArrayList<>();
+		for (Route route : getRoutes()) {
+			stats.add(connectionManager.getRouteStats(route));
+		}
+		return stats;
 	}
 	
 	public void removeRoute(String proxyPath) {
@@ -274,7 +282,7 @@ public class ProxyServer {
 			String holderProxyPath = servletsToRemove.get(holder);
 			String holderTargetURI = holder.getInitParameter(PROXY_TO);
 
-			if (!connectionManager.hasOpenConnections(holderProxyPath, holderTargetURI)) {
+			if (!connectionManager.hasOpenConnections(new Route(holderProxyPath, holderTargetURI))) {
 				logger.info("remove unused route " + holderProxyPath + " -> " + holderTargetURI);
 				removeServlet(holder);
 				holdersIter.remove();

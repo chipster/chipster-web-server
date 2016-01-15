@@ -18,6 +18,7 @@ import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.glassfish.tyrus.client.ClientManager;
 
 import fi.csc.chipster.proxy.model.Connection;
+import fi.csc.chipster.proxy.model.Route;
 
 /**
  * WebSocket socket side
@@ -60,8 +61,7 @@ public class WebSocketProxySocket extends WebSocketAdapter {
 		connection = new Connection();
 		connection.setSourceAddress(socketSession.getRemoteAddress().getHostString().toString());
 		connection.setRequestURI(socketSession.getUpgradeRequest().getRequestURI().toString());
-		connection.setProxyPath(prefix.substring(1));
-		connection.setProxyTo(proxyTo);
+		connection.setRoute(new Route(prefix.substring(1), proxyTo));
 		connection.setOpenTime(LocalDateTime.now());
 		connectionManager.addConnection(connection);
 
