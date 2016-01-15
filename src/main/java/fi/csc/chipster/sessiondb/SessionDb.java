@@ -32,6 +32,7 @@ import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.DatasetColumn;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -93,7 +94,7 @@ public class SessionDb implements TopicCheck {
 		serviceLocator.register(Role.SESSION_DB_EVENTS, authService, config.getString("session-db-events"));
 
 		List<Class<?>> hibernateClasses = Arrays.asList(Session.class, Dataset.class, Job.class, Parameter.class,
-				Input.class, File.class, Authorization.class);
+				Input.class, File.class, Authorization.class, DatasetColumn.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil();

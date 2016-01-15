@@ -96,7 +96,7 @@ public class DatasetResource {
 		
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
-
+		
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		
 		checkFileModification(dataset);

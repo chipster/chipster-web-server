@@ -10,6 +10,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
+import javax.persistence.MapKey;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -29,14 +30,16 @@ public class Session {
 	private LocalDateTime accessed;
 	
 	/* - cascade updates so that adding an object to the collection
-	 * persists also the object itself 
+	 * persists also the object itself  
 	 */
 	@OneToMany(cascade=CascadeType.ALL)
-	@JoinColumn(name="sessionId")
+	@JoinColumn(name="sessionId") // relationship stored in Dataset table
+	@MapKey // Dataset IDs as keys
 	private Map<UUID, Dataset> datasets;
 	
 	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="sessionId")
+	@MapKey
 	private Map<UUID, Job> jobs;
 	
 	// not needed in session JSON, because there is a separate endpoint for this

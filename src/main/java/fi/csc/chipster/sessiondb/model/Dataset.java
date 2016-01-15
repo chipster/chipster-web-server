@@ -1,14 +1,21 @@
 package fi.csc.chipster.sessiondb.model;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
+import javax.persistence.MapKeyColumn;
+import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
@@ -16,6 +23,15 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 @Entity // db
 @XmlRootElement // rest
 public class Dataset {
+	
+	@Entity
+	public static class ColumnMetadata {
+		@ElementCollection(fetch=FetchType.EAGER)
+		@MapKeyColumn(name="key")
+		@Column(name="value")
+		@CollectionTable(name="Metadata", joinColumns=@JoinColumn(name="datasetId"))
+		private Map<String, String> metadata;	
+	}
 
 	@Id // db
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
@@ -32,6 +48,16 @@ public class Dataset {
 	// embed fields of the File object directly 
 	@JsonUnwrapped // rest
 	private File file;
+	
+	@ElementCollection(fetch=FetchType.EAGER)
+	@MapKeyColumn(name="key")
+	@Column(name="value")
+	@CollectionTable(name="Metadata", joinColumns=@JoinColumn(name="datasetId"))
+	private Map<String, String> metadata;
+	
+	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@JoinColumn(name="datasetId")
+	private List<DatasetColumn> columns;
 	
 	public Dataset() {} // JAXB needs this
 
@@ -94,5 +120,21 @@ public class Dataset {
 
 	public void setNotes(String notes) {
 		this.notes = notes;
+	}
+
+	public Map<String, String> getMetadata() {
+		return metadata;
+	}
+
+	public void setMetadata(Map<String, String> metadata) {
+		this.metadata = metadata;
+	}
+
+	public List<DatasetColumn> getColumns() {
+		return columns;
+	}
+
+	public void setColumns(List<DatasetColumn> columns) {
+		this.columns = columns;
 	}
 }
