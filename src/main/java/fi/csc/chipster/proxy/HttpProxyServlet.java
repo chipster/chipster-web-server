@@ -1,7 +1,6 @@
 package fi.csc.chipster.proxy;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 
 import javax.inject.Singleton;
 import javax.servlet.AsyncEvent;
@@ -43,7 +42,7 @@ public class HttpProxyServlet extends ProxyServlet.Transparent {
         connection.setSourceAddress(request.getRemoteAddr());
         connection.setRequestURI(request.getRequestURL().toString());
         connection.setRoute(new Route(getProxyPath(), getProxyTo()));
-        connection.setOpenTime(LocalDateTime.now());
+        connection.setMethod(request.getMethod());
 		
         connectionManager.addConnection(connection);
         

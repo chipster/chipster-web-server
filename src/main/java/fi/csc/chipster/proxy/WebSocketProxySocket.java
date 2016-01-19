@@ -3,7 +3,6 @@ package fi.csc.chipster.proxy;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.LocalDateTime;
 import java.util.concurrent.CountDownLatch;
 
 import javax.websocket.ClientEndpointConfig;
@@ -62,7 +61,6 @@ public class WebSocketProxySocket extends WebSocketAdapter {
 		connection.setSourceAddress(socketSession.getRemoteAddress().getHostString().toString());
 		connection.setRequestURI(socketSession.getUpgradeRequest().getRequestURI().toString());
 		connection.setRoute(new Route(prefix.substring(1), proxyTo));
-		connection.setOpenTime(LocalDateTime.now());
 		connectionManager.addConnection(connection);
 
 	}

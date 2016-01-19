@@ -24,7 +24,8 @@ public class SessionCopy {
 	private static String proxy;
 	private static CredentialsProvider credentials;
 	private static RestFileBrokerClient fileBrokerClient;
-	private static SessionDbClient sessionDbClient;	
+	private static SessionDbClient sessionDbClient;
+	private static String sessionDir;	
 	
 	public static void main(String args[]) throws InterruptedException {
 		
@@ -32,20 +33,33 @@ public class SessionCopy {
 		
 		String username = "client2";
 		String password = "client2Password";
+		sessionDir = args[0];
+		
+		if (sessionDir == null) {
+			System.out.println("usage: SessionCopy SESSION_DIR");
+			System.exit(1);
+		}
 		
 		String authURI = proxy + "auth/";
 		credentials = new AuthenticationClient(authURI, username, password).getCredentials();
 		fileBrokerClient = new RestFileBrokerClient(proxy + "filebroker", credentials);
 		sessionDbClient = new SessionDbClient(proxy + "sessiondb/", proxy + "sessiondbevents/", credentials);
 		
-		ExecutorService pool = Executors.newFixedThreadPool(10);
+		int threads = 10;
 		
-		for (int i = 0; i < 1; i++) {
+		ExecutorService pool = Executors.newFixedThreadPool(threads);
+		
+		long t = System.currentTimeMillis();
+		
+		for (int i = 0; i < 10_000; i++) {
 			pool.execute(getCopyRunnable(i));
 		}
 		
 		pool.shutdown();
 		pool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+		
+		System.out.println(((System.currentTimeMillis() - t) / (float)threads) + "ms");
+		
 		System.exit(0);
 	}
 	
@@ -68,15 +82,14 @@ public class SessionCopy {
 
 	public static void copy(int i) throws RestException, IOException {
 		String name = "session" + i;
-		File dir = new File("/Users/klemela/tmp/NGS-empty");
-		File jobLinks = new File(dir, "jobs");
-		File datasetLinks = new File(dir, "datasets");
-		File fileLinks = new File(dir, "files");
+		File jobLinks = new File(sessionDir, "jobs");
+		File datasetLinks = new File(sessionDir, "datasets");
+		File fileLinks = new File(sessionDir, "files");
 		File jobs = new File(jobLinks, "UUID");
 		File datasets = new File(datasetLinks, "UUID");
 		File files = new File(fileLinks, "UUID");
 		
-		Session session = RestUtils.parseJson(Session.class, FileUtils.readFileToString(new File(dir,  "session.json")));
+		Session session = RestUtils.parseJson(Session.class, FileUtils.readFileToString(new File(sessionDir,  "session.json")));
 		if (name != null) {
 			session.setName(name);
 		}	

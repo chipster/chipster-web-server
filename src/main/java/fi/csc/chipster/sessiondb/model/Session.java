@@ -1,16 +1,16 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.MapKey;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -29,37 +29,72 @@ public class Session {
 	private LocalDateTime created;
 	private LocalDateTime accessed;
 	
-	/* - cascade updates so that adding an object to the collection
-	 * persists also the object itself  
+	// mappedBy="session" means that this relation is owned by the other side
+	@OneToMany(mappedBy="session")
+	private Collection<Dataset> datasets;
+	
+	@OneToMany(mappedBy="session")
+	private Collection<Job> jobs;
+	
+	/**
+	 * All jobs in the session
+	 * 
+	 * Changes to the database has to be made with Job.setSession().
+	 * 
+	 * @return
 	 */
-	@OneToMany(cascade=CascadeType.ALL)
-	@JoinColumn(name="sessionId") // relationship stored in Dataset table
-	@MapKey // Dataset IDs as keys
-	private Map<UUID, Dataset> datasets;
-	
-	@OneToMany(cascade=CascadeType.ALL)
-	@JoinColumn(name="sessionId")
-	@MapKey
-	private Map<UUID, Job> jobs;
-	
 	// not needed in session JSON, because there is a separate endpoint for this
 	@XmlTransient // rest
 	public Map<UUID, Job> getJobs() {
-		return jobs;
+		HashMap<UUID, Job> map = new HashMap<>();
+		for (Job job : jobs) {
+			map.put(job.getJobId(), job);
+		}
+		return map;
 	}
-
+	
+	/**
+	 * Set jobs to this instance.
+	 * 
+	 * Changes to the database has to be made with Job.setSession().
+	 * 
+	 * @param jobs
+	 */
 	public void setJobs(Map<UUID, Job> jobs) {
-		this.jobs = jobs;
+		this.jobs = jobs.values();
 	}
 
+	/**
+	 * All dataset in the session
+	 * 
+	 * Changes to the database has to made with Dataset.setSession().
+	 * 
+	 * @return
+	 */
 	// not needed in session JSON, because there is a separate endpoint for this
 	@XmlTransient // rest
 	public Map<UUID, Dataset> getDatasets() {
+		HashMap<UUID, Dataset> map = new HashMap<>();
+		for (Dataset dataset : datasets) {
+			map.put(dataset.getDatasetId(), dataset);
+		}
+		return map;
+	}
+	
+	@XmlTransient 
+	public Collection<Dataset> getDatasetCollection() {
 		return datasets;
 	}
 
+	/**
+	 * Set dataset to this instance
+	 * 
+	 * Changes to the database has to be made with Dataset.setSession().
+	 * 
+	 * @param datasets
+	 */
 	public void setDatasets(Map<UUID, Dataset> datasets) {
-		this.datasets = datasets;
+		this.datasets = datasets.values();
 	}
 	
 	public UUID getSessionId() {

@@ -17,6 +17,7 @@ import javax.persistence.ManyToOne;
 import javax.persistence.MapKeyColumn;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
@@ -43,7 +44,13 @@ public class Dataset {
 	private Integer y;
 	private UUID sourceJob;
 	
-	@ManyToOne(cascade=CascadeType.ALL)
+	@XmlTransient
+	@ManyToOne
+	@JoinColumn(name="sessionId")
+	private Session session;
+	
+	// handle delete manually only when the file is orphan
+	@ManyToOne(cascade={CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
 	@JoinColumn(name="fileId")
 	// embed fields of the File object directly 
 	@JsonUnwrapped // rest
@@ -136,5 +143,13 @@ public class Dataset {
 
 	public void setColumns(List<DatasetColumn> columns) {
 		this.columns = columns;
+	}
+
+	public Session getSession() {
+		return session;
+	}
+
+	public void setSession(Session session) {
+		this.session = session;
 	}
 }

@@ -20,6 +20,7 @@ public class Connection {
 	private String requestURI;
 	private LocalDateTime openTime;
 	private LocalDateTime closeTime;
+	private String method;
 	
 	public String getSourceAddress() {
 		return sourceAddress;
@@ -57,5 +58,11 @@ public class Connection {
 	}
 	public void setRoute(Route route) {
 		this.route = route;
+	}
+	public String getMethod() {
+		return method;
+	}
+	public void setMethod(String method) {
+		this.method = method;
 	}
 }

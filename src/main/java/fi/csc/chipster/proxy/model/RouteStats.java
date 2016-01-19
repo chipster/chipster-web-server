@@ -10,6 +10,7 @@ public class RouteStats {
 	private Route route;
 	private long requestCount;
 	private long openConnectionCount;
+	private long requestsPerSecond;
 	
 	@JsonUnwrapped
 	public Route getRoute() {
@@ -29,5 +30,11 @@ public class RouteStats {
 	}
 	public void setOpenConnectionCount(long openConnectionCount) {
 		this.openConnectionCount = openConnectionCount;
+	}
+	public long getRequestsPerSecond() {
+		return requestsPerSecond;
+	}
+	public void setRequestsPerSecond(long requestsPerSecond) {
+		this.requestsPerSecond = requestsPerSecond;
 	}
 }
