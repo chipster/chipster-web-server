@@ -1,6 +1,7 @@
 package fi.csc.chipster.toolbox.resource;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
 
 import javax.inject.Singleton;
 import javax.ws.rs.GET;
@@ -39,9 +40,26 @@ public class ModuleResource {
         ArrayNode modules = factory.arrayNode();
 
         // modules
-        for (ToolboxModule toolboxModule: toolbox.getModules()) {
+
+        // define order or the modules
+        String[] priorityModules = new String[] { "ngs", "microarray", "misc" }; 
+        LinkedHashSet<ToolboxModule> orderedModules = new LinkedHashSet<ToolboxModule>();
+        for (String name : priorityModules) {
+        	ToolboxModule module = toolbox.getModule(name);
+            if (module != null) {
+            	orderedModules.add(module);
+            }
+        }
+        for (ToolboxModule module: toolbox.getModules()) {
+        	if (!orderedModules.contains(module)) {
+        		orderedModules.add(module);
+        	}
+        }        
+        
+        // go through modules
+        for (ToolboxModule toolboxModule: orderedModules) {
         	ObjectNode module = factory.objectNode();
-        	module.put("name", toolboxModule.getName());
+        	module.put("name", toolboxModule.getNamePretty());
         	
         	// categories in a module 
         	ArrayNode categories = factory.arrayNode();
