@@ -2,7 +2,6 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.Map;
 import java.util.UUID;
 
 import javax.ws.rs.BadRequestException;
@@ -61,9 +60,9 @@ public class JobResource {
     	
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
-    	Job result = session.getJobs().get(jobId);
+    	Job result = getHibernate().session().get(Job.class, jobId);
     	
-    	if (result == null) {
+    	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
     		throw new NotFoundException();
     	}
 
@@ -93,7 +92,10 @@ public class JobResource {
 		UUID id = RestUtils.createUUID();
 		job.setJobId(id);
 		
-		sessionResource.getSessionForWriting(sc, sessionId).getJobs().put(id, job);
+		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		// make sure a hostile client doesn't set the session
+		job.setSession(session);
+		getHibernate().session().save(job);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
@@ -116,9 +118,13 @@ public class JobResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		if (!sessionResource.getSessionForWriting(sc, sessionId).getJobs().containsKey(jobId)) {
+		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Job dbJob = getHibernate().session().get(Job.class, jobId);
+		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("job doesn't exist");
 		}
+		// make sure a hostile client doesn't set the session
+		requestJob.setSession(session);
 		getHibernate().session().merge(requestJob);
 
 		// more fine-grained events are needed, like "job added" and "job removed"
@@ -132,14 +138,14 @@ public class JobResource {
     public Response delete(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Map<UUID, Job> jobs = sessionResource.getSessionForWriting(sc, sessionId).getJobs();
+		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Job dbJob = getHibernate().session().get(Job.class, jobId);
 		
-		if (!jobs.containsKey(jobId)) {
+		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("job not found");
 		}
 		
-		// remove from session, hibernate will take care of the actual dataset table
-		jobs.remove(jobId);
+		getHibernate().session().delete(dbJob);
 
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.DELETE));
 		return Response.noContent().build();

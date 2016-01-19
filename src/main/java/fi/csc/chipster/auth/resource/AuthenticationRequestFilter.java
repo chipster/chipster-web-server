@@ -95,6 +95,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		users.put("comp", "compPassword");
 		users.put("fileBroker", "fileBrokerPassword");
 		users.put("toolbox", "toolboxPasssword");
+		users.put("proxy", "proxyPassword");
+		users.put("admin", "adminPassword");
 		users.put(config.getString(Config.KEY_TOOLBOX_USERNAME), config.getString(Config.KEY_TOOLBOX_PASSWORD));
 
 		
@@ -131,6 +133,14 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 		if ("toolbox".equals(username)) {
 			roles = new String[] { Role.PASSWORD, Role.TOOLBOX, Role.SERVER };
+		}
+		
+		if ("proxy".equals(username)) {
+			roles = new String[] { Role.PASSWORD, Role.PROXY, Role.SERVER };
+		}
+		
+		if ("admin".equals(username)) {
+			roles = new String[] { Role.PASSWORD, Role.ADMIN };
 		}
 
 		

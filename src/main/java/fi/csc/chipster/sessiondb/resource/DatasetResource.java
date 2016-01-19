@@ -3,7 +3,6 @@ package fi.csc.chipster.sessiondb.resource;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import javax.ws.rs.BadRequestException;
@@ -65,9 +64,9 @@ public class DatasetResource {
     	
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
-    	Dataset result = session.getDatasets().get(datasetId);
+    	Dataset result = getHibernate().session().get(Dataset.class, datasetId);
     	
-    	if (result == null) {
+    	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
     		throw new NotFoundException();
     	}
 
@@ -96,11 +95,18 @@ public class DatasetResource {
 		
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
-
+		
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		
 		checkFileModification(dataset);
-		session.getDatasets().put(id, dataset);
+		// make sure a hostile client doesn't set the session
+		dataset.setSession(session);
+		
+		if (dataset.getFile() != null) {
+			// why CascadeType.PERSIST isn't enough?
+			getHibernate().session().save(dataset.getFile());
+		}
+		getHibernate().session().save(dataset);
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
@@ -136,10 +142,14 @@ public class DatasetResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		if (!sessionResource.getSessionForWriting(sc, sessionId).getDatasets().containsKey(datasetId)) {
+		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
+		if (dbDataset == null || dbDataset.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("dataset doesn't exist");
 		}
 		checkFileModification(requestDataset);
+		// make sure a hostile client doesn't set the session
+		requestDataset.setSession(session);
 		getHibernate().session().merge(requestDataset);
 
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
@@ -158,15 +168,16 @@ public class DatasetResource {
     }
 
 	public static void deleteDataset(UUID sessionId, UUID datasetId, SecurityContext sc, SessionResource sessionResource) {
-		// checks authorization
-		Map<UUID, Dataset> sessionDatasets = sessionResource.getSessionForWriting(sc, sessionId).getDatasets();
 		
-		if (!sessionDatasets.containsKey(datasetId)) {
+		// checks authorization
+		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Dataset dataset = sessionResource.getHibernate().session().get(Dataset.class, datasetId);
+		
+		if (dataset == null || dataset.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("dataset not found");
 		}
 		
-		// remove from session, hibernate will take care of the actual dataset table
-		Dataset dataset = sessionDatasets.remove(datasetId);
+		sessionResource.getHibernate().session().delete(dataset);
 		
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
 			UUID fileId = dataset.getFile().getFileId();		

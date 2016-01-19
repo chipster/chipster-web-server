@@ -12,8 +12,10 @@ import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 import fi.csc.microarray.messaging.JobState;
 
@@ -39,6 +41,11 @@ public class Job {
 	private String screenOutput;
 	@Lob
 	private String stateDetail;
+	
+	@XmlTransient
+	@ManyToOne
+	@JoinColumn(name="sessionId")
+	private Session session;
 	
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="jobId")
@@ -133,5 +140,11 @@ public class Job {
 	}
 	public void setStateDetail(String stateDetail) {
 		this.stateDetail = stateDetail;
+	}
+	public Session getSession() {
+		return session;
+	}
+	public void setSession(Session session) {
+		this.session = session;
 	}
 }

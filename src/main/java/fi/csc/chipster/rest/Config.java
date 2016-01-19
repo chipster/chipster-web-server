@@ -85,6 +85,7 @@ public class Config {
 		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8086/toolbox/");
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
 		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8000/");
+		defaults.put("proxy-admin-bind", 			"http://127.0.0.1:8007/");
 		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8085/filebroker/");
 
 		defaults.put(KEY_TOOLBOX_USERNAME, 			"toolbox");
