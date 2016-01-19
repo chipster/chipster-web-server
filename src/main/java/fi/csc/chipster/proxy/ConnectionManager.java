@@ -104,13 +104,13 @@ public class ConnectionManager {
 	public List<Connection> getConnections() {
 		ArrayList<Connection> all = new ArrayList<>();
 		for (Route route : routes.keySet()) {
-			all.addAll(routes.get(route).connections);
+			all.addAll(routes.get(route).getOpenConnections());
 		}
 		return all;
 	}
 	
 	public List<Connection> getConnections(Route route) {
-		return new ArrayList<>(get(route).connections);
+		return new ArrayList<>(get(route).getOpenConnections());
 	}
 	
 	private RouteConnections get(Route route) {

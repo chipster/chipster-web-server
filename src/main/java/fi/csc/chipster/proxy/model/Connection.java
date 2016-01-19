@@ -2,17 +2,16 @@ package fi.csc.chipster.proxy.model;
 
 import java.time.LocalDateTime;
 
+import javax.ws.rs.core.UriBuilder;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.sun.org.apache.xml.internal.utils.URI;
-import com.sun.org.apache.xml.internal.utils.URI.MalformedURIException;
-
 @XmlRootElement // json
 public class Connection {
 	
+	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 	
 	private Route route;
@@ -44,14 +43,10 @@ public class Connection {
 		return requestURI;
 	}
 	public void setRequestURI(String requestPath) {
-		try {
-			// remove query string to hide tokens
-			URI uri = new URI(requestPath);
-			uri.setQueryString(null);
-			this.requestURI = uri.toString();
-		} catch (MalformedURIException e) {
-			logger.error("invalid request URI", e);
-		}
+		// remove query string to hide tokens
+		UriBuilder builder = UriBuilder.fromUri(requestPath);
+		builder.replaceQuery(null);
+		this.requestURI = builder.toString();
 	}
 	public Route getRoute() {
 		return route;

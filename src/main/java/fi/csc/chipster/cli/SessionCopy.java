@@ -31,8 +31,8 @@ public class SessionCopy {
 		
 		proxy = "http://localhost:8000/";
 		
-		String username = "client2";
-		String password = "client2Password";
+		String username = "client";
+		String password = "clientPassword";
 		sessionDir = args[0];
 		
 		if (sessionDir == null) {
@@ -51,7 +51,7 @@ public class SessionCopy {
 		
 		long t = System.currentTimeMillis();
 		
-		for (int i = 0; i < 10_000; i++) {
+		for (int i = 0; i < 3; i++) {
 			pool.execute(getCopyRunnable(i));
 		}
 		
