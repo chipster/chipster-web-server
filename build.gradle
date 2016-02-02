@@ -83,6 +83,7 @@ dependencies {
   	compile "de.schlichtherle.truezip:truezip-samples:+"
 
 	// other
+	compile "org.eclipse.jetty:jetty-jmx:+"
     compile "org.eclipse.jetty:jetty-proxy:+"
     compile "commons-io:commons-io:2.4"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
