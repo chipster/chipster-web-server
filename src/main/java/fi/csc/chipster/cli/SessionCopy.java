@@ -51,7 +51,7 @@ public class SessionCopy {
 		
 		long t = System.currentTimeMillis();
 		
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 10; i++) {
 			pool.execute(getCopyRunnable(i));
 		}
 		

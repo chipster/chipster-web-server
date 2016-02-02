@@ -23,7 +23,6 @@ import org.glassfish.jersey.uri.UriTemplate;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 
 public class TokenServletFilter implements Filter {
@@ -97,10 +96,11 @@ public class TokenServletFilter implements Filter {
     	} catch (ForbiddenException e) {
     		response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
     		return;
-    	} catch (NotAuthorizedException e) {
+    	} catch (javax.ws.rs.NotAuthorizedException e) {
     		response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
     		return;
     	} catch (Exception e) {
+    		logger.error("error in websocket authentication", e);
     		response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "failed to retrieve the token");
     		return;
     	} 

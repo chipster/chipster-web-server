@@ -26,6 +26,8 @@ public class ServerLauncher {
 	private FileBroker fileBroker;
 
 	private RestCompServer comp;
+
+	private SessionDb sessionDbSlave;
 	
 	
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
@@ -46,6 +48,17 @@ public class ServerLauncher {
 		}		
 		sessionDb = new SessionDb(config);
 		sessionDb.startServer();
+		
+//		if (verbose) {
+//			logger.info("starting session-db slave");
+//		}		
+//		Config slaveConfig = new Config();
+//		slaveConfig.set("session-db-replicate", "true");
+//		slaveConfig.set("session-db-bind", "http://127.0.0.1:8070/sessiondb/");
+//		slaveConfig.set("session-db-events-bind", "http://127.0.0.1:8074/sessiondbevents/");
+//		slaveConfig.set("session-db-name", "session-db-replicate");
+//		sessionDbSlave = new SessionDb(slaveConfig);
+//		sessionDbSlave.startServer();
 		
 		if (verbose) {
 			logger.info("starting file-broker");
@@ -118,6 +131,13 @@ public class ServerLauncher {
 				fileBroker.close();
 			} catch (Exception e) {
 				logger.warn("closing filebroker failed", e);
+			}
+		}
+		if (sessionDbSlave != null) {
+			try {
+				sessionDbSlave.close();
+			} catch (Exception e) {
+				logger.warn("closing session-db slave failed", e);
 			}
 		}
 		if (sessionDb != null) {

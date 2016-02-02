@@ -60,13 +60,17 @@ public class JobResource {
     	
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
-    	Job result = getHibernate().session().get(Job.class, jobId);
+    	Job result = getJob(jobId, getHibernate().session());
     	
     	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
     		throw new NotFoundException();
     	}
 
    		return Response.ok(result).build();
+    }
+    
+    public Job getJob(UUID jobId, org.hibernate.Session hibernateSession) {
+    	return hibernateSession.get(Job.class, jobId);
     }
     
 	@GET
@@ -95,13 +99,18 @@ public class JobResource {
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		// make sure a hostile client doesn't set the session
 		job.setSession(session);
-		getHibernate().session().save(job);
 
+		create(job, getHibernate().session());
+		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, id, EventType.CREATE));
 		
 		return Response.created(uri).build();
     }
+
+	public void create(Job job, org.hibernate.Session hibernateSession) {
+		hibernateSession.save(job);
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE), hibernateSession);
+	}
 
 	@PUT
 	@Path("{id}")
@@ -125,12 +134,16 @@ public class JobResource {
 		}
 		// make sure a hostile client doesn't set the session
 		requestJob.setSession(session);
-		getHibernate().session().merge(requestJob);
 
-		// more fine-grained events are needed, like "job added" and "job removed"
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.UPDATE));
+		update(requestJob, getHibernate().session());
+		
 		return Response.noContent().build();
     }
+	
+	public void update(Job job, org.hibernate.Session hibernateSession) {
+		hibernateSession.merge(job);
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE), hibernateSession);
+	}
 
 	@DELETE
     @Path("{id}")
@@ -145,11 +158,15 @@ public class JobResource {
 			throw new NotFoundException("job not found");
 		}
 		
-		getHibernate().session().delete(dbJob);
-
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, jobId, EventType.DELETE));
+		deleteJob(dbJob, getHibernate().session());
+		
 		return Response.noContent().build();
     }
+	
+	public void deleteJob(Job job, org.hibernate.Session hibernateSession) {
+		hibernateSession.delete(job);		
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE), hibernateSession);
+	}
 
     /**
 	 * Make a list compatible with JSON conversion

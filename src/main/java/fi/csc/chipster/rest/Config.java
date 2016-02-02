@@ -98,6 +98,10 @@ public class Config {
 		defaults.put(KEY_COMP_TIMEOUT_CHECK_INTERVAL, 				"1000"); // schedule timeout check interval, milliseconds
 		defaults.put(KEY_COMP_JOB_HEARTBEAT_INTERVAL, 				"15000"); // job heartbeat interval, milliseconds
 		defaults.put(KEY_COMP_AVAILABLE_INTERVAL,					"60000"); // send comp available frequency, milliseconds
+		
+		defaults.put("session-db-replicate", "false");
+		defaults.put("session-db-name", "session-db");
+		defaults.put("session-db-hibernate-schema", "update"); // update, validate or create
 	}
 	
 	private HashMap<String, String> variables = new HashMap<>();
@@ -153,5 +157,9 @@ public class Config {
 
 	public boolean getBoolean(String key) {
 		return "true".equalsIgnoreCase(getString(key));
+	}
+
+	public void set(String key, String value) {
+		this.defaults.put(key, value);
 	}
 }

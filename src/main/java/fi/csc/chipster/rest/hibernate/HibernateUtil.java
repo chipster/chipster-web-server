@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
@@ -16,7 +17,13 @@ public class HibernateUtil {
 	
     private SessionFactory sessionFactory;
 
-    public void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
+	private String schema;
+
+    public HibernateUtil(String schema) {
+		this.schema = schema;
+	}
+
+	public void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
     	
     	
     	try {    		    	
@@ -34,7 +41,7 @@ public class HibernateUtil {
     		dbUrl = "jdbc:h2:database/" + dbName;
     		dbUsername = "sa";
     		dbPassword = "";
-
+    		
     		hibernateConf.setProperty(Environment.DRIVER, dbDriver);
     		hibernateConf.setProperty(Environment.URL, dbUrl);
     		hibernateConf.setProperty(Environment.USER, dbUsername);
@@ -43,12 +50,10 @@ public class HibernateUtil {
     		hibernateConf.setProperty(Environment.SHOW_SQL, "false");
     		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
     		hibernateConf.setProperty("hibernate.c3p0.min_size", "3");
-    		// check schema
-//    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "validate");
-    		// simple schema updates (but hibernate docs don't recommend for production use)
-    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "update");    		
-    		// drop old table and create new one
-//    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
+    		// validate: check schema
+    		// update: simple schema updates (but hibernate docs don't recommend for production use)    		
+    		// create: drop old table and create new one
+    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", schema);
     		
     		for (Class<?> c : hibernateClasses) {
     			hibernateConf.addAnnotatedClass(c);
@@ -91,5 +96,25 @@ public class HibernateUtil {
 		if (session().getTransaction().getStatus().canRollback()) {
 			session().getTransaction().rollback();
 		}		
+	}
+
+	public <T> T runInTransaction(HibernateRunnable<T> runnable) {
+		
+		T returnObj = null;
+		Session session = getSessionFactory().openSession();
+		org.hibernate.Transaction transaction = session.beginTransaction();
+		try {
+			returnObj = runnable.run(session);
+			transaction.commit();
+		} catch (Exception e) {
+			transaction.rollback();
+			logger.error("transaction failed", e);
+		}
+		session.close();
+		return returnObj;
+	}
+	
+	public interface HibernateRunnable<T> {
+		public T run(Session hibernateSession);
 	}
 }
