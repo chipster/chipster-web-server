@@ -829,19 +829,47 @@ public class RestCliClient {
 		session.setSessionId(null);
 		UUID sessionId = getSessionDbClient().createSession(session);
 		
+
+		HashMap<UUID, Dataset> oldDatasetIds = new HashMap<>();
+		HashMap<UUID, Job> oldJobIds = new HashMap<>();
+		
+		// post datasets
 		for (File file : getUUIDFiles(datasets)) {
 			Dataset dataset = RestUtils.parseJson(Dataset.class, FileUtils.readFileToString(file));
 			verbose(dataset.getName());
+			UUID oldId = dataset.getDatasetId();
 			dataset.setDatasetId(null);
 			dataset.setFile(null);
+			// this will update the datasetId
 			getSessionDbClient().createDataset(sessionId, dataset);
 			getFileBrokerClient().upload(sessionId, dataset.getDatasetId(), new File(files, file.getName()));
+			oldDatasetIds.put(oldId, dataset);
 		}
 		
+		// post jobs
 		for (File file : getUUIDFiles(jobs)) {
 			Job job = RestUtils.parseJson(Job.class, FileUtils.readFileToString(file));
+			UUID oldId = job.getJobId();
 			job.setJobId(null);
+			// this will update the jobId
 			getSessionDbClient().createJob(sessionId, job);
+			oldJobIds.put(oldId, job);
+		}
+		
+		// set new job ids to datasets 
+		for (Dataset dataset : oldDatasetIds.values()) {
+			dataset.setSourceJob(oldJobIds.get(dataset.getSourceJob()).getJobId());
+			getSessionDbClient().updateDataset(sessionId, dataset);
+		}
+		
+		// set new dataset ids to jobs
+		for (Job job : oldJobIds.values()) {
+			for (Input input : job.getInputs()) {
+				UUID oldDatasetId = UUID.fromString(input.getDatasetId());
+				Dataset dataset = oldDatasetIds.get(oldDatasetId);
+				input.setDatasetId(dataset.getDatasetId().toString());
+			}
+			getSessionDbClient().updateJob(sessionId, job);
 		}	
 	}
 	
