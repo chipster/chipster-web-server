@@ -830,8 +830,8 @@ public class RestCliClient {
 		UUID sessionId = getSessionDbClient().createSession(session);
 		
 
-		HashMap<UUID, Dataset> oldDatasetIds = new HashMap<>();
-		HashMap<UUID, Job> oldJobIds = new HashMap<>();
+		HashMap<UUID, UUID> datasetIds = new HashMap<>();
+		HashMap<UUID, UUID> jobIds = new HashMap<>();
 		
 		// post datasets
 		for (File file : getUUIDFiles(datasets)) {
@@ -841,9 +841,9 @@ public class RestCliClient {
 			dataset.setDatasetId(null);
 			dataset.setFile(null);
 			// this will update the datasetId
-			getSessionDbClient().createDataset(sessionId, dataset);
+			UUID newId = getSessionDbClient().createDataset(sessionId, dataset);
 			getFileBrokerClient().upload(sessionId, dataset.getDatasetId(), new File(files, file.getName()));
-			oldDatasetIds.put(oldId, dataset);
+			datasetIds.put(oldId, newId);
 		}
 		
 		// post jobs
@@ -852,22 +852,26 @@ public class RestCliClient {
 			UUID oldId = job.getJobId();
 			job.setJobId(null);
 			// this will update the jobId
-			getSessionDbClient().createJob(sessionId, job);
-			oldJobIds.put(oldId, job);
+			UUID newId = getSessionDbClient().createJob(sessionId, job);
+			jobIds.put(oldId, newId);
 		}
 		
 		// set new job ids to datasets 
-		for (Dataset dataset : oldDatasetIds.values()) {
-			dataset.setSourceJob(oldJobIds.get(dataset.getSourceJob()).getJobId());
+		for (UUID newDatasetId : datasetIds.values()) {
+			// get the latest dataset from server, because file-broker has already updated it
+			Dataset dataset = getSessionDbClient().getDataset(sessionId, newDatasetId);
+			UUID newJobId = jobIds.get(dataset.getSourceJob());
+			dataset.setSourceJob(newJobId);
 			getSessionDbClient().updateDataset(sessionId, dataset);
 		}
 		
 		// set new dataset ids to jobs
-		for (Job job : oldJobIds.values()) {
+		for (UUID newJobId : jobIds.values()) {
+			Job job = getSessionDbClient().getJob(sessionId, newJobId);
 			for (Input input : job.getInputs()) {
 				UUID oldDatasetId = UUID.fromString(input.getDatasetId());
-				Dataset dataset = oldDatasetIds.get(oldDatasetId);
-				input.setDatasetId(dataset.getDatasetId().toString());
+				UUID newDatasetId = datasetIds.get(oldDatasetId);
+				input.setDatasetId(newDatasetId.toString());
 			}
 			getSessionDbClient().updateJob(sessionId, job);
 		}	
