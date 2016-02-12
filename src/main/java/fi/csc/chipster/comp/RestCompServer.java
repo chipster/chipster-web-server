@@ -419,7 +419,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		ToolboxTool toolboxTool = toolboxClient.getTool(dbJob.getToolId());
 		
 		if (toolboxTool == null) {
-			logger.warn("tool not found: " + dbJob.getToolId() + ", jobId " + dbJob.getJobId());
 			return;
 		}
 		
