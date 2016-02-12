@@ -24,6 +24,10 @@ public class RestException extends Exception {
 		this.latestMessage = msg;
 	}
 
+	public RestException(String msg) {
+		super(msg);
+	}
+
 	public Response getResponse() {
 		return response;
 	}

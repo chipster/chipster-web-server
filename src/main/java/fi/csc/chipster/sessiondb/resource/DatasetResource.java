@@ -64,7 +64,7 @@ public class DatasetResource {
     	
     	// checks authorization
     	Session session = sessionResource.getSessionForReading(sc, sessionId);
-    	Dataset result = getHibernate().session().get(Dataset.class, datasetId);
+    	Dataset result = getDataset(datasetId, getHibernate().session());
     	
     	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
     		throw new NotFoundException();
@@ -72,7 +72,11 @@ public class DatasetResource {
 
    		return Response.ok(result).build();
     }
-
+    
+    public Dataset getDataset(UUID datasetId, org.hibernate.Session hibernateSession) {
+    	return hibernateSession.get(Dataset.class, datasetId);
+    }
+    
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -95,30 +99,36 @@ public class DatasetResource {
 		
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
-		
+
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		
-		checkFileModification(dataset);
 		// make sure a hostile client doesn't set the session
 		dataset.setSession(session);
 		
-		if (dataset.getFile() != null) {
-			// why CascadeType.PERSIST isn't enough?
-			getHibernate().session().save(dataset.getFile());
-		}
-		getHibernate().session().save(dataset);
+		create(dataset, getHibernate().session());
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, id, EventType.CREATE));
 		return Response.created(uri).build();
     }
+	
+	public void create(Dataset dataset, org.hibernate.Session hibernateSession) {
+		
+		checkFileModification(dataset, hibernateSession);
+		
+		if (dataset.getFile() != null) {
+			// why CascadeType.PERSIST isn't enough?
+			hibernateSession.save(dataset.getFile());
+		}
+		hibernateSession.save(dataset);
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE), hibernateSession);
+	}
 
-	private void checkFileModification(Dataset dataset) {
+	private void checkFileModification(Dataset dataset, org.hibernate.Session hibernateSession) {
 		// if the file exists, don't allow it to be modified 
 		if (dataset.getFile() == null || dataset.getFile().isEmpty()) {
 			return;
 		}
-		File dbFile = getHibernate().session().get(File.class, dataset.getFile().getFileId());
+		File dbFile = hibernateSession.get(File.class, dataset.getFile().getFileId());
 		if (dbFile != null) {
 			if (!dbFile.equals(dataset.getFile())) {
 				throw new ForbiddenException("modification of existing file is forbidden");
@@ -147,28 +157,25 @@ public class DatasetResource {
 		if (dbDataset == null || dbDataset.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("dataset doesn't exist");
 		}
-		checkFileModification(requestDataset);
+		checkFileModification(requestDataset, getHibernate().session());
 		// make sure a hostile client doesn't set the session
 		requestDataset.setSession(session);
-		getHibernate().session().merge(requestDataset);
-
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.UPDATE));
+		
+		update(requestDataset, getHibernate().session());
+		
 		return Response.noContent().build();
     }
+	
+	public void update(Dataset dataset, org.hibernate.Session hibernateSession) {
+		hibernateSession.merge(dataset);
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.UPDATE), hibernateSession);
+	}
 
 	@DELETE
     @Path("{id}")
 	@Transaction
     public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
-		deleteDataset(sessionId, datasetId, sc, sessionResource);
-
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, datasetId, EventType.DELETE));
-		return Response.noContent().build();
-    }
-
-	public static void deleteDataset(UUID sessionId, UUID datasetId, SecurityContext sc, SessionResource sessionResource) {
-		
 		// checks authorization
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		Dataset dataset = sessionResource.getHibernate().session().get(Dataset.class, datasetId);
@@ -177,13 +184,20 @@ public class DatasetResource {
 			throw new NotFoundException("dataset not found");
 		}
 		
-		sessionResource.getHibernate().session().delete(dataset);
+		deleteDataset(dataset, getHibernate().session());
+
+		return Response.noContent().build();
+    }
+
+	public void deleteDataset(Dataset dataset, org.hibernate.Session hibernateSession) {
+		
+		hibernateSession.delete(dataset);
 		
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
 			UUID fileId = dataset.getFile().getFileId();		
 			
 			@SuppressWarnings("unchecked")
-			List<Dataset> fileDatasets =  sessionResource.getHibernate().session()
+			List<Dataset> fileDatasets =  hibernateSession
 					.createQuery("from Dataset where file=:file")
 					.setParameter("file", dataset.getFile())
 					.list();
@@ -196,9 +210,10 @@ public class DatasetResource {
 			// can delete it
 			if (fileDatasets.isEmpty()) {
 				// only for file-broker
-				sessionResource.publish(SessionDb.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE));
+				sessionResource.publish(SessionDb.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
 			}
 		}
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE), hibernateSession);
 	}
 
 	/**

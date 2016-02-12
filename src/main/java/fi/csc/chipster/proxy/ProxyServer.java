@@ -1,4 +1,5 @@
 package fi.csc.chipster.proxy;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -11,9 +12,11 @@ import javax.servlet.Servlet;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlet.ServletMapping;
@@ -85,14 +88,30 @@ public class ProxyServer {
     	});
     	
         this.jetty = new Server();
+        
         ServerConnector connector = new ServerConnector(jetty);
         connector.setPort(baseUri.getPort());
         connector.setHost(baseUri.getHost());
         jetty.addConnector(connector);
 
         HandlerCollection handlers = new HandlerCollection();
-        jetty.setHandler(handlers);
-
+        
+        boolean enableJMX = true; 
+        if (enableJMX) {
+        	// enable JMX to investigate Jetty internals with jconsole
+        	// on OS X set JVM argument -Djava.rmi.server.hostname=localhost to be able to connect
+        	MBeanContainer mbContainer=new MBeanContainer(ManagementFactory.getPlatformMBeanServer());
+        	jetty.addBean(mbContainer);
+        	StatisticsHandler statisticsHandler = new StatisticsHandler();
+        	
+        	// settings as root handler will give only the overall statistics
+        	statisticsHandler.setHandler(handlers);
+        	jetty.setHandler(statisticsHandler);
+        	
+        } else {
+        	jetty.setHandler(handlers);        	
+        }
+        
         this.context = new ServletContextHandler(handlers, "/", ServletContextHandler.SESSIONS);
     }
     

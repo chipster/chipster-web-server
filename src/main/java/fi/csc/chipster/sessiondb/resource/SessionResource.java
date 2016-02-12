@@ -35,6 +35,7 @@ import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -58,12 +59,12 @@ public class SessionResource {
 
 	// sub-resource locators
 	@Path("{id}/datasets")
-	public Object getDatasetResource(@PathParam("id") UUID id) {
+	public DatasetResource getDatasetResource(@PathParam("id") UUID id) {
 		return new DatasetResource(this, id);
 	}
 	
 	@Path("{id}/jobs")
-	public Object getJobResource(@PathParam("id") UUID id) {
+	public JobResource getJobResource(@PathParam("id") UUID id) {
 		return new JobResource(this, id);
 	}
 	
@@ -82,7 +83,7 @@ public class SessionResource {
     	}	
     	return Response.ok(result).build();    	
     }
-        
+    
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -97,7 +98,8 @@ public class SessionResource {
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
-    }	
+    }
+	
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -121,14 +123,22 @@ public class SessionResource {
 			throw new NotAuthorizedException("username is null");
 		}
 		Authorization auth = new Authorization(username, session, true);
-
-		getHibernate().session().save(auth);
-
+		auth.setAuthorizationId(RestUtils.createUUID());
+		
+		create(auth, getHibernate().session());
+		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.CREATE));
 		
 		return Response.created(uri).build();
     }
+	
+	public void create(Authorization auth, org.hibernate.Session hibernateSession) {
+		authorizationResource.save(auth, hibernateSession);
+
+		UUID sessionId = auth.getSession().getSessionId();
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
+		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getAuthorizationId(), EventType.CREATE), hibernateSession);
+	}
 
 	@PUT
 	@Path("{id}")
@@ -141,48 +151,72 @@ public class SessionResource {
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		authorizationResource.getWriteAuthorization(sc, sessionId);
-		Session dbSession = getHibernate().session().get(Session.class, requestSession.getSessionId());
-		// keep the old datasets and jobs
-		requestSession.setDatasets(dbSession.getDatasets());
-		requestSession.setJobs(dbSession.getJobs());
-		// persist
-		getHibernate().session().merge(requestSession);
-
-		// more fine-grained events are needed, like "job added" and "dataset removed"
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE));
+		getWriteAuthorization(sc, sessionId);
+		
+		update(requestSession, getHibernate().session());
+		
 		return Response.noContent().build();
     }
+	
+	public void update(Session session, org.hibernate.Session hibernateSession) {
+		UUID sessionId = session.getSessionId();
+		// persist
+		hibernateSession.merge(session);
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE), hibernateSession);
+	}
 
 	@DELETE
     @Path("{id}")
 	@Transaction
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
-		Authorization auth = authorizationResource.getWriteAuthorization(sc, id);
-		
-		// we have to delete each dataset to check if the file can be deleted also
-		ArrayList<Dataset> datasetsCopy = new ArrayList<>(auth.getSession().getDatasets().values());
-		for (Dataset dataset : datasetsCopy) {
-			DatasetResource.deleteDataset(id, dataset.getDatasetId(), sc, this);
-		}
-		
-		// this will delete also the referenced jobs
-		getHibernate().session().delete(auth);
+		Authorization auth = getWriteAuthorization(sc, id);
+				
+		deleteSession(auth, getHibernate().session());
 
-		publish(id.toString(), new SessionEvent(id, ResourceType.SESSION, id, EventType.DELETE));
 		return Response.noContent().build();
     }
 	
+	public void deleteSession(Authorization auth, org.hibernate.Session hibernateSession) {
+		
+		UUID sessionId = auth.getSession().getSessionId();
+		
+		/*
+		 * All datasets have to be removed first, because the dataset owns the reference between 
+		 * the dataset and the session. This also generates the necessary events e.g. to remove
+		 * files.  
+		 */
+		for (Dataset dataset : auth.getSession().getDatasets().values()) {
+			getDatasetResource(sessionId).deleteDataset(dataset, hibernateSession);
+		}
+		
+		// see the note about datasets above
+		for (Job job : auth.getSession().getJobs().values()) {
+			getJobResource(sessionId).deleteJob(job, hibernateSession);
+		}
+
+		hibernateSession.delete(auth);
+
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, sessionId, EventType.DELETE), hibernateSession);
+		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getAuthorizationId(), EventType.DELETE), hibernateSession);
+	}
+	
 	public Session getSessionForReading(SecurityContext sc, UUID sessionId) {
-		Authorization auth = authorizationResource.checkAuthorization(sc, sessionId, false);
+		Authorization auth = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
 		return auth.getSession();
 	}
 	
 	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
-		Authorization auth = authorizationResource.checkAuthorization(sc, sessionId, true);
+		Authorization auth = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
 		return auth.getSession();
 	}
+	
+	public Authorization getReadAuthorization(SecurityContext sc, UUID sessionId) {
+    	return authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
+    }
+	public Authorization getWriteAuthorization(SecurityContext sc, UUID sessionId) {
+    	return authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    }
     	
 	/**
 	 * Make a list compatible with JSON conversion
@@ -206,17 +240,29 @@ public class SessionResource {
 		this.events = pubSubServer;
 	}
 	
-	public void publish(String topic, SessionEvent obj) {
+	public void publish(String topic, SessionEvent obj, org.hibernate.Session hibernateSession) {
 		// publish the event only after the transaction is completed to make 
 		// sure that the modifications are visible
-		hibernate.session().addEventListeners(new BaseSessionEventListener() {
+		hibernateSession.addEventListeners(new BaseSessionEventListener() {
 			@Override
 			public void transactionCompletion(boolean successful) {
 				events.publish(topic, obj);
 				if (ResourceType.JOB == obj.getResourceType()) {
 					events.publish(SessionDb.JOBS_TOPIC, obj);
-				}				
+				}
+				if (ResourceType.SESSION == obj.getResourceType()) {
+					events.publish(SessionDb.SESSIONS_TOPIC, obj);
+				}
+				if (ResourceType.DATASET == obj.getResourceType()) {
+					events.publish(SessionDb.DATASETS_TOPIC, obj);
+				}
+				// authorization events are sent directly to AUTHORIZATIONS_TOPIC, because
+				// client's don't need them
 			}				
 		});	
+	}
+
+	public AuthorizationResource getAuthorizationResource() {
+		return authorizationResource;
 	}
 }

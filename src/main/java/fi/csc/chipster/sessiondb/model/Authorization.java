@@ -1,17 +1,19 @@
 package fi.csc.chipster.sessiondb.model;
 
+import java.util.UUID;
+
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToOne;
 
 @Entity
 public class Authorization {
 	
-	@Id 
-	@GeneratedValue
-	private int authorizationId;
+	@Id // db
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	private UUID authorizationId;
 	
 	private String username;
 //	@ManyToOne(cascade=CascadeType.ALL)
@@ -34,10 +36,10 @@ public class Authorization {
 	public void setUsername(String username) {
 		this.username = username;
 	}
-	public int getAuthorizationId() {
+	public UUID getAuthorizationId() {
 		return authorizationId;
 	}
-	public void setAuthorizationId(int authorizationId) {
+	public void setAuthorizationId(UUID authorizationId) {
 		this.authorizationId = authorizationId;
 	}
 	public Session getSession() {

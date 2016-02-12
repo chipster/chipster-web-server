@@ -829,19 +829,51 @@ public class RestCliClient {
 		session.setSessionId(null);
 		UUID sessionId = getSessionDbClient().createSession(session);
 		
+
+		HashMap<UUID, UUID> datasetIds = new HashMap<>();
+		HashMap<UUID, UUID> jobIds = new HashMap<>();
+		
+		// post datasets
 		for (File file : getUUIDFiles(datasets)) {
 			Dataset dataset = RestUtils.parseJson(Dataset.class, FileUtils.readFileToString(file));
 			verbose(dataset.getName());
+			UUID oldId = dataset.getDatasetId();
 			dataset.setDatasetId(null);
 			dataset.setFile(null);
-			getSessionDbClient().createDataset(sessionId, dataset);
+			// this will update the datasetId
+			UUID newId = getSessionDbClient().createDataset(sessionId, dataset);
 			getFileBrokerClient().upload(sessionId, dataset.getDatasetId(), new File(files, file.getName()));
+			datasetIds.put(oldId, newId);
 		}
 		
+		// post jobs
 		for (File file : getUUIDFiles(jobs)) {
 			Job job = RestUtils.parseJson(Job.class, FileUtils.readFileToString(file));
+			UUID oldId = job.getJobId();
 			job.setJobId(null);
-			getSessionDbClient().createJob(sessionId, job);
+			// this will update the jobId
+			UUID newId = getSessionDbClient().createJob(sessionId, job);
+			jobIds.put(oldId, newId);
+		}
+		
+		// set new job ids to datasets 
+		for (UUID newDatasetId : datasetIds.values()) {
+			// get the latest dataset from server, because file-broker has already updated it
+			Dataset dataset = getSessionDbClient().getDataset(sessionId, newDatasetId);
+			UUID newJobId = jobIds.get(dataset.getSourceJob());
+			dataset.setSourceJob(newJobId);
+			getSessionDbClient().updateDataset(sessionId, dataset);
+		}
+		
+		// set new dataset ids to jobs
+		for (UUID newJobId : jobIds.values()) {
+			Job job = getSessionDbClient().getJob(sessionId, newJobId);
+			for (Input input : job.getInputs()) {
+				UUID oldDatasetId = UUID.fromString(input.getDatasetId());
+				UUID newDatasetId = datasetIds.get(oldDatasetId);
+				input.setDatasetId(newDatasetId.toString());
+			}
+			getSessionDbClient().updateJob(sessionId, job);
 		}	
 	}
 	

@@ -50,7 +50,7 @@ public class AuthenticationService {
     	});
     	
     	// init Hibernate
-    	hibernate = new HibernateUtil();
+    	hibernate = new HibernateUtil("update");
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
     	TokenResource authResource = new TokenResource(hibernate);

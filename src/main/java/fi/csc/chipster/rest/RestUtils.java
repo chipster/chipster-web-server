@@ -50,12 +50,17 @@ public class RestUtils {
 	
 	private static Random rand = new Random();
 	
+	public static ObjectMapper getObjectMapper() {
+		ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
+		return mapper;
+	}
+	
 	public static String asJson(Object obj) {	
 		// using Jackson library
 		try {
 			StringWriter writer = new StringWriter();
 			// support for LocalDateTime
-			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
+			ObjectMapper mapper = getObjectMapper();
 			mapper.writeValue(writer, obj);
 			return writer.toString();        
 		} catch (IOException e) {
@@ -73,8 +78,8 @@ public class RestUtils {
 		try {
 			StringReader reader= new StringReader(json);
 			// support for LocalDateTime
-			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
-		    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
+			ObjectMapper mapper = getObjectMapper();
+			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
 			return mapper.readValue(reader, obj);
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);
@@ -94,8 +99,8 @@ public class RestUtils {
 		try {
 			StringReader reader= new StringReader(json);
 			// support for LocalDateTime
-			ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
-		    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
+			ObjectMapper mapper = getObjectMapper();
+			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
 			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);

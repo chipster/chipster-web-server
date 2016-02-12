@@ -1,8 +1,11 @@
 package fi.csc.chipster.sessiondb;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
@@ -17,6 +20,11 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CredentialsProvider;
@@ -25,10 +33,12 @@ import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.microarray.exception.MicroarrayException;
 
 public class SessionDbClient {
@@ -120,23 +130,31 @@ public class SessionDbClient {
 	}
 	
 	private WebTarget getSessionTarget(UUID sessionId) {
-		return sessionDbTarget.path("sessions/" + sessionId);
+		return getSessionsTarget().path(sessionId.toString());
 	}
 	
 	private WebTarget getDatasetsTarget(UUID sessionId) {
-		return sessionDbTarget.path("sessions/" + sessionId + "/datasets");
+		return getSessionTarget(sessionId).path("datasets");
 	}
 	
 	private WebTarget getDatasetTarget(UUID sessionId, UUID datasetId) {
-		return sessionDbTarget.path("sessions/" + sessionId + "/datasets/" + datasetId);
+		return getDatasetsTarget(sessionId).path(datasetId.toString());
 	}
 	
 	private WebTarget getJobsTarget(UUID sessionId) {
-		return sessionDbTarget.path("sessions/" + sessionId + "/jobs");
+		return getSessionTarget(sessionId).path("jobs");
 	}
 	
 	private WebTarget getJobTarget(UUID sessionId, UUID jobId) {
-		return sessionDbTarget.path("sessions/" + sessionId + "/jobs/" + jobId);
+		return getJobsTarget(sessionId).path(jobId.toString());
+	}
+	
+	private WebTarget getAuthorizationsTarget() {
+		return sessionDbTarget.path("authorizations");
+	}
+	
+	private WebTarget getAuthorizationTarget(UUID authorizationId) {
+		return getAuthorizationsTarget().path(authorizationId.toString());
 	}
 	
 	// methods 
@@ -364,5 +382,69 @@ public class SessionDbClient {
 	
 	public void deleteJob(UUID sessionId, UUID jobId) throws RestException {
 		delete(getJobTarget(sessionId, jobId));
+	}
+	
+	public Authorization getAuthorization(UUID authorizationId) throws RestException {
+		return get(getAuthorizationTarget(authorizationId), Authorization.class);
+	}
+
+	public Iterator<Authorization> getAuthorizations() throws RestException, JsonParseException, IOException {
+		InputStream inStream = get(getAuthorizationsTarget(), InputStream.class);
+		
+		JsonFactory factory = RestUtils.getObjectMapper().getFactory();
+		JsonParser parser = factory.createParser(inStream);
+
+		JsonToken token = parser.nextToken();
+		if (token == null) {
+		    throw new RestException("failed to get authorizations: empty response");
+		}
+
+		// the first token is supposed to be the start of array '['
+		if (!JsonToken.START_ARRAY.equals(token)) {
+			throw new RestException("failed to get authorizations: not an array");
+		}
+		
+		return new Iterator<Authorization>() {
+			
+			private Authorization next;
+
+			@Override
+			public boolean hasNext() {
+				if (next == null) {
+					try {
+						JsonToken token2 = parser.nextToken();
+
+						if (!JsonToken.START_OBJECT.equals(token2)) {
+							return false;
+						}
+						if (token2 == null) {
+							return false;
+						}
+
+						next = parser.readValueAs(Authorization.class);
+					} catch (IOException e) {
+						throw new RuntimeException("failed to get authorizations", e);
+					}
+				}
+				return next != null;
+			}
+
+			@Override
+			public Authorization next() {
+				if (hasNext()) {
+					Authorization current = next;
+					next = null;
+					return current;
+				} else {
+					throw new NoSuchElementException();
+				}
+			}
+		};
+	}
+
+	public List<TableStats> getTableStats() throws RestException {
+		List<TableStats> tables = getList(sessionDbTarget.path("admin").path("tables"), TableStats.class);
+		
+		return tables;
 	}
 }
