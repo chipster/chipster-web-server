@@ -111,9 +111,9 @@ public class TokenServletFilter implements Filter {
     	String requestPath = URI.create(request.getRequestURI()).getPath();
 		if (!new UriTemplate(pathTemplate).match(requestPath, groupValues)) {
 			// matching failed
-			logger.debug("uri template matching failed");
-			logger.debug("template: " + pathTemplate);
-			logger.debug("uri:      " + requestPath);
+			logger.warn("uri template matching failed");
+			logger.warn("template: " + pathTemplate);
+			logger.warn("uri:      " + requestPath);
 			return false;
 		}
 		
