@@ -31,10 +31,10 @@ import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.DatasetColumn;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
@@ -101,7 +101,7 @@ public class SessionDb implements TopicCheck {
 				Authorization.class, 
 				Session.class, 
 				Dataset.class, 
-				DatasetColumn.class,
+				MetadataEntry.class,
 				Job.class, 
 				Parameter.class,
 				Input.class, 

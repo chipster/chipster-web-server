@@ -56,15 +56,9 @@ public class Dataset {
 	@JsonUnwrapped // rest
 	private File file;
 	
-	@ElementCollection(fetch=FetchType.EAGER)
-	@MapKeyColumn(name="key")
-	@Column(name="value")
-	@CollectionTable(name="Metadata", joinColumns=@JoinColumn(name="datasetId"))
-	private Map<String, String> metadata;
-	
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="datasetId")
-	private List<DatasetColumn> columns;
+	private List<MetadataEntry> metadata;
 	
 	public Dataset() {} // JAXB needs this
 
@@ -129,20 +123,12 @@ public class Dataset {
 		this.notes = notes;
 	}
 
-	public Map<String, String> getMetadata() {
+	public List<MetadataEntry> getMetadata() {
 		return metadata;
 	}
 
-	public void setMetadata(Map<String, String> metadata) {
+	public void setMetadata(List<MetadataEntry> metadata) {
 		this.metadata = metadata;
-	}
-
-	public List<DatasetColumn> getColumns() {
-		return columns;
-	}
-
-	public void setColumns(List<DatasetColumn> columns) {
-		this.columns = columns;
 	}
 
 	public Session getSession() {

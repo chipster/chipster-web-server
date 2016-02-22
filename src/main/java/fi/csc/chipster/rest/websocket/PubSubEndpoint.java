@@ -28,7 +28,9 @@ public class PubSubEndpoint extends Endpoint {
 	public static final String TOPIC_KEY = "topic-name";
 	
     @Override
-    public void onOpen(final Session session, EndpointConfig config) {    	    	
+    public void onOpen(final Session session, EndpointConfig config) {
+    	
+    	//session.setMaxIdleTimeout(0);
     	
     	// get topic from path params    	
     	String topic = session.getPathParameters().get(TOPIC_KEY);

@@ -148,6 +148,7 @@ public class PubSubServer {
         // add this instance to user properties, so that we can call it from the PubSubEndpoint
         ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, path).build();
         serverConfig.getUserProperties().put(this.getClass().getName(), this);
+
         // Add WebSocket endpoint to javax.websocket layer
         wscontainer.addEndpoint(serverConfig);
 	}
