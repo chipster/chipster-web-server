@@ -77,7 +77,7 @@ public class TokenResource {
     	Token token = createToken(username, principal.getRoles());
 
 		getHibernate().session().save(token);
-    									
+				
 		return Response.ok(token).build();
     }
 
@@ -106,10 +106,15 @@ public class TokenResource {
 	}
 
 	@GET
-	@RolesAllowed(Role.SERVER)
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken) {
+	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken, @Context SecurityContext sc) {
+		
+		if (!sc.isUserInRole(Role.SERVER)) {
+			// client can use this to check that its token is valid, which it is
+			// if it has managed to come this far
+			return Response.ok().build();
+		}
 		
 		if (requestToken == null) {
 			throw new NotFoundException("chipster-token header is null");
@@ -118,7 +123,7 @@ public class TokenResource {
 		UUID uuid = parseUUID(requestToken);
 		
 		Token dbToken = getHibernate().session().get(Token.class, uuid);
-	
+
 		if (dbToken == null) {
 			throw new NotFoundException("token not found");
 		}

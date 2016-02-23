@@ -13,6 +13,9 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.ext.Provider;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Config;
@@ -24,6 +27,8 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
+	
+	private static final Logger logger = LogManager.getLogger();
 	
 	private HibernateUtil hibernate;
 	private Config config;
@@ -83,6 +88,13 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {
+		
+		// a small delay to slow down brute force attacks
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			logger.warn(e);
+		}
 		
 		//TODO get from JAAS or file or something
 		//TODO make sure that external usernames matching AuthorizationnResource.serverUsers are blocked
