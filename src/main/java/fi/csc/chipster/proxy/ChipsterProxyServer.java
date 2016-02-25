@@ -58,6 +58,9 @@ public class ChipsterProxyServer {
 			proxy.addRoute("auth", 				config.getString("authentication-service"));
 			proxy.addRoute("filebroker", 		config.getString("file-broker"));
 			proxy.addRoute("toolbox", 			config.getString(Config.KEY_TOOLBOX_URL));
+			// it's possible to use the web server through the proxy, but let's
+			// have it in a separate port for now to find any CORS issues
+			//proxy.addRoute("",	 				config.getString("web"));
 
 			//proxy.addRoute("test", 				"http://vm0180.kaj.pouta.csc.fi:8081/");
 			

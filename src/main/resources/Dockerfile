@@ -12,5 +12,7 @@ COPY dist/*.jar lib/
 
 COPY dist/chipster-tools-*.tar.gz /opt/chipster/
 
-EXPOSE 8000  
+EXPOSE 8000
+EXPOSE 8008
+  
 CMD ["java", "-cp", "lib/*:","fi.csc.chipster.rest.ServerLauncher"]

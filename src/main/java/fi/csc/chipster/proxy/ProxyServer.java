@@ -197,7 +197,11 @@ public class ProxyServer {
 	}
 	
 	private String getPathSpec(String proxyPath) {
-		return "/" + proxyPath + "/*";
+		if (proxyPath.isEmpty()) {
+			return "/*";
+		} else {			
+			return "/" + proxyPath + "/*";
+		}
 	}
 	
 	private String getProxyPath(String pathSpec) {

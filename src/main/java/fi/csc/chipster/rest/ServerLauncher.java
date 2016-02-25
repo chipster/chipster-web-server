@@ -11,6 +11,7 @@ import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.toolbox.ToolboxService;
+import fi.csc.chipster.web.WebServer;
 
 public class ServerLauncher {
 	
@@ -24,6 +25,7 @@ public class ServerLauncher {
 	private ToolboxService toolbox;
 	private ChipsterProxyServer proxy;
 	private FileBroker fileBroker;
+	private WebServer web;
 
 	private RestCompServer comp;
 
@@ -84,6 +86,12 @@ public class ServerLauncher {
 		comp = new RestCompServer(null);
 		
 		if (verbose) {
+			logger.info("starting web server");
+		}
+		web = new WebServer(config);
+		web.start();
+		
+		if (verbose) {
 			logger.info("starting proxy");
 		}		
 		proxy = new ChipsterProxyServer(config);
@@ -101,6 +109,14 @@ public class ServerLauncher {
 				proxy.close();
 			} catch (Exception e) {
 				logger.warn("closing proxy failed", e);
+			}
+		}
+		
+		if (web != null) {
+			try {
+				web.close();
+			} catch (Exception e) {
+				logger.warn("closing web server failed", e);
 			}
 		}
 		

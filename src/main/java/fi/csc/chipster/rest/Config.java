@@ -70,23 +70,27 @@ public class Config {
 	private HashMap<String, String> defaults = new HashMap<>();
 	
 	{
-		defaults.put("service-locator", 			"http://{{public-ip}}:8082/servicelocator/"); 
-		defaults.put("authentication-service", 		"http://{{public-ip}}:8081/authservice/"); // service locator has to know this to authenticate other services
-		defaults.put("session-db", 					"http://{{public-ip}}:8080/sessiondb/"); // uri for service registration
-        defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8086/toolbox");
-        defaults.put("session-db-events", 			"ws://{{public-ip}}:8084/sessiondbevents/");
-		defaults.put("scheduler", 					"ws://{{public-ip}}:8083/scheduler/");
-		defaults.put("file-broker", 				"http://{{public-ip}}:8085/filebroker/");
+		// uri for service registration
+		defaults.put("web", 						"http://{{public-ip}}:8000/");
+		defaults.put("authentication-service", 		"http://{{public-ip}}:8001/authservice/"); // service locator has to know this to authenticate other services
+		defaults.put("service-locator", 			"http://{{public-ip}}:8002/servicelocator/"); 
+		defaults.put("session-db", 					"http://{{public-ip}}:8003/sessiondb/");
+		defaults.put("session-db-events", 			"ws://{{public-ip}}:8004/sessiondbevents/");
+		defaults.put("scheduler", 					"ws://{{public-ip}}:8005/scheduler/");
+		defaults.put("file-broker", 				"http://{{public-ip}}:8006/filebroker/");
+        defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8007/toolbox");
 		
-		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8082/servicelocator/");
-		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8080/sessiondb/"); // uri for the server to bind
-		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8084/sessiondbevents/");
-		defaults.put("authentication-service-bind", "http://{{bind-ip}}:8081/authservice/");
-		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8086/toolbox/");
-		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8083/scheduler/");
-		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8000/");
-		defaults.put("proxy-admin-bind", 			"http://127.0.0.1:8007/");
-		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8085/filebroker/");
+        // uri for the server to bind
+        defaults.put("web-bind", 					"http://{{bind-ip}}:8000/");
+        defaults.put("authentication-service-bind", "http://{{bind-ip}}:8001/authservice/");
+		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8002/servicelocator/");
+		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8003/sessiondb/");
+		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8004/sessiondbevents/");
+		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8005/scheduler/");
+		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8006/filebroker/");
+		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8007/toolbox/");
+		defaults.put("proxy-bind", 					"http://{{bind-ip}}:8008/");
+		defaults.put("proxy-admin-bind", 			"http://{{admin-bind-ip}}:9008/");
 
 		defaults.put(KEY_TOOLBOX_USERNAME, 			"toolbox");
 		defaults.put(KEY_TOOLBOX_PASSWORD, 			"toolboxPassword");
@@ -102,6 +106,8 @@ public class Config {
 		defaults.put("session-db-replicate", "false");
 		defaults.put("session-db-name", "session-db");
 		defaults.put("session-db-hibernate-schema", "update"); // update, validate or create
+		
+		defaults.put("web-root-path", "../chipster-web/");
 	}
 	
 	private HashMap<String, String> variables = new HashMap<>();
@@ -110,6 +116,7 @@ public class Config {
 	{
 		variableDefaults.put("public-ip", "127.0.0.1");
 		variableDefaults.put("bind-ip", "0.0.0.0"); 
+		variableDefaults.put("admin-bind-ip", "127.0.0.1");
 	}
 
 	public String getString(String key) {

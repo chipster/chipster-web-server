@@ -59,8 +59,8 @@ public class AuthenticationService {
         	.register(authResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
-        	.register(new AuthenticationRequestFilter(hibernate, config));
         	//.register(new LoggingFilter())
+        	.register(new AuthenticationRequestFilter(hibernate, config));
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
