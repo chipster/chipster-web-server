@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -26,7 +28,10 @@ import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.toolbox.Toolbox;
 import fi.csc.chipster.toolbox.ToolboxClient;
 import fi.csc.chipster.toolbox.ToolboxTool;
@@ -437,10 +442,17 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		// get factory from runtime and create the job instance
 		CompJob job;
 		RestJobMessage jobMessage = new RestJobMessage(msg, dbJob);
+		
 		try {
+			HashMap<String, List<MetadataEntry>> metadataMap = new HashMap<>();
+			for (Input input : dbJob.getInputs()) {
+				Dataset dataset = sessionDbClient.getDataset(msg.getSessionId(), UUID.fromString(input.getDatasetId()));
+				metadataMap.put(input.getInputId(), dataset.getMetadata());
+			}
+			jobMessage.setMetadata(metadataMap);
 			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this);
 			
-		} catch (CompException e) {
+		} catch (CompException | RestException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);
 			
 			// could also just return without sending result, would result in retry by jobmanager

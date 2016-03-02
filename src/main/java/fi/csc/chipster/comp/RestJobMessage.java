@@ -1,5 +1,7 @@
 package fi.csc.chipster.comp;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,18 +12,23 @@ import java.util.UUID;
 import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.microarray.comp.ToolDescription;
 import fi.csc.microarray.comp.ToolDescription.ParameterDescription;
 import fi.csc.microarray.messaging.message.GenericJobMessage;
-import fi.csc.microarray.messaging.message.JobMessage;
 import fi.csc.microarray.messaging.message.JobMessage.ParameterSecurityPolicy;
 import fi.csc.microarray.messaging.message.JobMessage.ParameterValidityException;
+import fi.csc.microarray.messaging.message.JobMessageUtils;
 
 public class RestJobMessage implements GenericJobMessage {
 	
+	private static final String COLUMN_PHENODATA = "phenodata.tsv";
+	private static final String FULL_PHENODATA = "phenodata2.tsv";
+	
 	private JobCommand jobCommand;
 	private Job job;
+	private HashMap<String, List<MetadataEntry>> metadata;
 
 	public RestJobMessage(JobCommand jobCommand, Job job) {
 		this.jobCommand = jobCommand;
@@ -39,7 +46,11 @@ public class RestJobMessage implements GenericJobMessage {
 	public Set<String> getKeys() {
 		HashSet<String> keys = new HashSet<>();
 		for (Input input : job.getInputs()) {
-			keys.add(input.getInputId());
+			// phenodata is handled separately in preExecute()
+			if (!COLUMN_PHENODATA.equals(input.getInputId()) && 
+					!FULL_PHENODATA.equals(input.getInputId())) {
+				keys.add(input.getInputId());
+			}
 		}
 		return keys;
 	}
@@ -93,7 +104,7 @@ public class RestJobMessage implements GenericJobMessage {
 		}
 		
 		// check safety
-		return JobMessage.checkParameterSafety(securityPolicy, description, parameterValues);
+		return JobMessageUtils.checkParameterSafety(securityPolicy, description, parameterValues);
 	}
 
 	@Override
@@ -107,5 +118,36 @@ public class RestJobMessage implements GenericJobMessage {
 	
 	public UUID getSessionId() {
 		return jobCommand.getSessionId();
+	}
+
+	public void setMetadata(HashMap<String, List<MetadataEntry>> metadataMap) {
+		this.metadata = metadataMap;
+	}
+	
+	@Override
+	public void preExecute(File jobWorkDir) {
+		
+		/* This should really be in the OnDiskCompJobBase, but
+		 * at the moment it's still in the old code base and can't use the 
+		 * Dataset classes from the new repository.
+		 */
+
+		boolean phenodata = false;
+		boolean phenodata2 = false;
+		
+		for (Input input : job.getInputs()) {
+			if (COLUMN_PHENODATA.equals(input.getInputId())) {
+				phenodata = true;
+			}
+			if (FULL_PHENODATA.equals(input.getInputId())) {
+				phenodata2 = true;
+			}
+		}
+		
+		try {
+			RestPhenodataUtils.writePhenodata(jobWorkDir, metadata, phenodata, phenodata2);
+		} catch (IOException e) {
+			throw new IllegalStateException("failed to write the phenodata", e);
+		}
 	}
 }
