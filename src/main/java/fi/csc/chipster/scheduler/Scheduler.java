@@ -164,7 +164,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			break;			
 		case AVAILABLE:
 			//TODO
-			logger.info("comp available");
+			logger.debug("comp available");
 			break;
 
 		default:

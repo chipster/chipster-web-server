@@ -535,7 +535,10 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	
 	private void sendJobCommand(JobCommand cmd) {
 		try {
-			logger.info("send " + cmd.getCommand() + " message");
+			// don't fill logs with heartbeats
+			if (cmd.getCommand() != Command.AVAILABLE) {
+				logger.info("send " + cmd.getCommand() + " message");
+			}
 			this.schedulerClient.sendText(RestUtils.asJson(cmd));
 		} catch (IOException | InterruptedException e) {
 			logger.error("unable to send " + cmd.getCommand() + " message", e);
