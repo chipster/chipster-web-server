@@ -1,7 +1,10 @@
 package fi.csc.chipster.comp;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +20,15 @@ import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.microarray.util.ToolUtils;
 
 public class RestPhenodataUtils {
+
+	public static final String FILE_PHENODATA2 = "phenodata2.tsv";
+	public static final String FILE_PHENODATA = "phenodata.tsv";
+	
+	public static final String HEADER_SAMPLE = "sample";
+	public static final String HEADER_COLUMN = "column";
+	public static final String HEADER_INPUT = "input";
+	
+	public static final String PREFIX_CHIP = "chip.";
 
 	public static void writePhenodata(File jobWorkDir, HashMap<String, List<MetadataEntry>> metadata, boolean columnPhenodata, boolean fullPhenodata) throws IOException {
 		
@@ -58,7 +70,7 @@ public class RestPhenodataUtils {
 								+ "Please remove the phenodata form other input datasets to indicate which "
 								+ "one to use.");
 			}
-			try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(jobWorkDir, "phenodata.tsv")))) {
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(jobWorkDir, FILE_PHENODATA)))) {
 
 				writer.write(StringUtils.arrayToDelimitedString(headers.toArray(), "\t"));
 				writer.write("\n");
@@ -72,11 +84,11 @@ public class RestPhenodataUtils {
 		
 		// full phenodata supporting multiple datasets
 		if (fullPhenodata) {
-			try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(jobWorkDir, "phenodata2.tsv")))) {
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(jobWorkDir, FILE_PHENODATA2)))) {
 
 				writer.write(
-						"input\t" + 
-								"column\t" + 
+						HEADER_INPUT + "\t" + 
+								HEADER_COLUMN + "\t" + 
 								StringUtils.arrayToDelimitedString(headers.toArray(), "\t"));
 
 				writer.write("\n");
@@ -169,5 +181,67 @@ public class RestPhenodataUtils {
 		PhenodataRow row = new PhenodataRow(inputId, column, headers.size());
 		phendoata.add(row);
 		return row;
+	}
+
+	public static List<MetadataEntry> parseMetadata(File workinDir, String inputId) throws FileNotFoundException, IOException {
+		ArrayList<MetadataEntry> metadata = new ArrayList<>();
+		
+		File phenodata1 = new File(workinDir, FILE_PHENODATA);
+		File phenodata2 = new File(workinDir, FILE_PHENODATA2);
+		File phenodata = null;
+		boolean isPhenodata2 = false;
+		
+		// old or new format?
+		// we should really check if the tool description has these outputs
+		if (phenodata1.exists()) {
+			phenodata = phenodata1;
+		}
+		
+		if (phenodata2.exists()) {
+			phenodata = phenodata2;
+			isPhenodata2 = true;
+		}
+		
+		if (phenodata.exists()) {
+			try (BufferedReader reader = new BufferedReader(new FileReader(phenodata))) {
+				String line;
+				List<String> headers = null;
+				while ((line = reader.readLine()) != null) {
+					String[] splitted = line.split("\t");
+					if (headers == null) {
+						headers = Arrays.asList(splitted);
+						continue;
+					}
+
+					String rowInputId = null;
+					String column = null;
+					if (isPhenodata2) {
+						rowInputId = splitted[headers.indexOf(HEADER_INPUT)];
+						column = splitted[headers.indexOf(HEADER_COLUMN)];
+					} else {
+						rowInputId = inputId;
+						column = PREFIX_CHIP + splitted[headers.indexOf(HEADER_SAMPLE)];
+					}
+					
+					if (!inputId.equals(rowInputId)) {
+						continue;
+					}
+
+					for (String header : headers) {
+						if (HEADER_INPUT.equals(header) || HEADER_COLUMN.equals(header)) {
+							continue;
+						}
+						
+						MetadataEntry entry = new MetadataEntry();
+						entry.setColumn(column);
+						entry.setKey(header);
+						entry.setValue(splitted[headers.indexOf(header)]);
+						
+						metadata.add(entry);
+					}
+				}
+			}
+		}
+		return metadata;
 	}
 }

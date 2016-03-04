@@ -23,6 +23,7 @@ import org.glassfish.jersey.client.ClientProperties;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.RestPhenodataUtils;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -70,9 +71,15 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	@Override
 	public void addFile(UUID jobId, UUID sessionId, String dataId, FileBrokerArea area, File file, CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
 		
+		if (RestPhenodataUtils.FILE_PHENODATA.equals(file.getName()) || RestPhenodataUtils.FILE_PHENODATA2.equals(file.getName())) {
+			// phenodata is stored now in the dataset properties, so the phenodata files can be skipped 
+			return;
+		}
+		
 		Dataset dataset = new Dataset();
 		dataset.setSourceJob(jobId);
 		dataset.setName(datsetName);
+		dataset.setMetadata(RestPhenodataUtils.parseMetadata(file.getParentFile(), file.getName()));
 		UUID datasetId;
 		try {
 			datasetId = sessionDbClient.createDataset(sessionId, dataset);

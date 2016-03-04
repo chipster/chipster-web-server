@@ -98,7 +98,7 @@ public class Config {
 		defaults.put(KEY_COMP_MAX_JOBS,								"" + Integer.MAX_VALUE); // max number of jobs run simultaneusly
 		defaults.put(KEY_COMP_SCHEDULE_TIMEOUT, 					"10"); // time after which a scheuduled job is removed if there is no reponse from the scheduler
 		defaults.put(KEY_COMP_OFFER_DELAY, 							"100"); // delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
-		defaults.put(KEY_COMP_SWEEP_WORK_DIR,						"false"); // should job specific temporary directory be sweeped after job execution
+		defaults.put(KEY_COMP_SWEEP_WORK_DIR,						"true"); // should job specific temporary directory be sweeped after job execution
 		defaults.put(KEY_COMP_TIMEOUT_CHECK_INTERVAL, 				"1000"); // schedule timeout check interval, milliseconds
 		defaults.put(KEY_COMP_JOB_HEARTBEAT_INTERVAL, 				"15000"); // job heartbeat interval, milliseconds
 		defaults.put(KEY_COMP_AVAILABLE_INTERVAL,					"60000"); // send comp available frequency, milliseconds

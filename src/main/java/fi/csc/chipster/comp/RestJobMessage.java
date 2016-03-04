@@ -23,9 +23,6 @@ import fi.csc.microarray.messaging.message.JobMessageUtils;
 
 public class RestJobMessage implements GenericJobMessage {
 	
-	private static final String COLUMN_PHENODATA = "phenodata.tsv";
-	private static final String FULL_PHENODATA = "phenodata2.tsv";
-	
 	private JobCommand jobCommand;
 	private Job job;
 	private HashMap<String, List<MetadataEntry>> metadata;
@@ -47,8 +44,8 @@ public class RestJobMessage implements GenericJobMessage {
 		HashSet<String> keys = new HashSet<>();
 		for (Input input : job.getInputs()) {
 			// phenodata is handled separately in preExecute()
-			if (!COLUMN_PHENODATA.equals(input.getInputId()) && 
-					!FULL_PHENODATA.equals(input.getInputId())) {
+			if (!RestPhenodataUtils.FILE_PHENODATA.equals(input.getInputId()) && 
+					!RestPhenodataUtils.FILE_PHENODATA2.equals(input.getInputId())) {
 				keys.add(input.getInputId());
 			}
 		}
@@ -136,10 +133,10 @@ public class RestJobMessage implements GenericJobMessage {
 		boolean phenodata2 = false;
 		
 		for (Input input : job.getInputs()) {
-			if (COLUMN_PHENODATA.equals(input.getInputId())) {
+			if (RestPhenodataUtils.FILE_PHENODATA.equals(input.getInputId())) {
 				phenodata = true;
 			}
-			if (FULL_PHENODATA.equals(input.getInputId())) {
+			if (RestPhenodataUtils.FILE_PHENODATA2.equals(input.getInputId())) {
 				phenodata2 = true;
 			}
 		}
