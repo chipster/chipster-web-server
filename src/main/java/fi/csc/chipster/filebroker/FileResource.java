@@ -61,16 +61,38 @@ public class FileResource implements SessionEventListener {
 			@PathParam(DATASET_ID) UUID datasetId, 
 			@Context SecurityContext sc) {
 		
-		// check authorization
-		UUID fileId = getFileId(sc, sessionId, datasetId, false);		
-
-		File f = getStorageFile(fileId);
-
-	    if (!f.exists()) {
-	        throw new NotFoundException("no such file");
-	    }
-
-	    return Response.ok(f).build();
+		try {
+			
+			// check authorization
+			
+			Dataset dataset = sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, false);
+			
+			if (dataset == null) {
+				throw new ForbiddenException("dataset not found");
+			}
+			
+			if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
+				throw new NotFoundException("file id is null");
+			}
+			
+			UUID fileId = dataset.getFile().getFileId();		
+		
+			// get the file
+			
+			File f = getStorageFile(fileId);
+		
+		    if (!f.exists()) {
+		        throw new NotFoundException("no such file");
+		    }
+		
+		    return Response.ok(f)
+		    		// hint filename for dataset export
+		    		.header("Content-Disposition", "attachment; filename=\"" + dataset.getName() + "\"")
+		    		.build();
+	    
+		} catch (RestException e) {
+			throw new InternalServerErrorException("failed to get the dataset", e);
+		}	
 	}
 	
 	private File getStorageFile(UUID fileId) {
@@ -203,27 +225,6 @@ public class FileResource implements SessionEventListener {
 
 	private Dataset getDataset(UUID sessionId, UUID datasetId, SecurityContext sc) throws InterruptedException, RestException {
 			return sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, true);
-	}
-
-	private UUID getFileId(SecurityContext sc, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
-		
-		Dataset dataset;
-		try {
-			dataset = sessionDbClient.getDataset(sc.getUserPrincipal().getName(), sessionId, datasetId, requireReadWrite);
-			
-			if (dataset == null) {
-				throw new ForbiddenException("dataset not found");
-			}
-			
-			if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
-				throw new NotFoundException("file id is null");
-			}
-			
-			return dataset.getFile().getFileId();
-			
-		} catch (RestException e) {
-			throw new InternalServerErrorException("failed to get the dataset", e);
-		}					
 	}
 	
 	@Override
