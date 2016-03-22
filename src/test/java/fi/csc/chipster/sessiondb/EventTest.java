@@ -151,7 +151,7 @@ public class EventTest {
         SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
         
         assertEquals(sessionId, sessionEvent.getSessionId());
-        assertEquals(ResourceType.SESSION, sessionEvent.getResourceType());
+        assertEquals(ResourceType.AUTHORIZATION, sessionEvent.getResourceType());
         assertEquals(sessionId, sessionEvent.getResourceId());
         assertEquals(EventType.DELETE, sessionEvent.getType());
         

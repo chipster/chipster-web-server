@@ -202,7 +202,7 @@ public class RestPhenodataUtils {
 			isPhenodata2 = true;
 		}
 		
-		if (phenodata.exists()) {
+		if (phenodata != null && phenodata.exists()) {
 			try (BufferedReader reader = new BufferedReader(new FileReader(phenodata))) {
 				String line;
 				List<String> headers = null;

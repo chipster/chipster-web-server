@@ -1,7 +1,9 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import javax.ws.rs.BadRequestException;
@@ -27,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -65,12 +68,19 @@ public class JobResource {
     	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
     		throw new NotFoundException();
     	}
-
+    	
    		return Response.ok(result).build();
     }
     
     public Job getJob(UUID jobId, org.hibernate.Session hibernateSession) {
-    	return hibernateSession.get(Job.class, jobId);
+    	
+    	Job job = hibernateSession.get(Job.class, jobId);
+    	// detach the object, so that the next duplicate removal won't try to update the database
+    	hibernateSession.evict(job);
+    	// remove input duplicates http://stackoverflow.com/questions/1995080/hibernate-criteria-returns-children-multiple-times-with-fetchtype-eager
+    	job.setInputs(new ArrayList<Input>(new LinkedHashSet<Input>(job.getInputs())));
+    	
+    	return job;
     }
     
 	@GET
@@ -134,7 +144,7 @@ public class JobResource {
 		}
 		// make sure a hostile client doesn't set the session
 		requestJob.setSession(session);
-
+		
 		update(requestJob, getHibernate().session());
 		
 		return Response.noContent().build();
