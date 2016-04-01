@@ -6,7 +6,7 @@ apply plugin: 'application'
 repositories {
     mavenCentral()
     flatDir {
-        dirs "../chipster/dist"
+        dirs "../chipster/dist", "."
     }
 
 }
