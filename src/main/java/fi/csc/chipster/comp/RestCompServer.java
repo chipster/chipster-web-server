@@ -32,12 +32,10 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
-import fi.csc.chipster.toolbox.Toolbox;
-import fi.csc.chipster.toolbox.ToolboxClient;
+import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.microarray.comp.CompException;
 import fi.csc.microarray.comp.CompJob;
-import fi.csc.microarray.comp.OldToolboxClient;
 import fi.csc.microarray.comp.ResultCallback;
 import fi.csc.microarray.comp.RuntimeRepository;
 import fi.csc.microarray.comp.ToolRuntime;
@@ -89,8 +87,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	
 	
 	private RuntimeRepository runtimeRepository;
-	private ToolboxClient toolboxClient;
-	private Toolbox toolbox;
+	private ToolboxClientComp toolboxClient;
 	
 	
 	private FileBrokerClient fileBroker;
@@ -159,9 +156,10 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir, this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"));
-		this.toolbox = new Toolbox(new File("../chipster-tools/modules"));
-		this.toolboxClient = new OldToolboxClient(this.toolbox);
-					
+		// FIXME get url from configs or from toolbox using jms
+		this.toolboxClient = new ToolboxClientComp("http://localhost:8084/toolbox");
+
+		
 		// initialize timeout checker
 		timeoutTimer = new Timer(true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
@@ -421,11 +419,24 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		}
 		
 		// get tool from toolbox along with the runtime name
-		ToolboxTool toolboxTool = toolboxClient.getTool(dbJob.getToolId());
-		
-		if (toolboxTool == null) {
+		String toolId = dbJob.getToolId();
+		if (toolId == null || toolId.isEmpty()) {
+			logger.warn("invalid tool id: " + toolId);
 			return;
 		}
+
+		ToolboxTool toolboxTool = null;
+		try {
+			toolboxTool = toolboxClient.getTool(toolId);
+		} catch (Exception e) {
+			logger.warn("failed to get tool " + toolId + " from toolbox", e);
+			return;
+		}
+		if (toolboxTool == null) {
+			logger.warn("tool " + toolId + " not found");
+			return;
+		}
+		
 		
 		// ... and the runtime from runtime repo
 		ToolRuntime runtime = runtimeRepository.getRuntime(toolboxTool.getRuntime());
