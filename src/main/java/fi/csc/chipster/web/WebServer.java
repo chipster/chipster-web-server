@@ -51,7 +51,7 @@ public class WebServer {
         logger.info("web root: " + root.getCanonicalPath());
         
         if (!root.exists()) {
-        	throw new IllegalArgumentException("web root doesn't exist");
+        	throw new IllegalArgumentException("web root " + rootPath + " doesn't exist");
         }
         
         // Add the ResourceHandler to the server.

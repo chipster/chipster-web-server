@@ -148,7 +148,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		logger.info("starting compute service...");
 		this.workDir = new File("jobs-data", compId.toString());
 		if (!this.workDir.mkdirs()) {
-			throw new IllegalStateException("creating working directory failed");
+			throw new IllegalStateException("creating working directory " + this.workDir.getAbsolutePath() + " failed");
 		}
 		
 		// initialize executor service

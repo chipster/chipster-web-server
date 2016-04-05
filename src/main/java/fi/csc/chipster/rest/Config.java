@@ -120,7 +120,8 @@ public class Config {
 	}
 
 	public String getString(String key) {
-		String value = System.getenv(key);
+		// only underscore is allowed in bash variables
+		String value = System.getenv(key.replace("-", "_"));
 		if (value != null) {
 			return value;
 		} else {
