@@ -1,10 +1,12 @@
 package fi.csc.chipster.toolbox.resource;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 
 import javax.inject.Singleton;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
@@ -34,6 +36,10 @@ public class ModuleResource {
     @Produces(MediaType.APPLICATION_JSON)
     public final Response getModules() throws IOException {
     	
+    	// used several times in this method
+    	// use local reference to avoid toolbox update messing things up 
+    	Toolbox localToolbox = this.toolbox;
+    	
         // node factory for creating json nodes
         JsonNodeFactory factory = new JsonNodeFactory(false);
  
@@ -45,12 +51,12 @@ public class ModuleResource {
         String[] priorityModules = new String[] { "ngs", "microarray", "misc" }; 
         LinkedHashSet<ToolboxModule> orderedModules = new LinkedHashSet<ToolboxModule>();
         for (String name : priorityModules) {
-        	ToolboxModule module = toolbox.getModule(name);
+        	ToolboxModule module = localToolbox.getModule(name);
             if (module != null) {
             	orderedModules.add(module);
             }
         }
-        for (ToolboxModule module: toolbox.getModules()) {
+        for (ToolboxModule module: localToolbox.getModules()) {
         	if (!orderedModules.contains(module)) {
         		orderedModules.add(module);
         	}
@@ -87,5 +93,22 @@ public class ModuleResource {
         
         return Response.ok(modules).build();
     }
+
+    @GET
+    @Path("zip")
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    public Response getZip() {
+    	return Response.ok(toolbox.getZipStream())
+    			// hint filename
+    			.header("Content-Disposition", "attachment; filename=\"" + "modules.zip" + "\"")
+    			.build();
+
+    }
+
+    
+    
+    
+    
+
 }
 

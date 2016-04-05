@@ -79,8 +79,10 @@ dependencies {
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
 
 	// toolbox
-	compile "commons-io:commons-io:2.4"    
-  	compile "de.schlichtherle.truezip:truezip-samples:+"
+  	compile "org.apache.activemq:activemq-all:5.10.0"
+
+	// cli
+	compile "org.apache.commons:commons-compress:+"
 
 	// other
 	compile "org.eclipse.jetty:jetty-jmx:+"

@@ -156,9 +156,11 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir, this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"));
-		// FIXME get url from configs or from toolbox using jms
-		this.toolboxClient = new ToolboxClientComp("http://localhost:8084/toolbox");
 
+		// initialize toolbox client
+		String toolboxUrl = config.getString(Config.KEY_TOOLBOX_URL);
+		this.toolboxClient = new ToolboxClientComp(toolboxUrl);
+		logger.info("toolbox client connecting to: " + toolboxUrl);
 		
 		// initialize timeout checker
 		timeoutTimer = new Timer(true);
@@ -398,6 +400,10 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		return this.fileBroker;
 	}
 
+	public ToolboxClientComp getToolboxClient() {
+		return this.toolboxClient;
+	}
+	
 	private void activeJobRemoved() {
 		this.updateStatus();
 		sendCompAvailable();
