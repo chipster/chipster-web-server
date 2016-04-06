@@ -220,17 +220,19 @@ public class RestUtils {
 	}
 
 	public static void waitForShutdown(String name, HttpServer server) {
-		System.out.println(name + " started, hit enter to stop it.");
+		System.out.println(name + " started");
         try {
-			System.in.read();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-        GrizzlyFuture<HttpServer> future = server.shutdown();
-        try {
-			future.get();
-		} catch (InterruptedException | ExecutionException e) {
-			logger.warn(name + " server shutdown failed", e);
+			Thread.currentThread().join();
+			
+		} catch (InterruptedException e) {
+			logger.error(name + " failed", e);
+			} finally {
+	        GrizzlyFuture<HttpServer> future = server.shutdown();
+	        try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				logger.warn(name + " shutdown failed", e);
+			}
 		}
 	}
 
