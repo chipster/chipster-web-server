@@ -65,7 +65,7 @@ public class FileBroker {
 		File storage = new File("storage");
 		storage.mkdir();    
 		this.fileResource = new FileResource(storage, sessionDbClient);
-		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileResource);
+		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileResource, "file-broker-file-listener");
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	        

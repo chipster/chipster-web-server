@@ -238,7 +238,7 @@ public class RestCliClient {
 		String password = namespace.getString(OPT_PASSWORD);
 		
 		if (username != null || password != null) {
-			String authURI = proxy + "auth/";
+			String authURI = getAuthUri();
 			verbose("authenticating to " + authURI);
 			credentials = new AuthenticationClient(authURI, username, password).getCredentials();
 			time("authenticate");
@@ -262,6 +262,31 @@ public class RestCliClient {
 		default:
 			throw new IllegalArgumentException("unknown subcommand: " + subcommand);
 		}
+	}
+	
+	private String getAuthUri() {
+		//return proxy + "auth/";
+		return "http://auth-chipster.dac-oso.csc.fi/";
+	}
+	
+	private String getSessionDbUri() {
+		//return proxy + "sessiondb/";
+		return "http://session-db-chipster.dac-oso.csc.fi/";
+	}
+	
+	private String getSessionDbEventsUri() {
+		//return proxy + "sessiondbevents/";
+		return "ws://session-db-events-chipster.dac-oso.csc.fi/";
+	}
+	
+	private String getToolboxUri() {
+		//return proxy + "toolbox/";
+		return "http://toolbox-chipster.dac-oso.csc.fi/";
+	}
+	
+	private String getFileBrokerUri() {
+		//return proxy + "filebroker";
+		return "http://file-broker-chipster.dac-oso.csc.fi/";
 	}
 
 	private void verbose(String msg) {
@@ -920,21 +945,21 @@ public class RestCliClient {
 
 	private RestFileBrokerClient getFileBrokerClient() {
 		if (fileBrokerClient == null) {
-			fileBrokerClient = new RestFileBrokerClient(proxy + "filebroker", credentials);
+			fileBrokerClient = new RestFileBrokerClient(getFileBrokerUri(), credentials);
 		}
 		return fileBrokerClient;
 	}
 
 	private SessionDbClient getSessionDbClient() {
 		if (sessionDbClient == null) {
-			sessionDbClient = new SessionDbClient(proxy + "sessiondb/", proxy + "sessiondbevents/", credentials);
+			sessionDbClient = new SessionDbClient(getSessionDbUri(), getSessionDbEventsUri(), credentials);
 		}
 		return sessionDbClient;
 	}
 	
 	private ToolboxClientRest getToolboxClient() {
 		if (toolboxClient == null) {
-			toolboxClient = new ToolboxClientRest(proxy + "toolbox/");
+			toolboxClient = new ToolboxClientRest(getToolboxUri());
 		}
 		return toolboxClient;
 	}

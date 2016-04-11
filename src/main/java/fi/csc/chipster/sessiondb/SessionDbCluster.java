@@ -72,10 +72,10 @@ public class SessionDbCluster implements SessionEventListener {
 		this.hibernate = hibernate;
 		
 		// listen for authorization updates
-		sourceSessionDbClient.subscribe(SessionDb.AUTHORIZATIONS_TOPIC, this);
-		sourceSessionDbClient.subscribe(SessionDb.SESSIONS_TOPIC, this);
-		sourceSessionDbClient.subscribe(SessionDb.DATASETS_TOPIC, this);
-		sourceSessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this);
+		sourceSessionDbClient.subscribe(SessionDb.AUTHORIZATIONS_TOPIC, this, "replication-authorization-listener");
+		sourceSessionDbClient.subscribe(SessionDb.SESSIONS_TOPIC, this, "replication-session-listener");
+		sourceSessionDbClient.subscribe(SessionDb.DATASETS_TOPIC, this, "replication-dataset-listener");
+		sourceSessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this, "replication-job-listener");
 		
 		logger.info("bulk replication started");
 		print("  master rows ", sourceSessionDbClient.getTableStats());

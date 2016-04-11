@@ -96,7 +96,7 @@ public class SessionDbClient {
 	
 	// events
 
-	public void subscribe(String topic, final SessionEventListener listener) throws RestException {
+	public void subscribe(String topic, final SessionEventListener listener, String name) throws RestException {
 		
 		String queryParams = "";
 		if (credentials != null) {
@@ -110,7 +110,7 @@ public class SessionDbClient {
 					listener.onEvent(RestUtils.parseJson(SessionEvent.class, message));
 				}
 
-			}, true, "scheduler-job-listener");
+			}, true, name);
 		} catch (InterruptedException | WebSocketErrorException | WebSocketClosedException e) {
 			throw new RestException("websocket error", e);
 		} 

@@ -84,6 +84,8 @@ public class RestFileBrokerClient {
 	
 	public void upload(UUID sessionId, UUID datasetId, InputStream inputStream) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
+		
+		System.out.println(target.getUri());
 
 		// Use chunked encoding to disable buffering. HttpUrlConnector in 
 		// Jersey buffers the whole file before sending it by default, which 
