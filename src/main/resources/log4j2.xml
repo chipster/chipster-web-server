@@ -23,7 +23,8 @@ developing, without having to worry about committing them accidentally.
     	<!--  Detailed pattern for fine tuning logging (with packages and log levels) -->
       	<!--  <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>  -->
       	<!--  A concise pattern for everything else -->
-      	<PatternLayout pattern="[%d] %m%n" />
+     	<PatternLayout pattern="[%d] %p: %m (in %C{1}:%L)%n" />
+
     </Console>
 
     <Console name="WarnConsole" target="SYSTEM_OUT">
@@ -75,14 +76,14 @@ developing, without having to worry about committing them accidentally.
     <!--  default level for our code -->
     <Logger name="fi.csc.chipster" level="info" additivity="false">
     	<AppenderRef ref="chipster"/>
- 		<AppenderRef ref="WarnConsole"/>
+ 		<AppenderRef ref="Console"/>
  		<AppenderRef ref="WarnFile"/>
      </Logger>
 
-    <!--  ServerLauncher logs to console -->
+    <!--  ServerLauncher logs to console 
     <Logger name="fi.csc.chipster.rest.ServerLauncher" level="info" >
  		<AppenderRef ref="Console"/>
- 	</Logger>	
+ 	</Logger>	-->
 
 
     <Logger name="fi.csc.chipster.toolbox" level="info" >
