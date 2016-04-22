@@ -33,7 +33,6 @@ public class ToolboxServer extends MonitoredNodeBase implements MessagingListene
 	private Logger logger = LogManager.getLogger();
 
 	private MessagingEndpoint endpoint;
-	private Toolbox toolbox;
 	private ToolboxService toolboxRestService;
 
 	public ToolboxServer(String configURL) throws Exception {
@@ -134,7 +133,7 @@ public class ToolboxServer extends MonitoredNodeBase implements MessagingListene
 			return;
 		}
 
-		String sourceCode = toolbox.getTool(toolID).getSource();
+		String sourceCode = toolboxRestService.getToolbox().getTool(toolID).getSource();
 
 		if (sourceCode != null) {
 			logger.info("sending source code for " + toolID);
@@ -152,7 +151,7 @@ public class ToolboxServer extends MonitoredNodeBase implements MessagingListene
 			throws IOException, SAXException, ParserConfigurationException {
 		logger.info("sending all descriptions");
 
-		for (ModuleDescriptionMessage descriptionMessage : toolbox.getModuleDescriptions()) {
+		for (ModuleDescriptionMessage descriptionMessage : toolboxRestService.getToolbox().getModuleDescriptions()) {
 			descriptionMessage.setReplyTo(requestMessage.getReplyTo());
 			logger.info("sending descriptions for module " + descriptionMessage.getModuleName());
 			sendReplyMessage(requestMessage, descriptionMessage);

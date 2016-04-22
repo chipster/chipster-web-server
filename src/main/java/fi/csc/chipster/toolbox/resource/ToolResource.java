@@ -75,6 +75,11 @@ public class ToolResource {
         }
     }
 
+	public void setToolbox(Toolbox newToolbox) {
+		this.toolbox = newToolbox;
+		
+	}
+
 }
 
 

@@ -1,10 +1,15 @@
 package fi.csc.chipster.toolbox;
 
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.CopyOption;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -13,6 +18,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,24 +47,30 @@ public class ToolboxService {
 
 	private static final String MODULES_DIR_NAME = "modules";
 	private static final String MODULES_ZIP_NAME = "modules.zip";
-
 	private static final String[] MODULES_SEARCH_LOCATIONS = { ".", "../chipster-tools",
 			"../chipster-tools/build/distributions" };
 
+	private static final String RELOAD_DIR = "reload";
+	private static final String RELOAD_FILE = "touch-me-to-reload-tools";
+	
 	private Logger logger = LogManager.getLogger();
 
 	private Config config;
 	private Toolbox toolbox;
 	private String url;
 	private HttpServer httpServer;
+	private WatchService reloadWatcher;
 
+	private ToolResource toolResource;
+	private ModuleResource moduleResource;
+	
 	@SuppressWarnings("unused")
 	private String serviceId;
 
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
 		this.url = config.getString(Config.KEY_TOOLBOX_BIND_URL);
-		loadToolbox();
+		initialise();
 	}
 
 	/**
@@ -68,22 +82,39 @@ public class ToolboxService {
 	 */
 	public ToolboxService(String url) throws IOException, URISyntaxException {
 		this.url = url;
-		loadToolbox();
+		initialise();
 	}
 
-	private void loadToolbox() throws IOException, URISyntaxException {
+	private void initialise() throws IOException, URISyntaxException {
+
+		// load toolbox
+		Toolbox newToolbox = loadToolbox();
+		if (newToolbox != null) {
+			this.toolbox = newToolbox;
+		} else {
+			throw new RuntimeException("failed to load toolbox");
+		}
+		
+		// start reload watch 
+		startReloadWatch();
+		
+	}
+	
+	
+	private Toolbox loadToolbox() throws IOException, URISyntaxException {
 
 		Path foundPath = findModulesDir();
 		
+		Toolbox box;
 		if (Files.isDirectory(foundPath)) {
-			this.toolbox = new Toolbox(foundPath);
+			box = new Toolbox(foundPath);
 
 			Path tempDir = Files.createTempDirectory(MODULES_DIR_NAME);
 			Path tempZipFile = tempDir.resolve(MODULES_ZIP_NAME);
 			
 			dirToZip(foundPath, tempZipFile);
 			byte [] zipContents = Files.readAllBytes(tempZipFile);
-			this.toolbox.setZipContents(zipContents);
+			box.setZipContents(zipContents);
 			Files.delete(tempZipFile);
 			Files.delete(tempDir);
 		}
@@ -92,14 +123,44 @@ public class ToolboxService {
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
 			Path modulesPath = fs.getPath(MODULES_DIR_NAME);
-			this.toolbox = new Toolbox(modulesPath);
+			box = new Toolbox(modulesPath);
 
 			byte [] zipContents = Files.readAllBytes(foundPath);
-			this.toolbox.setZipContents(zipContents);
+			box.setZipContents(zipContents);
 		}
-		
+
+		return box;
 	}
 
+	private void reloadToolbox() {
+		logger.info("reloading tools");
+		Toolbox newToolbox;
+		try {
+			newToolbox = loadToolbox();
+		
+			if (newToolbox == null) {
+				logger.warn("failed to reload tools");
+				return;
+			}		
+			// switch to new toolbox
+			this.toolbox = newToolbox;
+			if (this.toolResource != null) { // null if rest server not started yet
+				this.toolResource.setToolbox(newToolbox);
+			}
+			if (this.moduleResource != null) { // null if rest server not started yet
+				this.moduleResource.setToolbox(newToolbox);
+			}
+
+		} catch (Exception e) {
+			logger.warn("failed to reload tools");
+			return;
+		}
+
+		logger.info("tools reload done");
+		
+	}
+	
+	
 	/**
 	 * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
 	 * application.
@@ -109,8 +170,10 @@ public class ToolboxService {
 	 */
 	public void startServer() throws IOException, URISyntaxException {
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(new ToolResource(this.toolbox))
-				.register(new ModuleResource(this.toolbox));
+		this.toolResource = new ToolResource(this.toolbox);
+		this.moduleResource = new ModuleResource(toolbox);
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(this.toolResource)
+				.register(moduleResource);
 				// .register(new LoggingFilter())
 
 		// create and start a new instance of grizzly http server
@@ -148,9 +211,21 @@ public class ToolboxService {
 	}
 
 	public void close() {
+		closeReloadWatcher();
 		RestUtils.shutdown("toolbox", httpServer);
 	}
 
+	private void closeReloadWatcher() {
+		if (this.reloadWatcher != null) {
+			try {
+				reloadWatcher.close();
+			} catch (IOException e) {
+				logger.warn("failed to close reload watcher");
+			}
+		}
+	}
+	
+	
 	private void registerToServiceLocator(Config config) {
 		String username = config.getString(Config.KEY_TOOLBOX_USERNAME);
 		String password = config.getString(Config.KEY_TOOLBOX_PASSWORD);
@@ -197,6 +272,10 @@ public class ToolboxService {
 		throw new FileNotFoundException("modules not found");
 
 	}
+
+	public Toolbox getToolbox() {
+		return this.toolbox;
+	}
 	
 	public void dirToZip(Path srcDir, Path destZip) throws IOException, URISyntaxException {
 		
@@ -236,5 +315,69 @@ public class ToolboxService {
 		zipFs.close();			
 	}
 
+	
+	private void startReloadWatch() {
+		
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				Path reloadDir = Paths.get(RELOAD_DIR);
+				Path reloadFile = reloadDir.resolve(RELOAD_FILE);
+
+				try {
+					// create reload dir and file
+					Files.createDirectories(reloadDir);
+					try {
+						Files.createFile(reloadFile);
+					} catch (FileAlreadyExistsException e) {
+						// ignore
+					}
+					
+					// register watcher
+					reloadWatcher = FileSystems.getDefault().newWatchService(); 
+					reloadDir.register(reloadWatcher, ENTRY_CREATE, ENTRY_MODIFY);				
+					logger.info("watching " + reloadFile + " for triggering tools reload");
+
+					// watch
+					while (true) {
+						WatchKey key;
+						try {
+							key = reloadWatcher.take();
+						} catch (InterruptedException | ClosedWatchServiceException e ) {
+							break;
+						}
+
+						for (WatchEvent<?> event : key.pollEvents()) {
+							WatchEvent.Kind<?> kind = event.kind();
+
+							@SuppressWarnings("unchecked")
+							WatchEvent<Path> ev = (WatchEvent<Path>) event;
+							Path fileName = ev.context();
+
+							if ((kind == ENTRY_MODIFY || kind == ENTRY_CREATE) &&
+									fileName.toString().equals(RELOAD_FILE)) {
+								logger.info("tool reload requested");
+								reloadToolbox();
+							}
+						}
+
+						boolean valid = key.reset();
+						if (!valid) {
+							break;
+						}
+					}
+				} catch (Exception e) {
+					logger.warn("got exception while watching reload dir " + reloadDir, e);
+				} finally {
+					closeReloadWatcher();
+				}
+				
+				logger.info("stopped watching " + reloadDir);
+
+			}
+		}, "toolbox-reload-watch").start();
+	}
+	
 
 }
