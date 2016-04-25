@@ -10,6 +10,9 @@ repositories {
         dirs "../chipster/dist", "."
     }
 
+    flatDir {
+        dirs "libs"
+    }
 }
 
 distTar { 
