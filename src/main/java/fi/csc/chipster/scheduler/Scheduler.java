@@ -67,8 +67,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	String password = "schedulerPassword";
     	    	
 		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
-		this.serviceId = serviceLocator.register(Role.SCHEDULER, authService, config.getString("scheduler"));	      
+		this.authService = new AuthenticationClient(serviceLocator, username, password);	      
     	
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
     	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this, "scheduler-job-listener");    	

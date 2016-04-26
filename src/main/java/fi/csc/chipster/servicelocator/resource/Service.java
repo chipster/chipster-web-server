@@ -8,11 +8,12 @@ public class Service {
 	private String serviceId;
 	private String role;
 	private String uri;
+	private String publicUri;
 	
-
-	public Service(String role, String uri) {
+	public Service(String role, String uri, String publicUri) {
 		this.role = role;
 		this.uri = uri;
+		this.publicUri = publicUri;
 	}
 	
 	public Service() {
@@ -39,6 +40,14 @@ public class Service {
 
 	public void setRole(String role) {
 		this.role = role;
+	}
+
+	public String getPublicUri() {
+		return publicUri;
+	}
+
+	public void setPublicUri(String publicUri) {
+		this.publicUri = publicUri;
 	}
 
 }

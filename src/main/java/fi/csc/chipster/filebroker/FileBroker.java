@@ -11,7 +11,6 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
@@ -59,7 +58,6 @@ public class FileBroker {
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
-		this.serviceId = serviceLocator.register(Role.FILE_BROKER, authService, config.getString("file-broker"));
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());		
     	
 		File storage = new File("storage");

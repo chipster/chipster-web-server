@@ -126,10 +126,7 @@ public class SessionDb implements TopicCheck {
 		if (replicate) {
 			new SessionDbCluster().replicate(serviceLocator, authService, authorizationResource, sessionResource, adminResource, hibernate, this);
 		}
-		
-		this.serviceId = serviceLocator.register(Role.SESSION_DB, authService, config.getString("session-db"));
-		serviceLocator.register(Role.SESSION_DB_EVENTS, authService, config.getString("session-db-events"));
-		
+				
 		String pubSubUri = config.getString("session-db-events-bind");
 		String path = "/" + EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 

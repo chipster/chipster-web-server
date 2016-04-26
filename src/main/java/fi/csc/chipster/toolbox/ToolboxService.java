@@ -31,11 +31,9 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.ToolResource;
 
@@ -181,17 +179,6 @@ public class ToolboxService {
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 		logger.info("toolbox service running at " + baseUri);
-		
-		// try to register this toolbox to the service locator
-		// fails if service locator not up, toolbox service will still be
-		// functional though
-		if (this.config != null) {
-			try {
-				registerToServiceLocator(config);
-			} catch (Exception e) {
-				logger.info("register to service locator failed");
-			}
-		}
 	}
 
 	/**

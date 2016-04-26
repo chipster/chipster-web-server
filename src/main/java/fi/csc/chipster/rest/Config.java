@@ -16,6 +16,7 @@ public class Config {
 	public static final String KEY_TOOLBOX_USERNAME = "toolbox-username";
 	public static final String KEY_TOOLBOX_PASSWORD = "toolbox-password";
 	public static final String KEY_TOOLBOX_URL = "toolbox-url";
+	public static final String KEY_TOOLBOX_PUBLIC_URL = "toolbox-url-pub";
 	public static final String KEY_TOOLBOX_BIND_URL = "toolbox-bind-url";
 	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
 	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
@@ -72,13 +73,18 @@ public class Config {
 	{
 		// uri for service registration
 		defaults.put("web", 						"http://{{public-ip}}:8000/");
-		defaults.put("authentication-service", 		"http://{{public-ip}}:8002/authservice/"); // service locator has to know this to authenticate other services
+		defaults.put("authentication-service", 		"http://{{public-ip}}:8002/authservice/");
+		defaults.put("authentication-service-pub", 	"http://{{public-ip}}:8002/authservice/");
 		defaults.put("service-locator", 			"http://{{public-ip}}:8003/servicelocator/"); 
 		defaults.put("session-db", 					"http://{{public-ip}}:8004/sessiondb/");
 		defaults.put("session-db-events", 			"ws://{{public-ip}}:8005/sessiondbevents/");
+		defaults.put("session-db-pub", 				"http://{{public-ip}}:8004/sessiondb/");
+		defaults.put("session-db-events-pub",		"ws://{{public-ip}}:8005/sessiondbevents/");
 		defaults.put("scheduler", 					"ws://{{public-ip}}:8006/scheduler/");
 		defaults.put("file-broker", 				"http://{{public-ip}}:8007/filebroker/");
+		defaults.put("file-broker-pub",				"http://{{public-ip}}:8007/filebroker/");
         defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8008/toolbox");
+        defaults.put(KEY_TOOLBOX_PUBLIC_URL, 		"http://{{public-ip}}:8008/toolbox");
 		
         // uri for the server to bind
         defaults.put("web-bind", 					"http://{{bind-ip}}:8000/");

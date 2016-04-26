@@ -60,12 +60,12 @@ public class ServiceLocator {
     	this.serverId = RestUtils.createId();
     	this.serviceCatalog = new ServiceCatalog();
     	
-    	addService(Role.AUTHENTICATION_SERVICE, authUri);
-    	addService(Role.FILE_BROKER, config.getString("file-broker"));
-    	addService(Role.SCHEDULER, config.getString("scheduler"));
-    	addService(Role.SESSION_DB, config.getString("session-db"));
-    	addService(Role.SESSION_DB_EVENTS, config.getString("session-db-events"));
-    	addService(Role.TOOLBOX, config.getString(Config.KEY_TOOLBOX_URL));
+    	addService(Role.AUTHENTICATION_SERVICE, config.getString("authentication-service"), config.getString("authentication-service-pub"));
+    	addService(Role.FILE_BROKER, config.getString("file-broker"), config.getString("file-broker-pub"));
+    	addService(Role.SCHEDULER, config.getString("scheduler"), null);
+    	addService(Role.SESSION_DB, config.getString("session-db"), config.getString("session-db-pub"));
+    	addService(Role.SESSION_DB_EVENTS, config.getString("session-db-events"), config.getString("session-db-events-pub"));
+    	addService(Role.TOOLBOX, config.getString(Config.KEY_TOOLBOX_URL), config.getString(Config.KEY_TOOLBOX_PUBLIC_URL));
     	
     	// static configuration, discard updates
     	serviceCatalog.setReadOnly(true);
@@ -84,8 +84,8 @@ public class ServiceLocator {
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     }
     
-    public void addService(String role, String uri) {
-    	Service service = new Service(role, uri);
+    public void addService(String role, String uri, String publicUri) {
+    	Service service = new Service(role, uri, publicUri);
     	serviceCatalog.add(role, service);
     }
 
