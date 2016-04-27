@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.io.FileUtils;
@@ -23,6 +26,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -95,13 +99,13 @@ public class RestCliClient {
 	private static final String SUBCOMMAND = "subcommand";
 	private static Long t;
 	
-	private String proxy;
 	private CredentialsProvider credentials;
 	private Boolean verbose = false;
 	private Boolean quiet = false;
 	private SessionDbClient sessionDbClient;
 	private ToolboxClientRest toolboxClient;
 	private RestFileBrokerClient fileBrokerClient;
+	private HashMap<String, Service> services;
 
 	public static void main(String[] args) throws IOException {
 		time("");
@@ -232,7 +236,9 @@ public class RestCliClient {
 		verbose = namespace.getBoolean(OPT_VERBOSE);
 		quiet = namespace.getBoolean(OPT_QUIET);
 		
-		proxy = "http://" + namespace.getString(ARG_HOST) + "/";
+		String webUri = "http://" + namespace.getString(ARG_HOST);
+		String serviceLocatorUri = getServiceLocatorUri(webUri);
+		this.services = getServices(serviceLocatorUri);
 		
 		String username = namespace.getString(OPT_USERNAME);
 		String password = namespace.getString(OPT_PASSWORD);
@@ -264,29 +270,46 @@ public class RestCliClient {
 		}
 	}
 	
+	private HashMap<String, Service> getServices(String serviceLocatorUri) {
+		WebTarget serviceTarget = ClientBuilder.newClient().target(serviceLocatorUri).path("services");
+		String serviceJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+		@SuppressWarnings("unchecked")
+		List<Service> serviceList = RestUtils.parseJson(List.class, Service.class, serviceJson);
+		
+		HashMap<String, Service> services = new HashMap<>();
+		for (Service service : serviceList) {
+			services.put(service.getRole(), service);
+		}
+		return services;
+	}
+
+	private String getServiceLocatorUri(String webUri) {
+		WebTarget configTarget = ClientBuilder.newClient().target(webUri).path("js/json/config.json");
+		String configJson = configTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+		@SuppressWarnings("unchecked")
+		HashMap<String, String> configMap = RestUtils.parseJson(HashMap.class, configJson);
+		
+		return configMap.get("serviceLocator");
+	}
+
 	private String getAuthUri() {
-		//return proxy + "auth/";
-		return "http://auth-chipster.dac-oso.csc.fi/";
+		return services.get("authentication-service").getPublicUri();
 	}
 	
 	private String getSessionDbUri() {
-		//return proxy + "sessiondb/";
-		return "http://session-db-chipster.dac-oso.csc.fi/";
+		return services.get("session-db").getPublicUri();
 	}
 	
 	private String getSessionDbEventsUri() {
-		//return proxy + "sessiondbevents/";
-		return "ws://session-db-events-chipster.dac-oso.csc.fi/";
+		return services.get("session-db-events").getPublicUri();
 	}
 	
 	private String getToolboxUri() {
-		//return proxy + "toolbox/";
-		return "http://toolbox-chipster.dac-oso.csc.fi/";
+		return services.get("toolbox").getPublicUri();
 	}
 	
 	private String getFileBrokerUri() {
-		//return proxy + "filebroker";
-		return "http://file-broker-chipster.dac-oso.csc.fi/";
+		return services.get("file-broker").getPublicUri();
 	}
 
 	private void verbose(String msg) {
