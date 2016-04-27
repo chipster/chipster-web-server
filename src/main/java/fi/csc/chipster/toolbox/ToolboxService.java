@@ -31,7 +31,6 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
@@ -53,6 +52,7 @@ public class ToolboxService {
 	
 	private Logger logger = LogManager.getLogger();
 
+	@SuppressWarnings("unused")
 	private Config config;
 	private Toolbox toolbox;
 	private String url;
@@ -61,9 +61,6 @@ public class ToolboxService {
 
 	private ToolResource toolResource;
 	private ModuleResource moduleResource;
-	
-	@SuppressWarnings("unused")
-	private String serviceId;
 
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
@@ -210,17 +207,6 @@ public class ToolboxService {
 				logger.warn("failed to close reload watcher");
 			}
 		}
-	}
-	
-	
-	private void registerToServiceLocator(Config config) {
-		String username = config.getString(Config.KEY_TOOLBOX_USERNAME);
-		String password = config.getString(Config.KEY_TOOLBOX_PASSWORD);
-
-		ServiceLocatorClient locatorClient = new ServiceLocatorClient(config);
-		AuthenticationClient authClient = new AuthenticationClient(locatorClient, username, password);
-
-		this.serviceId = locatorClient.register(Role.TOOLBOX, authClient, config.getString(Config.KEY_TOOLBOX_URL));
 	}
 
 	/**
