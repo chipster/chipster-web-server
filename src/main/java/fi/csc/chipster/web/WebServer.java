@@ -8,6 +8,8 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
@@ -54,10 +56,14 @@ public class WebServer {
         	throw new IllegalArgumentException("web root " + rootPath + " doesn't exist");
         }
         
-        // Add the ResourceHandler to the server.
+        // create a ContextHandler just to enable symlinks
+        ContextHandler contextHandler = new ContextHandler();
+        contextHandler.setHandler(resourceHandler);
+        contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
         
+        // Add the ResourceHandler to the server.
         HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[] { resourceHandler, new DefaultHandler() });
+        handlers.setHandlers(new Handler[] { contextHandler, new DefaultHandler() });
         
         server.setHandler(handlers);
         
