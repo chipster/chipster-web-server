@@ -42,9 +42,9 @@ import fi.csc.chipster.toolbox.resource.ToolResource;
  */
 public class ToolboxService {
 
-	private static final String MODULES_DIR_NAME = "modules";
-	private static final String MODULES_ZIP_NAME = "modules.zip";
-	private static final String[] MODULES_SEARCH_LOCATIONS = { ".", "../chipster-tools",
+	private static final String TOOLS_DIR_NAME = "tools";
+	public static final String TOOLS_ZIP_NAME = TOOLS_DIR_NAME + ".zip";
+	private static final String[] TOOLS_SEARCH_LOCATIONS = { ".", "../chipster-tools",
 			"../chipster-tools/build/distributions" };
 
 	private static final String RELOAD_DIR = "reload";
@@ -104,8 +104,8 @@ public class ToolboxService {
 		if (Files.isDirectory(foundPath)) {
 			box = new Toolbox(foundPath);
 
-			Path tempDir = Files.createTempDirectory(MODULES_DIR_NAME);
-			Path tempZipFile = tempDir.resolve(MODULES_ZIP_NAME);
+			Path tempDir = Files.createTempDirectory(TOOLS_DIR_NAME);
+			Path tempZipFile = tempDir.resolve(TOOLS_ZIP_NAME);
 			
 			dirToZip(foundPath, tempZipFile);
 			byte [] zipContents = Files.readAllBytes(tempZipFile);
@@ -117,7 +117,7 @@ public class ToolboxService {
 		// found modules zip
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
-			Path modulesPath = fs.getPath(MODULES_DIR_NAME);
+			Path modulesPath = fs.getPath(TOOLS_DIR_NAME);
 			box = new Toolbox(modulesPath);
 
 			byte [] zipContents = Files.readAllBytes(foundPath);
@@ -218,12 +218,12 @@ public class ToolboxService {
 	 */
 	private Path findModulesDir() throws FileNotFoundException {
 
-		for (String location : MODULES_SEARCH_LOCATIONS) {
+		for (String location : TOOLS_SEARCH_LOCATIONS) {
 
 			Path path;
 
 			// search modules dir
-			path = Paths.get(location, MODULES_DIR_NAME);
+			path = Paths.get(location, TOOLS_DIR_NAME);
 			logger.info("looking for " + path);
 			if (Files.isDirectory(path)) {
 				logger.info("modules directory " + path + " found");
@@ -232,7 +232,7 @@ public class ToolboxService {
 
 			// search modules zip
 			else {
-				path = Paths.get(location, MODULES_ZIP_NAME);
+				path = Paths.get(location, TOOLS_ZIP_NAME);
 				logger.info("looking for " + path);
 				if (Files.exists(path)) {
 					logger.info("modules zip " + path + " found");
