@@ -11,7 +11,7 @@ repositories {
     }
 
     flatDir {
-        dirs "chipster-libs"
+        dirs "chipster-dist"
     }
 }
 
