@@ -210,11 +210,11 @@ public class ToolboxService {
 	}
 
 	/**
-	 * Try to locate modules dir or modules zip
+	 * Try to locate tools dir or tools zip
 	 * 
-	 * @return path to modules dir or modules zip
+	 * @return path to tolls dir or tools zip
 	 * @throws FileNotFoundException
-	 *             if modules dir or zip not found
+	 *             if tools dir or zip not found
 	 */
 	private Path findModulesDir() throws FileNotFoundException {
 
