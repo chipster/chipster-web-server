@@ -98,7 +98,7 @@ public class ToolboxService {
 	
 	private Toolbox loadToolbox() throws IOException, URISyntaxException {
 
-		Path foundPath = findModulesDir();
+		Path foundPath = findToolsDir();
 		
 		Toolbox box;
 		if (Files.isDirectory(foundPath)) {
@@ -114,11 +114,11 @@ public class ToolboxService {
 			Files.delete(tempDir);
 		}
 		
-		// found modules zip
+		// found tools zip
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
-			Path modulesPath = fs.getPath(TOOLS_DIR_NAME);
-			box = new Toolbox(modulesPath);
+			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
+			box = new Toolbox(toolsPath);
 
 			byte [] zipContents = Files.readAllBytes(foundPath);
 			box.setZipContents(zipContents);
@@ -216,33 +216,33 @@ public class ToolboxService {
 	 * @throws FileNotFoundException
 	 *             if tools dir or zip not found
 	 */
-	private Path findModulesDir() throws FileNotFoundException {
+	private Path findToolsDir() throws FileNotFoundException {
 
 		for (String location : TOOLS_SEARCH_LOCATIONS) {
 
 			Path path;
 
-			// search modules dir
+			// search tools dir
 			path = Paths.get(location, TOOLS_DIR_NAME);
 			logger.info("looking for " + path);
 			if (Files.isDirectory(path)) {
-				logger.info("modules directory " + path + " found");
+				logger.info("tools directory " + path + " found");
 				return path;
 			}
 
-			// search modules zip
+			// search tools zip
 			else {
 				path = Paths.get(location, TOOLS_ZIP_NAME);
 				logger.info("looking for " + path);
 				if (Files.exists(path)) {
-					logger.info("modules zip " + path + " found");
+					logger.info("tools zip " + path + " found");
 					return path;
 				}
 			}
 		}
 
-		logger.warn("modules not found");
-		throw new FileNotFoundException("modules not found");
+		logger.warn("tools not found");
+		throw new FileNotFoundException("tools not found");
 
 	}
 
