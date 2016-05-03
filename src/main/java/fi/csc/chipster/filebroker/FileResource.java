@@ -88,6 +88,7 @@ public class FileResource implements SessionEventListener {
 		    return Response.ok(f)
 		    		// hint filename for dataset export
 		    		.header("Content-Disposition", "attachment; filename=\"" + dataset.getName() + "\"")
+		    		.type(getType(dataset))
 		    		.build();
 	    
 		} catch (RestException e) {
@@ -95,6 +96,16 @@ public class FileResource implements SessionEventListener {
 		}	
 	}
 	
+	private MediaType getType(Dataset dataset) {
+		MediaType type = null;
+		// we should store the recognized type so that client could rely on it 
+	    if (dataset.getName().toLowerCase().endsWith(".html")) {
+	    	// required for visualizing html files in an iFrame
+	    	type = MediaType.TEXT_HTML_TYPE;
+	    }
+		return type;
+	}
+
 	private File getStorageFile(UUID fileId) {
 		// having a fileId as UUID makes sure that it doesn't point to other dirs
 	    return new File(storage, fileId.toString());	    
