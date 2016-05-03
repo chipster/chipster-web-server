@@ -96,7 +96,8 @@ public class FileResource implements SessionEventListener {
 	    		response.header("Content-Disposition", "attachment; filename=\"" + dataset.getName() + "\"");
 		    }
 		    
-		    if (type) {		    	
+		    if (type) {
+		    	// rendenring a html file in an iFrame requires the Content-Type header 
 		    	response.type(getType(dataset));
 		    }
 		    
