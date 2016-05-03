@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.util.UUID;
 
 import javax.ws.rs.BadRequestException;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
@@ -21,6 +22,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.logging.log4j.LogManager;
@@ -59,6 +61,8 @@ public class FileResource implements SessionEventListener {
 	public Response get(
 			@PathParam(SESSION_ID) UUID sessionId, 
 			@PathParam(DATASET_ID) UUID datasetId, 
+			@DefaultValue("true") @QueryParam("download") boolean download,
+			@DefaultValue("false") @QueryParam("type") boolean type,
 			@Context SecurityContext sc) {
 		
 		try {
@@ -85,11 +89,18 @@ public class FileResource implements SessionEventListener {
 		        throw new NotFoundException("no such file");
 		    }
 		
-		    return Response.ok(f)
-		    		// hint filename for dataset export
-		    		.header("Content-Disposition", "attachment; filename=\"" + dataset.getName() + "\"")
-		    		.type(getType(dataset))
-		    		.build();
+		    ResponseBuilder response = Response.ok(f);
+		    
+		    if (download) {
+	    		// hint filename for dataset export
+	    		response.header("Content-Disposition", "attachment; filename=\"" + dataset.getName() + "\"");
+		    }
+		    
+		    if (type) {		    	
+		    	response.type(getType(dataset));
+		    }
+		    
+		    return response.build();
 	    
 		} catch (RestException e) {
 			throw new InternalServerErrorException("failed to get the dataset", e);
