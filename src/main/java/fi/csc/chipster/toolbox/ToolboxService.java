@@ -42,9 +42,9 @@ import fi.csc.chipster.toolbox.resource.ToolResource;
  */
 public class ToolboxService {
 
-	private static final String MODULES_DIR_NAME = "modules";
-	private static final String MODULES_ZIP_NAME = "modules.zip";
-	private static final String[] MODULES_SEARCH_LOCATIONS = { ".", "../chipster-tools",
+	private static final String TOOLS_DIR_NAME = "tools";
+	public static final String TOOLS_ZIP_NAME = TOOLS_DIR_NAME + ".zip";
+	private static final String[] TOOLS_SEARCH_LOCATIONS = { ".", "../chipster-tools",
 			"../chipster-tools/build/distributions" };
 
 	private static final String RELOAD_DIR = "reload";
@@ -98,14 +98,14 @@ public class ToolboxService {
 	
 	private Toolbox loadToolbox() throws IOException, URISyntaxException {
 
-		Path foundPath = findModulesDir();
+		Path foundPath = findToolsDir();
 		
 		Toolbox box;
 		if (Files.isDirectory(foundPath)) {
 			box = new Toolbox(foundPath);
 
-			Path tempDir = Files.createTempDirectory(MODULES_DIR_NAME);
-			Path tempZipFile = tempDir.resolve(MODULES_ZIP_NAME);
+			Path tempDir = Files.createTempDirectory(TOOLS_DIR_NAME);
+			Path tempZipFile = tempDir.resolve(TOOLS_ZIP_NAME);
 			
 			dirToZip(foundPath, tempZipFile);
 			byte [] zipContents = Files.readAllBytes(tempZipFile);
@@ -114,11 +114,11 @@ public class ToolboxService {
 			Files.delete(tempDir);
 		}
 		
-		// found modules zip
+		// found tools zip
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
-			Path modulesPath = fs.getPath(MODULES_DIR_NAME);
-			box = new Toolbox(modulesPath);
+			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
+			box = new Toolbox(toolsPath);
 
 			byte [] zipContents = Files.readAllBytes(foundPath);
 			box.setZipContents(zipContents);
@@ -210,39 +210,39 @@ public class ToolboxService {
 	}
 
 	/**
-	 * Try to locate modules dir or modules zip
+	 * Try to locate tools dir or tools zip
 	 * 
-	 * @return path to modules dir or modules zip
+	 * @return path to tolls dir or tools zip
 	 * @throws FileNotFoundException
-	 *             if modules dir or zip not found
+	 *             if tools dir or zip not found
 	 */
-	private Path findModulesDir() throws FileNotFoundException {
+	private Path findToolsDir() throws FileNotFoundException {
 
-		for (String location : MODULES_SEARCH_LOCATIONS) {
+		for (String location : TOOLS_SEARCH_LOCATIONS) {
 
 			Path path;
 
-			// search modules dir
-			path = Paths.get(location, MODULES_DIR_NAME);
+			// search tools dir
+			path = Paths.get(location, TOOLS_DIR_NAME);
 			logger.info("looking for " + path);
 			if (Files.isDirectory(path)) {
-				logger.info("modules directory " + path + " found");
+				logger.info("tools directory " + path + " found");
 				return path;
 			}
 
-			// search modules zip
+			// search tools zip
 			else {
-				path = Paths.get(location, MODULES_ZIP_NAME);
+				path = Paths.get(location, TOOLS_ZIP_NAME);
 				logger.info("looking for " + path);
 				if (Files.exists(path)) {
-					logger.info("modules zip " + path + " found");
+					logger.info("tools zip " + path + " found");
 					return path;
 				}
 			}
 		}
 
-		logger.warn("modules not found");
-		throw new FileNotFoundException("modules not found");
+		logger.warn("tools not found");
+		throw new FileNotFoundException("tools not found");
 
 	}
 

@@ -1,12 +1,10 @@
 package fi.csc.chipster.toolbox.resource;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 
 import javax.inject.Singleton;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
@@ -19,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import fi.csc.chipster.toolbox.Toolbox;
 import fi.csc.chipster.toolbox.ToolboxModule;
 import fi.csc.chipster.toolbox.ToolboxModule.ToolboxCategory;
+import fi.csc.chipster.toolbox.ToolboxService;
 import fi.csc.chipster.toolbox.ToolboxTool;
 
 @Singleton
@@ -100,7 +99,7 @@ public class ModuleResource {
     public Response getZip() {
     	return Response.ok(toolbox.getZipStream())
     			// hint filename
-    			.header("Content-Disposition", "attachment; filename=\"" + "modules.zip" + "\"")
+    			.header("Content-Disposition", "attachment; filename=\"" + ToolboxService.TOOLS_ZIP_NAME + "\"")
     			.build();
 
     }
