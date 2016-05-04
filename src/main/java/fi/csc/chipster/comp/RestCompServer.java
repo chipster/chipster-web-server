@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.websocket.MessageHandler;
+import javax.ws.rs.core.UriBuilder;
 
 import org.apache.log4j.Logger;
 
@@ -179,7 +180,11 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		config = new Config();
 		serviceLocator = new ServiceLocatorClient(config);
 		authClient = new AuthenticationClient(serviceLocator, "comp", "compPassword");
-		schedulerUri = serviceLocator.get(Role.SCHEDULER).get(0) + "events?token=" + authClient.getToken();
+		schedulerUri = UriBuilder
+				.fromUri(serviceLocator.get(Role.SCHEDULER).get(0))
+				.path("events")
+				.queryParam("token",  authClient.getToken())
+				.toString();
 		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client");
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials());
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);

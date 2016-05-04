@@ -72,31 +72,31 @@ public class Config {
 	
 	{
 		// uri for service registration
-		defaults.put("web", 						"http://{{public-ip}}:8000/");
-		defaults.put("authentication-service", 		"http://{{public-ip}}:8002/authservice/");
-		defaults.put("authentication-service-pub", 	"http://{{public-ip}}:8002/authservice/");
-		defaults.put("service-locator", 			"http://{{public-ip}}:8003/servicelocator/"); 
-		defaults.put("session-db", 					"http://{{public-ip}}:8004/sessiondb/");
-		defaults.put("session-db-events", 			"ws://{{public-ip}}:8005/sessiondbevents/");
-		defaults.put("session-db-pub", 				"http://{{public-ip}}:8004/sessiondb/");
-		defaults.put("session-db-events-pub",		"ws://{{public-ip}}:8005/sessiondbevents/");
-		defaults.put("scheduler", 					"ws://{{public-ip}}:8006/scheduler/");
-		defaults.put("file-broker", 				"http://{{public-ip}}:8007/filebroker/");
-		defaults.put("file-broker-pub",				"http://{{public-ip}}:8007/filebroker/");
-        defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8008/toolbox");
-        defaults.put(KEY_TOOLBOX_PUBLIC_URL, 		"http://{{public-ip}}:8008/toolbox");
+		defaults.put("web", 						"http://{{public-ip}}:8000");
+		defaults.put("authentication-service", 		"http://{{public-ip}}:8002");
+		defaults.put("authentication-service-pub", 	"http://{{public-ip}}:8002");
+		defaults.put("service-locator", 			"http://{{public-ip}}:8003"); 
+		defaults.put("session-db", 					"http://{{public-ip}}:8004");
+		defaults.put("session-db-events", 			"ws://{{public-ip}}:8005");
+		defaults.put("session-db-pub", 				"http://{{public-ip}}:8004");
+		defaults.put("session-db-events-pub",		"ws://{{public-ip}}:8005");
+		defaults.put("scheduler", 					"ws://{{public-ip}}:8006");
+		defaults.put("file-broker", 				"http://{{public-ip}}:8007");
+		defaults.put("file-broker-pub",				"http://{{public-ip}}:8007");
+        defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8008");
+        defaults.put(KEY_TOOLBOX_PUBLIC_URL, 		"http://{{public-ip}}:8008");
 		
         // uri for the server to bind
-        defaults.put("web-bind", 					"http://{{bind-ip}}:8000/");
-        defaults.put("proxy-bind", 					"http://{{bind-ip}}:8001/");
-        defaults.put("proxy-admin-bind", 			"http://{{admin-bind-ip}}:9001/");
-        defaults.put("authentication-service-bind", "http://{{bind-ip}}:8002/authservice/");
-		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8003/servicelocator/");
-		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8004/sessiondb/");
-		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8005/sessiondbevents/");
-		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8006/scheduler/");
-		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8007/filebroker/");
-		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8008/toolbox/");
+        defaults.put("web-bind", 					"http://{{bind-ip}}:8000");
+        defaults.put("proxy-bind", 					"http://{{bind-ip}}:8001");
+        defaults.put("proxy-admin-bind", 			"http://{{admin-bind-ip}}:9001");
+        defaults.put("authentication-service-bind", "http://{{bind-ip}}:8002");
+		defaults.put("service-locator-bind", 		"http://{{bind-ip}}:8003");
+		defaults.put("session-db-bind", 			"http://{{bind-ip}}:8004");
+		defaults.put("session-db-events-bind", 		"ws://{{bind-ip}}:8005");
+		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8006");
+		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8007");
+		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8008");
 
 		defaults.put(KEY_TOOLBOX_USERNAME, 			"toolbox");
 		defaults.put(KEY_TOOLBOX_PASSWORD, 			"toolboxPassword");

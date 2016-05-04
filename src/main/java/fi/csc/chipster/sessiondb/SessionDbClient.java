@@ -16,6 +16,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -98,12 +99,15 @@ public class SessionDbClient {
 
 	public void subscribe(String topic, final SessionEventListener listener, String name) throws RestException {
 		
-		String queryParams = "";
-		if (credentials != null) {
-			queryParams = "?token=" + credentials.getPassword().toString();
-		}
 		try {
-			this.client = new WebSocketClient(sessionDbEventsUri + SessionDb.EVENTS_PATH + "/" + topic + queryParams, new Whole<String>() {
+			
+			UriBuilder uriBuilder = UriBuilder.fromUri(sessionDbEventsUri).path(SessionDb.EVENTS_PATH).path(topic);
+			
+			if (credentials != null) {
+				uriBuilder = uriBuilder.queryParam("token", credentials.getPassword().toString());
+			}			
+			
+			this.client = new WebSocketClient(uriBuilder.toString(), new Whole<String>() {
 
 				@Override
 				public void onMessage(String message) {
