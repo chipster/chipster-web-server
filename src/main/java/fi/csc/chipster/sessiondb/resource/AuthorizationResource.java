@@ -165,7 +165,7 @@ public class AuthorizationResource {
 	
 		StreamingOutput stream = new StreamingOutput() {
 	    	@Override
-	    	public void write(OutputStream output) {
+	    	public void write(final OutputStream output) {
 	    		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 	    			@Override
 	    			public Void run(org.hibernate.Session hibernateSession) {	    				try {

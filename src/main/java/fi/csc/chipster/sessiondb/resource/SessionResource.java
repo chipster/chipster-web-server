@@ -240,7 +240,7 @@ public class SessionResource {
 		this.events = pubSubServer;
 	}
 	
-	public void publish(String topic, SessionEvent obj, org.hibernate.Session hibernateSession) {
+	public void publish(final String topic, final SessionEvent obj, org.hibernate.Session hibernateSession) {
 		// publish the event only after the transaction is completed to make 
 		// sure that the modifications are visible
 		hibernateSession.addEventListeners(new BaseSessionEventListener() {

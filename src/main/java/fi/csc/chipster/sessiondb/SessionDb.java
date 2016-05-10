@@ -187,7 +187,7 @@ public class SessionDb implements TopicCheck {
 	}
 
 	@Override
-	public boolean isAuthorized(AuthPrincipal principal, String topic) {
+	public boolean isAuthorized(final AuthPrincipal principal, String topic) {
 		logger.debug("check topic authorization for topic " + topic);
 		
 		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic)) {
@@ -197,7 +197,7 @@ public class SessionDb implements TopicCheck {
 			return principal.getRoles().contains(Role.SESSION_DB);
 			
 		} else {
-			UUID sessionId = UUID.fromString(topic);
+			final UUID sessionId = UUID.fromString(topic);
 			Boolean isAuthorized = hibernate.runInTransaction(new HibernateRunnable<Boolean>() {
 				@Override
 				public Boolean run(org.hibernate.Session hibernateSession) {

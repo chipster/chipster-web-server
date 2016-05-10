@@ -64,7 +64,7 @@ public class SessionCopy {
 	}
 	
 	
-	private static Runnable getCopyRunnable(int i) {
+	private static Runnable getCopyRunnable(final int i) {
 		return new Runnable() {
 			@Override
 			public void run() {

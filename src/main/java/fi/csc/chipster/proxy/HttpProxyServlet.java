@@ -38,7 +38,7 @@ public class HttpProxyServlet extends ProxyServlet.Transparent {
 			
 		super.service(request, response);
 		// this is singleton servlet, but each request will it it's own connection object
-		Connection connection = new Connection();
+		final Connection connection = new Connection();
         connection.setSourceAddress(request.getRemoteAddr());
         connection.setRequestURI(request.getRequestURL().toString());
         connection.setRoute(new Route(getProxyPath(), getProxyTo()));

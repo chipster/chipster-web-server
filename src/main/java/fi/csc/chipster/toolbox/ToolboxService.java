@@ -250,7 +250,7 @@ public class ToolboxService {
 		return this.toolbox;
 	}
 	
-	public void dirToZip(Path srcDir, Path destZip) throws IOException, URISyntaxException {
+	public void dirToZip(final Path srcDir, Path destZip) throws IOException, URISyntaxException {
 		
 		logger.debug("packaging " + srcDir + " -> " + destZip);
 		
@@ -265,7 +265,7 @@ public class ToolboxService {
 		// create zip
 		Map<String, String> env = new HashMap<String, String>();
 		env.put("create", "true");
-		FileSystem zipFs = FileSystems.newFileSystem(zipLocation, env);
+		final FileSystem zipFs = FileSystems.newFileSystem(zipLocation, env);
 		
 		// copy recursively
 		Files.walkFileTree(srcDir, new SimpleFileVisitor<Path>() {

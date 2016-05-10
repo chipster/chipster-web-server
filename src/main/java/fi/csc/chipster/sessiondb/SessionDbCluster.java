@@ -129,7 +129,7 @@ public class SessionDbCluster implements SessionEventListener {
 		logger.info(msg);
 	}
 
-	private void replicateSessions(AuthorizationResource authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
+	private void replicateSessions(final AuthorizationResource authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
 			SessionDbClient source) throws RestException, JsonParseException, IOException {
 
 		int sessionCount = 0;
@@ -138,7 +138,7 @@ public class SessionDbCluster implements SessionEventListener {
 		Iterator<Authorization> authorizations = source.getAuthorizations();
 
 		while (authorizations.hasNext()) {
-			Authorization authorization = authorizations.next();
+			final Authorization authorization = authorizations.next();
 
 			hibernate.runInTransaction(new HibernateRunnable<Void>() {
 
@@ -157,7 +157,7 @@ public class SessionDbCluster implements SessionEventListener {
 	}
 
 	private void replicateDatasetsAndJobs(AuthorizationResource authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
-			SessionDbClient source) throws RestException, JsonParseException, IOException {
+			final SessionDbClient source) throws RestException, JsonParseException, IOException {
 
 		/*
 		 * We need separate transactions for reading and writing. One read transaction
@@ -203,9 +203,9 @@ public class SessionDbCluster implements SessionEventListener {
 			throws RestException {
 		UUID sessionId = authorization.getSession().getSessionId();
 
-		HashMap<UUID, Dataset> datasets;
+		final HashMap<UUID, Dataset> datasets;
 		datasets = source.getDatasets(sessionId);
-		HashMap<UUID, Job> jobs = source.getJobs(sessionId);
+		final HashMap<UUID, Job> jobs = source.getJobs(sessionId);
 
 		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 			@Override
@@ -246,7 +246,7 @@ public class SessionDbCluster implements SessionEventListener {
 	}
 
 	@Override
-	public void onEvent(SessionEvent e) {
+	public void onEvent(final SessionEvent e) {
 		if (queueEvents) {
 			synchronized (eventQueue) {
 				eventQueue.add(e);
@@ -384,7 +384,7 @@ public class SessionDbCluster implements SessionEventListener {
 		}
 	}
 	
-	private fi.csc.chipster.sessiondb.model.Session getSession(UUID sessionId) {
+	private fi.csc.chipster.sessiondb.model.Session getSession(final UUID sessionId) {
 		fi.csc.chipster.sessiondb.model.Session session = hibernate.runInTransaction(new HibernateRunnable<fi.csc.chipster.sessiondb.model.Session>() {
 			@Override
 			public fi.csc.chipster.sessiondb.model.Session run(Session hibernateSession) {

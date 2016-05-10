@@ -396,7 +396,7 @@ public class SessionDbClient {
 		InputStream inStream = get(getAuthorizationsTarget(), InputStream.class);
 		
 		JsonFactory factory = RestUtils.getObjectMapper().getFactory();
-		JsonParser parser = factory.createParser(inStream);
+		final JsonParser parser = factory.createParser(inStream);
 
 		JsonToken token = parser.nextToken();
 		if (token == null) {
