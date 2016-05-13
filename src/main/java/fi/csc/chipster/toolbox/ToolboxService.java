@@ -47,7 +47,7 @@ public class ToolboxService {
 	private static final String[] TOOLS_SEARCH_LOCATIONS = { ".", "../chipster-tools",
 			"../chipster-tools/build/distributions" };
 
-	private static final String RELOAD_DIR = "reload";
+	private static final String RELOAD_DIR = ".reload";
 	private static final String RELOAD_FILE = "touch-me-to-reload-tools";
 	
 	private Logger logger = LogManager.getLogger();
