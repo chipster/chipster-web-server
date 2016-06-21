@@ -148,7 +148,6 @@ public class Toolbox {
 		return zipContents;
 	}
 
-	
 	/**
 	 * Toolbox modules use this to get the right parser for each runtime and
 	 * tool type.
@@ -163,13 +162,13 @@ public class Toolbox {
 		if (runtime == null || runtime.isEmpty()) {
 			return null;
 		} else if (runtime.startsWith("python")) {
-			return new HeaderAsCommentParser("#", runtime);
+			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(runtime));
 		} else if (runtime.startsWith("java")) {
 			return new JavaParser();
 
 			// add non-R stuff starting with R before this
 		} else if (runtime.startsWith("R")) {
-			return new HeaderAsCommentParser("#", runtime);
+			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(runtime));
 		} else {
 			return null;
 		}
