@@ -50,5 +50,11 @@ public class Parameter {
 	}
 	public void setValue(String value) {
 		this.value = value;
+	}
+	public int getDbId() {
+		return dbId;
+	}
+	public void setDbId(int dbId) {
+		this.dbId = dbId;
 	}	
 }

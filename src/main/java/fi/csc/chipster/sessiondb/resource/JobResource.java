@@ -31,6 +31,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -109,6 +110,15 @@ public class JobResource {
 		Session session = sessionResource.getSessionForWriting(sc, sessionId);
 		// make sure a hostile client doesn't set the session
 		job.setSession(session);
+		
+		// let the db generate ids
+		for (Input input : job.getInputs()) {
+			input.setDbId(0);
+		}
+		
+		for (Parameter param : job.getParameters()) {
+			param.setDbId(0);
+		}
 
 		create(job, getHibernate().session());
 		
@@ -144,6 +154,15 @@ public class JobResource {
 		}
 		// make sure a hostile client doesn't set the session
 		requestJob.setSession(session);
+		
+		// let the db generate ids
+		for (Input input : requestJob.getInputs()) {
+			input.setDbId(0);
+		}
+		
+		for (Parameter param : requestJob.getParameters()) {
+			param.setDbId(0);
+		}
 		
 		update(requestJob, getHibernate().session());
 		
