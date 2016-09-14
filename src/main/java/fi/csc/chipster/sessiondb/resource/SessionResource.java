@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -81,6 +82,9 @@ public class SessionResource {
     	if (result == null) {
     		throw new NotFoundException();
     	}	
+    	
+    	result.setAccessed(LocalDateTime.now());
+    	
     	return Response.ok(result).build();    	
     }
     
@@ -117,6 +121,8 @@ public class SessionResource {
 
 		UUID id = RestUtils.createUUID();
 		session.setSessionId(id);
+		session.setCreated(LocalDateTime.now());
+		session.setAccessed(LocalDateTime.now());
 		
 		String username = sc.getUserPrincipal().getName();
 		if (username == null) {
@@ -152,6 +158,8 @@ public class SessionResource {
 		
 		// checks the authorization and verifies that the session exists
 		getWriteAuthorization(sc, sessionId);
+		
+		requestSession.setAccessed(LocalDateTime.now());
 		
 		update(requestSession, getHibernate().session());
 		

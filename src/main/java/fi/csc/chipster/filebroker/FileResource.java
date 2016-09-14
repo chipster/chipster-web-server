@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import javax.ws.rs.BadRequestException;
@@ -164,7 +165,9 @@ public class FileResource implements SessionEventListener {
 					
 					fi.csc.chipster.sessiondb.model.File file = new fi.csc.chipster.sessiondb.model.File();
 					file.setFileId(fileId);
-					dataset.setFile(file);			
+					file.setSize(f.length());
+					file.setCreated(LocalDateTime.now());
+					dataset.setFile(file);
 					sessionDbClient.updateDataset(sessionId, dataset);					
 				} catch (EOFException e) {
 					// upload interrupted 
