@@ -131,10 +131,13 @@ public class PubSubServer {
         
         // Setup the basic application "context" for this application at "/"
         // This is also known as the handler tree (in jetty speak)
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);       
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);  
 
         String contextPath = uri.getPath().replaceAll("/$", "");
-        logger.debug("context path " + contextPath);
+        if (contextPath.isEmpty()) {
+        	contextPath = "/";
+        }
+        logger.info("context path " + contextPath);
         context.setContextPath(contextPath);
 
         TokenServletFilter filter = new TokenServletFilter(authService, topicAuthorization, contextPath + path);
@@ -146,7 +149,7 @@ public class PubSubServer {
         ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
         
         // add this instance to user properties, so that we can call it from the PubSubEndpoint
-        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, path).build();
+        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, "/" + path).build();
         serverConfig.getUserProperties().put(this.getClass().getName(), this);
 
         // Add WebSocket endpoint to javax.websocket layer

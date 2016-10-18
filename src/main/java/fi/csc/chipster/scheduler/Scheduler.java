@@ -72,7 +72,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
     	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this, "scheduler-job-listener");    	
     	
-    	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "/events", authService, this, this, "scheduler-events");
+    	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "events", authService, this, this, "scheduler-events");
     	this.pubSubServer.start();		
     }
     

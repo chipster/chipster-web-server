@@ -128,7 +128,7 @@ public class SessionDb implements TopicCheck {
 		}
 				
 		String pubSubUri = config.getString("session-db-events-bind");
-		String path = "/" + EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
+		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
 		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");
 		this.pubSubServer.start();
