@@ -86,19 +86,20 @@ dependencies {
 
     // websockets
     compile "javax.websocket:javax.websocket-api:+"
-    compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:+"
+    compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.2.+"
     compile "org.glassfish.tyrus:tyrus-client:+"
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
 
 	// toolbox
-  	compile "org.apache.activemq:activemq-all:5.10.0"
+	compile "org.apache.activemq:activemq-client:5.10.0"
 
 	// cli
 	compile "org.apache.commons:commons-compress:+"
 
 	// other
-	compile "org.eclipse.jetty:jetty-jmx:+"
-    compile "org.eclipse.jetty:jetty-proxy:+"
+	// jetty version set to latest stable release
+	compile "org.eclipse.jetty:jetty-jmx:9.2.+"
+    compile "org.eclipse.jetty:jetty-proxy:9.2.+"
     compile "commons-io:commons-io:2.4"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
     compile "net.sourceforge.argparse4j:argparse4j:0.7.0"
