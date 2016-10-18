@@ -3,6 +3,7 @@ package fi.csc.chipster.comp;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,6 +41,7 @@ import fi.csc.microarray.comp.CompJob;
 import fi.csc.microarray.comp.ResultCallback;
 import fi.csc.microarray.comp.RuntimeRepository;
 import fi.csc.microarray.comp.ToolRuntime;
+import fi.csc.microarray.config.DirectoryLayout;
 import fi.csc.microarray.constants.ApplicationConstants;
 import fi.csc.microarray.filebroker.FileBrokerClient;
 import fi.csc.microarray.messaging.JobState;
@@ -124,8 +126,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	public RestCompServer(String configURL) throws Exception {
 		
 		// initialise dir, config and logging
-//		DirectoryLayout.initialiseServerLayout(
-//		        Arrays.asList(new String[] {"comp"}), configURL);
+		DirectoryLayout.initialiseServerLayout(Arrays.asList(new String[] {"comp"}), configURL);
 //		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
 
 		Config config = new Config();

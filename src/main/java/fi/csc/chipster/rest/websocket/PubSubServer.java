@@ -137,7 +137,7 @@ public class PubSubServer {
         if (contextPath.isEmpty()) {
         	contextPath = "/";
         }
-        logger.info("context path " + contextPath);
+        logger.debug("context path " + contextPath);
         context.setContextPath(contextPath);
 
         TokenServletFilter filter = new TokenServletFilter(authService, topicAuthorization, contextPath + path);
