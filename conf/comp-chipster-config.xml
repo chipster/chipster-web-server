@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration content-version="3">
+
+	<!--  not used in the new Chipster -->
+	<configuration-module moduleId="messaging">
+		<entry entryKey="broker-host"><value></value></entry>
+		<entry entryKey="broker-protocol"><value></value></entry>
+		<entry entryKey="broker-port"><value>-1</value></entry>
+	</configuration-module>
+	<configuration-module moduleId="security">
+		<entry entryKey="username"><value></value></entry>
+		<entry entryKey="password"><value></value></entry>
+	</configuration-module>
+
+
+	<configuration-module moduleId="comp">
+
+		<!-- maximum number of jobs run simultaneously -->
+		<entry entryKey="max-jobs">
+			<value>2</value>
+		</entry>
+
+		<entry entryKey="sweep-work-dir" type="boolean" description="should job specific temporary directory be sweeped after job execution">
+			<value>true</value>
+		</entry>
+
+	</configuration-module>
+	
+</configuration>
