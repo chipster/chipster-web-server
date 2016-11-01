@@ -157,7 +157,14 @@ public class DatasetResource {
 		if (dbDataset == null || dbDataset.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("dataset doesn't exist");
 		}
+		
 		checkFileModification(requestDataset, getHibernate().session());
+		
+		if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
+			// if the client doesn't care about the File, simply keep the db version
+			requestDataset.setFile(dbDataset.getFile());
+		}
+		
 		// make sure a hostile client doesn't set the session
 		requestDataset.setSession(session);
 		

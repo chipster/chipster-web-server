@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,13 +56,21 @@ public class RestUtils {
 		return mapper;
 	}
 	
-	public static String asJson(Object obj) {	
+	public static String asJson(Object obj) {
+		return asJson(obj, false);
+	}
+	
+	public static String asJson(Object obj, boolean pretty) {	
 		// using Jackson library
 		try {
 			StringWriter writer = new StringWriter();
 			// support for LocalDateTime
 			ObjectMapper mapper = getObjectMapper();
-			mapper.writeValue(writer, obj);
+			if (pretty) {
+				mapper.writerWithDefaultPrettyPrinter().writeValue(writer, obj);
+			} else {
+				mapper.writeValue(writer, obj);
+			}
 			return writer.toString();        
 		} catch (IOException e) {
 			logger.error("json conversion failed", e);
@@ -283,5 +292,9 @@ public class RestUtils {
 		} catch (UnknownHostException e) {
 			return "unknown";
 		}
+	}
+
+	public static void configureForDownload(ResponseBuilder response, String name) {
+		response.header("Content-Disposition", "attachment; filename=\"" + name + "\"");
 	}
 }

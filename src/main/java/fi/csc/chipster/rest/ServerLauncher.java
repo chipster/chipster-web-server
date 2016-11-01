@@ -9,6 +9,7 @@ import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
+import fi.csc.chipster.sessionWorker.SessionWorker;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.toolbox.ToolboxService;
 import fi.csc.chipster.web.WebServer;
@@ -30,6 +31,8 @@ public class ServerLauncher {
 	private RestCompServer comp;
 
 	private SessionDb sessionDbSlave;
+
+	private SessionWorker sessionWorker;
 	
 	
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
@@ -67,6 +70,12 @@ public class ServerLauncher {
 		}		
 		fileBroker = new FileBroker(config);
 		fileBroker.startServer();
+		
+		if (verbose) {
+			logger.info("starting session-worker");
+		}		
+		sessionWorker = new SessionWorker(config);
+		sessionWorker.startServer();
 		
 		if (verbose) {
 			logger.info("starting scheduler");
@@ -140,6 +149,13 @@ public class ServerLauncher {
 				scheduler.close();
 			} catch (Exception e) {
 				logger.warn("closing scheduler failed", e);
+			}
+		}
+		if (sessionWorker != null) {
+			try {
+				sessionWorker.close();
+			} catch (Exception e) {
+				logger.warn("closing session-worker failed");
 			}
 		}
 		if (fileBroker != null) {

@@ -66,6 +66,7 @@ public class ServiceLocator {
     	addService(Role.SESSION_DB, config.getString("session-db"), config.getString("session-db-pub"));
     	addService(Role.SESSION_DB_EVENTS, config.getString("session-db-events"), config.getString("session-db-events-pub"));
     	addService(Role.TOOLBOX, config.getString(Config.KEY_TOOLBOX_URL), config.getString(Config.KEY_TOOLBOX_PUBLIC_URL));
+    	addService(Role.SESSION_WORKER, config.getString("session-worker"), config.getString("session-worker-pub"));
     	
     	// static configuration, discard updates
     	serviceCatalog.setReadOnly(true);

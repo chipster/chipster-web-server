@@ -94,7 +94,7 @@ public class FileResource implements SessionEventListener {
 		    
 		    if (download) {
 	    		// hint filename for dataset export
-	    		response.header("Content-Disposition", "attachment; filename=\"" + dataset.getName() + "\"");
+		    	RestUtils.configureForDownload(response, dataset.getName());
 		    }
 		    
 		    if (type) {

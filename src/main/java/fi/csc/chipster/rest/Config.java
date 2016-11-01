@@ -85,6 +85,8 @@ public class Config {
 		defaults.put("file-broker-pub",				"http://{{public-ip}}:8007");
         defaults.put(KEY_TOOLBOX_URL, 				"http://{{public-ip}}:8008");
         defaults.put(KEY_TOOLBOX_PUBLIC_URL, 		"http://{{public-ip}}:8008");
+        defaults.put("session-worker", 				"http://{{public-ip}}:8009");
+        defaults.put("session-worker-pub", 			"http://{{public-ip}}:8009");
 		
         // uri for the server to bind
         defaults.put("web-bind", 					"http://{{bind-ip}}:8000");
@@ -97,6 +99,7 @@ public class Config {
 		defaults.put("scheduler-bind", 				"ws://{{bind-ip}}:8006");
 		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8007");
 		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8008");
+		defaults.put("session-worker-bind", 		"http://{{bind-ip}}:8009");
 
 		defaults.put(KEY_TOOLBOX_USERNAME, 			"toolbox");
 		defaults.put(KEY_TOOLBOX_PASSWORD, 			"toolboxPassword");
