@@ -9,8 +9,8 @@ import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
-import fi.csc.chipster.sessionWorker.SessionWorker;
 import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessionworker.SessionWorker;
 import fi.csc.chipster.toolbox.ToolboxService;
 import fi.csc.chipster.web.WebServer;
 

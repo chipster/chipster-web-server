@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionWorker;
+package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
 import java.net.URI;
