@@ -1,12 +1,13 @@
 package fi.csc.chipster.sessionworker;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.zip.Deflater;
@@ -52,14 +53,59 @@ public class SessionWorkerResource {
 	private static final String DATASETS_JSON = "datasets.json";
 	private static final String JOBS_JSON = "jobs.json";
 	
-    // download speed from a localhost server (NGS session where all the big files are already compressed)
-    // DEFAULT: 		30s, 19MB/s
-    // BEST_SPEED:		29s, 19MB/s
-    // NO_COMPRESSION:	9s, 64MB/s			     
-	protected static final int COMPRESSION_LEVEL = Deflater.NO_COMPRESSION;
+	protected static final List<String> compressedExtensions = Arrays.asList(new String[] {".gz", ".zip", ".bam"});
 	
 	private static Logger logger = LogManager.getLogger();
 	private ServiceLocatorClient serviceLocator;
+	
+	public static class InputStreamEntry {
+		private String name;
+		private Callable<InputStream> inputStreamCallable;
+		private int compressionLevel;
+
+		public InputStreamEntry(String name, String content) {
+			this(name, toCallable(content));
+		}
+		
+		public InputStreamEntry(String name, Callable<InputStream> inputStreamCallable) {
+			this(name, inputStreamCallable, Deflater.BEST_SPEED);
+		}
+		
+		/**
+		 * @param name Name of the zip file
+		 * @param inputStreamCallable Callable, which returns the InputStream of the file content
+		 * @param compressionLevel Compression level for this entry (e.g. Deflater.NO_COMPRESSION)
+		 */
+		public InputStreamEntry(String name, Callable<InputStream> inputStreamCallable, int compressionLevel) {
+			this.name = name;
+			this.inputStreamCallable = inputStreamCallable;
+			this.compressionLevel = compressionLevel;
+		}
+		
+		public int getCompressionLevel() {
+			return compressionLevel;
+		}
+		
+		public void setCompressionLevel(int compressionLevel) {
+			this.compressionLevel = compressionLevel;
+		}
+		
+		public Callable<InputStream> getInputStreamCallable() {
+			return inputStreamCallable;
+		}
+		
+		public void setInputStreamCallable(Callable<InputStream> inputStreamCallable) {
+			this.inputStreamCallable = inputStreamCallable;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public void setName(String name) {
+			this.name = name;
+		}
+	}
 	
     @GET
     @Path("{sessionId}")
@@ -71,7 +117,7 @@ public class SessionWorkerResource {
     	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials);
 		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials);
 		
-		HashMap<String, Callable<InputStream>> entries = new HashMap<>();
+		ArrayList<InputStreamEntry> entries = new ArrayList<>();
 		
 		Session session = sessionDb.getSession(sessionId);
 		
@@ -79,17 +125,17 @@ public class SessionWorkerResource {
 		String datasetsJson = RestUtils.asJson(sessionDb.getDatasets(sessionId).values(), true);
 		String jobsJson = RestUtils.asJson(sessionDb.getJobs(sessionId).values(), true);
 		
-		entries.put(SESSION_JSON, toCallable(sessionJson));
-		entries.put(DATASETS_JSON, toCallable(datasetsJson));
-		entries.put(JOBS_JSON, toCallable(jobsJson));
+		entries.add(new InputStreamEntry(SESSION_JSON, sessionJson));
+		entries.add(new InputStreamEntry(DATASETS_JSON, datasetsJson));
+		entries.add(new InputStreamEntry(JOBS_JSON, jobsJson));
 		
 		for (Dataset dataset : sessionDb.getSession(sessionId).getDatasets().values()) {
-			entries.put(dataset.getDatasetId().toString(), new Callable<InputStream>() {
+			entries.add(new InputStreamEntry(dataset.getDatasetId().toString(), new Callable<InputStream>() {
 				@Override
 				public InputStream call() throws Exception {
 					return fileBroker.download(sessionId, dataset.getDatasetId());
 				}
-			});
+			}, getCompressionLevel(dataset.getName())));
 		}
 		
 		ResponseBuilder response = Response.ok(getZipStreamingOuput(entries));
@@ -97,29 +143,58 @@ public class SessionWorkerResource {
 		return response.build();
     }
 
+	/** 
+     * Download speed from a localhost server (NGS session where all the big files are already compressed)
+     * DEFAULT: 		30s, 13MB/s
+     * BEST_SPEED:		29s, 13MB/s
+     * NO_COMPRESSION:	9s, 110MB/s
+     * 
+     * Even the NO_COMPRESSION option limits the throughput considerably. There is another mode setMethod(ZipOutputStream.STORED),
+     * but then the zip format needs to know the checksum and file sizes already before the zip entry is written. This is possible 
+     * only by reading the file twice, first to count the checksum and stream length and then again to actually write the data. Both
+     * phases attained a speed of 200-300MB/s, but then the real throughput is only half of the disk read speed.
+     * 
+     * This is enough for browsers, which don't have more than 1Gb/s connections anyway. CLI client on a server could
+     * have better network connection, but it could save files to a directory instead of a zip file. 
+     * 
+	 * @param name
+	 * @return
+	 */
+	private int getCompressionLevel(String name) {
+		for (String extension : compressedExtensions) {
+			if (name.endsWith(extension)) {
+				// there is no point to compress files that are compressed already
+				return Deflater.NO_COMPRESSION;
+			}
+		}
+		// beneficial only when the client connection is slower than compression throughput * compression ratio
+		return Deflater.BEST_SPEED;
+	}
+
 	/**
 	 * Create a zip stream of the given input streams. Just like packaging multiple files to single zip file, but without
 	 * requiring the inputs and outputs to be local files. This allows us to read the input files from the file-broker over
 	 * HTTP, create the zip file on the fly and write it directly to the client.
 	 * 
-	 * @param entries Files to store in the zip file. Map key is the file name and the map value is a Callable<InputStream>, which 
-	 * returns the file body as an InputStream.
+	 * @param entries Files to store in the zip file.
 	 * 
 	 * @return StreamingOutput of the created zip file.
 	 */
-	private StreamingOutput getZipStreamingOuput(HashMap<String, Callable<InputStream>> entries) {
+	private StreamingOutput getZipStreamingOuput(ArrayList<InputStreamEntry> entries) {
 		return new StreamingOutput() {
+			
 			@Override
 			public void write(OutputStream output) throws IOException, WebApplicationException {
-			    try (ZipOutputStream zos = new ZipOutputStream(output)) {
-				    zos.setLevel(COMPRESSION_LEVEL);
+				// a decent output buffer seems to improve performance a bit (90MB/s -> 110MB/s)
+			    try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(output, 2*1024*1024))) {
 				    
-				    for (Entry<String, Callable<InputStream>> entry : entries.entrySet()) {
+				    for (InputStreamEntry entry : entries) {
 				    	 
-				        zos.putNextEntry(new ZipEntry(entry.getKey()));
+				        zos.putNextEntry(new ZipEntry(entry.getName()));
+				        zos.setLevel(entry.getCompressionLevel());
 				        
-				        try (InputStream entryStream = entry.getValue().call()) {			        	
-				        	IOUtils.copy(entryStream, zos);			        
+				        try (InputStream entryStream = entry.getInputStreamCallable().call()) {			        	
+				        	IOUtils.copy(entryStream, zos);
 				        }
 				        
 				        zos.closeEntry();				
@@ -132,7 +207,7 @@ public class SessionWorkerResource {
 		};
 	}
     
-    private Callable<InputStream> toCallable(String str) {
+    private static Callable<InputStream> toCallable(String str) {
     	return new Callable<InputStream>() {
 			@Override
 			public InputStream call() throws Exception {
