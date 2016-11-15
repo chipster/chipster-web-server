@@ -180,8 +180,12 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		
 		config = new Config();
+		
+		String username = Config.USERNAME_COMP;
+		String password = config.getPassword(username);
+		
 		serviceLocator = new ServiceLocatorClient(config);
-		authClient = new AuthenticationClient(serviceLocator, "comp", "compPassword");
+		authClient = new AuthenticationClient(serviceLocator, username, password);
 		schedulerUri = UriBuilder
 				.fromUri(serviceLocator.get(Role.SCHEDULER).get(0))
 				.path("events")

@@ -53,8 +53,8 @@ public class FileBroker {
      */
     public void startServer() throws RestException {
     	
-    	String username = "fileBroker";
-    	String password = "fileBrokerPassword";    	
+    	String username = Config.USERNAME_FILE_BROKER;
+    	String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);

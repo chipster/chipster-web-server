@@ -50,8 +50,8 @@ public class ServiceLocator {
      */
     public void startServer() {
     	
-    	String username = "serviceLocator";
-    	String password = "serviceLocatorPassword";
+    	String username = Config.USERNAME_SERVICE_LOCATOR;
+    	String password = config.getPassword(username);
     	String authUri = this.config.getString("authentication-service");
     	List<String> auths = Arrays.asList(authUri);
     	    	

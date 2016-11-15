@@ -2,7 +2,6 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +30,7 @@ import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -40,15 +40,7 @@ import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Session;
 
 @Path("authorizations")
-public class AuthorizationResource {
-	
-	public static final HashSet<String> serverUsers = new HashSet<String>();
-	{
-		serverUsers.add("scheduler");
-		serverUsers.add("comp");
-		serverUsers.add("fileBroker");
-		serverUsers.add("sessionStorage");
-	}
+public class AuthorizationResource {	
 	
 	private static Logger logger = LogManager.getLogger();
 	
@@ -212,7 +204,7 @@ public class AuthorizationResource {
 	
 	public Authorization getAuthorization(String username, Session session, org.hibernate.Session hibernateSession) {
 		
-		if (serverUsers.contains(username)) {
+		if (Config.services.contains(username)) {
 			return new Authorization(username, session, true);
 		}
 		

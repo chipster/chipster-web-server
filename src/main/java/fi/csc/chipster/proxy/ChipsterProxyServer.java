@@ -71,8 +71,8 @@ public class ChipsterProxyServer {
 	
     private void startAdminAPI() {
 
-		String username = "proxy";
-		String password = "proxyPassword";
+		String username = Config.USERNAME_PROXY;
+		String password = config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);

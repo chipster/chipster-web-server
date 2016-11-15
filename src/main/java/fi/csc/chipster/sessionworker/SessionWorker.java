@@ -56,8 +56,8 @@ public class SessionWorker {
 	 */
 	public void startServer() throws ServletException, DeploymentException, RestException {
 
-		String username = "sessionWorker";
-    	String password = "sessionWorkerPassword";    	
+		String username = Config.USERNAME_SESSION_WORKER;
+		String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);

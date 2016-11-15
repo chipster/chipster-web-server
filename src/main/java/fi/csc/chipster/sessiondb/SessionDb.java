@@ -90,12 +90,11 @@ public class SessionDb implements TopicCheck {
 	 */
 	public void startServer() throws ServletException, DeploymentException, RestException {
 
-		String username = "sessionStorage";
-		String password = "sessionStoragePassword";
+		String username = Config.USERNAME_SESSION_DB;
+		String password = config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username,
-				password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
 
 		List<Class<?>> hibernateClasses = Arrays.asList(
 				Authorization.class, 

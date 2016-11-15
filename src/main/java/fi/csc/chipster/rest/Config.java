@@ -1,7 +1,11 @@
 package fi.csc.chipster.rest;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
@@ -13,8 +17,6 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 
 public class Config {
 	
-	public static final String KEY_TOOLBOX_USERNAME = "toolbox-username";
-	public static final String KEY_TOOLBOX_PASSWORD = "toolbox-password";
 	public static final String KEY_TOOLBOX_URL = "toolbox-url";
 	public static final String KEY_TOOLBOX_PUBLIC_URL = "toolbox-url-pub";
 	public static final String KEY_TOOLBOX_BIND_URL = "toolbox-bind-url";
@@ -25,6 +27,32 @@ public class Config {
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
 	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
 	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";	
+	
+	public static final String USERNAME_SESSION_DB = "session-db";
+	public static final String USERNAME_SERVICE_LOCATOR = "service-locator";
+	public static final String USERNAME_SCHEDULER = "scheduler";
+	public static final String USERNAME_COMP = "comp";
+	public static final String USERNAME_FILE_BROKER = "file-broker";
+	public static final String USERNAME_SESSION_WORKER = "session-worker";
+	public static final String USERNAME_PROXY = "proxy";
+	
+	public static final List<String> services = Arrays.asList(new String[] {
+		USERNAME_SESSION_DB,
+		USERNAME_SERVICE_LOCATOR,
+		USERNAME_SCHEDULER,
+		USERNAME_COMP,
+		USERNAME_FILE_BROKER,
+		USERNAME_SESSION_WORKER,
+		USERNAME_PROXY
+	});
+	
+	// create a password configuration key for each service 
+	private static Map<String, String> serviceAccounts = new HashMap<>();
+	{
+		for (String username : services) {
+			serviceAccounts.put(username, username + "-password");
+		}
+	}
 	
 	private Logger logger;
 	
@@ -100,9 +128,6 @@ public class Config {
 		defaults.put("file-broker-bind", 			"http://{{bind-ip}}:8007");
 		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8008");
 		defaults.put("session-worker-bind", 		"http://{{bind-ip}}:8009");
-
-		defaults.put(KEY_TOOLBOX_USERNAME, 			"toolbox");
-		defaults.put(KEY_TOOLBOX_PASSWORD, 			"toolboxPassword");
 		
 		defaults.put(KEY_COMP_MAX_JOBS,								"" + Integer.MAX_VALUE); // max number of jobs run simultaneusly
 		defaults.put(KEY_COMP_SCHEDULE_TIMEOUT, 					"10"); // time after which a scheuduled job is removed if there is no reponse from the scheduler
@@ -117,6 +142,14 @@ public class Config {
 		defaults.put("session-db-hibernate-schema", "update"); // update, validate or create
 		
 		defaults.put("web-root-path", "../chipster-web/");
+		
+		// service credentials
+		for (Entry<String, String> entry : serviceAccounts.entrySet()) {
+			String username = entry.getKey();
+			String passwordConfigKey = entry.getValue();
+			// default password is the same as username;
+			defaults.put(passwordConfigKey, username);
+		}	
 	}
 	
 	private HashMap<String, String> variables = new HashMap<>();
@@ -135,12 +168,36 @@ public class Config {
 			return value;
 		} else {
 			//TODO check configuration file before returning the default
-			String template = defaults.get(key);
-			if (template == null) {
-				throw new IllegalArgumentException("configuration key not found: " + key);
-			}
-			return replaceVariables(template);
+			return getDefault(key);
 		}
+	}
+	
+	/**
+	 * Each service has a configuration item for the password, which is created
+	 * automatically and accessed with this method. The method will log a warning if 
+	 * the default password is used.
+	 * 
+	 * @param username
+	 * @return
+	 */
+	public String getPassword(String username) {
+		String key = serviceAccounts.get(username);
+		if (isDefault(key)) {
+			logger.warn("default password for username " + username);
+		}		
+		return getString(key);
+	}
+
+	private String getDefault(String key) {
+		String template = defaults.get(key);
+		if (template == null) {
+			throw new IllegalArgumentException("configuration key not found: " + key);
+		}
+		return replaceVariables(template);
+	}
+	
+	public boolean isDefault(String key) {
+		return getDefault(key).equals(getString(key));
 	}
 	
 	public void setVariable(String key, String value) {

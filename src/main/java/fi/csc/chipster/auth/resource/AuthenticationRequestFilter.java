@@ -24,6 +24,10 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 
+/**
+ * @author klemela
+ *
+ */
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
@@ -31,12 +35,19 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	private static final Logger logger = LogManager.getLogger();
 	
 	private HibernateUtil hibernate;
-	private Config config;
+
+	private HashMap<String, String> users;
 
 	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) {
 		this.hibernate = hibernate;
-		this.config = config;
 		
+		users = new HashMap<>();
+		users.put("client", "clientPassword");
+		users.put("client2", "client2Password");
+				
+		for (String service : Config.services) {
+			users.put(service, config.getPassword(service));
+		}
 	}
 
 	@Override
@@ -95,23 +106,9 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		} catch (InterruptedException e) {
 			logger.warn(e);
 		}
-		
-		//TODO get from JAAS or file or something
-		//TODO make sure that external usernames matching AuthorizationnResource.serverUsers are blocked
-		Map<String, String> users = new HashMap<>();
-		users.put("client", "clientPassword");
-		users.put("client2", "client2Password");
-		users.put("sessionStorage", "sessionStoragePassword");
-		users.put("serviceLocator", "serviceLocatorPassword");
-		users.put("scheduler", "schedulerPassword");
-		users.put("comp", "compPassword");
-		users.put("fileBroker", "fileBrokerPassword");
-		users.put("toolbox", "toolboxPasssword");
-		users.put("proxy", "proxyPassword");
-		users.put("admin", "adminPassword");
-		users.put("sessionWorker", "sessionWorkerPassword");
-		users.put(config.getString(Config.KEY_TOOLBOX_USERNAME), config.getString(Config.KEY_TOOLBOX_PASSWORD));
-
+				
+		//TODO get users from JAAS or file or something
+		//TODO make sure that external usernames matching Config.serivces are blocked
 		
 		if (!users.containsKey(username)) {
 			throw new ForbiddenException();
@@ -123,43 +120,19 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		
 		// are these of any use, because the file broker authorization is anyway
 		// based solely on the username?
+		Map<String, String> usernameToRole = new HashMap<>();
+		usernameToRole.put(Config.USERNAME_COMP, Role.COMP);
+		usernameToRole.put(Config.USERNAME_FILE_BROKER, Role.FILE_BROKER);
+		usernameToRole.put(Config.USERNAME_PROXY, Role.PROXY);
+		usernameToRole.put(Config.USERNAME_SCHEDULER, Role.SCHEDULER);
+		usernameToRole.put(Config.USERNAME_SERVICE_LOCATOR, Role.SERVICE_LOCATOR);
+		usernameToRole.put(Config.USERNAME_SESSION_DB, Role.SESSION_DB);
+		usernameToRole.put(Config.USERNAME_SESSION_WORKER, Role.SESSION_WORKER);
 		
-		String[] roles = new String[] { Role.PASSWORD, Role.CLIENT};
-		if ("sessionStorage".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SESSION_DB, Role.SERVER };
+		String[] roles = new String[] { Role.PASSWORD, Role.CLIENT};		
+		if (Config.services.contains(username)) {
+			roles = new String[] { Role.PASSWORD, Role.SERVER, usernameToRole.get(username) };
 		}
-		if ("serviceLocator".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SERVICE_LOCATOR, Role.SERVER };
-		}
-		
-		if ("scheduler".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SCHEDULER, Role.SERVER };
-		}
-		
-		if ("comp".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.COMP, Role.SERVER };
-		}
-		
-		if ("fileBroker".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.FILE_BROKER, Role.SERVER };
-		}
-
-		if ("toolbox".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.TOOLBOX, Role.SERVER };
-		}
-		
-		if ("proxy".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.PROXY, Role.SERVER };
-		}
-		
-		if ("sessionWorker".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SESSION_WORKER, Role.SERVER };
-		}
-		
-		if ("admin".equals(username)) {
-			roles = new String[] { Role.PASSWORD, Role.ADMIN };
-		}
-
 		
 		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));
 	}
