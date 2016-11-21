@@ -1,5 +1,7 @@
 package fi.csc.chipster.rest;
 
+import java.io.IOException;
+
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.Level;
@@ -50,21 +52,25 @@ public class TestServerLauncher {
 	}	
 	
 	private String getTargetUri(String role) {
-		if (Role.AUTHENTICATION_SERVICE.equals(role)) {
-			return config.getString("authentication-service");
-		} 
-		if (Role.SERVICE_LOCATOR.equals(role)) {
-			return config.getString("service-locator");
+		try {
+			if (Role.AUTHENTICATION_SERVICE.equals(role)) {
+					return config.getString("authentication-service");
+			} 
+			if (Role.SERVICE_LOCATOR.equals(role)) {
+				return config.getString("service-locator");
+			}
+			
+			if (Role.SESSION_DB.equals(role)) {			
+				return serviceLocatorClient.get(Role.SESSION_DB).get(0);			
+			}
+			
+			if (Role.FILE_BROKER.equals(role)) {			
+				return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
+			}
+					
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
-		
-		if (Role.SESSION_DB.equals(role)) {			
-			return serviceLocatorClient.get(Role.SESSION_DB).get(0);			
-		}
-		
-		if (Role.FILE_BROKER.equals(role)) {			
-			return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
-		}
-				
 		throw new IllegalArgumentException("no target uri for role " + role);
 	}
 	

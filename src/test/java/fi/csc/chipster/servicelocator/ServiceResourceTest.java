@@ -70,7 +70,7 @@ public class ServiceResourceTest {
     }
 	
 	@Test
-    public void getAll() {
+    public void getAll() throws IOException {
 		
 		String id1 = RestUtils.basename(postRandomService(serverTarget));
 		String id2 = RestUtils.basename(postRandomService(serverTarget));

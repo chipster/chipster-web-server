@@ -59,9 +59,10 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
      * @throws ServletException 
      * @throws InterruptedException 
      * @throws RestException 
+     * @throws IOException 
      * @throws Exception 
      */
-    public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException {
+    public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
     	
     	String username = Config.USERNAME_SCHEDULER;
     	String password = config.getPassword(username);

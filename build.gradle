@@ -104,6 +104,7 @@ dependencies {
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
     compile "net.sourceforge.argparse4j:argparse4j:0.7.0"
     compile "org.apache.commons:commons-lang3:3.4"
+    compile "com.esotericsoftware.yamlbeans:yamlbeans:1.06"
     
     
     // old codebase

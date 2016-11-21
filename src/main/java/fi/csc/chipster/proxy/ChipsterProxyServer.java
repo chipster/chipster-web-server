@@ -1,5 +1,6 @@
 package fi.csc.chipster.proxy;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -41,7 +42,7 @@ public class ChipsterProxyServer {
 
 	private ChipsterProxyAdminResource adminResource;
     
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
     	ChipsterProxyServer server = new ChipsterProxyServer(new Config());
     	server.startServer();
     	RestUtils.waitForShutdown("proxy", null);
@@ -50,9 +51,9 @@ public class ChipsterProxyServer {
 
 	public ChipsterProxyServer(Config config) {
     	this.config = config;
+    	try {
     	this.proxy = new ProxyServer(URI.create(config.getString("proxy-bind")));
     	
-    	try {
 			proxy.addRoute("sessiondb", 		config.getString("session-db"));
 			proxy.addRoute("sessiondbevents", 	config.getString("session-db-events"));
 			proxy.addRoute("auth", 				config.getString("authentication-service"));
@@ -64,12 +65,12 @@ public class ChipsterProxyServer {
 
 			//proxy.addRoute("test", 				"http://vm0180.kaj.pouta.csc.fi:8081/");
 			
-    	} catch (URISyntaxException e) {
+    	} catch (URISyntaxException | IOException e) {
     		logger.error("proxy configuration error", e);
     	}
     }
 	
-    private void startAdminAPI() {
+    private void startAdminAPI() throws IOException {
 
 		String username = Config.USERNAME_PROXY;
 		String password = config.getPassword(username);
@@ -87,7 +88,7 @@ public class ChipsterProxyServer {
 	}
 
 	
-	public void startServer() {
+	public void startServer() throws IOException {
 		proxy.startServer();
 		startAdminAPI();
 	}

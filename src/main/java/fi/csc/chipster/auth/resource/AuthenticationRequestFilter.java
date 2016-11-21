@@ -38,7 +38,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private HashMap<String, String> users;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) {
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException {
 		this.hibernate = hibernate;
 		
 		users = new HashMap<>();

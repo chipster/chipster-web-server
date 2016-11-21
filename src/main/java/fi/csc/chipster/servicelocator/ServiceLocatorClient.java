@@ -1,5 +1,6 @@
 package fi.csc.chipster.servicelocator;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +16,7 @@ public class ServiceLocatorClient {
 
 	private String baseUri;
 
-	public ServiceLocatorClient(Config config) {
+	public ServiceLocatorClient(Config config) throws IOException {
 		this.baseUri = config.getString("service-locator");
 	}
 

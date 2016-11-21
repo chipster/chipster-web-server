@@ -87,8 +87,9 @@ public class SessionDb implements TopicCheck {
 	 * @throws DeploymentException 
 	 * @throws ServletException 
 	 * @throws RestException 
+	 * @throws IOException 
 	 */
-	public void startServer() throws ServletException, DeploymentException, RestException {
+	public void startServer() throws ServletException, DeploymentException, RestException, IOException {
 
 		String username = Config.USERNAME_SESSION_DB;
 		String password = config.getPassword(username);

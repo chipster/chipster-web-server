@@ -53,8 +53,9 @@ public class SessionWorker {
 	 * @throws DeploymentException 
 	 * @throws ServletException 
 	 * @throws RestException 
+	 * @throws IOException 
 	 */
-	public void startServer() throws ServletException, DeploymentException, RestException {
+	public void startServer() throws ServletException, DeploymentException, RestException, IOException {
 
 		String username = Config.USERNAME_SESSION_WORKER;
 		String password = config.getPassword(username);    	

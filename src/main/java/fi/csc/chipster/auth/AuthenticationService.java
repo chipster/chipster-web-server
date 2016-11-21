@@ -42,8 +42,9 @@ public class AuthenticationService {
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
+     * @throws IOException 
      */
-    public void startServer() {
+    public void startServer() throws IOException {
     	    	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Token.class,

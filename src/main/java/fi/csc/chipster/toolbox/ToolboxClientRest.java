@@ -1,5 +1,6 @@
 package fi.csc.chipster.toolbox;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
@@ -18,7 +19,7 @@ import fi.csc.microarray.description.SADLDescription;
  */
 public class ToolboxClientRest {
 
-    public static void main(String args[]) {
+    public static void main(String args[]) throws IOException {
         Config config = new Config();
         Client client = ClientBuilder.newClient();
 //        System.out.println(config.getString("toolbox"));

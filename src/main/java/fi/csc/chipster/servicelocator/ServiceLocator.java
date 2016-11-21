@@ -47,8 +47,9 @@ public class ServiceLocator {
     /**
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
+     * @throws IOException 
      */
-    public void startServer() {
+    public void startServer() throws IOException {
     	
     	String username = Config.USERNAME_SERVICE_LOCATOR;
     	String password = config.getPassword(username);

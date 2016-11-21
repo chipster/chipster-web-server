@@ -47,11 +47,12 @@ public class FileBroker {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      * @throws RestException 
+     * @throws IOException 
      * @throws InterruptedException 
      * @throws WebSocketClosedException 
      * @throws WebSocketErrorException 
      */
-    public void startServer() throws RestException {
+    public void startServer() throws RestException, IOException {
     	
     	String username = Config.USERNAME_FILE_BROKER;
     	String password = config.getPassword(username);    	
@@ -85,7 +86,7 @@ public class FileBroker {
      * @throws IOException
      * @throws InterruptedException 
      */
-    public static void main(String[] args) throws RestException {
+    public static void main(String[] args) throws RestException, IOException {
     	
         final FileBroker server = new FileBroker(new Config());
         server.startServer();

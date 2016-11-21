@@ -1,5 +1,8 @@
 package fi.csc.chipster.rest;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,7 +18,11 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 
+import com.esotericsoftware.yamlbeans.YamlReader;
+
 public class Config {
+	
+	private static final String KEY_CONF_PATH = "conf-path";
 	
 	public static final String KEY_TOOLBOX_URL = "toolbox-url";
 	public static final String KEY_TOOLBOX_PUBLIC_URL = "toolbox-url-pub";
@@ -23,7 +30,7 @@ public class Config {
 	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
 	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
 	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay";
-	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sqeep-work-dir";
+	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
 	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
 	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";	
@@ -142,6 +149,7 @@ public class Config {
 		defaults.put("session-db-hibernate-schema", "update"); // update, validate or create
 		
 		defaults.put("web-root-path", "../chipster-web/");
+		defaults.put(KEY_CONF_PATH, "conf/chipster.yaml");
 		
 		// service credentials
 		for (Entry<String, String> entry : serviceAccounts.entrySet()) {
@@ -154,24 +162,60 @@ public class Config {
 	
 	private HashMap<String, String> variables = new HashMap<>();
 	private HashMap<String, String> variableDefaults = new HashMap<>();
+
+	private static boolean conFFileWarnShown;
 	
 	{
 		variableDefaults.put("public-ip", "127.0.0.1");
 		variableDefaults.put("bind-ip", "0.0.0.0"); 
 		variableDefaults.put("admin-bind-ip", "127.0.0.1");
 	}
+	
+	public String getString(String key) throws IOException {
+		return getString(key, true, true, true);
+	}
 
-	public String getString(String key) {
-		// only underscore is allowed in bash variables
-		String value = System.getenv(key.replace("-", "_"));
-		if (value != null) {
-			return value;
-		} else {
-			//TODO check configuration file before returning the default
-			return getDefault(key);
+	public String getString(String key, boolean env, boolean file, boolean defaultValue) throws IOException {
+		String value = null;
+		if (env) {
+			// only underscore is allowed in bash variables
+			value = System.getenv(key.replace("-", "_"));
 		}
+		if (value == null && file) {
+			value = getFromFile(key);
+		}
+		if (value == null && defaultValue) {
+			value = getDefault(key);
+		}
+		return value;
 	}
 	
+	private String getFromFile(String key) throws IOException {
+		String confFilePath = getString(KEY_CONF_PATH, true, false, true);
+		try {
+			// don't try to find conf path from the file, because that would create a stack overflow
+			YamlReader reader = new YamlReader(new FileReader(confFilePath));
+			Object object = reader.read();
+			if (object instanceof Map) {
+				@SuppressWarnings("rawtypes")
+				Map confFileMap = (Map) object;
+				Object valueObj = confFileMap.get(key);
+				if (valueObj instanceof String) {
+					return (String)valueObj;
+				}
+			} else {
+				throw new RuntimeException("configuration file should be a yaml map, but it is " + object.getClass().getSimpleName());
+			}
+		} catch (FileNotFoundException e) {
+			// show only once per JVM
+			if (!Config.conFFileWarnShown) {
+				logger.warn("configuration file " + confFilePath + " not found, using environment variables or defaults");
+				Config.conFFileWarnShown = true;
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * Each service has a configuration item for the password, which is created
 	 * automatically and accessed with this method. The method will log a warning if 
@@ -179,8 +223,9 @@ public class Config {
 	 * 
 	 * @param username
 	 * @return
+	 * @throws IOException 
 	 */
-	public String getPassword(String username) {
+	public String getPassword(String username) throws IOException {
 		String key = serviceAccounts.get(username);
 		if (isDefault(key)) {
 			logger.warn("default password for username " + username);
@@ -196,7 +241,7 @@ public class Config {
 		return replaceVariables(template);
 	}
 	
-	public boolean isDefault(String key) {
+	public boolean isDefault(String key) throws IOException {
 		return getDefault(key).equals(getString(key));
 	}
 	
@@ -221,15 +266,15 @@ public class Config {
 		return template;
 	}
 
-	public URI getURI(String key) {
+	public URI getURI(String key) throws IOException {
 		return URI.create(getString(key));
 	}
 
-	public int getInt(String key) {
+	public int getInt(String key) throws NumberFormatException, IOException {
 		return Integer.parseInt(getString(key));
 	}
 
-	public boolean getBoolean(String key) {
+	public boolean getBoolean(String key) throws IOException {
 		return "true".equalsIgnoreCase(getString(key));
 	}
 
