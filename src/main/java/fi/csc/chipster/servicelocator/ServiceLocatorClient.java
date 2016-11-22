@@ -7,12 +7,17 @@ import java.util.List;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
 
 public class ServiceLocatorClient {
+	
+	private static final Logger logger = LogManager.getLogger();
 
 	private String baseUri;
 
@@ -35,6 +40,7 @@ public class ServiceLocatorClient {
 	}
 
 	public List<Service> getServices(String role) {
+		logger.info("get services from " + baseUri);
 		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("services");
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
