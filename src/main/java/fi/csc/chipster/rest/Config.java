@@ -203,8 +203,10 @@ public class Config {
 				if (valueObj instanceof String) {
 					return (String)valueObj;
 				}
+			} else if (object == null){
+				// empty config file
 			} else {
-				throw new RuntimeException("configuration file should be a yaml map, but it is " + object.getClass().getSimpleName());
+				throw new RuntimeException("configuration file should be a yaml map, but it is " + object);
 			}
 		} catch (FileNotFoundException e) {
 			// show only once per JVM

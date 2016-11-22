@@ -23,6 +23,7 @@ public class ServiceLocatorClient {
 
 	public ServiceLocatorClient(Config config) throws IOException {
 		this.baseUri = config.getString("service-locator");
+		logger.info("get services from " + baseUri);
 	}
 
 	public List<String> get(String role) {
@@ -40,7 +41,6 @@ public class ServiceLocatorClient {
 	}
 
 	public List<Service> getServices(String role) {
-		logger.info("get services from " + baseUri);
 		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("services");
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
