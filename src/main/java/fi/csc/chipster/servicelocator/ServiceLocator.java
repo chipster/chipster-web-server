@@ -54,8 +54,7 @@ public class ServiceLocator {
     	String username = Config.USERNAME_SERVICE_LOCATOR;
     	String password = config.getPassword(username);
     	String authUri = this.config.getString("authentication-service");
-    	List<String> auths = Arrays.asList(authUri);
-    	    	
+    	List<String> auths = Arrays.asList(authUri);    	
     	this.authService = new AuthenticationClient(auths, username, password);    
     	
     	this.serverId = RestUtils.createId();

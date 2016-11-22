@@ -64,6 +64,7 @@ public class AuthenticationClient {
 		
 		for (String authUri : auths) {
 			try {
+				logger.info("get token from " + authUri);
 				token = getToken(authUri, username, password);
 				break;
 			} catch (ServiceException e) {
