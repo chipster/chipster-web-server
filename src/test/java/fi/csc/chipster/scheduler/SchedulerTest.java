@@ -49,9 +49,9 @@ public class SchedulerTest {
     	sessionId = user1Client.createSession(RestUtils.getRandomSession());        	
 		
 		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(new Config());
-		token = new AuthenticationClient(serviceLocator, "comp", "compPassword").getToken().toString();
+		token = new AuthenticationClient(serviceLocator, Config.USERNAME_COMP, Config.USERNAME_COMP).getToken().toString();
 		userToken = new AuthenticationClient(serviceLocator, "client", "clientPassword").getToken().toString();
-		uri = serviceLocator.get(Role.SCHEDULER).get(0) + "events";
+		uri = serviceLocator.get(Role.SCHEDULER).get(0) + "/events";
     }
 
     @AfterClass

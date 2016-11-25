@@ -71,28 +71,21 @@ public class ServiceResourceTest {
 	
 	@Test
     public void getAll() throws IOException {
-		
-		String id1 = RestUtils.basename(postRandomService(serverTarget));
-		String id2 = RestUtils.basename(postRandomService(serverTarget));
-		
-		String json = getString(noAuthTarget, path);
-		
-		assertEquals(false, json == null);
-		
-		assertEquals(true, json.contains(id1));
-		assertEquals(true, json.contains(id2));
-		
+						
 		// test client library
 		List<Service> services = new ServiceLocatorClient(new Config()).getServices(Role.SESSION_DB);
 		
-		HashSet<String> ids = new HashSet<>();
+		HashSet<String> roles = new HashSet<>();
 		for (Service service : services) {
-			ids.add(service.getServiceId());
+			roles.add(service.getRole());			
 		}
 		
-		assertEquals(true, ids.contains(id1));
-        assertEquals(true, ids.contains(id2));
-                
+		assertEquals(true, roles.contains(Role.AUTHENTICATION_SERVICE));
+		assertEquals(true, roles.contains(Role.SESSION_DB));
+		assertEquals(true, roles.contains(Role.SESSION_DB_EVENTS));
+		assertEquals(true, roles.contains(Role.FILE_BROKER));
+		assertEquals(true, roles.contains(Role.SESSION_WORKER));		
+		        
         assertEquals(401, get(unparseableTokenTarget, path));
         assertEquals(403, get(tokenFailTarget, path));
         assertEquals(401, get(authFailTarget, path));

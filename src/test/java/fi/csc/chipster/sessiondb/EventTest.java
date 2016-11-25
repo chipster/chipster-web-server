@@ -46,10 +46,10 @@ public class EventTest {
     	config = new Config();
     	launcher = new TestServerLauncher(config);
         ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
-        uri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0) + SessionDb.EVENTS_PATH + "/";
+        uri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0) + "/" + SessionDb.EVENTS_PATH + "/";
         token = new AuthenticationClient(serviceLocator, "client", "clientPassword").getToken().toString();
         token2 = new AuthenticationClient(serviceLocator, "client2", "client2Password").getToken().toString();
-        schedulerToken = new AuthenticationClient(serviceLocator, "scheduler", "schedulerPassword").getToken().toString();
+        schedulerToken = new AuthenticationClient(serviceLocator, Config.USERNAME_SCHEDULER, Config.USERNAME_SCHEDULER).getToken().toString();
         user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
     }
 
@@ -77,7 +77,7 @@ public class EventTest {
     	
     	// jobs topic with client credentials
     	try {       
-    		getTestClient(uri + SessionDb.JOBS_TOPIC, messages, latch, retry, token);
+    		getTestClient(uri + "/" + SessionDb.JOBS_TOPIC, messages, latch, retry, token);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
@@ -120,6 +120,7 @@ public class EventTest {
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(uri + sessionId, messages, latch, false, token);
     	
+    	// we can do this only if the server was started by this test
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	
     	// should we have a hook for connection close? now we can only check

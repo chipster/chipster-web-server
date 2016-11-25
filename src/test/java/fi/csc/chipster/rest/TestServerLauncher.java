@@ -83,15 +83,15 @@ public class TestServerLauncher {
 	}
 	
 	public WebTarget getSchedulerTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SCHEDULER, Config.USERNAME_SCHEDULER).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getCompTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_COMP, Config.USERNAME_COMP).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getSessionStorageUserTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SESSION_DB, Config.USERNAME_SESSION_DB).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getUnparseableTokenTarget(String role) {
@@ -120,15 +120,15 @@ public class TestServerLauncher {
 	}
 	
 	public CredentialsProvider getSchedulerToken() {
-		return new AuthenticationClient(serviceLocatorClient, "scheduler", "schedulerPassword").getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SCHEDULER, Config.USERNAME_SCHEDULER).getCredentials();
 	}
 	
 	public CredentialsProvider getCompToken() {
-		return new AuthenticationClient(serviceLocatorClient, "comp", "compPassword").getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_COMP, Config.USERNAME_COMP).getCredentials();
 	}
 	
 	public CredentialsProvider getSessionStorageUserToken() {
-		return new AuthenticationClient(serviceLocatorClient, "sessionStorage", "sessionStoragePassword").getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SESSION_DB, Config.USERNAME_SESSION_DB).getCredentials();
 	}
 	
 	public CredentialsProvider getUnparseableToken() {

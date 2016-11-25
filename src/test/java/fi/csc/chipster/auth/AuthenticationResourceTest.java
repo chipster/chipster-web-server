@@ -99,7 +99,7 @@ public class AuthenticationResourceTest {
 	}
     
     public static String postServerToken(WebTarget target) {
-    	return postToken(target, "sessionStorage", "sessionStoragePassword");
+    	return postToken(target, Config.USERNAME_SESSION_DB, Config.USERNAME_SESSION_DB);
 	}
 
     public static UUID getToken(WebTarget target, String username, String password, String clientToken) {

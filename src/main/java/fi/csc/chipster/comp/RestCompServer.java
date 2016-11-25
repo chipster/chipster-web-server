@@ -126,8 +126,10 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	public RestCompServer(String configURL) throws Exception {
 		
 		// legacy directory layout is needed for the R and python runtimes
-		new File("security").mkdir();
-		DirectoryLayout.initialiseServerLayout(Arrays.asList(new String[] {"comp"}), configURL);
+		if (!DirectoryLayout.isInitialised()) {
+			new File("security").mkdir();
+			DirectoryLayout.initialiseServerLayout(Arrays.asList(new String[] {"comp"}), configURL);
+		}
 //		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
 
 		Config config = new Config();

@@ -130,11 +130,11 @@ public class DatasetResource {
 		}
 		File dbFile = hibernateSession.get(File.class, dataset.getFile().getFileId());
 		if (dbFile != null) {
-			if (!dbFile.equals(dataset.getFile())) {
+			if (!dbFile.equals(dataset.getFile())) {			
 				throw new ForbiddenException("modification of existing file is forbidden");
 			}
 			dataset.setFile(dbFile);
-		}
+		}		
 	}
 
 	@PUT

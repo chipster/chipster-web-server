@@ -1,11 +1,7 @@
 package fi.csc.chipster.rest.exception;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Produces;
@@ -54,9 +50,7 @@ public class LocalDateTimeContextResolver implements ContextResolver<ObjectMappe
             ObjectCodec codec = jp.getCodec();
             TextNode node = codec.readTree(jp);
             String dateString = node.textValue();
-            Instant instant = Instant.parse(dateString);
-            LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-            return dateTime;
+            return LocalDateTime.parse(dateString);
         } 
     }
 
@@ -65,8 +59,7 @@ public class LocalDateTimeContextResolver implements ContextResolver<ObjectMappe
         @Override
         public void serialize(LocalDateTime dateTime, JsonGenerator jg, 
                 SerializerProvider sp) throws IOException {
-            Instant instant = dateTime.toInstant(ZoneOffset.UTC);
-            jg.writeString(DateTimeFormatter.ISO_INSTANT.format(instant));
+            jg.writeString(dateTime.toString());
         } 
     }
 }

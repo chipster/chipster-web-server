@@ -36,6 +36,8 @@ public class ServerLauncher {
 	
 	
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
+		
+		long t = System.currentTimeMillis();
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		
@@ -107,7 +109,7 @@ public class ServerLauncher {
 		proxy.startServer();
 		
 		if (verbose) {
-			logger.info("up and running");
+			logger.info("up and running (" + ((System.currentTimeMillis() - t)/1000) + " seconds)" );
 		}
 	}		
 
