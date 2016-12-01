@@ -23,6 +23,8 @@ public class DatasetResourceTest {
 	private static UUID sessionId1;
 	private static UUID sessionId2;
 
+	private static SessionDbClient fileBrokerClient;
+
     @BeforeClass
     public static void setUp() throws Exception {
     	Config config = new Config();
@@ -30,6 +32,8 @@ public class DatasetResourceTest {
     	
 		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
 		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
+		
+		fileBrokerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getFileBrokerToken());
 
 		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
@@ -62,11 +66,19 @@ public class DatasetResourceTest {
     	file2.setSize(2);
     	
     	dataset1.setFile(file1);
-    	dataset2.setFile(file2);
     	
     	user1Client.createDataset(sessionId1, dataset1);
     	
+    	dataset1.setFile(file2);
+    	dataset2.setFile(file2);
+    	
+    	// client can't modify the file of the existing dataset
+    	testUpdateDataset(403, sessionId1, dataset1, user1Client);
+    	// or create a new dataset that would modify it
     	testCreateDataset(403, sessionId1, dataset2, user1Client);
+
+    	// but the file broker can (to modify file sizes when the donwload is finished)
+    	assertEquals(204, fileBrokerClient.updateDataset(sessionId1, dataset1).getStatus());
     }
 
 	private void testCreateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {

@@ -38,13 +38,13 @@ public class TestServerLauncher {
 			Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), Level.OFF);
 		}
 		
-		this.serverLauncher = new ServerLauncher(config, false);
+		//this.serverLauncher = new ServerLauncher(config, false);
 		
 		this.serviceLocatorClient = new ServiceLocatorClient(config);		
 	}		
 
 	public void stop() {
-		serverLauncher.stop();
+		//serverLauncher.stop();
 		if (webSocketLoggingLevel != null) {
 			// revert websocket logging
 			Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), webSocketLoggingLevel);
@@ -125,6 +125,10 @@ public class TestServerLauncher {
 	
 	public CredentialsProvider getCompToken() {
 		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_COMP, Config.USERNAME_COMP).getCredentials();
+	}
+	
+	public CredentialsProvider getFileBrokerToken() {
+		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_FILE_BROKER, Config.USERNAME_FILE_BROKER).getCredentials();
 	}
 	
 	public CredentialsProvider getSessionStorageUserToken() {

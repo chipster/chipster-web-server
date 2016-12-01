@@ -24,6 +24,7 @@ import com.mchange.rmi.NotAuthorizedException;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.token.PubSubTokenServletFilter;
 
 public class PubSubServer {
 	
@@ -140,7 +141,7 @@ public class PubSubServer {
         logger.debug("context path " + contextPath);
         context.setContextPath(contextPath);
 
-        TokenServletFilter filter = new TokenServletFilter(authService, topicAuthorization, contextPath + path);
+        PubSubTokenServletFilter filter = new PubSubTokenServletFilter(authService, topicAuthorization, contextPath + path);
         context.addFilter(new FilterHolder(filter), "/*", null);
 
         server.setHandler(context);

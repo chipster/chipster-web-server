@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
@@ -296,5 +297,9 @@ public class RestUtils {
 
 	public static void configureForDownload(ResponseBuilder response, String name) {
 		response.header("Content-Disposition", "attachment; filename=\"" + name + "\"");
+	}
+
+	public static void configureForDownload(HttpServletResponse response, String name) {
+		response.setHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");		
 	}
 }

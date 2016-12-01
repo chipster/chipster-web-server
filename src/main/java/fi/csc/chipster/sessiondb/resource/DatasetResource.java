@@ -26,6 +26,7 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -158,7 +159,9 @@ public class DatasetResource {
 			throw new NotFoundException("dataset doesn't exist");
 		}
 		
-		checkFileModification(requestDataset, getHibernate().session());
+		if (!sc.isUserInRole(Role.FILE_BROKER)) {
+			checkFileModification(requestDataset, getHibernate().session());
+		}
 		
 		if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
 			// if the client doesn't care about the File, simply keep the db version

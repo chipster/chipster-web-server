@@ -22,6 +22,8 @@ import fi.csc.chipster.rest.exception.NotAuthorizedException;
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class TokenRequestFilter implements ContainerRequestFilter {
 	
+	public static final String QUERY_PARAMETER_TOKEN = "token";
+	public static final String HEADER_AUTHORIZATION = "authorization";
 	public static final String TOKEN_USER = "token";
 	private static final int CACHE_MAX_SIZE = 1000;
 	
@@ -45,31 +47,17 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			return;
 		}
 		
-		String authHeader = requestContext.getHeaderString("authorization");
+		String authHeader = requestContext.getHeaderString(HEADER_AUTHORIZATION);
 		// allow token to be sent also as a query parameter, because JS EventSource doesn't allow setting headers 
-		String authParameter = requestContext.getUriInfo().getQueryParameters().getFirst("token");
+		String authParameter = requestContext.getUriInfo().getQueryParameters().getFirst(QUERY_PARAMETER_TOKEN);
 		
-		String password = null;
-		if (authHeader != null) {
-			BasicAuthParser parser = new BasicAuthParser(authHeader);
-			if (!TOKEN_USER.equals(parser.getUsername())) {
-				throw new NotAuthorizedException("only tokens allowed");
-			}
-			password = parser.getPassword();
-		} else {
-			password = authParameter;
-		}
+		String password = getToken(authHeader, authParameter);
 		
-		if (password == null) {
-			if (authenticationRequired) {
-				//requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).entity("username or password missing").build());
-				throw new NotAuthorizedException("no authorization header");
-			} else {
-				// this filter is configured to pass non-authenticated users through
-				requestContext.setSecurityContext(
-						new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
-				return;
-			}
+		if (password == null && !authenticationRequired) {
+			// this filter is configured to pass non-authenticated users through
+			requestContext.setSecurityContext(
+					new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
+			return;
 		}		
 
 		// throws an exception if fails
@@ -82,7 +70,23 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 //		System.out.println("token validation " + (System.currentTimeMillis() - t) + " ms");
 	}
 
+	public String getToken(String authHeader, String authParameter) {
+		if (authHeader != null) {
+			BasicAuthParser parser = new BasicAuthParser(authHeader);
+			if (!TOKEN_USER.equals(parser.getUsername())) {
+				throw new NotAuthorizedException("only tokens allowed");
+			}
+			return parser.getPassword();
+		} else {
+			return authParameter;
+		}
+	}
+
 	public AuthPrincipal tokenAuthentication(String clientTokenKey) {
+		
+		if (clientTokenKey == null) {
+			throw new NotAuthorizedException("no authorization header");
+		}
         
 		Token dbClientToken = null;
 		

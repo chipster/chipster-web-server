@@ -78,6 +78,7 @@ dependencies {
     compile "org.glassfish.jersey:jersey-bom:latest.release"
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:latest.release"
     compile "org.glassfish.jersey.media:jersey-media-json-jackson:+"
+    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:+" // JAX-RS in Jetty (file-broker)
 
     // hibernate
     compile "org.hibernate:hibernate-java8:5.0.0.CR4"

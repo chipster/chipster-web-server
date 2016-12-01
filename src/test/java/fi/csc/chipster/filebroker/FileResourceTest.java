@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.util.UUID;
 
 import javax.ws.rs.ForbiddenException;
@@ -64,10 +65,56 @@ public class FileResourceTest {
     public void putAndChange() throws FileNotFoundException, RestException {
 		
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
-		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
+		assertEquals(200, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());	
 		
 		// not possible to upload a new file, if the dataset has one already
 		assertEquals(409, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
+    }
+	
+	@Test
+    public void putInChunks() throws RestException, IOException {
+		
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+		
+		long chunk1Length = 10*1024*1024;
+		long chunk2Length = 1*1024*1024;
+				
+		InputStream chunk1Stream = new DummyInputStream(chunk1Length);
+		InputStream chunk1StreamRef = new DummyInputStream(chunk1Length);
+		InputStream chunk2Stream = new DummyInputStream(chunk2Length);
+		@SuppressWarnings("resource")
+		InputStream chunk2StreamRef = new DummyInputStream(chunk2Length);		
+		
+		WebTarget target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId)
+			.queryParam("flowChunkNumber", "1")
+			.queryParam("flowChunkSize", "" + chunk1Length)
+			.queryParam("flowCurrentChunkSize", "" + chunk1Length)
+			.queryParam("flowTotalSize", "" + (chunk1Length + chunk2Length))
+			.queryParam("flowIdentifier", "JUnit-test-flow")
+			.queryParam("flowFilename", "JUnit-test-flow")
+			.queryParam("flowRelativePath", "JUnit-test-flow")
+			.queryParam("flowTotalChunks", "2");
+		assertEquals(200, putInputStream(target, chunk1Stream).getStatus());
+		
+		target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId)
+			.queryParam("flowChunkNumber", "2")
+			.queryParam("flowChunkSize", "" + chunk1Length) // default chunk size, but
+			.queryParam("flowCurrentChunkSize", "" + chunk2Length) // the last can be different
+			.queryParam("flowTotalSize", "" + (chunk1Length + chunk2Length))
+			.queryParam("flowIdentifier", "JUnit-test-flow")
+			.queryParam("flowFilename", "JUnit-test-flow")
+			.queryParam("flowRelativePath", "JUnit-test-flow")
+			.queryParam("flowTotalChunks", "2");
+		assertEquals(200, putInputStream(target, chunk2Stream).getStatus());
+			
+		InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request().get(InputStream.class);
+		InputStream referenceStream = new SequenceInputStream(chunk1StreamRef, chunk2StreamRef);
+		
+		assertEquals(true, IOUtils.contentEquals(remoteStream, referenceStream));
+		
+		// check that file-broker has set the correct size for the dataset
+		Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+		assertEquals(chunk1Length + chunk2Length, dataset.getFile().getSize());
     }
 
 	@Test
@@ -103,7 +150,7 @@ public class FileResourceTest {
 	//@Test
     public void putLargeFile() throws FileNotFoundException, RestException {
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
-		assertEquals(200, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId, new DummyInputStream(6)).getStatus());		
+		assertEquals(200, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId, new DummyInputStream(6*1024*1024*1024)).getStatus());		
     }	
 
 	private Response uploadFile(WebTarget target, UUID sessionId, UUID datasetId) throws FileNotFoundException {
@@ -112,15 +159,24 @@ public class FileResourceTest {
         return uploadInputStream(target, sessionId, datasetId, fileInStream);
 	}
 	
-	private Response uploadInputStream(WebTarget target, UUID sessionId, UUID datasetId,
-			InputStream inputStream) {
+	private Response uploadInputStream(WebTarget target, UUID sessionId, UUID datasetId, InputStream inputStream) {
+		WebTarget chunkedTarget = getChunkedTarget(target, sessionId, datasetId);
+        return putInputStream(chunkedTarget, inputStream);
+	}
+
+	private Response putInputStream(WebTarget chunkedTarget, InputStream inputStream) {
+		return chunkedTarget.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM), Response.class);
+	}
+
+	private WebTarget getChunkedTarget(WebTarget target, UUID sessionId, UUID datasetId) {
         // Use chunked encoding to disable buffering. HttpUrlConnector in 
         // Jersey buffers the whole file before sending it by default, which 
         // won't work with big files.
         target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
-        Response response = target.path(getDatasetPath(sessionId, datasetId)).request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),Response.class);
-        return response;
+        return target.path(getDatasetPath(sessionId, datasetId));
 	}
+	
+	
 
 	private String getDatasetPath(UUID sessionId, UUID datasetId) {
 		return "sessions/" + sessionId.toString() + "/datasets/" + datasetId.toString();
@@ -131,15 +187,16 @@ public class FileResourceTest {
 		long bytes = 0;
 		private long size;
 		
-	    public DummyInputStream(long sizeInGb) {
-	    	this.size = sizeInGb * 1024 * 1024 * 1024;
+	    public DummyInputStream(long size) {
+	    	this.size = size;
 		}
 
 		@Override
 	    public int read() { 
 	    	if (bytes < size) {
 	    		bytes++;
-	    		return (byte) (bytes % 256);
+	    		// don't convert to byte, because it would be signed and this could return -1 making the stream shorter
+	    		return (int) (bytes % 256);
 	    	} else {
 	    		return -1;
 	    	}
@@ -155,7 +212,11 @@ public class FileResourceTest {
 		InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request().get(InputStream.class);
 		InputStream fileStream = new FileInputStream(new File(TEST_FILE));
 		
-		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));		
+		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));
+		
+		// check that file-broker has set the correct size for the dataset
+		Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+		assertEquals(new File(TEST_FILE).length(), dataset.getFile().getSize());
     }
 	
 	@Test

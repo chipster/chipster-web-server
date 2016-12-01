@@ -189,11 +189,12 @@ public class SessionDbClient {
         return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));
 	}
 	
-	private void put(WebTarget target, Object obj) throws RestException {
+	private Response put(WebTarget target, Object obj) throws RestException {
 		Response response = target.request().put(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("put " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
 		}
+		return response;
 	}
 	
 	private void delete(WebTarget target) throws RestException {
@@ -339,8 +340,8 @@ public class SessionDbClient {
 		return id;
 	}
 	
-	public void updateDataset(UUID sessionId, Dataset dataset) throws RestException {
-		put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
+	public Response updateDataset(UUID sessionId, Dataset dataset) throws RestException {
+		return put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
 	}
 	
 	public void deleteDataset(UUID sessionId, UUID datasetId) throws RestException {
