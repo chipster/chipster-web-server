@@ -18,8 +18,6 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.token.TokenServletFilter;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -44,12 +42,9 @@ public class FileBroker {
 	}
 
     /**
-     * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
-     * @return Grizzly HTTP server.
-     * @throws Exception 
-     * @throws InterruptedException 
-     * @throws WebSocketClosedException 
-     * @throws WebSocketErrorException 
+     * Starts a HTTP server exposing the REST resources defined in this application.
+     * @return 
+     * @throws Exception  
      */
     public void startServer() throws Exception {
     	
@@ -62,24 +57,10 @@ public class FileBroker {
     	
 		File storage = new File("storage");
 		storage.mkdir();    
-		//this.fileResource = new FileResource(storage, sessionDbClient);
-		
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
-//    	        
-//    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-//        	.register(fileResource)
-//        	//.register(new LoggingFilter())
-//        	.register(tokenRequestFilter);
-//
-//        // create and start a new instance of grizzly http server
-//        // exposing the Jersey application at BASE_URI
-    	URI baseUri = URI.create(this.config.getString("file-broker-bind"));
-//        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
-    	
-//    	ResourceConfig config = new ResourceConfig(FileResource.class);
-//    	server = JettyHttpContainerFactory.createServer(baseUri, config);
 
+    	URI baseUri = URI.create(this.config.getString("file-broker-bind"));
                 
     	server = new Server();
         ServerConnector connector = new ServerConnector(server);
@@ -101,7 +82,6 @@ public class FileBroker {
 		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
                
         server.start();
-        //server.join();
     }
 
     /**
@@ -112,19 +92,10 @@ public class FileBroker {
      */
     public static void main(String[] args) throws Exception {
     	
-//        final FileBroker server = new FileBroker(new Config());
-//        server.startServer();
-//        RestUtils.waitForShutdown("file-broker", server.getHttpServer());
-        
         new FileBroker(new Config()).startServer();
     }
 
-//	private HttpServer getHttpServer() {
-//		return this.httpServer;
-//	}
-
 	public void close() {
-		//RestUtils.shutdown("file-broker", httpServer);
 		try {
 			server.stop();
 		} catch (Exception e) {
