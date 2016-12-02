@@ -99,7 +99,7 @@ public class FileBroker {
 		try {
 			server.stop();
 		} catch (Exception e) {
-			logger.warn("failed to stop the file brokers", e);
+			logger.warn("failed to stop the file broker", e);
 		}
 	}
 }
