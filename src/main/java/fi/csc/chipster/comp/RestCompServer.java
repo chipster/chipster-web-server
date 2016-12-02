@@ -56,7 +56,7 @@ import fi.csc.microarray.util.SystemMonitorUtil;
  * Executes analysis jobs and handles input&output. Uses multithreading 
  * and thread pool.
  * 
- * @author Taavi Hupponen, Aleksi Kallio, Petri Klemelä
+ * @author Taavi Hupponen, Aleksi Kallio, Petri Klemela
  */
 public class RestCompServer implements ShutdownCallback, ResultCallback, MessageHandler.Whole<String> {
 

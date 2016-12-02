@@ -324,7 +324,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				File chunkFile = new File(f.getParent(), f.getName() + ".chunk" + chunkNumber);
 				try {
 					
-					logger.info("file size at start: " + f.length());
+					logger.debug("file size at start: " + f.length());
 					
 					// copy first to a temp file
 					try (FileOutputStream chunkOutStream = new FileOutputStream(chunkFile, false)) {					
@@ -333,7 +333,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 						inputStream.close();
 					}
 					
-					logger.info("chunk file size: " + chunkFile.length());
+					logger.debug("chunk file size: " + chunkFile.length());
 	
 					// append chunk to the right file
 					try (FileInputStream chunkInStream = new FileInputStream(chunkFile)) {
@@ -342,7 +342,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 						}
 					}
 							
-					logger.info("file size after copy: " + f.length());
+					logger.debug("file size after copy: " + f.length());
 					
 	//				// alternative implementation which buffers the chunk in memory
 	//				// the last chunk may be double the size of the chunkSize
@@ -411,28 +411,28 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	
 	@Override
 	protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		response.setStatus(HttpURLConnection.HTTP_BAD_METHOD);
+		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 	}
 	
 	@Override
 	protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		response.setStatus(HttpURLConnection.HTTP_BAD_METHOD);
+		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 	};
 	
 	@Override
 	protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// CORS preflight checks require an ok response for OPTIONS
-		response.setStatus(HttpURLConnection.HTTP_OK);
+		response.setStatus(HttpServletResponse.SC_OK);
 	};
 	
 	@Override
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		response.setStatus(HttpURLConnection.HTTP_BAD_METHOD);
+		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 	};
 	
 	@Override
 	protected void doTrace(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		response.setStatus(HttpURLConnection.HTTP_BAD_METHOD);
+		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 	};
 }
 
