@@ -33,7 +33,7 @@ public class CORSServletFilter implements Filter {
 		//response.addHeader("Access-Control-Allow-Origin", "*");
 		response.addHeader("Access-Control-Allow-Origin", request.getHeader("origin"));		
 		response.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
-		response.addHeader("Access-Control-Allow-Headers", "authorization, content-type"); // request
+		response.addHeader("Access-Control-Allow-Headers", "authorization, content-type, range"); // request
 		response.addHeader("Access-Control-Expose-Headers", "location, Accept-Ranges"); // response
 		response.addHeader("Access-Control-Allow-Credentials", "true");
 		response.addHeader("Access-Control-Max-Age", "1728000"); // in seconds, 20 days
