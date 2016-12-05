@@ -5,5 +5,5 @@
 # username:password:expiration date (yyyy-mm-dd):comment
 #
 chipster:chipster::Default user
-client:clientPassword::User for unit tests, remove in production
-client2:client2Password::User for unit tests, remove in production
+client:clientPassword::Unit test user, remove in production
+client2:client2Password::Unit test user, remove in production
