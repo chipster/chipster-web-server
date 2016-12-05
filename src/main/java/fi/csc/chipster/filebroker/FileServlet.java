@@ -37,7 +37,6 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.microarray.util.IOUtils;
-import sun.net.www.protocol.http.HttpURLConnection;
 
 /**
 * <p>Servlet for serving and uploading files. Extends DefaultServlet and adds support for HTTP PUT method. 
@@ -307,7 +306,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 						if (isChunkReady(f, chunkNumber, chunkSize)) {
 							// we have this junk already
 							inputStream.close();
-							response.setStatus(HttpURLConnection.HTTP_OK);
+							response.setStatus(HttpServletResponse.SC_OK);
 							return;
 						}
 					}
@@ -371,7 +370,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				}
 			}			
 			
-			response.setStatus(HttpURLConnection.HTTP_OK);
+			response.setStatus(HttpServletResponse.SC_OK);
 			return;		
 		} catch (IOException | RestException e) {
 			throw new InternalServerErrorException("upload failed", e);
