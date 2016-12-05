@@ -111,7 +111,8 @@ public class EventTest {
     	}
     }
     
-    @Test
+    // the server can be stopped only if this test suite started it
+    //@Test
     public void connectionClose() throws Exception {
     	
     	String sessionId = user1Client.createSession(RestUtils.getRandomSession()).toString();
@@ -119,8 +120,7 @@ public class EventTest {
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
     	WebSocketClient client = getTestClient(uri + sessionId, messages, latch, false, token);
-    	
-    	// we can do this only if the server was started by this test
+    	    	
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	
     	// should we have a hook for connection close? now we can only check
@@ -159,7 +159,8 @@ public class EventTest {
         client.shutdown();
     }
     
-    @Test
+    // the server can be stopped only if this test suite started it
+    //@Test
     public void reconnect() throws Exception {    	
     	
     	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());

@@ -19,6 +19,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
  * Main class.
@@ -43,8 +44,9 @@ public class AuthenticationService {
      * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
      * @return Grizzly HTTP server.
      * @throws IOException 
+     * @throws IllegalConfigurationException 
      */
-    public void startServer() throws IOException {
+    public void startServer() throws IOException, IllegalConfigurationException {
     	    	
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
     			Token.class,
@@ -73,8 +75,9 @@ public class AuthenticationService {
      * Main method.
      * @param args
      * @throws IOException
+     * @throws IllegalConfigurationException 
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, IllegalConfigurationException {
     	
         final AuthenticationService server = new AuthenticationService(new Config());
         server.startServer();

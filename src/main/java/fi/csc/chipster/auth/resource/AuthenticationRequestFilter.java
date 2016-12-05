@@ -23,6 +23,8 @@ import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.microarray.auth.JaasAuthenticationProvider;
+import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
  * @author klemela
@@ -36,18 +38,20 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	
 	private HibernateUtil hibernate;
 
-	private HashMap<String, String> users;
+	private HashMap<String, String> serviceAccounts;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException {
+	private JaasAuthenticationProvider authenticationProvider;
+
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
 		
-		users = new HashMap<>();
-		users.put("client", "clientPassword");
-		users.put("client2", "client2Password");
+		serviceAccounts = new HashMap<>();	
 				
 		for (String service : Config.services) {
-			users.put(service, config.getPassword(service));
+			serviceAccounts.put(service, config.getPassword(service));
 		}
+		
+		authenticationProvider = new JaasAuthenticationProvider(false);
 	}
 
 	@Override
@@ -106,18 +110,29 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		} catch (InterruptedException e) {
 			logger.warn(e);
 		}
-				
-		//TODO get users from JAAS or file or something
-		//TODO make sure that external usernames matching Config.serivces are blocked
 		
-		if (!users.containsKey(username)) {
-			throw new ForbiddenException();
-		}
-
-		if (!users.get(username).equals(password)) {
-			throw new ForbiddenException();
+		// check that there is no extra white space in the username, because if authenticationProvider accepts it,
+		// it would create a new user in Chipster
+		if (!username.trim().equals(username)) {
+			throw new ForbiddenException("white space in username");
 		}
 		
+		if (serviceAccounts.containsKey(username)) { 
+			if (serviceAccounts.get(username).equals(password)) {		
+			// authenticate with username/password ok
+				return new AuthPrincipal(username, getRoles(username));
+			}
+			// don't let other providers to authenticate internal usernames
+			throw new ForbiddenException("wrong password");	
+		}
+		if (authenticationProvider.authenticate(username, password.toCharArray())) {
+			// authenticate with username/password ok
+			return new AuthPrincipal(username, getRoles(username));
+		}
+		throw new ForbiddenException("wrong username or password");
+	}
+	
+	public HashSet<String> getRoles(String username) {
 		// are these of any use, because the file broker authorization is anyway
 		// based solely on the username?
 		Map<String, String> usernameToRole = new HashMap<>();
@@ -129,14 +144,16 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		usernameToRole.put(Config.USERNAME_SESSION_DB, Role.SESSION_DB);
 		usernameToRole.put(Config.USERNAME_SESSION_WORKER, Role.SESSION_WORKER);
 		
-		String[] roles = new String[] { Role.PASSWORD, Role.CLIENT};		
+		String[] roles;
 		if (Config.services.contains(username)) {
 			roles = new String[] { Role.PASSWORD, Role.SERVER, usernameToRole.get(username) };
+		} else {
+			roles = new String[] { Role.PASSWORD, Role.CLIENT};
 		}
 		
-		return new AuthPrincipal(username, new HashSet<>(Arrays.asList(roles)));
+		return new HashSet<>(Arrays.asList(roles));
 	}
-	
+
 	private HibernateUtil getHibernate() {
 		return hibernate;
 	}
