@@ -41,6 +41,7 @@ public class ToolboxModule {
 	
 	private LinkedList<ToolboxCategory> categories = new LinkedList<ToolboxCategory>();
 	private LinkedHashMap<String, ToolboxTool> tools = new LinkedHashMap<String, ToolboxTool>();
+	private List<ToolboxTool> toolsWithCustomRuntime = new LinkedList<ToolboxTool>();
 
 	private Path moduleDir;
 	private Path moduleFile;
@@ -155,7 +156,7 @@ public class ToolboxModule {
 		
 		// Load categories and tools in them
 		for (Element categoryElement: XmlUtil.getChildElements(moduleElement, "category")) {
-
+			
 			// Category name
 			String categoryName = categoryElement.getAttribute("name");
 			if (categoryName.isEmpty()) {
@@ -188,27 +189,13 @@ public class ToolboxModule {
 		    for (Element toolElement: XmlUtil.getChildElements(categoryElement, "tool")) {
 		    	totalCount++;
 
-		    	// Resource (script file name, Java class name, ...)
-		    	Element resourceElement = XmlUtil.getChildElement(toolElement, "resource");
-		    	if (resourceElement == null) {
-		    		logger.warn("not loading a tool without resource element");
+		    	String toolId = toolElement.getTextContent().trim(); 
+		    	if (toolId.isEmpty()) {
 		    		continue;
 		    	}
-		    	String resource = resourceElement.getTextContent().trim();
-		    	if (resource == null || resource.isEmpty()) {
-		    		logger.warn("not loading a tool with empty resource element");
-		    		continue;
-		    	}
-
+		    	
 		    	// Tool visibility 
 		    	boolean toolHidden = categoryHidden; // currently tools can be hidden only if their category is hidden
-
-		    	// Tool runtime
-		    	String runtimeName = toolElement.getAttribute("runtime");
-		    	if (runtimeName == null || runtimeName.isEmpty()) {
-		    		logger.warn("not loading " + resource + ": runtime " + runtimeName + " is null or empty");
-		    		continue;
-		    	}
 
 		    	// Tool module
 		    	Path toolModuleDir;
@@ -241,23 +228,25 @@ public class ToolboxModule {
 		    		parameters.put(parameterName, parameterValue);
 		    	}
 		    	if (!parametersOk) {
-		    		logger.warn("not loading " + resource + ": parameters not ok");
+		    		logger.warn("not loading " + toolId + ": parameters not ok");
 		    		continue;
 		    	}
 
 		    	// get parser
-	    		ToolPartsParser partsParser = Toolbox.getToolPartsParser(runtimeName);
+
+		    	
+		    	ToolPartsParser partsParser = Toolbox.getToolPartsParser(toolId);
 	    		if (partsParser == null) {
-	    			logger.warn("not loading " + resource + ": no parser for runtime " + runtimeName);
+	    			logger.warn("not loading " + toolId + ": no parser");
 	    			continue;
 	    		}
 
 		    	// parse script parts (sadl / source)
 	    		ParsedScript parsedScript;
 	    		try {
-		    		parsedScript = partsParser.parse(toolModuleDir, resource);
+		    		parsedScript = partsParser.parse(toolModuleDir, toolId);
 		    	} catch (Exception e) {
-		    		logger.warn("loading " + resource + " failed, parsing parts failed", e);
+		    		logger.warn("loading " + toolId + " failed, parsing parts failed", e);
 		    		continue;
 		    	}
 
@@ -266,11 +255,26 @@ public class ToolboxModule {
 	    		try {
 	    			sadlDescription= new ChipsterSADLParser().parse(parsedScript.SADL);
 		    	} catch (ParseException e) {
-		    		logger.warn("loading " + resource + " failed, parsing sadl failed", e);
+		    		logger.warn("loading " + toolId + " failed, parsing sadl failed", e);
 		    		continue;
 		    	}
 		    	
-		    	String toolId = sadlDescription.getName().getID();
+		    	// check that sadl tool id matches module.xml tool id
+	    		String toolIdFromSadl = sadlDescription.getName().getID();
+	    		if (!toolId.equals(toolIdFromSadl)) {
+	    			logger.warn("not loading " + toolId + " mismatching tool id from module file and sadl: " + 
+	    				toolId + " " + toolIdFromSadl);
+	    			continue;
+	    		}
+
+	    		// get runtime from sadl or use default
+		    	String runtimeName = sadlDescription.getRuntime();
+		    	if (runtimeName == null) {
+		    		runtimeName = Toolbox.getDefaultRuntime(toolId);
+		    	}
+		    	if (runtimeName == null) {
+		    		logger.warn("not loading " + toolId + " could not get runtime name");
+		    	}
 	    		
 		    	// Check that filenames are unique. Overwriting input files is a bad idea when the input file is
 		    	// only a symlink to the original file 		
@@ -300,12 +304,12 @@ public class ToolboxModule {
 		    	}
 		    	
 		    	if (!filenamesOk) {
-		    		logger.warn("not loading " + resource + ": non-unique filename(s)");
+		    		logger.warn("not loading " + toolId + ": non-unique filename(s)");
 		    		continue;
 		    	}
 		    	
 		    	// Register the tool, override existing
-		    	ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, parsedScript.SADL, parsedScript.code, parsedScript.source, resource, moduleDir.getFileName().toString(), runtimeName);
+		    	ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, parsedScript.SADL, parsedScript.code, parsedScript.source, moduleDir.getFileName().toString(), runtimeName);
 		    	tools.put(toolId, toolboxTool);
 		    	successfullyLoadedCount++;
 
@@ -319,7 +323,11 @@ public class ToolboxModule {
 		    		hiddenCount++;
 		    	}
 
-		    	logger.debug(String.format("loaded %s %s from %s %s" , toolId, sadlDescription.getName().getDisplayName(), resource, hiddenStatus));
+		    	if (sadlDescription.getRuntime() != null) { 
+		    		toolsWithCustomRuntime.add(toolboxTool);
+		    	}
+		    	
+		    	logger.debug(String.format("loaded %s %s from %s %s" , toolId, sadlDescription.getName().getDisplayName(), toolId, hiddenStatus));
 		    }
 
 		}
@@ -328,6 +336,14 @@ public class ToolboxModule {
 		this.summary = "loaded " + moduleName + " " + successfullyLoadedCount + "/" + totalCount +
 		" tools, " + disabledCount + " disabled, " + hiddenCount + " hidden";
 		logger.info(summary);
+		
+		if (!toolsWithCustomRuntime.isEmpty()) {
+			logger.info("tools with custom runtime:");
+			for (ToolboxTool tool: toolsWithCustomRuntime) {
+				logger.info(tool.getId() + " " + tool.getRuntime());
+			}
+		}
+
 	}
 
 	public String getName() {

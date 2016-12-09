@@ -19,7 +19,7 @@ import fi.csc.microarray.messaging.message.ModuleDescriptionMessage;
 
 public class Toolbox {
 
-	private Logger logger = LogManager.getLogger();
+	private static Logger logger = LogManager.getLogger();
 
 	private List<ToolboxModule> modules = new LinkedList<ToolboxModule>();
 	private byte[] zipContents;
@@ -33,7 +33,7 @@ public class Toolbox {
 	public Toolbox(final Path modulesDir) throws IOException {
 
 		// load tools
-		loadModuleDescriptions(modulesDir);
+		this.modules.addAll(loadModuleDescriptions(modulesDir));
 	}
 
 	public ToolboxTool getTool(String id) {
@@ -92,10 +92,11 @@ public class Toolbox {
 	 * 
 	 * @throws IOException
 	 */
-	private void loadModuleDescriptions(Path modulesDir) throws IOException {
+	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir) throws IOException {
 
 		// Iterate over all module directories, and over all module files inside
 		// them
+		List<ToolboxModule> modulesList = new LinkedList<ToolboxModule>();
 		List<String> moduleLoadSummaries = new LinkedList<String>();
 
 		try (DirectoryStream<Path> modulesDirStream = Files.newDirectoryStream(modulesDir)) {
@@ -120,7 +121,7 @@ public class Toolbox {
 								continue;
 							}
 							// Register the module
-							modules.add(module);
+							modulesList.add(module);
 							moduleLoadSummaries.add(summary);
 						}
 					}
@@ -134,6 +135,8 @@ public class Toolbox {
 			logger.info(summary);
 		}
 		logger.info("------ tool summary ------ ");
+		
+		return modulesList;
 	}
 
 	public void setZipContents(byte[] zipContents) {
@@ -155,23 +158,43 @@ public class Toolbox {
 	 * This is about separating the sadl part from for example R script, not
 	 * parsing the sadl itself.
 	 * 
-	 * @param runtime
+	 * @param toolId
 	 * @return
 	 */
-	static ToolPartsParser getToolPartsParser(String runtime) {
-		if (runtime == null || runtime.isEmpty()) {
+	static ToolPartsParser getToolPartsParser(String toolId) {
+		if (toolId == null || toolId.isEmpty()) {
 			return null;
-		} else if (runtime.startsWith("python")) {
-			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(runtime));
-		} else if (runtime.startsWith("java")) {
+		} 
+		
+		String defaultRuntime = getDefaultRuntime(toolId);
+		if (defaultRuntime == null) {
+			return null;
+		}
+		
+		
+		if (defaultRuntime.startsWith("python")) {
+			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(defaultRuntime));
+		} else if (defaultRuntime.startsWith("java")) {
 			return new JavaParser();
 
-			// add non-R stuff starting with R before this
-		} else if (runtime.startsWith("R")) {
-			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(runtime));
+		// add non-R stuff starting with R before this
+		} else if (defaultRuntime.startsWith("R")) {
+			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(defaultRuntime));
 		} else {
 			return null;
 		}
 	}
-
+	
+	static String getDefaultRuntime(String toolId) {
+		if (toolId == null || toolId.isEmpty()) {
+			return null;
+		} else if (toolId.endsWith(".R")) {
+			return "R";
+		} else if (toolId.endsWith(".py")) {
+			return "python";
+		} else if (toolId.endsWith(".java")) {
+			return "java";
+		}
+		return null;
+	}
 }

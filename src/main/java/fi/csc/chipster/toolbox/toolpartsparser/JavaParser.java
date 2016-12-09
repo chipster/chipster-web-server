@@ -13,7 +13,10 @@ public class JavaParser implements ToolPartsParser {
 
 
 	@Override
-	public ParsedScript parse(Path moduleDir, String sourceResourceName) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+	public ParsedScript parse(Path moduleDir, String toolId) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+
+		String sourceResourceName = toolId.substring(0, toolId.lastIndexOf(".java")); 
+
 		// get the job class
 		Class<? extends Object> jobClass = null;
 

@@ -22,6 +22,10 @@ distTar {
 } 
 
 
+//test {
+//    testLogging.showStandardStreams = true
+//}
+
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -62,6 +66,13 @@ test {
     //exclude "fi/csc/chipster/sessiondb/EventTest.class"
     //exclude "fi/csc/chipster/scheduler/SchedulerTest.class"
 
+}
+
+
+task checkTools(type: JavaExec) {
+  dependsOn classes
+  classpath sourceSets.test.runtimeClasspath
+  main = "fi.csc.chipster.toolbox.ToolboxLoadTest"
 }
 
 
