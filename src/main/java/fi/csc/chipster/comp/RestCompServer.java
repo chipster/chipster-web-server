@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Timer;
@@ -38,6 +39,8 @@ import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.microarray.comp.CompException;
 import fi.csc.microarray.comp.CompJob;
+import fi.csc.microarray.comp.ResourceMonitor;
+import fi.csc.microarray.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.microarray.comp.ResultCallback;
 import fi.csc.microarray.comp.RuntimeRepository;
 import fi.csc.microarray.comp.ToolRuntime;
@@ -58,7 +61,7 @@ import fi.csc.microarray.util.SystemMonitorUtil;
  * 
  * @author Taavi Hupponen, Aleksi Kallio, Petri Klemela
  */
-public class RestCompServer implements ShutdownCallback, ResultCallback, MessageHandler.Whole<String> {
+public class RestCompServer implements ShutdownCallback, ResultCallback, MessageHandler.Whole<String>, ProcessProvider {
 
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
@@ -118,6 +121,8 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private Config config;
 	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
+	
+	private ResourceMonitor resourceMonitor;
 	
 	/**
 	 * 
@@ -179,8 +184,8 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		compAvailableTimer = new Timer(true);
 		compAvailableTimer.schedule(new CompAvailableTask(), compAvailableInterval, compAvailableInterval);
 		
-		
-		
+		resourceMonitor = new ResourceMonitor(this);
+				
 		config = new Config();
 		
 		String username = Config.USERNAME_COMP;
@@ -662,6 +667,21 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		allJobs.addAll(runningJobs.values());	
 
 		return allJobs;
+	}
+	
+	@Override
+	public HashSet<Process> getRunningJobProcesses() {
+		synchronized (jobsLock) {
+			HashSet<Process> jobProcesses = new HashSet<>();
+			
+			for (CompJob compJob : runningJobs.values()) {
+				if (compJob.getProcess() != null) {
+					jobProcesses.add(compJob.getProcess());
+				}
+			}
+			
+			return jobProcesses;
+		}
 	}
 	
 	public static void main(String[] args) throws Exception {
