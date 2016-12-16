@@ -123,6 +123,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private SessionDbClient sessionDbClient;
 	
 	private ResourceMonitor resourceMonitor;
+	private int monitoringInterval;
 	
 	/**
 	 * 
@@ -147,7 +148,8 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		this.compAvailableInterval = config.getInt(Config.KEY_COMP_AVAILABLE_INTERVAL);
 		this.sweepWorkDir= config.getBoolean(Config.KEY_COMP_SWEEP_WORK_DIR);
 		this.maxJobs = config.getInt(Config.KEY_COMP_MAX_JOBS);
-		//this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp", "local-filebroker-user-data-path"));		
+		//this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp", "local-filebroker-user-data-path"));
+		this.monitoringInterval = 5;
 		
 		logger = Logger.getLogger(RestCompServer.class);
 		loggerJobs = Logger.getLogger("jobs");
@@ -184,9 +186,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		compAvailableTimer = new Timer(true);
 		compAvailableTimer.schedule(new CompAvailableTask(), compAvailableInterval, compAvailableInterval);
 		
-		resourceMonitor = new ResourceMonitor(this);
-				
-		config = new Config();
+		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 		
 		String username = Config.USERNAME_COMP;
 		String password = config.getPassword(username);
