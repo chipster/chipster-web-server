@@ -1,6 +1,7 @@
 package fi.csc.chipster.toolbox;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.DirectoryStream;
@@ -28,12 +29,13 @@ public class Toolbox {
 	 * Loads tools.
 	 * 
 	 * @param modulesDir
+	 * @param toolsBin 
 	 * @throws IOException
 	 */
-	public Toolbox(final Path modulesDir) throws IOException {
+	public Toolbox(final Path modulesDir, File toolsBin) throws IOException {
 
 		// load tools
-		this.modules.addAll(loadModuleDescriptions(modulesDir));
+		this.modules.addAll(loadModuleDescriptions(modulesDir, toolsBin));		
 	}
 
 	public ToolboxTool getTool(String id) {
@@ -89,10 +91,11 @@ public class Toolbox {
 
 	/**
 	 * Load all the tool modules in this toolbox. Put them to the modules list.
+	 * @param toolsBin2 
 	 * 
 	 * @throws IOException
 	 */
-	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir) throws IOException {
+	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, File toolsBin) throws IOException {
 
 		// Iterate over all module directories, and over all module files inside
 		// them
@@ -114,7 +117,7 @@ public class Toolbox {
 							ToolboxModule module;
 							String summary;
 							try {
-								module = new ToolboxModule(moduleDir, moduleFile);
+								module = new ToolboxModule(moduleDir, moduleFile, toolsBin);
 								summary = module.getSummary();
 							} catch (Exception e) {
 								logger.warn("loading " + moduleFile + " failed", e);

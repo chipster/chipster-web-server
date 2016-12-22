@@ -34,6 +34,7 @@ public class Config {
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
 	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
 	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";	
+	public static final String KEY_TOOLS_BIN_PATH = "tools-bin-path";
 	
 	public static final String USERNAME_SESSION_DB = "session-db";
 	public static final String USERNAME_SERVICE_LOCATOR = "service-locator";
@@ -52,6 +53,7 @@ public class Config {
 		USERNAME_SESSION_WORKER,
 		USERNAME_PROXY
 	});
+
 	
 	// create a password configuration key for each service 
 	private static Map<String, String> serviceAccounts = new HashMap<>();
@@ -150,6 +152,7 @@ public class Config {
 		
 		defaults.put("web-root-path", "../chipster-web/");
 		defaults.put(KEY_CONF_PATH, "conf/chipster.yaml");
+		defaults.put(KEY_TOOLS_BIN_PATH, "/opt/chipster/tools");
 		
 		// service credentials
 		for (Entry<String, String> entry : serviceAccounts.entrySet()) {

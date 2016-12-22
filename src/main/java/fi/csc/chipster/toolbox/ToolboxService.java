@@ -3,6 +3,7 @@ package fi.csc.chipster.toolbox;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -61,10 +62,13 @@ public class ToolboxService {
 
 	private ToolResource toolResource;
 	private ModuleResource moduleResource;
+	private File toolsBin;
 
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
-		this.url = config.getString(Config.KEY_TOOLBOX_BIND_URL);
+		this.url = config.getString(Config.KEY_TOOLBOX_BIND_URL);			
+		this.toolsBin = new File(config.getString(Config.KEY_TOOLS_BIN_PATH));
+		
 		initialise();
 	}
 
@@ -75,12 +79,17 @@ public class ToolboxService {
 	 * @throws IOException
 	 * @throws URISyntaxException
 	 */
-	public ToolboxService(String url) throws IOException, URISyntaxException {
+	public ToolboxService(String url, String toolsBinPath) throws IOException, URISyntaxException {
 		this.url = url;
+		this.toolsBin = new File(toolsBinPath);
 		initialise();
 	}
 
 	private void initialise() throws IOException, URISyntaxException {
+				
+		if (!toolsBin.exists()) {
+			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBin.getPath() + " doesn't exist");
+		}
 
 		// load toolbox
 		Toolbox newToolbox = loadToolbox();
@@ -102,7 +111,7 @@ public class ToolboxService {
 		
 		Toolbox box;
 		if (Files.isDirectory(foundPath)) {
-			box = new Toolbox(foundPath);
+			box = new Toolbox(foundPath, toolsBin);
 
 			Path tempDir = Files.createTempDirectory(TOOLS_DIR_NAME);
 			Path tempZipFile = tempDir.resolve(TOOLS_ZIP_NAME);
@@ -118,7 +127,7 @@ public class ToolboxService {
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
 			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
-			box = new Toolbox(toolsPath);
+			box = new Toolbox(toolsPath, toolsBin);
 
 			byte [] zipContents = Files.readAllBytes(foundPath);
 			box.setZipContents(zipContents);

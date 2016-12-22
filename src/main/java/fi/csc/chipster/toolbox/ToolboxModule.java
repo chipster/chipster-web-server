@@ -1,10 +1,12 @@
 
 package fi.csc.chipster.toolbox;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,9 +25,13 @@ import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
 import fi.csc.chipster.toolbox.toolpartsparser.ToolPartsParser;
 import fi.csc.chipster.util.StringUtils;
 import fi.csc.microarray.description.SADLDescription;
+import fi.csc.microarray.description.SADLGenerator;
 import fi.csc.microarray.description.SADLDescription.Input;
+import fi.csc.microarray.description.SADLDescription.Name;
 import fi.csc.microarray.description.SADLDescription.Output;
+import fi.csc.microarray.description.SADLDescription.Parameter;
 import fi.csc.microarray.description.SADLParser.ParseException;
+import fi.csc.microarray.description.SADLSyntax.ParameterType;
 import fi.csc.microarray.messaging.message.ModuleDescriptionMessage;
 import fi.csc.microarray.messaging.message.ModuleDescriptionMessage.Category;
 import fi.csc.microarray.module.chipster.ChipsterSADLParser;
@@ -48,6 +54,8 @@ public class ToolboxModule {
 
 	private String summary = null;
 	private String moduleName = null;
+
+	private SADLReplacements sadlReplacements;
 	
     public static class ToolboxCategory {
         private String name;
@@ -83,9 +91,10 @@ public class ToolboxModule {
         
     }
 
-	public ToolboxModule(Path moduleDir, Path moduleFile) throws ParserConfigurationException, FileNotFoundException, SAXException, IOException {
+	public ToolboxModule(Path moduleDir, Path moduleFile, File toolsBin) throws ParserConfigurationException, FileNotFoundException, SAXException, IOException {
 		this.moduleFile = moduleFile;
 		this.moduleDir = moduleDir;
+		this.sadlReplacements = new SADLReplacements(toolsBin);
 		load();
 	}
 	
@@ -98,7 +107,6 @@ public class ToolboxModule {
 			Category category = new Category(toolboxCategory.getName(), toolboxCategory.getColor(), toolboxCategory.isHidden());
 			
 			for (ToolboxTool tool : toolboxCategory.getTools()) {
-				
 				// help url not supported (or used) at the moment
 				category.addTool(tool.getSadlString(), null);
 			}
@@ -308,8 +316,28 @@ public class ToolboxModule {
 		    		continue;
 		    	}
 		    	
+		    	// apply replacements (i.e. generate genome lists)
+		    	try {
+			    	for (Parameter param : sadlDescription.getParameters()) {
+			    		if (param.getType() == ParameterType.ENUM) {
+	
+			    			List<Name> options = Arrays.asList(param.getSelectionOptions());
+			    			param.setSelectionOptions(sadlReplacements.processNames(options));
+			    			
+			    			List<String> defaults = Arrays.asList(param.getDefaultValues());
+			    			param.setDefaultValues(sadlReplacements.processStrings(defaults));
+			    		}
+			    	}		    	
+		    	} catch (IOException e) {
+		    		logger.warn("not loading " + toolId + ": " + e.getMessage());
+		    		continue;
+		    	}
+		    	
+		    	// generate the SADL with the replacements (original available in parsedScript.SADL) 
+		    	String generatedSadl = SADLGenerator.generate(sadlDescription);
+		    	
 		    	// Register the tool, override existing
-		    	ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, parsedScript.SADL, parsedScript.code, parsedScript.source, moduleDir.getFileName().toString(), runtimeName);
+		    	ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, generatedSadl, parsedScript.code, parsedScript.source, moduleDir.getFileName().toString(), runtimeName);
 		    	tools.put(toolId, toolboxTool);
 		    	successfullyLoadedCount++;
 
@@ -345,7 +373,7 @@ public class ToolboxModule {
 		}
 
 	}
-
+	
 	public String getName() {
 		return this.moduleName;
 	}

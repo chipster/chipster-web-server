@@ -45,7 +45,9 @@ public class ToolboxServer extends MonitoredNodeBase implements MessagingListene
 		logger.info("starting toolbox service...");
 
 		String url = configuration.getString("messaging", "toolbox-url");
-		this.toolboxRestService = new ToolboxService(url);
+		String toolsBinPath = configuration.getString("toolbox", "tools-bin-path");
+		
+		this.toolboxRestService = new ToolboxService(url, toolsBinPath);
 		this.toolboxRestService.startServer();
 
 		// initialize communications
