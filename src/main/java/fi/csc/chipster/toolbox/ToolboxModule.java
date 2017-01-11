@@ -333,8 +333,14 @@ public class ToolboxModule {
 		    		continue;
 		    	}
 		    	
-		    	// generate the SADL with the replacements (original available in parsedScript.SADL) 
-		    	String generatedSadl = SADLGenerator.generate(sadlDescription);
+		    	String generatedSadl = null;
+		    	try {
+			    	// generate the SADL with the replacements (original available in parsedScript.SADL) 
+			    	generatedSadl = SADLGenerator.generate(sadlDescription);
+		    	} catch (Exception e) {
+		    		logger.warn("not loading " + toolId + ": ", e);
+		    		continue;
+		    	}
 		    	
 		    	// Register the tool, override existing
 		    	ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, generatedSadl, parsedScript.code, parsedScript.source, moduleDir.getFileName().toString(), runtimeName);
