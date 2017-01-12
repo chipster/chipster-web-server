@@ -132,11 +132,14 @@ public class ToolboxServer extends MonitoredNodeBase implements MessagingListene
 			return;
 		}
 
-		String sourceCode = toolboxRestService.getToolbox().getTool(toolID).getSource();
+		ToolboxTool tool = toolboxRestService.getToolbox().getTool(toolID);
 
-		if (sourceCode != null) {
+		if (tool != null) {
+			// getSource() would return the original file without SADL replacements
+			String source = tool.getSadlString() + tool.getCode();
+			
 			logger.info("sending source code for " + toolID);
-			SourceMessage sourceMessage = new SourceMessage(sourceCode);
+			SourceMessage sourceMessage = new SourceMessage(source);
 			if (sourceMessage != null) {
 				sendReplyMessage(requestMessage, sourceMessage);
 				return;
