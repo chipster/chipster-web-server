@@ -26,6 +26,9 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -91,6 +94,7 @@ public class DatasetResource {
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
     	        					
@@ -109,7 +113,11 @@ public class DatasetResource {
 		create(dataset, getHibernate().session());
 
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		return Response.created(uri).build();
+		
+		ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("datasetId", id.toString());
+		
+		return Response.created(uri).entity(json).build();
     }
 	
 	public void create(Dataset dataset, org.hibernate.Session hibernateSession) {

@@ -28,6 +28,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.BaseSessionEventListener;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -107,6 +110,7 @@ public class SessionResource {
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Session session, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 	//public Response post(String json, @Context UriInfo uriInfo, @Context SecurityContext sc) {
@@ -135,7 +139,10 @@ public class SessionResource {
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		
-		return Response.created(uri).build();
+		ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("sessionId", id.toString());
+		
+		return Response.created(uri).entity(json).build();
     }
 	
 	public void create(Authorization auth, org.hibernate.Session hibernateSession) {
