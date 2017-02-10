@@ -147,3 +147,4 @@ public class AuthenticationClient {
 		return new StaticCredentials(TokenRequestFilter.TOKEN_USER, token.toString());		
 	}
 }
+
