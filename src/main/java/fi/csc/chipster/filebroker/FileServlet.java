@@ -92,8 +92,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		try {
 			
 			// get query parameters
-			boolean download = request.getHeader("download") != null;
-			boolean type = request.getHeader("type") != null;
+			boolean download = request.getParameter("download") != null;
+			boolean type = request.getParameter("type") != null;
 		
 			// username set by TokenServletFilter
 			String username = request.getUserPrincipal().getName();		
@@ -370,7 +370,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				}
 			}			
 			
-			response.setStatus(HttpServletResponse.SC_OK);
+			response.setStatus(HttpServletResponse.SC_NO_CONTENT);
 			return;		
 		} catch (IOException | RestException e) {
 			throw new InternalServerErrorException("upload failed", e);
