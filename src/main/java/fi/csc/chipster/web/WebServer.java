@@ -59,12 +59,19 @@ public class WebServer {
         if (!root.exists()) {
         	throw new IllegalArgumentException("web root " + rootPath + " doesn't exist");
         }
-        
+                
         // some ContextHandler is needed to enable symlinks and 
         // the ErrorHandler assumes that there is a ServletContext available 
         ContextHandler contextHandler = new ServletContextHandler();
         contextHandler.setHandler(resourceHandler);
         contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
+        
+        // generate a better error message if the ErrorHandler page is missing instead of the 
+        // vague NullPointerException
+        File indexFile = new File(root, INDEX_HTML); 
+        if (!indexFile.exists()) {
+        	throw new IllegalArgumentException("index.html " + indexFile + " doesn't exist");
+        }
         
         // let the app handle pushState URLs
         ErrorPageErrorHandler errorHandler = new ErrorPageErrorHandler();
