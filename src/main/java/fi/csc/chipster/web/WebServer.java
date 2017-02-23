@@ -13,11 +13,15 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
+import org.eclipse.jetty.servlet.ServletContextHandler;
 
 import fi.csc.chipster.rest.Config;
 
 public class WebServer {
 	
+	private static final String INDEX_HTML = "index.html";
+
 	private static final Logger logger = LogManager.getLogger();
 	
 	private Config config;
@@ -44,7 +48,7 @@ public class WebServer {
         // Configure the ResourceHandler. Setting the resource base indicates where the files should be served out of.
         // In this example it is the current directory but it can be configured to anything that the jvm has access to.
         resourceHandler.setDirectoriesListed(true);
-        resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
+        resourceHandler.setWelcomeFiles(new String[]{ INDEX_HTML });
         
         String rootPath = config.getString("web-root-path");
         resourceHandler.setResourceBase(rootPath);
@@ -56,10 +60,16 @@ public class WebServer {
         	throw new IllegalArgumentException("web root " + rootPath + " doesn't exist");
         }
         
-        // create a ContextHandler just to enable symlinks
-        ContextHandler contextHandler = new ContextHandler();
+        // some ContextHandler is needed to enable symlinks and 
+        // the ErrorHandler assumes that there is a ServletContext available 
+        ContextHandler contextHandler = new ServletContextHandler();
         contextHandler.setHandler(resourceHandler);
         contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
+        
+        // let the app handle pushState URLs
+        ErrorPageErrorHandler errorHandler = new ErrorPageErrorHandler();
+        errorHandler.addErrorPage(404, "/" + INDEX_HTML);
+        contextHandler.setErrorHandler(errorHandler);
         
         // Add the ResourceHandler to the server.
         HandlerList handlers = new HandlerList();
