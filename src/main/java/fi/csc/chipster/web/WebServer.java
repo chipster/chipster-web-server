@@ -70,7 +70,7 @@ public class WebServer {
         // vague NullPointerException
         File indexFile = new File(root, INDEX_HTML); 
         if (!indexFile.exists()) {
-        	throw new IllegalArgumentException("index.html " + indexFile + " doesn't exist");
+        	logger.warn("index.html " + indexFile + " doesn't exist");
         }
         
         // let the app handle pushState URLs

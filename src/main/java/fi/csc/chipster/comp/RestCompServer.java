@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.microarray.comp.CompException;
 import fi.csc.microarray.comp.CompJob;
+import fi.csc.microarray.comp.ProcessUtils;
 import fi.csc.microarray.comp.ResourceMonitor;
 import fi.csc.microarray.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.microarray.comp.ResultCallback;
@@ -50,7 +52,6 @@ import fi.csc.microarray.filebroker.FileBrokerClient;
 import fi.csc.microarray.messaging.JobState;
 import fi.csc.microarray.messaging.message.GenericJobMessage;
 import fi.csc.microarray.messaging.message.GenericResultMessage;
-import fi.csc.microarray.messaging.message.JobLogMessage;
 import fi.csc.microarray.service.KeepAliveShutdownHandler;
 import fi.csc.microarray.service.ShutdownCallback;
 import fi.csc.microarray.util.SystemMonitorUtil;
@@ -79,6 +80,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private int scheduleTimeout;
 	private int offerDelay;
 	private int timeoutCheckInterval;
+	@SuppressWarnings("unused")
 	private int heartbeatInterval;
 	private int compAvailableInterval;
 	private boolean sweepWorkDir;
@@ -109,15 +111,21 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
 	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
 	private Timer timeoutTimer;
+	@SuppressWarnings("unused")
 	private Timer heartbeatTimer;
 	private Timer compAvailableTimer;
+	@SuppressWarnings("unused")
 	private String localFilebrokerPath;
+	@SuppressWarnings("unused")
 	private String overridingFilebrokerIp;
 	
 	volatile private boolean stopGracefully;
+	private String moduleFilterName;
+	private String moduleFilterMode;
 	private ServiceLocatorClient serviceLocator;
 	private WebSocketClient schedulerClient;
 	private String schedulerUri;
+	@SuppressWarnings("unused")
 	private Config config;
 	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
@@ -149,7 +157,9 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		this.sweepWorkDir= config.getBoolean(Config.KEY_COMP_SWEEP_WORK_DIR);
 		this.maxJobs = config.getInt(Config.KEY_COMP_MAX_JOBS);
 		//this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp", "local-filebroker-user-data-path"));
-		this.monitoringInterval = 5;
+		this.moduleFilterName = config.getString(Config.KEY_COMP_MODULE_FILTER_NAME);
+		this.moduleFilterMode = config.getString(Config.KEY_COMP_MODULE_FILTER_MODE);
+		this.monitoringInterval = config.getInt(Config.KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		
 		logger = Logger.getLogger(RestCompServer.class);
 		loggerJobs = Logger.getLogger("jobs");
@@ -210,15 +220,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		logger.info("comp is up and running [" + ApplicationConstants.VERSION + "]");
 		logger.info("[mem: " + SystemMonitorUtil.getMemInfo() + "]");
 	}
-
-	private String nullIfEmpty(String value) {
-		if ("".equals(value.trim())) {
-			return null;
-		} else {
-			return value;
-		}
-	}
-
 
 	public String getName() {
 		return "comp";
@@ -335,7 +336,8 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 					job.getInputMessage().getUsername() + delimiter + 
 //					job.getExecutionStartTime().toString()	+ delimiter + 
 //					job.getExecutionEndTime().toString() + delimiter + 
-					hostname);
+					hostname + delimiter + 
+					ProcessUtils.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}
@@ -359,35 +361,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		}
 	}	
 	
-	private JobLogMessage jobToMessage(CompJob job) {
-		
-		String hostname = RestUtils.getHostname();
-		
-		// current jobs in admin-web may not have starTime yet
-		Date startTime = job.getExecutionStartTime();
-		if (startTime == null) {
-			startTime = job.getScheduleTime();
-		}
-		if (startTime == null) {
-			startTime = job.getReceiveTime();
-		}
-		
-		JobLogMessage jobLogMessage = new JobLogMessage(
-				job.getInputMessage().getToolId().replaceAll("\"", ""),
-				job.getState(),
-				job.getStateDetail(),
-				job.getId(),
-				startTime,
-				job.getExecutionEndTime(),
-				job.getResultMessage().getErrorMessage(),
-				job.getResultMessage().getOutputText(),
-				job.getInputMessage().getUsername(),
-				hostname);
-		
-		return jobLogMessage;
-	}
-
-
 	/**
 	 * This is the callback method for a job to send the result message. When a job is finished the thread
 	 * running a job will clean up all the data files after calling this method. 
@@ -461,6 +434,11 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			return;
 		}
 		
+		if (("exclude".equals(moduleFilterMode) && toolboxTool.getModule().equals(moduleFilterName)) || 
+				("include".equals(moduleFilterMode) && !toolboxTool.getModule().equals(moduleFilterName))) {
+			logger.warn("tool " + toolId + " in module " + toolboxTool.getModule() + " disabled by module filter");
+			return;
+		}
 		
 		// ... and the runtime from runtime repo
 		ToolRuntime runtime = runtimeRepository.getRuntime(toolboxTool.getRuntime());
@@ -501,18 +479,30 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		synchronized(jobsLock) {
 			job.setReceiveTime(new Date());
 			
-			// could run it now
-			if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
-				scheduleJob(job, msg);
-			}
+			int runningSlots = getSlotSum(runningJobs.values());
+			int schedSlots = getSlotSum(scheduledJobs.values());
+			int requestedSlots = job.getToolDescription().getSlotCount();
 			
-			// no slot to run it now, ignore it
-			else {
+			logger.debug("running slots " + runningSlots + " sceduled slots " + schedSlots + " requested slots " + requestedSlots);
+			if (runningSlots + schedSlots + requestedSlots <= maxJobs) {
+				// could run it now
+				scheduleJob(job, msg);
+				
+			} else {
+				// no slot to run it now, ignore it
 				sendCompBusy(msg);
 				return;
-			}
+			}			
 		}
 		updateStatus();
+	}
+	
+	private int getSlotSum(Collection<CompJob> jobs) {
+		int slots = 0;
+		for (CompJob job : jobs) {
+			slots += job.getToolDescription().getSlotCount();
+		}
+		return slots;
 	}
 
 	private void scheduleJob(final CompJob job, final JobCommand cmd) {

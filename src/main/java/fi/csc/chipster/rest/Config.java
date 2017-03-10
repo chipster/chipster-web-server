@@ -33,7 +33,10 @@ public class Config {
 	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
 	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
-	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";	
+	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";
+	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
+	public static final String KEY_COMP_MODULE_FILTER_MODE = "exclude";
+	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "10000";
 	public static final String KEY_TOOLS_BIN_PATH = "tools-bin-path";
 	
 	public static final String USERNAME_SESSION_DB = "session-db";
@@ -145,6 +148,9 @@ public class Config {
 		defaults.put(KEY_COMP_TIMEOUT_CHECK_INTERVAL, 				"1000"); // schedule timeout check interval, milliseconds
 		defaults.put(KEY_COMP_JOB_HEARTBEAT_INTERVAL, 				"15000"); // job heartbeat interval, milliseconds
 		defaults.put(KEY_COMP_AVAILABLE_INTERVAL,					"60000"); // send comp available frequency, milliseconds
+		defaults.put(KEY_COMP_MODULE_FILTER_NAME, 					"kielipankki"); // name of the module to enable or disable
+		defaults.put(KEY_COMP_MODULE_FILTER_MODE, 					"exclude"); // 'exclude' disables the specified module and enables all other modules, 'include' enables the specified module and disables all other modules
+		defaults.put(KEY_COMP_RESOURCE_MONITORING_INTERVAL, 		"10000"); // how often to monitor job resource usage or -1 to disable it, milliseconds
 		
 		defaults.put("session-db-replicate", "false");
 		defaults.put("session-db-name", "session-db");
