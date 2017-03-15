@@ -24,10 +24,8 @@ import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.EventTest;
-import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.microarray.messaging.JobState;
 
 public class SchedulerTest {
 	
@@ -224,7 +222,7 @@ public class SchedulerTest {
     }
     
     /**
-     * When a client cancels a job, scheduler should inform comps and delete the job
+     * When a client cancels a job, scheduler should inform comps
 	 * 
      * @throws Exception 
 	 */
@@ -245,31 +243,21 @@ public class SchedulerTest {
     	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
     	
     	// cancel it
-    	job.setState(JobState.CANCELLED);
-    	user1Client.updateJob(sessionId, job);
+    	user1Client.deleteJob(sessionId, jobId);
     	
-    	// scheduler should delete the job
+    	// scheduler should inform comps
     	Thread.sleep(100);    	
-    	
-    	try {
-    		user1Client.getJob(sessionId, jobId);
-    		assertEquals(true, false);
-    	} catch (RestException e) {
-    		assertEquals(404, e.getResponse().getStatus());
-    	}
-    	
+    	    	
     	// wait for the message
     	assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
     	JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
     	
-    	// scheduler should have informed comps
     	assertEquals(Command.CANCEL, cmd.getCommand());
     	assertEquals(sessionId, cmd.getSessionId());
     	assertEquals(jobId, cmd.getJobId());
     	assertEquals(null, cmd.getCompId());
     	
-    	client.shutdown();
-    	
+    	client.shutdown();    	
     }
     
     /**

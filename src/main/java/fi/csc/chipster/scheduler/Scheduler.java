@@ -2,9 +2,6 @@ package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -52,11 +49,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 
 	private PubSubServer pubSubServer;	
 	
-	Object jobsLock = new Object();
-	HashMap<IdPair, LocalDateTime> newJobs = new HashMap<>();
-	HashMap<IdPair, LocalDateTime> scheduledJobs = new HashMap<>();
-	HashMap<IdPair, LocalDateTime> runningJobs = new HashMap<>();
-
+	private SchedulerJobs jobs = new SchedulerJobs();
+	
 	private long waitTimeout;
 	private long scheduleTimeout;
 	private long heartbeatLostTimeout;
@@ -126,13 +120,13 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * @throws RestException
 	 */
 	private void getStateFromDb() throws RestException {
-		synchronized (jobsLock) {			
+		synchronized (jobs) {			
 			
 			List<Job> newDbJobs = sessionDbClient.getJobs(JobState.NEW);
 			if (!newDbJobs.isEmpty()) {
 				logger.info("found " + newDbJobs.size() + " waiting jobs from the session-db");
 				for (Job job : newDbJobs) {				
-					newJobs.put(new IdPair(job.getSession().getSessionId(), job.getJobId()), LocalDateTime.now());
+					jobs.addNewJob(new IdPair(job.getSession().getSessionId(), job.getJobId()));
 				}
 			}
 			
@@ -140,7 +134,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			if (!runningDbJobs.isEmpty()) {
 				logger.info("found " + runningDbJobs.size() + " running jobs from the session-db");
 				for (Job job : runningDbJobs) {
-					runningJobs.put(new IdPair(job.getSession().getSessionId(), job.getJobId()), LocalDateTime.now());
+					jobs.addRunningJob(new IdPair(job.getSession().getSessionId(), job.getJobId()));
 				}
 			}			
 		}
@@ -186,7 +180,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * @throws RestException
 	 */
 	private void handleDbEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
-		synchronized (jobsLock) {				
+		synchronized (jobs) {				
 			switch (e.getType()) {
 			case CREATE:				
 				Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
@@ -196,7 +190,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 					// when a client adds a new job, try to schedule it immediately
 					
 					logger.info("received a new job " + jobIdPair + ", trying to schedule it");
-					newJobs.put(jobIdPair, LocalDateTime.now());
+					jobs.addNewJob(jobIdPair);
 					schedule(job);
 					break;
 				default:
@@ -206,13 +200,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	
 			case UPDATE:				
 				job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-				switch (job.getState()) {
-				case CANCELLED:
-					
-					// when client cancels a job, clean up
-					
-					cancel(jobIdPair);
-					break;
+				switch (job.getState()) {					
 				case COMPLETED:
 				case FAILED:
 				case FAILED_USER_ERROR:
@@ -220,11 +208,15 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 					// when the comp has finished the job, we can forget it
 					
 					logger.info("job finished " + jobIdPair);
-					runningJobs.remove(jobIdPair);
+					jobs.remove(jobIdPair);
 					break;
 				default:
 					break;
 				}
+				break;
+			case DELETE:
+				cancel(jobIdPair);				
+				break;
 			default:
 				break;
 			}
@@ -236,7 +228,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 */
 	@Override
 	public void onMessage(String message) {
-		synchronized (jobsLock) {			
+		synchronized (jobs) {			
 		
 			JobCommand compMsg = RestUtils.parseJson(JobCommand.class, message);
 			IdPair jobIdPair = new IdPair(compMsg.getSessionId(), compMsg.getJobId());
@@ -248,7 +240,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				
 				logger.info("received an offer for job " + jobIdPair + " from comp " + asShort(compMsg.getCompId()));
 				// respond only to the first offer
-				if (scheduledJobs.remove(jobIdPair) != null) {
+				if (!jobs.get(jobIdPair).isRunning()) {
+					jobs.get(jobIdPair).setRunningTimestamp();
 					run(compMsg, jobIdPair);
 				}
 				break;
@@ -267,7 +260,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				// update the heartbeat timestamps of the running jobs
 				
 				logger.debug("job running " + jobIdPair);
-				runningJobs.put(jobIdPair, LocalDateTime.now());
+				jobs.get(jobIdPair).setRunningTimestamp();
 				break;
 	
 			default:
@@ -280,43 +273,33 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * Timer for checking the timeouts
 	 */
 	private void handleJobTimer() {
-		synchronized (jobsLock) {
+		synchronized (jobs) {
 			
-			// expire waiting jobs if any comp haven't accepted it (either because of being full or missing the suitable tool)
+			// expire waiting jobs if any comp haven't accepted it (either because of being full or missing the suitable tool)				
 			
-			Iterator<IdPair> iter = newJobs.keySet().iterator();
-			while (iter.hasNext()) {
-				IdPair jobIdPair = iter.next();
-				if (newJobs.get(jobIdPair).until(LocalDateTime.now(), ChronoUnit.SECONDS) > waitTimeout) {
-					// iterator allows safe removal from the collection that is being iterated
-					iter.remove();
+			for (IdPair jobIdPair : jobs.getNewJobs().keySet()) {
+				if (jobs.get(jobIdPair).getTimeSinceNew() > waitTimeout) {
+					jobs.remove(jobIdPair);
 					expire(jobIdPair, "wait time exceeded");
 				}
 			}
 			
-			// if a job isn't scheduled, move it back to NEW state for trying again later
+			// if a job isn't scheduled, move it back to NEW state for trying again later			
 			
-			iter = scheduledJobs.keySet().iterator();
-			while (iter.hasNext()) {
-				IdPair jobIdPair = iter.next();
-				if (scheduledJobs.get(jobIdPair).until(LocalDateTime.now(), ChronoUnit.SECONDS) > scheduleTimeout) {
-					
-					logger.warn("no offer for job " + jobIdPair + ", changing it from scheduled back to new");
-					iter.remove();
-					newJobs.put(jobIdPair, LocalDateTime.now());
+			for (IdPair jobIdPair : jobs.getScheduledJobs().keySet()) {
+				if (jobs.get(jobIdPair).getTimeSinceScheduled() > scheduleTimeout) {
+					jobs.get(jobIdPair).removeScheduled();
 				}
-			}
+			}			
 			
 			// if the the running job hasn't sent heartbeats for some time, something unexpected has happened for the
 			// comp and the job is lost
 			
-			iter = runningJobs.keySet().iterator();
-			while (iter.hasNext()) {
-				IdPair jobIdPair = iter.next();			
-				if (runningJobs.get(jobIdPair).until(LocalDateTime.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout) {
-					iter.remove();
+			for (IdPair jobIdPair : jobs.getRunningJobs().keySet()) {
+				if (jobs.get(jobIdPair).getTimeSinceLastHeartbeat() > heartbeatLostTimeout) {
+					jobs.remove(jobIdPair);
 					expire(jobIdPair, "heartbeat lost");
-				}						
+				}
 			}
 		}
 	}
@@ -330,10 +313,9 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * @param job
 	 */
 	private void schedule(Job job) {
-		synchronized (jobsLock) {			
+		synchronized (jobs) {			
 			IdPair jobId = new IdPair(job.getSession().getSessionId(), job.getJobId());
-			newJobs.remove(jobId);
-			scheduledJobs.put(jobId, LocalDateTime.now());
+			jobs.get(jobId).setScheduleTimestamp();
 			
 			JobCommand cmd = new JobCommand(jobId.getSessionId(), jobId.getJobId(), null, Command.SCHEDULE);
 			pubSubServer.publish(cmd);
@@ -347,11 +329,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * @param jobId
 	 */
 	private void run(JobCommand compMsg, IdPair jobId) {
-		synchronized (jobsLock) {
-			logger.info("offer for job " + jobId + " chosen from comp " + asShort(compMsg.getCompId()));
-			runningJobs.put(jobId, LocalDateTime.now());
-			pubSubServer.publish(new JobCommand(compMsg.getSessionId(), compMsg.getJobId(), compMsg.getCompId(), Command.CHOOSE));
-		}
+		logger.info("offer for job " + jobId + " chosen from comp " + asShort(compMsg.getCompId()));			
+		pubSubServer.publish(new JobCommand(compMsg.getSessionId(), compMsg.getJobId(), compMsg.getCompId(), Command.CHOOSE));
 	}
 
 	/**
@@ -382,21 +361,13 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * @param jobId
 	 */
 	private void cancel(IdPair jobId) {
-		synchronized (jobsLock) {
+		synchronized (jobs) {
 			
-			logger.info("cancel job " + jobId);
-			
-			newJobs.remove(jobId);
-			scheduledJobs.remove(jobId);
-			runningJobs.remove(jobId);
+			logger.info("cancel job " + jobId);			
+			jobs.remove(jobId);
 			
 			JobCommand cmd = new JobCommand(jobId.getSessionId(), jobId.getJobId(), null, Command.CANCEL);
 			pubSubServer.publish(cmd);
-			try {
-				sessionDbClient.deleteJob(jobId.getSessionId(), jobId.getJobId());
-			} catch (RestException e) {
-				logger.error("failed to delete a cancelled job", e);
-			}
 		}
 	}
 		
