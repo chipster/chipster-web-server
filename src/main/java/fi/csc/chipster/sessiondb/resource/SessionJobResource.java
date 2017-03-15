@@ -40,7 +40,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
-public class JobResource {
+public class SessionJobResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
@@ -49,11 +49,11 @@ public class JobResource {
 
 	private SessionResource sessionResource;
 	
-	public JobResource() {
+	public SessionJobResource() {
 		sessionId = null;
 	}
 	
-	public JobResource(SessionResource sessionResource, UUID id) {
+	public SessionJobResource(SessionResource sessionResource, UUID id) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
 	}
@@ -79,11 +79,12 @@ public class JobResource {
     public Job getJob(UUID jobId, org.hibernate.Session hibernateSession) {
     	
     	Job job = hibernateSession.get(Job.class, jobId);
-    	// detach the object, so that the next duplicate removal won't try to update the database
-    	hibernateSession.evict(job);
-    	// remove input duplicates http://stackoverflow.com/questions/1995080/hibernate-criteria-returns-children-multiple-times-with-fetchtype-eager
-    	job.setInputs(new ArrayList<Input>(new LinkedHashSet<Input>(job.getInputs())));
-    	
+    	if (job != null) {
+	    	// detach the object, so that the next duplicate removal won't try to update the database
+	    	hibernateSession.evict(job);
+	    	// remove input duplicates http://stackoverflow.com/questions/1995080/hibernate-criteria-returns-children-multiple-times-with-fetchtype-eager
+	    	job.setInputs(new ArrayList<Input>(new LinkedHashSet<Input>(job.getInputs())));
+    	}
     	return job;
     }
     

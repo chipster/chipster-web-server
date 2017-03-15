@@ -41,6 +41,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.microarray.exception.MicroarrayException;
+import fi.csc.microarray.messaging.JobState;
 
 public class SessionDbClient {
 	
@@ -363,6 +364,10 @@ public class SessionDbClient {
 	
 	public Job getJob(UUID sessionId, UUID jobId) throws RestException {
 		return get(getJobTarget(sessionId, jobId), Job.class);	
+	}
+	
+	public List<Job> getJobs(JobState state) throws RestException {
+		return getList(sessionDbTarget.path("jobs").queryParam("state", state.toString()), Job.class);
 	}
 	
 	/**

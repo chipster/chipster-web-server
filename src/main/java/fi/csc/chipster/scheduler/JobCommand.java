@@ -18,7 +18,8 @@ public class JobCommand {
 		CHOOSE,
 		BUSY,
 		AVAILABLE,
-		CANCEL
+		CANCEL, 
+		RUNNING
 	}	
 	
 	public JobCommand() {

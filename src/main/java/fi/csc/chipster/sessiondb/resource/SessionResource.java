@@ -63,13 +63,13 @@ public class SessionResource {
 
 	// sub-resource locators
 	@Path("{id}/datasets")
-	public DatasetResource getDatasetResource(@PathParam("id") UUID id) {
-		return new DatasetResource(this, id);
+	public SessionDatasetResource getDatasetResource(@PathParam("id") UUID id) {
+		return new SessionDatasetResource(this, id);
 	}
 	
 	@Path("{id}/jobs")
-	public JobResource getJobResource(@PathParam("id") UUID id) {
-		return new JobResource(this, id);
+	public SessionJobResource getJobResource(@PathParam("id") UUID id) {
+		return new SessionJobResource(this, id);
 	}
 	
     // CRUD

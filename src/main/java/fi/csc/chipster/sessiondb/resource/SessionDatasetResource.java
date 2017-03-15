@@ -41,7 +41,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
-public class DatasetResource {
+public class SessionDatasetResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
@@ -50,11 +50,11 @@ public class DatasetResource {
 
 	private SessionResource sessionResource;
 
-	public DatasetResource() {
+	public SessionDatasetResource() {
 		sessionId = null;
 	}
 	
-	public DatasetResource(SessionResource sessionResource, UUID id) {
+	public SessionDatasetResource(SessionResource sessionResource, UUID id) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
 	}

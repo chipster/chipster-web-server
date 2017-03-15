@@ -24,7 +24,10 @@ import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.EventTest;
+import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.microarray.messaging.JobState;
 
 public class SchedulerTest {
 	
@@ -131,6 +134,7 @@ public class SchedulerTest {
         client.shutdown();
     }
     
+    
     /**
      * Test the complete Job scheduling process 
 	 * <li>post a job to session-db</li>
@@ -217,5 +221,104 @@ public class SchedulerTest {
         
         client.shutdown();
         client2.shutdown();
-    }	
+    }
+    
+    /**
+     * When a client cancels a job, scheduler should inform comps and delete the job
+	 * 
+     * @throws Exception 
+	 */
+    @Test
+    public void cancel() throws Exception {
+    	
+    	Job job = RestUtils.getRandomJob();
+    	UUID jobId = user1Client.createJob(sessionId, job);
+    	
+    	// the job exists
+    	assertEquals(jobId, user1Client.getJob(sessionId, jobId).getJobId());
+    	
+    	// start listening for events only after scheduler has sent the SCHEDULE message
+    	Thread.sleep(100);
+    	
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	
+    	// cancel it
+    	job.setState(JobState.CANCELLED);
+    	user1Client.updateJob(sessionId, job);
+    	
+    	// scheduler should delete the job
+    	Thread.sleep(100);    	
+    	
+    	try {
+    		user1Client.getJob(sessionId, jobId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(404, e.getResponse().getStatus());
+    	}
+    	
+    	// wait for the message
+    	assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+    	JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
+    	
+    	// scheduler should have informed comps
+    	assertEquals(Command.CANCEL, cmd.getCommand());
+    	assertEquals(sessionId, cmd.getSessionId());
+    	assertEquals(jobId, cmd.getJobId());
+    	assertEquals(null, cmd.getCompId());
+    	
+    	client.shutdown();
+    	
+    }
+    
+    /**
+	 * Test that the scheduler tries to reschedule the job later when a comp is available
+     * @throws Exception 
+	 */
+    @Test
+    public void queue() throws Exception {    
+        
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);
+    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	
+    	// create a new job
+    	@SuppressWarnings("unused")
+		UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
+    	
+        // it is scheduled immediately
+        assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+        JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
+        
+        // without comp's response, the job should go back to the queue after some time
+        Thread.sleep((new Config().getLong(Config.KEY_SCHEDULER_SCHEDULE_TIMEOUT) + 1) * 1000);
+        
+        /*
+         * TestClient can wait only once, but we can create a new one to wait 
+         * for the next message.
+         */
+    	final ArrayList<String> messages2 = new ArrayList<>(); 
+    	final CountDownLatch latch2 = new CountDownLatch(1);    	
+    	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
+        
+    	// when the comp has a free slot, it will send an AVAILABLE message
+        UUID compId = RestUtils.createUUID();
+        client.sendText(RestUtils.asJson(new JobCommand(null, null, compId, Command.AVAILABLE)));
+        
+        // and the scheduler should try to reschedule the job
+        assertEquals(true, latch2.await(1, TimeUnit.SECONDS));        
+        cmd = RestUtils.parseJson(JobCommand.class, messages2.get(0));
+                       
+        // The first job may not be ours, the other tests have left other jobs waiting there. 
+        // Consider writing a better client for receiving multiple messages, so that we could 
+        // check that our job is one of them. 
+        assertEquals(Command.SCHEDULE, cmd.getCommand());
+        //assertEquals(sessionId, cmd.getSessionId());
+        //assertEquals(jobId, cmd.getJobId());
+        assertEquals(null, cmd.getCompId());
+        
+        client.shutdown();
+        client2.shutdown();
+    }
 }

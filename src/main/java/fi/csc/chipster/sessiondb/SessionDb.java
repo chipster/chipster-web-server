@@ -38,6 +38,7 @@ import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
+import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
@@ -74,6 +75,8 @@ public class SessionDb implements TopicCheck {
 	private AuthorizationResource authorizationResource;
 
 	private SessionDbAdminResource adminResource;
+
+	private GlobalJobResource globalJobResource;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -121,6 +124,7 @@ public class SessionDb implements TopicCheck {
 
 		this.authorizationResource = new AuthorizationResource(hibernate);
 		this.sessionResource = new SessionResource(hibernate, authorizationResource);
+		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.adminResource = new SessionDbAdminResource(hibernate);
 		
 		if (replicate) {
@@ -138,6 +142,7 @@ public class SessionDb implements TopicCheck {
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(authorizationResource)
 				.register(sessionResource)
+				.register(globalJobResource)
 				.register(adminResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))

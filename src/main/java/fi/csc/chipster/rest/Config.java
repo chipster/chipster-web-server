@@ -33,10 +33,14 @@ public class Config {
 	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
 	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
-	public static final String KEY_COMP_AVAILABLE_INTERVAL = "comp-available-interval";
+	public static final String KEY_COMP_STATUS_INTERVAL = "comp-status-interval";
 	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "exclude";
-	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "10000";
+	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
+	public static final String KEY_SCHEDULER_WAIT_TIMEOUT = "scheduler-wait-timeout";
+	public static final String KEY_SCHEDULER_SCHEDULE_TIMEOUT = "scheduler-schedule-timeout";
+	public static final String KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT = "scheduler-heartbeat-lost-timeout";
+	public static final String KEY_SCHEDULER_JOB_TIMER_INTERVAL = "scheduler-job-timer-interval";	
 	public static final String KEY_TOOLS_BIN_PATH = "tools-bin-path";
 	
 	public static final String USERNAME_SESSION_DB = "session-db";
@@ -141,16 +145,21 @@ public class Config {
 		defaults.put(KEY_TOOLBOX_BIND_URL, 			"http://{{bind-ip}}:8008");
 		defaults.put("session-worker-bind", 		"http://{{bind-ip}}:8009");
 		
-		defaults.put(KEY_COMP_MAX_JOBS,								"" + Integer.MAX_VALUE); // max number of jobs run simultaneusly
+		defaults.put(KEY_COMP_MAX_JOBS,								"2"); // max number of jobs run simultaneusly
 		defaults.put(KEY_COMP_SCHEDULE_TIMEOUT, 					"10"); // time after which a scheuduled job is removed if there is no reponse from the scheduler
 		defaults.put(KEY_COMP_OFFER_DELAY, 							"100"); // delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
 		defaults.put(KEY_COMP_SWEEP_WORK_DIR,						"true"); // should job specific temporary directory be sweeped after job execution
 		defaults.put(KEY_COMP_TIMEOUT_CHECK_INTERVAL, 				"1000"); // schedule timeout check interval, milliseconds
 		defaults.put(KEY_COMP_JOB_HEARTBEAT_INTERVAL, 				"15000"); // job heartbeat interval, milliseconds
-		defaults.put(KEY_COMP_AVAILABLE_INTERVAL,					"60000"); // send comp available frequency, milliseconds
+		defaults.put(KEY_COMP_STATUS_INTERVAL,					"60000"); // send comp available frequency, milliseconds
 		defaults.put(KEY_COMP_MODULE_FILTER_NAME, 					"kielipankki"); // name of the module to enable or disable
 		defaults.put(KEY_COMP_MODULE_FILTER_MODE, 					"exclude"); // 'exclude' disables the specified module and enables all other modules, 'include' enables the specified module and disables all other modules
 		defaults.put(KEY_COMP_RESOURCE_MONITORING_INTERVAL, 		"10000"); // how often to monitor job resource usage or -1 to disable it, milliseconds
+		
+		defaults.put(KEY_SCHEDULER_WAIT_TIMEOUT,					"120"); // max time for new job to wait for available comp, seconds 
+		defaults.put(KEY_SCHEDULER_SCHEDULE_TIMEOUT, 				"5"); // how soon the job can be rescheduled, seconds
+		defaults.put(KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT, 			"120"); // how long to wait for job heartbeats before giving up, seconds
+		defaults.put(KEY_SCHEDULER_JOB_TIMER_INTERVAL,				"1"); // how often to check job timeouts, seconds
 		
 		defaults.put("session-db-replicate", "false");
 		defaults.put("session-db-name", "session-db");
@@ -291,5 +300,9 @@ public class Config {
 
 	public void set(String key, String value) {
 		this.defaults.put(key, value);
+	}
+
+	public long getLong(String key) throws NumberFormatException, IOException {
+		return Long.parseLong(getString(key));
 	}
 }

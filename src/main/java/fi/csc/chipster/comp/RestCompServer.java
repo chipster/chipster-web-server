@@ -82,7 +82,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private int timeoutCheckInterval;
 	@SuppressWarnings("unused")
 	private int heartbeatInterval;
-	private int compAvailableInterval;
+	private int compStatusInterval;
 	private boolean sweepWorkDir;
 	private int maxJobs;
 	
@@ -113,7 +113,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private Timer timeoutTimer;
 	@SuppressWarnings("unused")
 	private Timer heartbeatTimer;
-	private Timer compAvailableTimer;
+	private Timer compStatusTimer;
 	@SuppressWarnings("unused")
 	private String localFilebrokerPath;
 	@SuppressWarnings("unused")
@@ -153,7 +153,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		this.offerDelay = config.getInt(Config.KEY_COMP_OFFER_DELAY);
 		this.timeoutCheckInterval = config.getInt(Config.KEY_COMP_TIMEOUT_CHECK_INTERVAL);
 		this.heartbeatInterval = config.getInt(Config.KEY_COMP_JOB_HEARTBEAT_INTERVAL);
-		this.compAvailableInterval = config.getInt(Config.KEY_COMP_AVAILABLE_INTERVAL);
+		this.compStatusInterval = config.getInt(Config.KEY_COMP_STATUS_INTERVAL);
 		this.sweepWorkDir= config.getBoolean(Config.KEY_COMP_SWEEP_WORK_DIR);
 		this.maxJobs = config.getInt(Config.KEY_COMP_MAX_JOBS);
 		//this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp", "local-filebroker-user-data-path"));
@@ -193,8 +193,8 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		// disable heartbeat for jobs for now
 		//heartbeatTimer.schedule(new JobHeartbeatTask(), heartbeatInterval, heartbeatInterval);
 		
-		compAvailableTimer = new Timer(true);
-		compAvailableTimer.schedule(new CompAvailableTask(), compAvailableInterval, compAvailableInterval);
+		compStatusTimer = new Timer(true);
+		compStatusTimer.schedule(new CompStatusTask(), compStatusInterval, compStatusInterval);
 		
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 		
@@ -370,6 +370,12 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	 * 
 	 */
 	public void sendResultMessage(GenericJobMessage jobMessage, GenericResultMessage result) {
+		
+		if (result.getState() == JobState.CANCELLED) {
+			// scheduler has already removed the cancelled job from the session-db
+			return;
+		}
+		
 		try {
 			JobCommand jobCommand = ((RestJobMessage)jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
@@ -377,7 +383,14 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			dbJob.setJobId(jobCommand.getJobId());
 			dbJob.setScreenOutput(result.getOutputText());
 			dbJob.setState(result.getState());
-			dbJob.setStateDetail(result.getStateDetail() + result.getErrorMessage());
+			String details = "";
+			if (result.getStateDetail() != null) {
+				details += result.getStateDetail();
+			}
+			if (result.getErrorMessage() != null) {
+				details += result.getErrorMessage();
+			}
+			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 		} catch (RestException e) {
@@ -609,24 +622,14 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		}
 	}
 	
-	public class JobHeartbeatTask extends TimerTask {
+	public class CompStatusTask extends TimerTask {
 
 		@Override
 		public void run() {
-			synchronized (jobsLock) {
-				for (CompJob job : getAllJobs()) {
-					job.updateStateToClient();
+			synchronized (jobsLock) {				
+				for (CompJob job : runningJobs.values()) {
+					sendJobCommand(new JobCommand(job.getInputMessage().getSessionId(), UUID.fromString(job.getId()), compId, Command.RUNNING));
 				}
-			}
-		}	
-	}
-
-	
-	public class CompAvailableTask extends TimerTask {
-
-		@Override
-		public void run() {
-			synchronized (jobsLock) {
 				if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
 					sendCompAvailable();
 				}
