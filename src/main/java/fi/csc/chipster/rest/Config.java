@@ -32,12 +32,12 @@ public class Config {
 	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay";
 	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
-	public static final String KEY_COMP_JOB_HEARTBEAT_INTERVAL = "comp-job-heartbeat-interval";
 	public static final String KEY_COMP_STATUS_INTERVAL = "comp-status-interval";
 	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "exclude";
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
 	public static final String KEY_SCHEDULER_WAIT_TIMEOUT = "scheduler-wait-timeout";
+	public static final String KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT = "scheduler-wait-runnable-timeout";
 	public static final String KEY_SCHEDULER_SCHEDULE_TIMEOUT = "scheduler-schedule-timeout";
 	public static final String KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT = "scheduler-heartbeat-lost-timeout";
 	public static final String KEY_SCHEDULER_JOB_TIMER_INTERVAL = "scheduler-job-timer-interval";	
@@ -150,15 +150,15 @@ public class Config {
 		defaults.put(KEY_COMP_OFFER_DELAY, 							"100"); // delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
 		defaults.put(KEY_COMP_SWEEP_WORK_DIR,						"true"); // should job specific temporary directory be sweeped after job execution
 		defaults.put(KEY_COMP_TIMEOUT_CHECK_INTERVAL, 				"1000"); // schedule timeout check interval, milliseconds
-		defaults.put(KEY_COMP_JOB_HEARTBEAT_INTERVAL, 				"15000"); // job heartbeat interval, milliseconds
-		defaults.put(KEY_COMP_STATUS_INTERVAL,					"60000"); // send comp available frequency, milliseconds
+		defaults.put(KEY_COMP_STATUS_INTERVAL,						"30000"); // send comp available frequency, milliseconds
 		defaults.put(KEY_COMP_MODULE_FILTER_NAME, 					"kielipankki"); // name of the module to enable or disable
 		defaults.put(KEY_COMP_MODULE_FILTER_MODE, 					"exclude"); // 'exclude' disables the specified module and enables all other modules, 'include' enables the specified module and disables all other modules
 		defaults.put(KEY_COMP_RESOURCE_MONITORING_INTERVAL, 		"10000"); // how often to monitor job resource usage or -1 to disable it, milliseconds
 		
-		defaults.put(KEY_SCHEDULER_WAIT_TIMEOUT,					"120"); // max time for new job to wait for available comp, seconds 
-		defaults.put(KEY_SCHEDULER_SCHEDULE_TIMEOUT, 				"5"); // how soon the job can be rescheduled, seconds
-		defaults.put(KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT, 			"120"); // how long to wait for job heartbeats before giving up, seconds
+		defaults.put(KEY_SCHEDULER_WAIT_TIMEOUT,					"5"); // max time for comps to decide if it can run the job, seconds
+		defaults.put(KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT,			"600"); // max time for new job to wait for available comp, seconds
+		defaults.put(KEY_SCHEDULER_SCHEDULE_TIMEOUT, 				"1"); // how soon the job can be rescheduled, seconds
+		defaults.put(KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT, 			"90"); // how long to wait for job heartbeats before giving up, seconds
 		defaults.put(KEY_SCHEDULER_JOB_TIMER_INTERVAL,				"1"); // how often to check job timeouts, seconds
 		
 		defaults.put("session-db-replicate", "false");

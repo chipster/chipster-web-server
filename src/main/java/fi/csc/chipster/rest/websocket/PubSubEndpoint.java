@@ -29,7 +29,7 @@ public class PubSubEndpoint extends Endpoint {
 	
     @Override
     public void onOpen(final Session session, EndpointConfig config) {
-    	
+    	    	
     	//session.setMaxIdleTimeout(0);
     	
     	// get topic from path params    	

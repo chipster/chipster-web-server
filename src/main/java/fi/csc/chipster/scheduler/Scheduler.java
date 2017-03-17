@@ -52,6 +52,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	private SchedulerJobs jobs = new SchedulerJobs();
 	
 	private long waitTimeout;
+	private long waitRunnableTimeout;
 	private long scheduleTimeout;
 	private long heartbeatLostTimeout;
 	private long jobTimerInterval;
@@ -78,6 +79,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	String password = config.getPassword(username);
     	
     	this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
+    	this.waitRunnableTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT);
     	this.scheduleTimeout = config.getLong(Config.KEY_SCHEDULER_SCHEDULE_TIMEOUT);
     	this.heartbeatLostTimeout = config.getLong(Config.KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT);
     	this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
@@ -167,8 +169,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			if (e.getResourceType() == ResourceType.JOB) {
 				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()));
 			}
-		} catch (RestException ex) {
-			logger.error("failed to handle a session event", ex);
+		} catch (Exception ex) {
+			logger.error("error when handling a session event", ex);
 		}
 	}	
 	
@@ -191,7 +193,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 					
 					logger.info("received a new job " + jobIdPair + ", trying to schedule it");
 					jobs.addNewJob(jobIdPair);
-					schedule(job);
+					schedule(jobIdPair);
 					break;
 				default:
 					break;
@@ -246,12 +248,16 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				}
 				break;
 			case BUSY:
-				break;			
+				// there is a comp that is able to run this job later
+				logger.info("job " + jobIdPair + " is runnable on comp " + asShort(compMsg.getCompId()));
+				jobs.get(jobIdPair).setRunnableTimestamp();
+				break;
+				
 			case AVAILABLE:
 				
 				// when a comp has a free slot, try to schedule all waiting jobs
 				
-				logger.debug("comp available " + asShort(compMsg.getCompId()));
+				logger.info("comp available " + asShort(compMsg.getCompId()));
 				scheduleNewJobs();
 				break;
 				
@@ -278,9 +284,16 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			// expire waiting jobs if any comp haven't accepted it (either because of being full or missing the suitable tool)				
 			
 			for (IdPair jobIdPair : jobs.getNewJobs().keySet()) {
-				if (jobs.get(jobIdPair).getTimeSinceNew() > waitTimeout) {
-					jobs.remove(jobIdPair);
-					expire(jobIdPair, "wait time exceeded");
+				if (jobs.get(jobIdPair).isRunnable()) {
+					if (jobs.get(jobIdPair).getTimeSinceNew() > waitRunnableTimeout) {
+						jobs.remove(jobIdPair);
+						expire(jobIdPair, "There was no computing server available to run this job, please try again later");
+					}
+				} else {
+					if (jobs.get(jobIdPair).getTimeSinceNew() > waitTimeout) {
+						jobs.remove(jobIdPair);
+						expire(jobIdPair, "There was no computing server available to run this job, please inform server maintainers");
+					}
 				}
 			}
 			
@@ -310,14 +323,13 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * No need to update the db, because saving the SCHEDULE state would only make it more difficult 
 	 * to resolve the job states when the scheduler is started.
 	 * 
-	 * @param job
+	 * @param jobIdPair
 	 */
-	private void schedule(Job job) {
+	private void schedule(IdPair jobIdPair) {
 		synchronized (jobs) {			
-			IdPair jobId = new IdPair(job.getSession().getSessionId(), job.getJobId());
-			jobs.get(jobId).setScheduleTimestamp();
+			jobs.get(jobIdPair).setScheduleTimestamp();
 			
-			JobCommand cmd = new JobCommand(jobId.getSessionId(), jobId.getJobId(), null, Command.SCHEDULE);
+			JobCommand cmd = new JobCommand(jobIdPair.getSessionId(), jobIdPair.getJobId(), null, Command.SCHEDULE);
 			pubSubServer.publish(cmd);
 		}
 	}
@@ -380,24 +392,16 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * reseted the timestamp.
 	 */
 	private void scheduleNewJobs() {		
-		try {
-			// jobs sorted by age if start time is set
-			List<Job> jobs = sessionDbClient.getJobs(JobState.NEW).stream()
-					.sorted((j1, j2) -> {
-						if (j1.getStartTime() != null) {
-							return j1.getStartTime().compareTo(j2.getStartTime());
-						}
-						return 0;
-					}).collect(Collectors.toList());
-		
-			if (jobs.size() > 0) {
-				logger.info("rescheduling " + jobs.size() + " waiting jobs " );
-				for (Job job : jobs) {					
-					schedule(job);
-				}
+		List<IdPair> newJobs = jobs.getNewJobs().entrySet().stream()
+			.sorted((e1, e2) -> e1.getValue().getNewTimestamp().compareTo(e2.getValue().getNewTimestamp()))
+			.map(e -> e.getKey())
+			.collect(Collectors.toList());			
+	
+		if (newJobs.size() > 0) {
+			logger.info("rescheduling " + newJobs.size() + " waiting jobs (" + jobs.getScheduledJobs().size() + " still being scheduled");
+			for (IdPair job : newJobs) {					
+				schedule(job);
 			}
-		} catch (RestException e) {
-			logger.error("failed to get new jobs", e);
 		}
 	}
 	

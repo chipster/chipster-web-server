@@ -8,6 +8,7 @@ public class JobSchedulingState {
 		private LocalDateTime newTimestamp;
 		private LocalDateTime scheduleTimestamp;
 		private LocalDateTime runningTimestamp;
+		private LocalDateTime runnableTimestamp;
 		
 		public JobSchedulingState() {
 			setNewTimestamp();
@@ -61,5 +62,13 @@ public class JobSchedulingState {
 
 		public long getTimeSinceLastHeartbeat() {
 			return runningTimestamp.until(LocalDateTime.now(), ChronoUnit.SECONDS);
+		}
+
+		public void setRunnableTimestamp() {
+			runnableTimestamp = LocalDateTime.now();
+		}
+
+		public boolean isRunnable() {
+			return runnableTimestamp != null;
 		}
 	}

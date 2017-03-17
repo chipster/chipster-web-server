@@ -80,8 +80,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private int scheduleTimeout;
 	private int offerDelay;
 	private int timeoutCheckInterval;
-	@SuppressWarnings("unused")
-	private int heartbeatInterval;
 	private int compStatusInterval;
 	private boolean sweepWorkDir;
 	private int maxJobs;
@@ -152,7 +150,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		this.scheduleTimeout = config.getInt(Config.KEY_COMP_SCHEDULE_TIMEOUT);
 		this.offerDelay = config.getInt(Config.KEY_COMP_OFFER_DELAY);
 		this.timeoutCheckInterval = config.getInt(Config.KEY_COMP_TIMEOUT_CHECK_INTERVAL);
-		this.heartbeatInterval = config.getInt(Config.KEY_COMP_JOB_HEARTBEAT_INTERVAL);
 		this.compStatusInterval = config.getInt(Config.KEY_COMP_STATUS_INTERVAL);
 		this.sweepWorkDir= config.getBoolean(Config.KEY_COMP_SWEEP_WORK_DIR);
 		this.maxJobs = config.getInt(Config.KEY_COMP_MAX_JOBS);

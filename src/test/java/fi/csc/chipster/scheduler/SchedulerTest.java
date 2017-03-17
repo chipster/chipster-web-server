@@ -271,6 +271,10 @@ public class SchedulerTest {
     	final CountDownLatch latch = new CountDownLatch(1);
     	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
     	
+    	// try to schedule all possible old jobs
+    	UUID compId = RestUtils.createUUID();
+    	client.sendText(RestUtils.asJson(new JobCommand(null, null, compId, Command.AVAILABLE)));
+    	
     	// create a new job
     	@SuppressWarnings("unused")
 		UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
@@ -280,7 +284,7 @@ public class SchedulerTest {
         JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
         
         // without comp's response, the job should go back to the queue after some time
-        Thread.sleep((new Config().getLong(Config.KEY_SCHEDULER_SCHEDULE_TIMEOUT) + 1) * 1000);
+        Thread.sleep((new Config().getLong(Config.KEY_SCHEDULER_SCHEDULE_TIMEOUT) + 2) * 1000);
         
         /*
          * TestClient can wait only once, but we can create a new one to wait 
@@ -291,7 +295,6 @@ public class SchedulerTest {
     	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
         
     	// when the comp has a free slot, it will send an AVAILABLE message
-        UUID compId = RestUtils.createUUID();
         client.sendText(RestUtils.asJson(new JobCommand(null, null, compId, Command.AVAILABLE)));
         
         // and the scheduler should try to reschedule the job
