@@ -14,9 +14,13 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.microarray.comp.ToolDescription;
 import fi.csc.microarray.comp.ToolDescription.ParameterDescription;
+import fi.csc.microarray.description.SADLDescription;
+import fi.csc.microarray.description.SADLDescription.Output;
 import fi.csc.microarray.messaging.message.GenericJobMessage;
+import fi.csc.microarray.messaging.message.GenericResultMessage;
 import fi.csc.microarray.messaging.message.JobMessage.ParameterSecurityPolicy;
 import fi.csc.microarray.messaging.message.JobMessage.ParameterValidityException;
 import fi.csc.microarray.messaging.message.JobMessageUtils;
@@ -26,6 +30,7 @@ public class RestJobMessage implements GenericJobMessage {
 	private JobCommand jobCommand;
 	private Job job;
 	private HashMap<String, List<MetadataEntry>> metadata;
+	private ToolboxTool tool;
 
 	public RestJobMessage(JobCommand jobCommand, Job job) {
 		this.jobCommand = jobCommand;
@@ -117,8 +122,9 @@ public class RestJobMessage implements GenericJobMessage {
 		return jobCommand.getSessionId();
 	}
 
-	public void setMetadata(HashMap<String, List<MetadataEntry>> metadataMap) {
+	public void setMetadata(HashMap<String, List<MetadataEntry>> metadataMap, ToolboxTool toolboxTool) {
 		this.metadata = metadataMap;
+		this.tool = toolboxTool;
 	}
 	
 	@Override
@@ -132,11 +138,13 @@ public class RestJobMessage implements GenericJobMessage {
 		boolean phenodata = false;
 		boolean phenodata2 = false;
 		
-		for (Input input : job.getInputs()) {
-			if (RestPhenodataUtils.FILE_PHENODATA.equals(input.getInputId())) {
+		// Check inputs from the tool description, because it's not in the job inputs. 
+		// Job inputs contain only bound datasets and phenodata isn't anymore a dataset in the client
+		for (SADLDescription.Input input : tool.getSadlDescription().getInputs()) {
+			if (RestPhenodataUtils.FILE_PHENODATA.equals(input.getName().getID())) {
 				phenodata = true;
 			}
-			if (RestPhenodataUtils.FILE_PHENODATA2.equals(input.getInputId())) {
+			if (RestPhenodataUtils.FILE_PHENODATA2.equals(input.getName().getID())) {
 				phenodata2 = true;
 			}
 		}
@@ -146,5 +154,15 @@ public class RestJobMessage implements GenericJobMessage {
 		} catch (IOException e) {
 			throw new IllegalStateException("failed to write the phenodata", e);
 		}
+	}
+
+	public boolean hasPhenodataOutput() {
+		for (Output output : tool.getSadlDescription().getOutputs()) {
+			if (RestPhenodataUtils.FILE_PHENODATA.equals(output.getName().getID()) || 
+					RestPhenodataUtils.FILE_PHENODATA2.equals(output.getName().getID())) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

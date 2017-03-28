@@ -13,10 +13,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.util.StringUtils;
 
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
+import fi.csc.microarray.messaging.message.GenericResultMessage;
 import fi.csc.microarray.util.ToolUtils;
 
 public class RestPhenodataUtils {
@@ -26,7 +32,7 @@ public class RestPhenodataUtils {
 	
 	public static final String HEADER_SAMPLE = "sample";
 	public static final String HEADER_COLUMN = "column";
-	public static final String HEADER_INPUT = "input";
+	public static final String HEADER_DATASET = "dataset";
 	
 	public static final String PREFIX_CHIP = "chip.";
 
@@ -63,7 +69,7 @@ public class RestPhenodataUtils {
 		// write column phenodata (microarray)
 		if (columnPhenodata) {
 			// the legacy format doesn't support multiple datasets
-			if (uniqueInputs.size() != 1) {
+			if (uniqueInputs.size() > 1) {
 				throw new IllegalArgumentException(
 						"The tool requires phenodata in the old format, which doesn't support "
 								+ "multipele datasets, but more than one input dataset contains phenodata. "
@@ -87,7 +93,7 @@ public class RestPhenodataUtils {
 			try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(jobWorkDir, FILE_PHENODATA2)))) {
 
 				writer.write(
-						HEADER_INPUT + "\t" + 
+						HEADER_DATASET + "\t" + 
 								HEADER_COLUMN + "\t" + 
 								StringUtils.arrayToDelimitedString(headers.toArray(), "\t"));
 
@@ -216,7 +222,7 @@ public class RestPhenodataUtils {
 					String rowInputId = null;
 					String column = null;
 					if (isPhenodata2) {
-						rowInputId = splitted[headers.indexOf(HEADER_INPUT)];
+						rowInputId = splitted[headers.indexOf(HEADER_DATASET)];
 						column = splitted[headers.indexOf(HEADER_COLUMN)];
 					} else {
 						rowInputId = inputId;
@@ -228,7 +234,7 @@ public class RestPhenodataUtils {
 					}
 
 					for (String header : headers) {
-						if (HEADER_INPUT.equals(header) || HEADER_COLUMN.equals(header)) {
+						if (HEADER_DATASET.equals(header) || HEADER_COLUMN.equals(header)) {
 							continue;
 						}
 						
@@ -243,5 +249,41 @@ public class RestPhenodataUtils {
 			}
 		}
 		return metadata;
+	}
+
+	public static void derivePhenodata(UUID sessionId, List<Input> inputs, GenericResultMessage result, SessionDbClient sessionDbClient) throws RestException {
+		
+		ArrayList<MetadataEntry> derivedMetadata = new ArrayList<>();
+		
+		// combine metadata of all inputs
+		for (Input input : inputs) {
+			Dataset dataset = sessionDbClient.getDataset(sessionId, UUID.fromString(input.getDatasetId()));
+			if (dataset.getMetadata() == null ) {
+				continue;
+			}
+			for (MetadataEntry entry : dataset.getMetadata()) {
+				// if there are conflicts, the first one wins
+				if (!contains(derivedMetadata, entry)) {
+					derivedMetadata.add(entry);
+				}
+			}
+		}
+		
+		// use this phenodata for all outputs
+		for (String outputName : result.getOutputNames()) {
+			String datasetId = result.getDatasetId(outputName);			
+			Dataset dataset = sessionDbClient.getDataset(sessionId, UUID.fromString(datasetId));
+			dataset.setMetadata(derivedMetadata);
+			sessionDbClient.updateDataset(sessionId, dataset);
+		}
+	}
+
+	private static boolean contains(ArrayList<MetadataEntry> metadata, MetadataEntry search) {
+		for (MetadataEntry entry : metadata) {
+			if (search.getKey().equals(entry.getKey()) && search.getColumn().equals(entry.getColumn())) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

@@ -69,11 +69,11 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	}
 
 	@Override
-	public void addFile(UUID jobId, UUID sessionId, String dataId, FileBrokerArea area, File file, CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
+	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file, CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
 		
 		if (RestPhenodataUtils.FILE_PHENODATA.equals(file.getName()) || RestPhenodataUtils.FILE_PHENODATA2.equals(file.getName())) {
 			// phenodata is stored now in the dataset properties, so the phenodata files can be skipped 
-			return;
+			return null;
 		}
 		
 		Dataset dataset = new Dataset();
@@ -85,9 +85,12 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 			datasetId = sessionDbClient.createDataset(sessionId, dataset);
 			InputStream inputStream = new FileInputStream(file);
 			upload(sessionId, datasetId.toString(), inputStream);
+			logger.info("uploaded dataset " + datasetId.toString());
 		} catch (RestException e) {
 			throw new FileBrokerException("failed to create a result dataset", e);
 		}
+		
+		return datasetId.toString();
 	}
 	
 	private void upload(UUID sessionId, String dataId, InputStream inputStream) throws IOException {

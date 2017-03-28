@@ -373,9 +373,25 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			return;
 		}
 		
+		if (result.getState() == JobState.COMPLETED) {			
+			if (!((RestJobMessage)jobMessage).hasPhenodataOutput()) {
+				logger.info("the tool " + jobMessage.getToolId() + " has no phenodata output, copying from inputs");
+				JobCommand jobCommand = ((RestJobMessage)jobMessage).getJobCommand();
+				Job dbJob;
+				try {
+					dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
+					RestPhenodataUtils.derivePhenodata(jobMessage.getSessionId(), dbJob.getInputs(), result, sessionDbClient);
+				} catch (RestException e) {
+					logger.error("phenodata copying failed", e);
+				}
+			}
+		}
+		
 		try {
+			
 			JobCommand jobCommand = ((RestJobMessage)jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
+
 			//FIXME CompJob shouldn't generate a new jobId
 			dbJob.setJobId(jobCommand.getJobId());
 			dbJob.setScreenOutput(result.getOutputText());
@@ -472,7 +488,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 				Dataset dataset = sessionDbClient.getDataset(msg.getSessionId(), UUID.fromString(input.getDatasetId()));
 				metadataMap.put(input.getInputId(), dataset.getMetadata());
 			}
-			jobMessage.setMetadata(metadataMap);
+			jobMessage.setMetadata(metadataMap, toolboxTool);
 			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this);
 			
 		} catch (CompException | RestException e) {

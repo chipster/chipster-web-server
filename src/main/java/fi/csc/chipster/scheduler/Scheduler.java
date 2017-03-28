@@ -257,7 +257,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				
 				// when a comp has a free slot, try to schedule all waiting jobs
 				
-				logger.info("comp available " + asShort(compMsg.getCompId()));
+				logger.debug("comp available " + asShort(compMsg.getCompId()));
 				scheduleNewJobs();
 				break;
 				
@@ -415,4 +415,3 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		return id.toString().substring(0, 4);
 	}
 }
-
