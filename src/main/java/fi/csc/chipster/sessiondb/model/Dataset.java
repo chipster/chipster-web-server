@@ -33,6 +33,15 @@ public class Dataset {
 		@CollectionTable(name="Metadata", joinColumns=@JoinColumn(name="datasetId"))
 		private Map<String, String> metadata;	
 	}
+	
+	@Entity
+	public static class TypeTagEntity {
+		@ElementCollection(fetch=FetchType.EAGER)
+		@MapKeyColumn(name="key")
+		@Column(name="value")
+		@CollectionTable(name="TypeTag", joinColumns=@JoinColumn(name="datasetId"))
+		private Map<String, String> typeTags;	
+	}
 
 	@Id // db
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
@@ -59,6 +68,10 @@ public class Dataset {
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="datasetId")
 	private List<MetadataEntry> metadata;
+	
+	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@JoinColumn(name="datasetId")
+	private List<TypeTag> typeTags;
 	
 	public Dataset() {} // JAXB needs this
 
@@ -130,6 +143,15 @@ public class Dataset {
 	public void setMetadata(List<MetadataEntry> metadata) {
 		this.metadata = metadata;
 	}
+	
+	public List<TypeTag> getTypeTags() {
+		return typeTags;
+	}
+	
+	public void setTypeTags(List<TypeTag> typeTags) {
+		this.typeTags = typeTags;
+	}
+
 
 	public Session getSession() {
 		return session;

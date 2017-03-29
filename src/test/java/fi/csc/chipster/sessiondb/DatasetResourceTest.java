@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import org.junit.AfterClass;
@@ -14,6 +15,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.TypeTag;
 
 public class DatasetResourceTest {
 	private static TestServerLauncher launcher;
@@ -48,6 +50,22 @@ public class DatasetResourceTest {
     public void post() throws RestException {
 		user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
     }
+		
+	@Test
+    public void typeTags() throws RestException {
+		Dataset dataset = RestUtils.getRandomDataset();
+		TypeTag t1 = new TypeTag(1, "key1", "value1");
+		TypeTag t2 = new TypeTag(1, "key2", "value2");
+		ArrayList<TypeTag> typeTags = new ArrayList<>();
+		typeTags.add(t1);
+		typeTags.add(t2);
+		dataset.setTypeTags(typeTags);
+		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
+		Dataset dbDataset = user1Client.getDataset(sessionId1, datasetId);
+		
+		assertEquals(2, dbDataset.getTypeTags().size());
+		assertEquals("value1", dbDataset.getTypeTags().get(0).getValue());
+    }	
 	
 	@Test
     public void postModification() throws RestException {

@@ -37,6 +37,7 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.TypeTag;
 import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
@@ -105,6 +106,7 @@ public class SessionDb implements TopicCheck {
 				Session.class, 
 				Dataset.class, 
 				MetadataEntry.class,
+				TypeTag.class,
 				Job.class, 
 				Parameter.class,
 				Input.class, 
