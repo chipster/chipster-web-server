@@ -3,6 +3,7 @@ package fi.csc.chipster.proxy;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map.Entry;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,6 +12,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
@@ -52,27 +54,37 @@ public class ChipsterProxyServer {
 	public ChipsterProxyServer(Config config) {
     	this.config = config;
     	try {
-    	this.proxy = new ProxyServer(URI.create(config.getString("proxy-bind")));
+    	this.proxy = new ProxyServer(URI.create(config.getBindUrl(Role.PROXY)));
     	
-			proxy.addRoute("sessiondb", 		config.getString("session-db"));
-			proxy.addRoute("sessiondbevents", 	config.getString("session-db-events"));
-			proxy.addRoute("auth", 				config.getString("authentication-service"));
-			proxy.addRoute("filebroker", 		config.getString("file-broker"));
-			proxy.addRoute("toolbox", 			config.getString(Config.KEY_TOOLBOX_URL));
-			// it's possible to use the web server through the proxy, but let's
-			// have it in a separate port for now to find any CORS issues
-			//proxy.addRoute("",	 				config.getString("web"));
-
+    		for (Entry<String, String> entry : config.getExternalServiceUrls().entrySet()) {
+    			
+    			String service = entry.getKey();
+    			String externalAddress = entry.getValue();
+    			
+    			if (Role.PROXY.equals(service)) {
+    				// no point to proxy ourselves
+    				continue;
+    			}
+    			
+    			if (Role.WEB_SERVER.equals(service)) {
+    				// it's possible to use the web server through the proxy, but let's
+    				// have it in a separate port for now to find any CORS issues
+    				continue;
+    			}
+    			
+    			proxy.addRoute(service.replace("-", ""), externalAddress);
+    		}
+    		
 			//proxy.addRoute("test", 				"http://vm0180.kaj.pouta.csc.fi:8081/");
 			
-    	} catch (URISyntaxException | IOException e) {
+    	} catch (URISyntaxException e) {
     		logger.error("proxy configuration error", e);
     	}
     }
 	
     private void startAdminAPI() throws IOException {
 
-		String username = Config.USERNAME_PROXY;
+		String username = Role.PROXY;
 		String password = config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
@@ -84,7 +96,7 @@ public class ChipsterProxyServer {
 				.register(new TokenRequestFilter(authService))
 				.register(adminResource);
 
-		restServer = GrizzlyHttpServerFactory.createHttpServer(config.getURI("proxy-admin-bind"), rc);
+		restServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(config.getBindUrl(Role.PROXY_ADMIN)), rc);
 	}
 
 	

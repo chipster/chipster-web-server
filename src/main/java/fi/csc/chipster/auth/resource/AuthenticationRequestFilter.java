@@ -3,7 +3,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 
 import javax.annotation.Priority;
@@ -47,8 +47,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		
 		serviceAccounts = new HashMap<>();	
 				
-		for (String service : Config.services) {
-			serviceAccounts.put(service, config.getPassword(service));
+		for (Entry<String, String> entry : config.getServicePasswords().entrySet()) {
+			serviceAccounts.put(entry.getKey(), entry.getValue());
 		}
 		
 		authenticationProvider = new JaasAuthenticationProvider(false);
@@ -133,20 +133,10 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 	
 	public HashSet<String> getRoles(String username) {
-		// are these of any use, because the file broker authorization is anyway
-		// based solely on the username?
-		Map<String, String> usernameToRole = new HashMap<>();
-		usernameToRole.put(Config.USERNAME_COMP, Role.COMP);
-		usernameToRole.put(Config.USERNAME_FILE_BROKER, Role.FILE_BROKER);
-		usernameToRole.put(Config.USERNAME_PROXY, Role.PROXY);
-		usernameToRole.put(Config.USERNAME_SCHEDULER, Role.SCHEDULER);
-		usernameToRole.put(Config.USERNAME_SERVICE_LOCATOR, Role.SERVICE_LOCATOR);
-		usernameToRole.put(Config.USERNAME_SESSION_DB, Role.SESSION_DB);
-		usernameToRole.put(Config.USERNAME_SESSION_WORKER, Role.SESSION_WORKER);
-		
+
 		String[] roles;
-		if (Config.services.contains(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SERVER, usernameToRole.get(username) };
+		if (serviceAccounts.keySet().contains(username)) {
+			roles = new String[] { Role.PASSWORD, Role.SERVER, username };
 		} else {
 			roles = new String[] { Role.PASSWORD, Role.CLIENT};
 		}

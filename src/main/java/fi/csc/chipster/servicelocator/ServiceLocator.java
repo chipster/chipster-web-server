@@ -3,7 +3,9 @@ package fi.csc.chipster.servicelocator;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,22 +53,27 @@ public class ServiceLocator {
      */
     public void startServer() throws IOException {
     	
-    	String username = Config.USERNAME_SERVICE_LOCATOR;
+    	String username = Role.SERVICE_LOCATOR;
     	String password = config.getPassword(username);
-    	String authUri = this.config.getString("authentication-service");
+    	String authUri = this.config.getInternalServiceUrls().get(Role.AUTH);
     	List<String> auths = Arrays.asList(authUri);    	
     	this.authService = new AuthenticationClient(auths, username, password);    
     	
     	this.serverId = RestUtils.createId();
     	this.serviceCatalog = new ServiceCatalog();
     	
-    	addService(Role.AUTHENTICATION_SERVICE, config.getString("authentication-service"), config.getString("authentication-service-pub"));
-    	addService(Role.FILE_BROKER, config.getString("file-broker"), config.getString("file-broker-pub"));
-    	addService(Role.SCHEDULER, config.getString("scheduler"), null);
-    	addService(Role.SESSION_DB, config.getString("session-db"), config.getString("session-db-pub"));
-    	addService(Role.SESSION_DB_EVENTS, config.getString("session-db-events"), config.getString("session-db-events-pub"));
-    	addService(Role.TOOLBOX, config.getString(Config.KEY_TOOLBOX_URL), config.getString(Config.KEY_TOOLBOX_PUBLIC_URL));
-    	addService(Role.SESSION_WORKER, config.getString("session-worker"), config.getString("session-worker-pub"));
+    	Map<String, String> intServices = config.getInternalServiceUrls();
+    	Map<String, String> extServices = config.getExternalServiceUrls();
+    	
+    	// all services having internal or external address
+    	HashSet<String> services = new HashSet<>();
+    	services.addAll(intServices.keySet());
+    	services.addAll(extServices.keySet());
+    	
+    	for (String service : services) {    		
+    		// map returns null for missing addresses
+    		addService(service, intServices.get(service), extServices.get(service));
+    	}
     	
     	// static configuration, discard updates
     	serviceCatalog.setReadOnly(true);
@@ -81,7 +88,7 @@ public class ServiceLocator {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-    	URI baseUri = URI.create(this.config.getString("service-locator-bind"));
+    	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     }
     

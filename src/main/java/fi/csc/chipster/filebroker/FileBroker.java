@@ -13,6 +13,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
@@ -48,7 +49,7 @@ public class FileBroker {
      */
     public void startServer() throws Exception {
     	
-    	String username = Config.USERNAME_FILE_BROKER;
+    	String username = Role.FILE_BROKER;
     	String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
@@ -60,7 +61,7 @@ public class FileBroker {
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 
-    	URI baseUri = URI.create(this.config.getString("file-broker-bind"));
+    	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
                 
     	server = new Server();
         ServerConnector connector = new ServerConnector(server);

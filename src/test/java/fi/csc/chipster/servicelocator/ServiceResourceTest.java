@@ -80,7 +80,7 @@ public class ServiceResourceTest {
 			roles.add(service.getRole());			
 		}
 		
-		assertEquals(true, roles.contains(Role.AUTHENTICATION_SERVICE));
+		assertEquals(true, roles.contains(Role.AUTH));
 		assertEquals(true, roles.contains(Role.SESSION_DB));
 		assertEquals(true, roles.contains(Role.SESSION_DB_EVENTS));
 		assertEquals(true, roles.contains(Role.FILE_BROKER));

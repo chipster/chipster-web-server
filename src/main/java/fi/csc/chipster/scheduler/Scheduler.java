@@ -75,7 +75,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
      */
     public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
     	
-    	String username = Config.USERNAME_SCHEDULER;
+    	String username = Role.SCHEDULER;
     	String password = config.getPassword(username);
     	
     	this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
@@ -90,7 +90,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
     	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this, "scheduler-job-listener");    	
     	
-    	this.pubSubServer = new PubSubServer(config.getString("scheduler-bind"), "events", authService, this, this, "scheduler-events");
+    	this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), "events", authService, this, this, "scheduler-events");
     	this.pubSubServer.start();	
     	    
     	logger.info("getting unfinished jobs from the session-db");

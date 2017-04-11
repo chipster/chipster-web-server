@@ -16,6 +16,7 @@ import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 
 public class WebServer {
@@ -33,7 +34,7 @@ public class WebServer {
 
 	public void start() throws Exception {
 		
-        URI baseUri = config.getURI("web-bind");
+        URI baseUri = URI.create(config.getBindUrl(Role.WEB_SERVER));
         
         server = new Server();
         
@@ -50,7 +51,7 @@ public class WebServer {
         resourceHandler.setDirectoriesListed(true);
         resourceHandler.setWelcomeFiles(new String[]{ INDEX_HTML });
         
-        String rootPath = config.getString("web-root-path");
+        String rootPath = config.getString(Config.KEY_WEB_SERVER_WEB_ROOT_PATH);
         resourceHandler.setResourceBase(rootPath);
         
         File root = new File(rootPath);

@@ -11,6 +11,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
@@ -67,7 +68,7 @@ public class AuthenticationService {
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
-    	URI baseUri = URI.create(this.config.getString("authentication-service-bind"));
+    	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     }
 

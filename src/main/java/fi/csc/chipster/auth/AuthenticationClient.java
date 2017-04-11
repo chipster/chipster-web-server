@@ -87,7 +87,7 @@ public class AuthenticationClient {
 
 	private List<String> getAuths() {
 		if (serviceLocator != null) {
-			return serviceLocator.get(Role.AUTHENTICATION_SERVICE);
+			return serviceLocator.get(Role.AUTH);
 		} else {
 			return authenticationServiceUris;
 		}

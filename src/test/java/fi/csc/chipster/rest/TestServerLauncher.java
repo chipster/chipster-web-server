@@ -1,7 +1,5 @@
 package fi.csc.chipster.rest;
 
-import java.io.IOException;
-
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.Level;
@@ -52,25 +50,22 @@ public class TestServerLauncher {
 	}	
 	
 	private String getTargetUri(String role) {
-		try {
-			if (Role.AUTHENTICATION_SERVICE.equals(role)) {
-					return config.getString("authentication-service");
-			} 
-			if (Role.SERVICE_LOCATOR.equals(role)) {
-				return config.getString("service-locator");
-			}
-			
-			if (Role.SESSION_DB.equals(role)) {			
-				return serviceLocatorClient.get(Role.SESSION_DB).get(0);			
-			}
-			
-			if (Role.FILE_BROKER.equals(role)) {			
-				return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
-			}
-					
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+
+		if (Role.AUTH.equals(role)) {
+				return config.getInternalServiceUrls().get(Role.AUTH);
+		} 
+		if (Role.SERVICE_LOCATOR.equals(role)) {
+			return config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
 		}
+		
+		if (Role.SESSION_DB.equals(role)) {			
+			return serviceLocatorClient.get(Role.SESSION_DB).get(0);			
+		}
+		
+		if (Role.FILE_BROKER.equals(role)) {			
+			return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
+		}
+
 		throw new IllegalArgumentException("no target uri for role " + role);
 	}
 	
@@ -83,15 +78,15 @@ public class TestServerLauncher {
 	}
 	
 	public WebTarget getSchedulerTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SCHEDULER, Config.USERNAME_SCHEDULER).getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getCompTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_COMP, Config.USERNAME_COMP).getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getSessionStorageUserTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SESSION_DB, Config.USERNAME_SESSION_DB).getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getUnparseableTokenTarget(String role) {
@@ -120,19 +115,19 @@ public class TestServerLauncher {
 	}
 	
 	public CredentialsProvider getSchedulerToken() {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SCHEDULER, Config.USERNAME_SCHEDULER).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER).getCredentials();
 	}
 	
 	public CredentialsProvider getCompToken() {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_COMP, Config.USERNAME_COMP).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP).getCredentials();
 	}
 	
 	public CredentialsProvider getFileBrokerToken() {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_FILE_BROKER, Config.USERNAME_FILE_BROKER).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.FILE_BROKER, Role.FILE_BROKER).getCredentials();
 	}
 	
 	public CredentialsProvider getSessionStorageUserToken() {
-		return new AuthenticationClient(serviceLocatorClient, Config.USERNAME_SESSION_DB, Config.USERNAME_SESSION_DB).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getCredentials();
 	}
 	
 	public CredentialsProvider getUnparseableToken() {

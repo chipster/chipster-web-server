@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
@@ -22,7 +23,7 @@ public class ServiceLocatorClient {
 	private String baseUri;
 
 	public ServiceLocatorClient(Config config) throws IOException {
-		this.baseUri = config.getString("service-locator");
+		this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
 		logger.info("get services from " + baseUri);
 	}
 

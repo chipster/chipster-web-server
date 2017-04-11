@@ -175,9 +175,11 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir, this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"));
+		
+		serviceLocator = new ServiceLocatorClient(config);
 
 		// initialize toolbox client
-		String toolboxUrl = config.getString(Config.KEY_TOOLBOX_URL);
+		String toolboxUrl = serviceLocator.get(Role.TOOLBOX).get(0);
 		this.toolboxClient = new ToolboxClientComp(toolboxUrl);
 		logger.info("toolbox client connecting to: " + toolboxUrl);
 		
@@ -195,10 +197,9 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 		
-		String username = Config.USERNAME_COMP;
+		String username = Role.COMP;
 		String password = config.getPassword(username);
 		
-		serviceLocator = new ServiceLocatorClient(config);
 		authClient = new AuthenticationClient(serviceLocator, username, password);
 		schedulerUri = UriBuilder
 				.fromUri(serviceLocator.get(Role.SCHEDULER).get(0))
@@ -667,6 +668,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		logger.info("shutting down");
 	}
 	
+	@SuppressWarnings("unused")
 	private synchronized ArrayList<CompJob> getAllJobs() {
 		ArrayList<CompJob> allJobs = new ArrayList<CompJob>();
 		allJobs.addAll(scheduledJobs.values());

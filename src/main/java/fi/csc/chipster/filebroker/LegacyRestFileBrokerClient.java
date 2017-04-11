@@ -50,7 +50,6 @@ import fi.csc.microarray.util.IOUtils.CopyProgressListener;
  */
 public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	
-	@SuppressWarnings("unused")
 	private static final Logger logger = Logger.getLogger(LegacyRestFileBrokerClient.class);
 		
 	private SessionDbClient sessionDbClient;

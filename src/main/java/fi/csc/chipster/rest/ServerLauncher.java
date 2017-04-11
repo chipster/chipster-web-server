@@ -33,6 +33,8 @@ public class ServerLauncher {
 	private SessionDb sessionDbSlave;
 
 	private SessionWorker sessionWorker;
+
+	private JavascriptService typeService;
 	
 	
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
@@ -101,6 +103,12 @@ public class ServerLauncher {
 		}
 		web = new WebServer(config);
 		web.start();
+				
+		if (verbose) {
+			logger.info("starting type service");
+		}
+		typeService = new JavascriptService("src/main/javascript/type-service.ts");
+		typeService.startServer();
 		
 		if (verbose) {
 			logger.info("starting proxy");
@@ -128,6 +136,14 @@ public class ServerLauncher {
 				web.close();
 			} catch (Exception e) {
 				logger.warn("closing web server failed", e);
+			}
+		}
+		
+		if (typeService != null) {
+			try {
+				typeService.close();
+			} catch (Exception e) {
+				logger.warn("closing type service failed");
 			}
 		}
 		

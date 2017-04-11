@@ -20,7 +20,6 @@ import fi.csc.microarray.comp.ToolDescription.ParameterDescription;
 import fi.csc.microarray.description.SADLDescription;
 import fi.csc.microarray.description.SADLDescription.Output;
 import fi.csc.microarray.messaging.message.GenericJobMessage;
-import fi.csc.microarray.messaging.message.GenericResultMessage;
 import fi.csc.microarray.messaging.message.JobMessage.ParameterSecurityPolicy;
 import fi.csc.microarray.messaging.message.JobMessage.ParameterValidityException;
 import fi.csc.microarray.messaging.message.JobMessageUtils;

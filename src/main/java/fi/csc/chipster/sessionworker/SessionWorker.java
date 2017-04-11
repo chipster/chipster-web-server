@@ -13,6 +13,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
@@ -57,7 +58,7 @@ public class SessionWorker {
 	 */
 	public void startServer() throws ServletException, DeploymentException, RestException, IOException {
 
-		String username = Config.USERNAME_SESSION_WORKER;
+		String username = Role.SESSION_WORKER;
 		String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
@@ -73,7 +74,7 @@ public class SessionWorker {
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
-		URI baseUri = URI.create(this.config.getString("session-worker-bind"));
+		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_WORKER));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 

@@ -33,7 +33,7 @@ public class AuthenticationResourceTest {
     	launcher = new TestServerLauncher(config);
         
         // client with authentication enabled, but each test will set the credentials later
-        target = AuthenticationClient.getClient(null, null, true).target(config.getString("authentication-service"));
+        target = AuthenticationClient.getClient(null, null, true).target(config.getInternalServiceUrls().get(Role.AUTH));
     }
 
     @AfterClass
@@ -49,7 +49,7 @@ public class AuthenticationResourceTest {
     @Test
     public void noAuth() throws IOException {
     	// no authorized header
-    	assertEquals(401, postTokenResponse(launcher.getNoAuthTarget(Role.AUTHENTICATION_SERVICE), null, null).getStatus());
+    	assertEquals(401, postTokenResponse(launcher.getNoAuthTarget(Role.AUTH), null, null).getStatus());
     }
     
     @Test
@@ -75,7 +75,7 @@ public class AuthenticationResourceTest {
         assertEquals(403, getTokenResponse(target, "token", wrongToken, clientToken).getStatus());
         assertEquals(401, getTokenResponse(target, "token", serverToken, "unparseableClientToken").getStatus());
         assertEquals(404, getTokenResponse(target, "token", serverToken, wrongToken).getStatus());
-        assertEquals(401, getTokenResponse(launcher.getNoAuthTarget(Role.AUTHENTICATION_SERVICE), null, null, clientToken).getStatus());
+        assertEquals(401, getTokenResponse(launcher.getNoAuthTarget(Role.AUTH), null, null, clientToken).getStatus());
     }
 	
 	@Test
@@ -86,7 +86,7 @@ public class AuthenticationResourceTest {
         
         getToken(target, "token", serverToken, clientToken);
      
-        assertEquals(401, deleteTokenResponse(launcher.getNoAuthTarget(Role.AUTHENTICATION_SERVICE), "token", clientToken).getStatus());
+        assertEquals(401, deleteTokenResponse(launcher.getNoAuthTarget(Role.AUTH), "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", "wrongClientToken").getStatus());
         assertEquals(204, deleteTokenResponse(target, "token", clientToken).getStatus());
         assertEquals(403, deleteTokenResponse(target, "token", clientToken).getStatus());
@@ -99,7 +99,7 @@ public class AuthenticationResourceTest {
 	}
     
     public static String postServerToken(WebTarget target) {
-    	return postToken(target, Config.USERNAME_SESSION_DB, Config.USERNAME_SESSION_DB);
+    	return postToken(target, Role.SESSION_DB, Role.SESSION_DB);
 	}
 
     public static UUID getToken(WebTarget target, String username, String password, String clientToken) {

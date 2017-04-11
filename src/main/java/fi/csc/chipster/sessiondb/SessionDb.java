@@ -94,7 +94,7 @@ public class SessionDb implements TopicCheck {
 	 */
 	public void startServer() throws ServletException, DeploymentException, RestException, IOException {
 
-		String username = Config.USERNAME_SESSION_DB;
+		String username = Role.SESSION_DB;
 		String password = config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
@@ -110,8 +110,8 @@ public class SessionDb implements TopicCheck {
 				Input.class, 
 				File.class); 
 
-		boolean replicate = config.getBoolean("session-db-replicate");
-		String hibernateSchema = config.getString("session-db-hibernate-schema");
+		boolean replicate = config.getBoolean(Config.KEY_SESSION_DB_REPLICATE);
+		String hibernateSchema = config.getString(Config.KEY_SESSION_DB_HIBERNATE_SCHEMA);
 		
 		if (replicate) {
 			// replication makes sense only with an empty DB
@@ -120,7 +120,7 @@ public class SessionDb implements TopicCheck {
 		
 		// init Hibernate
 		hibernate = new HibernateUtil(hibernateSchema);
-		hibernate.buildSessionFactory(hibernateClasses, config.getString("session-db-name"));
+		hibernate.buildSessionFactory(hibernateClasses, config.getString(Config.KEY_SESSION_DB_NAME));
 
 		this.authorizationResource = new AuthorizationResource(hibernate);
 		this.sessionResource = new SessionResource(hibernate, authorizationResource);
@@ -131,7 +131,7 @@ public class SessionDb implements TopicCheck {
 			new SessionDbCluster().replicate(serviceLocator, authService, authorizationResource, sessionResource, adminResource, hibernate, this);
 		}
 				
-		String pubSubUri = config.getString("session-db-events-bind");
+		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
 		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");
@@ -151,7 +151,7 @@ public class SessionDb implements TopicCheck {
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
-		URI baseUri = URI.create(this.config.getString("session-db-bind"));
+		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 	

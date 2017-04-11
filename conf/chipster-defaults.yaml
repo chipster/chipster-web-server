@@ -1,0 +1,111 @@
+conf-path: conf/chipster.yaml
+
+# Service accounts
+# all config items starting with "service-password-" will be automatically authenticated as Role.SERVER 
+
+service-password-session-db: session-db
+service-password-service-locator: service-locator
+service-password-scheduler: scheduler
+service-password-comp: comp
+service-password-file-broker: file-broker
+service-password-session-worker: session-worker
+service-password-proxy: proxy
+
+   
+# Internal and external service addresses
+
+url-ext-web-server: http://{{public-ip}}:8000
+url-ext-proxy: http://{{public-ip}}:8001
+url-int-auth: http://{{public-ip}}:8002
+url-ext-auth: http://{{public-ip}}:8002
+url-int-service-locator: http://{{public-ip}}:8003
+url-ext-service-locator: http://{{public-ip}}:8003 
+url-int-session-db: http://{{public-ip}}:8004
+url-ext-session-db: http://{{public-ip}}:8004
+url-int-session-db-events: ws://{{public-ip}}:8005
+url-ext-session-db-events: ws://{{public-ip}}:8005
+url-int-scheduler: ws://{{public-ip}}:8006
+url-int-file-broker: http://{{public-ip}}:8007
+url-ext-file-broker: http://{{public-ip}}:8007
+url-int-toolbox: http://{{public-ip}}:8008
+url-ext-toolbox: http://{{public-ip}}:8008
+url-int-session-worker: http://{{public-ip}}:8009
+url-ext-session-worker: http://{{public-ip}}:8009
+url-int-type-service: http://{{public-ip}}:8010
+url-ext-type-service: http://{{public-ip}}:8010
+    
+
+# Address for the server to bind
+
+url-bind-web-server: http://{{bind-ip}}:8000
+url-bind-proxy: http://{{bind-ip}}:8001
+url-bind-proxy-admin: http://{{admin-bind-ip}}:9001
+url-bind-auth: http://{{bind-ip}}:8002
+url-bind-service-locator: http://{{bind-ip}}:8003
+url-bind-session-db: http://{{bind-ip}}:8004
+url-bind-session-db-events: ws://{{bind-ip}}:8005
+url-bind-scheduler: ws://{{bind-ip}}:8006
+url-bind-file-broker: http://{{bind-ip}}:8007
+url-bind-toolbox: http://{{bind-ip}}:8008
+url-bind-session-worker: http://{{bind-ip}}:8009
+url-bind-type-service: http://{{bind-ip}}:8010
+
+# comp
+
+# max number of jobs run simultaneusly
+comp-max-jobs: 2
+# time after which a scheuduled job is removed if there is no reponse from the scheduler
+comp-schedule-timeout: 10
+# delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
+comp-offer-delay: 100
+# should job specific temporary directory be sweeped after job execution
+comp-sweep-work-dir: true
+# schedule timeout check interval, milliseconds
+comp-timeout-check-interval: 1000
+# how of to send a comp available message, milliseconds
+comp-status-interval: 30000
+# name of the module to enable or disable
+comp-module-filter-name: kielipankki
+# 'exclude' disables the specified module and enables all other modules, 'include' enables the specified module and disables all other modules
+comp-module-filter-mode: exclude 
+# how often to monitor job resource usage or -1 to disable it, milliseconds
+comp-resource-monitoring-interval: 10000
+
+
+# scheduler
+
+# max time for comps to decide if it can run the job, seconds
+scheduler-wait-timeout: 5
+# max time for new job to wait for available comp, seconds
+scheduler-wait-runnable-timeout: 600
+# how soon the job can be rescheduled, seconds
+scheduler-schedule-timeout: 1
+# how long to wait for job heartbeats before giving up, seconds
+scheduler-heartbeat-lost-timeout: 90
+# how often to check job timeouts, seconds
+scheduler-job-timer-interval: 1
+
+
+# session-db 
+    
+session-db-replicate: false
+session-db-name: session-db
+# update, validate or create
+session-db-hibernate-schema: update 
+    
+    
+# web-server
+
+web-server-web-root-path: ../chipster-web/
+
+
+# toolbox
+
+toolbox-tools-bin-path: /opt/chipster/tools
+
+
+# variables
+
+variable-public-ip: 127.0.0.1
+variable-bind-ip: 0.0.0.0 
+variable-admin-bind-ip: 127.0.0.1

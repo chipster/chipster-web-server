@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
@@ -46,8 +47,14 @@ public class AuthorizationResource {
 	
 	private HibernateUtil hibernate;
 
+	private Config config;
+
+	private Set<String> servicesAccounts;
+
 	public AuthorizationResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
+		this.config = new Config();
+		this.servicesAccounts = config.getServicePasswords().keySet();
 	}
 	
 	@GET
@@ -204,7 +211,7 @@ public class AuthorizationResource {
 	
 	public Authorization getAuthorization(String username, Session session, org.hibernate.Session hibernateSession) {
 		
-		if (Config.services.contains(username)) {
+		if (servicesAccounts.contains(username)) {
 			return new Authorization(username, session, true);
 		}
 		
