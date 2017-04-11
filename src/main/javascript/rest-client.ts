@@ -54,7 +54,7 @@ export class RestClient {
 	}
 
 	static get(uri: string, token: string, headers: Object): Observable<string> {
-		logger.info('get()', uri, token);
+		logger.info('get()', uri + ' ' +  token);
 		let options = {headers: {}};
 
 		if (token) {
