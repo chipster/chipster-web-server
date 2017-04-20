@@ -147,7 +147,7 @@ class TypeService {
 			res.send(types);
 			next();
 
-			logger.debug('response', types);
+			logger.info('response', types);
 			logger.info('type tagging took ' + (Date.now() - t0) + 'ms');
 		}, err => {
 			if (err.statusCode >= 400 && err.statusCode <= 499) {
@@ -179,9 +179,21 @@ class TypeService {
 		let fastTags = this.getFastTypeTagsForDataset(dataset);
 
 		return this.getSlowTypeTagsCached(sessionId, dataset.datasetId, token, fastTags)
-			.map(tags => [dataset.datasetId, tags]);
+      .map(slowTags => Object.assign({}, fastTags, slowTags))
+			.map(allTags => [dataset.datasetId, allTags]);
 	}
 
+  /**
+   * Slow tags depend on the fast tags, but we can't know if the fast tags have
+   * changed and therefore can't update the slow tags. To update the slow tags, admin can restart
+   * this service, or user has to export and import the file.
+   *
+   * @param sessionId
+   * @param datasetId
+   * @param token
+   * @param fastTags
+   * @returns {any}
+   */
 	getSlowTypeTagsCached(sessionId, datasetId, token: string, fastTags) {
 		let idPair = new IdPair(sessionId, datasetId);
 		let cacheItem = this.getFromCache(idPair);
@@ -192,9 +204,9 @@ class TypeService {
 
 		} else {
 			logger.info('cache miss', sessionId + ' ' + datasetId);
-			return this.getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags).map(tags => {
-				this.addToCache(idPair, tags);
-				return tags;
+			return this.getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags).map(slowTags => {
+				this.addToCache(idPair, slowTags);
+				return slowTags;
 			});
 		}
 	}
@@ -218,7 +230,6 @@ class TypeService {
 	}
 
 	getFastTypeTagsForDataset(dataset) {
-
 		let typeTags = {};
 
 		// add simple type tags based on file extensions
@@ -229,35 +240,34 @@ class TypeService {
 				}
 			}
 		}
-
 		return typeTags;
 	}
 
 	getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags) {
 
 		// copy the object, Object.assign() is from es6
-		let typeTags = (<any>Object).assign({}, fastTags);
+		let slowTags = {};
 
 		let observable;
-		if (Tags.TSV.id in typeTags) {
+		if (Tags.TSV.id in fastTags) {
 			observable = this.getHeader(sessionId, datasetId, token).map(headers => {
 				//FIXME implement proper identifier column checks
 				if (headers.indexOf('identifier') !== -1) {
-					typeTags[Tags.GENELIST.id] = null;
+					slowTags[Tags.GENELIST.id] = null;
 				}
 
 				if (headers.filter(header => header.startsWith('chip.')).length > 0) {
-					typeTags[Tags.GENE_EXPRS.id] = null;
+					slowTags[Tags.GENE_EXPRS.id] = null;
 				}
 
 				if (headers.indexOf('sample') !== -1) {
-					typeTags[Tags.CDNA.id] = null;
+					slowTags[Tags.CDNA.id] = null;
 				}
 
-				return typeTags;
+				return slowTags;
 			});
 		} else {
-			observable = Observable.of(typeTags);
+			observable = Observable.of(slowTags);
 		}
 
 		return observable;
