@@ -1,5 +1,5 @@
-var winston = require('winston');
-var path = require('path');
+const path = require('path');
+const winston = require('winston');
 
 export class Logger {
 

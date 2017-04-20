@@ -2,8 +2,8 @@ import {RestClient} from "./rest-client";
 import {Observable} from "rxjs";
 import {Logger} from "./logger";
 import {Config} from "./config";
-const restify = require('restify');
 const url = require('url');
+const restify = require('restify');
 
 const logger = Logger.getLogger(__filename);
 
@@ -61,7 +61,7 @@ const MAX_HEADER_LENGTH = 4096;
 class TypeService {
 
 	private tagIdMap = new Map<string, Tag>();
-	private cache = new Map<IdPair, string>();
+	private cache = new Map<string, {}>();
 
 	private config = new Config();
 
@@ -82,11 +82,23 @@ class TypeService {
 		server.use(restify.CORS({
 			//origins: ['https://foo.com', 'http://bar.com', 'http://baz.com:8081'],   // defaults to ['*']
 			//credentials: true,                 // defaults to false
-			//headers: ['x-foo']                 // sets expose-headers
+			//headers: ['authorization']                 // sets expose-headers
 		}));
+		// CORS constructor above doesn't have way to add this
+		restify.CORS.ALLOW_HEADERS.push('authorization');
+
+		// add bodyParser to access the body, but disable the automatic parsing
 		server.use(restify.bodyParser({ mapParams: false }));
 
-		server.post('/typetags', this.respond.bind(this));
+		// reply to browser's pre-flight requests with CORS headers
+		server.opts(/.*/, ( req, res ) => {
+			// what is the purpose of the CORS plugin if it doesn't set this header?
+			res.header( "Access-Control-Allow-Headers",     restify.CORS.ALLOW_HEADERS.join( ", " ) );
+			res.send( 204 )
+		} );
+
+		server.get('/sessions/:sessionId', this.respond.bind(this));
+		server.get('/sessions/:sessionId/datasets/:datasetId', this.respond.bind(this));
 
 		let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
 		let bindUrl = url.parse(bindUrlString);
@@ -100,36 +112,89 @@ class TypeService {
 
 		let token = this.getToken(req, next);
 
-		let idPairs = <IdPair[]>req.body;
+		let sessionId = req.params.sessionId;
+		let datasetId = req.params.datasetId;
 
-		let observables = idPairs.map(idPair => this.getTypeTags(idPair, token));
+		logger.debug('type tag ' + sessionId + ' ' +  datasetId);
 
-		Observable.forkJoin(observables).subscribe(types => {
+		if (!sessionId) {
+			return next(new restify.BadRequest('sessionId missing'));
+		}
+
+		let datasets$;
+
+		// check access permission by getting dataset objects
+		if (datasetId) {
+			// only one dataset requested
+			datasets$ = RestClient.getDataset(sessionId, datasetId, token).map(dataset => [dataset]);
+		} else {
+			// all datasets of the session requested
+			datasets$ = RestClient.getDatasets(sessionId, token);
+		}
+
+		let t0 = Date.now();
+
+		datasets$.flatMap(datasets => {
+			// array of observables that will resolve to [datasetId, typeTags] tuples
+			let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
+			// wait for all observables to complete and return an array of tuples
+			return Observable.forkJoin(types$);
+
+		}).subscribe(typesArray => {
+
+			let types = this.tupleArrayToObject(typesArray);
 			res.contentType = 'json';
 			res.send(types);
-		}, err => {
-			logger.error('type tagging failed', err);
-			return next(restify.InternalServerError('type tagging failed'));
-		});
+			next();
 
-		next();
+			logger.debug('response', types);
+			logger.info('type tagging took ' + (Date.now() - t0) + 'ms');
+		}, err => {
+			if (err.statusCode >= 400 && err.statusCode <= 499) {
+				next(err);
+			} else {
+				logger.error('type tagging failed', err);
+				next(new restify.InternalServerError('type tagging failed'));
+			}
+		});
 	}
 
-	getTypeTags(idPair: IdPair, token) {
+	/**
+	 * Takes an array of [key, value] tuples and converts it to a js object
+	 *
+	 * @param tuples
+	 * @returns
+	 */
+	tupleArrayToObject(tuples) {
+		let obj = {};
+		for (let [key, value] of tuples) {
+			obj[key] = value;
+		}
+		return obj;
+	}
 
+	getTypeTags(sessionId, dataset, token) {
+
+		// always calculate fast type tags, because it's difficult to know when the name has changed
+		let fastTags = this.getFastTypeTagsForDataset(dataset);
+
+		return this.getSlowTypeTagsCached(sessionId, dataset.datasetId, token, fastTags)
+			.map(tags => [dataset.datasetId, tags]);
+	}
+
+	getSlowTypeTagsCached(sessionId, datasetId, token: string, fastTags) {
+		let idPair = new IdPair(sessionId, datasetId);
 		let cacheItem = this.getFromCache(idPair);
 
 		if (cacheItem) {
-			logger.info('cache hit', idPair.datasetId);
-			return Observable.of({sessionId: idPair.sessionId, datasetId: idPair.datasetId, typeTags: cacheItem});
+			logger.debug('cache hit', sessionId + ' ' + datasetId);
+			return Observable.of(cacheItem);
 
 		} else {
-			logger.info('cache miss', idPair.datasetId);
-			return RestClient.getDataset(idPair.sessionId, idPair.datasetId, token).flatMap(dataset => {
-				return this.getTypeTagsForDataset(idPair.sessionId, dataset, token).map(tags => {
-					this.addToCache(idPair, tags);
-					return Observable.of({sessionId: idPair.sessionId, datasetId: idPair.datasetId, typeTags: tags});
-				});
+			logger.info('cache miss', sessionId + ' ' + datasetId);
+			return this.getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags).map(tags => {
+				this.addToCache(idPair, tags);
+				return tags;
 			});
 		}
 	}
@@ -152,7 +217,7 @@ class TypeService {
 		this.cache.set(JSON.stringify(idPair), tags);
 	}
 
-	getTypeTagsForDataset(sessionId, dataset, token) {
+	getFastTypeTagsForDataset(dataset) {
 
 		let typeTags = {};
 
@@ -165,9 +230,17 @@ class TypeService {
 			}
 		}
 
+		return typeTags;
+	}
+
+	getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags) {
+
+		// copy the object, Object.assign() is from es6
+		let typeTags = (<any>Object).assign({}, fastTags);
+
 		let observable;
 		if (Tags.TSV.id in typeTags) {
-			observable = this.getHeader(sessionId, dataset.datasetId, token).map(headers => {
+			observable = this.getHeader(sessionId, datasetId, token).map(headers => {
 				//FIXME implement proper identifier column checks
 				if (headers.indexOf('identifier') !== -1) {
 					typeTags[Tags.GENELIST.id] = null;
@@ -211,4 +284,6 @@ class TypeService {
 	}
 }
 
-new TypeService();
+if (require.main === module) {
+	new TypeService();
+}

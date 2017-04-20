@@ -2,13 +2,19 @@ import {RxHR} from "@akanass/rx-http-request";
 import {Observable} from "rxjs";
 import {Logger} from "./logger";
 import {Config} from "./config";
-var restify = require('restify');
+const restify = require('restify');
 
 const logger = Logger.getLogger(__filename);
 
 export class RestClient {
 
 	static config = new Config();
+
+	static getDatasets(sessionId, token): Observable<any> {
+		return this.getSessionDbUri().mergeMap(sessionDbUri => {
+			return RestClient.getJson(sessionDbUri + '/sessions/' + sessionId + '/datasets/', token);
+		});
+	}
 
 	static getDataset(sessionId, datasetId, token): Observable<any> {
 		return this.getSessionDbUri().mergeMap(sessionDbUri => {
@@ -49,12 +55,12 @@ export class RestClient {
 		});
 	}
 
-	static getJson(uri: string, token: string): Observable<string> {
+	static getJson(uri: string, token: string): Observable<any> {
 		return RestClient.get(uri, token).map(data => JSON.parse(data));
 	}
 
-	static get(uri: string, token: string, headers: Object): Observable<string> {
-		logger.info('get()', uri + ' ' +  token);
+	static get(uri: string, token: string, headers?: Object): Observable<string> {
+		logger.debug('get()', uri + ' ' +  token);
 		let options = {headers: {}};
 
 		if (token) {
@@ -69,12 +75,24 @@ export class RestClient {
 
 		return RxHR.get(uri, options).map(data => {
 			if (data.response.statusCode >= 200 && data.response.statusCode <= 299) {
-				logger.info('response', data.body);
+				logger.debug('response', data.body);
 				return data.body;
 			} else {
-				logger.error('error', data.response.statusCode + ' ' + data.response.statusMessage + ' ' + data.response.body);
-				throw new restify.InternalServerError("unable to get the dataset from the session-db");
+				if (data.response.statusCode >= 400 && data.response.statusCode <= 499) {
+					throw this.responseToError(data.response);
+				} else {
+					logger.error('error', data.response.statusCode + ' ' + data.response.statusMessage + ' ' + data.response.body);
+					throw new restify.InternalServerError("unable to get the dataset from the session-db");
+				}
 			}
+		});
+	}
+
+	static responseToError(response) {
+		return new restify.HttpError({
+			restCode: response.statusMessage,
+			statusCode: response.statusCode,
+			message: response.body
 		});
 	}
 }

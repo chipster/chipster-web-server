@@ -653,16 +653,20 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 
 	public void shutdown() {
 		logger.info("shutdown requested");
+		
+		compStatusTimer.cancel();
+		timeoutTimer.cancel();
+		heartbeatTimer.cancel();		
 
 		try {
 			schedulerClient.shutdown();
-		} catch (IOException e) {
-			logger.warn("failed to shutdown scheduler client", e);
+		} catch (Exception e) {
+			logger.warn("failed to shutdown scheduler client: " + e.getMessage());
 		}
 		try {
 			sessionDbClient.close();
-		} catch (IOException e) {
-			logger.warn("failed to shutdown session-db client", e);
+		} catch (Exception e) {
+			logger.warn("failed to shutdown session-db client: " + e.getMessage());
 		}
 
 		logger.info("shutting down");

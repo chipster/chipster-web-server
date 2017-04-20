@@ -18,38 +18,35 @@ import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationExceptio
  */
 public class JavascriptService {
 	
-	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
-	private String mainFilePath;
+	private String serviceRootPath;
 	private Process process;
-	private File workindDir;
+	private File serviceRoot;
 	
-	public JavascriptService(String mainFilePath) {
-		this.mainFilePath = mainFilePath;
+	public JavascriptService(String serviceRootPath) {
+		this.serviceRootPath = serviceRootPath;
 	}
 
     public void startServer() throws IOException, IllegalConfigurationException, InterruptedException {
     	
-    	File mainFile = new File(mainFilePath);
-    	String mainFileName = mainFile.getName();
-    	this.workindDir = mainFile.getParentFile();
+    	serviceRoot = new File(serviceRootPath);    	
     	
-    	if (!mainFile.exists()) {
-    		throw new IllegalConfigurationException("typescript file " + mainFileName + " not found");
+    	if (!serviceRoot.exists()) {
+    		throw new IllegalConfigurationException("typescript project " + serviceRootPath + " not found");
     	}
     	
     	System.out.println("Install dependencies");
     	runAndWait("npm", "install");    	
     	
-    	System.out.println("Compile typescript");
-    	runAndWaitCareless("tsc", mainFileName);    	
+    	System.out.println("Compile");
+    	runAndWaitCareless("npm", "run", "build");    	
     	
     	System.out.println("Run");    	
-    	ProcessBuilder builder = getProcessBuilder("node", mainFileName.replaceAll(".ts", ".js"));
+    	ProcessBuilder builder = getProcessBuilder("npm", "start");
     	this.process = builder.start();
     	
     	// wait a bit to show startup log messages in correct order
-    	Thread.sleep(3000);
+    	Thread.sleep(5000);
     	
     	Runtime.getRuntime().addShutdownHook(new Thread() {
     		public void run() {
@@ -82,7 +79,7 @@ public class JavascriptService {
     	ProcessBuilder builder = new ProcessBuilder(commandList);
     	builder.environment().put("PATH", StringUtils.join(getPaths(), ":"));
     	builder.inheritIO();
-    	builder.directory(workindDir);
+    	builder.directory(serviceRoot);
 		return builder;
 	}
     
@@ -114,7 +111,7 @@ public class JavascriptService {
     public static void main(String[] args) throws IOException, IllegalConfigurationException, InterruptedException {
     	
     	if (args.length != 1) {
-    		System.out.println("1 argument required: name of the typescript file to run");
+    		System.out.println("1 argument required: path to npm project to run");
     		System.exit(1);
     	}
     	
@@ -125,8 +122,10 @@ public class JavascriptService {
     }
 	
 	public void close() throws InterruptedException {
+		logger.info("JavaScript service shutting down");
 		this.process.destroy();
 		this.process.waitFor();
+		logger.info("JavaScript service stopped");
 	}
 }
 

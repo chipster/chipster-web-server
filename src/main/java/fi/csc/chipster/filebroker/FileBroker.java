@@ -1,6 +1,7 @@
 package fi.csc.chipster.filebroker;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 
 import org.apache.logging.log4j.LogManager;
@@ -98,6 +99,11 @@ public class FileBroker {
 
 	public void close() {
 		try {
+			try {
+				sessionDbClient.close();
+			} catch (IOException e) {
+				logger.warn("failed to shutdown session-db client", e);
+			}
 			server.stop();
 		} catch (Exception e) {
 			logger.warn("failed to stop the file broker", e);

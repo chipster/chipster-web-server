@@ -107,7 +107,7 @@ public class ServerLauncher {
 		if (verbose) {
 			logger.info("starting type service");
 		}
-		typeService = new JavascriptService("src/main/javascript/type-service.ts");
+		typeService = new JavascriptService("js/type-service");
 		typeService.startServer();
 		
 		if (verbose) {
@@ -118,7 +118,14 @@ public class ServerLauncher {
 		
 		if (verbose) {
 			logger.info("up and running (" + ((System.currentTimeMillis() - t)/1000) + " seconds)" );
+			logger.info("---------------------------");
+			logger.info("press enter to stop");
 		}
+		
+		System.in.read();
+		
+		stop();
+		System.exit(0);
 	}		
 
 	public void stop() {
