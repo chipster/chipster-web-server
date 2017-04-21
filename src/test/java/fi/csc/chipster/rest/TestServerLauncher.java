@@ -65,6 +65,10 @@ public class TestServerLauncher {
 		if (Role.FILE_BROKER.equals(role)) {			
 			return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
 		}
+		
+		if (Role.TYPE_SERVICE.equals(role)) {			
+			return serviceLocatorClient.get(Role.TYPE_SERVICE).get(0);			
+		}
 
 		throw new IllegalArgumentException("no target uri for role " + role);
 	}

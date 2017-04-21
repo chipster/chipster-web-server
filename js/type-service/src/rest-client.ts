@@ -60,7 +60,6 @@ export class RestClient {
 	}
 
 	static get(uri: string, token: string, headers?: Object): Observable<string> {
-		logger.debug('get()', uri + ' ' +  token);
 		let options = {headers: {}};
 
 		if (token) {
@@ -72,6 +71,7 @@ export class RestClient {
 		for (let header in headers) {
 			options.headers[header] = headers[header];
 		}
+		logger.debug('get()', uri + ' ' + JSON.stringify(options.headers));
 
 		return RxHR.get(uri, options).map(data => {
 			if (data.response.statusCode >= 200 && data.response.statusCode <= 299) {
@@ -79,6 +79,7 @@ export class RestClient {
 				return data.body;
 			} else {
 				if (data.response.statusCode >= 400 && data.response.statusCode <= 499) {
+          logger.debug('error', data.response.statusCode + ' ' + data.response.statusMessage + ' ' + data.response.body);
 					throw this.responseToError(data.response);
 				} else {
 					logger.error('error', data.response.statusCode + ' ' + data.response.statusMessage + ' ' + data.response.body);

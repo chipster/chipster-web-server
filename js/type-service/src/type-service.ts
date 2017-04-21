@@ -110,7 +110,14 @@ class TypeService {
 
 	respond(req, res, next) {
 
-		let token = this.getToken(req, next);
+	  let token;
+
+	  try {
+      token = this.getToken(req, next);
+    } catch (e) {
+      this.respondError(next, e);
+      return;
+    }
 
 		let sessionId = req.params.sessionId;
 		let datasetId = req.params.datasetId;
@@ -150,14 +157,20 @@ class TypeService {
 			logger.info('response', types);
 			logger.info('type tagging took ' + (Date.now() - t0) + 'ms');
 		}, err => {
-			if (err.statusCode >= 400 && err.statusCode <= 499) {
-				next(err);
-			} else {
-				logger.error('type tagging failed', err);
-				next(new restify.InternalServerError('type tagging failed'));
-			}
+		  this.respondError(next, err);
+      // stop executing this method
+      throw Error(err);
 		});
 	}
+
+	respondError(next, err) {
+    if (err.statusCode >= 400 && err.statusCode <= 499) {
+      next(err);
+    } else {
+      logger.error('type tagging failed', err);
+      next(new restify.InternalServerError('type tagging failed'));
+    }
+  }
 
 	/**
 	 * Takes an array of [key, value] tuples and converts it to a js object
@@ -178,7 +191,7 @@ class TypeService {
 		// always calculate fast type tags, because it's difficult to know when the name has changed
 		let fastTags = this.getFastTypeTagsForDataset(dataset);
 
-		return this.getSlowTypeTagsCached(sessionId, dataset.datasetId, token, fastTags)
+		return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags)
       .map(slowTags => Object.assign({}, fastTags, slowTags))
 			.map(allTags => [dataset.datasetId, allTags]);
 	}
@@ -194,17 +207,17 @@ class TypeService {
    * @param fastTags
    * @returns {any}
    */
-	getSlowTypeTagsCached(sessionId, datasetId, token: string, fastTags) {
-		let idPair = new IdPair(sessionId, datasetId);
+	getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags) {
+		let idPair = new IdPair(sessionId, dataset.datasetId);
 		let cacheItem = this.getFromCache(idPair);
 
 		if (cacheItem) {
-			logger.debug('cache hit', sessionId + ' ' + datasetId);
+			logger.debug('cache hit', sessionId + ' ' + dataset.datasetId);
 			return Observable.of(cacheItem);
 
 		} else {
-			logger.info('cache miss', sessionId + ' ' + datasetId);
-			return this.getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags).map(slowTags => {
+			logger.info('cache miss', sessionId + ' ' + dataset.datasetId);
+			return this.getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags).map(slowTags => {
 				this.addToCache(idPair, slowTags);
 				return slowTags;
 			});
@@ -243,14 +256,14 @@ class TypeService {
 		return typeTags;
 	}
 
-	getSlowTypeTagsForDataset(sessionId, datasetId, token, fastTags) {
+	getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
 
 		// copy the object, Object.assign() is from es6
 		let slowTags = {};
 
 		let observable;
 		if (Tags.TSV.id in fastTags) {
-			observable = this.getHeader(sessionId, datasetId, token).map(headers => {
+			observable = this.getHeader(sessionId, dataset, token).map(headers => {
 				//FIXME implement proper identifier column checks
 				if (headers.indexOf('identifier') !== -1) {
 					slowTags[Tags.GENELIST.id] = null;
@@ -273,9 +286,11 @@ class TypeService {
 		return observable;
 	}
 
-	getHeader(sessionId, datasetId, token) {
+	getHeader(sessionId, dataset, token) {
 
-		return RestClient.getFile(sessionId, datasetId, token, MAX_HEADER_LENGTH).map(data => {
+	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
+
+		return RestClient.getFile(sessionId, dataset.datasetId, token, requestSize).map(data => {
 			let firstRow = data.split('\n', 1)[0];
 			let headers = firstRow.split('\t');
 			return headers;

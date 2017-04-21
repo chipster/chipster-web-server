@@ -159,16 +159,16 @@ public class FileResourceTest {
         return uploadInputStream(target, sessionId, datasetId, fileInStream);
 	}
 	
-	private Response uploadInputStream(WebTarget target, UUID sessionId, UUID datasetId, InputStream inputStream) {
+	public static Response uploadInputStream(WebTarget target, UUID sessionId, UUID datasetId, InputStream inputStream) {
 		WebTarget chunkedTarget = getChunkedTarget(target, sessionId, datasetId);
         return putInputStream(chunkedTarget, inputStream);
 	}
 
-	private Response putInputStream(WebTarget chunkedTarget, InputStream inputStream) {
+	private static Response putInputStream(WebTarget chunkedTarget, InputStream inputStream) {
 		return chunkedTarget.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM), Response.class);
 	}
 
-	private WebTarget getChunkedTarget(WebTarget target, UUID sessionId, UUID datasetId) {
+	private static WebTarget getChunkedTarget(WebTarget target, UUID sessionId, UUID datasetId) {
         // Use chunked encoding to disable buffering. HttpUrlConnector in 
         // Jersey buffers the whole file before sending it by default, which 
         // won't work with big files.
@@ -178,7 +178,7 @@ public class FileResourceTest {
 	
 	
 
-	private String getDatasetPath(UUID sessionId, UUID datasetId) {
+	private static String getDatasetPath(UUID sessionId, UUID datasetId) {
 		return "sessions/" + sessionId.toString() + "/datasets/" + datasetId.toString();
 	}
 
