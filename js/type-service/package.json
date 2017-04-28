@@ -21,6 +21,7 @@
     "yamljs": "^0.2.9"
   },
   "devDependencies": {
-    "nodemon": "^1.11.0"
+    "nodemon": "^1.11.0",
+    "typescript": "^2.3.1"
   }
 }
