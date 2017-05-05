@@ -31,6 +31,7 @@ import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -38,6 +39,8 @@ import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
+import fi.csc.chipster.sessiondb.resource.DatasetTokenResource;
+import fi.csc.chipster.sessiondb.resource.DatasetTokenTable;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
@@ -78,6 +81,10 @@ public class SessionDb implements TopicCheck {
 
 	private GlobalJobResource globalJobResource;
 
+	private DatasetTokenResource datasetTokenResource;
+
+	private TokenRequestFilter tokenRequestFilter;
+
 	public SessionDb(Config config) {
 		this.config = config;
 	}
@@ -101,6 +108,7 @@ public class SessionDb implements TopicCheck {
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 
 		List<Class<?>> hibernateClasses = Arrays.asList(
+				DatasetToken.class,
 				Authorization.class, 
 				Session.class, 
 				Dataset.class, 
@@ -122,7 +130,14 @@ public class SessionDb implements TopicCheck {
 		hibernate = new HibernateUtil(hibernateSchema);
 		hibernate.buildSessionFactory(hibernateClasses, config.getString(Config.KEY_SESSION_DB_NAME));
 
-		this.authorizationResource = new AuthorizationResource(hibernate);
+		this.tokenRequestFilter = new TokenRequestFilter(authService);		
+		// access with DatasetTokens is anonymous
+		this.tokenRequestFilter.authenticationRequired(false, true);
+		
+		DatasetTokenTable datasetTokenTable = new DatasetTokenTable(hibernate);
+		
+		this.authorizationResource = new AuthorizationResource(hibernate, datasetTokenTable, tokenRequestFilter);
+		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationResource);
 		this.sessionResource = new SessionResource(hibernate, authorizationResource);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.adminResource = new SessionDbAdminResource(hibernate);
@@ -140,6 +155,7 @@ public class SessionDb implements TopicCheck {
 		sessionResource.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+				.register(datasetTokenResource)
 				.register(authorizationResource)
 				.register(sessionResource)
 				.register(globalJobResource)
@@ -147,7 +163,7 @@ public class SessionDb implements TopicCheck {
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
 				//.register(new LoggingFilter())
-				.register(new TokenRequestFilter(authService));
+				.register(tokenRequestFilter);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

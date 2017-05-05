@@ -79,7 +79,7 @@ public class ServiceLocator {
     	serviceCatalog.setReadOnly(true);
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
-    	tokenRequestFilter.authenticationRequired(false);
+    	tokenRequestFilter.authenticationRequired(false, false);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ServiceResource(serviceCatalog))

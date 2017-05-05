@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.UUID;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -29,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -40,6 +42,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
+@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
 public class SessionJobResource {
 	
 	@SuppressWarnings("unused")
@@ -66,7 +69,7 @@ public class SessionJobResource {
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
     	
     	// checks authorization
-    	Session session = sessionResource.getSessionForReading(sc, sessionId);
+    	Session session = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId);
     	Job result = getJob(jobId, getHibernate().session());
     	
     	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
@@ -93,7 +96,7 @@ public class SessionJobResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 		
-		Collection<Job> result = sessionResource.getSessionForReading(sc, sessionId).getJobs().values();
+		Collection<Job> result = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId).getJobs().values();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
@@ -112,7 +115,7 @@ public class SessionJobResource {
 		UUID id = RestUtils.createUUID();
 		job.setJobId(id);
 		
-		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
 		// make sure a hostile client doesn't set the session
 		job.setSession(session);
 		
@@ -155,7 +158,7 @@ public class SessionJobResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
 		Job dbJob = getHibernate().session().get(Job.class, jobId);
 		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("job doesn't exist");
@@ -188,7 +191,7 @@ public class SessionJobResource {
     public Response delete(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
 		Job dbJob = getHibernate().session().get(Job.class, jobId);
 		
 		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {

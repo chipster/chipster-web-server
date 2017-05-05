@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -16,6 +17,7 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
@@ -30,6 +32,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -43,6 +46,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class SessionDatasetResource {
 	
+	public static final String QUERY_PARAM_READ_WRITE = "read-write";
+
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
@@ -64,13 +69,16 @@ public class SessionDatasetResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
+    public Response get(@PathParam("id") UUID datasetId, @QueryParam(QUERY_PARAM_READ_WRITE) boolean requireReadWrite, @Context SecurityContext sc) {
+    	
     	
     	// checks authorization
-    	Session session = sessionResource.getSessionForReading(sc, sessionId);
+   		String userToken = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
+    	sessionResource.getAuthorizationResource().checkAuthorizationWithToken(userToken, sessionId, datasetId, requireReadWrite);
+		
     	Dataset result = getDataset(datasetId, getHibernate().session());
     	
-    	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
+    	if (result == null) {
     		throw new NotFoundException();
     	}
 
@@ -82,17 +90,19 @@ public class SessionDatasetResource {
     }
     
 	@GET
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		Collection<Dataset> result = sessionResource.getSessionForReading(sc, sessionId).getDatasets().values();
+		Collection<Dataset> result = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId).getDatasets().values();
 
 		// if nothing is found, just return 200 (OK) and an empty list
-		return Response.ok(toJaxbList(result)).build();		
+		return Response.ok(toJaxbList(result)).build();
     }	
 
 	@POST
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -105,7 +115,7 @@ public class SessionDatasetResource {
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
 
-		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
 		
 		// make sure a hostile client doesn't set the session
 		dataset.setSession(session);
@@ -147,6 +157,7 @@ public class SessionDatasetResource {
 	}
 
 	@PUT
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -161,7 +172,7 @@ public class SessionDatasetResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
 		Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
 		if (dbDataset == null || dbDataset.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("dataset doesn't exist");
@@ -190,12 +201,13 @@ public class SessionDatasetResource {
 	}
 
 	@DELETE
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Path("{id}")
 	@Transaction
     public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
 		Dataset dataset = sessionResource.getHibernate().session().get(Dataset.class, datasetId);
 		
 		if (dataset == null || dataset.getSession().getSessionId() != session.getSessionId()) {

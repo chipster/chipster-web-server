@@ -1,5 +1,6 @@
 package fi.csc.chipster.rest;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.Level;
@@ -49,7 +50,7 @@ public class TestServerLauncher {
 		}
 	}	
 	
-	private String getTargetUri(String role) {
+	public String getTargetUri(String role) {
 
 		if (Role.AUTH.equals(role)) {
 				return config.getInternalServiceUrls().get(Role.AUTH);
@@ -73,12 +74,20 @@ public class TestServerLauncher {
 		throw new IllegalArgumentException("no target uri for role " + role);
 	}
 	
+	public Client getUser1Client() {
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient();
+	}
+
+	public Client getUser2Client() {
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient();
+	}
+	
 	public WebTarget getUser1Target(String role) {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient().target(getTargetUri(role));
+		return getUser1Client().target(getTargetUri(role));
 	}
 
 	public WebTarget getUser2Target(String role) {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient().target(getTargetUri(role));
+		return getUser2Client().target(getTargetUri(role));
 	}
 	
 	public WebTarget getSchedulerTarget(String role) {

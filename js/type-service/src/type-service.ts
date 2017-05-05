@@ -154,7 +154,7 @@ class TypeService {
 			res.send(types);
 			next();
 
-			logger.info('response', types);
+			logger.debug('response', types);
 			logger.info('type tagging took ' + (Date.now() - t0) + 'ms');
 		}, err => {
 		  this.respondError(next, err);

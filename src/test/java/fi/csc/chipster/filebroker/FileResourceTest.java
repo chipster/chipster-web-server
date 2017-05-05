@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.util.UUID;
 
-import javax.ws.rs.ForbiddenException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -144,7 +144,7 @@ public class FileResourceTest {
 	@Test
     public void putWrongSession() throws FileNotFoundException, RestException {
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
-		assertEquals(401, uploadFile(launcher.getUnparseableTokenTarget(Role.FILE_BROKER), sessionId2, datasetId).getStatus());		
+		assertEquals(403, uploadFile(fileBrokerTarget1, sessionId2, datasetId).getStatus());		
     }
 	
 	//@Test
@@ -244,7 +244,7 @@ public class FileResourceTest {
 		try {
 			checkFile(sessionId1, datasetId);
 			assertEquals(true, false);
-		} catch (ForbiddenException e) {}
+		} catch (NotFoundException e) {}
 		
 		// and the second must be still readable
 		checkFile(sessionId1, datasetId2);
@@ -311,6 +311,6 @@ public class FileResourceTest {
     public void getWrongSession() throws IOException, RestException {        
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
 		assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
-		assertEquals(401, launcher.getUnparseableTokenTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId2, datasetId)).request().get(Response.class).getStatus());
+		assertEquals(403, fileBrokerTarget1.path(getDatasetPath(sessionId2, datasetId)).request().get(Response.class).getStatus());
     }
 }

@@ -1,6 +1,7 @@
 package fi.csc.chipster.rest.token;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 
@@ -31,6 +32,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	private boolean authenticationRequired = true;
 	
 	private AuthenticationClient authService;
+	private boolean passwordRequired = true;
 
 	public TokenRequestFilter(AuthenticationClient authService) {
 		this.authService = authService;
@@ -53,24 +55,40 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		
 		String password = getToken(authHeader, authParameter);
 		
-		if (password == null && !authenticationRequired) {
-			// this filter is configured to pass non-authenticated users through
+		if (password == null) { 
+			if (passwordRequired) { 
+				throw new NotAuthorizedException("password or token required");				
+			} else if (!authenticationRequired) {				
+				// this filter is configured to pass non-authenticated users through
+				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
+				return;
+			}
+		}
+		
+		try {
+			// throws an exception if fails
+			AuthPrincipal principal = tokenAuthentication(password);
+			
+			// login ok
 			requestContext.setSecurityContext(
-					new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
-			return;
-		}		
-
-		// throws an exception if fails
-		AuthPrincipal principal = tokenAuthentication(password);
+					new AuthSecurityContext(principal, requestContext.getSecurityContext()));
+			
+			//System.out.println("token validation " + (System.currentTimeMillis() - t) + " ms");
+			
+		} catch (ForbiddenException e) {
+			if (authenticationRequired) {
+				throw e;
+			} else {
+				// DatasetTokens have to be passed through
+				requestContext.setSecurityContext(new AuthSecurityContext(
+						new AuthPrincipal(null, password, new HashSet<String>()), requestContext.getSecurityContext()));
+				return;				
+			}
+		}
 		
-		// login ok
-		requestContext.setSecurityContext(
-				new AuthSecurityContext(principal, requestContext.getSecurityContext()));
-		
-//		System.out.println("token validation " + (System.currentTimeMillis() - t) + " ms");
 	}
 
-	public String getToken(String authHeader, String authParameter) {
+	public static String getToken(String authHeader, String authParameter) {
 		if (authHeader != null) {
 			BasicAuthParser parser = new BasicAuthParser(authHeader);
 			if (!TOKEN_USER.equals(parser.getUsername())) {
@@ -113,7 +131,8 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		return new AuthPrincipal(dbClientToken.getUsername(), clientTokenKey, dbClientToken.getRoles());
 	}
 
-	public void authenticationRequired(boolean authenticationRequired) {
+	public void authenticationRequired(boolean authenticationRequired, boolean passwordRequired) {
 		this.authenticationRequired  = authenticationRequired;
+		this.passwordRequired  = passwordRequired;
 	}
 }

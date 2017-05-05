@@ -18,8 +18,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.rest.token.TokenServletFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -58,9 +56,7 @@ public class FileBroker {
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());		
     	
 		File storage = new File("storage");
-		storage.mkdir();    
-    	
-    	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
+		storage.mkdir();
 
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
                 
@@ -75,10 +71,9 @@ public class FileBroker {
 		contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
 		contextHandler.setResourceBase(storage.getPath());
 				
-		FileServlet fileServlet = new FileServlet(storage, sessionDbClient);
+		FileServlet fileServlet = new FileServlet(storage, sessionDbClient, serviceLocator);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
-		contextHandler.addFilter(new FilterHolder(new TokenServletFilter(tokenRequestFilter)), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter()), "/*", null);
 		
 		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
@@ -90,7 +85,7 @@ public class FileBroker {
      * Main method.
      * @param args
      * @throws Exception 
-     * @throws InterruptedException 
+     * @throws InterruptedException s
      */
     public static void main(String[] args) throws Exception {
     	

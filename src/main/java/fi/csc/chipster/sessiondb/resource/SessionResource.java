@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -31,6 +32,7 @@ import org.hibernate.BaseSessionEventListener;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -46,6 +48,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 @Path("sessions")
+@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED (except sub-resource locators)
 public class SessionResource {
 	
 	@SuppressWarnings("unused")
@@ -80,7 +83,7 @@ public class SessionResource {
     public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc) throws IOException {
     	    
     	// checks authorization
-    	Session result = getSessionForReading(sc, sessionId);    	
+    	Session result = authorizationResource.getSessionForReading(sc, sessionId);    	
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -92,7 +95,7 @@ public class SessionResource {
     }
     
 	@GET
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
@@ -164,7 +167,7 @@ public class SessionResource {
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		getWriteAuthorization(sc, sessionId);
+		authorizationResource.getWriteAuthorization(sc, sessionId);
 		
 		requestSession.setAccessed(LocalDateTime.now());
 		
@@ -185,7 +188,7 @@ public class SessionResource {
 	@Transaction
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
-		Authorization auth = getWriteAuthorization(sc, id);
+		Authorization auth = authorizationResource.getWriteAuthorization(sc, id);
 				
 		deleteSession(auth, getHibernate().session());
 
@@ -215,23 +218,6 @@ public class SessionResource {
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, sessionId, EventType.DELETE), hibernateSession);
 		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getAuthorizationId(), EventType.DELETE), hibernateSession);
 	}
-	
-	public Session getSessionForReading(SecurityContext sc, UUID sessionId) {
-		Authorization auth = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
-		return auth.getSession();
-	}
-	
-	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
-		Authorization auth = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
-		return auth.getSession();
-	}
-	
-	public Authorization getReadAuthorization(SecurityContext sc, UUID sessionId) {
-    	return authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
-    }
-	public Authorization getWriteAuthorization(SecurityContext sc, UUID sessionId) {
-    	return authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
-    }
     	
 	/**
 	 * Make a list compatible with JSON conversion

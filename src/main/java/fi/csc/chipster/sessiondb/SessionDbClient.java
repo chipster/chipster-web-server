@@ -2,6 +2,8 @@ package fi.csc.chipster.sessiondb;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -10,8 +12,6 @@ import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -36,10 +36,12 @@ import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Authorization;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
+import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.microarray.exception.MicroarrayException;
 import fi.csc.microarray.messaging.JobState;
 
@@ -49,6 +51,7 @@ public class SessionDbClient {
 		void onEvent(SessionEvent e);
 	}
 	
+	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	@SuppressWarnings("unused")
@@ -158,6 +161,10 @@ public class SessionDbClient {
 		return sessionDbTarget.path("authorizations");
 	}
 	
+	private WebTarget getDatasetTokenTarget() {
+		return sessionDbTarget.path("datasettokens");
+	}	
+	
 	private WebTarget getAuthorizationTarget(UUID authorizationId) {
 		return getAuthorizationsTarget().path(authorizationId.toString());
 	}
@@ -187,7 +194,22 @@ public class SessionDbClient {
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("post " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
 		}
-        return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));
+		return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));		
+	}
+	
+	private <T> T postWithObjectResponse(WebTarget target, Object obj, Class<T> responseType) throws RestException {
+		Entity<Object> entity = null;
+		if (obj != null) {
+			entity = Entity.entity(obj, MediaType.APPLICATION_JSON);
+		} else {
+			entity = Entity.json("");
+		}
+		Response response = target.request().post(entity, Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("post " + (obj == null ? null : obj.getClass().getSimpleName()) + " failed ", response, target.getUri());
+		}
+		
+		return response.readEntity(responseType);		
 	}
 	
 	private Response put(WebTarget target, Object obj) throws RestException {
@@ -279,50 +301,24 @@ public class SessionDbClient {
 	}
 	
 	public Dataset getDataset(UUID sessionId, UUID datasetId) throws RestException {
-		return get(getDatasetTarget(sessionId, datasetId), Dataset.class);
+		return getDataset(sessionId, datasetId, false);
 	}
 	
 	/**
 	 * Check that the user is authorized to access the requested dataset
 	 *  
-	 * @param username
 	 * @param sessionId
 	 * @param datasetId
 	 * @param requireReadWrite
 	 * @return
 	 * @throws RestException 
 	 */
-	public Dataset getDataset(String username, UUID sessionId, UUID datasetId, boolean requireReadWrite) throws RestException {
-		try {				
-			// check that user has necessary access right to the session
-			int status = sessionDbTarget
-					.path("authorizations")
-					.queryParam("session-id", sessionId)
-					.queryParam("username", username)
-					.queryParam("read-write", requireReadWrite)
-					.request()
-					.get(Response.class).getStatus();
-
-			if (RestUtils.isSuccessful(status)) {
-				// check that the session contains the dataset
-				return getDataset(sessionId, datasetId);
-			}
-			return null;
-
-		} catch (NotFoundException e) {
-			// nothing unusual
-			return null;
-		} catch (RestException e) {
-			if (e.isNotFound()) {
-				// nothing unusual
-				return null;
-			} else {
-				throw e;
-			}
-		} catch (WebApplicationException e) {
-			logger.error("failed to get the dataset " + sessionDbTarget.getUri() + " " + e.getClass().getName() + ": " + e.getMessage(), e);
-			return null;
-		}			
+	public Dataset getDataset(UUID sessionId, UUID datasetId, boolean requireReadWrite) throws RestException {
+		WebTarget target = getDatasetTarget(sessionId, datasetId);
+		if (requireReadWrite) {
+			target.queryParam(SessionDatasetResource.QUERY_PARAM_READ_WRITE, requireReadWrite);
+		}
+		return get(target, Dataset.class);		
 	}
 
 	/**
@@ -368,6 +364,20 @@ public class SessionDbClient {
 	
 	public List<Job> getJobs(JobState state) throws RestException {
 		return getList(sessionDbTarget.path("jobs").queryParam("state", state.toString()), Job.class);
+	}
+	
+	public UUID createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {
+		WebTarget target = getDatasetTokenTarget()
+		.path("sessions").path(sessionId.toString())
+		.path("datasets").path(datasetId.toString());
+		
+		if (validSeconds != null) {
+			target = target.queryParam("valid", LocalDateTime.now().plus(Duration.ofSeconds(validSeconds)).toString());
+		}
+		
+		DatasetToken datasetToken = postWithObjectResponse(target, null, DatasetToken.class);
+		
+		return datasetToken.getTokenKey();
 	}
 	
 	/**

@@ -27,8 +27,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.ConflictException;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
@@ -58,10 +63,17 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 	private SessionDbClient sessionDbClient;
 
-	public FileServlet(File storageRoot, SessionDbClient sessionDbClient) {
+	private String sessionDbUri;
+
+	private String sessionDbEventsUri;
+
+
+	public FileServlet(File storageRoot, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator) {
 
 		this.storageRoot = storageRoot;
 		this.sessionDbClient = sessionDbClient;
+		this.sessionDbUri = serviceLocator.get(Role.SESSION_DB).get(0);
+		this.sessionDbEventsUri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0);
 		
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);				
@@ -88,68 +100,77 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		if (logger.isDebugEnabled()) {
 			logger.debug("RESTful file access: GET request for " + request.getRequestURI());
 		}
+			
+		// get query parameters
+		boolean download = request.getParameter("download") != null;
+		boolean type = request.getParameter("type") != null;
+	
+		// user's token set by TokenServletFilter
+		String userToken = getToken(request);				
 		
+		Path path = parsePath(request.getPathInfo());
+		
+		// check authorization
+		Dataset dataset;
 		try {
-			
-			// get query parameters
-			boolean download = request.getParameter("download") != null;
-			boolean type = request.getParameter("type") != null;
-		
-			// username set by TokenServletFilter
-			String username = request.getUserPrincipal().getName();		
-		
-			
-			Path path = parsePath(request.getPathInfo());
-			
-			Dataset dataset = getDataset(path.getSessionId(), path.getDatasetId(), username, false);
-					
-			if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
-				throw new ForbiddenException("file id is null");
-			}
-			
-			UUID fileId = dataset.getFile().getFileId();		
-		
-			// get the file
-			
-			File f = getStorageFile(fileId);
-			
-		    if (!f.exists()) {
-		    	throw new ForbiddenException("no such file");
-		    } 
-	    
-		    RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + fileId.toString());
-		    
-		    if (download) {
-	    		// hint filename for dataset export
-		    	RestUtils.configureForDownload(response, dataset.getName());
-		    }
-		    
-		    if (type) {
-		    	// rendenring a html file in an iFrame requires the Content-Type header 
-		    	response.setContentType(getType(dataset).toString());
-		    }
-		    		   		    
-			// delegate to super class
-			LocalDateTime before = LocalDateTime.now();
-			super.doGet(rewrittenRequest, response);
-			LocalDateTime after = LocalDateTime.now();
-
-			// log performance
-			Duration duration = Duration.between(before, after);
-			double rate = getTransferRate(f.length(), duration);
-			if (logRest) {
-				logger.info("GET " + f.getName()  + " " + 
-						"from " + request.getRemoteHost() + " | " +
-						FileUtils.byteCountToDisplaySize(f.length()) + " | " + 
-						DurationFormatUtils.formatDurationHMS(duration.toMillis()) + " | " +
-						new DecimalFormat("###.##").format(rate) + " MB/s");
-			}
-			
+			dataset = getDataset(path.getSessionId(), path.getDatasetId(), userToken, false);
 		} catch (RestException e) {
-			throw new ServletException("failed to get the dataset", e);
-		}			    
+			// authentication errors throw javax.ws.rs exceptions, but this is some other error
+			// and is converted to InternalServerException
+			throw new ServletException(e.getMessage());
+		}
+				
+		if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
+			throw new ForbiddenException("file id is null");
+		}
+		
+		UUID fileId = dataset.getFile().getFileId();		
+	
+		// get the file
+		
+		File f = getStorageFile(fileId);
+		
+	    if (!f.exists()) {
+	    	throw new ForbiddenException("no such file");
+	    } 
+    
+	    RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + fileId.toString());
+	    
+	    if (download) {
+    		// hint filename for dataset export
+	    	RestUtils.configureForDownload(response, dataset.getName());
+	    }
+	    
+	    if (type) {
+	    	// rendenring a html file in an iFrame requires the Content-Type header 
+	    	response.setContentType(getType(dataset).toString());
+	    }
+	    		   		    
+		// delegate to super class
+		LocalDateTime before = LocalDateTime.now();
+		super.doGet(rewrittenRequest, response);
+		LocalDateTime after = LocalDateTime.now();
+
+		// log performance
+		Duration duration = Duration.between(before, after);
+		double rate = getTransferRate(f.length(), duration);
+		if (logRest) {
+			logger.info("GET " + f.getName()  + " " + 
+					"from " + request.getRemoteHost() + " | " +
+					FileUtils.byteCountToDisplaySize(f.length()) + " | " + 
+					DurationFormatUtils.formatDurationHMS(duration.toMillis()) + " | " +
+					new DecimalFormat("###.##").format(rate) + " MB/s");
+		}
 	}
 		
+	private String getToken(HttpServletRequest request) {
+		
+		String tokenParameter = request.getParameter(TokenRequestFilter.QUERY_PARAMETER_TOKEN);
+		String tokenHeader = request.getHeader(TokenRequestFilter.HEADER_AUTHORIZATION);
+			
+		return TokenRequestFilter.getToken(tokenHeader, tokenParameter);
+	}
+
 	private Path parsePath(String pathInfo) {
 	    // parse path
 		String[] path = pathInfo.split("/");
@@ -199,17 +220,33 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 	}
 
-	private Dataset getDataset(UUID sessionId, UUID datasetId, String username, boolean requireReadWrite) throws RestException {   			
+	private Dataset getDataset(UUID sessionId, UUID datasetId, String userToken, boolean requireReadWrite) throws RestException, IOException {   			
 		
 		// check authorization
+		SessionDbClient sessionDbWithUserCredentials = new SessionDbClient(sessionDbUri, sessionDbEventsUri, new StaticCredentials("token", userToken));
 		
-		Dataset dataset = sessionDbClient.getDataset(username, sessionId, datasetId, requireReadWrite);
-		
-		if (dataset == null) {
-			throw new ForbiddenException("dataset not found");
-		}
-		
-		return dataset;
+		try {
+			Dataset dataset = sessionDbWithUserCredentials.getDataset(sessionId, datasetId, requireReadWrite);
+			
+			if (dataset == null) {
+				throw new ForbiddenException("dataset not found");
+			}
+			
+			return dataset;
+			
+		} catch (RestException e) {
+			int statusCode = e.getResponse().getStatus();
+			String msg = e.getMessage();
+			if (statusCode == HttpServletResponse.SC_FORBIDDEN) {
+				throw new ForbiddenException(msg);
+			} else if (statusCode == HttpServletResponse.SC_UNAUTHORIZED) {
+				throw new NotAuthorizedException(msg);
+			} else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
+				throw new NotFoundException(msg);
+			} else {
+				throw e;
+			}
+		}		
 	}
 
 	private MediaType getType(Dataset dataset) {
@@ -247,9 +284,9 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		Long chunkSize = getParameterLong(request, "flowChunkSize");
 		Long flowTotalChunks = getParameterLong(request, "flowTotalChunks");
 		
-		// username set by TokenServletFilter
-		String username = request.getUserPrincipal().getName();		
-					
+		// user's token set by TokenServletFilter
+		String userToken = getToken(request);
+		
 		UUID fileId = null;
 		Dataset dataset = null;
 	
@@ -259,7 +296,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			Path path = parsePath(request.getPathInfo());
 			
 			// check authorization
-			dataset = getDataset(path.getSessionId(), path.getDatasetId(), username, true);
+			dataset = getDataset(path.getSessionId(), path.getDatasetId(), userToken, true);
 			
 			InputStream inputStream = request.getInputStream();
 			
