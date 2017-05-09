@@ -37,6 +37,7 @@ public class TypeTagResourceTest {
 	private static UUID tsvDatasetId;
 	private static UUID pngDatasetId;
 	private static WebTarget typeServiceTarget2;
+	private static UUID emptySessionId;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -49,7 +50,8 @@ public class TypeTagResourceTest {
         typeServiceTarget1 = launcher.getUser1Target(Role.TYPE_SERVICE);
         typeServiceTarget2 = launcher.getUser2Target(Role.TYPE_SERVICE);
         
-        sessionId = sessionDbClient.createSession(RestUtils.getRandomSession());   
+        sessionId = sessionDbClient.createSession(RestUtils.getRandomSession());
+        emptySessionId = sessionDbClient.createSession(RestUtils.getRandomSession());
         
         Dataset tsv = RestUtils.getRandomDataset();
         tsv.setName("file.tsv");
@@ -85,6 +87,15 @@ public class TypeTagResourceTest {
 		
 		// check slow tags
 		assertEquals(true, json.contains("GENE_EXPRS"));
+    }
+	
+	@Test
+    public void getEmpty() throws RestException, JsonParseException, JsonMappingException, IOException {
+						
+		Response resp = typeServiceTarget1.path("sessions").path(emptySessionId.toString()).request().get();
+		assertEquals(200, resp.getStatus());
+		String json = IOUtils.toString((InputStream) resp.getEntity());	
+		assertEquals("{}", json);
     }
 	
 	@Test

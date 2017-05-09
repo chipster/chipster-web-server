@@ -142,10 +142,12 @@ class TypeService {
 		let t0 = Date.now();
 
 		datasets$.flatMap(datasets => {
+
 			// array of observables that will resolve to [datasetId, typeTags] tuples
 			let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
+
 			// wait for all observables to complete and return an array of tuples
-			return Observable.forkJoin(types$);
+			return types$.length ? Observable.forkJoin(types$) : Observable.of([]);
 
 		}).subscribe(typesArray => {
 
@@ -154,8 +156,8 @@ class TypeService {
 			res.send(types);
 			next();
 
-			logger.debug('response', types);
-			logger.info('type tagging took ' + (Date.now() - t0) + 'ms');
+			logger.info('response', JSON.stringify(types));
+			logger.info('type tagging ' + typesArray.length + ' datasets took ' + (Date.now() - t0) + 'ms');
 		}, err => {
 		  this.respondError(next, err);
       // stop executing this method
@@ -312,3 +314,4 @@ class TypeService {
 if (require.main === module) {
 	new TypeService();
 }
+
