@@ -114,7 +114,7 @@ public class TypeTagResourceTest {
     }
 	
 	@Test
-    public void udpate() throws RestException, JsonParseException, JsonMappingException, IOException {
+    public void update() throws RestException, JsonParseException, JsonMappingException, IOException {
 						
         Dataset dataset = RestUtils.getRandomDataset();
         dataset.setName("file.png");     
