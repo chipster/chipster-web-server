@@ -26,7 +26,7 @@ describe('Test tagging for all test files', () => {
   it('return tags', () => {
     fs.readdirSync('./test-files').forEach(filename => {
       let tags =  LocalFileTypeService.getTypeTags('./test-files/' + filename);
-      console.log("\t", filename, _.keys(tags).reduce((s, current) => current), "");
+      console.log("\t", filename, _.keys(tags).reduce((all, current) => (all += " " + current)), "");
       expect(tags).not.to.be.empty;
       });
   })
