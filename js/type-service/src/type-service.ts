@@ -47,6 +47,7 @@ export const Tags = {
 	CDNA: new Tag('CDNA', []),
 	PHENODATA: new Tag('PHENODATA', []),
 	GENERIC: new Tag('GENERIC', []),
+  PVALUE_AND_FOLD_CHANGE: new Tag('PVALUE_AND_FOLD_CHANGE', []),
 };
 
 class IdPair {
@@ -57,6 +58,9 @@ class IdPair {
 
 const MAX_CACHE_SIZE = 100 * 1000;
 const MAX_HEADER_LENGTH = 4096;
+
+const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
+const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
 class TypeService {
 
@@ -279,7 +283,11 @@ class TypeService {
 					slowTags[Tags.CDNA.id] = null;
 				}
 
-				return slowTags;
+        if (this.pValueAndFoldChangeCompatible(headers)) {
+          slowTags[Tags.PVALUE_AND_FOLD_CHANGE.id] = null;
+        }
+
+        return slowTags;
 			});
 		} else {
 			observable = Observable.of(slowTags);
@@ -309,6 +317,12 @@ class TypeService {
 
 		return req.authorization.basic.password;
 	}
+
+  pValueAndFoldChangeCompatible(headers) {
+	  return PVALUE_HEADERS.some(pValueHeader => headers.some(header => header.startsWith(pValueHeader))) &&
+      FOLD_CHANGE_HEADERS.some(foldChangeHeader => headers.some(header => header.startsWith(foldChangeHeader)));
+  }
+
 }
 
 if (require.main === module) {
