@@ -2,53 +2,13 @@ import {RestClient} from "./rest-client";
 import {Observable} from "rxjs";
 import {Logger} from "./logger";
 import {Config} from "./config";
+import {Tag, Tags, TypeTags} from "./type-tags";
 const url = require('url');
 const restify = require('restify');
 
 const logger = Logger.getLogger(__filename);
 
-export class Tag {
-	constructor(
-		public id: string,
-		public extensions: string[]){}
-}
 
-// tags in an object for code completion
-export const Tags = {
-	// simple types are recognized with the file extension
-	TEXT: new Tag('TEXT', ['.txt', '.dat', '.wee', '.seq', '.log', '.sam', '.fastq']),
-	TSV: new Tag('TSV', ['.tsv']),
-	CSV: new Tag('CSV', ['.csv']),
-	PNG: new Tag('PNG', ['.png']),
-	GIF: new Tag('GIF', ['.gif']),
-	JPEG: new Tag('JPEG', ['.jpg', '.jpeg']),
-	PDF: new Tag('PDF', ['.pdf']),
-	HTML: new Tag('HTML', ['.html', '.htm']),
-	TRE: new Tag('TRE', ['.tre']),
-	AFFY: new Tag('AFFY', ['.cel']),
-	BED: new Tag('BED', ['.bed']),
-	GTF: new Tag('GTF', ['.gtf', '.gff', '.gff2', '.gff3']),
-	FASTA: new Tag('FASTA', ['.fasta', '.fa', '.fna', '.fsa', '.mpfa']),
-	FASTQ: new Tag('FASTQ', ['.fastq', '.fq']),
-	GZIP: new Tag('GZIP', ['.gz']),
-	VCF: new Tag('VCF', ['.vcf']),
-	BAM: new Tag('BAM', ['.bam']),
-	QUAL: new Tag('QUAL', ['.qual']),
-	MOTHUR_OLIGOS: new Tag('MOTHUR_OLIGOS', ['.oligos']),
-	MOTHUR_NAMES: new Tag('MOTHUR_NAMES', ['.names']),
-	MOTHUR_GROUPS: new Tag('MOTHUR_GROUPS', ['.groups']),
-	MOTHUR_STABILITY: new Tag('MOTHUR_STABILITY', ['.files']),
-	MOTHUR_COUNT: new Tag('MOTHUR_COUNT', ['.count_table']),
-	SFF: new Tag('SFF', ['.sff']),
-
-	// complex types are defined here for autocompletion, but have to be checked separately
-	GENELIST: new Tag('GENELIST', []),
-	GENE_EXPRS: new Tag('GENE_EXPRS', []),
-	CDNA: new Tag('CDNA', []),
-	PHENODATA: new Tag('PHENODATA', []),
-	GENERIC: new Tag('GENERIC', []),
-  PVALUE_AND_FOLD_CHANGE: new Tag('PVALUE_AND_FOLD_CHANGE', []),
-};
 
 class IdPair {
 	constructor(
@@ -58,9 +18,6 @@ class IdPair {
 
 const MAX_CACHE_SIZE = 100 * 1000;
 const MAX_HEADER_LENGTH = 4096;
-
-const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
-const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
 export default class TypeService {
 
@@ -195,7 +152,7 @@ export default class TypeService {
 	getTypeTags(sessionId, dataset, token) {
 
 		// always calculate fast type tags, because it's difficult to know when the name has changed
-		let fastTags = this.getFastTypeTagsForDataset(dataset);
+		let fastTags = TypeTags.getFastTypeTags(dataset.name);
 
 		return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags)
       .map(slowTags => Object.assign({}, fastTags, slowTags))
@@ -248,62 +205,24 @@ export default class TypeService {
 		this.cache.set(JSON.stringify(idPair), tags);
 	}
 
-	getFastTypeTagsForDataset(dataset) {
-		let typeTags = {};
-
-		// add simple type tags based on file extensions
-		for (let tagKey in Tags) { // for-in to iterate object keys
-			for (let extension of Tags[tagKey].extensions) { // for-of to iterate array items
-				if (dataset.name.endsWith(extension)) {
-					typeTags[tagKey] = null;
-				}
-			}
-		}
-		return typeTags;
-	}
-
 	getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
+    let observable;
+    if (Tags.TSV.id in fastTags) {
+      observable = this.getHeaderNames(sessionId, dataset, token).map(headers => {
+        return TypeTags.getSlowTypeTags(headers);
+      });
+    } else {
+      observable = Observable.of({});
+    }
 
-		// copy the object, Object.assign() is from es6
-		let slowTags = {};
+    return observable;
+  }
 
-		let observable;
-		if (Tags.TSV.id in fastTags) {
-			observable = this.getHeader(sessionId, dataset, token).map(headers => {
-				//FIXME implement proper identifier column checks
-				if (headers.indexOf('identifier') !== -1) {
-					slowTags[Tags.GENELIST.id] = null;
-				}
-
-				if (headers.filter(header => header.startsWith('chip.')).length > 0) {
-					slowTags[Tags.GENE_EXPRS.id] = null;
-				}
-
-				if (headers.indexOf('sample') !== -1) {
-					slowTags[Tags.CDNA.id] = null;
-				}
-
-        if (TypeService.pValueAndFoldChangeCompatible(headers)) {
-          slowTags[Tags.PVALUE_AND_FOLD_CHANGE.id] = null;
-        }
-
-        return slowTags;
-			});
-		} else {
-			observable = Observable.of(slowTags);
-		}
-
-		return observable;
-	}
-
-	getHeader(sessionId, dataset, token) {
-
+	getHeaderNames(sessionId, dataset, token) {
 	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
 		return RestClient.getFile(sessionId, dataset.datasetId, token, requestSize).map(data => {
-			let firstRow = data.split('\n', 1)[0];
-			let headers = firstRow.split('\t');
-			return headers;
+			return TypeTags.parseHeader(data);
 		});
 	}
 
@@ -317,11 +236,6 @@ export default class TypeService {
 
 		return req.authorization.basic.password;
 	}
-
-  static pValueAndFoldChangeCompatible(headers: string[]) {
-	  return PVALUE_HEADERS.some(pValueHeader => headers.some(header => header.startsWith(pValueHeader))) &&
-      FOLD_CHANGE_HEADERS.some(foldChangeHeader => headers.some(header => header.startsWith(foldChangeHeader)));
-  }
 
 }
 

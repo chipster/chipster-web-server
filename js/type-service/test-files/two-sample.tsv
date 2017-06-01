@@ -1,0 +1,10 @@
+symbol	description	chip.microarray001.cel	chip.microarray002.cel	chip.microarray003.cel	chip.microarray004.cel	chip.microarray005.cel	chip.microarray006.cel	chip.microarray007.cel	chip.microarray008.cel	chip.microarray009.cel	chip.microarray010.cel	chip.microarray011.cel	chip.microarray012.cel	flag.microarray001.cel	flag.microarray002.cel	flag.microarray003.cel	flag.microarray004.cel	flag.microarray005.cel	flag.microarray006.cel	flag.microarray007.cel	flag.microarray008.cel	flag.microarray009.cel	flag.microarray010.cel	flag.microarray011.cel	flag.microarray012.cel	p.adjusted	FC
+7369_at	UMOD	uromodulin	5.38	5.84	5.32	5.3	7.12	4.97	11.66	13	12.94	11.42	12.7	11.74	A	A	A	A	P	A	P	P	P	P	P	P	0.000479	-6.58833333333333
+10610_at	ST6GALNAC2	ST6 (alpha-N-acetyl-neuraminyl-2,3-beta-galactosyl-1,3)-N-acetylgalactosaminide alpha-2,6-sialyltransferase 2	6.7	6.82	6.66	6.94	6.75	6.69	7.53	7.6	7.58	7.78	7.57	7.6	A	A	A	A	A	A	M	A	A	A	A	M	0.000799	-0.849999999999999
+22981_at	NINL	ninein-like	6.32	6.18	6.09	6.39	6.22	6.12	7.53	7.22	7.4	7.66	7.41	7.17	P	P	P	P	P	P	P	P	P	P	P	P	0.000799	-1.17833333333333
+3291_at	HSD11B2	hydroxysteroid (11-beta) dehydrogenase 2	6	7.01	6.25	6.08	6.09	5.2	8.44	10.35	9.58	9.21	9.49	9.33	A	A	A	A	A	A	P	P	P	P	P	P	0.000799	-3.295
+3486_at	IGFBP3	insulin-like growth factor binding protein 3	11.1	10.28	11.11	9.53	9.97	10.79	7.84	6.96	6.9	6.82	6.62	6.81	P	P	P	P	P	P	P	P	P	P	P	P	0.000799	3.47166666666667
+5104_at	SERPINA5	serpin peptidase inhibitor, clade A (alpha-1 antiproteinase, antitrypsin), member 5	6.01	5.08	4.94	4.87	6.16	4.95	9.39	10.24	10.25	9.67	10.23	9.91	A	A	A	A	A	A	P	P	P	P	P	P	0.000799	-4.61333333333333
+51268_at	PIPOX	pipecolic acid oxidase	5.51	6.3	6.05	6.03	6.31	6.37	7.64	8.74	9.11	9.07	9.09	9.3	P	P	P	A	P	P	P	P	P	P	P	P	0.000799	-2.73
+56606_at	SLC2A9	solute carrier family 2 (facilitated glucose transporter), member 9	6.46	6.9	7.44	7.03	7.14	7.78	7.62	7.91	8.78	8.25	8.35	8.72	M	M	P	A	M	P	P	P	P	P	P	P	0.000799	-1.14666666666666
+57460_at	PPM1H	protein phosphatase, Mg2+/Mn2+ dependent, 1H	4.46	4.39	4.36	4.52	4.68	4.95	5.76	5.92	5.5	5.86	6.03	6	A	A	A	A	M	M	P	P	P	P	P	P	0.000799	-1.285
