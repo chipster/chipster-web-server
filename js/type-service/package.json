@@ -5,7 +5,9 @@
     "start": "node src/type-service.js",
     "build": "tsc",
     "compile": "npm run build ; npm run start",
-    "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\""
+    "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
+    "test": "mocha --opts mocha.opts",
+    "test:auto": "mocha --opts mocha.opts --watch"
   },
   "repository": {
     "type": "git",
@@ -21,7 +23,12 @@
     "yamljs": "^0.2.9"
   },
   "devDependencies": {
+    "@types/chai": "^4.0.0",
+    "@types/mocha": "^2.2.41",
+    "chai": "^4.0.1",
+    "mocha": "^3.4.2",
     "nodemon": "^1.11.0",
+    "ts-node": "^3.0.4",
     "typescript": "^2.3.1"
   }
 }

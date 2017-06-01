@@ -62,7 +62,7 @@ const MAX_HEADER_LENGTH = 4096;
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
-class TypeService {
+export default class TypeService {
 
 	private tagIdMap = new Map<string, Tag>();
 	private cache = new Map<string, {}>();
@@ -283,7 +283,7 @@ class TypeService {
 					slowTags[Tags.CDNA.id] = null;
 				}
 
-        if (this.pValueAndFoldChangeCompatible(headers)) {
+        if (TypeService.pValueAndFoldChangeCompatible(headers)) {
           slowTags[Tags.PVALUE_AND_FOLD_CHANGE.id] = null;
         }
 
@@ -318,7 +318,7 @@ class TypeService {
 		return req.authorization.basic.password;
 	}
 
-  pValueAndFoldChangeCompatible(headers) {
+  static pValueAndFoldChangeCompatible(headers: string[]) {
 	  return PVALUE_HEADERS.some(pValueHeader => headers.some(header => header.startsWith(pValueHeader))) &&
       FOLD_CHANGE_HEADERS.some(foldChangeHeader => headers.some(header => header.startsWith(foldChangeHeader)));
   }
