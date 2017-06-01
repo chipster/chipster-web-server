@@ -160,7 +160,6 @@ public class TypeTagResourceTest {
 				.path("datasets").path(pngDatasetId.toString())
 				.request().get();
 				
-		System.out.println(IOUtils.toString((InputStream) resp.getEntity()));
 		assertEquals(401, resp.getStatus());
 		
     }
