@@ -1,7 +1,6 @@
 package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -14,9 +13,7 @@ import java.util.zip.ZipInputStream;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.stream.StreamSource;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,8 +27,8 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
-import fi.csc.microarray.client.session.NonStoppingValidationEventHandler;
 import fi.csc.microarray.client.session.SessionLoader;
+import fi.csc.microarray.client.session.SessionLoaderImpl2;
 import fi.csc.microarray.client.session.UserSession;
 import fi.csc.microarray.client.session.schema2.DataType;
 import fi.csc.microarray.client.session.schema2.InputType;
@@ -65,7 +62,7 @@ public class XmlSession {
 					
 					if (entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
 						
-						SessionType sessionType = parseXml(new NonClosableInputStream(zipInputStream));
+						SessionType sessionType = SessionLoaderImpl2.parseXml(new NonClosableInputStream(zipInputStream));
 						
 						// Job objects require UUID identifiers
 						convertJobIds(sessionType);
@@ -170,21 +167,6 @@ public class XmlSession {
 			}
 		}		
 		return false;
-	}
-
-	private static SessionType parseXml(InputStream zipInputStream) throws JAXBException, SAXException {
-		// parse the metadata xml to java objects using jaxb
-		Unmarshaller unmarshaller = UserSession.getJAXBContext().createUnmarshaller();
-		unmarshaller.setSchema(UserSession.getSchema());
-		NonStoppingValidationEventHandler validationEventHandler = new NonStoppingValidationEventHandler();
-		unmarshaller.setEventHandler(validationEventHandler);
-		SessionType sessionType = unmarshaller.unmarshal(new StreamSource(zipInputStream), SessionType.class).getValue();		
-		
-		if (validationEventHandler.hasEvents()) {
-			throw new JAXBException("Invalid session file:\n" + validationEventHandler.getValidationEventsAsString());
-		}
-		
-		return sessionType;
 	}
 
 	/**
