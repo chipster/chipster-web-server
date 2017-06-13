@@ -23,6 +23,10 @@ export class RestClient {
 	}
 
 	static getFile(sessionId, datasetId, token, maxLength) {
+    // Range request 0-0 would produce 416 - Range Not Satifiable
+	  if (maxLength === 0) {
+	    return Observable.of("");
+    }
 
 		return RestClient.getFileBrokerUri().mergeMap(fileBrokerUri => {
 			return RestClient.get(
