@@ -9,8 +9,11 @@ import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -25,6 +28,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.server.InclusiveByteRange;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
 import fi.csc.chipster.auth.model.Role;
@@ -145,49 +150,63 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	    	// rendenring a html file in an iFrame requires the Content-Type header 
 	    	response.setContentType(getType(dataset).toString());
 	    }
-	    		   		    
+	    		   		    	  
+	    LocalDateTime before = LocalDateTime.now();
+	    
 		// delegate to super class
-		LocalDateTime before = LocalDateTime.now();
 		super.doGet(rewrittenRequest, response);
-		LocalDateTime after = LocalDateTime.now();
-
+		
 		// log performance
-		Duration duration = Duration.between(before, after);
 		if (logRest) {
-			
-			long length = f.length();
-			
-			// parse the range header for the log message
-			String rangeString = request.getHeader("range");
-			if (rangeString != null) {
-				String[] split = rangeString.split("=");
-				if (split.length != 2) {
-					throw new BadRequestException("unparseable range header");
-				}
-				String unit = split[0];
-				if (!"bytes".equals(unit.toLowerCase())) {
-					throw new BadRequestException("unparseable range header");
-				}
-				String[] values = split[1].split("-");
-				if (values.length != 2) {
-					throw new BadRequestException("unparseable range header");
-				}
-				long start = Long.parseLong(values[0]);
-				long end = Long.parseLong(values[1]);
-				length = end - start;
-			}
-			
-			double rate = getTransferRate(length, duration);
-			
-			logger.info("GET " + f.getName()  + " " + 
-					"from " + request.getRemoteHost() + " | " +
-					FileUtils.byteCountToDisplaySize(length) + "/" + FileUtils.byteCountToDisplaySize(f.length()) + " | " + 
-					DurationFormatUtils.formatDurationHMS(duration.toMillis()) 
-					+ " | " +
-					new DecimalFormat("###.##").format(rate) + " MB/s");
+			logAsyncGet(request, response, f, before);			
 		}
 	}
 		
+	private void logAsyncGet(HttpServletRequest request, HttpServletResponse response, File f, LocalDateTime before) {
+		
+		// addListener() complains about an illegal state, if we do this before super.doGET().
+		// Now afterwards we have to check that the request isn't handled already 
+		if (request.isAsyncStarted()) {
+			request.getAsyncContext().addListener(new AsyncListener() {
+				
+				@Override
+				public void onTimeout(AsyncEvent event) throws IOException { }				
+				@Override
+				public void onStartAsync(AsyncEvent event) throws IOException { }				
+				@Override
+				public void onError(AsyncEvent event) throws IOException { }
+				
+				@Override
+				public void onComplete(AsyncEvent event) throws IOException {				
+					logGet(request, f, before);
+				}
+			});
+		} else {		
+			logGet(request, f, before);
+		}
+	}
+	
+	private void logGet(HttpServletRequest request, File f, LocalDateTime before) {
+		
+		long length = f.length();
+		
+		// parse the range header for the log message
+		List<InclusiveByteRange> ranges = InclusiveByteRange.satisfiableRanges(request.getHeaders(HttpHeader.RANGE.asString()), f.length());
+		if (ranges != null && ranges.size() == 1) {
+			length = ranges.get(0).getLast() - ranges.get(0).getFirst();
+		}
+		
+		Duration duration = Duration.between(before, LocalDateTime.now());
+		double rate = getTransferRate(length, duration);
+		
+		logger.info("GET " + f.getName()  + " " + 
+				"from " + request.getRemoteHost() + " | " +
+				FileUtils.byteCountToDisplaySize(length) + " | " + FileUtils.byteCountToDisplaySize(f.length()) + " | " + 
+				DurationFormatUtils.formatDurationHMS(duration.toMillis()) 
+				+ " | " +
+				new DecimalFormat("###.##").format(rate) + " MB/s");
+	}
+
 	private String getToken(HttpServletRequest request) {
 		
 		String tokenParameter = request.getParameter(TokenRequestFilter.QUERY_PARAMETER_TOKEN);
