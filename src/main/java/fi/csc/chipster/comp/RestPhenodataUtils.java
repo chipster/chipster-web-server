@@ -3,10 +3,12 @@ package fi.csc.chipster.comp;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -190,7 +192,6 @@ public class RestPhenodataUtils {
 	}
 
 	public static List<MetadataEntry> parseMetadata(File workinDir, String inputId) throws FileNotFoundException, IOException {
-		ArrayList<MetadataEntry> metadata = new ArrayList<>();
 		
 		File phenodata1 = new File(workinDir, FILE_PHENODATA);
 		File phenodata2 = new File(workinDir, FILE_PHENODATA2);
@@ -209,42 +210,51 @@ public class RestPhenodataUtils {
 		}
 		
 		if (phenodata != null && phenodata.exists()) {
-			try (BufferedReader reader = new BufferedReader(new FileReader(phenodata))) {
-				String line;
-				List<String> headers = null;
-				while ((line = reader.readLine()) != null) {
-					String[] splitted = line.split("\t");
-					if (headers == null) {
-						headers = Arrays.asList(splitted);
-						continue;
-					}
+			try (InputStream is = new FileInputStream(phenodata)) {
+				return parseMetadata(is, isPhenodata2, inputId);
+			}
+		}
+		return new ArrayList<MetadataEntry>();
+	}
 
-					String rowInputId = null;
-					String column = null;
-					if (isPhenodata2) {
-						rowInputId = splitted[headers.indexOf(HEADER_DATASET)];
-						column = splitted[headers.indexOf(HEADER_COLUMN)];
-					} else {
-						rowInputId = inputId;
-						column = PREFIX_CHIP + splitted[headers.indexOf(HEADER_SAMPLE)];
+	public static ArrayList<MetadataEntry> parseMetadata(InputStream is, boolean isPhenodata2, String inputId) throws IOException {
+	
+		ArrayList<MetadataEntry> metadata = new ArrayList<>();
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+			String line;
+			List<String> headers = null;
+			while ((line = reader.readLine()) != null) {
+				String[] splitted = line.split("\t");
+				if (headers == null) {
+					headers = Arrays.asList(splitted);
+					continue;
+				}
+
+				String rowInputId = null;
+				String column = null;
+				if (isPhenodata2) {
+					rowInputId = splitted[headers.indexOf(HEADER_DATASET)];
+					column = splitted[headers.indexOf(HEADER_COLUMN)];
+				} else {
+					rowInputId = inputId;
+					column = PREFIX_CHIP + splitted[headers.indexOf(HEADER_SAMPLE)];
+				}
+				
+				if (!inputId.equals(rowInputId)) {
+					continue;
+				}
+
+				for (String header : headers) {
+					if (HEADER_DATASET.equals(header) || HEADER_COLUMN.equals(header)) {
+						continue;
 					}
 					
-					if (!inputId.equals(rowInputId)) {
-						continue;
-					}
-
-					for (String header : headers) {
-						if (HEADER_DATASET.equals(header) || HEADER_COLUMN.equals(header)) {
-							continue;
-						}
-						
-						MetadataEntry entry = new MetadataEntry();
-						entry.setColumn(column);
-						entry.setKey(header);
-						entry.setValue(splitted[headers.indexOf(header)]);
-						
-						metadata.add(entry);
-					}
+					MetadataEntry entry = new MetadataEntry();
+					entry.setColumn(column);
+					entry.setKey(header);
+					entry.setValue(splitted[headers.indexOf(header)]);
+					
+					metadata.add(entry);
 				}
 			}
 		}

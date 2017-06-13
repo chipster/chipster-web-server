@@ -1,10 +1,14 @@
 package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -19,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
 
+import fi.csc.chipster.comp.RestPhenodataUtils;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
@@ -26,7 +31,9 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.microarray.client.session.SessionLoader;
 import fi.csc.microarray.client.session.SessionLoaderImpl2;
 import fi.csc.microarray.client.session.UserSession;
@@ -36,6 +43,7 @@ import fi.csc.microarray.client.session.schema2.LocationType;
 import fi.csc.microarray.client.session.schema2.OperationType;
 import fi.csc.microarray.client.session.schema2.ParameterType;
 import fi.csc.microarray.client.session.schema2.SessionType;
+import fi.csc.microarray.databeans.DataBean.Link;
 import fi.csc.microarray.databeans.DataManager.StorageMethod;
 import fi.csc.microarray.messaging.JobState;
 import fi.csc.microarray.util.Strings;
@@ -52,6 +60,7 @@ public class XmlSession {
 				return null;
 			}
 		
+			SessionType sessionType = null;
 			fi.csc.chipster.sessiondb.model.Session session = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
 			HashMap<UUID, UUID> datasetIdMap = new HashMap<>();
@@ -62,13 +71,13 @@ public class XmlSession {
 					
 					if (entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
 						
-						SessionType sessionType = SessionLoaderImpl2.parseXml(new NonClosableInputStream(zipInputStream));
+						sessionType = SessionLoaderImpl2.parseXml(new NonClosableInputStream(zipInputStream));
 						
 						// Job objects require UUID identifiers
 						convertJobIds(sessionType);
 						
-						session = getSession(sessionType);										
-						
+						session = getSession(sessionType);
+												
 						// the session name isn't saved inside the xml session, so let's use whatever the uploader has set
 						session.setName(sessionDb.getSession(sessionId).getName());
 						
@@ -93,11 +102,101 @@ public class XmlSession {
 					}
 				}
 			}
+			
+			convertPhenodata(sessionType, session, sessionId, datasetIdMap, fileBroker, sessionDb);
 					
 			return new ExtractedSession(session, datasetIdMap);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
+	}
+
+	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId, HashMap<UUID, UUID> datasetIdMap, RestFileBrokerClient fileBroker, SessionDbClient sessionDb) throws RestException {
+		
+		HashSet<UUID> convertedPhenodatas = new HashSet<>();
+		
+		for (DataType dataType : sessionType.getData()) {
+			
+			if (dataType.getName().toLowerCase().endsWith(".tsv")) {
+				DataType phenodataDataType = findPhenodata(sessionType, session, dataType);
+				
+				if (phenodataDataType == null) {
+					continue;
+				}
+				
+				UUID oldPhenodataId = UUID.fromString(phenodataDataType.getDataId());
+				UUID newPhenodataId = datasetIdMap.get(oldPhenodataId);
+				
+				try (InputStream phenodata = fileBroker.download(sessionId, newPhenodataId)) {
+					
+					ArrayList<MetadataEntry> newPhenodata = RestPhenodataUtils.parseMetadata(phenodata, false, "");
+					
+					session.getDatasets().get(UUID.fromString(dataType.getDataId())).setMetadata(newPhenodata);
+					
+					convertedPhenodatas.add(oldPhenodataId);
+				
+				} catch (IOException | RestException e) {
+					logger.error("failed to get the phenodata file", e);
+				}
+			}
+		}
+		
+		// delete the old phenodata  files to avoid confusion
+		for (UUID datasetId : convertedPhenodatas) {
+			session.getDatasetCollection().removeIf(d -> datasetId.equals(d.getDatasetId()));
+			sessionDb.deleteDataset(sessionId, datasetIdMap.get(datasetId));
+		}
+	}
+
+	private static DataType findPhenodata(SessionType sessionType, Session session, DataType dataType) {
+
+		DataType parent = dataType;
+		do {
+			
+			List<DataType> phenodatas = getReverseLinked(sessionType, parent, Link.ANNOTATION);
+			
+			if (phenodatas.size() == 1) {
+				return phenodatas.get(0);
+			} else if (phenodatas.size() > 1) {
+				// multiple phenodatas, give up
+				break;
+			}			
+		} while ((parent = getParent(sessionType, parent)) != null);
+		return null;
+	}
+	
+	private static List<DataType> getLinked(SessionType sessionType, DataType dataType, Link linkType) {
+		
+		Set<String> linkedDataIds = dataType.getLink().stream()
+			.filter(l -> linkType == Link.valueOf(l.getType()))
+			.map(l -> l.getTarget())
+			.collect(Collectors.toSet());
+		
+		return sessionType.getData().stream()
+				.filter(d -> linkedDataIds.contains(d.getId()))
+				.collect(Collectors.toList());
+
+	}
+	
+	private static List<DataType> getReverseLinked(SessionType sessionType, DataType dataType, Link linkType) {
+		
+		return sessionType.getData().stream()
+			.filter(d -> d.getLink().stream()
+				.filter(l -> linkType == Link.valueOf(l.getType()))
+				.filter(l -> dataType.getId().equals(l.getTarget()))
+				.findAny().isPresent())
+			.collect(Collectors.toList());
+	}
+	
+	private static DataType getParent(SessionType sessionType, DataType dataType) {
+		
+		List<DataType> parents = getLinked(sessionType, dataType, Link.DERIVATION);
+		
+		if (parents.size() == 1) {
+			return parents.get(0);			
+		}
+		// none or many parents, give up
+		return null;
 	}
 
 	/**

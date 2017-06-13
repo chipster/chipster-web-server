@@ -153,12 +153,37 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 		// log performance
 		Duration duration = Duration.between(before, after);
-		double rate = getTransferRate(f.length(), duration);
 		if (logRest) {
+			
+			long length = f.length();
+			
+			// parse the range header for the log message
+			String rangeString = request.getHeader("range");
+			if (rangeString != null) {
+				String[] split = rangeString.split("=");
+				if (split.length != 2) {
+					throw new BadRequestException("unparseable range header");
+				}
+				String unit = split[0];
+				if (!"bytes".equals(unit.toLowerCase())) {
+					throw new BadRequestException("unparseable range header");
+				}
+				String[] values = split[1].split("-");
+				if (values.length != 2) {
+					throw new BadRequestException("unparseable range header");
+				}
+				long start = Long.parseLong(values[0]);
+				long end = Long.parseLong(values[1]);
+				length = end - start;
+			}
+			
+			double rate = getTransferRate(length, duration);
+			
 			logger.info("GET " + f.getName()  + " " + 
 					"from " + request.getRemoteHost() + " | " +
-					FileUtils.byteCountToDisplaySize(f.length()) + " | " + 
-					DurationFormatUtils.formatDurationHMS(duration.toMillis()) + " | " +
+					FileUtils.byteCountToDisplaySize(length) + "/" + FileUtils.byteCountToDisplaySize(f.length()) + " | " + 
+					DurationFormatUtils.formatDurationHMS(duration.toMillis()) 
+					+ " | " +
 					new DecimalFormat("###.##").format(rate) + " MB/s");
 		}
 	}
