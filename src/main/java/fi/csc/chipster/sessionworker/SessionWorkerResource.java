@@ -92,7 +92,7 @@ public class SessionWorkerResource {
 			    try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(output, 2*1024*1024))) {
 				    
 				    for (InputStreamEntry entry : entries) {
-				    	 
+				    	
 				        zos.putNextEntry(new ZipEntry(entry.getName()));
 				        zos.setLevel(entry.getCompressionLevel());
 				        

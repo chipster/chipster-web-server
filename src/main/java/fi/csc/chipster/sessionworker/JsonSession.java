@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -58,7 +59,7 @@ public class JsonSession {
 		try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
 			ZipEntry entry;
 			while ((entry = zipInputStream.getNextEntry()) != null) {
-		
+				
 				if (entry.getName().equals(SESSION_JSON)) {
 					session = RestUtils.parseJson(Session.class, IOUtils.toString(zipInputStream));
 					
@@ -97,10 +98,19 @@ public class JsonSession {
 		entries.add(new InputStreamEntry(DATASETS_JSON, datasetsJson));
 		entries.add(new InputStreamEntry(JOBS_JSON, jobsJson));
 		
-		for (Dataset dataset : sessionDb.getSession(sessionId).getDatasets().values()) {
+		// sort by date to keep the files in order
+		ArrayList<Dataset> sortedDatasets = new ArrayList<>(sessionDb.getSession(sessionId).getDatasets().values());
+		sortedDatasets.sort(new Comparator<Dataset>() {
+			@Override
+			public int compare(Dataset o1, Dataset o2) {
+				return o1.getFile().getCreated().compareTo(o2.getFile().getCreated());
+			}
+		});
+		
+		for (Dataset dataset : sortedDatasets) {
 			entries.add(new InputStreamEntry(dataset.getDatasetId().toString(), new Callable<InputStream>() {
 				@Override
-				public InputStream call() throws Exception {
+				public InputStream call() throws Exception {					
 					return fileBroker.download(sessionId, dataset.getDatasetId());
 				}
 			}, getCompressionLevel(dataset.getName())));
