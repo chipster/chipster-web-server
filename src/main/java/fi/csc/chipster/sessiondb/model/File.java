@@ -15,7 +15,7 @@ public class File {
 	private UUID fileId;
 	private long size = -1;
 	private String checksum;
-	private LocalDateTime created;
+	private LocalDateTime fileCreated;
 	
 	public File() {} // JAXB needs this	
 
@@ -43,12 +43,11 @@ public class File {
 		this.fileId = fileId;
 	}
 
-	public LocalDateTime getCreated() {
-		return created;
+	public LocalDateTime getFileCreated() {
+		return fileCreated;
 	}
 	
-	public void setCreated(LocalDateTime created) {
-		this.created = created;
+	public void setFileCreated(LocalDateTime created) {
 	}
 
 	@Override
@@ -66,10 +65,10 @@ public class File {
 				return false;
 		} else if (!checksum.equals(other.checksum))
 			return false;
-		if (created == null) {
-			if (other.created != null)
+		if (fileCreated == null) {
+			if (other.fileCreated != null)
 				return false;
-		} else if (!created.equals(other.created))
+		} else if (!fileCreated.equals(other.fileCreated))
 			return false;
 		if (fileId == null) {
 			if (other.fileId != null)

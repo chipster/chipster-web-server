@@ -362,7 +362,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 					fi.csc.chipster.sessiondb.model.File file = new fi.csc.chipster.sessiondb.model.File();
 					file.setFileId(fileId);
 					file.setSize(f.length());
-					file.setCreated(LocalDateTime.now());
+					file.setFileCreated(LocalDateTime.now());
 					dataset.setFile(file);
 					sessionDbClient.updateDataset(path.getSessionId(), dataset);					
 				} catch (EOFException e) {

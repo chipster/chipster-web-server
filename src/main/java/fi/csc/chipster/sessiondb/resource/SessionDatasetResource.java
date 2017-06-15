@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -119,6 +120,10 @@ public class SessionDatasetResource {
 		
 		// make sure a hostile client doesn't set the session
 		dataset.setSession(session);
+		
+		if (dataset.getCreated() == null) {
+			dataset.setCreated(LocalDateTime.now());
+		}
 		
 		create(dataset, getHibernate().session());
 

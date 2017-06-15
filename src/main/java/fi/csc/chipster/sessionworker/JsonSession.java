@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -90,24 +90,18 @@ public class JsonSession {
 	
 	public static void packageSession(SessionDbClient sessionDb, RestFileBrokerClient fileBroker, Session session, UUID sessionId, ArrayList<InputStreamEntry> entries) throws RestException {
 		
+		Collection<Dataset> datasets = sessionDb.getDatasets(sessionId).values();
+		Collection<Job> jobs = sessionDb.getJobs(sessionId).values();
+		
 		String sessionJson = RestUtils.asJson(session, true);
-		String datasetsJson = RestUtils.asJson(sessionDb.getDatasets(sessionId).values(), true);
-		String jobsJson = RestUtils.asJson(sessionDb.getJobs(sessionId).values(), true);
+		String datasetsJson = RestUtils.asJson(datasets, true);
+		String jobsJson = RestUtils.asJson(jobs, true);
 		
 		entries.add(new InputStreamEntry(SESSION_JSON, sessionJson));
 		entries.add(new InputStreamEntry(DATASETS_JSON, datasetsJson));
 		entries.add(new InputStreamEntry(JOBS_JSON, jobsJson));
 		
-		// sort by date to keep the files in order
-		ArrayList<Dataset> sortedDatasets = new ArrayList<>(sessionDb.getSession(sessionId).getDatasets().values());
-		sortedDatasets.sort(new Comparator<Dataset>() {
-			@Override
-			public int compare(Dataset o1, Dataset o2) {
-				return o1.getFile().getCreated().compareTo(o2.getFile().getCreated());
-			}
-		});
-		
-		for (Dataset dataset : sortedDatasets) {
+		for (Dataset dataset : datasets) {
 			entries.add(new InputStreamEntry(dataset.getDatasetId().toString(), new Callable<InputStream>() {
 				@Override
 				public InputStream call() throws Exception {					

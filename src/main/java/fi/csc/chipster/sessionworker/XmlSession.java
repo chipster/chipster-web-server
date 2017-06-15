@@ -394,6 +394,7 @@ public class XmlSession {
 		dataset.setNotes(dataType.getNotes());
 		dataset.setX(dataType.getLayoutX());
 		dataset.setY(dataType.getLayoutY());
+		dataset.setCreated(RestUtils.toLocalDateTime(dataType.getCreationTime().toGregorianCalendar().getTime()));
 		
 		dataset.setSourceJob(UUID.fromString(dataType.getResultOf()));
 		

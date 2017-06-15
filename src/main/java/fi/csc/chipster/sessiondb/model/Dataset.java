@@ -1,5 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ public class Dataset {
 	private Integer x;
 	private Integer y;
 	private UUID sourceJob;
+	private LocalDateTime created;
 	
 	@XmlTransient
 	@ManyToOne
@@ -154,5 +156,13 @@ public class Dataset {
 
 	public void setTypeTags(HashMap<String, String> typeTags) {
 		this.typeTags = typeTags;
+	}
+
+	public LocalDateTime getCreated() {
+		return created;
+	}
+
+	public void setCreated(LocalDateTime created) {
+		this.created = created;
 	}
 }
