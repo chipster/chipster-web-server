@@ -139,7 +139,7 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, Role.FILE_BROKER, Role.FILE_BROKER).getCredentials();
 	}
 	
-	public CredentialsProvider getSessionStorageUserToken() {
+	public CredentialsProvider getSessionDbToken() {
 		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getCredentials();
 	}
 	
@@ -151,8 +151,12 @@ public class TestServerLauncher {
 		return new StaticCredentials("token", RestUtils.createId());
 	}
 	
-	public CredentialsProvider getUsernameAndPassword() {
+	public CredentialsProvider getUser1Credentials() {
 		return new StaticCredentials("client", "clientPassword");
+	}
+	
+	public CredentialsProvider getUser2Credentials() {
+		return new StaticCredentials("client2", "client2Password");
 	}
 
 	public ServerLauncher getServerLauncher() {

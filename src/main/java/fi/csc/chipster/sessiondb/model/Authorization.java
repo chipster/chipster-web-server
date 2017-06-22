@@ -2,23 +2,18 @@ package fi.csc.chipster.sessiondb.model;
 
 import java.util.UUID;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.persistence.OneToOne;
+import javax.persistence.ManyToOne;
 
 @Entity
 public class Authorization {
 	
-	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	private UUID authorizationId;
 	
 	private String username;
-//	@ManyToOne(cascade=CascadeType.ALL)
-//	@JoinColumn(name="sessionId")
-	@OneToOne(cascade=CascadeType.ALL)
+	
 	private Session session;
 	
 	private boolean readWrite;
@@ -36,12 +31,24 @@ public class Authorization {
 	public void setUsername(String username) {
 		this.username = username;
 	}
+	
+	@Id // db
+	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	public UUID getAuthorizationId() {
 		return authorizationId;
 	}
 	public void setAuthorizationId(UUID authorizationId) {
 		this.authorizationId = authorizationId;
 	}
+	
+	/* Only unidirectional mapping, unlike with the Datasets and Jobs
+	 * 
+	 * It's not clear whether authorizations should be thought to be part of the session: 
+	 * on the one hand they are part of the session, because they should be removed when the session
+	 * is removed. On the other hand the authorizations dictate the access permissions to the session and
+	 * are thus above it.
+	 */ 
+	@ManyToOne
 	public Session getSession() {
 		return session;
 	}

@@ -99,7 +99,7 @@ public class DatasetResourceTest {
     	assertEquals(204, fileBrokerClient.updateDataset(sessionId1, dataset1).getStatus());
     }
 
-	private void testCreateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
+	public static void testCreateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
 		try {
     		client.createDataset(sessionId, dataset);
     		assertEquals(true, false);
@@ -122,7 +122,7 @@ public class DatasetResourceTest {
 		testGetDataset(404, sessionId2, datasetId, user2Client);	
     }
 	
-	private void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
+	public static void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
 		try {
     		client.getDataset(sessionId, datasetId);
     		assertEquals(true, false);
@@ -148,7 +148,7 @@ public class DatasetResourceTest {
         assertEquals(false, user2Client.getDatasets(sessionId2).containsKey(id1));
     }
 	
-	private void testGetDatasets(int expected, UUID sessionId, SessionDbClient client) {
+	public static void testGetDatasets(int expected, UUID sessionId, SessionDbClient client) {
 		try {
     		client.getDatasets(sessionId);
     		assertEquals(true, false);
@@ -175,7 +175,7 @@ public class DatasetResourceTest {
 		testUpdateDataset(404, sessionId2, dataset, user2Client);
     }
 	
-	private void testUpdateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
+	public static void testUpdateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
 		try {
     		client.updateDataset(sessionId, dataset);
     		assertEquals(true, false);
@@ -203,7 +203,7 @@ public class DatasetResourceTest {
 		testGetDataset(404, sessionId1, datasetId, user1Client);
     }
 	
-	private void testDeleteDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
+	public static void testDeleteDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
 		try {
     		client.deleteDataset(sessionId, datasetId);
     		assertEquals(true, false);

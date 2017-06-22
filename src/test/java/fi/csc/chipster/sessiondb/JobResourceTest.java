@@ -52,6 +52,15 @@ public class JobResourceTest {
     public void post() throws RestException {
     	user1Client.createJob(sessionId1, RestUtils.getRandomJob());
     }
+    
+	public static void testCreateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
+		try {
+    		client.createJob(sessionId, job);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
 
 
 	@Test
@@ -69,7 +78,7 @@ public class JobResourceTest {
 		testGetJob(404, sessionId2, jobId, user2Client);	
     }	
 	
-	private void testGetJob(int expected, UUID sessionId, UUID jobId, SessionDbClient client) {
+	public static void testGetJob(int expected, UUID sessionId, UUID jobId, SessionDbClient client) {
 		try {
     		client.getJob(sessionId, jobId);
     		assertEquals(true, false);
@@ -95,7 +104,7 @@ public class JobResourceTest {
 		assertEquals(false, user2Client.getJobs(sessionId2).containsKey(id1));
 	}
 	
-	private void testGetJobs(int expected, UUID sessionId, SessionDbClient client) {
+	public static void testGetJobs(int expected, UUID sessionId, SessionDbClient client) {
 		try {
     		client.getJobs(sessionId);
     		assertEquals(true, false);
@@ -128,7 +137,7 @@ public class JobResourceTest {
 		testUpdateJob(404, sessionId2, job, user2Client);
     }
 	
-	private void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
+	public static void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
 		try {
     		client.updateJob(sessionId, job);
     		assertEquals(true, false);
@@ -161,7 +170,7 @@ public class JobResourceTest {
 		testDeleteJob(404, sessionId1, jobId, user1Client);
     }
 	
-	private void testDeleteJob(int expected, UUID sessionId, UUID jobId, SessionDbClient client) {
+	public static void testDeleteJob(int expected, UUID sessionId, UUID jobId, SessionDbClient client) {
 		try {
     		client.deleteJob(sessionId, jobId);
     		assertEquals(true, false);

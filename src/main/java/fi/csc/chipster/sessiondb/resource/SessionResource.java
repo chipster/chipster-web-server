@@ -51,7 +51,6 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 @RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED (except sub-resource locators)
 public class SessionResource {
 	
-	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
 	private HibernateUtil hibernate;
@@ -62,6 +61,8 @@ public class SessionResource {
 	public SessionResource(HibernateUtil hibernate, AuthorizationResource authorizationResource) {
 		this.hibernate = hibernate;
 		this.authorizationResource = authorizationResource;
+		
+		this.authorizationResource.setAuthorizationRemovedListener(this);
 	}
 
 	// sub-resource locators
@@ -149,6 +150,7 @@ public class SessionResource {
     }
 	
 	public void create(Authorization auth, org.hibernate.Session hibernateSession) {
+		hibernateSession.save(auth.getSession());
 		authorizationResource.save(auth, hibernateSession);
 
 		UUID sessionId = auth.getSession().getSessionId();
@@ -212,8 +214,12 @@ public class SessionResource {
 		for (Job job : auth.getSession().getJobs().values()) {
 			getJobResource(sessionId).deleteJob(job, hibernateSession);
 		}
-
-		hibernateSession.delete(auth);
+		
+		for (Authorization authorization : authorizationResource.getAuthorizations(sessionId)) {
+			authorizationResource.delete(authorization);
+		}
+		
+		hibernateSession.delete(auth.getSession());
 
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, sessionId, EventType.DELETE), hibernateSession);
 		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getAuthorizationId(), EventType.DELETE), hibernateSession);
@@ -265,5 +271,16 @@ public class SessionResource {
 
 	public AuthorizationResource getAuthorizationResource() {
 		return authorizationResource;
+	}
+
+	public void authorizationRemoved(Authorization authorization) {
+		logger.info("authorization deleted, username " + authorization.getUsername());
+		long count = authorizationResource.getAuthorizations(authorization.getSession().getSessionId()).size(); 
+		if (count == 0) {
+			logger.info("last authorization deleted, delete the session too");
+			deleteSession(authorization, getHibernate().session());
+		} else {
+			logger.info(count + " authorizations left, session kept");
+		}
 	}
 }

@@ -2,22 +2,29 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.UriInfo;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,6 +61,8 @@ public class AuthorizationResource {
 
 	private TokenRequestFilter tokenRequestFilter;
 
+	private SessionResource authorizationRemovedListener;
+
 	public AuthorizationResource(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
 		this.hibernate = hibernate;
 		this.config = new Config();
@@ -79,14 +88,74 @@ public class AuthorizationResource {
 	public Authorization getAuthorization(UUID authorizationId, org.hibernate.Session hibernateSession) {
 		return hibernateSession.get(Authorization.class, authorizationId);
 	}
-	
+    
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @RolesAllowed(Role.SESSION_DB)
     @Transaction
-    public Response get() throws IOException {
-    	// session db is allowed to get all
-    	return getAuthorizations();    	
+    public Response getBySession(@QueryParam("sessionId") UUID sessionId, @Context SecurityContext sc) {
+    	
+    	if (sessionId != null) {
+    	
+	    	checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);    
+	    	List<Authorization> authorizations = getAuthorizations(sessionId);    	
+	    	return Response.ok(authorizations).build();
+	    	
+    	} else if (Role.SESSION_DB.equals(sc.getUserPrincipal().getName())) {
+    		
+        	// session db is allowed to get all
+        	return getAuthorizations();
+        	
+    	} else {
+    		throw new ForbiddenException("sessionId query param is null");
+    	}
+    }
+    
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response post(Authorization newAuthorization, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+    	
+		if (newAuthorization.getAuthorizationId() != null) {
+			throw new BadRequestException("authorization already has an id, post not allowed");
+		}
+    	
+    	UUID sessionId = newAuthorization.getSession().getSessionId();
+    	
+    	Authorization userAuthorization = checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    	newAuthorization.setAuthorizationId(RestUtils.createUUID());
+    	
+    	// don't trust the session that came from the client
+    	newAuthorization.setSession(userAuthorization.getSession());
+    	
+    	save(newAuthorization, hibernate.session());
+    
+    	URI uri = uriInfo.getAbsolutePathBuilder().path(newAuthorization.getAuthorizationId().toString()).build();
+    	
+    	return Response.created(uri).build();
+    }
+    
+    @DELETE
+    @Path("{id}")
+    @Transaction
+    public Response delete(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) {
+    	
+    	Authorization authorizationToDelete = getAuthorization(authorizationId, hibernate.session());
+
+    	Session session = authorizationToDelete.getSession();
+    	
+    	checkAuthorization(sc.getUserPrincipal().getName(), session.getSessionId(), true);
+    	    	
+    	delete(authorizationToDelete);    	
+    
+    	return Response.noContent().build();
+    }
+    
+    public void delete(Authorization authorization) {
+    	hibernate.session().delete(authorization);
+    	
+    	if (authorizationRemovedListener != null) {
+    		authorizationRemovedListener.authorizationRemoved(authorization);
+    	}
     }
     
     public Authorization checkAuthorization(String username, UUID sessionId, boolean requireReadWrite) {
@@ -132,6 +201,14 @@ public class AuthorizationResource {
 		return hibernate.session()
 				.createQuery("from Authorization where username=:username")
 				.setParameter("username", username)
+				.list();
+	}
+	
+	@SuppressWarnings("unchecked")
+	public List<Authorization> getAuthorizations(UUID sessionId) {		
+		return hibernate.session()
+				.createQuery("from Authorization where session_sessionId=:sessionId")
+				.setParameter("sessionId", sessionId)
 				.list();
 	}
 	
@@ -288,4 +365,8 @@ public class AuthorizationResource {
 	public Authorization getWriteAuthorization(SecurityContext sc, UUID sessionId) {
     	return checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
     }
+
+	public void setAuthorizationRemovedListener(SessionResource sessionResource) {
+		this.authorizationRemovedListener = sessionResource;
+	}
 }

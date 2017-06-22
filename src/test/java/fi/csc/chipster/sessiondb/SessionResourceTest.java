@@ -37,7 +37,7 @@ public class SessionResourceTest {
 		compClient 				= new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken());
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken());
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken());
-		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUsernameAndPassword());
+		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials());
 		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null);
     }
 
@@ -57,7 +57,7 @@ public class SessionResourceTest {
     	testCreateSession(401, noAuthClient);
     }
 
-	private void testCreateSession(int expected, SessionDbClient client) {
+	public static void testCreateSession(int expected, SessionDbClient client) {
 		try {
     		client.createSession(RestUtils.getRandomSession());
     		assertEquals(true, false);
@@ -96,7 +96,7 @@ public class SessionResourceTest {
 		testGetSession(401, sessionId1, noAuthClient);
     }
 	
-	private void testGetSession(int expected, UUID id, SessionDbClient client) {
+	public static void testGetSession(int expected, UUID id, SessionDbClient client) {
 		try {
     		client.getSession(id);
     		assertEquals(true, false);
@@ -165,7 +165,7 @@ public class SessionResourceTest {
 		testUpdateSession(401, session1, noAuthClient);
     }
 	
-	private void testUpdateSession(int expected, Session newSession, SessionDbClient client) {
+	public static void testUpdateSession(int expected, Session newSession, SessionDbClient client) {
 		try {
     		client.updateSession(newSession);
     		assertEquals(true, false);
@@ -196,7 +196,7 @@ public class SessionResourceTest {
 		testGetSession(404, sessionId1, user1Client);
     }
 	
-	private void testDeleteSession(int expected, UUID sessionId, SessionDbClient client) {
+	public static void testDeleteSession(int expected, UUID sessionId, SessionDbClient client) {
 		try {
     		client.deleteSession(sessionId);
     		assertEquals(true, false);

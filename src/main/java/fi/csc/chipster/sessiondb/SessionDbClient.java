@@ -467,4 +467,20 @@ public class SessionDbClient {
 		
 		return tables;
 	}
+	
+	public UUID createAuthorization(String username, Session session, boolean readWrite) throws RestException {
+		return post(getAuthorizationsTarget(), new Authorization(username, session, readWrite));
+	}
+
+	public UUID createAuthorization(Authorization authorization) throws RestException {
+		return post(getAuthorizationsTarget(), authorization);
+	}
+	
+	public void deleteAuthorization(UUID authorizationId) throws RestException {
+		delete(getAuthorizationsTarget().path(authorizationId.toString()));
+	}
+	
+	public List<Authorization> getAuthorizations(UUID sessionId) throws RestException {
+		return getList(getAuthorizationsTarget().queryParam("sessionId", sessionId.toString()), Authorization.class);
+	}
 }

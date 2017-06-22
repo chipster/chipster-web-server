@@ -196,6 +196,12 @@ public class RestUtils {
 		
 		return j;
 	}
+	
+	public static Job getRandomCompletedJob() {
+		Job j = getRandomJob();
+		j.setState(JobState.COMPLETED);
+		return j;
+	}
 
 	private static Input getRandomInput() {
 		Input i = new Input();
