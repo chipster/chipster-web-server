@@ -94,10 +94,10 @@ export default class TypeService {
 		// check access permission by getting dataset objects
 		if (datasetId) {
 			// only one dataset requested
-			datasets$ = RestClient.getDataset(sessionId, datasetId, token).map(dataset => [dataset]);
+			datasets$ = new RestClient(false, token).getDataset(sessionId, datasetId).map(dataset => [dataset]);
 		} else {
 			// all datasets of the session requested
-			datasets$ = RestClient.getDatasets(sessionId, token);
+			datasets$ = new RestClient(false, token).getDatasets(sessionId);
 		}
 
 		let t0 = Date.now();
@@ -221,7 +221,7 @@ export default class TypeService {
 	getHeaderNames(sessionId, dataset, token) {
 	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
-		return RestClient.getFile(sessionId, dataset.datasetId, token, requestSize).map(data => {
+		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).map(data => {
 			return TypeTags.parseHeader(data);
 		});
 	}
