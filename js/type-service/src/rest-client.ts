@@ -1,8 +1,10 @@
 import {RxHR} from "@akanass/rx-http-request";
-import {Observable} from "rxjs";
+import {Observable, Subject} from "rxjs";
 import {Logger} from "./logger";
 import {Config} from "./config";
 const restify = require('restify');
+const request = require('request');
+const fs = require('fs');
 
 const logger = Logger.getLogger(__filename);
 
@@ -41,7 +43,18 @@ export class RestClient {
 
   postSession(session: any) {
     return this.getSessionDbUri()
-      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/sessions/', this.token, session));
+      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/sessions/', this.token, session))
+      .map((resp: any) => JSON.parse(resp).sessionId);
+  }
+
+  extractSession(sessionId: string, datasetId: string) {
+    return this.getSessionWorkerUri()
+      .mergeMap(uri => this.postJson(uri + '/sessions/' + sessionId + '/datasets/' + datasetId, this.token, null));
+  }
+
+  packageSession(sessionId: string, file: string) {
+    return this.getSessionWorkerUri()
+      .mergeMap(uri => this.getToFile(uri + '/sessions/' + sessionId, file));
   }
 
   deleteSession(sessionId: any) {
@@ -60,6 +73,73 @@ export class RestClient {
 			return this.getJson(sessionDbUri + '/sessions/' + sessionId + '/datasets/' + datasetId, this.token);
 		});
 	}
+
+	deleteDataset(sessionId: string, datasetId: string) {
+	  return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.deleteWithToken(sessionDbUri + '/sessions/' + sessionId + '/datasets/' + datasetId, this.token));
+  }
+
+  postDataset(sessionId: string, dataset: any) {
+    return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/sessions/' + sessionId + '/datasets/', this.token, dataset))
+      .map((resp: any) => JSON.parse(resp).datasetId);
+  }
+
+  downloadFile(sessionId: string, datasetId: string, file: string) {
+    return this.getFileBrokerUri()
+      .flatMap(fileBrokerUri => this.getToFile(fileBrokerUri + '/sessions/' + sessionId + '/datasets/' + datasetId, file));
+  }
+
+  getToFile(uri: string, file: string) {
+    let subject = new Subject<any>();
+    this.getFileBrokerUri()
+      .subscribe(fileBrokerUri => {
+        request.get(uri)
+          .on('response', (resp) => this.checkForError(resp))
+          .on('end', () => subject.next())
+          .auth('token', this.token)
+          .pipe(this.getWriteStream(file));
+      });
+    return subject;
+  }
+
+  getWriteStream(file: string) {
+    if (file === '-') {
+      return process.stdout;
+    } else {
+      return fs.createWriteStream(file);
+    }
+  }
+
+  getReadStream(file: string) {
+    if (file === '-') {
+      return process.stdin;
+    } else {
+      return fs.createReadStream(file);
+    }
+  }
+
+  uploadFile(sessionId: string, datasetId: string, file: string) {
+
+    let subject = new Subject<any>();
+    this.getFileBrokerUri()
+      .subscribe(fileBrokerUri => {
+        let req = request.put(fileBrokerUri + '/sessions/' + sessionId + '/datasets/' + datasetId)
+          .auth('token', this.token)
+          .on('response', (resp) => this.checkForError(resp))
+          .on('end', () => subject.next());
+
+        this.getReadStream(file)
+          .pipe(req);
+      });
+    return subject;
+  }
+
+  checkForError(response: any) {
+    if (response.statusCode >= 300) {
+      throw new Error(response.stausCode + ' - ' + response.statusMessage);
+    }
+  }
 
 	getFile(sessionId, datasetId, maxLength) {
     // Range request 0-0 would produce 416 - Range Not Satifiable
@@ -86,6 +166,10 @@ export class RestClient {
 	getSessionDbUri() {
 		return this.getServiceUri('session-db');
 	}
+
+  getSessionWorkerUri() {
+    return this.getServiceUri('session-worker');
+  }
 
 	getServiceUri(serviceName) {
 		return this.getJson(this.serviceLocatorUri + '/services', null).map(services => {

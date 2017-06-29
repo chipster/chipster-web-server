@@ -3,11 +3,11 @@ import {RestClient} from "../../type-service/src/rest-client";
 import {Observable, Subject} from "rxjs";
 import {Logger} from "../../type-service/src/logger";
 import CliEnvironment from "./cli-environment";
+import {subscribeOn} from "rxjs/operator/subscribeOn";
 
+const path = require('path');
 const read = require('read');
-const readline = require('readline');
 const ArgumentParser = require('argparse').ArgumentParser;
-const url = require('url');
 const logger = Logger.getLogger(__filename);
 
 export default class CliClient {
@@ -21,52 +21,68 @@ export default class CliClient {
 
 	parseCommand() {
 
-    var parser = new ArgumentParser({
+    let parser = new ArgumentParser({
       version: '0.0.1',
       addHelp:true,
       description: 'Chipster command line client for the version 4 and upwards',
     });
 
-    var subparsers = parser.addSubparsers({
+    let subparsers = parser.addSubparsers({
       title:'commands',
       dest:"command"
     });
 
 
-    var sessionSubparsers = subparsers.addParser('session').addSubparsers({
+    let sessionSubparsers = subparsers.addParser('session').addSubparsers({
       title:'session subcommands',
       dest:"subcommand"
     });
 
-    var sessionListSubparser = sessionSubparsers.addParser('list');
 
-    var sessionGetSubparser = sessionSubparsers.addParser('get');
+    let sessionListSubparser = sessionSubparsers.addParser('list');
+
+    let sessionGetSubparser = sessionSubparsers.addParser('get');
     sessionGetSubparser.addArgument([ 'name' ], { help: 'session name or id' });
 
-    var sessionDeleteSubparser = sessionSubparsers.addParser('delete');
+    let sessionOpenSubparser = sessionSubparsers.addParser('open');
+    sessionOpenSubparser.addArgument([ 'name' ], { help: 'session name or id' });
+
+    let sessionDeleteSubparser = sessionSubparsers.addParser('delete');
     sessionDeleteSubparser.addArgument([ 'name' ], { help: 'session name or id' });
 
-    var sessionCreateSubparser = sessionSubparsers.addParser('create');
+    let sessionCreateSubparser = sessionSubparsers.addParser('create');
     sessionCreateSubparser.addArgument([ 'name' ], { help: 'session name'});
 
-    var sessionUploadSubparser = sessionSubparsers.addParser('upload');
-
+    let sessionUploadSubparser = sessionSubparsers.addParser('upload');
     sessionUploadSubparser.addArgument([ 'file' ], { help: 'session file to upload' });
-    sessionUploadSubparser.addArgument([ '--name' ], { help: 'session name' });
+    sessionUploadSubparser.addArgument([ '--name' ], { help: 'session name (affects only the old session format)' });
 
-    var sessionDeleteSubparser = sessionSubparsers.addParser('delete');
+    let sessionDownloadSubparser = sessionSubparsers.addParser('download');
+    sessionDownloadSubparser.addArgument(['name'], {help: 'session name or id'});
+    sessionDownloadSubparser.addArgument(['--file'], {help: 'file to write'});
 
-    sessionDeleteSubparser.addArgument([ 'name' ], { help: 'foo3 bar3' });
-
-
-    var datasetSubparsers = subparsers.addParser('dataset').addSubparsers({
+    let datasetSubparsers = subparsers.addParser('dataset').addSubparsers({
       title:'dataset subcommands',
       dest:"subcommand"
     });
 
-    var datasetListSubparser = datasetSubparsers.addParser('list');
+    let datasetListSubparser = datasetSubparsers.addParser('list');
 
-    var loginSubparser = subparsers.addParser('login');
+    let datasetGetSubparser = datasetSubparsers.addParser('get');
+    datasetGetSubparser.addArgument(['name'], {help: 'dataset name or id'});
+
+    let datasetDeleteSubparser = datasetSubparsers.addParser('delete');
+    datasetDeleteSubparser.addArgument(['name'], {help: 'dataset name or id'});
+
+    let datasetCreateSubparser = datasetSubparsers.addParser('upload');
+    datasetCreateSubparser.addArgument(['file'], {help: 'file to read'});
+    datasetCreateSubparser.addArgument(['--name'], {help: 'dataset name'});
+
+    let datasetDownloadSubparser = datasetSubparsers.addParser('download');
+    datasetDownloadSubparser.addArgument(['name'], {help: 'dataset name or id'});
+    datasetDownloadSubparser.addArgument(['--file'], {help: 'file to write'});
+
+    let loginSubparser = subparsers.addParser('login');
 
     loginSubparser.addArgument(['URL'], { nargs: '?', help: 'url of the API server'});
     loginSubparser.addArgument(['--username', '-u'], { help: 'username for the server'});
@@ -74,25 +90,29 @@ export default class CliClient {
 
     subparsers.addParser('logout');
 
-    var args = parser.parseArgs();
+    let args = parser.parseArgs();
 
     logger.info(args);
 
     if (args.command === 'session') {
-      if (args.subcommand === 'list') {
-        this.sessionList();
+      switch (args.subcommand) {
+        case 'list': this.sessionList(); break;
+        case 'get': this.sessionGet(args); break;
+        case 'create': this.sessionCreate(args); break;
+        case 'delete': this.sessionDelete(args); break;
+        case 'upload': this.sessionUpload(args); break;
+        case 'download': this.sessionDownload(args); break;
+        case 'open': this.sessionOpen(args); break;
+        default: throw new Error('unknown subcommand ' + args.subcommand);
       }
-      if (args.subcommand === 'get') {
-        this.sessionGet(args);
-      }
-      if (args.subcommand === 'create') {
-        this.sessionCreate(args);
-      }
-      if (args.subcommand === 'delete') {
-        this.sessionDelete(args);
-      }
-      if (args.subcommand === 'upload') {
-        this.sessionUpload(args);
+    } else if (args.command === 'dataset') {
+      switch (args.subcommand) {
+        case 'list': this.datasetList(); break;
+        case 'get': this.datasetGet(args); break;
+        case 'upload': this.datasetUpload(args); break;
+        case 'delete': this.datasetDelete(args); break;
+        case 'download': this.datasetDownload(args); break;
+        default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'login') {
       this.login(args);
@@ -130,6 +150,10 @@ export default class CliClient {
     }
   }
 
+  getSessionId() {
+    return this.env.get('sessionId');
+  }
+
   login(args) {
 
     let url;
@@ -163,8 +187,31 @@ export default class CliClient {
   }
 
   sessionUpload(args) {
-    this.checkLogin();
-    console.log('Uploading ' + args.file + '...');
+
+    let datasetName = path.basename(args.file);
+    let sessionName = args.name || datasetName.replace('.zip', '');
+    let sessionId;
+    let datasetId;
+
+    this.checkLogin()
+      .flatMap(() => this.restClient.postSession({name: sessionName}))
+      .do(id => sessionId = id)
+      .flatMap(() => this.restClient.postDataset(sessionId, {name: datasetName}))
+      .do(id => datasetId = id)
+      .flatMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
+      .flatMap(() => this.restClient.extractSession(sessionId, datasetId))
+      .do((resp) => console.log(resp))
+      .flatMap(() => this.restClient.deleteDataset(sessionId, datasetId))
+      .flatMap(() => this.setOpenSession(sessionId))
+      .subscribe();
+  }
+
+  sessionDownload(args) {
+    let file = args.file || args.name + '.zip';
+
+    this.getSessionByNameOrId(args.name)
+      .flatMap(session => this.restClient.packageSession(session.sessionId, file))
+      .subscribe();
   }
 
   sessionList() {
@@ -175,14 +222,63 @@ export default class CliClient {
   }
 
   sessionGet(args) {
-    this.getSessionByNameOrId(args.name, args.sessionId)
-      .subscribe(sessions => console.log(sessions));
+    this.getSessionByNameOrId(args.name)
+      .subscribe(session => console.log(session));
   }
 
-  getSessionByNameOrId(name: string, id: string) {
+  sessionOpen(args) {
+    this.getSessionByNameOrId(args.name)
+      .flatMap((session: any) => this.setOpenSession(session.sessionId))
+      .subscribe();
+  }
+
+  setOpenSession(sessionId: string) {
+    return this.env.set('sessionId', sessionId);
+  }
+
+  datasetList() {
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .flatMap(sessionId => this.restClient.getDatasets(sessionId))
+      .map((datasets: Array<any>) => datasets.map(d => d.name))
+      .subscribe(datasets => console.log(datasets));
+  }
+
+  datasetGet(args) {
+    this.getDatasetByNameOrId(args.name)
+      .subscribe(dataset => console.log(dataset));
+  }
+
+  datasetUpload(args) {
+    let name = args.name || path.basename(args.file);
+    let sessionId;
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .do(id => sessionId = id)
+      .flatMap(() => this.restClient.postDataset(sessionId, {name: name}))
+      .flatMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
+      .subscribe();
+  }
+
+  datasetDelete(args) {
+    this.getDatasetByNameOrId(args.name)
+      .flatMap(dataset => this.restClient.deleteDataset(dataset.session.sessionId, dataset.datasetId))
+      .subscribe();
+  }
+
+  datasetDownload(args) {
+    this.getDatasetByNameOrId(args.name)
+      .flatMap(dataset => {
+        let file = args.file || args.name;
+        return this.restClient.downloadFile(dataset.session.sessionId, dataset.datasetId, file);
+      })
+      .subscribe();
+  }
+
+  getSessionByNameOrId(search: string) {
     return this.checkLogin()
       .flatMap(() => this.restClient.getSessions())
-      .map((sessions: Array<any>) => sessions.filter(s => s.name === name || s.sessionId === id))
+      .map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId === search))
       .map(sessions => {
         if (sessions.length !== 1) {
           throw new Error('found ' + sessions.length + ' sessions');
@@ -191,8 +287,21 @@ export default class CliClient {
       });
   }
 
+  getDatasetByNameOrId(search: string) {
+    return this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .flatMap(sessionId => this.restClient.getDatasets(sessionId))
+      .map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId === search))
+      .map(datasets => {
+        if (datasets.length !== 1) {
+          throw new Error('found ' + datasets.length + ' datasets');
+        }
+        return datasets[0];
+      });
+  }
+
   sessionDelete(args) {
-    this.getSessionByNameOrId(args.name, args.sessionId)
+    this.getSessionByNameOrId(args.name)
       .flatMap(s => this.restClient.deleteSession(s.sessionId))
       .subscribe();
   }
