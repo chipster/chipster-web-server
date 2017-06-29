@@ -54,12 +54,12 @@ export default class CliClient {
     sessionCreateSubparser.addArgument([ 'name' ], { help: 'session name'});
 
     let sessionUploadSubparser = sessionSubparsers.addParser('upload');
-    sessionUploadSubparser.addArgument([ 'file' ], { help: 'session file to upload' });
-    sessionUploadSubparser.addArgument([ '--name' ], { help: 'session name (affects only the old session format)' });
+    sessionUploadSubparser.addArgument([ 'file' ], { help: 'session file to upload or - for stdin'});
+    sessionUploadSubparser.addArgument([ '--name' ], { help: 'session name (affects only the old session format)'});
 
     let sessionDownloadSubparser = sessionSubparsers.addParser('download');
     sessionDownloadSubparser.addArgument(['name'], {help: 'session name or id'});
-    sessionDownloadSubparser.addArgument(['--file'], {help: 'file to write'});
+    sessionDownloadSubparser.addArgument(['--file'], {help: 'file to write or - for stdout'});
 
     let datasetSubparsers = subparsers.addParser('dataset').addSubparsers({
       title:'dataset subcommands',
@@ -75,12 +75,12 @@ export default class CliClient {
     datasetDeleteSubparser.addArgument(['name'], {help: 'dataset name or id'});
 
     let datasetCreateSubparser = datasetSubparsers.addParser('upload');
-    datasetCreateSubparser.addArgument(['file'], {help: 'file to read'});
+    datasetCreateSubparser.addArgument(['file'], {help: 'file to read or - for stdin'});
     datasetCreateSubparser.addArgument(['--name'], {help: 'dataset name'});
 
     let datasetDownloadSubparser = datasetSubparsers.addParser('download');
     datasetDownloadSubparser.addArgument(['name'], {help: 'dataset name or id'});
-    datasetDownloadSubparser.addArgument(['--file'], {help: 'file to write'});
+    datasetDownloadSubparser.addArgument(['--file'], {help: 'file to write or - for stdout'});
 
     let loginSubparser = subparsers.addParser('login');
 
@@ -92,7 +92,7 @@ export default class CliClient {
 
     let args = parser.parseArgs();
 
-    logger.info(args);
+    logger.debug(args);
 
     if (args.command === 'session') {
       switch (args.subcommand) {
@@ -110,8 +110,8 @@ export default class CliClient {
         case 'list': this.datasetList(); break;
         case 'get': this.datasetGet(args); break;
         case 'upload': this.datasetUpload(args); break;
-        case 'delete': this.datasetDelete(args); break;
         case 'download': this.datasetDownload(args); break;
+        case 'delete': this.datasetDelete(args); break;
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'login') {
