@@ -84,6 +84,22 @@ export default class CliClient {
 
     let loginSubparser = subparsers.addParser('login');
 
+
+    let ruleSubparsers = subparsers.addParser('rule').addSubparsers({
+      title:'access subcommands',
+      dest:"subcommand"
+    });
+
+    let ruleListSubparser = ruleSubparsers.addParser('list');
+
+    let ruleCreateSubparser = ruleSubparsers.addParser('create');
+    ruleCreateSubparser.addArgument(['username'], {help: 'username'});
+    ruleCreateSubparser.addArgument(['--mode'], {help: 'r for read-only, rw for read-write (default)'});
+
+    let ruleDeleteSubparser = ruleSubparsers.addParser('delete');
+    ruleDeleteSubparser.addArgument(['username'], {help: 'username'});
+
+
     loginSubparser.addArgument(['URL'], { nargs: '?', help: 'url of the API server'});
     loginSubparser.addArgument(['--username', '-u'], { help: 'username for the server'});
     loginSubparser.addArgument(['--password', '-p'], { help: 'password for the server'});
@@ -112,6 +128,13 @@ export default class CliClient {
         case 'upload': this.datasetUpload(args); break;
         case 'download': this.datasetDownload(args); break;
         case 'delete': this.datasetDelete(args); break;
+        default: throw new Error('unknown subcommand ' + args.subcommand);
+      }
+    } else if (args.command === 'rule') {
+      switch (args.subcommand) {
+        case 'list': this.ruleList(); break;
+        case 'create': this.ruleCreate(args); break;
+        case 'delete': this.ruleDelete(args); break;
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'login') {
@@ -234,6 +257,29 @@ export default class CliClient {
 
   setOpenSession(sessionId: string) {
     return this.env.set('sessionId', sessionId);
+  }
+
+  ruleList() {
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .flatMap(sessionId => this.restClient.getAuthorizations(sessionId))
+      .subscribe(list => console.log(list));
+  }
+
+  ruleCreate(args) {
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .flatMap(sessionId => this.restClient.postAuthorization(sessionId, args.username, args.mode !== 'r'))
+      .subscribe(res => console.log(res));
+  }
+
+  ruleDelete(args) {
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .flatMap(sessionId => this.restClient.getAuthorizations(sessionId))
+      .flatMap((rules: any) => Observable.from(rules.filter(r => r.username === args.username)))
+      .flatMap((rule: any) => this.restClient.deleteAuthorization(rule.authorizationId))
+      .subscribe(null, err => console.error('failed to delete the rule', err));
   }
 
   datasetList() {

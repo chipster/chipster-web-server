@@ -135,6 +135,22 @@ export class RestClient {
     return subject;
   }
 
+  getAuthorizations(sessionId): Observable<any> {
+    return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.getJson(sessionDbUri + '/authorizations/?sessionId=' + sessionId, this.token));
+  }
+
+  postAuthorization(sessionId: string, username: string, readWrite: boolean): Observable<any> {
+    let rule = {session: {sessionId: sessionId}, username: username, readWrite: readWrite};
+    return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/authorizations/', this.token, rule));
+  }
+
+  deleteAuthorization(authorizationId: string) {
+    return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.deleteWithToken(sessionDbUri + '/authorizations/' + authorizationId, this.token));
+  }
+
   checkForError(response: any) {
     if (response.statusCode >= 300) {
       throw new Error(response.stausCode + ' - ' + response.statusMessage);
@@ -231,6 +247,7 @@ export class RestClient {
 
   delete(uri: string, headers?: Object): Observable<any> {
     let options = {headers: headers};
+
     return RxHR.delete(uri, options);
   }
 
