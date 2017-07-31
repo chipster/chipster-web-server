@@ -191,8 +191,11 @@ public class SessionResource {
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		Authorization auth = authorizationResource.getWriteAuthorization(sc, id);
-				
-		deleteSession(auth, getHibernate().session());
+		
+		// deleting all the authorizations will eventually delete the session too
+		for (Authorization authorization : authorizationResource.getAuthorizations(auth.getSession().getSessionId())) {
+			authorizationResource.delete(authorization, hibernate.session());
+		}
 
 		return Response.noContent().build();
     }
@@ -213,11 +216,7 @@ public class SessionResource {
 		// see the note about datasets above
 		for (Job job : auth.getSession().getJobs().values()) {
 			getJobResource(sessionId).deleteJob(job, hibernateSession);
-		}
-		
-		for (Authorization authorization : authorizationResource.getAuthorizations(sessionId)) {
-			authorizationResource.delete(authorization);
-		}
+		}						
 		
 		hibernateSession.delete(auth.getSession());
 
@@ -277,7 +276,7 @@ public class SessionResource {
 		logger.info("authorization deleted, username " + authorization.getUsername());
 		long count = authorizationResource.getAuthorizations(authorization.getSession().getSessionId()).size(); 
 		if (count == 0) {
-			logger.info("last authorization deleted, delete the session too");
+			logger.info("last authorization deleted, delete the session too");			
 			deleteSession(authorization, getHibernate().session());
 		} else {
 			logger.info(count + " authorizations left, session kept");

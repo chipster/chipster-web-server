@@ -145,13 +145,13 @@ public class AuthorizationResource {
     	
     	checkAuthorization(sc.getUserPrincipal().getName(), session.getSessionId(), true);
     	    	
-    	delete(authorizationToDelete);    	
+    	delete(authorizationToDelete, hibernate.session());    	
     
     	return Response.noContent().build();
     }
     
-    public void delete(Authorization authorization) {
-    	hibernate.session().delete(authorization);
+    public void delete(Authorization authorization, org.hibernate.Session hibernateSession) {
+    	hibernateSession.delete(authorization);
     	
     	if (authorizationRemovedListener != null) {
     		authorizationRemovedListener.authorizationRemoved(authorization);
