@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,13 +57,13 @@ public class SessionResource {
 	private HibernateUtil hibernate;
 	private PubSubServer events;
 
-	private AuthorizationResource authorizationResource;
+	private AuthorizationTable authorizationTable;
 	
-	public SessionResource(HibernateUtil hibernate, AuthorizationResource authorizationResource) {
+	public SessionResource(HibernateUtil hibernate, AuthorizationTable authorizationTable) {
 		this.hibernate = hibernate;
-		this.authorizationResource = authorizationResource;
+		this.authorizationTable = authorizationTable;
 		
-		this.authorizationResource.setAuthorizationRemovedListener(this);
+		this.authorizationTable.setAuthorizationRemovedListener(this);
 	}
 
 	// sub-resource locators
@@ -76,6 +77,11 @@ public class SessionResource {
 		return new SessionJobResource(this, id);
 	}
 	
+	@Path("{id}/authorizations")
+	public AuthorizationResource getAuthorizationResource(@PathParam("id") UUID id) {
+		return new AuthorizationResource(this, id, this.authorizationTable);
+	}
+	
     // CRUD
     @GET
     @Path("{id}")
@@ -84,7 +90,7 @@ public class SessionResource {
     public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc) throws IOException {
     	    
     	// checks authorization
-    	Session result = authorizationResource.getSessionForReading(sc, sessionId);    	
+    	Session result = authorizationTable.getSessionForReading(sc, sessionId);    	
     	
     	if (result == null) {
     		throw new NotFoundException();
@@ -92,11 +98,6 @@ public class SessionResource {
     	
     	// does this update the db?
     	result.setAccessed(LocalDateTime.now());
-    	
-    	// prevent a loop in the json serialization (but obviously this shouldn't change the db)
-    	if (result.getAuthorizations() != null) {
-    		result.getAuthorizations().forEach(a -> a.setSession(null));
-    	}
     	
     	return Response.ok(result).build();    	
     }
@@ -106,15 +107,12 @@ public class SessionResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		List<Authorization> result = authorizationResource.getAuthorizations(sc.getUserPrincipal().getName());
+		List<Authorization> result = authorizationTable.getAuthorizations(sc.getUserPrincipal().getName());
 		
 		List<Session> sessions = new ArrayList<>();
 		for (Authorization auth : result) {
 			sessions.add(auth.getSession());
 		}
-		
-		// prevent a loop in the json serialization
-		sessions.forEach(s -> s.getAuthorizations().forEach(a -> a.setSession(null)));
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
@@ -145,10 +143,13 @@ public class SessionResource {
 		if (username == null) {
 			throw new NotAuthorizedException("username is null");
 		}
-		Authorization auth = new Authorization(username, session, true, null);
+		Authorization auth = new Authorization(username, true, null);
 		auth.setAuthorizationId(RestUtils.createUUID());
+		auth.setSession(session);
 		
-		create(auth, getHibernate().session());
+		session.setAuthorizations(Arrays.asList(new Authorization[] {auth}));
+		
+		create(session, auth, getHibernate().session());
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		
@@ -158,13 +159,15 @@ public class SessionResource {
 		return Response.created(uri).entity(json).build();
     }
 	
-	public void create(Authorization auth, org.hibernate.Session hibernateSession) {
-		hibernateSession.save(auth.getSession());
-		authorizationResource.save(auth, hibernateSession);
+	public void create(Session session, Authorization auth, org.hibernate.Session hibernateSession) {
+		hibernateSession.save(session);
+		authorizationTable.save(auth, hibernateSession);
 
-		UUID sessionId = auth.getSession().getSessionId();
+		UUID sessionId = session.getSessionId();
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
-		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getAuthorizationId(), EventType.CREATE), hibernateSession);
+		
+		Authorization firstAuth = new ArrayList<Authorization>(session.getAuthorizations()).get(0);
+		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, firstAuth.getAuthorizationId(), EventType.CREATE), hibernateSession);
 	}
 
 	@PUT
@@ -178,7 +181,7 @@ public class SessionResource {
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		authorizationResource.getWriteAuthorization(sc, sessionId);
+		authorizationTable.getSessionForWriting(sc, sessionId);
 		
 		requestSession.setAccessed(LocalDateTime.now());
 		
@@ -199,11 +202,12 @@ public class SessionResource {
 	@Transaction
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
-		Authorization auth = authorizationResource.getWriteAuthorization(sc, id);
+		// check authorization
+		Session session = authorizationTable.getSessionForWriting(sc, id);
 		
 		// deleting all the authorizations will eventually delete the session too
-		for (Authorization authorization : authorizationResource.getAuthorizations(auth.getSession().getSessionId())) {
-			authorizationResource.delete(authorization, hibernate.session());
+		for (Authorization authorization : authorizationTable.getAuthorizations(session.getSessionId())) {
+			authorizationTable.delete(id, authorization, hibernate.session());
 		}
 
 		return Response.noContent().build();
@@ -277,13 +281,13 @@ public class SessionResource {
 		});	
 	}
 
-	public AuthorizationResource getAuthorizationResource() {
-		return authorizationResource;
+	public AuthorizationTable getAuthorizationResource() {
+		return authorizationTable;
 	}
 
-	public void authorizationRemoved(Authorization authorization) {
+	public void authorizationRemoved(UUID sessionId, Authorization authorization) {
 		logger.info("authorization deleted, username " + authorization.getUsername());
-		long count = authorizationResource.getAuthorizations(authorization.getSession().getSessionId()).size(); 
+		long count = authorizationTable.getAuthorizations(sessionId).size(); 
 		if (count == 0) {
 			logger.info("last authorization deleted, delete the session too");			
 			deleteSession(authorization, getHibernate().session());

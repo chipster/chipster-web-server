@@ -54,9 +54,6 @@ public class GlobalJobResource {
 					.setParameter("state", state)
 					.list();
 			
-			// prevent a loop in json serialization
-			jobs.forEach(j -> j.getSession().setAuthorizations(null));
-			
 			return Response.ok(jobs).build();
 
 		} catch (IllegalArgumentException e) {

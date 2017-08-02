@@ -7,6 +7,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.xml.bind.annotation.XmlTransient;
 
 @Entity
 public class Authorization {
@@ -16,6 +17,7 @@ public class Authorization {
 	private UUID authorizationId;	 
 	private String username;
 	
+	@XmlTransient
 	@ManyToOne
 	@JoinColumn(name="sessionId")	
 	private Session session;
@@ -25,13 +27,12 @@ public class Authorization {
 	
 	public Authorization() { } // hibernate needs this			
 	
-	public Authorization(String username, Session session, boolean readWrite) {
-		this(username, session, readWrite, null);
+	public Authorization(String username, boolean readWrite) {
+		this(username, readWrite, null);
 	}
 	
-	public Authorization(String username, Session session, boolean readWrite, String authorizedBy) {
+	public Authorization(String username, boolean readWrite, String authorizedBy) {
 		this.username = username;
-		this.session = session;
 		this.readWrite = readWrite;
 		this.authorizedBy = authorizedBy;
 	}
@@ -49,6 +50,7 @@ public class Authorization {
 		this.authorizationId = authorizationId;
 	}
 	
+	@XmlTransient
 	public Session getSession() {
 		return session;
 	}

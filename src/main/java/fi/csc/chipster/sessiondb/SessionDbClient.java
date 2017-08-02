@@ -1,13 +1,10 @@
 package fi.csc.chipster.sessiondb;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
@@ -20,11 +17,6 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -157,16 +149,16 @@ public class SessionDbClient {
 		return getJobsTarget(sessionId).path(jobId.toString());
 	}
 	
-	private WebTarget getAuthorizationsTarget() {
-		return sessionDbTarget.path("authorizations");
+	private WebTarget getAuthorizationsTarget(UUID sessionId) {
+		return getSessionTarget(sessionId).path("authorizations");
 	}
 	
 	private WebTarget getDatasetTokenTarget() {
 		return sessionDbTarget.path("datasettokens");
 	}	
 	
-	private WebTarget getAuthorizationTarget(UUID authorizationId) {
-		return getAuthorizationsTarget().path(authorizationId.toString());
+	private WebTarget getAuthorizationTarget(UUID sessionId, UUID authorizationId) {
+		return getAuthorizationsTarget(sessionId).path(authorizationId.toString());
 	}
 	
 	// methods 
@@ -404,62 +396,8 @@ public class SessionDbClient {
 		delete(getJobTarget(sessionId, jobId));
 	}
 	
-	public Authorization getAuthorization(UUID authorizationId) throws RestException {
-		return get(getAuthorizationTarget(authorizationId), Authorization.class);
-	}
-
-	public Iterator<Authorization> getAuthorizations() throws RestException, JsonParseException, IOException {
-		InputStream inStream = get(getAuthorizationsTarget(), InputStream.class);
-		
-		JsonFactory factory = RestUtils.getObjectMapper().getFactory();
-		final JsonParser parser = factory.createParser(inStream);
-
-		JsonToken token = parser.nextToken();
-		if (token == null) {
-		    throw new RestException("failed to get authorizations: empty response");
-		}
-
-		// the first token is supposed to be the start of array '['
-		if (!JsonToken.START_ARRAY.equals(token)) {
-			throw new RestException("failed to get authorizations: not an array");
-		}
-		
-		return new Iterator<Authorization>() {
-			
-			private Authorization next;
-
-			@Override
-			public boolean hasNext() {
-				if (next == null) {
-					try {
-						JsonToken token2 = parser.nextToken();
-
-						if (!JsonToken.START_OBJECT.equals(token2)) {
-							return false;
-						}
-						if (token2 == null) {
-							return false;
-						}
-
-						next = parser.readValueAs(Authorization.class);
-					} catch (IOException e) {
-						throw new RuntimeException("failed to get authorizations", e);
-					}
-				}
-				return next != null;
-			}
-
-			@Override
-			public Authorization next() {
-				if (hasNext()) {
-					Authorization current = next;
-					next = null;
-					return current;
-				} else {
-					throw new NoSuchElementException();
-				}
-			}
-		};
+	public Authorization getAuthorization(UUID sessionId, UUID authorizationId) throws RestException {
+		return get(getAuthorizationTarget(sessionId, authorizationId), Authorization.class);
 	}
 
 	public List<TableStats> getTableStats() throws RestException {
@@ -468,19 +406,19 @@ public class SessionDbClient {
 		return tables;
 	}
 	
-	public UUID createAuthorization(String username, Session session, boolean readWrite) throws RestException {
-		return post(getAuthorizationsTarget(), new Authorization(username, session, readWrite));
+	public UUID createAuthorization(UUID sessionId, String username, boolean readWrite) throws RestException {
+		return post(getAuthorizationsTarget(sessionId), new Authorization(username, readWrite));
 	}
 
-	public UUID createAuthorization(Authorization authorization) throws RestException {
-		return post(getAuthorizationsTarget(), authorization);
+	public UUID createAuthorization(UUID sessionId, Authorization authorization) throws RestException {
+		return post(getAuthorizationsTarget(sessionId), authorization);
 	}
 	
-	public void deleteAuthorization(UUID authorizationId) throws RestException {
-		delete(getAuthorizationsTarget().path(authorizationId.toString()));
+	public void deleteAuthorization(UUID sessionId, UUID authorizationId) throws RestException {
+		delete(getAuthorizationsTarget(sessionId).path(authorizationId.toString()));
 	}
 	
 	public List<Authorization> getAuthorizations(UUID sessionId) throws RestException {
-		return getList(getAuthorizationsTarget().queryParam("sessionId", sessionId.toString()), Authorization.class);
+		return getList(getAuthorizationsTarget(sessionId), Authorization.class);
 	}
 }

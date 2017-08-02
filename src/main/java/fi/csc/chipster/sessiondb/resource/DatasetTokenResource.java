@@ -35,9 +35,9 @@ public class DatasetTokenResource {
 
 	private DatasetTokenTable datasetTokenTable;
 
-	private AuthorizationResource authorizationResource;
+	private AuthorizationTable authorizationResource;
 
-	public DatasetTokenResource(DatasetTokenTable datasetTokenTable, AuthorizationResource authorizationResource) {
+	public DatasetTokenResource(DatasetTokenTable datasetTokenTable, AuthorizationTable authorizationResource) {
 		this.datasetTokenTable = datasetTokenTable;
 		this.authorizationResource = authorizationResource;
 	}

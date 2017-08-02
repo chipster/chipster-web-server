@@ -38,7 +38,7 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
+import fi.csc.chipster.sessiondb.resource.AuthorizationTable;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenResource;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenTable;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
@@ -75,7 +75,7 @@ public class SessionDb implements TopicCheck {
 
 	private SessionResource sessionResource;
 
-	private AuthorizationResource authorizationResource;
+	private AuthorizationTable authorizationTable;
 
 	private SessionDbAdminResource adminResource;
 
@@ -136,14 +136,14 @@ public class SessionDb implements TopicCheck {
 		
 		DatasetTokenTable datasetTokenTable = new DatasetTokenTable(hibernate);
 		
-		this.authorizationResource = new AuthorizationResource(hibernate, datasetTokenTable, tokenRequestFilter);
-		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationResource);
-		this.sessionResource = new SessionResource(hibernate, authorizationResource);
+		this.authorizationTable = new AuthorizationTable(hibernate, datasetTokenTable, tokenRequestFilter);
+		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
+		this.sessionResource = new SessionResource(hibernate, authorizationTable);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.adminResource = new SessionDbAdminResource(hibernate);
 		
 		if (replicate) {
-			new SessionDbCluster().replicate(serviceLocator, authService, authorizationResource, sessionResource, adminResource, hibernate, this);
+			new SessionDbCluster().replicate(serviceLocator, authService, authorizationTable, sessionResource, adminResource, hibernate, this);
 		}
 				
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
@@ -156,7 +156,7 @@ public class SessionDb implements TopicCheck {
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(datasetTokenResource)
-				.register(authorizationResource)
+				.register(authorizationTable)
 				.register(sessionResource)
 				.register(globalJobResource)
 				.register(adminResource)
@@ -223,8 +223,8 @@ public class SessionDb implements TopicCheck {
 				@Override
 				public Boolean run(org.hibernate.Session hibernateSession) {
 					try {
-						Authorization auth = sessionResource.getAuthorizationResource().checkAuthorization(principal.getName(), sessionId, false, hibernateSession);
-						return auth != null;
+						Session session = sessionResource.getAuthorizationResource().checkAuthorization(principal.getName(), sessionId, false, hibernateSession);
+						return session != null;
 					} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
 							|javax.ws.rs.NotFoundException
 							|javax.ws.rs.ForbiddenException e) {

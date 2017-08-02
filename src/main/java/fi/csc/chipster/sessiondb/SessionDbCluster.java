@@ -29,7 +29,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.TableStats;
-import fi.csc.chipster.sessiondb.resource.AuthorizationResource;
+import fi.csc.chipster.sessiondb.resource.AuthorizationTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
@@ -64,7 +64,7 @@ public class SessionDbCluster implements SessionEventListener {
 	 * @param sessionDb
 	 * @throws RestException
 	 */
-	public void replicate(ServiceLocatorClient serviceLocator, AuthenticationClient authService, AuthorizationResource authorizationResource, SessionResource sessionResource, SessionDbAdminResource adminResource, HibernateUtil hibernate, SessionDb sessionDb) throws RestException {
+	public void replicate(ServiceLocatorClient serviceLocator, AuthenticationClient authService, AuthorizationTable authorizationResource, SessionResource sessionResource, SessionDbAdminResource adminResource, HibernateUtil hibernate, SessionDb sessionDb) throws RestException {
 
 		this.sourceSessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
 		this.targetSessionResource = sessionResource;
@@ -129,13 +129,15 @@ public class SessionDbCluster implements SessionEventListener {
 		logger.info(msg);
 	}
 
-	private void replicateSessions(final AuthorizationResource authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
+	private void replicateSessions(final AuthorizationTable authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
 			SessionDbClient source) throws RestException, JsonParseException, IOException {
 
 		int sessionCount = 0;
 
 		// actually we copy and authorization, which includes the session
-		Iterator<Authorization> authorizations = source.getAuthorizations();
+		// this is not implemented after the AuthorizationResource was moved under the
+		// SessionResource. Implement copying sesion by session or a global authorization resource
+		Iterator<Authorization> authorizations = source.getAuthorizations(null).iterator();
 
 		while (authorizations.hasNext()) {
 			final Authorization authorization = authorizations.next();
@@ -156,7 +158,7 @@ public class SessionDbCluster implements SessionEventListener {
 		}
 	}
 
-	private void replicateDatasetsAndJobs(AuthorizationResource authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
+	private void replicateDatasetsAndJobs(AuthorizationTable authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
 			final SessionDbClient source) throws RestException, JsonParseException, IOException {
 
 		/*
@@ -396,8 +398,9 @@ public class SessionDbCluster implements SessionEventListener {
 	}
 
 	private void createSession(UUID authorizationId, Session hibernateSession) throws RestException {
-		Authorization auth = sourceSessionDbClient.getAuthorization(authorizationId);	
-		targetSessionResource.create(auth, hibernateSession);
+		// how to get the session id?
+		//Authorization auth = sourceSessionDbClient.getAuthorization(null, authorizationId);	
+		//targetSessionResource.create(auth, hibernateSession);
 	}
 
 	private void updateSession(UUID sessionId, Session hibernateSession) throws RestException {
