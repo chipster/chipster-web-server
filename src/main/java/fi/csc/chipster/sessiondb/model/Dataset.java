@@ -134,6 +134,7 @@ public class Dataset {
 		this.metadata = metadata;
 	}
 
+	@XmlTransient
 	public Session getSession() {
 		return session;
 	}

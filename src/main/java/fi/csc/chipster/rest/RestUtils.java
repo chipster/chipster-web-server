@@ -16,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.InternalServerErrorException;
@@ -26,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.CommonProperties;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
@@ -307,5 +309,11 @@ public class RestUtils {
 
 	public static void configureForDownload(HttpServletResponse response, String name) {
 		response.setHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");		
+	}
+
+	public static LoggingFeature getLoggingFeature(String string) {
+		return new LoggingFeature(
+				java.util.logging.Logger.getLogger("session-db"), Level.INFO, 
+				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 }

@@ -162,7 +162,7 @@ public class SessionDb implements TopicCheck {
 				.register(adminResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
-				//.register(new LoggingFilter())
+				//.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 
 		// create and start a new instance of grizzly http server

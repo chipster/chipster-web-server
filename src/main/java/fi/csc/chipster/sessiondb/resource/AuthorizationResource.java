@@ -6,6 +6,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
@@ -86,7 +87,9 @@ public class AuthorizationResource {
     }
 	
 	public Authorization getAuthorization(UUID authorizationId, org.hibernate.Session hibernateSession) {
-		return hibernateSession.get(Authorization.class, authorizationId);
+		Authorization auth =  hibernateSession.get(Authorization.class, authorizationId);
+		auth.getSession().setAuthorizations(null);
+		return auth;
 	}
     
     @GET
@@ -126,6 +129,7 @@ public class AuthorizationResource {
     	
     	// don't trust the session that came from the client
     	newAuthorization.setSession(userAuthorization.getSession());
+    	newAuthorization.setAuthorizedBy(sc.getUserPrincipal().getName());
     	
     	save(newAuthorization, hibernate.session());
     
@@ -198,18 +202,33 @@ public class AuthorizationResource {
 
 	@SuppressWarnings("unchecked")
 	public List<Authorization> getAuthorizations(String username) {		
-		return hibernate.session()
-				.createQuery("from Authorization where username=:username")
+		List<Authorization> authorizations = hibernate.session()
+				.createQuery("from Authorization where username=:username or username='all'")
 				.setParameter("username", username)
 				.list();
+		
+		// set to null to avoid a loop in json serialization
+		if (authorizations != null) {
+			authorizations.forEach(a -> {
+				if (a != null && a.getSession() != null) {
+					a.getSession().setAuthorizations(null);	
+				}
+			});
+		}
+		return authorizations;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public List<Authorization> getAuthorizations(UUID sessionId) {		
-		return hibernate.session()
-				.createQuery("from Authorization where session_sessionId=:sessionId")
+		List<Authorization> authorizations = hibernate.session()
+				.createQuery("from Authorization where sessionId=:sessionId")
 				.setParameter("sessionId", sessionId)
 				.list();
+		
+		// set to null to avoid a loop in json serialization
+		authorizations.forEach(a -> a.getSession().setAuthorizations(null));
+		
+		return authorizations;
 	}
 	
 	/**
@@ -269,18 +288,32 @@ public class AuthorizationResource {
 	public Authorization getAuthorization(String username, Session session, org.hibernate.Session hibernateSession) {
 		
 		if (servicesAccounts.contains(username)) {
-			return new Authorization(username, session, true);
+			return new Authorization(username, session, true, null);
 		}
 		
-		Authorization auth = (Authorization) hibernateSession
-				.createQuery("from Authorization where username=:username and session=:session")
+		@SuppressWarnings("unchecked")
+		List<Authorization> auths = hibernateSession
+				.createQuery("from Authorization where (username=:username or username='all') and session=:session")
 				.setParameter("username", username)
 				.setParameter("session", session)
-				.uniqueResult();
+				.list();
 		
-		logger.debug("check authorization " + username + " " + session.getSessionId().toString().substring(0, 4) + ", found: " + (auth != null));
-		
-		return auth;
+		// set to null to avoid a loop in json serialization
+		auths.forEach(a -> a.getSession().setAuthorizations(null));
+				
+		// return the best (i.e. read-write) Authorization if there are multiple Authorizations 
+		if (auths.isEmpty()) {
+			return null;
+		} else if (auths.size() == 1) {
+			return auths.get(0);
+		} else {
+			for (Authorization auth : auths) {
+				if ( auth.isReadWrite()) {
+					return auth;
+				}
+			}
+			return auths.get(0);
+		}
 	}
 
 	/**

@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.OneToMany;
@@ -34,6 +35,9 @@ public class Session {
 	
 	@OneToMany(mappedBy="session")
 	private Collection<Job> jobs;
+	
+	@OneToMany(fetch = FetchType.EAGER, mappedBy="session")
+	private Collection<Authorization> authorizations;
 	
 	/**
 	 * All jobs in the session
@@ -134,5 +138,13 @@ public class Session {
 
 	public void setAccessed(LocalDateTime accessed) {
 		this.accessed = accessed;
+	}
+
+	public Collection<Authorization> getAuthorizations() {
+		return authorizations;
+	}
+
+	public void setAuthorizations(Collection<Authorization> authorizations) {
+		this.authorizations = authorizations;
 	}
 }

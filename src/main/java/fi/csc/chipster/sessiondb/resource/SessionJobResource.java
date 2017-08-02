@@ -88,6 +88,10 @@ public class SessionJobResource {
 	    	// remove input duplicates http://stackoverflow.com/questions/1995080/hibernate-criteria-returns-children-multiple-times-with-fetchtype-eager
 	    	job.setInputs(new ArrayList<Input>(new LinkedHashSet<Input>(job.getInputs())));
     	}
+    	
+    	// prevent a loop in json serialization
+    	job.getSession().setAuthorizations(null);
+    	
     	return job;
     }
     
@@ -97,6 +101,9 @@ public class SessionJobResource {
     public Response getAll(@Context SecurityContext sc) {
 		
 		Collection<Job> result = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId).getJobs().values();
+		
+		// prevent a loop in json serialization
+		result.forEach(j -> j.getSession().setAuthorizations(null));
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();

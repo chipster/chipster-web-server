@@ -17,6 +17,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import org.junit.Assert;
 
 public class DatasetTokenTest {
 	private static final String TEST_FILE_CONTENT = "test file content";
@@ -70,7 +71,7 @@ public class DatasetTokenTest {
 			InputStream is = fileBroker.download(sessionId1, datasetId1);
 			assertEquals(TEST_FILE_CONTENT, IOUtils.toString(is));
 		} catch (RestException e) {
-			assertEquals(true, false);
+			Assert.fail(e.toString());
 		}		
     }
 	

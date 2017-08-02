@@ -141,6 +141,7 @@ public class Job {
 	public void setStateDetail(String stateDetail) {
 		this.stateDetail = stateDetail;
 	}
+	
 	public Session getSession() {
 		return session;
 	}

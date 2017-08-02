@@ -90,7 +90,13 @@ public class SessionResource {
     		throw new NotFoundException();
     	}	
     	
+    	// does this update the db?
     	result.setAccessed(LocalDateTime.now());
+    	
+    	// prevent a loop in the json serialization (but obviously this shouldn't change the db)
+    	if (result.getAuthorizations() != null) {
+    		result.getAuthorizations().forEach(a -> a.setSession(null));
+    	}
     	
     	return Response.ok(result).build();    	
     }
@@ -105,7 +111,10 @@ public class SessionResource {
 		List<Session> sessions = new ArrayList<>();
 		for (Authorization auth : result) {
 			sessions.add(auth.getSession());
-		}		
+		}
+		
+		// prevent a loop in the json serialization
+		sessions.forEach(s -> s.getAuthorizations().forEach(a -> a.setSession(null)));
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
@@ -136,7 +145,7 @@ public class SessionResource {
 		if (username == null) {
 			throw new NotAuthorizedException("username is null");
 		}
-		Authorization auth = new Authorization(username, session, true);
+		Authorization auth = new Authorization(username, session, true, null);
 		auth.setAuthorizationId(RestUtils.createUUID());
 		
 		create(auth, getHibernate().session());
