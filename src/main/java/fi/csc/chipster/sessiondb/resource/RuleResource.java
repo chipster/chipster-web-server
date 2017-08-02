@@ -25,16 +25,16 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
 @Path("authorizations")
-public class AuthorizationResource {
+public class RuleResource {
 	private UUID sessionId;
-	private AuthorizationTable authorizationTable;
+	private RuleTable authorizationTable;
 	private HibernateUtil hibernate;
 
-	public AuthorizationResource(SessionResource sessionResource, UUID id, AuthorizationTable authorizationTable) {
+	public RuleResource(SessionResource sessionResource, UUID id, RuleTable authorizationTable) {
 		this.sessionId = id;
 		this.authorizationTable = authorizationTable;
 		this.hibernate = sessionResource.getHibernate();
@@ -47,7 +47,7 @@ public class AuthorizationResource {
     @Transaction
     public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
     	    
-		Authorization result = authorizationTable.getAuthorization(authorizationId, hibernate.session());
+		Rule result = authorizationTable.getAuthorization(authorizationId, hibernate.session());
     	if (result == null) {
     		throw new NotFoundException();
     	}	
@@ -61,14 +61,14 @@ public class AuthorizationResource {
     public Response getBySession(@Context SecurityContext sc) {
     	    	
 		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);    
-    	List<Authorization> authorizations = authorizationTable.getAuthorizations(sessionId);    	
+    	List<Rule> authorizations = authorizationTable.getAuthorizations(sessionId);    	
     	return Response.ok(authorizations).build();	       
     }
     
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response post(Authorization newAuthorization, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+    public Response post(Rule newAuthorization, @Context UriInfo uriInfo, @Context SecurityContext sc) {
     	
 		if (newAuthorization.getAuthorizationId() != null) {
 			throw new BadRequestException("authorization already has an id, post not allowed");
@@ -80,7 +80,7 @@ public class AuthorizationResource {
 		
 		// make sure a hostile client doesn't set the session
     	newAuthorization.setSession(session);
-    	newAuthorization.setAuthorizedBy(sc.getUserPrincipal().getName());
+    	newAuthorization.setSharedBy(sc.getUserPrincipal().getName());
     	
     	authorizationTable.save(newAuthorization, hibernate.session());
     
@@ -94,7 +94,7 @@ public class AuthorizationResource {
     @Transaction
     public Response delete(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) {
     	
-    	Authorization authorizationToDelete = authorizationTable.getAuthorization(authorizationId, hibernate.session());
+    	Rule authorizationToDelete = authorizationTable.getAuthorization(authorizationId, hibernate.session());
     	
     	authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
     	    	

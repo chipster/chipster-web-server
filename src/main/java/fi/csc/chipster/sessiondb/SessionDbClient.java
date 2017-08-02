@@ -26,7 +26,7 @@ import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -150,7 +150,7 @@ public class SessionDbClient {
 	}
 	
 	private WebTarget getAuthorizationsTarget(UUID sessionId) {
-		return getSessionTarget(sessionId).path("authorizations");
+		return getSessionTarget(sessionId).path("rules");
 	}
 	
 	private WebTarget getDatasetTokenTarget() {
@@ -396,8 +396,8 @@ public class SessionDbClient {
 		delete(getJobTarget(sessionId, jobId));
 	}
 	
-	public Authorization getAuthorization(UUID sessionId, UUID authorizationId) throws RestException {
-		return get(getAuthorizationTarget(sessionId, authorizationId), Authorization.class);
+	public Rule getAuthorization(UUID sessionId, UUID authorizationId) throws RestException {
+		return get(getAuthorizationTarget(sessionId, authorizationId), Rule.class);
 	}
 
 	public List<TableStats> getTableStats() throws RestException {
@@ -407,10 +407,10 @@ public class SessionDbClient {
 	}
 	
 	public UUID createAuthorization(UUID sessionId, String username, boolean readWrite) throws RestException {
-		return post(getAuthorizationsTarget(sessionId), new Authorization(username, readWrite));
+		return post(getAuthorizationsTarget(sessionId), new Rule(username, readWrite));
 	}
 
-	public UUID createAuthorization(UUID sessionId, Authorization authorization) throws RestException {
+	public UUID createAuthorization(UUID sessionId, Rule authorization) throws RestException {
 		return post(getAuthorizationsTarget(sessionId), authorization);
 	}
 	
@@ -418,7 +418,7 @@ public class SessionDbClient {
 		delete(getAuthorizationsTarget(sessionId).path(authorizationId.toString()));
 	}
 	
-	public List<Authorization> getAuthorizations(UUID sessionId) throws RestException {
-		return getList(getAuthorizationsTarget(sessionId), Authorization.class);
+	public List<Rule> getAuthorizations(UUID sessionId) throws RestException {
+		return getList(getAuthorizationsTarget(sessionId), Rule.class);
 	}
 }

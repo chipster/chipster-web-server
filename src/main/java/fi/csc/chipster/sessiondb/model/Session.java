@@ -37,7 +37,7 @@ public class Session {
 	private Collection<Job> jobs;
 	
 	@OneToMany(fetch = FetchType.EAGER, mappedBy="session")
-	private Collection<Authorization> authorizations;
+	private Collection<Rule> authorizations;
 	
 	/**
 	 * All jobs in the session
@@ -140,11 +140,11 @@ public class Session {
 		this.accessed = accessed;
 	}
 
-	public Collection<Authorization> getAuthorizations() {
+	public Collection<Rule> getAuthorizations() {
 		return authorizations;
 	}
 
-	public void setAuthorizations(Collection<Authorization> authorizations) {
+	public void setAuthorizations(Collection<Rule> authorizations) {
 		this.authorizations = authorizations;
 	}
 }

@@ -40,7 +40,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.SessionDb;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -57,9 +57,9 @@ public class SessionResource {
 	private HibernateUtil hibernate;
 	private PubSubServer events;
 
-	private AuthorizationTable authorizationTable;
+	private RuleTable authorizationTable;
 	
-	public SessionResource(HibernateUtil hibernate, AuthorizationTable authorizationTable) {
+	public SessionResource(HibernateUtil hibernate, RuleTable authorizationTable) {
 		this.hibernate = hibernate;
 		this.authorizationTable = authorizationTable;
 		
@@ -77,9 +77,9 @@ public class SessionResource {
 		return new SessionJobResource(this, id);
 	}
 	
-	@Path("{id}/authorizations")
-	public AuthorizationResource getAuthorizationResource(@PathParam("id") UUID id) {
-		return new AuthorizationResource(this, id, this.authorizationTable);
+	@Path("{id}/rules")
+	public RuleResource getAuthorizationResource(@PathParam("id") UUID id) {
+		return new RuleResource(this, id, this.authorizationTable);
 	}
 	
     // CRUD
@@ -107,10 +107,10 @@ public class SessionResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		List<Authorization> result = authorizationTable.getAuthorizations(sc.getUserPrincipal().getName());
+		List<Rule> result = authorizationTable.getAuthorizations(sc.getUserPrincipal().getName());
 		
 		List<Session> sessions = new ArrayList<>();
-		for (Authorization auth : result) {
+		for (Rule auth : result) {
 			sessions.add(auth.getSession());
 		}
 
@@ -143,11 +143,11 @@ public class SessionResource {
 		if (username == null) {
 			throw new NotAuthorizedException("username is null");
 		}
-		Authorization auth = new Authorization(username, true, null);
+		Rule auth = new Rule(username, true, null);
 		auth.setAuthorizationId(RestUtils.createUUID());
 		auth.setSession(session);
 		
-		session.setAuthorizations(Arrays.asList(new Authorization[] {auth}));
+		session.setAuthorizations(Arrays.asList(new Rule[] {auth}));
 		
 		create(session, auth, getHibernate().session());
 		
@@ -159,14 +159,14 @@ public class SessionResource {
 		return Response.created(uri).entity(json).build();
     }
 	
-	public void create(Session session, Authorization auth, org.hibernate.Session hibernateSession) {
+	public void create(Session session, Rule auth, org.hibernate.Session hibernateSession) {
 		hibernateSession.save(session);
 		authorizationTable.save(auth, hibernateSession);
 
 		UUID sessionId = session.getSessionId();
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
 		
-		Authorization firstAuth = new ArrayList<Authorization>(session.getAuthorizations()).get(0);
+		Rule firstAuth = new ArrayList<Rule>(session.getAuthorizations()).get(0);
 		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, firstAuth.getAuthorizationId(), EventType.CREATE), hibernateSession);
 	}
 
@@ -206,14 +206,14 @@ public class SessionResource {
 		Session session = authorizationTable.getSessionForWriting(sc, id);
 		
 		// deleting all the authorizations will eventually delete the session too
-		for (Authorization authorization : authorizationTable.getAuthorizations(session.getSessionId())) {
+		for (Rule authorization : authorizationTable.getAuthorizations(session.getSessionId())) {
 			authorizationTable.delete(id, authorization, hibernate.session());
 		}
 
 		return Response.noContent().build();
     }
 	
-	public void deleteSession(Authorization auth, org.hibernate.Session hibernateSession) {
+	public void deleteSession(Rule auth, org.hibernate.Session hibernateSession) {
 		
 		UUID sessionId = auth.getSession().getSessionId();
 		
@@ -281,11 +281,11 @@ public class SessionResource {
 		});	
 	}
 
-	public AuthorizationTable getAuthorizationResource() {
+	public RuleTable getAuthorizationResource() {
 		return authorizationTable;
 	}
 
-	public void authorizationRemoved(UUID sessionId, Authorization authorization) {
+	public void authorizationRemoved(UUID sessionId, Rule authorization) {
 		logger.info("authorization deleted, username " + authorization.getUsername());
 		long count = authorizationTable.getAuthorizations(sessionId).size(); 
 		if (count == 0) {

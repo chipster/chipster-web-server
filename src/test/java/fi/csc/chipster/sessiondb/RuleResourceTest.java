@@ -12,12 +12,12 @@ import org.junit.Test;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 
-public class AuthorizationResourceTest {
+public class RuleResourceTest {
 
 	private static TestServerLauncher launcher;
 	private static SessionDbClient user1Client;
@@ -57,7 +57,7 @@ public class AuthorizationResourceTest {
 		SessionResourceTest.testGetSession(403, sessionId, user2Client);
 		
 		// share the session
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	user1Client.createAuthorization(sessionId, authorization);
     	
     	// but now she can
@@ -96,7 +96,7 @@ public class AuthorizationResourceTest {
 		
 		assertEquals(1, user1Client.getAuthorizations(sessionId).size());
 		
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
     	
     	assertEquals(2, user1Client.getAuthorizations(sessionId).size());
@@ -116,7 +116,7 @@ public class AuthorizationResourceTest {
 		
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);				
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
     	    			
 		// only allowed for sessionDb
@@ -142,7 +142,7 @@ public class AuthorizationResourceTest {
 		UUID datasetId2 = user1Client.createDataset(sessionId2, RestUtils.getRandomDataset());
 				
 		// share session1
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	user1Client.createAuthorization(sessionId1, authorization);
     	    	
     	// user2 must not have access to user1's other sessions 
@@ -156,7 +156,7 @@ public class AuthorizationResourceTest {
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
 		
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
     	    	    	
     	testDeleteAuthorization(401, sessionId, authorizationId, unparseableTokenClient);
@@ -173,7 +173,7 @@ public class AuthorizationResourceTest {
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
 		
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
     	
     	// user2 can access the session
@@ -201,7 +201,7 @@ public class AuthorizationResourceTest {
 		UUID jobId = user1Client.createJob(sessionId1, job);
 		
 		// read authorization for user2
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), false);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), false);    	
     	UUID authorizationId = user1Client.createAuthorization(sessionId1, authorization);
 		
     	// read allowed
@@ -221,8 +221,8 @@ public class AuthorizationResourceTest {
     	JobResourceTest.testDeleteJob(403, sessionId1, jobId, user2Client);
     	SessionResourceTest.testUpdateSession(403, session1, user2Client);
     	SessionResourceTest.testDeleteSession(403, sessionId1, user2Client);
-    	testCreateAuthorization(403, sessionId1, new Authorization("user", false), user2Client);
-    	testCreateAuthorization(403, sessionId1, new Authorization("user", true), user2Client);
+    	testCreateAuthorization(403, sessionId1, new Rule("user", false), user2Client);
+    	testCreateAuthorization(403, sessionId1, new Rule("user", true), user2Client);
     	testDeleteAuthorization(403, sessionId1, authorizationId, user2Client);
     }
 	
@@ -238,7 +238,7 @@ public class AuthorizationResourceTest {
 		UUID jobId = user1Client.createJob(sessionId1, job);
 		
 		// read authorization for user2
-		Authorization authorization = new Authorization(launcher.getUser2Credentials().getUsername(), true);    	
+		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
     	user1Client.createAuthorization(sessionId1, authorization);
 		
     	user2Client.getDataset(sessionId1, datasetId);
@@ -254,8 +254,8 @@ public class AuthorizationResourceTest {
     	user2Client.deleteJob(sessionId1, jobId);
     	
     	user2Client.getAuthorizations(sessionId1);
-    	user2Client.createAuthorization(sessionId1, new Authorization("user", false));
-    	user2Client.createAuthorization(sessionId1, new Authorization("user", true));
+    	user2Client.createAuthorization(sessionId1, new Rule("user", false));
+    	user2Client.createAuthorization(sessionId1, new Rule("user", true));
     	
     	user2Client.getSession(sessionId1);
     	user2Client.updateSession(session1);
@@ -280,7 +280,7 @@ public class AuthorizationResourceTest {
     	}
 	}
 	
-	public static void testCreateAuthorization(int expected, UUID sessionId, Authorization authorization, SessionDbClient client) {
+	public static void testCreateAuthorization(int expected, UUID sessionId, Rule authorization, SessionDbClient client) {
 		try {
     		client.createAuthorization(sessionId, authorization);
     		assertEquals(true, false);

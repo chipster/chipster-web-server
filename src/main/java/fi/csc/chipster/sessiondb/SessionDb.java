@@ -29,7 +29,7 @@ import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
@@ -38,7 +38,7 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.resource.AuthorizationTable;
+import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenResource;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenTable;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
@@ -75,7 +75,7 @@ public class SessionDb implements TopicCheck {
 
 	private SessionResource sessionResource;
 
-	private AuthorizationTable authorizationTable;
+	private RuleTable authorizationTable;
 
 	private SessionDbAdminResource adminResource;
 
@@ -109,7 +109,7 @@ public class SessionDb implements TopicCheck {
 
 		List<Class<?>> hibernateClasses = Arrays.asList(
 				DatasetToken.class,
-				Authorization.class, 
+				Rule.class, 
 				Session.class, 
 				Dataset.class, 
 				MetadataEntry.class,
@@ -136,7 +136,7 @@ public class SessionDb implements TopicCheck {
 		
 		DatasetTokenTable datasetTokenTable = new DatasetTokenTable(hibernate);
 		
-		this.authorizationTable = new AuthorizationTable(hibernate, datasetTokenTable, tokenRequestFilter);
+		this.authorizationTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
 		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
 		this.sessionResource = new SessionResource(hibernate, authorizationTable);
 		this.globalJobResource = new GlobalJobResource(hibernate);

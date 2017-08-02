@@ -27,11 +27,11 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 
-public class AuthorizationTable {	
+public class RuleTable {	
 	
 	private static Logger logger = LogManager.getLogger();
 	
@@ -48,7 +48,7 @@ public class AuthorizationTable {
 	private SessionResource authorizationRemovedListener;
 
 
-	public AuthorizationTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
+	public RuleTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
 		this.hibernate = hibernate;
 		this.config = new Config();
 		this.servicesAccounts = config.getServicePasswords().keySet();
@@ -56,12 +56,12 @@ public class AuthorizationTable {
 		this.tokenRequestFilter = tokenRequestFilter;
 	}
 	
-	public Authorization getAuthorization(UUID authorizationId, org.hibernate.Session hibernateSession) {
-		Authorization auth =  hibernateSession.get(Authorization.class, authorizationId);
+	public Rule getAuthorization(UUID authorizationId, org.hibernate.Session hibernateSession) {
+		Rule auth =  hibernateSession.get(Rule.class, authorizationId);
 		return auth;
 	}
 	
-    public void delete(UUID sessionId, Authorization authorization, org.hibernate.Session hibernateSession) {
+    public void delete(UUID sessionId, Rule authorization, org.hibernate.Session hibernateSession) {
     	hibernateSession.delete(authorization);
     	
     	if (authorizationRemovedListener != null) {
@@ -93,7 +93,7 @@ public class AuthorizationTable {
 			throw new NotFoundException("session not found");
 		}
 		
-		Authorization auth = getAuthorization(username, session, hibernateSession);
+		Rule auth = getAuthorization(username, session, hibernateSession);
 		
 		if (auth == null) {
 			throw new ForbiddenException("access denied");
@@ -108,9 +108,9 @@ public class AuthorizationTable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<Authorization> getAuthorizations(String username) {		
-		List<Authorization> authorizations = hibernate.session()
-				.createQuery("from Authorization where username=:username or username='all'")
+	public List<Rule> getAuthorizations(String username) {		
+		List<Rule> authorizations = hibernate.session()
+				.createQuery("from Rule where username=:username or username='all'")
 				.setParameter("username", username)
 				.list();
 
@@ -118,9 +118,9 @@ public class AuthorizationTable {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public List<Authorization> getAuthorizations(UUID sessionId) {		
-		List<Authorization> authorizations = hibernate.session()
-				.createQuery("from Authorization where sessionId=:sessionId")
+	public List<Rule> getAuthorizations(UUID sessionId) {		
+		List<Rule> authorizations = hibernate.session()
+				.createQuery("from Rule where sessionId=:sessionId")
 				.setParameter("sessionId", sessionId)
 				.list();
 				
@@ -140,7 +140,7 @@ public class AuthorizationTable {
 	    		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 	    			@Override
 	    			public Void run(org.hibernate.Session hibernateSession) {	    				try {
-	    					Query query = hibernateSession.createQuery("from Authorization");
+	    					Query query = hibernateSession.createQuery("from Rule");
 	    					query.setReadOnly(true);
 
 	    					ScrollableResults results = query.scroll(ScrollMode.FORWARD_ONLY);
@@ -151,7 +151,7 @@ public class AuthorizationTable {
 	    					// iterate over results
 	    					while (results.next()) {
 	    						// process row then release reference
-	    						Authorization row = (Authorization) results.get()[0];
+	    						Rule row = (Rule) results.get()[0];
 	    						jg.writeObject(row);
 	    						jg.flush();
 	    						// you may need to flush every now and then
@@ -181,15 +181,15 @@ public class AuthorizationTable {
 		return hibernate.session().get(Session.class, sessionId);
 	}
 	
-	public Authorization getAuthorization(String username, Session session, org.hibernate.Session hibernateSession) {
+	public Rule getAuthorization(String username, Session session, org.hibernate.Session hibernateSession) {
 		
 		if (servicesAccounts.contains(username)) {
-			return new Authorization(username, true, null);
+			return new Rule(username, true, null);
 		}
 		
 		@SuppressWarnings("unchecked")
-		List<Authorization> auths = hibernateSession
-				.createQuery("from Authorization where (username=:username or username='all') and session=:session")
+		List<Rule> auths = hibernateSession
+				.createQuery("from Rule where (username=:username or username='all') and session=:session")
 				.setParameter("username", username)
 				.setParameter("session", session)
 				.list();
@@ -200,7 +200,7 @@ public class AuthorizationTable {
 		} else if (auths.size() == 1) {
 			return auths.get(0);
 		} else {
-			for (Authorization auth : auths) {
+			for (Rule auth : auths) {
 				if ( auth.isReadWrite()) {
 					return auth;
 				}
@@ -215,8 +215,8 @@ public class AuthorizationTable {
 	 * @param auth
 	 * @param hibernateSession 
 	 */
-	public void save(Authorization auth, org.hibernate.Session hibernateSession) {
-		logger.debug("save authorization " + auth.getUsername());
+	public void save(Rule auth, org.hibernate.Session hibernateSession) {
+		logger.debug("save rule " + auth.getUsername());
 		hibernateSession.save(auth);
 	}
 

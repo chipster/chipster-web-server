@@ -10,11 +10,11 @@ import javax.persistence.ManyToOne;
 import javax.xml.bind.annotation.XmlTransient;
 
 @Entity
-public class Authorization {
+public class Rule {
 	
 	@Id // db
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
-	private UUID authorizationId;	 
+	private UUID ruleId;	 
 	private String username;
 	
 	@XmlTransient
@@ -23,18 +23,18 @@ public class Authorization {
 	private Session session;
 	
 	private boolean readWrite;
-	private String authorizedBy;
+	private String sharedBy;
 	
-	public Authorization() { } // hibernate needs this			
+	public Rule() { } // hibernate needs this			
 	
-	public Authorization(String username, boolean readWrite) {
+	public Rule(String username, boolean readWrite) {
 		this(username, readWrite, null);
 	}
 	
-	public Authorization(String username, boolean readWrite, String authorizedBy) {
+	public Rule(String username, boolean readWrite, String authorizedBy) {
 		this.username = username;
 		this.readWrite = readWrite;
-		this.authorizedBy = authorizedBy;
+		this.sharedBy = authorizedBy;
 	}
 	public String getUsername() {
 		return username;
@@ -44,10 +44,10 @@ public class Authorization {
 	}
 	
 	public UUID getAuthorizationId() {
-		return authorizationId;
+		return ruleId;
 	}
 	public void setAuthorizationId(UUID authorizationId) {
-		this.authorizationId = authorizationId;
+		this.ruleId = authorizationId;
 	}
 	
 	@XmlTransient
@@ -67,11 +67,11 @@ public class Authorization {
 		this.readWrite = readWrite;
 	}
 
-	public String getAuthorizedBy() {
-		return authorizedBy;
+	public String getSharedBy() {
+		return sharedBy;
 	}
 
-	public void setAuthorizedBy(String authorizedBy) {
-		this.authorizedBy = authorizedBy;
+	public void setSharedBy(String sharedBy) {
+		this.sharedBy = sharedBy;
 	}	
 }

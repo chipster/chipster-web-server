@@ -22,14 +22,14 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
-import fi.csc.chipster.sessiondb.model.Authorization;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.TableStats;
-import fi.csc.chipster.sessiondb.resource.AuthorizationTable;
+import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
@@ -64,7 +64,7 @@ public class SessionDbCluster implements SessionEventListener {
 	 * @param sessionDb
 	 * @throws RestException
 	 */
-	public void replicate(ServiceLocatorClient serviceLocator, AuthenticationClient authService, AuthorizationTable authorizationResource, SessionResource sessionResource, SessionDbAdminResource adminResource, HibernateUtil hibernate, SessionDb sessionDb) throws RestException {
+	public void replicate(ServiceLocatorClient serviceLocator, AuthenticationClient authService, RuleTable authorizationResource, SessionResource sessionResource, SessionDbAdminResource adminResource, HibernateUtil hibernate, SessionDb sessionDb) throws RestException {
 
 		this.sourceSessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
 		this.targetSessionResource = sessionResource;
@@ -129,7 +129,7 @@ public class SessionDbCluster implements SessionEventListener {
 		logger.info(msg);
 	}
 
-	private void replicateSessions(final AuthorizationTable authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
+	private void replicateSessions(final RuleTable authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
 			SessionDbClient source) throws RestException, JsonParseException, IOException {
 
 		int sessionCount = 0;
@@ -137,10 +137,10 @@ public class SessionDbCluster implements SessionEventListener {
 		// actually we copy and authorization, which includes the session
 		// this is not implemented after the AuthorizationResource was moved under the
 		// SessionResource. Implement copying sesion by session or a global authorization resource
-		Iterator<Authorization> authorizations = source.getAuthorizations(null).iterator();
+		Iterator<Rule> authorizations = source.getAuthorizations(null).iterator();
 
 		while (authorizations.hasNext()) {
-			final Authorization authorization = authorizations.next();
+			final Rule authorization = authorizations.next();
 
 			hibernate.runInTransaction(new HibernateRunnable<Void>() {
 
@@ -158,7 +158,7 @@ public class SessionDbCluster implements SessionEventListener {
 		}
 	}
 
-	private void replicateDatasetsAndJobs(AuthorizationTable authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
+	private void replicateDatasetsAndJobs(RuleTable authorizationResource, SessionResource sessionResource, HibernateUtil hibernate,
 			final SessionDbClient source) throws RestException, JsonParseException, IOException {
 
 		/*
@@ -183,7 +183,7 @@ public class SessionDbCluster implements SessionEventListener {
 					// iterate over results
 					while (results.next()) {
 						// process row then release reference
-						Authorization authorization = (Authorization) results.get()[0];
+						Rule authorization = (Rule) results.get()[0];
 							replicateSession(source, authorization);
 
 						sessionCount++;
@@ -201,7 +201,7 @@ public class SessionDbCluster implements SessionEventListener {
 		});
 	}
 	
-	private void replicateSession(SessionDbClient source, Authorization authorization)
+	private void replicateSession(SessionDbClient source, Rule authorization)
 			throws RestException {
 		UUID sessionId = authorization.getSession().getSessionId();
 
@@ -409,7 +409,7 @@ public class SessionDbCluster implements SessionEventListener {
 	}
 	
 	private void deleteSession(UUID authorizationId, Session hibernateSession) {
-		Authorization auth = targetSessionResource.getAuthorizationResource().getAuthorization(authorizationId, hibernateSession);	
+		Rule auth = targetSessionResource.getAuthorizationResource().getAuthorization(authorizationId, hibernateSession);	
 		targetSessionResource.deleteSession(auth, hibernateSession);
 	}
 
