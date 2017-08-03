@@ -55,7 +55,9 @@ public class DatasetTokenResource {
 		}
 		
 		// checks authorization
-		Dataset dataset = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId, true);
+		// Allow with read-only permissions to make the example sessions work. 
+		// Although the token is written to a DB, this doesn't really change anything for others.
+		Dataset dataset = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId, false);
 		
 		LocalDateTime valid = null;
 		if (validString == null) {
