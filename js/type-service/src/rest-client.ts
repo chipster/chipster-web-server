@@ -135,20 +135,20 @@ export class RestClient {
     return subject;
   }
 
-  getAuthorizations(sessionId): Observable<any> {
+  getRules(sessionId): Observable<any> {
     return this.getSessionDbUri()
-      .mergeMap(sessionDbUri => this.getJson(sessionDbUri + '/authorizations/?sessionId=' + sessionId, this.token));
+      .mergeMap(sessionDbUri => this.getJson(sessionDbUri + '/sessions/' + sessionId + '/rules', this.token));
   }
 
-  postAuthorization(sessionId: string, username: string, readWrite: boolean): Observable<any> {
+  postRule(sessionId: string, username: string, readWrite: boolean): Observable<any> {
     let rule = {session: {sessionId: sessionId}, username: username, readWrite: readWrite};
     return this.getSessionDbUri()
-      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/authorizations/', this.token, rule));
+      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/sessions/' + sessionId + '/rules', this.token, rule));
   }
 
-  deleteAuthorization(authorizationId: string) {
+  deleteRule(sessionId: string, ruleId: string) {
     return this.getSessionDbUri()
-      .mergeMap(sessionDbUri => this.deleteWithToken(sessionDbUri + '/authorizations/' + authorizationId, this.token));
+      .mergeMap(sessionDbUri => this.deleteWithToken(sessionDbUri + '/sessions/' + sessionId + '/rules/' + ruleId, this.token));
   }
 
   checkForError(response: any) {

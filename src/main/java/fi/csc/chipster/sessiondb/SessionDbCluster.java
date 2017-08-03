@@ -137,7 +137,7 @@ public class SessionDbCluster implements SessionEventListener {
 		// actually we copy and authorization, which includes the session
 		// this is not implemented after the AuthorizationResource was moved under the
 		// SessionResource. Implement copying sesion by session or a global authorization resource
-		Iterator<Rule> authorizations = source.getAuthorizations(null).iterator();
+		Iterator<Rule> authorizations = source.getRules(null).iterator();
 
 		while (authorizations.hasNext()) {
 			final Rule authorization = authorizations.next();
@@ -409,7 +409,7 @@ public class SessionDbCluster implements SessionEventListener {
 	}
 	
 	private void deleteSession(UUID authorizationId, Session hibernateSession) {
-		Rule auth = targetSessionResource.getAuthorizationResource().getAuthorization(authorizationId, hibernateSession);	
+		Rule auth = targetSessionResource.getRuleTable().getRule(authorizationId, hibernateSession);	
 		targetSessionResource.deleteSession(auth, hibernateSession);
 	}
 

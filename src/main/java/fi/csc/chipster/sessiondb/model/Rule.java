@@ -43,10 +43,10 @@ public class Rule {
 		this.username = username;
 	}
 	
-	public UUID getAuthorizationId() {
+	public UUID getRuleId() {
 		return ruleId;
 	}
-	public void setAuthorizationId(UUID authorizationId) {
+	public void setRuleId(UUID authorizationId) {
 		this.ruleId = authorizationId;
 	}
 	

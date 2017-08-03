@@ -241,7 +241,9 @@ export default class CliClient {
     this.checkLogin()
       .flatMap(() => this.restClient.getSessions())
       .map((sessions: Array<any>) => sessions.map(s => s.name))
-      .subscribe(sessions => console.log(sessions));
+      .subscribe(sessions => {
+        sessions.forEach(name => console.log(name))
+      });
   }
 
   sessionGet(args) {
@@ -262,23 +264,25 @@ export default class CliClient {
   ruleList() {
     this.checkLogin()
       .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.getAuthorizations(sessionId))
+      .flatMap(sessionId => this.restClient.getRules(sessionId))
       .subscribe(list => console.log(list));
   }
 
   ruleCreate(args) {
     this.checkLogin()
       .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.postAuthorization(sessionId, args.username, args.mode !== 'r'))
+      .flatMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r'))
       .subscribe(res => console.log(res));
   }
 
   ruleDelete(args) {
+    let sessionId: string;
     this.checkLogin()
       .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.getAuthorizations(sessionId))
+      .do(id => sessionId = id)
+      .flatMap(() => this.restClient.getRules(sessionId))
       .flatMap((rules: any) => Observable.from(rules.filter(r => r.username === args.username)))
-      .flatMap((rule: any) => this.restClient.deleteAuthorization(rule.authorizationId))
+      .flatMap((rule: any) => this.restClient.deleteRule(sessionId, rule.ruleId))
       .subscribe(null, err => console.error('failed to delete the rule', err));
   }
 

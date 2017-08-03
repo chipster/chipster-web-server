@@ -10,7 +10,6 @@ service-password-comp: comp
 service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-proxy: proxy
-
    
 # Internal and external service addresses
 
@@ -91,8 +90,9 @@ scheduler-job-timer-interval: 1
 session-db-replicate: false
 session-db-name: session-db
 # update, validate or create
-session-db-hibernate-schema: update 
-    
+session-db-hibernate-schema: update
+# allow sharing to everyone only for one username, empty allows for everybody
+session-db-restrict-sharing-to-everyone: example_session_owner
     
 # web-server
 

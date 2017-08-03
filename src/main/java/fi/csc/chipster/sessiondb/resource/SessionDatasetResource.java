@@ -75,7 +75,7 @@ public class SessionDatasetResource {
     	
     	// checks authorization
    		String userToken = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
-    	sessionResource.getAuthorizationResource().checkAuthorizationWithToken(userToken, sessionId, datasetId, requireReadWrite);
+    	sessionResource.getRuleTable().checkAuthorizationWithToken(userToken, sessionId, datasetId, requireReadWrite);
 		
     	Dataset result = getDataset(datasetId, getHibernate().session());
     	
@@ -96,7 +96,7 @@ public class SessionDatasetResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		Collection<Dataset> result = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId).getDatasets().values();
+		Collection<Dataset> result = sessionResource.getRuleTable().getSessionForReading(sc, sessionId).getDatasets().values();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
@@ -116,7 +116,7 @@ public class SessionDatasetResource {
 		UUID id = RestUtils.createUUID();
 		dataset.setDatasetId(id);
 
-		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		
 		// make sure a hostile client doesn't set the session
 		dataset.setSession(session);
@@ -177,7 +177,7 @@ public class SessionDatasetResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
 		if (dbDataset == null || dbDataset.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("dataset doesn't exist");
@@ -212,7 +212,7 @@ public class SessionDatasetResource {
     public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Dataset dataset = sessionResource.getHibernate().session().get(Dataset.class, datasetId);
 		
 		if (dataset == null || dataset.getSession().getSessionId() != session.getSessionId()) {

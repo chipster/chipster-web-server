@@ -69,7 +69,7 @@ public class SessionJobResource {
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
     	
     	// checks authorization
-    	Session session = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId);
+    	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
     	Job result = getJob(jobId, getHibernate().session());
     	
     	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
@@ -97,7 +97,7 @@ public class SessionJobResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 		
-		Collection<Job> result = sessionResource.getAuthorizationResource().getSessionForReading(sc, sessionId).getJobs().values();
+		Collection<Job> result = sessionResource.getRuleTable().getSessionForReading(sc, sessionId).getJobs().values();
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
@@ -116,7 +116,7 @@ public class SessionJobResource {
 		UUID id = RestUtils.createUUID();
 		job.setJobId(id);
 		
-		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		// make sure a hostile client doesn't set the session
 		job.setSession(session);
 		
@@ -159,7 +159,7 @@ public class SessionJobResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Job dbJob = getHibernate().session().get(Job.class, jobId);
 		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("job doesn't exist");
@@ -192,7 +192,7 @@ public class SessionJobResource {
     public Response delete(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getAuthorizationResource().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Job dbJob = getHibernate().session().get(Job.class, jobId);
 		
 		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {

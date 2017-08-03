@@ -9,6 +9,7 @@ import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
@@ -22,6 +23,7 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -33,11 +35,13 @@ public class RuleResource {
 	private UUID sessionId;
 	private RuleTable authorizationTable;
 	private HibernateUtil hibernate;
+	private Config config;
 
-	public RuleResource(SessionResource sessionResource, UUID id, RuleTable authorizationTable) {
+	public RuleResource(SessionResource sessionResource, UUID id, RuleTable authorizationTable, Config config) {
 		this.sessionId = id;
 		this.authorizationTable = authorizationTable;
 		this.hibernate = sessionResource.getHibernate();
+		this.config = config;
 	}
 
 	@GET
@@ -47,7 +51,7 @@ public class RuleResource {
     @Transaction
     public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
     	    
-		Rule result = authorizationTable.getAuthorization(authorizationId, hibernate.session());
+		Rule result = authorizationTable.getRule(authorizationId, hibernate.session());
     	if (result == null) {
     		throw new NotFoundException();
     	}	
@@ -61,7 +65,7 @@ public class RuleResource {
     public Response getBySession(@Context SecurityContext sc) {
     	    	
 		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);    
-    	List<Rule> authorizations = authorizationTable.getAuthorizations(sessionId);    	
+    	List<Rule> authorizations = authorizationTable.getRules(sessionId);    	
     	return Response.ok(authorizations).build();	       
     }
     
@@ -70,13 +74,20 @@ public class RuleResource {
     @Transaction
     public Response post(Rule newAuthorization, @Context UriInfo uriInfo, @Context SecurityContext sc) {
     	
-		if (newAuthorization.getAuthorizationId() != null) {
+		if (newAuthorization.getRuleId() != null) {
 			throw new BadRequestException("authorization already has an id, post not allowed");
+		}
+		
+		if (RuleTable.EVERYONE.equals(newAuthorization.getUsername())) {
+			String publicSharingUsername = config.getString(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE);
+			if (!publicSharingUsername.isEmpty() && !publicSharingUsername.equals(sc.getUserPrincipal().getName())) {
+				throw new ForbiddenException("sharing to everyone is not allowed for this user");
+			}
 		}
     	
 		Session session = authorizationTable.getSessionForWriting(sc, sessionId);
 
-		newAuthorization.setAuthorizationId(RestUtils.createUUID());    	    	
+		newAuthorization.setRuleId(RestUtils.createUUID());    	    	
 		
 		// make sure a hostile client doesn't set the session
     	newAuthorization.setSession(session);
@@ -84,7 +95,7 @@ public class RuleResource {
     	
     	authorizationTable.save(newAuthorization, hibernate.session());
     
-    	URI uri = uriInfo.getAbsolutePathBuilder().path(newAuthorization.getAuthorizationId().toString()).build();
+    	URI uri = uriInfo.getAbsolutePathBuilder().path(newAuthorization.getRuleId().toString()).build();
     	
     	return Response.created(uri).build();
     }
@@ -94,9 +105,13 @@ public class RuleResource {
     @Transaction
     public Response delete(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) {
     	
-    	Rule authorizationToDelete = authorizationTable.getAuthorization(authorizationId, hibernate.session());
+    	Rule authorizationToDelete = authorizationTable.getRule(authorizationId, hibernate.session());
     	
-    	authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    	// everybody is allowed remove their own rules, even if they are read-only
+    	if (!authorizationToDelete.getUsername().equals(sc.getUserPrincipal().getName())) {
+    		// others need read-write permissions
+    		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    	}
     	    	
     	authorizationTable.delete(sessionId, authorizationToDelete, hibernate.session());    	
     

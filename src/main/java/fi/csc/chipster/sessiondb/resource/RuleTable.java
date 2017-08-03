@@ -33,6 +33,8 @@ import fi.csc.chipster.sessiondb.model.Session;
 
 public class RuleTable {	
 	
+	public static final String EVERYONE = "everyone";
+
 	private static Logger logger = LogManager.getLogger();
 	
 	private HibernateUtil hibernate;
@@ -45,7 +47,7 @@ public class RuleTable {
 
 	private TokenRequestFilter tokenRequestFilter;
 
-	private SessionResource authorizationRemovedListener;
+	private SessionResource ruleRemovedListener;
 
 
 	public RuleTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
@@ -56,16 +58,16 @@ public class RuleTable {
 		this.tokenRequestFilter = tokenRequestFilter;
 	}
 	
-	public Rule getAuthorization(UUID authorizationId, org.hibernate.Session hibernateSession) {
-		Rule auth =  hibernateSession.get(Rule.class, authorizationId);
+	public Rule getRule(UUID ruleId, org.hibernate.Session hibernateSession) {
+		Rule auth =  hibernateSession.get(Rule.class, ruleId);
 		return auth;
 	}
 	
-    public void delete(UUID sessionId, Rule authorization, org.hibernate.Session hibernateSession) {
-    	hibernateSession.delete(authorization);
+    public void delete(UUID sessionId, Rule rule, org.hibernate.Session hibernateSession) {
+    	hibernateSession.delete(rule);
     	
-    	if (authorizationRemovedListener != null) {
-    		authorizationRemovedListener.authorizationRemoved(sessionId, authorization);
+    	if (ruleRemovedListener != null) {
+    		ruleRemovedListener.ruleRemoved(sessionId, rule);
     	}
     }
     
@@ -93,7 +95,7 @@ public class RuleTable {
 			throw new NotFoundException("session not found");
 		}
 		
-		Rule auth = getAuthorization(username, session, hibernateSession);
+		Rule auth = getRule(username, session, hibernateSession);
 		
 		if (auth == null) {
 			throw new ForbiddenException("access denied");
@@ -108,23 +110,19 @@ public class RuleTable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<Rule> getAuthorizations(String username) {		
-		List<Rule> authorizations = hibernate.session()
-				.createQuery("from Rule where username=:username or username='all'")
+	public List<Rule> getRules(String username) {		
+		return hibernate.session()
+				.createQuery("from Rule where username=:username or username='" + EVERYONE + "'")
 				.setParameter("username", username)
 				.list();
-
-		return authorizations;
 	}
 	
 	@SuppressWarnings("unchecked")
-	public List<Rule> getAuthorizations(UUID sessionId) {		
-		List<Rule> authorizations = hibernate.session()
+	public List<Rule> getRules(UUID sessionId) {		
+		return hibernate.session()
 				.createQuery("from Rule where sessionId=:sessionId")
 				.setParameter("sessionId", sessionId)
 				.list();
-				
-		return authorizations;
 	}
 	
 	/**
@@ -132,7 +130,7 @@ public class RuleTable {
 	 * 
 	 * @return
 	 */
-	public Response getAuthorizations() {
+	public Response getRules() {
 	
 		StreamingOutput stream = new StreamingOutput() {
 	    	@Override
@@ -181,7 +179,7 @@ public class RuleTable {
 		return hibernate.session().get(Session.class, sessionId);
 	}
 	
-	public Rule getAuthorization(String username, Session session, org.hibernate.Session hibernateSession) {
+	public Rule getRule(String username, Session session, org.hibernate.Session hibernateSession) {
 		
 		if (servicesAccounts.contains(username)) {
 			return new Rule(username, true, null);
@@ -189,7 +187,7 @@ public class RuleTable {
 		
 		@SuppressWarnings("unchecked")
 		List<Rule> auths = hibernateSession
-				.createQuery("from Rule where (username=:username or username='all') and session=:session")
+				.createQuery("from Rule where (username=:username or username='" + EVERYONE + "') and session=:session")
 				.setParameter("username", username)
 				.setParameter("session", session)
 				.list();
@@ -283,7 +281,7 @@ public class RuleTable {
 		return checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
 	}
 	
-	public void setAuthorizationRemovedListener(SessionResource sessionResource) {
-		this.authorizationRemovedListener = sessionResource;
+	public void setRuleRemovedListener(SessionResource sessionResource) {
+		this.ruleRemovedListener = sessionResource;
 	}
 }

@@ -149,7 +149,7 @@ public class SessionDbClient {
 		return getJobsTarget(sessionId).path(jobId.toString());
 	}
 	
-	private WebTarget getAuthorizationsTarget(UUID sessionId) {
+	private WebTarget getRulesTarget(UUID sessionId) {
 		return getSessionTarget(sessionId).path("rules");
 	}
 	
@@ -157,8 +157,8 @@ public class SessionDbClient {
 		return sessionDbTarget.path("datasettokens");
 	}	
 	
-	private WebTarget getAuthorizationTarget(UUID sessionId, UUID authorizationId) {
-		return getAuthorizationsTarget(sessionId).path(authorizationId.toString());
+	private WebTarget getRuleTarget(UUID sessionId, UUID authorizationId) {
+		return getRulesTarget(sessionId).path(authorizationId.toString());
 	}
 	
 	// methods 
@@ -396,8 +396,8 @@ public class SessionDbClient {
 		delete(getJobTarget(sessionId, jobId));
 	}
 	
-	public Rule getAuthorization(UUID sessionId, UUID authorizationId) throws RestException {
-		return get(getAuthorizationTarget(sessionId, authorizationId), Rule.class);
+	public Rule getRule(UUID sessionId, UUID ruleId) throws RestException {
+		return get(getRuleTarget(sessionId, ruleId), Rule.class);
 	}
 
 	public List<TableStats> getTableStats() throws RestException {
@@ -406,19 +406,19 @@ public class SessionDbClient {
 		return tables;
 	}
 	
-	public UUID createAuthorization(UUID sessionId, String username, boolean readWrite) throws RestException {
-		return post(getAuthorizationsTarget(sessionId), new Rule(username, readWrite));
+	public UUID createRule(UUID sessionId, String username, boolean readWrite) throws RestException {
+		return post(getRulesTarget(sessionId), new Rule(username, readWrite));
 	}
 
-	public UUID createAuthorization(UUID sessionId, Rule authorization) throws RestException {
-		return post(getAuthorizationsTarget(sessionId), authorization);
+	public UUID createRule(UUID sessionId, Rule rule) throws RestException {
+		return post(getRulesTarget(sessionId), rule);
 	}
 	
-	public void deleteAuthorization(UUID sessionId, UUID authorizationId) throws RestException {
-		delete(getAuthorizationsTarget(sessionId).path(authorizationId.toString()));
+	public void deleteRule(UUID sessionId, UUID ruleId) throws RestException {
+		delete(getRulesTarget(sessionId).path(ruleId.toString()));
 	}
 	
-	public List<Rule> getAuthorizations(UUID sessionId) throws RestException {
-		return getList(getAuthorizationsTarget(sessionId), Rule.class);
+	public List<Rule> getRules(UUID sessionId) throws RestException {
+		return getList(getRulesTarget(sessionId), Rule.class);
 	}
 }

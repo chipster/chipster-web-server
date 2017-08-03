@@ -138,7 +138,7 @@ public class SessionDb implements TopicCheck {
 		
 		this.authorizationTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
 		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
-		this.sessionResource = new SessionResource(hibernate, authorizationTable);
+		this.sessionResource = new SessionResource(hibernate, authorizationTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.adminResource = new SessionDbAdminResource(hibernate);
 		
@@ -223,7 +223,7 @@ public class SessionDb implements TopicCheck {
 				@Override
 				public Boolean run(org.hibernate.Session hibernateSession) {
 					try {
-						Session session = sessionResource.getAuthorizationResource().checkAuthorization(principal.getName(), sessionId, false, hibernateSession);
+						Session session = sessionResource.getRuleTable().checkAuthorization(principal.getName(), sessionId, false, hibernateSession);
 						return session != null;
 					} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
 							|javax.ws.rs.NotFoundException

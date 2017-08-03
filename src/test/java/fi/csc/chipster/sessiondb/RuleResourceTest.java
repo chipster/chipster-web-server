@@ -6,16 +6,19 @@ import java.io.IOException;
 import java.util.UUID;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.resource.RuleTable;
 
 public class RuleResourceTest {
 
@@ -58,10 +61,69 @@ public class RuleResourceTest {
 		
 		// share the session
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	user1Client.createAuthorization(sessionId, authorization);
+    	user1Client.createRule(sessionId, authorization);
     	
     	// but now she can
     	user2Client.getSession(sessionId);		
+    }
+	
+	@Test
+    public void postEveryoneRestriction() throws IOException, RestException {
+		
+		Session session = RestUtils.getRandomSession();		
+		UUID sessionId = user1Client.createSession(session);
+						
+		try {
+			Rule rule = new Rule(RuleTable.EVERYONE, false);    	
+	    	user1Client.createRule(sessionId, rule);
+	    	Assert.fail("only example_session_owner should be able to share to everyone");
+		} catch (Exception e) {			
+		}
+    }
+	
+	@Test
+    public void postEveryone() throws IOException, RestException {
+		
+		Session session = RestUtils.getRandomSession();
+		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
+				launcher.getServiceLocator(), 
+				new AuthenticationClient(launcher.getServiceLocator(), "example_session_owner", "example_session_owner").getCredentials());
+
+		UUID sessionId = exampleSessionOwnerClient.createSession(session);
+				
+		// user2 can't access this session
+		SessionResourceTest.testGetSession(403, sessionId, user2Client);
+		
+		// share the session
+		Rule rule = new Rule(RuleTable.EVERYONE, false);    	
+    	exampleSessionOwnerClient.createRule(sessionId, rule);
+    	
+    	// but now she can
+    	user2Client.getSession(sessionId);		
+    }
+	
+	@Test
+    public void deleteShared() throws IOException, RestException {
+		
+		Session session = RestUtils.getRandomSession();
+		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
+				launcher.getServiceLocator(), 
+				new AuthenticationClient(launcher.getServiceLocator(), "example_session_owner", "example_session_owner").getCredentials());
+
+		UUID sessionId = exampleSessionOwnerClient.createSession(session);
+						
+		// share the session
+		Rule rule = new Rule(RuleTable.EVERYONE, false);    	
+    	UUID ruleId = exampleSessionOwnerClient.createRule(sessionId, rule);
+    	
+    	// user2 can access the session
+    	user2Client.getSession(sessionId);
+    	
+    	// this should delete the session despite the public rule
+    	exampleSessionOwnerClient.deleteRule(sessionId, ruleId);
+    	    	
+    	// check that it was deleted
+    	SessionResourceTest.testGetSession(403, sessionId, user2Client);
     }
 	
 	@Test
@@ -70,19 +132,19 @@ public class RuleResourceTest {
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
 		
-		UUID authorizationId1 = user1Client.getAuthorizations(sessionId).get(0).getAuthorizationId();
+		UUID authorizationId1 = user1Client.getRules(sessionId).get(0).getRuleId();
 		
 		// user1 authorizes user2    	
-    	user1Client.createAuthorization(sessionId, launcher.getUser2Credentials().getUsername(), true);
+    	user1Client.createRule(sessionId, launcher.getUser2Credentials().getUsername(), true);
     	    	
     	// user2 unauthorizes user1
-    	user2Client.deleteAuthorization(sessionId, authorizationId1);
+    	user2Client.deleteRule(sessionId, authorizationId1);
     	
     	// user1 doesn't have access anymore
     	SessionResourceTest.testGetSession(403, sessionId, user1Client);
     	    	
     	// user2 can authorize another user (user1 in this case)
-    	user2Client.createAuthorization(sessionId, launcher.getUser1Credentials().getUsername(), true);
+    	user2Client.createRule(sessionId, launcher.getUser1Credentials().getUsername(), true);
     	
     	// user1 can access again
     	user1Client.getSession(sessionId);
@@ -94,21 +156,21 @@ public class RuleResourceTest {
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
 		
-		assertEquals(1, user1Client.getAuthorizations(sessionId).size());
+		assertEquals(1, user1Client.getRules(sessionId).size());
 		
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
+    	UUID authorizationId = user1Client.createRule(sessionId, authorization);
     	
-    	assertEquals(2, user1Client.getAuthorizations(sessionId).size());
+    	assertEquals(2, user1Client.getRules(sessionId).size());
 		
-		user1Client.deleteAuthorization(sessionId, authorizationId);
+		user1Client.deleteRule(sessionId, authorizationId);
 		
-		assertEquals(1, user1Client.getAuthorizations(sessionId).size());
+		assertEquals(1, user1Client.getRules(sessionId).size());
 		
-    	testGetAuthorizations(401, sessionId, unparseableTokenClient);
-		testGetAuthorizations(403, sessionId, tokenFailClient);
-		testGetAuthorizations(401, sessionId, authFailClient);
-		testGetAuthorizations(401, sessionId, noAuthClient);
+    	testGetRules(401, sessionId, unparseableTokenClient);
+		testGetRules(403, sessionId, tokenFailClient);
+		testGetRules(401, sessionId, authFailClient);
+		testGetRules(401, sessionId, noAuthClient);
 	}
 
 	@Test
@@ -117,16 +179,16 @@ public class RuleResourceTest {
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);				
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
+    	UUID authorizationId = user1Client.createRule(sessionId, authorization);
     	    			
 		// only allowed for sessionDb
-    	sessionDbClient.getAuthorization(sessionId, authorizationId);
+    	sessionDbClient.getRule(sessionId, authorizationId);
     	
-		testGetAuthorization(403, sessionId, authorizationId, user1Client);
-    	testGetAuthorization(401, sessionId, authorizationId, unparseableTokenClient);
-		testGetAuthorization(403, sessionId, authorizationId, tokenFailClient);
-		testGetAuthorization(401, sessionId, authorizationId, authFailClient);
-		testGetAuthorization(401, sessionId, authorizationId, noAuthClient);
+		testGetRule(403, sessionId, authorizationId, user1Client);
+    	testGetRule(401, sessionId, authorizationId, unparseableTokenClient);
+		testGetRule(403, sessionId, authorizationId, tokenFailClient);
+		testGetRule(401, sessionId, authorizationId, authFailClient);
+		testGetRule(401, sessionId, authorizationId, noAuthClient);
     }
 	
 	@Test
@@ -135,7 +197,6 @@ public class RuleResourceTest {
 		Session session1 = RestUtils.getRandomSession();
 		Session session2 = RestUtils.getRandomSession();
 		
-		@SuppressWarnings("unused")
 		UUID sessionId1 = user1Client.createSession(session1);
 		UUID sessionId2 = user1Client.createSession(session2);
 		
@@ -143,7 +204,7 @@ public class RuleResourceTest {
 				
 		// share session1
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	user1Client.createAuthorization(sessionId1, authorization);
+    	user1Client.createRule(sessionId1, authorization);
     	    	
     	// user2 must not have access to user1's other sessions 
     	SessionResourceTest.testGetSession(403, sessionId2, user2Client);    	
@@ -157,14 +218,14 @@ public class RuleResourceTest {
 		UUID sessionId = user1Client.createSession(session);
 		
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
+    	UUID authorizationId = user1Client.createRule(sessionId, authorization);
     	    	    	
-    	testDeleteAuthorization(401, sessionId, authorizationId, unparseableTokenClient);
-		testDeleteAuthorization(403, sessionId, authorizationId, tokenFailClient);
-		testDeleteAuthorization(401, sessionId, authorizationId, authFailClient);
-		testDeleteAuthorization(401, sessionId, authorizationId, noAuthClient);
+    	testDeleteRule(401, sessionId, authorizationId, unparseableTokenClient);
+		testDeleteRule(403, sessionId, authorizationId, tokenFailClient);
+		testDeleteRule(401, sessionId, authorizationId, authFailClient);
+		testDeleteRule(401, sessionId, authorizationId, noAuthClient);
 		
-		user1Client.deleteAuthorization(sessionId, authorizationId);
+		user1Client.deleteRule(sessionId, authorizationId);
     }
 	
 	@Test
@@ -174,13 +235,13 @@ public class RuleResourceTest {
 		UUID sessionId = user1Client.createSession(session);
 		
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	UUID authorizationId = user1Client.createAuthorization(sessionId, authorization);
+    	UUID authorizationId = user1Client.createRule(sessionId, authorization);
     	
     	// user2 can access the session
     	user2Client.getSession(sessionId);
     	
     	// remove the rights from the user2
-		user1Client.deleteAuthorization(sessionId, authorizationId);
+		user1Client.deleteRule(sessionId, authorizationId);
 		
 		// user2 can't anymore access the session
 		SessionResourceTest.testGetSession(403, sessionId, user2Client);
@@ -200,9 +261,11 @@ public class RuleResourceTest {
 		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
 		UUID jobId = user1Client.createJob(sessionId1, job);
 		
+		UUID authorizationId1 = user1Client.getRules(sessionId1).get(0).getRuleId();
+		
 		// read authorization for user2
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), false);    	
-    	UUID authorizationId = user1Client.createAuthorization(sessionId1, authorization);
+    	UUID authorizationId2 = user1Client.createRule(sessionId1, authorization);
 		
     	// read allowed
     	user2Client.getDataset(sessionId1, datasetId);
@@ -210,7 +273,7 @@ public class RuleResourceTest {
     	user2Client.getJob(sessionId1, jobId);
     	user2Client.getJobs(sessionId1);
     	user2Client.getSession(sessionId1);
-    	user2Client.getAuthorizations(sessionId1);
+    	user2Client.getRules(sessionId1);
     	
     	// modification forbidden
     	DatasetResourceTest.testCreateDataset(403, sessionId1, RestUtils.getRandomDataset(), user2Client);
@@ -221,9 +284,12 @@ public class RuleResourceTest {
     	JobResourceTest.testDeleteJob(403, sessionId1, jobId, user2Client);
     	SessionResourceTest.testUpdateSession(403, session1, user2Client);
     	SessionResourceTest.testDeleteSession(403, sessionId1, user2Client);
-    	testCreateAuthorization(403, sessionId1, new Rule("user", false), user2Client);
-    	testCreateAuthorization(403, sessionId1, new Rule("user", true), user2Client);
-    	testDeleteAuthorization(403, sessionId1, authorizationId, user2Client);
+    	testCreateRule(403, sessionId1, new Rule("user", false), user2Client);
+    	testCreateRule(403, sessionId1, new Rule("user", true), user2Client);
+    	testDeleteRule(403, sessionId1, authorizationId1, user2Client);
+    	
+    	// removal of own rule allowed
+    	user2Client.deleteRule(sessionId1, authorizationId2);
     }
 	
 	@Test
@@ -239,7 +305,7 @@ public class RuleResourceTest {
 		
 		// read authorization for user2
 		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	user1Client.createAuthorization(sessionId1, authorization);
+    	user1Client.createRule(sessionId1, authorization);
 		
     	user2Client.getDataset(sessionId1, datasetId);
     	user2Client.getDatasets(sessionId1);
@@ -253,45 +319,45 @@ public class RuleResourceTest {
     	user2Client.updateJob(sessionId1, job);
     	user2Client.deleteJob(sessionId1, jobId);
     	
-    	user2Client.getAuthorizations(sessionId1);
-    	user2Client.createAuthorization(sessionId1, new Rule("user", false));
-    	user2Client.createAuthorization(sessionId1, new Rule("user", true));
+    	user2Client.getRules(sessionId1);
+    	user2Client.createRule(sessionId1, new Rule("user", false));
+    	user2Client.createRule(sessionId1, new Rule("user", true));
     	
     	user2Client.getSession(sessionId1);
     	user2Client.updateSession(session1);
     	user2Client.deleteSession(sessionId1);    	
     }
 
-	public static void testGetAuthorization(int expected, UUID sessionId, UUID authorizationId, SessionDbClient client) {
+	public static void testGetRule(int expected, UUID sessionId, UUID ruleId, SessionDbClient client) {
 		try {
-    		client.getAuthorization(sessionId, authorizationId);
+    		client.getRule(sessionId, ruleId);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
 	
-	public static void testGetAuthorizations(int expected, UUID sessionId, SessionDbClient client) {
+	public static void testGetRules(int expected, UUID sessionId, SessionDbClient client) {
 		try {
-    		client.getAuthorizations(sessionId);
+    		client.getRules(sessionId);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
 	
-	public static void testCreateAuthorization(int expected, UUID sessionId, Rule authorization, SessionDbClient client) {
+	public static void testCreateRule(int expected, UUID sessionId, Rule rule, SessionDbClient client) {
 		try {
-    		client.createAuthorization(sessionId, authorization);
+    		client.createRule(sessionId, rule);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
 	
-	public static void testDeleteAuthorization(int expected, UUID sessionId, UUID authorizationId, SessionDbClient client) {
+	public static void testDeleteRule(int expected, UUID sessionId, UUID ruleId, SessionDbClient client) {
 		try {
-    		client.deleteAuthorization(sessionId, authorizationId);
+    		client.deleteRule(sessionId, ruleId);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());
