@@ -100,6 +100,17 @@ export default class CliClient {
     ruleDeleteSubparser.addArgument(['username'], {help: 'username'});
 
 
+    let serviceSubparsers = subparsers.addParser('service').addSubparsers({
+      title: 'service admin subcommnads',
+      dest: 'subcommand'
+    });
+
+    let serviceListSubparser = serviceSubparsers.addParser('list');
+
+    let serviceGetSubparser = serviceSubparsers.addParser('get');
+    serviceGetSubparser.addArgument(['name'], {help: 'service name or id'});
+
+
     loginSubparser.addArgument(['URL'], { nargs: '?', help: 'url of the API server'});
     loginSubparser.addArgument(['--username', '-u'], { help: 'username for the server'});
     loginSubparser.addArgument(['--password', '-p'], { help: 'password for the server'});
@@ -110,6 +121,12 @@ export default class CliClient {
 
     logger.debug(args);
 
+    this.printLoginStatus(args)
+      .do(() => this.runCommand(args))
+      .subscribe();
+  }
+
+  runCommand(args) {
     if (args.command === 'session') {
       switch (args.subcommand) {
         case 'list': this.sessionList(); break;
@@ -137,10 +154,41 @@ export default class CliClient {
         case 'delete': this.ruleDelete(args); break;
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
+    } else if (args.command === 'service') {
+      switch (args.subcommand) {
+        case 'list': this.serviceList(); break;
+        case 'get': this.serviceGet(args); break;
+        default: throw new Error('unknown subcommand ' + args.subcommand);
+      }
     } else if (args.command === 'login') {
-      this.login(args);
+      this.login(args)
+        .flatMap(() => this.printLoginStatus(null))
+        .subscribe()
     } else if (args.command === 'logout') {
-      this.logout();
+      this.logout()
+        .flatMap(() => this.printLoginStatus(null))
+        .subscribe();
+    }
+  }
+
+  printLoginStatus(args) {
+
+    if (args && (args.command === 'login' || args.command === 'logout')) {
+      return Observable.of(null);
+    } else {
+
+      let uri$ = this.env.get('webServerUri');
+      let username$ = this.env.get('username');
+      let token$ = this.env.get('token');
+
+      return Observable.forkJoin(uri$, username$, token$).do(res => {
+        if (res[2]) {
+          console.log('Logged in to ' + res[0] + ' as ' + res[1]);
+          console.log();
+        } else {
+          console.log('Logged out');
+        }
+      });
     }
   }
 
@@ -153,7 +201,9 @@ export default class CliClient {
     if (this.isLoggedIn()) {
       return Observable.of(this.restClient);
     } else {
-      let uri$ = this.env.get('serviceLocatorUri');
+      let uri$ = this.env.get('webServerUri')
+        .flatMap(webServerUrl => new RestClient(true, null, null).getServiceLocator(webServerUrl));
+
       let token$ = this.env.get('token');
 
       return Observable.forkJoin(uri$, token$).map(res => {
@@ -179,34 +229,54 @@ export default class CliClient {
 
   login(args) {
 
-    let url;
+    let webServerUri;
     let username;
     let password;
 
-    let prompts = [];
-    let url$ = args.URL ? Observable.of(args.URL) : this.getPrompt('server: ');
-    url$
-      .flatMap(u => {
-        url = u;
-        return args.username ? Observable.of(args.username) : this.getPrompt('username: ');
-      })
-      .flatMap(u => {
-        username = u;
-        return args.password ? Observable.of(args.password) : this.getPrompt('password: ', true);
-      })
-      .flatMap(p => {
-        password = p;
-        let guestClient = new RestClient(true, null, url);
+    // get the previous uri and use it as a prompt default
+    return this.env.get('webServerUri')
+      .flatMap(defaultUri => args.URL ? Observable.of(args.URL) : this.getPrompt('server: ', defaultUri))
+      .map(webServer => this.fixUri(webServer))
+      .do(webServer => webServerUri = webServer)
+
+      // get the previous username and use it as a prompt default
+      .flatMap(() => this.env.get('username'))
+      .flatMap(defaultUsername => args.username ? Observable.of(args.username) : this.getPrompt('username: ', defaultUsername))
+      .do(u => username = u)
+
+      // password prompt
+      .flatMap(() => args.password ? Observable.of(args.password) : this.getPrompt('password: ', '', true))
+      .do(p => password = p)
+
+      // get the service locator address
+      .flatMap(() => new RestClient(true, null, null).getServiceLocator(webServerUri))
+      // get token
+      .flatMap(serviceLocatorUrl => {
+        let guestClient = new RestClient(true, null, serviceLocatorUrl);
         return guestClient.getToken(username, password)
       })
+
+      // save
       .flatMap(token => this.env.set('token', token.tokenKey))
-      .flatMap(() => this.env.set('serviceLocatorUri', url))
-      .flatMap(() => this.checkLogin())
-      .subscribe();
+      .flatMap(() => this.env.set('webServerUri', webServerUri))
+      .flatMap(() => this.env.set('username', username))
+      .flatMap(() => this.checkLogin());
+  }
+
+  fixUri(uri) {
+    if (!uri.startsWith('http')) {
+      // add protocol
+      uri = 'http://' + uri;
+    }
+    if (uri.endsWith('/')) {
+      // remove trailing slash
+      uri = uri.slice(0, -1);
+    }
+    return uri;
   }
 
   logout() {
-    this.env.clear();
+    return this.env.set('token', null);
   }
 
   sessionUpload(args) {
@@ -362,10 +432,27 @@ export default class CliClient {
       .subscribe();
   }
 
-  getPrompt(prompt, silent = false) {
+  serviceList() {
+    this.checkLogin()
+      .flatMap(() => this.restClient.getServices())
+      .subscribe(
+        services => console.log(services),
+        err => console.error('failed to list services', err))
+  }
+
+  serviceGet(args) {
+    this.checkLogin()
+      .flatMap(() => this.restClient.getServices())
+      .map((services: Array<any>) => services.filter(s => s.serviceId === args.name || s.role === args.name))
+      .subscribe(
+        services => console.log(services),
+        err => console.error('failed to list services', err))
+  }
+
+  getPrompt(prompt, defaultValue = null, silent = false) {
     let subject = new Subject();
 
-    read({ prompt: prompt, silent: silent}, function(err, line) {
+    read({ prompt: prompt, silent: silent, default: defaultValue}, function(err, line) {
       if (err) {
         subject.error(err);
       }

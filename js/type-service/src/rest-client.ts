@@ -187,8 +187,12 @@ export class RestClient {
     return this.getServiceUri('session-worker');
   }
 
+  getServices() {
+    return this.getJson(this.serviceLocatorUri + '/services', null);
+  }
+
 	getServiceUri(serviceName) {
-		return this.getJson(this.serviceLocatorUri + '/services', null).map(services => {
+		return this.getServices().map(services => {
 			let service = services.filter(service => service.role === serviceName)[0];
 			if (!service) {
 				Observable.throw(new restify.InternalServerError('service not found' + serviceName));
@@ -196,6 +200,15 @@ export class RestClient {
 			return this.isClient ? service.publicUri : service.uri;
 		});
 	}
+
+	getServiceLocator(webServer) {
+    return RxHR.get(webServer + '/main.bundle.js').map(resp => {
+      let body = this.handleResponse(resp);
+      body = body.slice(body.indexOf('var ServiceLocator = \''));
+      let parts = body.split('\'');
+      return parts[1];
+    });
+  }
 
 	getJson(uri: string, token: string): Observable<any> {
 		return this.getWithToken(uri, token).map(data => JSON.parse(data));

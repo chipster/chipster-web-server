@@ -30,7 +30,7 @@ export default class CliEnvironment {
   }
 
   set(key: string, value: string) {
-    return this.read().map(env => {
+    return this.read().flatMap(env => {
       env[key] = value;
       return this.write(env);
     });
@@ -39,7 +39,11 @@ export default class CliEnvironment {
   private write(object) {
     let subject = new Subject();
     let json = JSON.stringify(object);
-    fs.writeFile(ENV_FILE, json, 'utf8', () => {
+
+    fs.writeFile(ENV_FILE, json, 'utf8', (err) => {
+      if (err) {
+        throw new Error('writing env file failed' + err);
+      }
       subject.next(object);
       subject.complete();
     });
