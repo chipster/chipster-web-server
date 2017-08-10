@@ -34,6 +34,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.ToolResource;
@@ -178,7 +179,8 @@ public class ToolboxService {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(this.toolResource)
-				.register(moduleResource);
+				.register(moduleResource)
+				.register(new GenericAdminResource());
 				// .register(new LoggingFilter())
 
 		// create and start a new instance of grizzly http server

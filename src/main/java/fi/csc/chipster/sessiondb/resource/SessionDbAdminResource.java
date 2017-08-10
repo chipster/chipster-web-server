@@ -2,6 +2,9 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,8 +25,17 @@ import org.hibernate.criterion.Projections;
 import org.hibernate.metadata.ClassMetadata;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.DatasetToken;
+import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Input;
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataEntry;
+import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.TableStats;
 
 @Path("admin")
@@ -37,6 +49,38 @@ public class SessionDbAdminResource {
 	public SessionDbAdminResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
+	
+	@GET
+	@Path(GenericAdminResource.PATH_STATUS)
+    @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getStatus(@Context SecurityContext sc) {
+		
+		HashMap<String, Object> status = new HashMap<>();
+		
+		List<Class<?>> dbTables = Arrays.asList(new Class<?>[] { 
+			Session.class, Dataset.class, Job.class, DatasetToken.class, File.class, 
+			Input.class, MetadataEntry.class, Parameter.class, Rule.class });
+		
+		if (dbTables != null && sc.isUserInRole(Role.ADMIN)) {
+			
+			for (Class<?> table : dbTables) {				
+				Long rowCount = (Long) this.hibernate.session()
+						.createCriteria(table)
+						.setProjection(Projections.rowCount()).uniqueResult();
+						
+				status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
+			}
+			
+			status.putAll(GenericAdminResource.getSystemStats());
+		}
+		
+		status.put(GenericAdminResource.KEY_STATUS, GenericAdminResource.VALUE_OK);
+	
+		return Response.ok(status).build();
+		
+    }	
+
 	
 	@GET
     @Path("tables")

@@ -108,7 +108,7 @@ export default class CliClient {
     let serviceListSubparser = serviceSubparsers.addParser('list');
 
     let serviceGetSubparser = serviceSubparsers.addParser('get');
-    serviceGetSubparser.addArgument(['name'], {help: 'service name or id'});
+    serviceGetSubparser.addArgument(['name'], { nargs: '?', help: 'service name or id'});
 
 
     loginSubparser.addArgument(['URL'], { nargs: '?', help: 'url of the API server'});
@@ -443,10 +443,50 @@ export default class CliClient {
   serviceGet(args) {
     this.checkLogin()
       .flatMap(() => this.restClient.getServices())
-      .map((services: Array<any>) => services.filter(s => s.serviceId === args.name || s.role === args.name))
-      .subscribe(
-        services => console.log(services),
-        err => console.error('failed to list services', err))
+      .map((services: Array<any>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http')))
+      .map((services: Array<any>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name))
+      .flatMap(services => Observable.from(services))
+      .flatMap(service => {
+        return Observable.forkJoin(
+          Observable.of(service),
+          this.restClient.getStatus(service.publicUri)
+            .catch(err => {
+              console.log(service.role + ' error (' + service.publicUri + ')');
+              return Observable.empty();
+        }));
+      })
+      .toArray()
+      .subscribe(statuses => {
+          if (statuses.length === 1) {
+            let res = statuses[0];
+            console.log(res[0].role, this.toHumanReadable(res[1]));
+          } else {
+            statuses.forEach(res => {
+              console.log(res[0].role, res[1]['status']);
+            });
+          }
+        },
+          err => console.error('failed to list services', err)
+      );
+  }
+
+  toHumanReadable(obj) {
+    let newObj = {};
+    for (let key in obj) {
+      let value = obj[key];
+      if (Number.isInteger(value)) {
+        if (value > Math.pow(1024, 3)) {
+          value = Math.round(value / Math.pow(1024, 3) * 10) / 10 + ' G';
+        } else if (value > Math.pow(1024, 2)) {
+          value = Math.round(value / Math.pow(1024, 2) * 10) / 10 + ' M';
+        } else if (value > 1024) {
+          value = Math.round(value / 1024 * 10) / 10 + ' k'
+        }
+        // round to one decimal
+        newObj[key] = value;
+      }
+    }
+    return newObj;
   }
 
   getPrompt(prompt, defaultValue = null, silent = false) {

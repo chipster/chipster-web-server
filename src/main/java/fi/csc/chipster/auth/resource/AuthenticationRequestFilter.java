@@ -42,8 +42,11 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private JaasAuthenticationProvider authenticationProvider;
 
+	private Config config;
+
 	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
+		this.config = config;
 		
 		serviceAccounts = new HashMap<>();	
 				
@@ -138,7 +141,11 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		if (serviceAccounts.keySet().contains(username)) {
 			roles = new String[] { Role.PASSWORD, Role.SERVER, username };
 		} else {
-			roles = new String[] { Role.PASSWORD, Role.CLIENT};
+			if (config.getString(Config.KEY_AUTH_ADMIN_USER).equals(username)) {
+				roles = new String[] { Role.PASSWORD, Role.CLIENT, Role.ADMIN};
+			} else {
+				roles = new String[] { Role.PASSWORD, Role.CLIENT};
+			}
 		}
 		
 		return new HashSet<>(Arrays.asList(roles));

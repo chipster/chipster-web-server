@@ -30,6 +30,8 @@ public class Config {
 	public static final String DEFAULT_CONF_PATH = "conf/chipster-defaults.yaml";	
 	public static final String KEY_CONF_PATH = "conf-path";	
 	
+	public static final String KEY_AUTH_ADMIN_USER = "auth-admin-username";
+	
 	public static final String KEY_SESSION_DB_REPLICATE = "session-db-replicate";
 	public static final String KEY_SESSION_DB_NAME = "session-db-name";
 	public static final String KEY_SESSION_DB_HIBERNATE_SCHEMA = "session-db-hibernate-schema";

@@ -10,6 +10,9 @@ service-password-comp: comp
 service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-proxy: proxy
+service-password-web-server: web-server
+
+auth-admin-username: admin
    
 # Internal and external service addresses
 

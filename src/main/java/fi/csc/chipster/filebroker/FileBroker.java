@@ -73,6 +73,7 @@ public class FileBroker {
 				
 		FileServlet fileServlet = new FileServlet(storage, sessionDbClient, serviceLocator);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
+		contextHandler.addServlet(new ServletHolder(new FileBrokerAdminServlet(storage, authService)), "/admin/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter()), "/*", null);
 		

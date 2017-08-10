@@ -63,16 +63,6 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.config = config;
 	}
 
-    /**
-     * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
-     * @return Grizzly HTTP server.
-     * @throws DeploymentException 
-     * @throws ServletException 
-     * @throws InterruptedException 
-     * @throws RestException 
-     * @throws IOException 
-     * @throws Exception 
-     */
     public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
     	
     	String username = Role.SCHEDULER;

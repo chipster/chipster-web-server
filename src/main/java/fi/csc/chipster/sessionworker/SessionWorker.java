@@ -15,6 +15,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -70,6 +71,7 @@ public class SessionWorker {
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(sessionWorkerResource)
+				.register(new GenericAdminResource())
 				.register(tokenRequestFilter);
 
 		// create and start a new instance of grizzly http server

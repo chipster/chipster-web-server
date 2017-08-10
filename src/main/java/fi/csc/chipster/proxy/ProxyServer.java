@@ -312,4 +312,8 @@ public class ProxyServer {
 			}
 		}
 	}
+
+	public ServletContextHandler getContext() {
+		return this.context;
+	}
 }

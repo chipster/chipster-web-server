@@ -60,6 +60,7 @@ export default class TypeService {
 
 		server.get('/sessions/:sessionId', this.respond.bind(this));
 		server.get('/sessions/:sessionId/datasets/:datasetId', this.respond.bind(this));
+    server.get('/admin/status', this.respondStatus.bind(this));
 
 		let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
 		let bindUrl = url.parse(bindUrlString);
@@ -125,6 +126,12 @@ export default class TypeService {
       throw Error(err);
 		});
 	}
+
+  respondStatus(req, res, next) {
+      res.contentType = 'json';
+      res.send({status: 'OK'});
+      next();
+  }
 
 	respondError(next, err) {
     if (err.statusCode >= 400 && err.statusCode <= 499) {

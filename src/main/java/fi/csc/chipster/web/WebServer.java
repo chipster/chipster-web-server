@@ -9,15 +9,18 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
-import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.GenericAdminServlet;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 public class WebServer {
 	
@@ -28,11 +31,21 @@ public class WebServer {
 	private Config config;
 	private Server server;
 
+	private ServiceLocatorClient serviceLocator;
+
+	private AuthenticationClient authService;
+
 	public WebServer(Config config) {
 		this.config = config;
 	}
 
 	public void start() throws Exception {
+		
+    	String username = Role.WEB_SERVER;
+    	String password = config.getPassword(username);    	
+    	
+    	this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		
         URI baseUri = URI.create(config.getBindUrl(Role.WEB_SERVER));
         
@@ -63,7 +76,8 @@ public class WebServer {
                 
         // some ContextHandler is needed to enable symlinks and 
         // the ErrorHandler assumes that there is a ServletContext available 
-        ContextHandler contextHandler = new ServletContextHandler();
+        ServletContextHandler contextHandler = new ServletContextHandler();
+        contextHandler.addServlet(new ServletHolder(new GenericAdminServlet(authService)), "/admin/*");
         contextHandler.setHandler(resourceHandler);
         contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
         
@@ -78,12 +92,13 @@ public class WebServer {
         ErrorPageErrorHandler errorHandler = new ErrorPageErrorHandler();
         errorHandler.addErrorPage(404, "/" + INDEX_HTML);
         contextHandler.setErrorHandler(errorHandler);
-        
+                
         // Add the ResourceHandler to the server.
         HandlerList handlers = new HandlerList();
         handlers.setHandlers(new Handler[] { contextHandler, new DefaultHandler() });
         
         server.setHandler(handlers);
+
         
         // Start things up! By using the server.join() the server thread will join with the current thread.
         // See "http://docs.oracle.com/javase/1.5.0/docs/api/java/lang/Thread.html#join()" for more details.

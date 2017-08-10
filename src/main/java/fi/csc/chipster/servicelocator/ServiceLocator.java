@@ -16,6 +16,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
@@ -83,6 +84,7 @@ public class ServiceLocator {
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ServiceResource(serviceCatalog))
+        	.register(new GenericAdminResource())
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
 

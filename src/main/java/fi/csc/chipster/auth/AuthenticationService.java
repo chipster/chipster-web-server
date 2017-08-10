@@ -16,6 +16,7 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -58,9 +59,10 @@ public class AuthenticationService {
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
     	TokenResource authResource = new TokenResource(hibernate);
-    	
+
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
+        	.register(new GenericAdminResource(hibernate, Token.class))
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	//.register(new LoggingFilter())

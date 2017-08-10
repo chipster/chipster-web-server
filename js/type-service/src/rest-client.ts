@@ -31,6 +31,10 @@ export class RestClient {
       .map(data => JSON.parse(data));
   }
 
+  getStatus(host): Observable<any> {
+    return this.getJson(host + '/admin/status', this.token);
+  }
+
   getSessions(): Observable<any[]> {
     return this.getSessionDbUri()
       .mergeMap(sessionDbUri => this.getJson(sessionDbUri + '/sessions/', this.token));
@@ -274,7 +278,7 @@ export class RestClient {
         throw this.responseToError(data.response);
       } else {
         logger.error('error', data.response.statusCode + ' ' + data.response.statusMessage + ' ' + data.response.body);
-        throw new restify.InternalServerError("unable to get the dataset from the session-db");
+        throw new restify.InternalServerError('request ' + data.response.request.method + ' ' + data.response.request.href + ' failed');
       }
     }
   }
