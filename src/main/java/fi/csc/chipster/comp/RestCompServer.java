@@ -2,6 +2,7 @@ package fi.csc.chipster.comp;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,12 +21,16 @@ import javax.websocket.MessageHandler;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.log4j.Logger;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
@@ -109,7 +114,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
 	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
 	private Timer timeoutTimer;
-	@SuppressWarnings("unused")
 	private Timer heartbeatTimer;
 	private Timer compStatusTimer;
 	@SuppressWarnings("unused")
@@ -123,19 +127,23 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private ServiceLocatorClient serviceLocator;
 	private WebSocketClient schedulerClient;
 	private String schedulerUri;
-	@SuppressWarnings("unused")
+
 	private Config config;
 	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
 	
 	private ResourceMonitor resourceMonitor;
 	private int monitoringInterval;
+	private HttpServer httpServer;
 	
 	/**
 	 * 
+	 * @param config 
 	 * @throws Exception 
 	 */
-	public RestCompServer(String configURL) throws Exception {
+	public RestCompServer(String configURL, Config config) throws Exception {
+		
+		this.config = config;
 		
 		// legacy directory layout is needed for the R and python runtimes
 		if (!DirectoryLayout.isInitialised()) {
@@ -143,8 +151,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			DirectoryLayout.initialiseServerLayout(Arrays.asList(new String[] {"comp"}), configURL);
 		}
 //		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
-
-		Config config = new Config();
 		
 		// Initialise instance variables
 		this.scheduleTimeout = config.getInt(Config.KEY_COMP_SCHEDULE_TIMEOUT);
@@ -213,12 +219,21 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		// create keep-alive thread and register shutdown hook
 		KeepAliveShutdownHandler.init(this);
 		
+    	logger.info("starting the admin rest server");
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
+            	.register(new CompAdminResource(this))
+            	.register(new TokenRequestFilter(authClient));
+
+    	URI baseUri = URI.create(this.config.getBindUrl(Role.COMP + "-admin"));
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+
+		
 		sendCompAvailable();
 		
 		logger.info("comp is up and running [" + ApplicationConstants.VERSION + "]");
 		logger.info("[mem: " + SystemMonitorUtil.getMemInfo() + "]");
 	}
-
+	
 	public String getName() {
 		return "comp";
 	}
@@ -654,6 +669,12 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	public void shutdown() {
 		logger.info("shutdown requested");
 		
+		try {
+			RestUtils.shutdown("comp", httpServer);
+		} catch (Exception e) {
+			logger.warn("failed to stop the comp admin server");
+		}	
+		
 		compStatusTimer.cancel();
 		timeoutTimer.cancel();
 		heartbeatTimer.cancel();		
@@ -696,7 +717,16 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		}
 	}
 	
+	public HashMap<String, Object> getStatus() {
+		HashMap<String, Object> status = new HashMap<>();
+		synchronized (jobsLock) {
+			status.put("runningJobCount", runningJobs.size());
+			status.put("scheduledJobCount", scheduledJobs.size());
+		}
+		return status;
+	}
+	
 	public static void main(String[] args) throws Exception {
-		new RestCompServer(null);
+		new RestCompServer(null, new Config());
 	}
 }

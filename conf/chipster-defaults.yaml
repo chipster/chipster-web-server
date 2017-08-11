@@ -27,6 +27,7 @@ url-ext-session-db: http://{{public-ip}}:8004
 url-int-session-db-events: ws://{{public-ip}}:8005
 url-ext-session-db-events: ws://{{public-ip}}:8005
 url-int-scheduler: ws://{{public-ip}}:8006
+url-ext-scheduler: http://{{public-ip}}:8011
 url-int-file-broker: http://{{public-ip}}:8007
 url-ext-file-broker: http://{{public-ip}}:8007
 url-int-toolbox: http://{{public-ip}}:8008
@@ -35,7 +36,7 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
-    
+url-ext-comp: http://{{public-ip}}:8012    
 
 # Address for the server to bind
 
@@ -51,6 +52,8 @@ url-bind-file-broker: http://{{bind-ip}}:8007
 url-bind-toolbox: http://{{bind-ip}}:8008
 url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
+url-bind-scheduler-admin: http://{{bind-ip}}:8011
+url-bind-comp-admin: http://{{bind-ip}}:8012
 
 # comp
 

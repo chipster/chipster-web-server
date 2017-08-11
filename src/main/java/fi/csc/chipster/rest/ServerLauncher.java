@@ -96,7 +96,7 @@ public class ServerLauncher {
 		if (verbose) {
 			logger.info("starting comp");
 		}		
-		comp = new RestCompServer(null);
+		comp = new RestCompServer(null, config);
 		
 		if (verbose) {
 			logger.info("starting web server");

@@ -1,8 +1,11 @@
 package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
+import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -14,12 +17,16 @@ import javax.websocket.MessageHandler;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.scheduler.JobCommand.Command;
@@ -58,6 +65,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	private long jobTimerInterval;
 
 	private Timer jobTimer;
+
+	private HttpServer httpServer;
 	
 	public Scheduler(Config config) {
 		this.config = config;
@@ -93,6 +102,14 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				handleJobTimer();
 			}
     	}, jobTimerInterval, jobTimerInterval);
+    	
+    	logger.info("starting the admin rest server");
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
+            	.register(new SchedulerAdminResource(this))
+            	.register(new TokenRequestFilter(authService));
+
+    	URI baseUri = URI.create(this.config.getBindUrl(Role.SCHEDULER + "-admin"));
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     	
     	logger.info("scheduler is up and running");    		
     }
@@ -145,11 +162,17 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 
 	public void close() {
 		try {
+			RestUtils.shutdown("scheduler", httpServer);
+		} catch (Exception e) {
+			logger.warn("failed to stop the scheduler admin server");
+		}
+		try {
 			sessionDbClient.close();
 		} catch (IOException e) {
 			logger.warn("failed to stop the session-db client", e);
-		}
+		}		
 		pubSubServer.stop();
+		
 	}
 
 	@Override
@@ -403,5 +426,13 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 */
 	private String asShort(UUID id) {
 		return id.toString().substring(0, 4);
+	}
+
+	public Map<? extends String, ? extends Object> getStatus() {
+		HashMap<String, Object> status = new HashMap<>();
+		status.put("newJobCount", jobs.getNewJobs().size());
+		status.put("runningJobCount", jobs.getRunningJobs().size());
+		status.put("scheduledJobCount", jobs.getScheduledJobs().size());
+		return status;
 	}
 }

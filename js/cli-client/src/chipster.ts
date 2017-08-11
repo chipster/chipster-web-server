@@ -27,11 +27,12 @@ export default class CliClient {
       description: 'Chipster command line client for the version 4 and upwards',
     });
 
+    parser.addArgument(['--quiet', '-q'], { nargs: 0, help: 'suppress all extra status info' });
+
     let subparsers = parser.addSubparsers({
       title:'commands',
       dest:"command"
     });
-
 
     let sessionSubparsers = subparsers.addParser('session').addSubparsers({
       title:'session subcommands',
@@ -173,7 +174,7 @@ export default class CliClient {
 
   printLoginStatus(args) {
 
-    if (args && (args.command === 'login' || args.command === 'logout')) {
+    if (args && (args.command === 'login' || args.command === 'logout' || args.quiet)) {
       return Observable.of(null);
     } else {
 
@@ -459,7 +460,12 @@ export default class CliClient {
       .subscribe(statuses => {
           if (statuses.length === 1) {
             let res = statuses[0];
-            console.log(res[0].role, this.toHumanReadable(res[1]));
+            let service = res[0];
+            let status = res[1];
+            for (let key in status) {
+              let value = status[key];
+              console.log(service.role + '\t' + service.serviceId+ '\t' + key + '\t' + value + '\t' + this.toHumanReadable(value));
+            }
           } else {
             statuses.forEach(res => {
               console.log(res[0].role, res[1]['status']);
@@ -470,23 +476,17 @@ export default class CliClient {
       );
   }
 
-  toHumanReadable(obj) {
-    let newObj = {};
-    for (let key in obj) {
-      let value = obj[key];
-      if (Number.isInteger(value)) {
-        if (value > Math.pow(1024, 3)) {
-          value = Math.round(value / Math.pow(1024, 3) * 10) / 10 + ' G';
-        } else if (value > Math.pow(1024, 2)) {
-          value = Math.round(value / Math.pow(1024, 2) * 10) / 10 + ' M';
-        } else if (value > 1024) {
-          value = Math.round(value / 1024 * 10) / 10 + ' k'
-        }
-        // round to one decimal
-        newObj[key] = value;
+  toHumanReadable(value) {
+    if (Number.isInteger(value)) {
+      if (value > Math.pow(1024, 3)) {
+        value = Math.round(value / Math.pow(1024, 3) * 10) / 10 + ' G';
+      } else if (value > Math.pow(1024, 2)) {
+        value = Math.round(value / Math.pow(1024, 2) * 10) / 10 + ' M';
+      } else if (value > 1024) {
+        value = Math.round(value / 1024 * 10) / 10 + ' k'
       }
     }
-    return newObj;
+    return value;
   }
 
   getPrompt(prompt, defaultValue = null, silent = false) {
