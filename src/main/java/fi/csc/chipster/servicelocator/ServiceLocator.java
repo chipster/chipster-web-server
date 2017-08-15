@@ -16,7 +16,6 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
@@ -42,6 +41,8 @@ public class ServiceLocator {
 	private Config config;
 
 	private HttpServer httpServer;
+
+	private HttpServer adminServer;
 	
 	public ServiceLocator(Config config) {
 		this.config = config;
@@ -84,7 +85,6 @@ public class ServiceLocator {
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
         	.register(new ServiceResource(serviceCatalog))
-        	.register(new GenericAdminResource())
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
 
@@ -92,6 +92,8 @@ public class ServiceLocator {
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+                
+        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService);
     }
     
     public void addService(String role, String uri, String publicUri) {
@@ -116,7 +118,8 @@ public class ServiceLocator {
 	}
 
 	public void close() {
-		RestUtils.shutdown("service locator", httpServer);
+		RestUtils.shutdown("service-locator-admin", adminServer);
+		RestUtils.shutdown("service-locator", httpServer);
 	}
 }
 

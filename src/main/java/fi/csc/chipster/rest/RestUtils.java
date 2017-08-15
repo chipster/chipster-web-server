@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -27,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.CommonProperties;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
@@ -35,10 +37,15 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
+import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
+import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
@@ -316,4 +323,30 @@ public class RestUtils {
 				java.util.logging.Logger.getLogger("session-db"), Level.INFO, 
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
+	
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService) {
+		return startAdminServer(new GenericAdminResource(), null, role, config, authService);
+	}
+	
+	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
+			String role, Config config, AuthenticationClient authService) {
+		return startAdminServer(adminResource, hibernate, role, config, new TokenRequestFilter(authService));
+	}
+
+	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
+			String role, Config config, Object authResource) {
+		
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
+            	.register(authResource)
+            	.register(adminResource);
+        
+        if (hibernate != null) {
+            	rc.register(new HibernateRequestFilter(hibernate))
+            	.register(new HibernateResponseFilter(hibernate));
+        }
+
+    	URI baseUri = URI.create(config.getAdminBindUrl(role));
+        return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+	}
+
 }

@@ -1,6 +1,7 @@
 package fi.csc.chipster.proxy;
 
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
@@ -24,6 +25,8 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.proxy.model.Connection;
 import fi.csc.chipster.proxy.model.Route;
 import fi.csc.chipster.proxy.model.RouteStats;
+import fi.csc.chipster.rest.GenericAdminResource;
+import fi.csc.chipster.rest.hibernate.Transaction;
 
 /**
  * Management Rest API for the Chipster's proxy
@@ -41,6 +44,19 @@ public class ChipsterProxyAdminResource {
 	public ChipsterProxyAdminResource(ProxyServer proxy) {
 		this.proxy = proxy;
 	}
+	
+	@GET
+	@Path(GenericAdminResource.PATH_STATUS)
+    @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getStatus(@Context SecurityContext sc) {
+		
+		HashMap<String, Object> status = new HashMap<>();	
+		status.put(GenericAdminResource.KEY_STATUS, GenericAdminResource.VALUE_OK);
+	
+		return Response.ok(status).build();
+		
+    }
 
 	@GET
     @Produces(MediaType.APPLICATION_JSON)

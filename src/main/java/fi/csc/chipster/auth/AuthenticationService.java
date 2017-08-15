@@ -37,6 +37,8 @@ public class AuthenticationService {
 	private Config config;
 
 	private HttpServer httpServer;
+
+	private HttpServer adminServer;
 	
 	public AuthenticationService(Config config) {
 		this.config = config;
@@ -62,7 +64,6 @@ public class AuthenticationService {
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
-        	.register(new GenericAdminResource(hibernate, Token.class))
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	//.register(new LoggingFilter())
@@ -72,6 +73,11 @@ public class AuthenticationService {
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+        
+        this.adminServer = RestUtils.startAdminServer(
+        		new GenericAdminResource(hibernate, Token.class), hibernate, 
+        		Role.AUTH, config, authResource);
+
     }
 
     /**
@@ -98,6 +104,7 @@ public class AuthenticationService {
 	}
 	
 	public void close() {
+		RestUtils.shutdown("auth-admin", adminServer);
 		RestUtils.shutdown("auth", httpServer);
 	}
 }

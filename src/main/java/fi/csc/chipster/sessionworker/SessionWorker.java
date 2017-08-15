@@ -15,7 +15,6 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -42,6 +41,8 @@ public class SessionWorker {
 	private SessionWorkerResource sessionWorkerResource;
 
 	private AuthenticationClient authService;
+
+	private HttpServer adminServer;
 
 	public SessionWorker(Config config) {
 		this.config = config;
@@ -71,13 +72,14 @@ public class SessionWorker {
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(sessionWorkerResource)
-				.register(new GenericAdminResource())
 				.register(tokenRequestFilter);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_WORKER));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+		
+		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService);
 	}
 
 	/**
@@ -98,6 +100,7 @@ public class SessionWorker {
 	}
 
 	public void close() {
+		RestUtils.shutdown("session-worker-admin", adminServer);
 		RestUtils.shutdown("session-worker", httpServer);
 	}
 	

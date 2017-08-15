@@ -2,7 +2,6 @@ package fi.csc.chipster.comp;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,15 +21,12 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
@@ -134,7 +130,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	
 	private ResourceMonitor resourceMonitor;
 	private int monitoringInterval;
-	private HttpServer httpServer;
+	private HttpServer adminServer;
 	
 	/**
 	 * 
@@ -220,14 +216,9 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		KeepAliveShutdownHandler.init(this);
 		
     	logger.info("starting the admin rest server");
-    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
-            	.register(new CompAdminResource(this))
-            	.register(new TokenRequestFilter(authClient));
-
-    	URI baseUri = URI.create(this.config.getBindUrl(Role.COMP + "-admin"));
-        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
-
-		
+    	
+    	this.adminServer = RestUtils.startAdminServer(new CompAdminResource(this), null, Role.COMP, config, authClient);
+    			
 		sendCompAvailable();
 		
 		logger.info("comp is up and running [" + ApplicationConstants.VERSION + "]");
@@ -669,11 +660,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	public void shutdown() {
 		logger.info("shutdown requested");
 		
-		try {
-			RestUtils.shutdown("comp", httpServer);
-		} catch (Exception e) {
-			logger.warn("failed to stop the comp admin server");
-		}	
+		RestUtils.shutdown("comp-admin", adminServer);
 		
 		compStatusTimer.cancel();
 		timeoutTimer.cancel();

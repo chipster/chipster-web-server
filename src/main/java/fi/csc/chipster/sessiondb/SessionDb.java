@@ -85,6 +85,8 @@ public class SessionDb implements TopicCheck {
 
 	private TokenRequestFilter tokenRequestFilter;
 
+	private HttpServer adminServer;
+
 	public SessionDb(Config config) {
 		this.config = config;
 	}
@@ -159,7 +161,6 @@ public class SessionDb implements TopicCheck {
 				.register(authorizationTable)
 				.register(sessionResource)
 				.register(globalJobResource)
-				.register(adminResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
 				//.register(RestUtils.getLoggingFeature("session-db"))
@@ -169,6 +170,8 @@ public class SessionDb implements TopicCheck {
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+		
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService);
 	}
 	
 	public PubSubServer getPubSubServer() {
@@ -199,6 +202,7 @@ public class SessionDb implements TopicCheck {
 	}
 
 	public void close() {
+		RestUtils.shutdown("session-db-admin", adminServer);
 		getPubSubServer().stop();		
 		RestUtils.shutdown("session-db", httpServer);
 	}

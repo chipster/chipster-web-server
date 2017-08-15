@@ -7,17 +7,12 @@ import java.util.Map.Entry;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.GenericAdminServlet;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 /**
@@ -40,11 +35,9 @@ public class ChipsterProxyServer {
 	@SuppressWarnings("unused")
 	private String serviceId;
 
-	private HttpServer restServer;
+	private HttpServer adminServer;
 
 	private Config config;
-
-	private ChipsterProxyAdminResource adminResource;
     
     public static void main(String[] args) throws IOException {
     	ChipsterProxyServer server = new ChipsterProxyServer(new Config());
@@ -92,18 +85,9 @@ public class ChipsterProxyServer {
 
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
-		this.adminResource = new ChipsterProxyAdminResource(proxy);
-
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				//.register(new LoggingFilter())
-				.register(new TokenRequestFilter(authService))
-				.register(adminResource);
 		
-		// separate port for the proxy admin servlet
-		restServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(config.getBindUrl(Role.PROXY_ADMIN)), rc);
-		
-		// generic status servlet in the same port
-		proxy.getContext().addServlet(new ServletHolder(new GenericAdminServlet(authService)), "/admin/*");
+		// separate port for the proxy admin api		
+		adminServer = RestUtils.startAdminServer(new ChipsterProxyAdminResource(proxy), null, Role.PROXY, config, authService);
 	}
 
 	
@@ -113,7 +97,7 @@ public class ChipsterProxyServer {
 	}
 	
 	public void close() {
-		RestUtils.shutdown("proxy-admin", restServer);
+		RestUtils.shutdown("proxy-admin", adminServer);
 		proxy.close();
 	}
 }

@@ -32,10 +32,11 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.ToolResource;
 
@@ -55,7 +56,6 @@ public class ToolboxService {
 	
 	private Logger logger = LogManager.getLogger();
 
-	@SuppressWarnings("unused")
 	private Config config;
 	private Toolbox toolbox;
 	private String url;
@@ -65,6 +65,9 @@ public class ToolboxService {
 	private ToolResource toolResource;
 	private ModuleResource moduleResource;
 	private File toolsBin;
+	private ServiceLocatorClient serviceLocator;
+	private AuthenticationClient authService;
+	private HttpServer adminServer;
 
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
@@ -179,14 +182,22 @@ public class ToolboxService {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(this.toolResource)
-				.register(moduleResource)
-				.register(new GenericAdminResource());
+				.register(moduleResource);
 				// .register(new LoggingFilter())
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+
+		String username = Role.SESSION_WORKER;
+		String password = config.getPassword(username);    	
+    	
+    	this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		
+		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService);
+		
 		logger.info("toolbox service running at " + baseUri);
 	}
 
@@ -206,7 +217,8 @@ public class ToolboxService {
 		return this.httpServer;
 	}
 
-	public void close() {
+	public void close() {		
+		RestUtils.shutdown("toolbox-admin", adminServer);
 		closeReloadWatcher();
 		RestUtils.shutdown("toolbox", httpServer);
 	}

@@ -12,11 +12,13 @@ import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -36,6 +38,8 @@ public class FileBroker {
 	private SessionDbClient sessionDbClient;
 
 	private Server server;
+
+	private HttpServer adminServer;
 
 	public FileBroker(Config config) {
 		this.config = config;
@@ -73,13 +77,14 @@ public class FileBroker {
 				
 		FileServlet fileServlet = new FileServlet(storage, sessionDbClient, serviceLocator);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
-		contextHandler.addServlet(new ServletHolder(new FileBrokerAdminServlet(storage, authService)), "/admin/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter()), "/*", null);
 		
 		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
                
         server.start();
+        
+        adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService);
     }
 
     /**
@@ -94,6 +99,7 @@ public class FileBroker {
     }
 
 	public void close() {
+		RestUtils.waitForShutdown("file-broker-admin", adminServer);
 		try {
 			try {
 				sessionDbClient.close();

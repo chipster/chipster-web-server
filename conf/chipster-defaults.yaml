@@ -27,7 +27,6 @@ url-ext-session-db: http://{{public-ip}}:8004
 url-int-session-db-events: ws://{{public-ip}}:8005
 url-ext-session-db-events: ws://{{public-ip}}:8005
 url-int-scheduler: ws://{{public-ip}}:8006
-url-ext-scheduler: http://{{public-ip}}:8011
 url-int-file-broker: http://{{public-ip}}:8007
 url-ext-file-broker: http://{{public-ip}}:8007
 url-int-toolbox: http://{{public-ip}}:8008
@@ -36,13 +35,12 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
-url-ext-comp: http://{{public-ip}}:8012    
+    
 
 # Address for the server to bind
 
 url-bind-web-server: http://{{bind-ip}}:8000
 url-bind-proxy: http://{{bind-ip}}:8001
-url-bind-proxy-admin: http://{{admin-bind-ip}}:9001
 url-bind-auth: http://{{bind-ip}}:8002
 url-bind-service-locator: http://{{bind-ip}}:8003
 url-bind-session-db: http://{{bind-ip}}:8004
@@ -52,8 +50,18 @@ url-bind-file-broker: http://{{bind-ip}}:8007
 url-bind-toolbox: http://{{bind-ip}}:8008
 url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
-url-bind-scheduler-admin: http://{{bind-ip}}:8011
-url-bind-comp-admin: http://{{bind-ip}}:8012
+
+url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
+url-admin-bind-proxy: http://{{admin-bind-ip}}:8101
+url-admin-bind-auth: http://{{admin-bind-ip}}:8102
+url-admin-bind-service-locator: http://{{admin-bind-ip}}:8103
+url-admin-bind-session-db: http://{{admin-bind-ip}}:8104
+url-admin-bind-scheduler: http://{{admin-bind-ip}}:8106
+url-admin-bind-file-broker: http://{{admin-bind-ip}}:8107
+url-admin-bind-toolbox: http://{{admin-bind-ip}}:8108
+url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
+url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
+url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 
 # comp
 

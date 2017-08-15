@@ -14,12 +14,12 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.GenericAdminServlet;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 public class WebServer {
@@ -34,6 +34,8 @@ public class WebServer {
 	private ServiceLocatorClient serviceLocator;
 
 	private AuthenticationClient authService;
+
+	private HttpServer adminServer;
 
 	public WebServer(Config config) {
 		this.config = config;
@@ -77,7 +79,6 @@ public class WebServer {
         // some ContextHandler is needed to enable symlinks and 
         // the ErrorHandler assumes that there is a ServletContext available 
         ServletContextHandler contextHandler = new ServletContextHandler();
-        contextHandler.addServlet(new ServletHolder(new GenericAdminServlet(authService)), "/admin/*");
         contextHandler.setHandler(resourceHandler);
         contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
         
@@ -104,6 +105,8 @@ public class WebServer {
         // See "http://docs.oracle.com/javase/1.5.0/docs/api/java/lang/Thread.html#join()" for more details.
         server.start();
         //server.join();
+        
+        adminServer = RestUtils.startAdminServer(Role.WEB_SERVER, config, authService);
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -111,7 +114,7 @@ public class WebServer {
 	}
 
 	public void close() {
-		//RestUtils.waitForShutdown("web server", httpServer);
+		RestUtils.waitForShutdown("web-server-admin", adminServer);
 		try {
 			server.stop();
 		} catch (Exception e) {

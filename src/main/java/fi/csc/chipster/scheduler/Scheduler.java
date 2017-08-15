@@ -1,7 +1,6 @@
 package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
-import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -18,15 +17,12 @@ import javax.websocket.MessageHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.scheduler.JobCommand.Command;
@@ -66,7 +62,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 
 	private Timer jobTimer;
 
-	private HttpServer httpServer;
+	private HttpServer adminServer;
 	
 	public Scheduler(Config config) {
 		this.config = config;
@@ -104,13 +100,10 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	}, jobTimerInterval, jobTimerInterval);
     	
     	logger.info("starting the admin rest server");
-    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
-            	.register(new SchedulerAdminResource(this))
-            	.register(new TokenRequestFilter(authService));
-
-    	URI baseUri = URI.create(this.config.getBindUrl(Role.SCHEDULER + "-admin"));
-        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
     	
+    	this.adminServer = RestUtils.startAdminServer(
+    			new SchedulerAdminResource(this), null, Role.SCHEDULER, config, authService);
+    	    	
     	logger.info("scheduler is up and running");    		
     }
     
@@ -161,11 +154,9 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     }
 
 	public void close() {
-		try {
-			RestUtils.shutdown("scheduler", httpServer);
-		} catch (Exception e) {
-			logger.warn("failed to stop the scheduler admin server");
-		}
+
+		RestUtils.shutdown("scheduler-admin", adminServer);
+		
 		try {
 			sessionDbClient.close();
 		} catch (IOException e) {

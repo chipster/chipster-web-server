@@ -24,6 +24,7 @@ public class Config {
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
 	private static final String URL_BIND_PREFIX = "url-bind-";
+	private static final String URL_ADMIN_BIND_PREFIX = "url-admin-bind-";
 	private static final String SERVICE_PASSWORD_PREFIX = "service-password-";
 	private static final String VARIABLE_PREFIX = "variable-";
 	
@@ -228,6 +229,10 @@ public class Config {
 	
 	public String getBindUrl(String service) {
 		return getString(URL_BIND_PREFIX + service);
+	}
+	
+	public String getAdminBindUrl(String service) {
+		return getString(URL_ADMIN_BIND_PREFIX + service);
 	}
 	
 	private String getDefault(String key) {
