@@ -60,7 +60,7 @@ public class GenericAdminResource {
 		
 		HashMap<String, Object> status = new HashMap<>();
 		
-		if (dbTables != null && sc.isUserInRole(Role.ADMIN)) {
+		if (dbTables != null && sc.isUserInRole(Role.MONITORING)) {
 			
 			for (Class<?> table : dbTables) {				
 				long rowCount = (Long) getHibernate().session()

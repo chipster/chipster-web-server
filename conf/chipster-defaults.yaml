@@ -12,7 +12,7 @@ service-password-session-worker: session-worker
 service-password-proxy: proxy
 service-password-web-server: web-server
 
-auth-admin-username: admin
+auth-monitoring-username: monitoring
    
 # Internal and external service addresses
 

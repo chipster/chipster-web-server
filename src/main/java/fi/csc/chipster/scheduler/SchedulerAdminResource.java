@@ -38,7 +38,7 @@ public class SchedulerAdminResource {
 		
 		HashMap<String, Object> status = new HashMap<>();
 		
-		if (sc.isUserInRole(Role.ADMIN)) {
+		if (sc.isUserInRole(Role.MONITORING)) {
 			
 			status.putAll(scheduler.getStatus());			
 			status.putAll(GenericAdminResource.getSystemStats());

@@ -62,7 +62,7 @@ public class SessionDbAdminResource {
 			Session.class, Dataset.class, Job.class, DatasetToken.class, File.class, 
 			Input.class, MetadataEntry.class, Parameter.class, Rule.class });
 		
-		if (dbTables != null && sc.isUserInRole(Role.ADMIN)) {
+		if (dbTables != null && sc.isUserInRole(Role.MONITORING)) {
 			
 			for (Class<?> table : dbTables) {				
 				Long rowCount = (Long) this.hibernate.session()

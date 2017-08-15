@@ -37,7 +37,7 @@ public class CompAdminResource {
 		
 		HashMap<String, Object> status = new HashMap<>();
 		
-		if (sc.isUserInRole(Role.ADMIN)) {
+		if (sc.isUserInRole(Role.MONITORING)) {
 			
 			status.putAll(comp.getStatus());			
 			status.putAll(GenericAdminResource.getSystemStats());

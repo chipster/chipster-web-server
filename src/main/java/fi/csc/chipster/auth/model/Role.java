@@ -19,6 +19,7 @@ public class Role {
 	public static final String FILE_BROKER = "file-broker";
 	public static final String TOOLBOX = "toolbox";
 	public static final String ADMIN = "admin";
+	public static final String MONITORING = "monitoring";
 	public static final String PROXY = "proxy";
 	public static final String SESSION_WORKER = "session-worker";
 	public static final String TYPE_SERVICE = "type-service";

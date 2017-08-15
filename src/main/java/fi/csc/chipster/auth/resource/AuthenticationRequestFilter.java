@@ -141,8 +141,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		if (serviceAccounts.keySet().contains(username)) {
 			roles = new String[] { Role.PASSWORD, Role.SERVER, username };
 		} else {
-			if (config.getString(Config.KEY_AUTH_ADMIN_USER).equals(username)) {
-				roles = new String[] { Role.PASSWORD, Role.CLIENT, Role.ADMIN};
+			if (config.getString(Config.KEY_MONITORING_USERNAME).equals(username)) {
+				roles = new String[] { Role.PASSWORD, Role.CLIENT, Role.MONITORING};
 			} else {
 				roles = new String[] { Role.PASSWORD, Role.CLIENT};
 			}
