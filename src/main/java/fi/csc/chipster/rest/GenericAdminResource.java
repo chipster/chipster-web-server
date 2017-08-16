@@ -24,7 +24,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.StatisticsListener;
 
 @Path("admin")
 public class GenericAdminResource {
@@ -39,20 +38,20 @@ public class GenericAdminResource {
 	private HibernateUtil hibernate;
 
 	private List<Class<?>> dbTables;
-	private StatisticsListener statisticsListener;
+	private StatusSource statusSource;
 		
-    public GenericAdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, StatisticsListener statisticsListener) {
+    public GenericAdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, StatusSource stats) {
 		this.hibernate = hibernate;
 		this.dbTables = dbTables;
-		this.statisticsListener = statisticsListener;
+		this.statusSource = stats;
 	}
 
-	public GenericAdminResource(HibernateUtil hibernate, Class<Token> dbTable, StatisticsListener statisticsListener) {
+	public GenericAdminResource(HibernateUtil hibernate, Class<Token> dbTable, JerseyStatisticsSource statisticsListener) {
 		this(hibernate, Arrays.asList(new Class<?>[] {dbTable}), statisticsListener); 
 	}
 
-	public GenericAdminResource(StatisticsListener statisticsListener) {
-		this(null, new ArrayList<>(), statisticsListener);
+	public GenericAdminResource(StatusSource stats) {
+		this(null, new ArrayList<>(), stats);
 	}
 
 	@GET
@@ -74,8 +73,8 @@ public class GenericAdminResource {
 				
 			}
 			
-			if (statisticsListener != null) {
-				status.putAll(statisticsListener.getLatestStatistics());
+			if (statusSource != null) {
+				status.putAll(statusSource.getStatus());
 			}
 			
 			status.putAll(getSystemStats());

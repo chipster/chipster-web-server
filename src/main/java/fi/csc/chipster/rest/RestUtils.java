@@ -25,6 +25,11 @@ import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.ConnectorStatistics;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.CommonProperties;
@@ -48,7 +53,6 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
-import fi.csc.chipster.sessiondb.StatisticsListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -326,8 +330,8 @@ public class RestUtils {
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 	
-	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatisticsListener statisticsListener) {
-		return startAdminServer(new GenericAdminResource(statisticsListener), null, role, config, authService);
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatusSource stats) {
+		return startAdminServer(new GenericAdminResource(stats), null, role, config, authService);
 	}
 	
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
@@ -351,13 +355,26 @@ public class RestUtils {
         return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 
-	public static StatisticsListener createStatisticsListener(ResourceConfig rc) {
+	public static JerseyStatisticsSource createJerseyStatisticsSource(ResourceConfig rc) {
 		
-		StatisticsListener listener = new StatisticsListener();
+		JerseyStatisticsSource listener = new JerseyStatisticsSource();
 		
 		rc.register(listener)
 		.property(ServerProperties.MONITORING_STATISTICS_ENABLED, true);
 		
 		return listener;
+	}
+
+	public static StatusSource createStatisticsListener(Server server) {
+		ConnectorStatistics connectorStats = new ConnectorStatistics();
+		for (Connector connector : server.getConnectors()) {
+			((ServerConnector)connector).addBean(connectorStats);
+		}
+		
+		StatisticsHandler requestStats = new StatisticsHandler();
+		requestStats.setHandler(server.getHandler());
+        server.setHandler(requestStats);
+        
+        return new JettyStatisticsSource(connectorStats, requestStats);
 	}
 }

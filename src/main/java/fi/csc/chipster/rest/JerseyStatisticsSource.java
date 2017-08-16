@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessiondb;
+package fi.csc.chipster.rest;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -9,7 +9,7 @@ import org.glassfish.jersey.server.monitoring.MonitoringStatistics;
 import org.glassfish.jersey.server.monitoring.MonitoringStatisticsListener;
 
 @Provider
-public class StatisticsListener implements MonitoringStatisticsListener {
+public class JerseyStatisticsSource implements MonitoringStatisticsListener, StatusSource {
 	
 	private HashMap<String, Object> latestStatistics = new HashMap<>();
 
@@ -61,7 +61,7 @@ public class StatisticsListener implements MonitoringStatisticsListener {
 		//System.out.println("statistics " + statistics.getExceptionMapperStatistics().getExceptionMapperExecutions());
 	}
 
-	public Map<String, Object> getLatestStatistics() {
+	public Map<String, Object> getStatus() {
 		return latestStatistics;
 	}
 

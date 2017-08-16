@@ -18,6 +18,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+import org.glassfish.jersey.server.ResourceConfig;
 
 import com.mchange.rmi.NotAuthorizedException;
 
@@ -234,5 +235,9 @@ public class PubSubServer {
 		} else {
 			return true;
 		}
+	}
+
+	public Server getJettyServer() {
+		return this.server;
 	}
 }

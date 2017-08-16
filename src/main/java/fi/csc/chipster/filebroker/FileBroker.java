@@ -19,6 +19,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -69,7 +70,7 @@ public class FileBroker {
         connector.setPort(baseUri.getPort());
         connector.setHost(baseUri.getHost());
         server.addConnector(connector);
-		
+		                
 		ServletContextHandler contextHandler = new ServletContextHandler(server, "/", false, false);
 		// file-root and some public files are symlinks
 		contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
@@ -79,12 +80,16 @@ public class FileBroker {
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter()), "/*", null);
+        
+        StatusSource stats = RestUtils.createStatisticsListener(server);
 		
 		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
-               
-        server.start();
+		
+        server.start();              
         
-        adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, null);
+        
+        adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, stats);
+        
     }
 
     /**

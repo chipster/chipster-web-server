@@ -20,6 +20,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 public class WebServer {
@@ -99,14 +100,15 @@ public class WebServer {
         handlers.setHandlers(new Handler[] { contextHandler, new DefaultHandler() });
         
         server.setHandler(handlers);
-
+        
+        StatusSource stats = RestUtils.createStatisticsListener(server);
         
         // Start things up! By using the server.join() the server thread will join with the current thread.
         // See "http://docs.oracle.com/javase/1.5.0/docs/api/java/lang/Thread.html#join()" for more details.
         server.start();
         //server.join();
         
-        adminServer = RestUtils.startAdminServer(Role.WEB_SERVER, config, authService, null);
+        adminServer = RestUtils.startAdminServer(Role.WEB_SERVER, config, authService, stats);
 	}
 
 	public static void main(String[] args) throws Exception {

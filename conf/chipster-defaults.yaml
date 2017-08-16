@@ -11,6 +11,7 @@ service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-proxy: proxy
 service-password-web-server: web-server
+service-password-toolbox: toolbox
 
 auth-monitoring-username: monitoring
    

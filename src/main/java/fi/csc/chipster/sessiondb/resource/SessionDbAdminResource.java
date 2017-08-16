@@ -26,9 +26,10 @@ import org.hibernate.metadata.ClassMetadata;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.GenericAdminResource;
+import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.StatisticsListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
@@ -47,11 +48,14 @@ public class SessionDbAdminResource {
 	
 	private HibernateUtil hibernate;
 
-	private StatisticsListener statisticsListener;
+	private JerseyStatisticsSource jerseyStats;
 
-	public SessionDbAdminResource(HibernateUtil hibernate, StatisticsListener statisticsListener) {
+	private StatusSource pubSubStats;
+
+	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, StatusSource pubSubStats) {
 		this.hibernate = hibernate;
-		this.statisticsListener = statisticsListener;
+		this.jerseyStats = jerseyStats;
+		this.pubSubStats = pubSubStats;
 	}
 	
 	@GET
@@ -77,7 +81,13 @@ public class SessionDbAdminResource {
 			}
 			
 			status.putAll(GenericAdminResource.getSystemStats());
-			status.putAll(statisticsListener.getLatestStatistics());
+			status.putAll(jerseyStats.getStatus());
+			
+			// prefix ws-server statistics to avoid overriding jersey values
+			Map<String, Object> pubSubStatus = pubSubStats.getStatus();
+			for (String key : pubSubStatus.keySet()) {
+				status.put("ws-" + key, pubSubStatus.get(key));
+			}
 		}
 		
 		status.put(GenericAdminResource.KEY_STATUS, GenericAdminResource.VALUE_OK);

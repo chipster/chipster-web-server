@@ -70,7 +70,7 @@ public class AuthenticationService {
         	//.register(new LoggingFilter())
         	.register(authRequestFilter);
     	
-    	GenericAdminResource adminResource = new GenericAdminResource(hibernate, Token.class, RestUtils.createStatisticsListener(rc));
+    	GenericAdminResource adminResource = new GenericAdminResource(hibernate, Token.class, RestUtils.createJerseyStatisticsSource(rc));
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI

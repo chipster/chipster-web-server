@@ -16,12 +16,12 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
-import fi.csc.chipster.sessiondb.StatisticsListener;
 
 /**
  * Main class.
@@ -89,7 +89,7 @@ public class ServiceLocator {
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
     	
-    	StatisticsListener statisticsListener = RestUtils.createStatisticsListener(rc);
+    	JerseyStatisticsSource statisticsListener = RestUtils.createJerseyStatisticsSource(rc);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
