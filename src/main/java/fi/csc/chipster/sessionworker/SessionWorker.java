@@ -18,7 +18,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
+import fi.csc.chipster.sessiondb.StatisticsListener;
 import fi.csc.chipster.sessiondb.RestException;
 
 /**
@@ -75,7 +75,7 @@ public class SessionWorker {
 				.register(sessionWorkerResource)
 				.register(tokenRequestFilter);
 		
-		ChipsterMonitoringStatisticsListener statisticsListener = RestUtils.createStatisticsListener(rc);
+		StatisticsListener statisticsListener = RestUtils.createStatisticsListener(rc);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

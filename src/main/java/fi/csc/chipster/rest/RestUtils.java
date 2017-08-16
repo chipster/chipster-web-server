@@ -48,7 +48,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
-import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
+import fi.csc.chipster.sessiondb.StatisticsListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -326,7 +326,7 @@ public class RestUtils {
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 	
-	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, ChipsterMonitoringStatisticsListener statisticsListener) {
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatisticsListener statisticsListener) {
 		return startAdminServer(new GenericAdminResource(statisticsListener), null, role, config, authService);
 	}
 	
@@ -351,9 +351,9 @@ public class RestUtils {
         return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 
-	public static ChipsterMonitoringStatisticsListener createStatisticsListener(ResourceConfig rc) {
+	public static StatisticsListener createStatisticsListener(ResourceConfig rc) {
 		
-		ChipsterMonitoringStatisticsListener listener = new ChipsterMonitoringStatisticsListener();
+		StatisticsListener listener = new StatisticsListener();
 		
 		rc.register(listener)
 		.property(ServerProperties.MONITORING_STATISTICS_ENABLED, true);

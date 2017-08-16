@@ -28,7 +28,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.GenericAdminResource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
+import fi.csc.chipster.sessiondb.StatisticsListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
@@ -47,9 +47,9 @@ public class SessionDbAdminResource {
 	
 	private HibernateUtil hibernate;
 
-	private ChipsterMonitoringStatisticsListener statisticsListener;
+	private StatisticsListener statisticsListener;
 
-	public SessionDbAdminResource(HibernateUtil hibernate, ChipsterMonitoringStatisticsListener statisticsListener) {
+	public SessionDbAdminResource(HibernateUtil hibernate, StatisticsListener statisticsListener) {
 		this.hibernate = hibernate;
 		this.statisticsListener = statisticsListener;
 	}

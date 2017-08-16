@@ -9,7 +9,7 @@ import org.glassfish.jersey.server.monitoring.MonitoringStatistics;
 import org.glassfish.jersey.server.monitoring.MonitoringStatisticsListener;
 
 @Provider
-public class ChipsterMonitoringStatisticsListener implements MonitoringStatisticsListener {
+public class StatisticsListener implements MonitoringStatisticsListener {
 	
 	private HashMap<String, Object> latestStatistics = new HashMap<>();
 
