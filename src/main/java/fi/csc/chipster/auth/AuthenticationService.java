@@ -61,13 +61,14 @@ public class AuthenticationService {
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
     	TokenResource authResource = new TokenResource(hibernate);
+    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config)
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	//.register(new LoggingFilter())
-        	.register(new AuthenticationRequestFilter(hibernate, config));
+        	.register(authRequestFilter);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -76,7 +77,7 @@ public class AuthenticationService {
         
         this.adminServer = RestUtils.startAdminServer(
         		new GenericAdminResource(hibernate, Token.class), hibernate, 
-        		Role.AUTH, config, authResource);
+        		Role.AUTH, config, authRequestFilter);
 
     }
 
