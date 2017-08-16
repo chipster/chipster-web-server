@@ -31,6 +31,7 @@ import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -47,6 +48,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
+import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -324,8 +326,8 @@ public class RestUtils {
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 	
-	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService) {
-		return startAdminServer(new GenericAdminResource(), null, role, config, authService);
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, ChipsterMonitoringStatisticsListener statisticsListener) {
+		return startAdminServer(new GenericAdminResource(statisticsListener), null, role, config, authService);
 	}
 	
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
@@ -349,4 +351,13 @@ public class RestUtils {
         return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
 
+	public static ChipsterMonitoringStatisticsListener createStatisticsListener(ResourceConfig rc) {
+		
+		ChipsterMonitoringStatisticsListener listener = new ChipsterMonitoringStatisticsListener();
+		
+		rc.register(listener)
+		.property(ServerProperties.MONITORING_STATISTICS_ENABLED, true);
+		
+		return listener;
+	}
 }

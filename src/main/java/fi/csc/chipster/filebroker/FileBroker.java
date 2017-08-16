@@ -84,7 +84,7 @@ public class FileBroker {
                
         server.start();
         
-        adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService);
+        adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, null);
     }
 
     /**

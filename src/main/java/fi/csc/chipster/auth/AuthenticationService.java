@@ -69,6 +69,8 @@ public class AuthenticationService {
         	.register(new HibernateResponseFilter(hibernate))
         	//.register(new LoggingFilter())
         	.register(authRequestFilter);
+    	
+    	GenericAdminResource adminResource = new GenericAdminResource(hibernate, Token.class, RestUtils.createStatisticsListener(rc));
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -76,7 +78,7 @@ public class AuthenticationService {
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
         
         this.adminServer = RestUtils.startAdminServer(
-        		new GenericAdminResource(hibernate, Token.class), hibernate, 
+        		adminResource, hibernate, 
         		Role.AUTH, config, authRequestFilter);
 
     }

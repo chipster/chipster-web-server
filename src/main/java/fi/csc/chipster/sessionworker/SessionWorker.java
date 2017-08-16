@@ -18,6 +18,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
 import fi.csc.chipster.sessiondb.RestException;
 
 /**
@@ -73,13 +74,15 @@ public class SessionWorker {
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(sessionWorkerResource)
 				.register(tokenRequestFilter);
+		
+		ChipsterMonitoringStatisticsListener statisticsListener = RestUtils.createStatisticsListener(rc);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_WORKER));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 		
-		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService);
+		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, statisticsListener);
 	}
 
 	/**

@@ -24,6 +24,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
 
 @Path("admin")
 public class GenericAdminResource {
@@ -38,18 +39,20 @@ public class GenericAdminResource {
 	private HibernateUtil hibernate;
 
 	private List<Class<?>> dbTables;
+	private ChipsterMonitoringStatisticsListener statisticsListener;
 		
-    public GenericAdminResource(HibernateUtil hibernate, List<Class<?>> dbTables) {
+    public GenericAdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, ChipsterMonitoringStatisticsListener statisticsListener) {
 		this.hibernate = hibernate;
 		this.dbTables = dbTables;
+		this.statisticsListener = statisticsListener;
 	}
 
-	public GenericAdminResource(HibernateUtil hibernate, Class<Token> dbTable) {
-		this(hibernate, Arrays.asList(new Class<?>[] {dbTable})); 
+	public GenericAdminResource(HibernateUtil hibernate, Class<Token> dbTable, ChipsterMonitoringStatisticsListener statisticsListener) {
+		this(hibernate, Arrays.asList(new Class<?>[] {dbTable}), statisticsListener); 
 	}
 
-	public GenericAdminResource() {
-		this(null, new ArrayList<>());
+	public GenericAdminResource(ChipsterMonitoringStatisticsListener statisticsListener) {
+		this(null, new ArrayList<>(), statisticsListener);
 	}
 
 	@GET
@@ -68,6 +71,10 @@ public class GenericAdminResource {
 						.setProjection(Projections.rowCount()).uniqueResult();
 						
 				status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
+				
+				if (statisticsListener != null) {
+					status.putAll(statisticsListener.getLatestStatistics());
+				}
 			}
 			
 			status.putAll(getSystemStats());

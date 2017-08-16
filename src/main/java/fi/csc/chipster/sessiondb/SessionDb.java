@@ -29,7 +29,6 @@ import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
@@ -37,11 +36,12 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenResource;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenTable;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
+import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
@@ -142,7 +142,6 @@ public class SessionDb implements TopicCheck {
 		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
 		this.sessionResource = new SessionResource(hibernate, authorizationTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
-		this.adminResource = new SessionDbAdminResource(hibernate);
 		
 		if (replicate) {
 			new SessionDbCluster().replicate(serviceLocator, authService, authorizationTable, sessionResource, adminResource, hibernate, this);
@@ -165,6 +164,8 @@ public class SessionDb implements TopicCheck {
 				.register(new HibernateResponseFilter(hibernate))
 				//.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
+				
+		this.adminResource = new SessionDbAdminResource(hibernate, RestUtils.createStatisticsListener(rc));
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

@@ -21,6 +21,7 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
+import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
 
 /**
  * Main class.
@@ -87,13 +88,15 @@ public class ServiceLocator {
         	.register(new ServiceResource(serviceCatalog))
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
+    	
+    	ChipsterMonitoringStatisticsListener statisticsListener = RestUtils.createStatisticsListener(rc);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
                 
-        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService);
+        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, statisticsListener);
     }
     
     public void addService(String role, String uri, String publicUri) {

@@ -106,7 +106,7 @@ public class WebServer {
         server.start();
         //server.join();
         
-        adminServer = RestUtils.startAdminServer(Role.WEB_SERVER, config, authService);
+        adminServer = RestUtils.startAdminServer(Role.WEB_SERVER, config, authService, null);
 	}
 
 	public static void main(String[] args) throws Exception {

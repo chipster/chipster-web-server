@@ -37,6 +37,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.ChipsterMonitoringStatisticsListener;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.ToolResource;
 
@@ -184,6 +185,8 @@ public class ToolboxService {
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(this.toolResource)
 				.register(moduleResource);
 				// .register(new LoggingFilter())
+		
+		ChipsterMonitoringStatisticsListener statisticsListener = RestUtils.createStatisticsListener(rc);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -196,7 +199,7 @@ public class ToolboxService {
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		
-		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService);
+		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, statisticsListener);
 		
 		logger.info("toolbox service running at " + baseUri);
 	}
