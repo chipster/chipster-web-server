@@ -61,7 +61,7 @@ public class AuthenticationService {
     	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
     	
     	TokenResource authResource = new TokenResource(hibernate);
-    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config)
+    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config);
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
