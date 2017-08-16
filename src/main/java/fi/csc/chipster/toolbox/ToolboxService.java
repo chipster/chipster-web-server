@@ -182,7 +182,8 @@ public class ToolboxService {
 
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(this.toolResource)
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+				.register(this.toolResource)
 				.register(moduleResource);
 				// .register(new LoggingFilter())
 		
@@ -193,7 +194,7 @@ public class ToolboxService {
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 
-		String username = Role.SESSION_WORKER;
+		String username = Role.TOOLBOX;
 		String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
