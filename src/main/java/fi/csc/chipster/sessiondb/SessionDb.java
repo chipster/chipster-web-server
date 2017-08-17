@@ -20,7 +20,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -151,8 +150,7 @@ public class SessionDb implements TopicCheck {
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
-		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");		
-		StatusSource pubSubStats = RestUtils.createStatisticsListener(pubSubServer.getJettyServer());		
+		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");				
 		this.pubSubServer.start();
 		
 		sessionResource.setPubSubServer(pubSubServer);
@@ -167,7 +165,7 @@ public class SessionDb implements TopicCheck {
 				//.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 						
-		this.adminResource = new SessionDbAdminResource(hibernate, RestUtils.createJerseyStatisticsSource(rc), pubSubStats);
+		this.adminResource = new SessionDbAdminResource(hibernate, RestUtils.createJerseyStatisticsSource(rc), pubSubServer);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

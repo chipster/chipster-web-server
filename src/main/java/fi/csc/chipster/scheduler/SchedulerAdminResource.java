@@ -16,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.GenericAdminResource;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 @Path("admin")
@@ -26,8 +27,11 @@ public class SchedulerAdminResource {
 
 	private Scheduler scheduler;
 
-	public SchedulerAdminResource(Scheduler scheduler) {
+	private StatusSource pubSubStatus;
+
+	public SchedulerAdminResource(Scheduler scheduler, StatusSource pubSubStatus) {
 		this.scheduler = scheduler;
+		this.pubSubStatus = pubSubStatus;
 	}
 
 	@GET
@@ -42,6 +46,7 @@ public class SchedulerAdminResource {
 			
 			status.putAll(scheduler.getStatus());			
 			status.putAll(GenericAdminResource.getSystemStats());
+			status.putAll(this.pubSubStatus.getStatus());
 		}
 		
 		status.put(GenericAdminResource.KEY_STATUS, GenericAdminResource.VALUE_OK);

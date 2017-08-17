@@ -116,7 +116,7 @@ public class WebServer {
 	}
 
 	public void close() {
-		RestUtils.waitForShutdown("web-server-admin", adminServer);
+		RestUtils.shutdown("web-server-admin", adminServer);
 		try {
 			server.stop();
 		} catch (Exception e) {

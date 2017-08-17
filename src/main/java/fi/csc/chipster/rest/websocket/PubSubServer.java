@@ -2,6 +2,8 @@ package fi.csc.chipster.rest.websocket;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.ServletException;
@@ -18,16 +20,16 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
-import org.glassfish.jersey.server.ResourceConfig;
 
 import com.mchange.rmi.NotAuthorizedException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.token.PubSubTokenServletFilter;
 
-public class PubSubServer {
+public class PubSubServer implements StatusSource {
 	
 	private static final Logger logger = LogManager.getLogger();
 	
@@ -105,6 +107,15 @@ public class PubSubServer {
 	private TopicCheck topicAuthorization;
 
 	private String name;
+
+	private int messagesDiscarded;
+	private int messagesReceived;
+	private int messagesSent;
+	private int subsribeCount;
+
+	private int bytesReceived;
+
+	private int bytesSent;
 	
 	public interface TopicCheck {
 		public boolean isAuthorized(AuthPrincipal principal, String topicName);
@@ -170,9 +181,14 @@ public class PubSubServer {
 		Topic topic = topics.get(topicName);
 		if (topic != null) {
 			topic.publish(msg);
+			this.messagesSent += topic.subscribers.size();
+			this.bytesSent += topic.subscribers.size() * msg.length();
 		} else {
+			this.messagesDiscarded++;
 			logger.debug("no one listening on topic: " + topicName);
 		}
+		this.messagesReceived++;
+		this.bytesReceived += msg.length();
 	}
 
 	public void subscribe(String topicName, Subscriber s) {
@@ -188,6 +204,7 @@ public class PubSubServer {
 			}
 			Topic topic = topics.get(topicName);
 			topic.add(s);
+			this.subsribeCount++;
 		}
 	}
 
@@ -237,7 +254,19 @@ public class PubSubServer {
 		}
 	}
 
-	public Server getJettyServer() {
-		return this.server;
-	}
+	@Override
+	public Map<String, Object> getStatus() {
+		HashMap<String, Object> status = new HashMap<>();
+		
+		status.put("wsTopicCount", this.topics.size());
+		status.put("wsSubscribersCurrent", this.topics.values().stream().mapToInt(t -> t.subscribers.size()).sum());
+		status.put("wsMessagesDiscarded", this.messagesDiscarded);
+		status.put("wsMessagesReceived",  this.messagesReceived);
+		status.put("wsMessagesSent", this.messagesSent);
+		status.put("wsSubscribersTotal", this.subsribeCount);
+		status.put("wsBytesSent", this.bytesSent);
+		status.put("wsBytesReceived", this.bytesReceived);
+		
+		return status;
+	}	
 }

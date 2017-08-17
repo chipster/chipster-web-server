@@ -82,14 +82,7 @@ public class SessionDbAdminResource {
 			
 			status.putAll(GenericAdminResource.getSystemStats());
 			status.putAll(jerseyStats.getStatus());
-			
-			// prefix ws-server statistics to avoid overriding jersey values
-			Map<String, Object> pubSubStatus = pubSubStats.getStatus();
-			for (String key : pubSubStatus.keySet()) {
-				// add a prefix "ws" and capitalize the first letter
-				String newKey = "ws" + key.substring(0, 1).toUpperCase() + key.substring(1);
-				status.put(newKey, pubSubStatus.get(key));
-			}
+			status.putAll(pubSubStats.getStatus());			
 		}
 		
 		status.put(GenericAdminResource.KEY_STATUS, GenericAdminResource.VALUE_OK);
