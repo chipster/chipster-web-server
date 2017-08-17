@@ -180,6 +180,12 @@ public class ToolboxService {
 	 */
 	public void startServer() throws IOException, URISyntaxException {
 
+		String username = Role.TOOLBOX;
+		String password = config.getPassword(username);
+		
+		this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
@@ -193,12 +199,6 @@ public class ToolboxService {
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
-
-		String username = Role.TOOLBOX;
-		String password = config.getPassword(username);    	
-    	
-    	this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		
 		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, statisticsListener);
 		
