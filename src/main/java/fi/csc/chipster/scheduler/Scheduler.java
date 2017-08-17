@@ -148,9 +148,16 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
      * @throws Exception 
      */
     public static void main(String[] args) throws Exception {
-    	
-        final Scheduler server = new Scheduler(new Config());
-        server.startServer();
+    	        
+        Scheduler server = new Scheduler(new Config());
+    	try {
+    		server.startServer();
+    	} catch (Exception e) {
+    		System.err.println("scheduler startup failed, exiting");
+    		e.printStackTrace(System.err);
+    		server.close();
+    		System.exit(1);
+    	}
     }
 
 	public void close() {
