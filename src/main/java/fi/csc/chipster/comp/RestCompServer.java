@@ -28,6 +28,8 @@ import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -147,7 +149,10 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			DirectoryLayout.initialiseServerLayout(Arrays.asList(new String[] {"comp"}), configURL);
 		}
 //		Configuration configuration = DirectoryLayout.getInstance().getConfiguration();
-		
+	}
+	
+	public void startServer() throws CompException, IOException, InterruptedException, WebSocketErrorException, WebSocketClosedException {	
+				
 		// Initialise instance variables
 		this.scheduleTimeout = config.getInt(Config.KEY_COMP_SCHEDULE_TIMEOUT);
 		this.offerDelay = config.getInt(Config.KEY_COMP_OFFER_DELAY);
@@ -714,6 +719,16 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	}
 	
 	public static void main(String[] args) throws Exception {
-		new RestCompServer(null, new Config());
+		
+		RestCompServer server = new RestCompServer(null, new Config());
+		
+    	try {    		
+    		server.startServer();
+    	} catch (Exception e) {
+    		System.err.println("comp startup failed, exiting");
+    		e.printStackTrace(System.err);
+    		server.shutdown();
+    		System.exit(1);
+    	}
 	}
 }
