@@ -290,6 +290,11 @@ public class RestUtils {
 	}
 
 	public static void shutdown(String name, HttpServer httpServer) {
+		
+		if (httpServer == null) {
+			logger.warn("can't shutdown " + name + ", the server is null");
+			return;
+		}
 		GrizzlyFuture<HttpServer> future = httpServer.shutdown();
 		try {
 			// wait for server to shutdown, otherwise the next test set will print ugly log messages

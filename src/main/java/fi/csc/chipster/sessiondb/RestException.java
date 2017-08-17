@@ -37,7 +37,12 @@ public class RestException extends Exception {
 	}
 
 	public String getMessage() {
-		return latestMessage + " (" + response.getStatus() + ") " + body + ", " + uri;
+		String msg = latestMessage;
+		if (response != null) {
+			msg += " (" + response.getStatus() + ")";
+		}
+		msg += " " + body + ", " + uri;
+		return msg;
 	}
 
 	public boolean isNotFound() {

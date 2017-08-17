@@ -83,10 +83,9 @@ public class FileBroker {
         
         StatusSource stats = RestUtils.createStatisticsListener(server);
 		
-		sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
+        sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
 		
-        server.start();              
-        
+        server.start();                      
         
         adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, stats);
         
@@ -99,12 +98,19 @@ public class FileBroker {
      * @throws InterruptedException s
      */
     public static void main(String[] args) throws Exception {
-    	
-        new FileBroker(new Config()).startServer();
+    	FileBroker fileBroker = new FileBroker(new Config());
+    	try {
+    		fileBroker.startServer();
+    	} catch (Exception e) {
+    		System.err.println("file-broker startup failed, exiting");
+    		e.printStackTrace(System.err);
+    		fileBroker.close();
+    		System.exit(1);
+    	}
     }
 
 	public void close() {
-		RestUtils.waitForShutdown("file-broker-admin", adminServer);
+		RestUtils.shutdown("file-broker-admin", adminServer);
 		try {
 			try {
 				sessionDbClient.close();
