@@ -113,7 +113,9 @@ public class FileBroker {
 		RestUtils.shutdown("file-broker-admin", adminServer);
 		try {
 			try {
-				sessionDbClient.close();
+				if (sessionDbClient != null) {
+					sessionDbClient.close();
+				}
 			} catch (IOException e) {
 				logger.warn("failed to shutdown session-db client", e);
 			}

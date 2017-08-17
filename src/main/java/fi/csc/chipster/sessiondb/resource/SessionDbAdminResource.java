@@ -86,7 +86,9 @@ public class SessionDbAdminResource {
 			// prefix ws-server statistics to avoid overriding jersey values
 			Map<String, Object> pubSubStatus = pubSubStats.getStatus();
 			for (String key : pubSubStatus.keySet()) {
-				status.put("ws-" + key, pubSubStatus.get(key));
+				// add a prefix "ws" and capitalize the first letter
+				String newKey = "ws" + key.substring(0, 1).toUpperCase() + key.substring(1);
+				status.put(newKey, pubSubStatus.get(key));
 			}
 		}
 		
