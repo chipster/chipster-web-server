@@ -67,15 +67,15 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 
 	@Override
 	public long getDelay() {		
-		//if (counter < 1) {			
+		if (counter < 1) {			
 			return 0;
-		/*} else if (counter < 15) {
+		} else if (counter < 15) {
 			return 1;
 		} else if (counter < 30) {
 			return 10;
 		} else {
 			return 60;
-		}*/				
+		}				
 	}
 
 	public void close() {
