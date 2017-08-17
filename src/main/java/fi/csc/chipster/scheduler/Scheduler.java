@@ -169,8 +169,9 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		} catch (IOException e) {
 			logger.warn("failed to stop the session-db client", e);
 		}		
-		pubSubServer.stop();
-		
+		if (pubSubServer != null) {
+			pubSubServer.stop();
+		}
 	}
 
 	@Override
