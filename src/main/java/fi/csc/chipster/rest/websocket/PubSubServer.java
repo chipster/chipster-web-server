@@ -2,6 +2,7 @@ package fi.csc.chipster.rest.websocket;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,10 +42,14 @@ public class PubSubServer implements StatusSource {
 	public static class Subscriber {
 		private Basic remote;
 		private String remoteAddress;
+		private String username;
+		private LocalDateTime created;
 		
-		public Subscriber(Basic remote, String remoteAddress) {
+		public Subscriber(Basic remote, String remoteAddress, String username) {
 			this.remote = remote;
 			this.remoteAddress = remoteAddress;
+			this.setUsername(username);
+			this.created = LocalDateTime.now();
 		}
 		
 		public Basic getRemote() {
@@ -58,6 +63,18 @@ public class PubSubServer implements StatusSource {
 		}
 		public void setRemoteAddress(String remoteAddress) {
 			this.remoteAddress = remoteAddress;
+		}
+
+		public String getUsername() {
+			return username;
+		}
+
+		public void setUsername(String username) {
+			this.username = username;
+		}
+
+		public LocalDateTime getCreated() {
+			return created;
 		}
 	}
 	
@@ -92,6 +109,10 @@ public class PubSubServer implements StatusSource {
 					}
 				}
 			}
+		}
+
+		public ConcurrentHashMap<Basic, Subscriber> getSubscribers() {
+			return subscribers;
 		}
 	}
 	
@@ -151,6 +172,14 @@ public class PubSubServer implements StatusSource {
 		 */
 		public String getMonitoringTag(String topicName);
 		
+		/**
+		 * Proper implementation for this method is needed only if you need more fine grained
+		 * monitoring statistics. Otherwise, simply return Arrays.asList(new String[] {""}).
+		 * 
+		 * All possible tag values of the above method. This is needed to produce zero values in the statistics
+		 * even when a topic group doesn't have any topics. 
+		 * @return
+		 */
 		public List<String> getMonitoringTags();
 	}
 
@@ -321,5 +350,9 @@ public class PubSubServer implements StatusSource {
 		}
 				
 		return status;
+	}
+
+	public ConcurrentHashMap<String, Topic> getTopics() {
+		return this.topics;
 	}	
 }
