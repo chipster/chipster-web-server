@@ -354,7 +354,7 @@ public class PubSubServer implements StatusSource {
 	}
 
 	/**
-	 * @return a untyped thread-safe copy of topics for JSON serialization
+	 * @return an untyped thread-safe copy of topics for JSON serialization
 	 */
 	public HashMap<String, Object> getTopics() {
 		synchronized (topics) {

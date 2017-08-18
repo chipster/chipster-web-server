@@ -102,12 +102,20 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
+	public Client getUnparseableTokenClient() {
+		return AuthenticationClient.getClient("token", "unparseableToken", true);
+	}
+	
 	public WebTarget getUnparseableTokenTarget(String role) {
-		return AuthenticationClient.getClient("token", "unparseableToken", true).target(getTargetUri(role));
+		return getUnparseableTokenClient().target(getTargetUri(role));
+	}
+	
+	public Client getTokenFailClient() {
+		return AuthenticationClient.getClient("token", RestUtils.createId(), true);
 	}
 	
 	public WebTarget getTokenFailTarget(String role) {
-		return AuthenticationClient.getClient("token", RestUtils.createId(), true).target(getTargetUri(role));
+		return getTokenFailClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getAuthFailTarget(String role) {
@@ -115,8 +123,12 @@ public class TestServerLauncher {
 		return AuthenticationClient.getClient("client", "clientPassword", true).target(getTargetUri(role));
 	}
 	
+	public Client getNoAuthClient() {
+		return AuthenticationClient.getClient();
+	}
+	
 	public WebTarget getNoAuthTarget(String role) {
-		return AuthenticationClient.getClient().target(getTargetUri(role));
+		return getNoAuthClient().target(getTargetUri(role));
 	}
 	
 	public CredentialsProvider getUser1Token() {
