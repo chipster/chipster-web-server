@@ -7,10 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.security.RolesAllowed;
-import javax.websocket.RemoteEndpoint.Basic;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -32,8 +30,6 @@ import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.rest.websocket.PubSubServer.Subscriber;
-import fi.csc.chipster.rest.websocket.PubSubServer.Topic;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
@@ -102,28 +98,7 @@ public class SessionDbAdminResource {
 	@Transaction
 	public Response getClients(@Context SecurityContext sc) {
 		
-		HashMap<String, Object> responseTopics = new HashMap<>();
-		ConcurrentHashMap<String, Topic> topics = pubSubStats.getTopics();
-				
-		for (String topicName : topics.keySet()) {
-			ArrayList<Object> responseSubscribers = new ArrayList<>();
-			
-			ConcurrentHashMap<Basic, Subscriber> subscribers = topics.get(topicName).getSubscribers();
-			for (Basic remote : subscribers.keySet()) {
-				Subscriber subscriber = subscribers.get(remote);
-				HashMap<String, Object> responseSubscriber = new HashMap<>();
-				
-				responseSubscriber.put("address", subscriber.getRemoteAddress());
-				responseSubscriber.put("username", subscriber.getUsername());
-				responseSubscriber.put("created", subscriber.getCreated());				
-				
-				responseSubscribers.add(responseSubscriber);
-			}
-			
-			responseTopics.put(topicName, responseSubscribers);
-		}
-	
-		return Response.ok(responseTopics).build();		
+		return Response.ok(pubSubStats.getTopics()).build();		
     }
 
 	

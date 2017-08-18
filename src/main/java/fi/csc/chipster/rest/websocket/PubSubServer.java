@@ -3,6 +3,7 @@ package fi.csc.chipster.rest.websocket;
 import java.io.IOException;
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -352,7 +353,33 @@ public class PubSubServer implements StatusSource {
 		return status;
 	}
 
-	public ConcurrentHashMap<String, Topic> getTopics() {
-		return this.topics;
+	/**
+	 * @return a untyped thread-safe copy of topics for JSON serialization
+	 */
+	public HashMap<String, Object> getTopics() {
+		synchronized (topics) {
+			
+			HashMap<String, Object> topicsCopy = new HashMap<>();
+					
+			for (String topicName : topics.keySet()) {
+				ArrayList<Object> subscribersCopy = new ArrayList<>();
+				
+				ConcurrentHashMap<Basic, Subscriber> subscribers = topics.get(topicName).getSubscribers();
+				for (Basic remote : subscribers.keySet()) {
+					Subscriber subscriber = subscribers.get(remote);
+					HashMap<String, Object> subscriberCopy = new HashMap<>();
+					
+					subscriberCopy.put("address", subscriber.getRemoteAddress());
+					subscriberCopy.put("username", subscriber.getUsername());
+					subscriberCopy.put("created", subscriber.getCreated());				
+					
+					subscribersCopy.add(subscriberCopy);
+				}
+				
+				topicsCopy.put(topicName, subscribersCopy);
+			}
+			
+			return topicsCopy;
+		}
 	}	
 }
