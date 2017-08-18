@@ -121,6 +121,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			while (tokenCache.size() > CACHE_MAX_SIZE) {
 				//TODO is this the oldest?
 				iter.remove();
+				iter.next();
 			}			
 		}
         
