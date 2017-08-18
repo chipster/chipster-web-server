@@ -3,8 +3,11 @@ package fi.csc.chipster.rest.websocket;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -104,7 +107,7 @@ public class PubSubServer implements StatusSource {
 
 	private AuthenticationClient authService;
 
-	private TopicCheck topicAuthorization;
+	private TopicConfig topicConfig;
 
 	private String name;
 
@@ -117,16 +120,46 @@ public class PubSubServer implements StatusSource {
 
 	private int bytesSent;
 	
-	public interface TopicCheck {
+	/**
+	 * Topic configuration
+	 * 
+	 * Implement this interface to tell PubSubServer how to handle different topics.  
+	 * 
+	 * @author klemela
+	 */
+	public interface TopicConfig {
+		/**
+		 * Check whether a user is allowed to subscribe to a topic
+		 * 
+		 * @param principal
+		 * @param topicName
+		 * @return
+		 */
 		public boolean isAuthorized(AuthPrincipal principal, String topicName);
+		
+		
+		/**
+		 * Proper implementation for this method is needed only if you need more fine grained
+		 * monitoring statistics. Otherwise, simply return an empty string "".
+		 * 
+		 * Count some monitoring statistics separately for different topic groups. Return a same
+		 * string for all the topics that belong to the same topic group. This string is also appended
+		 * to the keys of the monitoring results. 
+		 * 
+		 * @param topicName
+		 * @return
+		 */
+		public String getMonitoringTag(String topicName);
+		
+		public List<String> getMonitoringTags();
 	}
 
-	public PubSubServer(String baseUri, String path, AuthenticationClient authService, MessageHandler.Whole<String> replyHandler, TopicCheck topicCheck, String name) throws ServletException, DeploymentException {
+	public PubSubServer(String baseUri, String path, AuthenticationClient authService, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException, DeploymentException {
 		this.baseUri = baseUri;
 		this.path = path;
 		this.authService = authService;
 		this.replyHandler = replyHandler;
-		this.topicAuthorization = topicCheck;
+		this.topicConfig = topicCheck;
 		this.name = name;
 		
 		init();                    
@@ -153,7 +186,7 @@ public class PubSubServer implements StatusSource {
         logger.debug("context path " + contextPath);
         context.setContextPath(contextPath);
 
-        PubSubTokenServletFilter filter = new PubSubTokenServletFilter(authService, topicAuthorization, contextPath + path);
+        PubSubTokenServletFilter filter = new PubSubTokenServletFilter(authService, topicConfig, contextPath + path);
         context.addFilter(new FilterHolder(filter), "/*", null);
 
         server.setHandler(context);
@@ -247,8 +280,8 @@ public class PubSubServer implements StatusSource {
 	}
 
 	public boolean isTopicAuthorized(AuthPrincipal principal, String topic) throws NotAuthorizedException {
-		if (topicAuthorization != null) {
-			return topicAuthorization.isAuthorized(principal, topic);			
+		if (topicConfig != null) {
+			return topicConfig.isAuthorized(principal, topic);			
 		} else {
 			return true;
 		}
@@ -258,15 +291,35 @@ public class PubSubServer implements StatusSource {
 	public Map<String, Object> getStatus() {
 		HashMap<String, Object> status = new HashMap<>();
 		
-		status.put("wsTopicCount", this.topics.size());
-		status.put("wsSubscribersCurrent", this.topics.values().stream().mapToInt(t -> t.subscribers.size()).sum());
-		status.put("wsMessagesDiscarded", this.messagesDiscarded);
-		status.put("wsMessagesReceived",  this.messagesReceived);
-		status.put("wsMessagesSent", this.messagesSent);
-		status.put("wsSubscribersTotal", this.subsribeCount);
-		status.put("wsBytesSent", this.bytesSent);
-		status.put("wsBytesReceived", this.bytesReceived);
-		
+		synchronized (topics) {			
+			
+			// group by tag 
+			
+			// all tags
+			List<String> tags = topicConfig.getMonitoringTags();
+			
+			for (String tag : tags) {
+				
+				// all topics with this tag				
+				Set<String> tagTopics = this.topics.keySet().stream()
+					.filter(t -> tag.equals(topicConfig.getMonitoringTag(t)))
+					.collect(Collectors.toSet());	
+				
+				// count of topics with this tag
+				status.put("wsTopicCount" + tag, tagTopics.size());
+				
+				// total count of subscribers in the topics with this tag
+				status.put("wsSubscribersCurrent" + tag, tagTopics.stream()
+						.mapToInt(t -> topics.get(t).subscribers.size()).sum());
+			}
+			status.put("wsMessagesDiscarded", this.messagesDiscarded);
+			status.put("wsMessagesReceived",  this.messagesReceived);
+			status.put("wsMessagesSent", this.messagesSent);
+			status.put("wsSubscribersTotal", this.subsribeCount);
+			status.put("wsBytesSent", this.bytesSent);
+			status.put("wsBytesReceived", this.bytesReceived);
+		}
+				
 		return status;
 	}	
 }

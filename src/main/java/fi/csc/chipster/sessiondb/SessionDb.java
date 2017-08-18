@@ -27,7 +27,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
+import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
@@ -49,7 +49,10 @@ import fi.csc.chipster.sessiondb.resource.SessionResource;
  * Main class.
  *
  */
-public class SessionDb implements TopicCheck {
+public class SessionDb implements TopicConfig {
+
+	private static final String TOPIC_GROUP_CLIENT = ",topicGroup=client";
+	private static final String TOPIC_GROUP_SERVER = ",topicGroup=server";
 
 	private Logger logger = LogManager.getLogger();
 	
@@ -239,5 +242,24 @@ public class SessionDb implements TopicCheck {
 			});
 			return isAuthorized;
 		} 
+	}
+	
+	@Override
+	public String getMonitoringTag(String topic) {
+		if (JOBS_TOPIC.equals(topic) || 
+				FILES_TOPIC.equals(topic) || 
+				DATASETS_TOPIC.equals(topic) || 
+				AUTHORIZATIONS_TOPIC.equals(topic) || 
+				SESSIONS_TOPIC.equals(topic)) {			
+			
+			return TOPIC_GROUP_SERVER;
+		} else {
+			return TOPIC_GROUP_CLIENT;
+		}
+	}
+	
+	@Override
+	public List<String> getMonitoringTags() {
+		return Arrays.asList(new String[] {TOPIC_GROUP_SERVER, TOPIC_GROUP_CLIENT});
 	}
 }

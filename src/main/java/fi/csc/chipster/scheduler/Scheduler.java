@@ -2,6 +2,7 @@ package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,7 @@ import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
+import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -36,8 +37,10 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.microarray.messaging.JobState;
 
-public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, TopicCheck {
+public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, TopicConfig {
 	
+	private static final String TOPIC_GROUP_SERVER = ",topicGroup=server";
+
 	private Logger logger = LogManager.getLogger();
 	
 	private AuthenticationClient authService;
@@ -111,6 +114,16 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	public boolean isAuthorized(AuthPrincipal principal, String topic) {
 		// check the authorization of the connecting comps
 		return principal.getRoles().contains(Role.COMP);			
+	}
+    
+	@Override
+	public String getMonitoringTag(String topicName) {
+		return TOPIC_GROUP_SERVER;
+	}
+	
+	@Override
+	public List<String> getMonitoringTags() {
+		return Arrays.asList(new String[] {TOPIC_GROUP_SERVER});
 	}
     
 	/**

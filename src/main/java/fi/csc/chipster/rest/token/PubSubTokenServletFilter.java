@@ -25,16 +25,16 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.websocket.PrincipalRequestWrapper;
 import fi.csc.chipster.rest.websocket.PubSubEndpoint;
-import fi.csc.chipster.rest.websocket.PubSubServer.TopicCheck;
+import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
 
 public class PubSubTokenServletFilter implements Filter {
 	
 	private static final Logger logger = LogManager.getLogger();
 	private AuthenticationClient authService;
-	private TopicCheck topicCheck;
+	private TopicConfig topicCheck;
 	private String pathTemplate;
     
-    public PubSubTokenServletFilter(AuthenticationClient authService, TopicCheck topicAuthorization, String pathTemplate) {
+    public PubSubTokenServletFilter(AuthenticationClient authService, TopicConfig topicAuthorization, String pathTemplate) {
 		this.authService = authService;
 		this.topicCheck = topicAuthorization;
 		this.pathTemplate = pathTemplate;
