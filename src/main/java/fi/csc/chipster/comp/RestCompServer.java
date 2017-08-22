@@ -26,7 +26,9 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
@@ -65,7 +67,7 @@ import fi.csc.microarray.util.SystemMonitorUtil;
  * 
  * @author Taavi Hupponen, Aleksi Kallio, Petri Klemela
  */
-public class RestCompServer implements ShutdownCallback, ResultCallback, MessageHandler.Whole<String>, ProcessProvider {
+public class RestCompServer implements ShutdownCallback, ResultCallback, MessageHandler.Whole<String>, ProcessProvider, StatusSource {
 
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
@@ -222,7 +224,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
     	logger.info("starting the admin rest server");
     	
-    	this.adminServer = RestUtils.startAdminServer(new CompAdminResource(this), null, Role.COMP, config, authClient);
+    	this.adminServer = RestUtils.startAdminServer(new AdminResource(this), null, Role.COMP, config, authClient);
     			
 		sendCompAvailable();
 		

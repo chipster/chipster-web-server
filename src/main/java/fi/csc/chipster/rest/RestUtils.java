@@ -336,12 +336,15 @@ public class RestUtils {
 	}
 	
 	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatusSource stats) {
-		return startAdminServer(new GenericAdminResource(stats), null, role, config, authService);
+		return startAdminServer(new AdminResource(stats), null, role, config, authService);
 	}
 	
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
 			String role, Config config, AuthenticationClient authService) {
-		return startAdminServer(adminResource, hibernate, role, config, new TokenRequestFilter(authService));
+		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
+		// allow unauthenticated health checks
+		tokenRequestFilter.authenticationRequired(false, false);
+		return startAdminServer(adminResource, hibernate, role, config, tokenRequestFilter);
 	}
 
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,

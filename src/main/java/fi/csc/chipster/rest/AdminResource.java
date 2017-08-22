@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -26,10 +27,8 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 @Path("admin")
-public class GenericAdminResource {
+public class AdminResource {
 	
-	public static final String VALUE_OK = "OK";
-	public static final String KEY_STATUS = "status";
 	public static final String PATH_STATUS = "status";
 
 	@SuppressWarnings("unused")
@@ -38,51 +37,60 @@ public class GenericAdminResource {
 	private HibernateUtil hibernate;
 
 	private List<Class<?>> dbTables;
-	private StatusSource statusSource;
+	private List<StatusSource> statusSources;
 		
-    public GenericAdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, StatusSource stats) {
+    public AdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, StatusSource... stats) {
 		this.hibernate = hibernate;
 		this.dbTables = dbTables;
-		this.statusSource = stats;
+		if (stats != null) {
+			this.statusSources = Arrays.asList(stats);
+		}
 	}
 
-	public GenericAdminResource(HibernateUtil hibernate, Class<Token> dbTable, JerseyStatisticsSource statisticsListener) {
+	public AdminResource(HibernateUtil hibernate, Class<Token> dbTable, JerseyStatisticsSource statisticsListener) {
 		this(hibernate, Arrays.asList(new Class<?>[] {dbTable}), statisticsListener); 
 	}
 
-	public GenericAdminResource(StatusSource stats) {
+	public AdminResource(StatusSource... stats) {
 		this(null, new ArrayList<>(), stats);
 	}
 
 	@GET
-	@Path(PATH_STATUS)
+	@Path("alive")
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getStatus(@Context SecurityContext sc) {
+	public Response getAlive(@Context SecurityContext sc) {
+		return Response.ok().build();
+	}
+
+	
+	@GET
+	@Path(PATH_STATUS)
+	@RolesAllowed(Role.MONITORING)
+    @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public HashMap<String, Object> getStatus(@Context SecurityContext sc) {
 		
 		HashMap<String, Object> status = new HashMap<>();
 		
-		if (sc.isUserInRole(Role.MONITORING)) {
+		for (Class<?> table : dbTables) {				
+			long rowCount = (Long) getHibernate().session()
+					.createCriteria(table)
+					.setProjection(Projections.rowCount()).uniqueResult();
+					
+			status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
 			
-			for (Class<?> table : dbTables) {				
-				long rowCount = (Long) getHibernate().session()
-						.createCriteria(table)
-						.setProjection(Projections.rowCount()).uniqueResult();
-						
-				status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
-				
-			}
-			
-			if (statusSource != null) {
-				status.putAll(statusSource.getStatus());
-			}
-			
-			status.putAll(getSystemStats());
 		}
 		
-		status.put(KEY_STATUS, VALUE_OK);
+		if (statusSources != null) {
+			for (StatusSource src : statusSources) {
+				status.putAll(src.getStatus());
+			}
+		}
+		
+		status.putAll(getSystemStats());
 	
-		return Response.ok(status).build();
+		return status;
 		
     }	
 	

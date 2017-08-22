@@ -25,7 +25,7 @@ import org.hibernate.criterion.Projections;
 import org.hibernate.metadata.ClassMetadata;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.GenericAdminResource;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -41,7 +41,7 @@ import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.TableStats;
 
 @Path("admin")
-public class SessionDbAdminResource {
+public class SessionDbAdminResource extends AdminResource {
 	
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
@@ -53,41 +53,39 @@ public class SessionDbAdminResource {
 	private PubSubServer pubSubStats;
 
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer) {
+		super(jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.jerseyStats = jerseyStats;
 		this.pubSubStats = pubSubServer;
 	}
 	
 	@GET
-	@Path(GenericAdminResource.PATH_STATUS)
+	@Path(AdminResource.PATH_STATUS)
+	@RolesAllowed(Role.MONITORING)
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getStatus(@Context SecurityContext sc) {
+	public HashMap<String, Object> getStatus(@Context SecurityContext sc) {
 		
-		HashMap<String, Object> status = new HashMap<>();
+		HashMap<String, Object> status = super.getStatus(sc);
 		
 		List<Class<?>> dbTables = Arrays.asList(new Class<?>[] { 
 			Session.class, Dataset.class, Job.class, DatasetToken.class, File.class, 
 			Input.class, MetadataEntry.class, Parameter.class, Rule.class });
-		
-		if (dbTables != null && sc.isUserInRole(Role.MONITORING)) {
 			
-			for (Class<?> table : dbTables) {				
-				Long rowCount = (Long) this.hibernate.session()
-						.createCriteria(table)
-						.setProjection(Projections.rowCount()).uniqueResult();
-						
-				status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
-			}
-			
-			status.putAll(GenericAdminResource.getSystemStats());
-			status.putAll(jerseyStats.getStatus());
-			status.putAll(pubSubStats.getStatus());			
+		for (Class<?> table : dbTables) {				
+			Long rowCount = (Long) this.hibernate.session()
+					.createCriteria(table)
+					.setProjection(Projections.rowCount()).uniqueResult();
+					
+			status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
 		}
 		
-		status.put(GenericAdminResource.KEY_STATUS, GenericAdminResource.VALUE_OK);
+		// its not easy to reuse the super class method, because these return a response
+		status.putAll(AdminResource.getSystemStats());
+		status.putAll(jerseyStats.getStatus());
+		status.putAll(pubSubStats.getStatus());			
 	
-		return Response.ok(status).build();
+		return status;
 		
     }
 	

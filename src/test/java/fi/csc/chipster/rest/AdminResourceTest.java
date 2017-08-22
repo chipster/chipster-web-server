@@ -15,6 +15,7 @@ import org.apache.commons.io.IOUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.springframework.util.Assert;
 
 import fi.csc.chipster.auth.model.Role;
 
@@ -37,16 +38,25 @@ public class AdminResourceTest {
     }
     
     @Test
-    public void onlyStatusForNormalUsers() throws IOException {
+    public void getStatus() throws IOException {
     	for (String role : config.getServicePasswords().keySet()) {
     		getStatus(role);
     	}
     }
     
     @Test
+    public void getAlive() throws IOException {
+    	for (String role : config.getServicePasswords().keySet()) {
+    		// doesn't require authentication
+    		assertEquals(200, getAdminResponse(launcher.getNoAuthClient(), role, "alive").getStatus());
+    	}
+    }
+    
+    @Test
     public void noAuth() throws IOException {
     	for (String role : config.getServicePasswords().keySet()) {
-     		assertEquals(401, getStatusResponse(launcher.getNoAuthClient(), role).getStatus());
+     		assertEquals(403, getStatusResponse(launcher.getUser1Client(), role).getStatus());
+     		assertEquals(403, getStatusResponse(launcher.getNoAuthClient(), role).getStatus());
      		assertEquals(403, getStatusResponse(launcher.getTokenFailClient(), role).getStatus());
      		assertEquals(401, getStatusResponse(launcher.getUnparseableTokenClient(), role).getStatus());
     	}
@@ -55,14 +65,13 @@ public class AdminResourceTest {
     @Test 
     public void sessionDbTopics() throws IOException {
     	assertEquals(403, getAdminResponse(launcher.getUser1Client(), Role.SESSION_DB, "topics").getStatus());
-    	assertEquals(401, getAdminResponse(launcher.getNoAuthClient(), Role.SESSION_DB, "topics").getStatus());
+    	assertEquals(403, getAdminResponse(launcher.getNoAuthClient(), Role.SESSION_DB, "topics").getStatus());
  		assertEquals(403, getAdminResponse(launcher.getTokenFailClient(), Role.SESSION_DB, "topics").getStatus());
  		assertEquals(401, getAdminResponse(launcher.getUnparseableTokenClient(), Role.SESSION_DB, "topics").getStatus());
     }
     
     public void getStatus(String role) throws IOException {
-    	assertEquals(1, getStatusMap(launcher.getUser1Client(), role).size());
-    	assertEquals(true, getStatusMap(launcher.getUser1Client(), role).containsKey("status"));
+    	Assert.notNull(getStatusMap(launcher.getMonitoringClient(), role).size());
     }
     
 	public HashMap<String, Object> getStatusMap(Client client, String role) throws IOException {

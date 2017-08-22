@@ -23,7 +23,9 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
 import fi.csc.chipster.scheduler.JobCommand.Command;
@@ -37,7 +39,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.microarray.messaging.JobState;
 
-public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, TopicConfig {
+public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, TopicConfig, StatusSource {
 	
 	private static final String TOPIC_GROUP_SERVER = ",topicGroup=server";
 
@@ -105,7 +107,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	logger.info("starting the admin rest server");
     	
     	this.adminServer = RestUtils.startAdminServer(
-    			new SchedulerAdminResource(this, pubSubServer), null, Role.SCHEDULER, config, authService);
+    			new AdminResource(this, pubSubServer), null, Role.SCHEDULER, config, authService);
     	    	
     	logger.info("scheduler is up and running");    		
     }
@@ -440,7 +442,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		return id.toString().substring(0, 4);
 	}
 
-	public Map<? extends String, ? extends Object> getStatus() {
+	public Map<String, Object> getStatus() {
 		HashMap<String, Object> status = new HashMap<>();
 		status.put("newJobCount", jobs.getNewJobs().size());
 		status.put("runningJobCount", jobs.getRunningJobs().size());

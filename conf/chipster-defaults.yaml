@@ -3,6 +3,7 @@ conf-path: conf/chipster.yaml
 # Service accounts
 # all config items starting with "service-password-" will be automatically authenticated as Role.SERVER 
 
+service-password-auth: auth
 service-password-session-db: session-db
 service-password-service-locator: service-locator
 service-password-scheduler: scheduler

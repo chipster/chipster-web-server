@@ -82,6 +82,10 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient();
 	}
 	
+	public Client getMonitoringClient() {
+		return new AuthenticationClient(serviceLocatorClient, Role.MONITORING, Role.MONITORING).getAuthenticatedClient();
+	}
+	
 	public WebTarget getUser1Target(String role) {
 		return getUser1Client().target(getTargetUri(role));
 	}

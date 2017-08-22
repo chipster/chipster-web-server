@@ -16,7 +16,7 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.GenericAdminResource;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -70,16 +70,22 @@ public class AuthenticationService {
         	//.register(new LoggingFilter())
         	.register(authRequestFilter);
     	
-    	GenericAdminResource adminResource = new GenericAdminResource(hibernate, Token.class, RestUtils.createJerseyStatisticsSource(rc));
+    	AdminResource adminResource = new AdminResource(hibernate, Token.class, RestUtils.createJerseyStatisticsSource(rc));
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
         
-        this.adminServer = RestUtils.startAdminServer(
+        /* 
+         * Authenticate admin API using the same Rest API that all other admin APIs are using
+         * even if it is running in this same process. We have to set the address explicitly, because
+         * ServiceLocator isn't running yet.
+         */ 
+        AuthenticationClient authClient = new AuthenticationClient(config.getBindUrl(Role.AUTH), Role.AUTH, config.getPassword(Role.AUTH));
+		this.adminServer = RestUtils.startAdminServer(
         		adminResource, hibernate, 
-        		Role.AUTH, config, authRequestFilter);
+        		Role.AUTH, config, authClient);
 
     }
 
