@@ -40,7 +40,6 @@ import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.TableStats;
 
-@Path("admin")
 public class SessionDbAdminResource extends AdminResource {
 	
 	@SuppressWarnings("unused")
