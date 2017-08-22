@@ -11,6 +11,7 @@ const VARIABLE_PREFIX = 'variable-';
 export class Config {
 
 	public static readonly KEY_URL_BIND_TYPE_SERVICE = 'url-bind-type-service';
+  public static readonly KEY_URL_ADMIN_BIND_TYPE_SERVICE = 'url-admin-bind-type-service';
 	public static readonly KEY_URL_INT_SERVICE_LOCATOR = 'url-int-service-locator';
 
 	private static confFileWarnShown = false;

@@ -47,15 +47,12 @@ public class SessionDbAdminResource extends AdminResource {
 	
 	private HibernateUtil hibernate;
 
-	private JerseyStatisticsSource jerseyStats;
-
-	private PubSubServer pubSubStats;
+	private PubSubServer pubSubServer;
 
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer) {
 		super(jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
-		this.jerseyStats = jerseyStats;
-		this.pubSubStats = pubSubServer;
+		this.pubSubServer = pubSubServer;
 	}
 	
 	@GET
@@ -77,12 +74,7 @@ public class SessionDbAdminResource extends AdminResource {
 					.setProjection(Projections.rowCount()).uniqueResult();
 					
 			status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
-		}
-		
-		// its not easy to reuse the super class method, because these return a response
-		status.putAll(AdminResource.getSystemStats());
-		status.putAll(jerseyStats.getStatus());
-		status.putAll(pubSubStats.getStatus());			
+		}			
 	
 		return status;
 		
@@ -95,7 +87,7 @@ public class SessionDbAdminResource extends AdminResource {
 	@Transaction
 	public Response getClients(@Context SecurityContext sc) {
 		
-		return Response.ok(pubSubStats.getTopics()).build();		
+		return Response.ok(pubSubServer.getTopics()).build();		
     }
 
 	

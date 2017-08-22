@@ -3,12 +3,11 @@ import {Observable} from "rxjs";
 import {Logger} from "./logger";
 import {Config} from "./config";
 import {Tag, Tags, TypeTags} from "./type-tags";
+const os = require('os');
 const url = require('url');
 const restify = require('restify');
 
 const logger = Logger.getLogger(__filename);
-
-
 
 class IdPair {
 	constructor(
@@ -28,6 +27,7 @@ export default class TypeService {
 
 	constructor() {
 		this.init();
+    this.initAdmin();
 
 		// the Tags object above is just for the code completion. For any real use
 		// we wan't a real ES6 map
@@ -38,25 +38,7 @@ export default class TypeService {
 	}
 
 	init() {
-		var server = restify.createServer();
-		server.use(restify.authorizationParser());
-		server.use(restify.CORS({
-			//origins: ['https://foo.com', 'http://bar.com', 'http://baz.com:8081'],   // defaults to ['*']
-			//credentials: true,                 // defaults to false
-			//headers: ['authorization']                 // sets expose-headers
-		}));
-		// CORS constructor above doesn't have way to add this
-		restify.CORS.ALLOW_HEADERS.push('authorization');
-
-		// add bodyParser to access the body, but disable the automatic parsing
-		server.use(restify.bodyParser({ mapParams: false }));
-
-		// reply to browser's pre-flight requests with CORS headers
-		server.opts(/.*/, ( req, res ) => {
-			// what is the purpose of the CORS plugin if it doesn't set this header?
-			res.header( "Access-Control-Allow-Headers",     restify.CORS.ALLOW_HEADERS.join( ", " ) );
-			res.send( 204 )
-		} );
+    let server = this.createServer();
 
 		server.get('/sessions/:sessionId', this.respond.bind(this));
 		server.get('/sessions/:sessionId/datasets/:datasetId', this.respond.bind(this));
@@ -69,6 +51,43 @@ export default class TypeService {
 			logger.info('type-service listening at ' + bindUrlString);
 		});
 	}
+
+  initAdmin() {
+    let server = this.createServer();
+
+    server.get('/admin/alive', this.respondAlive.bind(this));
+    server.get('/admin/status', this.respondStatus.bind(this));
+
+    let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
+    let bindUrl = url.parse(bindUrlString);
+
+    server.listen(bindUrl.port, bindUrl.hostname, () => {
+      logger.info('type-service listening at ' + bindUrlString);
+    });
+  }
+
+  createServer() {
+    var server = restify.createServer();
+    server.use(restify.authorizationParser());
+    server.use(restify.CORS({
+      //origins: ['https://foo.com', 'http://bar.com', 'http://baz.com:8081'],   // defaults to ['*']
+      //credentials: true,                 // defaults to false
+      //headers: ['authorization']                 // sets expose-headers
+    }));
+    // CORS constructor above doesn't have way to add this
+    restify.CORS.ALLOW_HEADERS.push('authorization');
+
+    // add bodyParser to access the body, but disable the automatic parsing
+    server.use(restify.bodyParser({ mapParams: false }));
+
+    // reply to browser's pre-flight requests with CORS headers
+    server.opts(/.*/, ( req, res ) => {
+      // what is the purpose of the CORS plugin if it doesn't set this header?
+      res.header( "Access-Control-Allow-Headers",     restify.CORS.ALLOW_HEADERS.join( ", " ) );
+      res.send( 204 )
+    } );
+    return server;
+  }
 
 	respond(req, res, next) {
 
@@ -127,9 +146,20 @@ export default class TypeService {
 		});
 	}
 
+
+  respondAlive(req, res, next) {
+    res.send();
+    next();
+  }
+
   respondStatus(req, res, next) {
+
+    //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
       res.contentType = 'json';
-      res.send({status: 'OK'});
+      let status = {
+        load: os.loadavg()[0] // 1 min load average
+      };
+      res.send(status);
       next();
   }
 
