@@ -35,11 +35,11 @@ public class ServerLauncher {
 	private SessionWorker sessionWorker;
 
 	private JavascriptService typeService;
-	
-	
+
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 		
 		long t = System.currentTimeMillis();
+		
 		if (verbose) {
 			logger.info("starting authentication-service");
 		}		

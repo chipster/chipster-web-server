@@ -8,7 +8,8 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
-import org.hibernate.dialect.H2Dialect;
+
+import fi.csc.chipster.rest.Config;
 
 public class HibernateUtil {
 
@@ -17,43 +18,30 @@ public class HibernateUtil {
 	
     private SessionFactory sessionFactory;
 
-	private String schema;
+	private Config config;
 
-    public HibernateUtil(String schema) {
-		this.schema = schema;
+	private String role;
+
+    public HibernateUtil(Config config, String role) {
+		this.config = config;
+		this.role = role;
 	}
 
-	public void buildSessionFactory(List<Class<?>> hibernateClasses, String dbName) {
-    	
+	public void buildSessionFactory(List<Class<?>> hibernateClasses) {    	
     	
     	try {    		    	
     		
     		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
-
-    		String dbDriver;
-    		String dbUrl;
-    		String dbUsername;
-    		String dbPassword;
-
-    		// Not a real server
-
-    		dbDriver = "org.h2.Driver";
-    		dbUrl = "jdbc:h2:database/" + dbName;
-    		dbUsername = "sa";
-    		dbPassword = "";
     		
-    		hibernateConf.setProperty(Environment.DRIVER, dbDriver);
-    		hibernateConf.setProperty(Environment.URL, dbUrl);
-    		hibernateConf.setProperty(Environment.USER, dbUsername);
-    		hibernateConf.setProperty(Environment.PASS, dbPassword);
-    		hibernateConf.setProperty(Environment.DIALECT, H2Dialect.class.getName());
-    		hibernateConf.setProperty(Environment.SHOW_SQL, "false");
+    		hibernateConf.setProperty(Environment.DRIVER, config.getString(role + "-db-driver"));
+    		hibernateConf.setProperty(Environment.URL, config.getString(role + "-db-url"));
+    		hibernateConf.setProperty(Environment.USER, config.getString(role + "-db-user"));
+    		hibernateConf.setProperty(Environment.PASS, config.getString(role + "-db-pass"));
+    		hibernateConf.setProperty(Environment.DIALECT, config.getString(role + "-db-dialect"));
+    		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(role + "-db-show-sql"));
     		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
-    		hibernateConf.setProperty("hibernate.c3p0.min_size", "3");
-    		// validate: check schema
-    		// update: simple schema updates (but hibernate docs don't recommend for production use)    		
-    		// create: drop old table and create new one
-    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", schema);
+    		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(role + "-db-c3p0-min-size"));
+    		hibernateConf.setProperty("hibernate.hbm2ddl.auto", config.getString(role + "-db-bm2ddl-auto"));
     		
     		for (Class<?> c : hibernateClasses) {
     			hibernateConf.addAnnotatedClass(c);

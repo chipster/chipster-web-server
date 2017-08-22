@@ -124,16 +124,16 @@ public class SessionDb implements TopicConfig {
 				File.class); 
 
 		boolean replicate = config.getBoolean(Config.KEY_SESSION_DB_REPLICATE);
-		String hibernateSchema = config.getString(Config.KEY_SESSION_DB_HIBERNATE_SCHEMA);
 		
 		if (replicate) {
 			// replication makes sense only with an empty DB
-			hibernateSchema = "create";
+			// this should be set to config now
+			//hibernateSchema = "create";
 		}
 		
 		// init Hibernate
-		hibernate = new HibernateUtil(hibernateSchema);
-		hibernate.buildSessionFactory(hibernateClasses, config.getString(Config.KEY_SESSION_DB_NAME));
+		hibernate = new HibernateUtil(config, "session");
+		hibernate.buildSessionFactory(hibernateClasses);
 
 		this.tokenRequestFilter = new TokenRequestFilter(authService);		
 		// access with DatasetTokens is anonymous

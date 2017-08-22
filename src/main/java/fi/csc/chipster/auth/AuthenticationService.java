@@ -15,8 +15,8 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
-import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -57,8 +57,8 @@ public class AuthenticationService {
     	});
     	
     	// init Hibernate
-    	hibernate = new HibernateUtil("update");
-    	hibernate.buildSessionFactory(hibernateClasses, "chipster-auth-db");
+    	hibernate = new HibernateUtil(config, Role.AUTH);
+    	hibernate.buildSessionFactory(hibernateClasses);
     	
     	TokenResource authResource = new TokenResource(hibernate);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config);

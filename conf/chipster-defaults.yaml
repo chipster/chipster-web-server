@@ -14,7 +14,6 @@ service-password-proxy: proxy
 service-password-web-server: web-server
 service-password-toolbox: toolbox
 
-auth-monitoring-username: monitoring
    
 # Internal and external service addresses
 
@@ -65,6 +64,22 @@ url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 
+# auth
+
+auth-monitoring-username: monitoring
+auth-db-driver: org.h2.Driver
+auth-db-url: jdbc:h2:database/chipster-auth-db;
+auth-db-user: sa
+auth-db-pass: 
+auth-db-dialect: org.hibernate.dialect.H2Dialect
+auth-db-show-sql: false
+auth-db-c3p0-min-size:
+# validate: check schema
+# update: simple schema updates (but hibernate docs don't recommend for production use)    		
+# create: drop old table and create new one
+auth-db-bm2ddl-auto: validate
+
+ 
 # comp
 
 # max number of jobs run simultaneusly
@@ -104,11 +119,18 @@ scheduler-job-timer-interval: 1
 # session-db 
     
 session-db-replicate: false
-session-db-name: session-db
-# update, validate or create
-session-db-hibernate-schema: update
 # allow sharing to everyone only for one username, empty allows for everybody
 session-db-restrict-sharing-to-everyone: example_session_owner
+
+session-db-driver: org.h2.Driver
+session-db-url: jdbc:h2:database/session-db;
+session-db-user: sa
+session-db-pass: 
+session-db-dialect: org.hibernate.dialect.H2Dialect
+session-db-show-sql: false
+session-db-c3p0-min-size:
+session-db-bm2ddl-auto: update
+
     
 # web-server
 
