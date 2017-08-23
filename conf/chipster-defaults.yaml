@@ -68,7 +68,7 @@ url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 
 auth-monitoring-username: monitoring
 auth-db-driver: org.h2.Driver
-auth-db-url: jdbc:h2:database/chipster-auth-db;
+auth-db-url: jdbc:h2:./database/chipster-auth-db
 auth-db-user: sa
 auth-db-pass: 
 auth-db-dialect: org.hibernate.dialect.H2Dialect
@@ -77,7 +77,7 @@ auth-db-c3p0-min-size:
 # validate: check schema
 # update: simple schema updates (but hibernate docs don't recommend for production use)    		
 # create: drop old table and create new one
-auth-db-bm2ddl-auto: validate
+auth-db-bm2ddl-auto: update
 
  
 # comp
@@ -123,7 +123,7 @@ session-db-replicate: false
 session-db-restrict-sharing-to-everyone: example_session_owner
 
 session-db-driver: org.h2.Driver
-session-db-url: jdbc:h2:database/session-db;
+session-db-url: jdbc:h2:./database/session-db
 session-db-user: sa
 session-db-pass: 
 session-db-dialect: org.hibernate.dialect.H2Dialect

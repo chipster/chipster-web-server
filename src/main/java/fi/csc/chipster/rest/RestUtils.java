@@ -335,7 +335,7 @@ public class RestUtils {
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 	
-	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatusSource stats) {
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatusSource... stats) {
 		return startAdminServer(new AdminResource(stats), null, role, config, authService);
 	}
 	

@@ -19,6 +19,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -168,12 +169,17 @@ public class SessionDb implements TopicConfig {
 				//.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 						
-		this.adminResource = new SessionDbAdminResource(hibernate, RestUtils.createJerseyStatisticsSource(rc), pubSubServer);
+		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+		
+		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+		
+		this.httpServer.start();
 		
 		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService);
 	}

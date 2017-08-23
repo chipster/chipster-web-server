@@ -89,14 +89,18 @@ public class ServiceLocator {
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
     	
-    	JerseyStatisticsSource statisticsListener = RestUtils.createJerseyStatisticsSource(rc);
-
+    	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+		
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
-        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
                 
-        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, statisticsListener);
+        jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+        
+        this.httpServer.start();
+                
+        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, jerseyStatisticsSource);
     }
     
     public void addService(String role, String uri, String publicUri) {

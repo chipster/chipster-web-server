@@ -32,12 +32,12 @@ public class JettyStatisticsSource implements StatusSource {
 		status.put("responseCodes400", requestStats.getResponses4xx());
 		status.put("responseCodes500", requestStats.getResponses5xx());
 		status.put("responseCodesOther", requestStats.getResponses1xx() + requestStats.getResponses3xx());
+		status.put("connectionsOpen", connectorStats.getConnectionsOpen());
 		
 		// Jetty specific statistics
 		status.put("jettyBytesIn", connectorStats.getBytesIn());
 		status.put("jettybytesOut", connectorStats.getBytesOut());
 		status.put("jettyConnectionsCount", connectorStats.getConnections());
-		status.put("jettyConnectionsOpen", connectorStats.getConnectionsOpen());
 		status.put("jettyMessagesInPerSecond", connectorStats.getMessagesInPerSecond());
 		status.put("jettyMessagesOutPerSecond", connectorStats.getMessagesOutPerSecond());
 		status.put("jettyMessagesInCount", connectorStats.getMessagesIn());

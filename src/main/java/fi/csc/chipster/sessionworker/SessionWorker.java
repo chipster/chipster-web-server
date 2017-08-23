@@ -2,6 +2,8 @@ package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -17,6 +19,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -25,7 +28,7 @@ import fi.csc.chipster.sessiondb.RestException;
  * Main class.
  *
  */
-public class SessionWorker {
+public class SessionWorker implements StatusSource{
 
 	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
@@ -75,14 +78,18 @@ public class SessionWorker {
 				.register(sessionWorkerResource)
 				.register(tokenRequestFilter);
 		
-		JerseyStatisticsSource statisticsListener = RestUtils.createJerseyStatisticsSource(rc);
+    	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);		
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_WORKER));
-		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		
-		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, statisticsListener);
+		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+		
+		httpServer.start();
+		
+		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, jerseyStatisticsSource, this);
 	}
 
 	/**
@@ -109,5 +116,13 @@ public class SessionWorker {
 	
 	public HttpServer getHttpServer() {
 		return httpServer;
+	}
+
+	@Override
+	public Map<String, Object> getStatus() {
+		Map<String, Object> map = new HashMap<>();
+		
+		//map.put("connectionsCount", httpServer.getLi		return map;
+		return map;
 	}
 }

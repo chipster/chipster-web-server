@@ -1,10 +1,17 @@
 package fi.csc.chipster.rest;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import javax.ws.rs.ext.Provider;
 
+import org.glassfish.grizzly.Connection;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.grizzly.http.server.HttpServerFilter;
+import org.glassfish.grizzly.http.server.HttpServerProbe;
+import org.glassfish.grizzly.http.server.Request;
+import org.glassfish.grizzly.http.server.Response;
 import org.glassfish.jersey.server.monitoring.MonitoringStatistics;
 import org.glassfish.jersey.server.monitoring.MonitoringStatisticsListener;
 
@@ -12,10 +19,11 @@ import org.glassfish.jersey.server.monitoring.MonitoringStatisticsListener;
 public class JerseyStatisticsSource implements MonitoringStatisticsListener, StatusSource {
 	
 	private HashMap<String, Object> latestStatistics = new HashMap<>();
+	
+	private HashSet<Request> openRequests = new HashSet<>();
 
 	@Override
 	public void onStatistics(MonitoringStatistics statistics) {
-		
 		
 		latestStatistics.put("exceptionMappingsSuccessful", statistics.getExceptionMapperStatistics().getSuccessfulMappings());
 		latestStatistics.put("exceptionMappingsTotal", statistics.getExceptionMapperStatistics().getTotalMappings());
@@ -50,6 +58,8 @@ public class JerseyStatisticsSource implements MonitoringStatisticsListener, Sta
 		latestStatistics.put("responseCodes500", responseCodes500);
 		latestStatistics.put("responseCodesOther", responseCodesOther);
 		
+		latestStatistics.put("connectionsOpen", openRequests.size());
+		
 		// more verbose statistics 
 		
 		// statistics by resource
@@ -65,4 +75,20 @@ public class JerseyStatisticsSource implements MonitoringStatisticsListener, Sta
 		return latestStatistics;
 	}
 
+	public void collectConnectionStatistics(HttpServer httpServer) {
+		httpServer.getServerConfiguration().getMonitoringConfig().getWebServerConfig()
+		.addProbes(new HttpServerProbe.Adapter() {
+			
+			@Override
+			public void onRequestReceiveEvent(HttpServerFilter filter, @SuppressWarnings("rawtypes") Connection connection, Request request) {
+				openRequests.add(request);
+			}
+			
+			@Override
+			public void onRequestCompleteEvent(HttpServerFilter filter, @SuppressWarnings("rawtypes") Connection connection, Response response) {
+				openRequests.remove(response.getRequest());
+			}
+			
+		});	
+	}
 }

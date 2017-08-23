@@ -2,6 +2,7 @@ package fi.csc.chipster.auth;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,6 +18,7 @@ import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -70,19 +72,28 @@ public class AuthenticationService {
         	//.register(new LoggingFilter())
         	.register(authRequestFilter);
     	
-    	AdminResource adminResource = new AdminResource(hibernate, Token.class, RestUtils.createJerseyStatisticsSource(rc));
+    	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+		AdminResource adminResource = new AdminResource(hibernate, Token.class, jerseyStatisticsSource);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
-        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+
+        jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+        
+        this.httpServer.start();
         
         /* 
          * Authenticate admin API using the same Rest API that all other admin APIs are using
          * even if it is running in this same process. We have to set the address explicitly, because
          * ServiceLocator isn't running yet.
          */ 
-        AuthenticationClient authClient = new AuthenticationClient(config.getBindUrl(Role.AUTH), Role.AUTH, config.getPassword(Role.AUTH));
+        
+        URL bindUrl = URI.create(config.getBindUrl(Role.AUTH)).toURL();
+        String localhostUrl = new URL(bindUrl.getProtocol(), "localhost", bindUrl.getPort(), bindUrl.getFile()).toString();
+
+        AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH, config.getPassword(Role.AUTH));
 		this.adminServer = RestUtils.startAdminServer(
         		adminResource, hibernate, 
         		Role.AUTH, config, authClient);

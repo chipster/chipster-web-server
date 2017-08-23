@@ -193,14 +193,18 @@ public class ToolboxService {
 				.register(moduleResource);
 				// .register(new LoggingFilter())
 		
-		JerseyStatisticsSource statisticsListener = RestUtils.createJerseyStatisticsSource(rc);
-
+    	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+		
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 		
-		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, statisticsListener);
+		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+		
+		this.httpServer.start();
+		
+		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, jerseyStatisticsSource);
 		
 		logger.info("toolbox service running at " + baseUri);
 	}
