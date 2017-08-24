@@ -84,7 +84,7 @@ public class TokenResource {
 	public Token createToken(String username, HashSet<String> roles) {
 		//FIXME has to be cryptographically secure
 		UUID tokenKey = RestUtils.createUUID();
-		LocalDateTime valid = LocalDateTime.now().plusMonths(1);
+		LocalDateTime valid = LocalDateTime.now().plusDays(1);
 
 		String rolesJson = RestUtils.asJson(roles);
 		
