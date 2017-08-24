@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.persistence.Column;
@@ -37,7 +38,7 @@ public class Session {
 	private Collection<Job> jobs;
 	
 	@OneToMany(fetch = FetchType.EAGER, mappedBy="session")
-	private Collection<Rule> rules;
+	private Set<Rule> rules;
 	
 	/**
 	 * All jobs in the session
@@ -140,11 +141,11 @@ public class Session {
 		this.accessed = accessed;
 	}
 
-	public Collection<Rule> getRules() {
+	public Set<Rule> getRules() {
 		return rules;
 	}
 
-	public void setRules(Collection<Rule> rules) {
+	public void setRules(Set<Rule> rules) {
 		this.rules = rules;
 	}
 }

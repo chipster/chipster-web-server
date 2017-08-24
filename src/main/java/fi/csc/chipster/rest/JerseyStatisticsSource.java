@@ -1,11 +1,11 @@
 package fi.csc.chipster.rest;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import javax.ws.rs.ext.Provider;
 
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.glassfish.grizzly.Connection;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.grizzly.http.server.HttpServerFilter;
@@ -20,7 +20,7 @@ public class JerseyStatisticsSource implements MonitoringStatisticsListener, Sta
 	
 	private HashMap<String, Object> latestStatistics = new HashMap<>();
 	
-	private HashSet<Request> openRequests = new HashSet<>();
+	private ConcurrentHashSet<Request> openRequests = new ConcurrentHashSet<>();
 
 	@Override
 	public void onStatistics(MonitoringStatistics statistics) {

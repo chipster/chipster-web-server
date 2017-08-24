@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -19,7 +21,6 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.criterion.Projections;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
@@ -74,9 +75,8 @@ public class AdminResource {
 		HashMap<String, Object> status = new HashMap<>();
 		
 		for (Class<?> table : dbTables) {				
-			long rowCount = (Long) getHibernate().session()
-					.createCriteria(table)
-					.setProjection(Projections.rowCount()).uniqueResult();
+			
+			long rowCount = getRowCount(table, hibernate);
 					
 			status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
 			
@@ -92,8 +92,15 @@ public class AdminResource {
 	
 		return status;
 		
-    }	
+    }
 	
+	public static long getRowCount(Class<?> table, HibernateUtil hibernate) {
+		CriteriaBuilder qb = hibernate.session().getCriteriaBuilder();
+		CriteriaQuery<Long> cq = qb.createQuery(Long.class);
+		cq.select(qb.count(cq.from(table)));
+		return hibernate.session().createQuery(cq).getSingleResult();
+	}
+
 	public static HashMap<String, Object> getSystemStats() {
 		
 		HashMap<String, Object> status = new HashMap<>();
@@ -105,9 +112,5 @@ public class AdminResource {
 		status.put("diskFree", new File(".").getFreeSpace());
 		
 		return status;
-	}
-
-	private HibernateUtil getHibernate() {
-		return hibernate;
 	}
 }

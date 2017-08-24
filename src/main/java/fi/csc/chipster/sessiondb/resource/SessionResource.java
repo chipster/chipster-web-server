@@ -5,6 +5,7 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -151,7 +152,7 @@ public class SessionResource {
 		auth.setRuleId(RestUtils.createUUID());
 		auth.setSession(session);
 		
-		session.setRules(Arrays.asList(new Rule[] {auth}));
+		session.setRules(new LinkedHashSet<Rule>(Arrays.asList(new Rule[] {auth})));
 		
 		create(session, auth, getHibernate().session());
 		

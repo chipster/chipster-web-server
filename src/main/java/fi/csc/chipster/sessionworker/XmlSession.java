@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -294,16 +295,16 @@ public class XmlSession {
 				.collect(Collectors.toMap(Job::getJobId, j -> j));		
 	}
 
-	private static List<Parameter> getParameters(List<ParameterType> parameterTypes) {
+	private static LinkedHashSet<Parameter> getParameters(List<ParameterType> parameterTypes) {
 		return parameterTypes.stream()
 				.map(XmlSession::getParameter)
-				.collect(Collectors.toList());
+				.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
-	private static List<Input> getInputs(List<InputType> inputTypes) {
+	private static LinkedHashSet<Input> getInputs(List<InputType> inputTypes) {
 		return inputTypes.stream()
 				.map(XmlSession::getInput)
-				.collect(Collectors.toList());
+				.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	private static Map<UUID, Dataset> getDatasets(List<DataType> dataTypes) {

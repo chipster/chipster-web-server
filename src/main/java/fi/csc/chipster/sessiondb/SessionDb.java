@@ -123,15 +123,7 @@ public class SessionDb implements TopicConfig {
 				Parameter.class,
 				Input.class, 
 				File.class); 
-
-		boolean replicate = config.getBoolean(Config.KEY_SESSION_DB_REPLICATE);
-		
-		if (replicate) {
-			// replication makes sense only with an empty DB
-			// this should be set to config now
-			//hibernateSchema = "create";
-		}
-		
+				
 		// init Hibernate
 		hibernate = new HibernateUtil(config, "session");
 		hibernate.buildSessionFactory(hibernateClasses);
@@ -145,11 +137,7 @@ public class SessionDb implements TopicConfig {
 		this.authorizationTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
 		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
 		this.sessionResource = new SessionResource(hibernate, authorizationTable, config);
-		this.globalJobResource = new GlobalJobResource(hibernate);
-		
-		if (replicate) {
-			new SessionDbCluster().replicate(serviceLocator, authService, authorizationTable, sessionResource, adminResource, hibernate, this);
-		}
+		this.globalJobResource = new GlobalJobResource(hibernate);		
 				
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";

@@ -118,7 +118,6 @@ scheduler-job-timer-interval: 1
 
 # session-db 
     
-session-db-replicate: false
 # allow sharing to everyone only for one username, empty allows for everybody
 session-db-restrict-sharing-to-everyone: example_session_owner
 

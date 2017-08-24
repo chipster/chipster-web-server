@@ -92,8 +92,8 @@ dependencies {
     compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26-b03" // JAX-RS in Jetty (file-broker)
 
     // hibernate
-    compile "org.hibernate:hibernate-java8:5.0.0.CR4"
-    compile "org.hibernate:hibernate-c3p0:5.0.0.CR4"
+    compile "org.hibernate:hibernate-java8:5.2.10.Final"
+    compile "org.hibernate:hibernate-c3p0:5.2.10.Final"
     compile "com.h2database:h2:1.4.196"
 
     // websockets

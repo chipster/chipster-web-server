@@ -8,9 +8,9 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -199,12 +199,12 @@ public class RestUtils {
 		j.setToolId("UtilTool.py");
 		j.setToolName("Utility tool");
 		
-		List<Parameter> p = new ArrayList<>();
+		LinkedHashSet<Parameter> p = new LinkedHashSet<>();
 		p.add(getRandomParameter());
 		p.add(getRandomParameter());
 		j.setParameters(p);
 		
-		List<Input> i = new ArrayList<>();
+		LinkedHashSet<Input> i = new LinkedHashSet<>();
 		i.add(getRandomInput());
 		i.add(getRandomInput());
 		j.setInputs(i);

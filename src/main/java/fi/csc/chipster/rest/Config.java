@@ -33,7 +33,6 @@ public class Config {
 	
 	public static final String KEY_MONITORING_USERNAME = "auth-monitoring-username";
 	
-	public static final String KEY_SESSION_DB_REPLICATE = "session-db-replicate";
 	public static final String KEY_SESSION_DB_NAME = "session-db-name";
 	public static final String KEY_SESSION_DB_HIBERNATE_SCHEMA = "session-db-hibernate-schema";
 	public static final String KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE = "session-db-restrict-sharing-to-everyone";

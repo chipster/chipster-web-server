@@ -1,8 +1,9 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.persistence.CascadeType;
@@ -49,11 +50,11 @@ public class Job {
 	
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="jobId")
-	private List<Parameter> parameters = new ArrayList<>();
+	private Set<Parameter> parameters = new HashSet<>();
 	
 	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
 	@JoinColumn(name="jobId")
-	private List<Input> inputs = new ArrayList<>();
+	private Set<Input> inputs = new HashSet<>();
 	
 	public UUID getJobId() {
 		return this.jobId;
@@ -103,18 +104,18 @@ public class Job {
 	public void setState(JobState state) {
 		this.state = state;
 	}
-	public List<Parameter> getParameters() {
+	public Set<Parameter> getParameters() {
 		return parameters;
 	}
-	public void setParameters(List<Parameter> parameters) {
+	public void setParameters(Set<Parameter> parameters) {
 		this.parameters = parameters;
 	}
 	
-	public List<Input> getInputs() {
+	public Set<Input> getInputs() {
 		return inputs;
 	}
 	
-	public void setInputs(List<Input> inputs) {
+	public void setInputs(LinkedHashSet<Input> inputs) {
 		this.inputs = inputs;
 	}
 	public String getModule() {
