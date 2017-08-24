@@ -120,8 +120,8 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			Iterator<String> iter = tokenCache.keySet().iterator();
 			while (tokenCache.size() > CACHE_MAX_SIZE) {
 				//TODO is this the oldest?
-				iter.remove();
 				iter.next();
+				iter.remove();
 			}			
 		}
         
