@@ -115,9 +115,12 @@ public class ServiceLocator {
      */
     public static void main(String[] args) throws IOException {
     	
-        final ServiceLocator server = new ServiceLocator(new Config());
-        server.startServer();
-        RestUtils.waitForShutdown("service locator", server.getHttpServer());
+        final ServiceLocator service = new ServiceLocator(new Config());
+        
+        RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.SERVICE_LOCATOR);
+        
+        service.startServer();
+        RestUtils.waitForShutdown("service locator", service.getHttpServer());
     }
 
 	private HttpServer getHttpServer() {

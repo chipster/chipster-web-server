@@ -1,16 +1,13 @@
 package fi.csc.chipster.sessiondb;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.server.Server;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -46,10 +43,14 @@ import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 
+//import sun.misc.SignalHandler;
+//import sun.misc.Signal;
+
 /**
  * Main class.
  *
  */
+@SuppressWarnings("unused")
 public class SessionDb implements TopicConfig {
 
 	private static final String TOPIC_GROUP_CLIENT = ",topicGroup=client";
@@ -66,7 +67,6 @@ public class SessionDb implements TopicConfig {
 
 	private static HibernateUtil hibernate;
 
-	@SuppressWarnings("unused")
 	private String serviceId;
 
 	private ServiceLocatorClient serviceLocator;
@@ -100,12 +100,9 @@ public class SessionDb implements TopicConfig {
 	 * application.
 	 * 
 	 * @return Grizzly HTTP server.
-	 * @throws DeploymentException 
-	 * @throws ServletException 
-	 * @throws RestException 
-	 * @throws IOException 
+	 * @throws Exception 
 	 */
-	public void startServer() throws ServletException, DeploymentException, RestException, IOException {
+	public void startServer() throws Exception {
 
 		String username = Role.SESSION_DB;
 		String password = config.getPassword(username);
@@ -163,13 +160,15 @@ public class SessionDb implements TopicConfig {
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
+		
+		
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 		
-		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+		jerseyStatisticsSource.collectConnectionStatistics(httpServer);		
 		
-		this.httpServer.start();
+		httpServer.start();				
 		
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService);
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService);				
 	}
 	
 	public PubSubServer getPubSubServer() {
@@ -180,17 +179,16 @@ public class SessionDb implements TopicConfig {
 	 * Main method.
 	 * 
 	 * @param args
-	 * @throws IOException
-	 * @throws DeploymentException 
-	 * @throws ServletException 
-	 * @throws RestException 
+	 * @throws Exception 
 	 */
-	public static void main(String[] args) throws IOException, ServletException, DeploymentException, RestException {
+	public static void main(String[] args) throws Exception {
 
-		final SessionDb server = new SessionDb(new Config());
-		server.startServer();
+		final SessionDb service = new SessionDb(new Config());
+		service.startServer();
 		
-		RestUtils.waitForShutdown("session-db", server.getHttpServer());
+		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.SESSION_DB);
+		
+		RestUtils.waitForShutdown("session-db", service.getHttpServer());
 
 		hibernate.getSessionFactory().close();
 	}

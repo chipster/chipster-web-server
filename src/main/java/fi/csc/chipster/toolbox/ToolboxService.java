@@ -216,14 +216,15 @@ public class ToolboxService {
 	 */
 	public static void main(String[] args) throws IOException, URISyntaxException {
 		
-		ToolboxService server = new ToolboxService(new Config());
+		ToolboxService service = new ToolboxService(new Config());
     	try {
-    		server.startServer();
-    		RestUtils.waitForShutdown("toolbox", server.getHttpServer());
+    		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.TOOLBOX);
+    		service.startServer();
+    		RestUtils.waitForShutdown("toolbox", service.getHttpServer());
     	} catch (Exception e) {
     		System.err.println("toolbox startup failed, exiting");
     		e.printStackTrace(System.err);
-    		server.close();
+    		service.close();
     	}
 	}
 

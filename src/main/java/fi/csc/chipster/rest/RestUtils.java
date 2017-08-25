@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashSet;
@@ -384,5 +385,101 @@ public class RestUtils {
         server.setHandler(requestStats);
         
         return new JettyStatisticsSource(connectorStats, requestStats);
+	}
+
+	/**
+	 * Configure Jetty to handle SIGINT gracefully
+	 * 
+	 * Eclipse doesn't allow sending SIGINT, so testing is little bit complicated
+	 * - Start all necessary services to own processes
+	 * - Start a long request, e.g. wget --limit-rate 1M, or add Thread.sleep() to the resource method
+	 * - Send SIGINT, i.e. kill -2 $(ps aux | grep -v grep | grep FileBroker | tr -s " " | cut -d " " -f 2)
+	 * - Check that new wget fails
+	 * - Check that the old wget completes and the service terminates
+	 * 
+	 * @param server
+	 * @param timeout
+	 * @param name
+	 */
+	public static void shutdownGracefullyOnInterrupt(Server server, int timeout, String name) {
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+    	    public void run() {
+    	        logger.info(name + " interrupted");    	        
+    	        try {
+    	        	logger.info(name + " stops accepting new connections");
+    	        	for (Connector con : Arrays.asList(server.getConnectors())) {
+    	        		con.shutdown();
+    	        	}
+					
+    	        	final int pollInterval = 1000; //ms
+    	        	final int logInterval = 1; // pollIntervals
+    	        	final int timeout = 60 * 60; // seconds
+    	        	
+    	        	int connections = 0;
+    	        	LocalDateTime waitStart = LocalDateTime.now();
+    	        	
+    	        	shutdownWait:while (true) {
+    	        		for (int i = 0; i < logInterval; i++) {
+	    	        		connections = Arrays.asList(server.getConnectors()).stream()
+	    	        		.mapToInt(con -> con.getConnectedEndPoints().size())
+	    	        		.sum();
+	    	        	
+	    	        		if (connections == 0) {
+	    	        			break shutdownWait;
+	    	        		} else if (LocalDateTime.now().isAfter(waitStart.plusSeconds(timeout))){
+	    	        			System.err.println(name + " shutdown wait timeout reached");
+	    	        			break shutdownWait;
+	    	        		} else {
+	    	        			Thread.sleep(pollInterval);
+	    	        		}
+    	        		}
+    	        		// logger won't work anymore
+    	        		System.out.println(name + " waiting for remaining " + connections + " connections to complete");
+    	        	}
+    	        	System.out.println(name + " stopping");
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+    	    }
+    	});
+	}
+
+	/**
+	 * Configure Grizzly to handle SIGINT gracefully
+	 * 
+	 * Note: Make sure other shutdown hooks won't ruin the processing of the requests. For example
+	 * an embedded H2 database will shutdown by default. For some reason the logging stops working too,
+	 * so these are difficult to debug. Debugger seems to still work and probably System.out in ExceptionMappers
+	 * would too.
+	 * 
+	 * See the Jetty version above for the testing procedure
+	 * 
+	 * @param server
+	 * @param timeout
+	 * @param name
+	 */
+	public static void shutdownGracefullyOnInterrupt(HttpServer server, int timeout, String name) {
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+    	    public void run() {
+    	        logger.info(name + " interrupted");    	        
+    	        GrizzlyFuture<HttpServer> shutdownFuture = server.shutdown(timeout, TimeUnit.SECONDS);
+    	        logger.info(name + " stops accepting new connections");
+    	        System.out.println(name + " waiting for the remaining connections to complete");
+    	        try {
+					shutdownFuture.get();
+				} catch (InterruptedException | ExecutionException e) {
+					e.printStackTrace();
+				}
+    	        System.out.println(name + " stopping");
+    	    }
+		});
+	}
+
+	public static void shutdownGracefullyOnInterrupt(HttpServer server, String name) {
+		shutdownGracefullyOnInterrupt(server, 10, name);
+	}
+
+	public static void shutdownGracefullyOnInterrupt(Server server, String name) {
+		shutdownGracefullyOnInterrupt(server, 10, name);
 	}
 }

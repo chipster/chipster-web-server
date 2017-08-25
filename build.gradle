@@ -88,8 +88,9 @@ dependencies {
     // jersey
     compile "org.glassfish.jersey:jersey-bom:2.26-b03"
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.26-b03"
+    //compile "org.glassfish.jersey.containers:jersey-container-servlet:2.26-b03" // Jersey in Jetty
     compile "org.glassfish.jersey.media:jersey-media-json-jackson:2.26-b03"
-    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26-b03" // JAX-RS in Jetty (file-broker)
+    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26-b03" // JAX-RS in Jetty
 
     // hibernate
     compile "org.hibernate:hibernate-java8:5.2.10.Final"

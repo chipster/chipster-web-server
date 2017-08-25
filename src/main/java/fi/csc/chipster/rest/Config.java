@@ -55,6 +55,9 @@ public class Config {
 	public static final String KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT = "scheduler-heartbeat-lost-timeout";
 	public static final String KEY_SCHEDULER_JOB_TIMER_INTERVAL = "scheduler-job-timer-interval";
 	
+	public static final String KEY_FILE_BROKER_SHUTDOWN_TIMEOUT = "file-broker-shutdown-timeout";
+	public static final String KEY_SESSION_WORKER_SHUTDOWN_TIMEOUT = "file-broker-shutdown-timeout";
+	
 	public static final String KEY_TOOLBOX_TOOLS_BIN_PATH = "toolbox-tools-bin-path";
 
 	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);

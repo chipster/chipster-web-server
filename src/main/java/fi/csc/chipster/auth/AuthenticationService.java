@@ -108,9 +108,12 @@ public class AuthenticationService {
      */
     public static void main(String[] args) throws IOException, IllegalConfigurationException {
     	
-        final AuthenticationService server = new AuthenticationService(new Config());
-        server.startServer();
-        RestUtils.waitForShutdown("authentication service", server.getHttpServer());
+        final AuthenticationService service = new AuthenticationService(new Config());
+        service.startServer();
+        
+        RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.AUTH);
+        
+        RestUtils.waitForShutdown("authentication service", service.getHttpServer());
         
         hibernate.getSessionFactory().close();
     }

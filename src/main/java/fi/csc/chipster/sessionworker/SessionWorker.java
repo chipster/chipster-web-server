@@ -103,10 +103,13 @@ public class SessionWorker implements StatusSource{
 	 */
 	public static void main(String[] args) throws IOException, ServletException, DeploymentException, RestException {
 
-		final SessionWorker server = new SessionWorker(new Config());
-		server.startServer();
+		final SessionWorker service = new SessionWorker(new Config());
 		
-		RestUtils.waitForShutdown("session-worker", server.getHttpServer());
+		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), service.config.getInt(Config.KEY_SESSION_WORKER_SHUTDOWN_TIMEOUT), Role.SESSION_WORKER);
+		
+		service.startServer();
+		
+		RestUtils.waitForShutdown("session-worker", service.getHttpServer());
 	}
 
 	public void close() {

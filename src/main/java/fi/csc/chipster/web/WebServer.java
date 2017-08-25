@@ -112,7 +112,11 @@ public class WebServer {
 	}
 
 	public static void main(String[] args) throws Exception {
-		new WebServer(new Config()).start();
+		WebServer service = new WebServer(new Config());
+
+		RestUtils.shutdownGracefullyOnInterrupt(service.server, Role.WEB_SERVER);
+
+		service.start();
 	}
 
 	public void close() {

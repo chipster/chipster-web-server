@@ -27,7 +27,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 
 
 public class FileBroker {
-	
+		
 	private Logger logger = LogManager.getLogger();
 	
 	private AuthenticationClient authService;
@@ -41,6 +41,8 @@ public class FileBroker {
 	private Server server;
 
 	private HttpServer adminServer;
+
+	private StatusSource stats;
 
 	public FileBroker(Config config) {
 		this.config = config;
@@ -81,7 +83,7 @@ public class FileBroker {
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter()), "/*", null);
         
-        StatusSource stats = RestUtils.createStatisticsListener(server);
+        stats = RestUtils.createStatisticsListener(server);
 		
         sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
 		
@@ -107,6 +109,10 @@ public class FileBroker {
     		fileBroker.close();
     		System.exit(1);
     	}
+    	RestUtils.shutdownGracefullyOnInterrupt(
+    			fileBroker.server, 
+    			fileBroker.config.getInt(Config.KEY_FILE_BROKER_SHUTDOWN_TIMEOUT), 
+    			"file-broker");	
     }
 
 	public void close() {
