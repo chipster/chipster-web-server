@@ -47,7 +47,7 @@ public class RestPhenodataUtils {
 			List<MetadataEntry> datasetMetadatas = metadata.get(inputId);
 			for (MetadataEntry entry : datasetMetadatas) {
 				
-				if (!entry.getColumn().matches(ToolUtils.NAME_PATTERN)) {
+				if (entry.getColumn() != null && !entry.getColumn().matches(ToolUtils.NAME_PATTERN)) {
 					throw new IllegalArgumentException("Dataset column " + entry.getColumn() + " contains illegal characters.");
 				}
 				
@@ -55,7 +55,7 @@ public class RestPhenodataUtils {
 					throw new IllegalArgumentException("Phenodata column " + entry.getKey() + " contains illegal characters.");
 				}
 				
-				if (!entry.getValue().matches(ToolUtils.NAME_PATTERN)) {
+				if (entry.getValue() != null && !entry.getValue().matches(ToolUtils.NAME_PATTERN)) {
 					throw new IllegalArgumentException("Phenodata value " + entry.getValue() + " contains illegal characters.");
 				}
 			}
