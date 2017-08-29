@@ -16,6 +16,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -88,8 +89,10 @@ public class FileBroker {
         sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
 		
         server.start();                      
-        
-        adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, stats);
+               
+        AdminResource adminResource = new AdminResource(stats);
+    	adminResource.addFileSystem("storage", storage);
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService);
         
     }
 

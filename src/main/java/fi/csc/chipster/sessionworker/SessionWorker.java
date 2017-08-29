@@ -2,8 +2,6 @@ package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -19,7 +17,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -28,7 +25,7 @@ import fi.csc.chipster.sessiondb.RestException;
  * Main class.
  *
  */
-public class SessionWorker implements StatusSource{
+public class SessionWorker {
 
 	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
@@ -89,7 +86,7 @@ public class SessionWorker implements StatusSource{
 		
 		httpServer.start();
 		
-		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, jerseyStatisticsSource, this);
+		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, jerseyStatisticsSource);
 	}
 
 	/**
@@ -119,13 +116,5 @@ public class SessionWorker implements StatusSource{
 	
 	public HttpServer getHttpServer() {
 		return httpServer;
-	}
-
-	@Override
-	public Map<String, Object> getStatus() {
-		Map<String, Object> map = new HashMap<>();
-		
-		//map.put("connectionsCount", httpServer.getLi		return map;
-		return map;
 	}
 }

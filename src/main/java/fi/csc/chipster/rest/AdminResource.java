@@ -39,6 +39,7 @@ public class AdminResource {
 
 	private List<Class<?>> dbTables;
 	private List<StatusSource> statusSources;
+	private HashMap<String, File> fileSystems = new HashMap<>();
 		
     public AdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, StatusSource... stats) {
 		this.hibernate = hibernate;
@@ -46,6 +47,7 @@ public class AdminResource {
 		if (stats != null) {
 			this.statusSources = Arrays.asList(stats);
 		}
+		this.fileSystems.put("root", new File("."));
 	}
 
 	public AdminResource(HibernateUtil hibernate, Class<Token> dbTable, JerseyStatisticsSource statisticsListener) {
@@ -101,16 +103,26 @@ public class AdminResource {
 		return hibernate.session().createQuery(cq).getSingleResult();
 	}
 
-	public static HashMap<String, Object> getSystemStats() {
+	public HashMap<String, Object> getSystemStats() {
 		
 		HashMap<String, Object> status = new HashMap<>();
 		
 		status.put("load", ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage());
 		status.put("cores", Runtime.getRuntime().availableProcessors());
 
-		status.put("diskTotal", new File(".").getTotalSpace());
-		status.put("diskFree", new File(".").getFreeSpace());
+		for (String name : fileSystems.keySet()) {
+			collectDiskStats(status, fileSystems.get(name), name);			
+		}		
 		
 		return status;
+	}
+
+	private static void collectDiskStats(HashMap<String, Object> status, File file, String name) {
+		status.put("diskTotal,fs=" + name, file.getTotalSpace());
+		status.put("diskFree,fs=" + name, file.getFreeSpace());
+	}
+
+	public void addFileSystem(String name, File dir) {
+		this.fileSystems.put(name, dir);
 	}
 }

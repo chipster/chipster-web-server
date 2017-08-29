@@ -224,7 +224,9 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
     	logger.info("starting the admin rest server");
     	
-    	this.adminServer = RestUtils.startAdminServer(new AdminResource(this), null, Role.COMP, config, authClient);
+    	AdminResource adminResource = new AdminResource(this);
+    	adminResource.addFileSystem("work", workDir);
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient);
     			
 		sendCompAvailable();
 		
@@ -717,6 +719,8 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			status.put("runningJobCount", runningJobs.size());
 			status.put("scheduledJobCount", scheduledJobs.size());
 		}
+		
+		status.put("memoryJobTotal", this.resourceMonitor.getCurrentMem());
 		return status;
 	}
 	
