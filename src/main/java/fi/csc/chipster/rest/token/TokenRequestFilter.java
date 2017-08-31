@@ -12,6 +12,9 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.ext.Provider;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
@@ -22,6 +25,9 @@ import fi.csc.chipster.rest.exception.NotAuthorizedException;
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class TokenRequestFilter implements ContainerRequestFilter {
+	
+	@SuppressWarnings("unused")
+	private static final Logger logger = LogManager.getLogger();
 	
 	public static final String QUERY_PARAMETER_TOKEN = "token";
 	public static final String HEADER_AUTHORIZATION = "authorization";
@@ -108,21 +114,23 @@ public class TokenRequestFilter implements ContainerRequestFilter {
         
 		Token dbClientToken = null;
 		
-		if (tokenCache.containsKey(clientTokenKey)) {
-			dbClientToken = tokenCache.get(clientTokenKey);
-		} else {
-			dbClientToken = authService.getDbToken(clientTokenKey);
-			if (dbClientToken == null) {
-				throw new ForbiddenException("token not found");	
+		synchronized (tokenCache) {
+			if (tokenCache.containsKey(clientTokenKey)) {
+				dbClientToken = tokenCache.get(clientTokenKey);
+			} else {
+				dbClientToken = authService.getDbToken(clientTokenKey);
+				if (dbClientToken == null) {
+					throw new ForbiddenException("token not found");	
+				}
+				tokenCache.put(clientTokenKey, dbClientToken);
+				
+				// remove oldest first, LinkedHashMap iterates in insertion order
+				Iterator<String> iter = tokenCache.keySet().iterator();			
+				while (tokenCache.size() > CACHE_MAX_SIZE) {
+					iter.next();
+					iter.remove();
+				}			
 			}
-			tokenCache.put(clientTokenKey, dbClientToken);
-			
-			Iterator<String> iter = tokenCache.keySet().iterator();
-			while (tokenCache.size() > CACHE_MAX_SIZE) {
-				//TODO is this the oldest?
-				iter.next();
-				iter.remove();
-			}			
 		}
         
         if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
