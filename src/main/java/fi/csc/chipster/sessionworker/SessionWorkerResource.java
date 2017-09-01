@@ -121,7 +121,15 @@ public class SessionWorkerResource {
 		StaticCredentials credentials = getUserCredentials(sc);
 		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials);
 		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials);
-
+		
+		/*
+		 *  Workaround for proxy timeouts
+		 *  
+		 *  OpenShift router timeouts if it takes longer than 30 seconds before the response starts.
+		 *  Respond immediately to keep the connection open and only then extract the session.
+		 */
+		
+		/*
 		ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
 		
 		if (sessionData == null) {
@@ -138,6 +146,45 @@ public class SessionWorkerResource {
 		output.put("warnings", warnings);
 
 		return Response.ok(output).build();
+		*/
+		
+		return Response.ok(new StreamingOutput() {
+	        @Override
+	        public void write(OutputStream output) throws IOException, WebApplicationException {
+	        	try {
+	        		// respond with space characters that will be ignored in json deserialization
+	        		String spaces = " ";
+	        			        	
+	        		// craete a string of 16k bytes, because Jersey will buffer 8k before sending anything
+	        		for (int i = 0; i < 14; i++) {
+	        			spaces = spaces + spaces;
+	        		}
+	        		
+	        		output.write(spaces.getBytes());
+	        		output.flush();
+	        		
+	        		ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
+	    		
+		    		if (sessionData == null) {
+		    			sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
+		    		}
+		    		
+		    		if (sessionData == null) {
+		    			throw new BadRequestException("unrecognized file format");
+		    		}
+		    		
+		    		ArrayList<String> warnings = updateSession(sessionDb, sessionId, sessionData);
+		    		
+		    		HashMap<String, ArrayList<String>> response = new HashMap<>();
+		    		response.put("warnings", warnings);
+	
+		    		output.write(RestUtils.asJson(warnings).getBytes());
+		    		output.close();
+				} catch (RestException e) {					
+					logger.error("session extraction failed", e);
+				}
+	        }
+        }).build();
     }
 
 	
