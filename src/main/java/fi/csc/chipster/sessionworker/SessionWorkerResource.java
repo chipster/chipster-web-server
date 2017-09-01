@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -149,19 +151,36 @@ public class SessionWorkerResource {
 		*/
 		
 		return Response.ok(new StreamingOutput() {
+			
+			private CountDownLatch latch = new CountDownLatch(1);
+			
 	        @Override
 	        public void write(OutputStream output) throws IOException, WebApplicationException {
 	        	try {
-	        		// respond with space characters that will be ignored in json deserialization
-	        		String spaces = " ";
-	        			        	
-	        		// craete a string of 16k bytes, because Jersey will buffer 8k before sending anything
-	        		for (int i = 0; i < 14; i++) {
-	        			spaces = spaces + spaces;
-	        		}
-	        		
-	        		output.write(spaces.getBytes());
-	        		output.flush();
+	        		// keep sending 1k bytes every second to keep the connection open
+	        		// jersey will buffer for 8kB and the OpenShift router expects to get the first bytes in 30 seconds
+	        		new Thread(new Runnable() {						
+						@Override
+						public void run() {
+							try {
+								// respond with space characters that will be ignored in json deserialization
+								String spaces = " ";
+								
+								for (int i = 0; i < 10; i++) {
+									spaces = spaces + spaces;
+								}
+								
+								spaces += "\n";
+								
+								while(!latch.await(1, TimeUnit.SECONDS)) {
+									output.write(spaces.getBytes());
+									output.flush();
+								}
+							} catch (InterruptedException | IOException e) {
+								logger.error("error in keep-alive thread", e);
+							}
+						}
+					}).start();
 	        		
 	        		ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
 	    		
@@ -178,9 +197,11 @@ public class SessionWorkerResource {
 		    		HashMap<String, ArrayList<String>> response = new HashMap<>();
 		    		response.put("warnings", warnings);
 	
+		    		latch.countDown();
 		    		output.write(RestUtils.asJson(warnings).getBytes());
 		    		output.close();
-				} catch (RestException e) {					
+				} catch (RestException e) {
+					latch.countDown();
 					logger.error("session extraction failed", e);
 				}
 	        }
