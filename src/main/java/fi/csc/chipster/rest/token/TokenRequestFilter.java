@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 
 import javax.annotation.Priority;
 import javax.ws.rs.ForbiddenException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
@@ -82,8 +84,11 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			//System.out.println("token validation " + (System.currentTimeMillis() - t) + " ms");
 			
 		} catch (ForbiddenException e) {
+			// unable to check the user's token because auth didn't accept our own token
+			throw new InternalServerErrorException("failed to check the token", e);
+		} catch (NotFoundException e) {
 			if (authenticationRequired) {
-				throw e;
+				throw new ForbiddenException(e);
 			} else {
 				// DatasetTokens have to be passed through
 				requestContext.setSecurityContext(new AuthSecurityContext(
@@ -120,7 +125,8 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			} else {
 				dbClientToken = authService.getDbToken(clientTokenKey);
 				if (dbClientToken == null) {
-					throw new ForbiddenException("token not found");	
+					// auth respods with NotFoundException
+					throw new NotFoundException("token not found");	
 				}
 				tokenCache.put(clientTokenKey, dbClientToken);
 				
@@ -134,7 +140,8 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		}
         
         if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
-        	throw new ForbiddenException();
+        	// auth respods with NotFoundException
+        	throw new NotFoundException("token expired");
         }
 		
 		return new AuthPrincipal(dbClientToken.getUsername(), clientTokenKey, dbClientToken.getRoles());

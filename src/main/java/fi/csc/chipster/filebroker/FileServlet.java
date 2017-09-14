@@ -210,8 +210,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	private String getToken(HttpServletRequest request) {
 		
 		String tokenParameter = request.getParameter(TokenRequestFilter.QUERY_PARAMETER_TOKEN);
-		String tokenHeader = request.getHeader(TokenRequestFilter.HEADER_AUTHORIZATION);
-			
+		String tokenHeader = request.getHeader(TokenRequestFilter.HEADER_AUTHORIZATION);			
+
 		return TokenRequestFilter.getToken(tokenHeader, tokenParameter);
 	}
 

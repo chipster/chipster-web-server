@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.NotFoundException;
@@ -131,7 +130,8 @@ public class TokenResource {
 		if (dbToken.getValid().isAfter(LocalDateTime.now())) {
 			return Response.ok(dbToken).build();
 		} else {
-			throw new ForbiddenException("token expired");
+			// not a ForbiddenException because the server's token was authenticated correctly in the TokenRequestFilter 
+			throw new NotFoundException("token expired");
 		}				
     }	
 

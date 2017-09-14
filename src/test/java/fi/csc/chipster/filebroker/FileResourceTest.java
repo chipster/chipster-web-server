@@ -131,7 +131,7 @@ public class FileResourceTest {
 	
 	@Test
     public void putTokenFail() throws FileNotFoundException, RestException {
-		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());  
 		assertEquals(403, uploadFile(launcher.getTokenFailTarget(Role.FILE_BROKER), sessionId1, datasetId).getStatus());		
     }
 	
