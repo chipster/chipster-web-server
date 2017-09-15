@@ -233,7 +233,12 @@ public class SessionResource {
 		// see the note about datasets above
 		for (Job job : auth.getSession().getJobs().values()) {
 			getJobResource(sessionId).deleteJob(job, hibernateSession);
-		}						
+		}
+		
+		// see the note about datasets above
+		for (Rule rule : auth.getSession().getRules()) {
+			hibernateSession.delete(rule);
+		}
 		
 		hibernateSession.delete(auth.getSession());
 
