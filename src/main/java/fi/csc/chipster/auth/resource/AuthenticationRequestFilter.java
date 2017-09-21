@@ -33,9 +33,9 @@ import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationExceptio
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
-	
+
 	private static final Logger logger = LogManager.getLogger();
-	
+
 	private HibernateUtil hibernate;
 
 	private HashMap<String, String> serviceAccounts;
@@ -47,34 +47,33 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
 		this.config = config;
-		
+
 		serviceAccounts = new HashMap<>();	
-				
+
 		for (Entry<String, String> entry : config.getServicePasswords().entrySet()) {
 			serviceAccounts.put(entry.getKey(), entry.getValue());
 		}
-		
+
 		authenticationProvider = new JaasAuthenticationProvider(false);
 	}
 
 	@Override
 	public void filter(ContainerRequestContext requestContext) throws IOException {    	
-
 		if ("OPTIONS".equals(requestContext.getMethod())) {
-			
+
 			// CORS preflight checks require unauthenticated OPTIONS
 			return;
 		}
 		String authHeader = requestContext.getHeaderString("authorization");
-		
+
 		if (authHeader == null) {
 			throw new NotAuthorizedException("no authorization header found");
 		}
-		
+
 		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
-		
+
 		AuthPrincipal principal = null;
-		
+
 		if (TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
 			// throws an exception if fails
 			principal = tokenAuthentication(parser.getPassword());
@@ -87,7 +86,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
 		requestContext.setSecurityContext(sc);		
 	}
-	
+
 	public AuthPrincipal tokenAuthentication(String tokenKey) {
 		getHibernate().beginTransaction();
 		UUID uuid;
@@ -101,28 +100,28 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			throw new ForbiddenException();
 		}
 		getHibernate().commit();
-		
+
 		return new AuthPrincipal(token.getUsername(), tokenKey, token.getRoles());
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {
-		
+
 		// a small delay to slow down brute force attacks
 		try {
 			Thread.sleep(500);
 		} catch (InterruptedException e) {
 			logger.warn(e);
 		}
-		
+
 		// check that there is no extra white space in the username, because if authenticationProvider accepts it,
 		// it would create a new user in Chipster
 		if (!username.trim().equals(username)) {
 			throw new ForbiddenException("white space in username");
 		}
-		
+
 		if (serviceAccounts.containsKey(username)) { 
 			if (serviceAccounts.get(username).equals(password)) {		
-			// authenticate with username/password ok
+				// authenticate with username/password ok
 				return new AuthPrincipal(username, getRoles(username));
 			}
 			// don't let other providers to authenticate internal usernames
@@ -134,7 +133,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		}
 		throw new ForbiddenException("wrong username or password");
 	}
-	
+
 	public HashSet<String> getRoles(String username) {
 
 		String[] roles;
@@ -147,7 +146,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 				roles = new String[] { Role.PASSWORD, Role.CLIENT};
 			}
 		}
-		
+
 		return new HashSet<>(Arrays.asList(roles));
 	}
 
