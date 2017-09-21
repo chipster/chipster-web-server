@@ -138,7 +138,7 @@ public class TokenResource {
 
 		failIfTokenExpired(dbToken);
 		dbToken.setValid(dbToken.getValid().plusDays(1));
-		
+
 		return Response.ok(dbToken).build();
 	}
 
@@ -160,7 +160,7 @@ public class TokenResource {
 
 		return Response.noContent().build();
 	}
-	
+
 
 	private void failIfTokenExpired(Token token) {
 		if (!token.getValid().isAfter(LocalDateTime.now())) {
@@ -192,10 +192,6 @@ public class TokenResource {
 
 		return dbToken;
 	}
-
-
-
-
 
 	private HibernateUtil getHibernate() {
 		return hibernate;
