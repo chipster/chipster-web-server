@@ -29,56 +29,56 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 
 @Path("tokens")
 public class TokenResource {
-	
+
 	public static final String TOKENS = "tokens";
-	
+
 	private static final String TOKEN_HEADER = "chipster-token";
 
 	private static Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
-		
+
 	// notifications
-//    @GET
-//    @Path("{id}/events")
-//    @Produces(SseFeature.SERVER_SENT_EVENTS)
-//    public EventOutput listenToBroadcast(@PathParam("id") String id, @QueryParam("username") String username) {
-//		Hibernate.beginTransaction();
-//		checkReadAuthorization(username, id);
-//		Hibernate.commit();
-//        return Events.getEventOutput();
-//    }
-	
-    public TokenResource(HibernateUtil hibernate) {
+	//    @GET
+	//    @Path("{id}/events")
+	//    @Produces(SseFeature.SERVER_SENT_EVENTS)
+	//    public EventOutput listenToBroadcast(@PathParam("id") String id, @QueryParam("username") String username) {
+	//		Hibernate.beginTransaction();
+	//		checkReadAuthorization(username, id);
+	//		Hibernate.commit();
+	//        return Events.getEventOutput();
+	//    }
+
+	public TokenResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
 
 	@POST
-    @RolesAllowed(Role.PASSWORD)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Transaction
-    public Response createToken(@Context SecurityContext sc) {
-    	
-    	// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
-    	
-    	// this shouldn't be executed on every request
-    	cleanUp();
-    	
-    	AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
-    	
-    	String username = sc.getUserPrincipal().getName();
-    	    
-    	if (username == null) {
-    		// RolesAllowed prevents this
-    		throw new NotAuthorizedException("username is null");
-    	}
+	@RolesAllowed(Role.PASSWORD)
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response createToken(@Context SecurityContext sc) {
 
-    	Token token = createToken(username, principal.getRoles());
+		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
+
+		// this shouldn't be executed on every request
+		cleanUp();
+
+		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
+
+		String username = sc.getUserPrincipal().getName();
+
+		if (username == null) {
+			// RolesAllowed prevents this
+			throw new NotAuthorizedException("username is null");
+		}
+
+		Token token = createToken(username, principal.getRoles());
 
 		getHibernate().session().save(token);
-				
+
 		return Response.ok(token).build();
-    }
+	}
 
 	public Token createToken(String username, HashSet<String> roles) {
 		//FIXME has to be cryptographically secure
@@ -87,11 +87,11 @@ public class TokenResource {
 		if (roles.contains(Role.SERVER)) {
 			valid = LocalDateTime.now().plusMonths(1);
 		} else {
-			valid = LocalDateTime.now().plusMinutes(2);
+			valid = LocalDateTime.now().plusDays(7);
 		}
-		
+
 		String rolesJson = RestUtils.asJson(roles);
-		
+
 		return new Token(username, tokenKey, valid, rolesJson);
 	}
 
@@ -99,11 +99,11 @@ public class TokenResource {
 	 * Remove all expired tokens
 	 */
 	private void cleanUp() {
-		
+
 		int rows = getHibernate().session()
-			.createQuery("delete from Token where valid < :timestamp")
-			.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
-		
+				.createQuery("delete from Token where valid < :timestamp")
+				.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
+
 		if (rows > 0) {
 			logger.info("deleted " + rows + " expired token(s)");
 		}
@@ -111,29 +111,62 @@ public class TokenResource {
 
 	@GET
 	@RolesAllowed(Role.SERVER)
-    @Produces(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken, @Context SecurityContext sc) {
-		
-		if (requestToken == null) {
-			throw new NotFoundException("chipster-token header is null");
-		}
-		
-		UUID uuid = parseUUID(requestToken);
-		
-		Token dbToken = getHibernate().session().get(Token.class, uuid);
 
-		if (dbToken == null) {
-			throw new NotFoundException("token not found");
-		}
-		
+		Token dbToken = getToken(requestToken);
+
 		if (dbToken.getValid().isAfter(LocalDateTime.now())) {
 			return Response.ok(dbToken).build();
 		} else {
 			// not a ForbiddenException because the server's token was authenticated correctly in the TokenRequestFilter 
 			throw new NotFoundException("token expired");
 		}				
-    }	
+	}	
+
+	@POST
+	@Path("{refresh}")
+	@RolesAllowed({Role.CLIENT, Role.SERVER})
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response refreshToken(@Context SecurityContext sc) {
+
+		String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
+		Token dbToken = getToken(token);
+
+		failIfTokenExpired(dbToken);
+		dbToken.setValid(dbToken.getValid().plusDays(1));
+		
+		return Response.ok(dbToken).build();
+	}
+
+
+	@DELETE
+	@RolesAllowed(Role.CLIENT)
+	@Transaction
+	public Response delete(@Context SecurityContext sc) {
+
+		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
+
+		UUID uuid = parseUUID(principal.getTokenKey());
+
+		Token dbToken = getHibernate().session().get(Token.class, uuid);
+		if (dbToken == null) {
+			throw new NotFoundException();
+		}
+		getHibernate().session().delete(dbToken);
+
+		return Response.noContent().build();
+	}
+	
+
+	private void failIfTokenExpired(Token token) {
+		if (!token.getValid().isAfter(LocalDateTime.now())) {
+			throw new ForbiddenException("token expired");
+		}
+	}
+
 
 	private UUID parseUUID(String token) {
 		try {
@@ -143,24 +176,26 @@ public class TokenResource {
 		}
 	}
 
-	@DELETE
-	@RolesAllowed(Role.CLIENT)
-	@Transaction
-    public Response delete(@Context SecurityContext sc) {
-
-		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
-		
-		UUID uuid = parseUUID(principal.getTokenKey());
-			
-		Token dbToken = getHibernate().session().get(Token.class, uuid);
-		if (dbToken == null) {
-			throw new NotFoundException();
+	private Token getToken(String tokenString) {
+		if (tokenString == null) {
+			throw new NotFoundException("chipster-token header is null");
 		}
-		getHibernate().session().delete(dbToken);
-			
-		return Response.noContent().build();
-    }
-	
+
+		UUID uuid = parseUUID(tokenString);
+
+		Token dbToken = getHibernate().session().get(Token.class, uuid);
+
+		if (dbToken == null) {
+			throw new NotFoundException("token not found");
+		}
+
+		return dbToken;
+	}
+
+
+
+
+
 	private HibernateUtil getHibernate() {
 		return hibernate;
 	}
