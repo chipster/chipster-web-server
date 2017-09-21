@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.NotFoundException;
