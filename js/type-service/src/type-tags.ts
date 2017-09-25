@@ -25,7 +25,6 @@ export const Tags = {
   GZIP: new Tag('GZIP', ['.gz']),
   VCF: new Tag('VCF', ['.vcf']),
   BAM: new Tag('BAM', ['.bam']),
-  BAI: new Tag('BAI', ['.bai']),
   QUAL: new Tag('QUAL', ['.qual']),
   MOTHUR_OLIGOS: new Tag('MOTHUR_OLIGOS', ['.oligos']),
   MOTHUR_NAMES: new Tag('MOTHUR_NAMES', ['.names']),
