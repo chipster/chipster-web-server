@@ -54,7 +54,7 @@ export class TypeTags {
     // add simple type tags based on file extensions
     for (let tagKey in Tags) { // for-in to iterate object keys
       for (let extension of Tags[tagKey].extensions) { // for-of to iterate array items
-        if (name.endsWith(extension)) {
+        if (name && name.endsWith(extension)) {
           typeTags[tagKey] = null;
         }
       }

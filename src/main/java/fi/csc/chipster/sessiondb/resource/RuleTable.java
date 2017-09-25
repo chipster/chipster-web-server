@@ -27,8 +27,8 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class RuleTable {	
@@ -237,10 +237,10 @@ public class RuleTable {
 			String username = tokenRequestFilter.tokenAuthentication(userToken).getName();
 
 			checkAuthorization(username, sessionId, datasetId, requireReadWrite);
-		} catch (ForbiddenException e) {
+		} catch (NotFoundException e) {
 			if (requireReadWrite) {
 				// write access is allowed only with the first method
-				throw e;
+				throw new ForbiddenException(e);
 			} else {
 				// read access to a specific dataset is possible with a DatasetToken 
 				datasetTokenTable.checkAuthorization(UUID.fromString(userToken), sessionId, datasetId);

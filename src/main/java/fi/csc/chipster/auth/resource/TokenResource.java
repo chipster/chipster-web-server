@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.NotFoundException;
@@ -84,8 +83,13 @@ public class TokenResource {
 	public Token createToken(String username, HashSet<String> roles) {
 		//FIXME has to be cryptographically secure
 		UUID tokenKey = RestUtils.createUUID();
-		LocalDateTime valid = LocalDateTime.now().plusDays(1);
-
+		LocalDateTime valid;
+		if (roles.contains(Role.SERVER)) {
+			valid = LocalDateTime.now().plusMonths(1);
+		} else {
+			valid = LocalDateTime.now().plusMinutes(2);
+		}
+		
 		String rolesJson = RestUtils.asJson(roles);
 		
 		return new Token(username, tokenKey, valid, rolesJson);
@@ -126,7 +130,8 @@ public class TokenResource {
 		if (dbToken.getValid().isAfter(LocalDateTime.now())) {
 			return Response.ok(dbToken).build();
 		} else {
-			throw new ForbiddenException("token expired");
+			// not a ForbiddenException because the server's token was authenticated correctly in the TokenRequestFilter 
+			throw new NotFoundException("token expired");
 		}				
     }	
 
