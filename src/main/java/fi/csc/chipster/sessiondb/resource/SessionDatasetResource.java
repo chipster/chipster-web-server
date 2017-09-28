@@ -39,6 +39,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -49,7 +50,6 @@ public class SessionDatasetResource {
 	
 	public static final String QUERY_PARAM_READ_WRITE = "read-write";
 
-	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
 	final private UUID sessionId;
@@ -226,6 +226,14 @@ public class SessionDatasetResource {
 
 	public void deleteDataset(Dataset dataset, org.hibernate.Session hibernateSession) {
 		
+		// clean up Dataset
+		int rows = getHibernate().session()
+				.createQuery("delete from " + DatasetToken.class.getSimpleName() + " where dataset=:dataset")
+				.setParameter("dataset", dataset).executeUpdate();
+		
+		logger.debug("deleted " + rows + " dataset tokens");
+
+		
 		hibernateSession.delete(dataset);
 		
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
@@ -236,7 +244,7 @@ public class SessionDatasetResource {
 					.createQuery("from Dataset where file=:file")
 					.setParameter("file", dataset.getFile())
 					.list();
-			
+						
 			// don't care about the dataset that is being deleted
 			// why do we still see it?
 			fileDatasets.remove(dataset);
@@ -247,6 +255,7 @@ public class SessionDatasetResource {
 				// only for file-broker
 				sessionResource.publish(SessionDb.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
 			}
+			
 		}
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE), hibernateSession);
 	}
