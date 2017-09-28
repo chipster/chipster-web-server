@@ -12,7 +12,6 @@ import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
-import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 
@@ -91,9 +90,7 @@ public class WebServer {
         }
         
         // let the app handle pushState URLs
-        ErrorPageErrorHandler errorHandler = new ErrorPageErrorHandler();
-        errorHandler.addErrorPage(404, "/" + INDEX_HTML);
-        contextHandler.setErrorHandler(errorHandler);
+        contextHandler.setErrorHandler(new NotFoundErrorHandler());
                 
         // Add the ResourceHandler to the server.
         HandlerList handlers = new HandlerList();
