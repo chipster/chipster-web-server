@@ -141,7 +141,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		}
 
 		if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
-			// auth respons with NotFoundException
+			// auth responses with NotFoundException
 			throw new NotFoundException("token expired");
 		}
 
