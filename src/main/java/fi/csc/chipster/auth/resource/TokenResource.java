@@ -1,7 +1,14 @@
 package fi.csc.chipster.auth.resource;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
@@ -35,6 +42,21 @@ public class TokenResource {
 
 	private static final String TOKEN_HEADER = "chipster-token";
 
+	private static final long CLIENT_TOKEN_LIFETIME = 3;
+	private static final TemporalUnit CLIENT_TOKEN_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+	
+	private static final long CLIENT_TOKEN_MAX_LIFETIME = 10;
+	private static final TemporalUnit CLIENT_TOKEN_MAX_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+
+	private static final long SERVER_TOKEN_LIFETIME = 30;
+	private static final TemporalUnit SERVER_TOKEN_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+
+	private static final long SERVER_TOKEN_MAX_LIFETIME = 90;
+	private static final TemporalUnit SERVER_TOKEN_MAX_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+	
+	private Timer cleanUpTimer;
+	private static int CLEAN_UP_INTERVAL = 1000*60*30; // ms
+	
 	private static Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
@@ -52,6 +74,15 @@ public class TokenResource {
 
 	public TokenResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
+		this.cleanUpTimer = new Timer("token db cleanup", true);
+		this.cleanUpTimer.schedule(new TimerTask() {
+			
+			@Override
+			public void run() {
+				cleanUp();
+				
+			}
+		}, 0, CLEAN_UP_INTERVAL);
 	}
 
 	@POST
@@ -61,9 +92,6 @@ public class TokenResource {
 	public Response createToken(@Context SecurityContext sc) {
 
 		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
-
-		// this shouldn't be executed on every request
-		cleanUp();
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
 
@@ -84,32 +112,68 @@ public class TokenResource {
 	public Token createToken(String username, HashSet<String> roles) {
 		//FIXME has to be cryptographically secure
 		UUID tokenKey = RestUtils.createUUID();
-		LocalDateTime valid;
-		if (roles.contains(Role.SERVER)) {
-			valid = LocalDateTime.now().plusMonths(1);
-		} else {
-			valid = LocalDateTime.now().plusDays(7);
-		}
-
 		String rolesJson = RestUtils.asJson(roles);
+		LocalDateTime now = LocalDateTime.now();
 
-		return new Token(username, tokenKey, valid, rolesJson);
+		Token token = new Token(username, tokenKey, now, now, rolesJson);
+		token.setValid(getTokenNextExpiration(token));
+		return token;
 	}
+
 
 	/**
-	 * Remove all expired tokens
+	 * Clean up expired tokens from db
+	 * 
+	 * TODO Could be done using hql only
+	 * 
 	 */
 	private void cleanUp() {
+		Instant begin = Instant.now();
+		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime clientOldestValidCreationTime = now.minus(Duration.of(CLIENT_TOKEN_MAX_LIFETIME, CLIENT_TOKEN_MAX_LIFETIME_UNIT));
+		LocalDateTime serverOldestValidCreationTime = now.minus(Duration.of(SERVER_TOKEN_MAX_LIFETIME, SERVER_TOKEN_MAX_LIFETIME_UNIT));
 
-		int rows = getHibernate().session()
-				.createQuery("delete from Token where valid < :timestamp")
-				.setParameter("timestamp", LocalDateTime.now()).executeUpdate();
+		logger.info("cleaning up expired tokens");
+		logger.info("client token max lifetime is " + CLIENT_TOKEN_MAX_LIFETIME + " " + CLIENT_TOKEN_MAX_LIFETIME_UNIT.toString() +
+				", deleting client tokens created before " + clientOldestValidCreationTime);
+		logger.info("server token max lifetime is " + SERVER_TOKEN_MAX_LIFETIME + " " + SERVER_TOKEN_MAX_LIFETIME_UNIT.toString() +
+				" deleting server tokens created before " + serverOldestValidCreationTime);
+		
+		getHibernate().beginTransaction();
+		List<Token> tokens = getHibernate().session().createQuery("from Token", Token.class).list();
+		int deleteCount = 0;
+		for (Token t: tokens) {
 
-		if (rows > 0) {
-			logger.info("deleted " + rows + " expired token(s)");
+			// expired
+			if (t.getValid().isBefore(now)) {
+				logger.info("deleting expired token " + t.getTokenKey() + " " + t.getUsername() + ", was valid until " + t.getValid());
+				getHibernate().session().delete(t);
+				deleteCount++;
+			} 
+			
+			// max lifetime reached
+			else {
+				boolean delete = false;
+				if (t.getRoles().contains(Role.SERVER)) {
+					if (t.getCreationTime().isBefore(serverOldestValidCreationTime)) {
+						delete = true;
+					}
+				} else if (t.getCreationTime().isBefore(clientOldestValidCreationTime)) { 
+					delete = true;
+				}
+
+				if (delete) {
+					logger.info("deleting token " + t.getTokenKey() + " " + t.getUsername() + ", max life time reached, was created " + t.getCreationTime());
+					getHibernate().session().delete(t);
+					deleteCount++;
+				}
+			}
 		}
+		getHibernate().commit();
+		logger.info("deleted " + deleteCount + " expired token(s) in " + Duration.between(begin, Instant.now()).toMillis() + " ms");
 	}
 
+	
 	@GET
 	@RolesAllowed(Role.SERVER)
 	@Produces(MediaType.APPLICATION_JSON)
@@ -135,9 +199,9 @@ public class TokenResource {
 
 		String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
 		Token dbToken = getToken(token);
-
+		
 		failIfTokenExpired(dbToken);
-		dbToken.setValid(dbToken.getValid().plusDays(1));
+		dbToken.setValid(getTokenNextExpiration(dbToken));
 
 		return Response.ok(dbToken).build();
 	}
@@ -166,9 +230,37 @@ public class TokenResource {
 		if (!token.getValid().isAfter(LocalDateTime.now())) {
 			throw new ForbiddenException("token expired");
 		}
+
+		// token is (was) valid but token max lifetime may have been changed and could result in expiration
+		if (token.getRoles().contains(Role.SERVER) &&
+				token.getValid().isAfter(token.getCreationTime().plus(SERVER_TOKEN_MAX_LIFETIME, SERVER_TOKEN_MAX_LIFETIME_UNIT)) ||
+				token.getRoles().contains(Role.CLIENT) &&
+				token.getValid().isAfter(token.getCreationTime().plus(CLIENT_TOKEN_MAX_LIFETIME, CLIENT_TOKEN_MAX_LIFETIME_UNIT))) {
+			throw new ForbiddenException("token expired");
+		}
 	}
 
+	private LocalDateTime getTokenNextExpiration(Token token) {
+		LocalDateTime nextCandidateExpiration = getTokenNextCandidateExpiration(token);
+		LocalDateTime finalExpiration = getTokenFinalExpiration(token);
+		
+		return nextCandidateExpiration.isBefore(finalExpiration) ? nextCandidateExpiration: finalExpiration;
+	}
 
+	private LocalDateTime getTokenNextCandidateExpiration(Token token) {
+		return token.getRoles().contains(Role.SERVER) ? 
+				LocalDateTime.now().plus(SERVER_TOKEN_LIFETIME, SERVER_TOKEN_LIFETIME_UNIT) : 
+					LocalDateTime.now().plus(CLIENT_TOKEN_LIFETIME, CLIENT_TOKEN_LIFETIME_UNIT);
+		
+	}
+	
+	private LocalDateTime getTokenFinalExpiration(Token token) {
+		return token.getRoles().contains(Role.SERVER) ? 
+				token.getCreationTime().plus(SERVER_TOKEN_MAX_LIFETIME, SERVER_TOKEN_MAX_LIFETIME_UNIT) : 
+					token.getCreationTime().plus(CLIENT_TOKEN_MAX_LIFETIME, CLIENT_TOKEN_MAX_LIFETIME_UNIT);
+	}
+	
+	
 	private UUID parseUUID(String token) {
 		try {
 			return UUID.fromString(token);

@@ -19,7 +19,7 @@ public class Token {
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	private UUID tokenKey;
 	private String username;
-	private LocalDateTime valid;
+	private LocalDateTime valid, creationTime; // FIXME replace LocalDateTime with Instant, could cause problems with jersey/jackson
 	private String rolesJson;
 	
 	public Token() {
@@ -27,10 +27,11 @@ public class Token {
 	}
 	
 	public Token(String username, UUID token,
-			LocalDateTime valid, String rolesJson) {
+			LocalDateTime valid, LocalDateTime creationTime, String rolesJson) {
 		this.username = username;
 		this.tokenKey = token;
 		this.valid = valid;
+		this.creationTime = creationTime;
 		this.setRolesJson(rolesJson);
 	}
 	public String getUsername() {
@@ -63,5 +64,13 @@ public class Token {
 	@SuppressWarnings("unchecked")
 	public HashSet<String> getRoles() {
 		return RestUtils.parseJson(HashSet.class, rolesJson);
+	}
+
+	public LocalDateTime getCreationTime() {
+		return creationTime;
+	}
+
+	public void setCreationTime(LocalDateTime creationTime) {
+		this.creationTime = creationTime;
 	}
 }
