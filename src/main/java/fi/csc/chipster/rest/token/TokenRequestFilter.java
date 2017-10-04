@@ -44,7 +44,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	private AuthenticationClient authService;
 	private boolean passwordRequired = true;
 
-	private Timer tokenCacheTimer = new Timer();
+	private Timer tokenCacheTimer = new Timer("token cache cleanup", true);
 
 	public TokenRequestFilter(AuthenticationClient authService) {
 		this.authService = authService;
@@ -141,7 +141,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		}
 
 		if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
-			// auth respods with NotFoundException
+			// auth respons with NotFoundException
 			throw new NotFoundException("token expired");
 		}
 
