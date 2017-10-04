@@ -86,11 +86,16 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-1.2-api:2.4.1"
 
     // jersey
-    compile "org.glassfish.jersey:jersey-bom:2.26-b03"
-    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.26-b03"
-    //compile "org.glassfish.jersey.containers:jersey-container-servlet:2.26-b03" // Jersey in Jetty
-    compile "org.glassfish.jersey.media:jersey-media-json-jackson:2.26-b03"
-    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26-b03" // JAX-RS in Jetty
+    compile "org.glassfish.jersey:jersey-bom:2.26"
+    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.26"
+    //compile "org.glassfish.jersey.containers:jersey-container-servlet:2.26" // Jersey in Jetty
+    compile "org.glassfish.jersey.media:jersey-media-json-jackson:2.26"
+    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26" // JAX-RS in Jetty
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.9.1"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.1"
+    compile "com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.1"
+	compile group: 'com.fasterxml.jackson.jaxrs', name: 'jackson-jaxrs-json-provider', version: '2.9.1'
+	compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.26'    
 
     // hibernate
     compile "org.hibernate:hibernate-java8:5.2.10.Final"
@@ -99,7 +104,7 @@ dependencies {
 
     // websockets
     compile "javax.websocket:javax.websocket-api:+"
-    compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.2.+"
+    compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.4.+"
     compile "org.glassfish.tyrus:tyrus-client:+"
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
 
@@ -111,8 +116,8 @@ dependencies {
 
 	// other
 	// jetty version set to latest stable release
-	compile "org.eclipse.jetty:jetty-jmx:9.2.+"
-    compile "org.eclipse.jetty:jetty-proxy:9.2.+"
+	compile "org.eclipse.jetty:jetty-jmx:9.4.+"
+    compile "org.eclipse.jetty:jetty-proxy:9.4.+"
     compile "commons-io:commons-io:2.4"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
     compile "net.sourceforge.argparse4j:argparse4j:0.7.0"
