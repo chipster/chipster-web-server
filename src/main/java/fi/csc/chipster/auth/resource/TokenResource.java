@@ -232,11 +232,9 @@ public class TokenResource {
 		}
 
 		// token is (was) valid but token max lifetime may have been changed and could result in expiration
-		if (token.getRoles().contains(Role.SERVER) &&
-				token.getValid().isAfter(token.getCreationTime().plus(SERVER_TOKEN_MAX_LIFETIME, SERVER_TOKEN_MAX_LIFETIME_UNIT)) ||
-				token.getRoles().contains(Role.CLIENT) &&
-				token.getValid().isAfter(token.getCreationTime().plus(CLIENT_TOKEN_MAX_LIFETIME, CLIENT_TOKEN_MAX_LIFETIME_UNIT))) {
-			throw new ForbiddenException("token expired");
+		// unlikely to happen if max lifetime change needs server restart as expired tokens are cleaned up at startup
+		if (getTokenFinalExpiration(token).isBefore(LocalDateTime.now())) {
+			throw new ForbiddenException("token expired, max lifetime reached");
 		}
 	}
 
