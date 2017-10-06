@@ -88,6 +88,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 
 	public AuthPrincipal tokenAuthentication(String tokenKey) {
+		// FIXME fail if token expired??
 		getHibernate().beginTransaction();
 		UUID uuid;
 		try {
