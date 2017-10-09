@@ -9,10 +9,9 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -57,17 +56,8 @@ public class WebServer {
         connector.setPort(baseUri.getPort());
         connector.setHost(baseUri.getHost());
         server.addConnector(connector);
- 
-        // Create the ResourceHandler. It is the object that will actually handle the request for a given file. It is
-        // a Jetty Handler object so it is suitable for chaining with other handlers as you will see in other examples.
-        ResourceHandler resourceHandler = new ResourceHandler();
-        // Configure the ResourceHandler. Setting the resource base indicates where the files should be served out of.
-        // In this example it is the current directory but it can be configured to anything that the jvm has access to.
-        resourceHandler.setDirectoriesListed(true);
-        resourceHandler.setWelcomeFiles(new String[]{ INDEX_HTML });
         
         String rootPath = config.getString(Config.KEY_WEB_SERVER_WEB_ROOT_PATH);
-        resourceHandler.setResourceBase(rootPath);
         
         File root = new File(rootPath);
         logger.info("web root: " + root.getCanonicalPath());
@@ -76,10 +66,15 @@ public class WebServer {
         	throw new IllegalArgumentException("web root " + rootPath + " doesn't exist");
         }
                 
-        // some ContextHandler is needed to enable symlinks and 
-        // the ErrorHandler assumes that there is a ServletContext available 
-        ServletContextHandler contextHandler = new ServletContextHandler();
-        contextHandler.setHandler(resourceHandler);
+        // let the app handle pushState URLs
+        ForwardingResourceHandler forwardingResourceHandler = new ForwardingResourceHandler();
+        forwardingResourceHandler.setDirectoriesListed(false);
+        forwardingResourceHandler.setWelcomeFiles(new String[] { INDEX_HTML });
+        forwardingResourceHandler.setResourceBase(rootPath);
+        
+        // some ContextHandler is needed to enable symlinks and  
+        ContextHandler contextHandler = new ContextHandler();
+		contextHandler.setHandler(forwardingResourceHandler );
         contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
         
         // generate a better error message if the ErrorHandler page is missing instead of the 
@@ -87,14 +82,11 @@ public class WebServer {
         File indexFile = new File(root, INDEX_HTML); 
         if (!indexFile.exists()) {
         	logger.warn("index.html " + indexFile + " doesn't exist");
-        }
-        
-        // let the app handle pushState URLs
-        contextHandler.setErrorHandler(new NotFoundErrorHandler());
+        }     
                 
         // Add the ResourceHandler to the server.
         HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[] { contextHandler, new DefaultHandler() });
+        handlers.setHandlers(new Handler[] { contextHandler,  new DefaultHandler() });
         
         server.setHandler(handlers);
         
