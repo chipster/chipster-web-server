@@ -1,9 +1,15 @@
 package fi.csc.chipster.auth;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Client;
@@ -31,31 +37,48 @@ public class AuthenticationClient {
 
 	private ServiceLocatorClient serviceLocator;
 
-	private UUID token;
+	private Token token;
+	private String username;
+	private String password;
 
 	private List<String> authenticationServiceUris;
+	
+	private Timer tokenRefreshTimer;
+	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(1, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER
 
 	public AuthenticationClient(ServiceLocatorClient serviceLocator, String username, String password) {
 		this.serviceLocator = serviceLocator;
-		
 		construct(username, password);
 	}
 	
-	public AuthenticationClient(String authUri, String username,
-			String password) {
+	public AuthenticationClient(String authUri, String username, String password) {
 		this.authenticationServiceUris = Arrays.asList(new String[] {authUri});
-		
 		construct(username, password);
 	}
 
-	public AuthenticationClient(List<String> auths, String username,
-			String password) {
+	public AuthenticationClient(List<String> auths, String username, String password) {
 		this.authenticationServiceUris = auths;
-		
 		construct(username, password);
 	}
 
 	private void construct(String username, String password) {
+		this.username = username;
+		this.password = password;
+		
+		this.tokenRefreshTimer = new Timer("auth-client-token-refresh-timer", true);
+		tokenRefreshTimer.schedule(new TimerTask() {
+
+			@Override
+			public void run() {
+				refreshToken();
+			}
+			
+		}, TOKEN_REFRESH_INTERVAL.toMillis(), TOKEN_REFRESH_INTERVAL.toMillis());
+		
+		token = getTokenFromAuth();
+	}
+
+	private Token getTokenFromAuth() {
 		List<String> auths = getAuths();
 		
 		if (auths.size() == 0) {
@@ -64,25 +87,21 @@ public class AuthenticationClient {
 		
 		for (String authUri : auths) {
 			try {
-				logger.info("get token from " + authUri);
-				token = getToken(authUri, username, password);
-				break;
+				Client authClient = getClient(username, password, true);
+				WebTarget authTarget = authClient.target(authUri);
+				
+				Token serverToken = authTarget
+		    			.path("tokens")
+		    			.request(MediaType.APPLICATION_JSON_TYPE)
+		    		    .post(null, Token.class);		
+		        
+		        return serverToken;
+
 			} catch (ServiceException e) {
 				logger.warn("auth not available", e);
 			}
 		}
-	}
-
-	private UUID getToken(String authUri, String username, String password) {
-		Client authClient = getClient(username, password, true);
-		WebTarget authTarget = authClient.target(authUri);
-		
-		Token serverToken = authTarget
-    			.path("tokens")
-    			.request(MediaType.APPLICATION_JSON_TYPE)
-    		    .post(null, Token.class);		
-        
-        return serverToken.getTokenKey();
+		throw new RuntimeException("get token from auth failed");
 	}
 
 	private List<String> getAuths() {
@@ -109,21 +128,21 @@ public class AuthenticationClient {
 	}
 
 	public Client getAuthenticatedClient() {
-		return getClient(TokenRequestFilter.TOKEN_USER, token.toString(), true);
+		return getClient(TokenRequestFilter.TOKEN_USER, token.getTokenKey().toString(), true);
 	}
 
 	public Token getDbToken(String tokenKey) {
 		List<String> auths = getAuths();
-		
+
 		for (String authUri : auths) {
 			try {
 				Token dbToken = getAuthenticatedClient()
-				.target(authUri)
-    			.path(TokenResource.TOKENS)
-    			.request(MediaType.APPLICATION_JSON_TYPE)
-    		    .header("chipster-token", tokenKey)
-    		    .get(Token.class);
-				
+						.target(authUri)
+						.path(TokenResource.TOKENS)
+						.request(MediaType.APPLICATION_JSON_TYPE)
+						.header("chipster-token", tokenKey)
+						.get(Token.class);
+
 				if (dbToken != null) {
 					return dbToken;
 				}
@@ -136,15 +155,62 @@ public class AuthenticationClient {
 		return null;
 	}
 
-	public UUID getToken() {
-		return token;
+	public UUID getTokenKey() {
+		return token.getTokenKey();
 	}
 	
+	private void refreshToken() {
+		
+		for (String authUri : getAuths()) {
+			try {
+				Token serverToken = getAuthenticatedClient()
+						.target(authUri)
+						.path(TokenResource.TOKENS)
+						.path("refresh")
+						.request(MediaType.APPLICATION_JSON_TYPE)
+						.post(null, Token.class);
+
+				if (serverToken != null) {
+					this.token = serverToken; 
+					
+					// if token is expiring before refresh interval * 2, get a new token
+					if (serverToken.getValid().isBefore(LocalDateTime.now().plus(TOKEN_REFRESH_INTERVAL.plus(TOKEN_REFRESH_INTERVAL)))) {
+						logger.info("refreshed token expiring soon, getting a new one");
+						try {
+							this.token = getTokenFromAuth();
+						} catch (Exception e) {
+							logger.warn("getting new token to replace soon expiring token failed", e);
+						}
+					}
+					
+					return;
+				} else {
+					// is it possible to get here?
+					logger.warn("got null as response to refresh token");
+				}
+					
+			} catch (ForbiddenException fe) {
+				logger.info("got forbidden when refreshing token, getting new one");
+				try {
+					this.token = getTokenFromAuth();
+				} catch (Exception e) {
+					logger.warn("getting new token after forbidden failed", e);
+				}
+			} catch (ServiceException e) {
+				logger.warn("auth not available", e);
+			} catch (Exception e) {
+				logger.warn("refresh token failed", e);
+			}
+		}
+
+	logger.warn("refresh token failing");
+}
+
 	/**
 	 * @return
 	 */
 	public CredentialsProvider getCredentials() {
-		return new StaticCredentials(TokenRequestFilter.TOKEN_USER, token.toString());		
+		return new StaticCredentials(TokenRequestFilter.TOKEN_USER, token.getTokenKey().toString());		
 	}
 }
 

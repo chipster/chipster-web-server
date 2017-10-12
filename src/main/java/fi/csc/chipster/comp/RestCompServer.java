@@ -213,7 +213,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		schedulerUri = UriBuilder
 				.fromUri(serviceLocator.get(Role.SCHEDULER).get(0))
 				.path("events")
-				.queryParam("token",  authClient.getToken())
+				.queryParam("token", authClient.getTokenKey())
 				.toString();
 		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client");
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials());
