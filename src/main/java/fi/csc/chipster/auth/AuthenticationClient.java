@@ -174,7 +174,7 @@ public class AuthenticationClient {
 					this.token = serverToken; 
 					
 					// if token is expiring before refresh interval * 2, get a new token
-					if (serverToken.getValid().isBefore(LocalDateTime.now().plus(TOKEN_REFRESH_INTERVAL.plus(TOKEN_REFRESH_INTERVAL)))) {
+					if (serverToken.getValid().isBefore(LocalDateTime.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
 						logger.info("refreshed token expiring soon, getting a new one");
 						try {
 							this.token = getTokenFromAuth();
