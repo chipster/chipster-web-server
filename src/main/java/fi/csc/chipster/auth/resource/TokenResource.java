@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Timer;
@@ -42,21 +41,15 @@ public class TokenResource {
 
 	private static final String TOKEN_HEADER = "chipster-token";
 
-	private static final long CLIENT_TOKEN_LIFETIME = 3;
-	private static final TemporalUnit CLIENT_TOKEN_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
-	
-	private static final long CLIENT_TOKEN_MAX_LIFETIME = 10;
-	private static final TemporalUnit CLIENT_TOKEN_MAX_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+	private static final Duration CLIENT_TOKEN_LIFETIME = Duration.of(3, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+	private static final Duration CLIENT_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
 
-	private static final long SERVER_TOKEN_LIFETIME = 30;
-	private static final TemporalUnit SERVER_TOKEN_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
+	private static final Duration SERVER_TOKEN_LIFETIME = Duration.of(20, ChronoUnit.SECONDS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
+	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(40, ChronoUnit.SECONDS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 
-	private static final long SERVER_TOKEN_MAX_LIFETIME = 90;
-	private static final TemporalUnit SERVER_TOKEN_MAX_LIFETIME_UNIT = ChronoUnit.DAYS; // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
-	
 	private Timer cleanUpTimer;
 	private static int CLEAN_UP_INTERVAL = 1000*60*30; // ms
-	
+
 	private static Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
@@ -76,11 +69,11 @@ public class TokenResource {
 		this.hibernate = hibernate;
 		this.cleanUpTimer = new Timer("token db cleanup", true);
 		this.cleanUpTimer.schedule(new TimerTask() {
-			
+
 			@Override
 			public void run() {
 				cleanUp();
-				
+
 			}
 		}, 0, CLEAN_UP_INTERVAL);
 	}
@@ -91,6 +84,7 @@ public class TokenResource {
 	@Transaction
 	public Response createToken(@Context SecurityContext sc) {
 
+		logger.info("CREATE");
 		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
@@ -130,15 +124,15 @@ public class TokenResource {
 	private void cleanUp() {
 		Instant begin = Instant.now();
 		LocalDateTime now = LocalDateTime.now();
-		LocalDateTime clientOldestValidCreationTime = now.minus(Duration.of(CLIENT_TOKEN_MAX_LIFETIME, CLIENT_TOKEN_MAX_LIFETIME_UNIT));
-		LocalDateTime serverOldestValidCreationTime = now.minus(Duration.of(SERVER_TOKEN_MAX_LIFETIME, SERVER_TOKEN_MAX_LIFETIME_UNIT));
+		LocalDateTime clientOldestValidCreationTime = now.minus(CLIENT_TOKEN_MAX_LIFETIME);
+		LocalDateTime serverOldestValidCreationTime = now.minus(SERVER_TOKEN_MAX_LIFETIME);
 
 		logger.info("cleaning up expired tokens");
-		logger.info("client token max lifetime is " + CLIENT_TOKEN_MAX_LIFETIME + " " + CLIENT_TOKEN_MAX_LIFETIME_UNIT.toString() +
+		logger.info("client token max lifetime is " + CLIENT_TOKEN_MAX_LIFETIME +
 				", deleting client tokens created before " + clientOldestValidCreationTime);
-		logger.info("server token max lifetime is " + SERVER_TOKEN_MAX_LIFETIME + " " + SERVER_TOKEN_MAX_LIFETIME_UNIT.toString() +
+		logger.info("server token max lifetime is " + SERVER_TOKEN_MAX_LIFETIME +
 				" deleting server tokens created before " + serverOldestValidCreationTime);
-		
+
 		getHibernate().beginTransaction();
 		List<Token> tokens = getHibernate().session().createQuery("from Token", Token.class).list();
 		int deleteCount = 0;
@@ -150,7 +144,7 @@ public class TokenResource {
 				getHibernate().session().delete(t);
 				deleteCount++;
 			} 
-			
+
 			// max lifetime reached
 			else {
 				boolean delete = false;
@@ -173,7 +167,7 @@ public class TokenResource {
 		logger.info("deleted " + deleteCount + " expired token(s) in " + Duration.between(begin, Instant.now()).toMillis() + " ms");
 	}
 
-	
+
 	@GET
 	@RolesAllowed(Role.SERVER)
 	@Produces(MediaType.APPLICATION_JSON)
@@ -199,8 +193,12 @@ public class TokenResource {
 
 		String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
 		Token dbToken = getToken(token);
-		
+
 		failIfTokenExpired(dbToken);
+		if (dbToken.getUsername().equals("comp")) {
+			logger.info("REFRESH " + dbToken.getValid() + " " + getTokenNextExpiration(dbToken));
+		}
+
 		dbToken.setValid(getTokenNextExpiration(dbToken));
 
 		return Response.ok(dbToken).build();
@@ -241,24 +239,24 @@ public class TokenResource {
 	private LocalDateTime getTokenNextExpiration(Token token) {
 		LocalDateTime nextCandidateExpiration = getTokenNextCandidateExpiration(token);
 		LocalDateTime finalExpiration = getTokenFinalExpiration(token);
-		
+
 		return nextCandidateExpiration.isBefore(finalExpiration) ? nextCandidateExpiration: finalExpiration;
 	}
 
 	private LocalDateTime getTokenNextCandidateExpiration(Token token) {
 		return token.getRoles().contains(Role.SERVER) ? 
-				LocalDateTime.now().plus(SERVER_TOKEN_LIFETIME, SERVER_TOKEN_LIFETIME_UNIT) : 
-					LocalDateTime.now().plus(CLIENT_TOKEN_LIFETIME, CLIENT_TOKEN_LIFETIME_UNIT);
-		
+				LocalDateTime.now().plus(SERVER_TOKEN_LIFETIME) : 
+					LocalDateTime.now().plus(CLIENT_TOKEN_LIFETIME);
+
 	}
-	
+
 	private LocalDateTime getTokenFinalExpiration(Token token) {
 		return token.getRoles().contains(Role.SERVER) ? 
-				token.getCreationTime().plus(SERVER_TOKEN_MAX_LIFETIME, SERVER_TOKEN_MAX_LIFETIME_UNIT) : 
-					token.getCreationTime().plus(CLIENT_TOKEN_MAX_LIFETIME, CLIENT_TOKEN_MAX_LIFETIME_UNIT);
+				token.getCreationTime().plus(SERVER_TOKEN_MAX_LIFETIME) : 
+					token.getCreationTime().plus(CLIENT_TOKEN_MAX_LIFETIME);
 	}
-	
-	
+
+
 	private UUID parseUUID(String token) {
 		try {
 			return UUID.fromString(token);
