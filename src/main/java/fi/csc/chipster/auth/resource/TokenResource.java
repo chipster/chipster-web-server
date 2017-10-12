@@ -44,11 +44,11 @@ public class TokenResource {
 	private static final Duration CLIENT_TOKEN_LIFETIME = Duration.of(3, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
 	private static final Duration CLIENT_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
 
-	private static final Duration SERVER_TOKEN_LIFETIME = Duration.of(20, ChronoUnit.SECONDS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
-	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(40, ChronoUnit.SECONDS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
+	private static final Duration SERVER_TOKEN_LIFETIME = Duration.of(6, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
+	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(24, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 
 	private Timer cleanUpTimer;
-	private static int CLEAN_UP_INTERVAL = 1000*60*30; // ms
+	private static Duration CLEAN_UP_INTERVAL = Duration.of(30, ChronoUnit.MINUTES); // UNIT MUST BE DAYS OR SHORTER
 
 	private static Logger logger = LogManager.getLogger();
 
@@ -75,7 +75,7 @@ public class TokenResource {
 				cleanUp();
 
 			}
-		}, 0, CLEAN_UP_INTERVAL);
+		}, 0, CLEAN_UP_INTERVAL.toMillis());
 	}
 
 	@POST
@@ -84,7 +84,6 @@ public class TokenResource {
 	@Transaction
 	public Response createToken(@Context SecurityContext sc) {
 
-		logger.info("CREATE");
 		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
@@ -135,6 +134,7 @@ public class TokenResource {
 
 		getHibernate().beginTransaction();
 		List<Token> tokens = getHibernate().session().createQuery("from Token", Token.class).list();
+		logger.info("before clean up db contains " + tokens.size() + " tokens");
 		int deleteCount = 0;
 		for (Token t: tokens) {
 
