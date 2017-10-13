@@ -1,6 +1,8 @@
 package fi.csc.chipster.rest.token;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,7 +38,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	public static final String QUERY_PARAMETER_TOKEN = "token";
 	public static final String HEADER_AUTHORIZATION = "authorization";
 	public static final String TOKEN_USER = "token";
-	private static final int TOKEN_CACHE_LIFETIME = 10000; // ms
+	private static final Duration TOKEN_CACHE_LIFETIME = Duration.of(10, ChronoUnit.HOURS);
 
 	private Map<String, Token> tokenCache = new HashMap<>();
 	private boolean authenticationRequired = true;
@@ -136,7 +138,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 							tokenCache.remove(clientTokenKey); // clientTokeyKey is effectively final
 						}
 					}			
-				}, TOKEN_CACHE_LIFETIME);
+				}, TOKEN_CACHE_LIFETIME.toMillis());
 			}
 		}
 
