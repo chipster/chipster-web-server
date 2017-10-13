@@ -14,6 +14,7 @@ import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
@@ -65,6 +66,9 @@ public class AuthenticationClient {
 		this.username = username;
 		this.password = password;
 		
+		token = getTokenFromAuth();
+		
+		// schedule token refresh
 		this.tokenRefreshTimer = new Timer("auth-client-token-refresh-timer", true);
 		tokenRefreshTimer.schedule(new TimerTask() {
 
@@ -74,8 +78,6 @@ public class AuthenticationClient {
 			}
 			
 		}, TOKEN_REFRESH_INTERVAL.toMillis(), TOKEN_REFRESH_INTERVAL.toMillis());
-		
-		token = getTokenFromAuth();
 	}
 
 	private Token getTokenFromAuth() {
@@ -93,7 +95,7 @@ public class AuthenticationClient {
 				Token serverToken = authTarget
 		    			.path("tokens")
 		    			.request(MediaType.APPLICATION_JSON_TYPE)
-		    		    .post(null, Token.class);		
+		    		    .post(Entity.json(""), Token.class);		
 		        
 		        return serverToken;
 
@@ -168,7 +170,7 @@ public class AuthenticationClient {
 						.path(TokenResource.TOKENS)
 						.path("refresh")
 						.request(MediaType.APPLICATION_JSON_TYPE)
-						.post(null, Token.class);
+						.post(Entity.json(""), Token.class);
 
 				if (serverToken != null) {
 					this.token = serverToken; 
