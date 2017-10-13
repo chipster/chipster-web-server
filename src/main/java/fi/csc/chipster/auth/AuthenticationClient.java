@@ -80,28 +80,29 @@ public class AuthenticationClient {
 		}, TOKEN_REFRESH_INTERVAL.toMillis(), TOKEN_REFRESH_INTERVAL.toMillis());
 	}
 
+	/**
+	 * Succeeds or throws
+	 * 
+	 * @return
+	 */
 	private Token getTokenFromAuth() {
 		List<String> auths = getAuths();
-		
+
 		if (auths.size() == 0) {
 			throw new InternalServerErrorException("no auths registered to service locator");
 		}
-		
-		for (String authUri : auths) {
-			try {
-				Client authClient = getClient(username, password, true);
-				WebTarget authTarget = authClient.target(authUri);
-				
-				Token serverToken = authTarget
-		    			.path("tokens")
-		    			.request(MediaType.APPLICATION_JSON_TYPE)
-		    		    .post(Entity.json(""), Token.class);		
-		        
-		        return serverToken;
 
-			} catch (ServiceException e) {
-				logger.warn("auth not available", e);
-			}
+		for (String authUri : auths) {
+			Client authClient = getClient(username, password, true);
+			WebTarget authTarget = authClient.target(authUri);
+
+			Token serverToken = authTarget
+					.path("tokens")
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.post(Entity.json(""), Token.class);		
+
+			return serverToken;
+
 		}
 		throw new RuntimeException("get token from auth failed");
 	}
