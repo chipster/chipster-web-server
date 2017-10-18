@@ -171,41 +171,56 @@ public class ToolboxService {
 	}
 	
 	
+	
+
 	/**
-	 * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
-	 * application.
+	 * Starts only the Grizzly HTTP server exposing JAX-RS resources defined in this
+	 * application. Used by the 'old' Chipster.
 	 * 
 	 * @return Grizzly HTTP server.
 	 * @throws URISyntaxException
 	 */
-	public void startServer() throws IOException, URISyntaxException {
+	public void startServerWithoutStatsAndAdminServer() throws IOException, URISyntaxException {
+		startServer(false);;
+	}
 
-		String username = Role.TOOLBOX;
-		String password = config.getPassword(username);
-		
-		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
-		
+	public void startServer() throws IOException, URISyntaxException {
+		startServer(true);
+	}
+	
+	/**
+	 * 
+	 * @param enableStatsAndAdminServer
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 */
+	private void startServer(boolean enableStatsAndAdminServer) throws IOException, URISyntaxException {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(this.toolResource)
 				.register(moduleResource);
-				// .register(new LoggingFilter())
-		
-    	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		
+		// .register(new LoggingFilter())
+
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
-		
-		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
-		
+
+		if (enableStatsAndAdminServer) {
+
+			String username = Role.TOOLBOX;
+			String password = config.getPassword(username);
+
+			this.serviceLocator = new ServiceLocatorClient(config);
+			this.authService = new AuthenticationClient(serviceLocator, username, password);
+
+			JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+			jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, jerseyStatisticsSource);
+		}
+
 		this.httpServer.start();
-		
-		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, jerseyStatisticsSource);
-		
 		logger.info("toolbox service running at " + baseUri);
 	}
 
