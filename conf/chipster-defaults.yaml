@@ -17,6 +17,7 @@ service-password-toolbox: toolbox
    
 # Internal and external service addresses
 
+url-int-web-server: http://{{public-ip}}:8000
 url-ext-web-server: http://{{public-ip}}:8000
 url-ext-proxy: http://{{public-ip}}:8001
 url-int-auth: http://{{public-ip}}:8002
@@ -134,7 +135,7 @@ session-db-bm2ddl-auto: update
     
 # web-server
 
-web-server-web-root-path: ../chipster-web/
+web-server-web-root-path: ../chipster-web/src
 
 
 # toolbox

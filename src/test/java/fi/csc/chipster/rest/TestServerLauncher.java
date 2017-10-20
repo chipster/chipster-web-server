@@ -53,25 +53,14 @@ public class TestServerLauncher {
 	public String getTargetUri(String role) {
 
 		if (Role.AUTH.equals(role)) {
-				return config.getInternalServiceUrls().get(Role.AUTH);
-		} 
-		if (Role.SERVICE_LOCATOR.equals(role)) {
+			return config.getInternalServiceUrls().get(Role.AUTH);
+		} else if (Role.SERVICE_LOCATOR.equals(role)) {
 			return config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
+		} else if (serviceLocatorClient.get(role) != null && serviceLocatorClient.get(role).get(0) != null) {			
+			return serviceLocatorClient.get(role).get(0);			
+		} else {
+			throw new IllegalArgumentException("no target uri for role " + role);
 		}
-		
-		if (Role.SESSION_DB.equals(role)) {			
-			return serviceLocatorClient.get(Role.SESSION_DB).get(0);			
-		}
-		
-		if (Role.FILE_BROKER.equals(role)) {			
-			return serviceLocatorClient.get(Role.FILE_BROKER).get(0);			
-		}
-		
-		if (Role.TYPE_SERVICE.equals(role)) {			
-			return serviceLocatorClient.get(Role.TYPE_SERVICE).get(0);			
-		}
-
-		throw new IllegalArgumentException("no target uri for role " + role);
 	}
 	
 	public Client getUser1Client() {
