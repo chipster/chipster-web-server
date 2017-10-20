@@ -201,6 +201,19 @@ public class ToolboxService {
 				.register(this.toolResource)
 				.register(moduleResource);
 		// .register(new LoggingFilter())
+		
+		JerseyStatisticsSource jerseyStatisticsSource = null;
+		
+		if (enableStatsAndAdminServer) {
+			String username = Role.TOOLBOX;
+			String password = config.getPassword(username);
+
+			this.serviceLocator = new ServiceLocatorClient(config);
+			this.authService = new AuthenticationClient(serviceLocator, username, password);
+
+			// this must be called before the server is started, otherwise throws an IllegalStateException
+			jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+		}
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -208,14 +221,6 @@ public class ToolboxService {
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 
 		if (enableStatsAndAdminServer) {
-
-			String username = Role.TOOLBOX;
-			String password = config.getPassword(username);
-
-			this.serviceLocator = new ServiceLocatorClient(config);
-			this.authService = new AuthenticationClient(serviceLocator, username, password);
-
-			JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 			jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, jerseyStatisticsSource);
 		}
