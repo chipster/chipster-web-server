@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.GET;
@@ -19,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.microarray.messaging.JobState;
 
@@ -54,7 +56,11 @@ public class GlobalJobResource {
 					.setParameter("state", state)
 					.list();
 			
-			return Response.ok(jobs).build();
+			// Convert to IdPairs, because the Job JSON doesn't include the sessionId
+			List<IdPair> idPairs = jobs.stream().map(job -> new IdPair(job.getSession().getSessionId(), job.getJobId()))
+					.collect(Collectors.toList());
+			
+			return Response.ok(idPairs).build();
 
 		} catch (IllegalArgumentException e) {
 			return Response.status(Status.BAD_REQUEST).entity("invalid state").build();			

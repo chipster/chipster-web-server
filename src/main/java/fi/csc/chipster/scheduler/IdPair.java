@@ -2,10 +2,14 @@ package fi.csc.chipster.scheduler;
 
 import java.util.UUID;
 
-public class IdPair {		
-
+public class IdPair {
+	
 	private UUID sessionId;
 	private UUID jobId;
+	
+	public IdPair() {
+		// needed by JSON (de)serialization
+	}
 
 	public IdPair(UUID sessionId, UUID jobId) {
 		this.sessionId = sessionId;

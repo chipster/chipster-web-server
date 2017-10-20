@@ -100,7 +100,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	this.jobTimer.schedule(new TimerTask() {
 			@Override
 			public void run() {
-				handleJobTimer();
+				// catch exceptions to keep the timer running
+				try {
+					handleJobTimer();
+				} catch (Exception e) {
+					logger.error("error in job timer", e);
+				}
 			}
     	}, jobTimerInterval, jobTimerInterval);
     	
@@ -139,19 +144,19 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	private void getStateFromDb() throws RestException {
 		synchronized (jobs) {			
 			
-			List<Job> newDbJobs = sessionDbClient.getJobs(JobState.NEW);
+			List<IdPair> newDbJobs = sessionDbClient.getJobs(JobState.NEW);
 			if (!newDbJobs.isEmpty()) {
 				logger.info("found " + newDbJobs.size() + " waiting jobs from the session-db");
-				for (Job job : newDbJobs) {				
-					jobs.addNewJob(new IdPair(job.getSession().getSessionId(), job.getJobId()));
+				for (IdPair job : newDbJobs) {
+					jobs.addNewJob(new IdPair(job.getSessionId(), job.getJobId()));
 				}
 			}
 			
-			List<Job> runningDbJobs = sessionDbClient.getJobs(JobState.RUNNING);
+			List<IdPair> runningDbJobs = sessionDbClient.getJobs(JobState.RUNNING);
 			if (!runningDbJobs.isEmpty()) {
 				logger.info("found " + runningDbJobs.size() + " running jobs from the session-db");
-				for (Job job : runningDbJobs) {
-					jobs.addRunningJob(new IdPair(job.getSession().getSessionId(), job.getJobId()));
+				for (IdPair job : runningDbJobs) {
+					jobs.addRunningJob(new IdPair(job.getSessionId(), job.getJobId()));
 				}
 			}			
 		}
@@ -384,8 +389,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			logger.warn("max wait time reached for job " + jobId);
 			job.setEndTime(LocalDateTime.now());
 			job.setState(JobState.EXPIRED_WAITING);
-			job.setStateDetail("There was no computing server available to run this job, please try again later on (" + reason + ")");
-			sessionDbClient.updateJob(job.getSession().getSessionId(), job);
+			job.setStateDetail("Job expired (" + reason + ")");
+			sessionDbClient.updateJob(jobId.getSessionId(), job);
 		} catch (RestException e) {
 			logger.error("could not set an old job " + jobId + " to expired", e);
 		}

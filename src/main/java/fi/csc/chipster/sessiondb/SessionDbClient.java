@@ -25,6 +25,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
+import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -354,8 +355,8 @@ public class SessionDbClient {
 		return get(getJobTarget(sessionId, jobId), Job.class);	
 	}
 	
-	public List<Job> getJobs(JobState state) throws RestException {
-		return getList(sessionDbTarget.path("jobs").queryParam("state", state.toString()), Job.class);
+	public List<IdPair> getJobs(JobState state) throws RestException {
+		return getList(sessionDbTarget.path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
 	public UUID createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {

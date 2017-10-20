@@ -15,7 +15,7 @@ import org.junit.Test;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
-import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.microarray.messaging.JobState;
 
 public class GlobalJobResourceTest {
@@ -49,11 +49,11 @@ public class GlobalJobResourceTest {
 	@Test
     public void get() throws IOException, RestException {
         
-		List<Job> oldJobs = schedulerClient.getJobs(JobState.NEW);
+		List<IdPair> oldJobs = schedulerClient.getJobs(JobState.NEW);
 		
 		UUID jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
 		
-		List<Job> newJobs = schedulerClient.getJobs(JobState.NEW);
+		List<IdPair> newJobs = schedulerClient.getJobs(JobState.NEW);
 		
 		assertEquals(oldJobs.size() + 1, newJobs.size());
 		assertEquals(false, oldJobs.stream().filter(job -> job.getJobId().equals(jobId)).findAny().isPresent());

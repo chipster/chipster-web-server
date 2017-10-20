@@ -43,6 +43,9 @@ public class Job {
 	@Lob
 	private String stateDetail;
 	
+	
+	// don't parse from the JSON, because this would usually come from the client 
+	// and couldn't be trusted
 	@XmlTransient
 	@ManyToOne
 	@JoinColumn(name="sessionId")
