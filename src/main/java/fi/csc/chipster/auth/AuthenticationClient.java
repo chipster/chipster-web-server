@@ -27,7 +27,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CredentialsProvider;
-import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.rest.DynamicCredentials;
 import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -45,7 +45,9 @@ public class AuthenticationClient {
 	private List<String> authenticationServiceUris;
 	
 	private Timer tokenRefreshTimer;
-	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(1, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER
+	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(15, ChronoUnit.SECONDS); // UNIT MUST BE DAYS OR SHORTER
+	
+	private DynamicCredentials dynamicCredentials = new DynamicCredentials();
 
 	public AuthenticationClient(ServiceLocatorClient serviceLocator, String username, String password) {
 		this.serviceLocator = serviceLocator;
@@ -66,7 +68,7 @@ public class AuthenticationClient {
 		this.username = username;
 		this.password = password;
 		
-		token = getTokenFromAuth();
+		setToken(getTokenFromAuth());
 		
 		// schedule token refresh
 		this.tokenRefreshTimer = new Timer("auth-client-token-refresh-timer", true);
@@ -93,8 +95,11 @@ public class AuthenticationClient {
 		}
 
 		for (String authUri : auths) {
+			
 			Client authClient = getClient(username, password, true);
 			WebTarget authTarget = authClient.target(authUri);
+			
+			logger.info("get token from " + authUri);
 
 			Token serverToken = authTarget
 					.path("tokens")
@@ -174,13 +179,13 @@ public class AuthenticationClient {
 						.post(Entity.json(""), Token.class);
 
 				if (serverToken != null) {
-					this.token = serverToken; 
+					setToken(serverToken); 
 					
 					// if token is expiring before refresh interval * 2, get a new token
 					if (serverToken.getValid().isBefore(LocalDateTime.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
 						logger.info("refreshed token expiring soon, getting a new one");
 						try {
-							this.token = getTokenFromAuth();
+							setToken(getTokenFromAuth());
 						} catch (Exception e) {
 							logger.warn("getting new token to replace soon expiring token failed", e);
 						}
@@ -195,7 +200,8 @@ public class AuthenticationClient {
 			} catch (ForbiddenException fe) {
 				logger.info("got forbidden when refreshing token, getting new one");
 				try {
-					this.token = getTokenFromAuth();
+					setToken(getTokenFromAuth());
+					return;
 				} catch (Exception e) {
 					logger.warn("getting new token after forbidden failed", e);
 				}
@@ -207,13 +213,18 @@ public class AuthenticationClient {
 		}
 
 	logger.warn("refresh token failing");
-}
+	}
+
+	private void setToken(Token token) {
+		this.token = token;
+		this.dynamicCredentials.setCredentials(TokenRequestFilter.TOKEN_USER, this.token.getTokenKey().toString());
+	}
 
 	/**
 	 * @return
 	 */
 	public CredentialsProvider getCredentials() {
-		return new StaticCredentials(TokenRequestFilter.TOKEN_USER, token.getTokenKey().toString());		
+		return this.dynamicCredentials;		
 	}
 }
 
