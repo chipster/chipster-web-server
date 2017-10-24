@@ -55,7 +55,7 @@ public class SessionDbClient {
 
 	private WebSocketClient client;
 
-	private WebTarget sessionDbTarget;
+	private String sessionDbUri;
 	private String sessionDbEventsUri;
 
 	public SessionDbClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
@@ -82,15 +82,15 @@ public class SessionDbClient {
 	}
 	
 	private void init(String sessionDbUri, String sessionDbEventsUri) {
-
-		if (credentials != null) {
-			sessionDbTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(sessionDbUri);
-		} else {
-			// for testing
-			sessionDbTarget = AuthenticationClient.getClient().target(sessionDbUri);
-		}
+		this.sessionDbUri = sessionDbUri;
 		this.sessionDbEventsUri = sessionDbEventsUri; 		
 	}
+	
+	private WebTarget getSessionDbTarget() {
+		return credentials != null ? AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(sessionDbUri) :
+			AuthenticationClient.getClient().target(sessionDbUri); // for testing
+	}
+	
 	
 	// events
 
@@ -127,7 +127,7 @@ public class SessionDbClient {
 	// targets
 	
 	private WebTarget getSessionsTarget() {
-		return sessionDbTarget.path("sessions");
+		return getSessionDbTarget().path("sessions");
 	}
 	
 	private WebTarget getSessionTarget(UUID sessionId) {
@@ -155,7 +155,7 @@ public class SessionDbClient {
 	}
 	
 	private WebTarget getDatasetTokenTarget() {
-		return sessionDbTarget.path("datasettokens");
+		return getSessionDbTarget().path("datasettokens");
 	}	
 	
 	private WebTarget getRuleTarget(UUID sessionId, UUID authorizationId) {
@@ -356,7 +356,7 @@ public class SessionDbClient {
 	}
 	
 	public List<IdPair> getJobs(JobState state) throws RestException {
-		return getList(sessionDbTarget.path("jobs").queryParam("state", state.toString()), IdPair.class);
+		return getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
 	public UUID createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {
@@ -402,7 +402,7 @@ public class SessionDbClient {
 	}
 
 	public List<TableStats> getTableStats() throws RestException {
-		List<TableStats> tables = getList(sessionDbTarget.path("admin").path("tables"), TableStats.class);
+		List<TableStats> tables = getList(getSessionDbTarget().path("admin").path("tables"), TableStats.class);
 		
 		return tables;
 	}
