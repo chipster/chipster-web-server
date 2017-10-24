@@ -151,6 +151,11 @@ file-broker-shutdown-timeout: 3600
 
 file-broker-shutdown-timeout: 3600
 
+# shared
+
+# when to timeout idle websocket connections, milliseconds. Set to zero to wait indefinitely.
+websocket-idle-timeout: 300000
+
 # variables
 
 variable-public-ip: 127.0.0.1

@@ -31,8 +31,6 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 			return false;
 		}
 		
-		logger.info("websocket client " + name + " disconnected: " + closeReason.getReasonPhrase());
-		
 		if (CloseCodes.VIOLATED_POLICY == closeReason.getCloseCode()) {
 			logger.error("reconnection cancelled");
 			throw new RuntimeException(closeReason.getReasonPhrase());

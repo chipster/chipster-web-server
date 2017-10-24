@@ -99,11 +99,7 @@ public class SessionDbClient {
 		try {
 			
 			UriBuilder uriBuilder = UriBuilder.fromUri(sessionDbEventsUri).path(SessionDb.EVENTS_PATH).path(topic);
-			
-			if (credentials != null) {
-				uriBuilder = uriBuilder.queryParam("token", credentials.getPassword().toString());
-			}			
-			
+						
 			this.client = new WebSocketClient(uriBuilder.toString(), new Whole<String>() {
 
 				@Override
@@ -111,7 +107,7 @@ public class SessionDbClient {
 					listener.onEvent(RestUtils.parseJson(SessionEvent.class, message));
 				}
 
-			}, true, name);
+			}, true, name, credentials);
 		} catch (InterruptedException | WebSocketErrorException | WebSocketClosedException e) {
 			throw new RestException("websocket error", e);
 		} 

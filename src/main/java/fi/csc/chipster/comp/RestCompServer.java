@@ -215,7 +215,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 				.path("events")
 				.queryParam("token", authClient.getTokenKey())
 				.toString();
-		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client");
+		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client", authClient.getCredentials());
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials());
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
 		
@@ -593,7 +593,12 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	}
 
 	private void sendCompAvailable() {
-		sendJobCommand(new JobCommand(null, null, compId, Command.AVAILABLE));
+		try {
+			sendJobCommand(new JobCommand(null, null, compId, Command.AVAILABLE));
+		} catch (IllegalStateException e) {
+			// don't fill the log with the stack trace because this isn't anything critical
+			logger.warn("sending a comp available message was interrupted: " + e.getMessage());
+		}
 	}
 	
 	private void sendCompBusy(JobCommand cmd) {

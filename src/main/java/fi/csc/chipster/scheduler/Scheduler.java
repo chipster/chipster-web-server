@@ -84,13 +84,14 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	this.heartbeatLostTimeout = config.getLong(Config.KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT);
     	this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
     	    	
-		this.serviceLocator = new ServiceLocatorClient(config);
+		this.serviceLocator = new ServiceLocatorClient(config);		
 		this.authService = new AuthenticationClient(serviceLocator, username, password);	      
-    	
+
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
     	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this, "scheduler-job-listener");    	
     	
     	this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), "events", authService, this, this, "scheduler-events");
+    	this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
     	this.pubSubServer.start();	
     	    
     	logger.info("getting unfinished jobs from the session-db");

@@ -139,7 +139,8 @@ public class SessionDb implements TopicConfig {
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
-		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");				
+		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");
+		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
 		this.pubSubServer.start();
 		
 		sessionResource.setPubSubServer(pubSubServer);

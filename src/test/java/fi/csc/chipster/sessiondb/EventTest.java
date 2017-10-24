@@ -17,8 +17,11 @@ import org.junit.Test;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -202,17 +205,19 @@ public class EventTest {
     }
     
     public static WebSocketClient getTestClient(String requestUri, final ArrayList<String> messages, final CountDownLatch latch, boolean retry, String token) throws Exception {
-
+    
+    	CredentialsProvider credentials = null;
     	if (token != null) {
-    		requestUri += "?token=" + token;
+    		credentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, token);
     	}
+    	
     	WebSocketClient client =  new WebSocketClient(requestUri, new MessageHandler.Whole<String>() {
     		@Override
     		public void onMessage(String msg) {
     			messages.add(msg);
     			latch.countDown();
     		}
-    	}, retry, "websocket-test-client");
+    	}, retry, "websocket-test-client", credentials);
     	
     	// no events yet
     	assertEquals(1, latch.getCount());

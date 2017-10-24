@@ -12,7 +12,6 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.PongMessage;
 import javax.websocket.Session;
-import javax.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,71 +21,66 @@ import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 
 public class WebSocketClientEndpoint extends Endpoint {
 	
+	public static interface EndpointListener {
+		public void onOpen(Session session, EndpointConfig config);
+		public void onClose(Session session, CloseReason reason);
+		public void onError(Session session, Throwable thr);		
+	}
+	
 	private static final Logger logger = LogManager.getLogger();
-	private String uri;
-	private String name;
+	
 	private MessageHandler messageHandler;
 	private CountDownLatch disconnectLatch;
 	private CountDownLatch connectLatch = new CountDownLatch(1);
 	private CloseReason closeReason;
 	private Throwable throwable;
 	private Session session;
-	private RetryHandler retryHandler;
+	private EndpointListener endpointListener;
 	
-	public WebSocketClientEndpoint(String uri, String name, MessageHandler.Whole<String> messageHandler, RetryHandler retryHandler) {
-		this.uri = uri;
-		this.name = name;
+	public WebSocketClientEndpoint(MessageHandler.Whole<String> messageHandler, EndpointListener endpointListener) {
 		this.messageHandler = messageHandler;
-		this.retryHandler = retryHandler;
+		this.endpointListener = endpointListener;
 	}
 
 	@Override
 	public void onOpen(Session session, EndpointConfig config) {
-		// hide query parameters (including a token) from logs 
-		String uriWithoutParams = UriBuilder.fromUri(uri).replaceQuery(null).toString();
 		
 		this.session = session;
-
-		logger.info("websocket client " + name + " connected succesfully: " + uriWithoutParams);
+		
 		if (messageHandler != null) {
 			session.addMessageHandler(messageHandler);
 		}
 		
 		disconnectLatch = new CountDownLatch(1);
 		connectLatch.countDown();
-		// reset the retry counter after a successful reconnection
-		if (retryHandler != null) {
-			retryHandler.reset();
-		}
+		
+		this.endpointListener.onOpen(session, config);
 	}							
 
 	@Override
-	public void onClose(Session session, CloseReason reason) {
-
-		logger.info("websocket client " + name + " closed: " + reason.getReasonPhrase());
-
+	public void onClose(Session session, CloseReason reason) {		
 		closeReason = reason;
 		connectLatch.countDown();
 		disconnectLatch.countDown();
+		
+		this.endpointListener.onClose(session, reason);
     }
 
 	@Override
-    public void onError(Session session, Throwable thr) {
-		logger.warn("websocket client " + name + " error: " + thr.getMessage(), thr);
+    public void onError(Session session, Throwable thr) {		
 		throwable = thr;
 		connectLatch.countDown();
 		disconnectLatch.countDown();
+		
+		this.endpointListener.onError(session, thr);
     }
 
 	public void close() throws IOException {
-		session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "client closing"));
-		try {
-			if (!disconnectLatch.await(1, TimeUnit.SECONDS)) {
-				logger.warn("failed to close the websocket client " + name);
-			}
-		} catch (InterruptedException e) {
-			logger.warn("failed to close the websocket client " + name, e);
-		}
+		session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "client closing"));		
+	}
+	
+	public boolean waitForDisconnect(long timeout) throws InterruptedException {
+		return disconnectLatch.await(timeout, TimeUnit.SECONDS);
 	}
 
 	public void waitForConnection() throws InterruptedException, WebSocketClosedException, WebSocketErrorException {

@@ -141,6 +141,8 @@ public class PubSubServer implements StatusSource {
 	private int bytesReceived;
 
 	private int bytesSent;
+
+	private long idleTimeout = 0;
 	
 	/**
 	 * Topic configuration
@@ -381,5 +383,18 @@ public class PubSubServer implements StatusSource {
 			
 			return topicsCopy;
 		}
+	}
+
+	public long getIdleTimeout() {
+		return this.idleTimeout;
+	}
+
+	/**
+	 * Configure {@link javax.websocket.Session#setMaxIdleTimeout(long)} for the websocket session
+	 * 
+	 * @param timeout
+	 */
+	public void setIdleTimeout(long timeout) {
+		this.idleTimeout = timeout;
 	}	
 }

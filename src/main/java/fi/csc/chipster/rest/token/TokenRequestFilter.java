@@ -38,7 +38,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	public static final String QUERY_PARAMETER_TOKEN = "token";
 	public static final String HEADER_AUTHORIZATION = "authorization";
 	public static final String TOKEN_USER = "token";
-	private static final Duration TOKEN_CACHE_LIFETIME = Duration.of(10, ChronoUnit.HOURS);
+	private static final Duration TOKEN_CACHE_LIFETIME = Duration.of(10, ChronoUnit.SECONDS);
 
 	private Map<String, Token> tokenCache = new HashMap<>();
 	private boolean authenticationRequired = true;
