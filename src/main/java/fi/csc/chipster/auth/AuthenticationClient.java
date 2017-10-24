@@ -45,7 +45,7 @@ public class AuthenticationClient {
 	private List<String> authenticationServiceUris;
 	
 	private Timer tokenRefreshTimer;
-	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(15, ChronoUnit.SECONDS); // UNIT MUST BE DAYS OR SHORTER
+	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(1, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER
 	
 	private DynamicCredentials dynamicCredentials = new DynamicCredentials();
 
