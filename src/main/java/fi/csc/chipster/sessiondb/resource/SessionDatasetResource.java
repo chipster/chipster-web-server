@@ -37,7 +37,7 @@ import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
@@ -253,7 +253,7 @@ public class SessionDatasetResource {
 			// can delete it
 			if (fileDatasets.isEmpty()) {
 				// only for file-broker
-				sessionResource.publish(SessionDb.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
+				sessionResource.publish(SessionDbTopicConfig.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
 			}
 			
 		}

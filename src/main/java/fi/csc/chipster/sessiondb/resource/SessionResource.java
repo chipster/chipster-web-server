@@ -41,7 +41,7 @@ import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.sessiondb.SessionDb;
+import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
@@ -171,7 +171,7 @@ public class SessionResource {
 		UUID sessionId = session.getSessionId();
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
 		
-		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getRuleId(), EventType.CREATE), hibernateSession);
+		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getRuleId(), EventType.CREATE), hibernateSession);
 	}
 
 	@PUT
@@ -243,7 +243,7 @@ public class SessionResource {
 		hibernateSession.delete(auth.getSession());
 
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, sessionId, EventType.DELETE), hibernateSession);
-		publish(SessionDb.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getRuleId(), EventType.DELETE), hibernateSession);
+		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getRuleId(), EventType.DELETE), hibernateSession);
 	}
     	
 	/**
@@ -276,13 +276,13 @@ public class SessionResource {
 			public void transactionCompletion(boolean successful) {
 				events.publish(topic, obj);
 				if (ResourceType.JOB == obj.getResourceType()) {
-					events.publish(SessionDb.JOBS_TOPIC, obj);
+					events.publish(SessionDbTopicConfig.JOBS_TOPIC, obj);
 				}
 				if (ResourceType.SESSION == obj.getResourceType()) {
-					events.publish(SessionDb.SESSIONS_TOPIC, obj);
+					events.publish(SessionDbTopicConfig.SESSIONS_TOPIC, obj);
 				}
 				if (ResourceType.DATASET == obj.getResourceType()) {
-					events.publish(SessionDb.DATASETS_TOPIC, obj);
+					events.publish(SessionDbTopicConfig.DATASETS_TOPIC, obj);
 				}
 				// authorization events are sent directly to AUTHORIZATIONS_TOPIC, because
 				// client's don't need them

@@ -1,8 +1,6 @@
 package fi.csc.chipster.rest.websocket;
 
-import java.io.IOException;
 import java.net.URI;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +26,6 @@ import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainer
 
 import com.mchange.rmi.NotAuthorizedException;
 
-import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
@@ -40,83 +37,6 @@ public class PubSubServer implements StatusSource {
 	
 	public static final String DEFAULT_TOPIC = "default-topic";
 	
-	public static class Subscriber {
-		private Basic remote;
-		private String remoteAddress;
-		private String username;
-		private LocalDateTime created;
-		
-		public Subscriber(Basic remote, String remoteAddress, String username) {
-			this.remote = remote;
-			this.remoteAddress = remoteAddress;
-			this.setUsername(username);
-			this.created = LocalDateTime.now();
-		}
-		
-		public Basic getRemote() {
-			return remote;
-		}
-		public void setRemote(Basic remote) {
-			this.remote = remote;
-		}
-		public String getRemoteAddress() {
-			return remoteAddress;
-		}
-		public void setRemoteAddress(String remoteAddress) {
-			this.remoteAddress = remoteAddress;
-		}
-
-		public String getUsername() {
-			return username;
-		}
-
-		public void setUsername(String username) {
-			this.username = username;
-		}
-
-		public LocalDateTime getCreated() {
-			return created;
-		}
-	}
-	
-	public static class Topic {
-		private ConcurrentHashMap<Basic, Subscriber> subscribers = new ConcurrentHashMap<>();
-		
-		public void add(Subscriber s) {
-			subscribers.put(s.remote, s);
-			logger.debug("subscribers: " + subscribers.size());
-		}
-
-		public void remove(Basic basicRemote) {
-			subscribers.remove(basicRemote);
-		}
-
-		public boolean isEmpty() {
-			return subscribers.isEmpty();
-		}
-
-		public void publish(String msg) {
-			// usage of the same remoteEndpoint isn't allowed from multiple endpoints
-			// http://stackoverflow.com/questions/26264508/websocket-async-send-can-result-in-blocked-send-once-queue-filled
-			synchronized (this) {
-				logger.debug("publish to " + subscribers.size() + " subscribers: " + msg);
-				for (Subscriber s: subscribers.values()) {
-					try {
-						logger.debug("send to " + s.remoteAddress);
-						s.getRemote().sendText(msg);
-					} catch (IOException e) {
-						// nothing to worry about if the client just unsubscribed 
-						logger.warn("failed to publish a message to: " + subscribers.get(s.getRemoteAddress()), e);
-					}
-				}
-			}
-		}
-
-		public ConcurrentHashMap<Basic, Subscriber> getSubscribers() {
-			return subscribers;
-		}
-	}
-	
 	ConcurrentHashMap<String, Topic> topics = new ConcurrentHashMap<>();
 
 	private MessageHandler.Whole<String> replyHandler;
@@ -126,8 +46,6 @@ public class PubSubServer implements StatusSource {
 	private String baseUri;
 
 	private String path;
-
-	private AuthenticationClient authService;
 
 	private TopicConfig topicConfig;
 
@@ -144,52 +62,10 @@ public class PubSubServer implements StatusSource {
 
 	private long idleTimeout = 0;
 	
-	/**
-	 * Topic configuration
-	 * 
-	 * Implement this interface to tell PubSubServer how to handle different topics.  
-	 * 
-	 * @author klemela
-	 */
-	public interface TopicConfig {
-		/**
-		 * Check whether a user is allowed to subscribe to a topic
-		 * 
-		 * @param principal
-		 * @param topicName
-		 * @return
-		 */
-		public boolean isAuthorized(AuthPrincipal principal, String topicName);
-		
-		
-		/**
-		 * Proper implementation for this method is needed only if you need more fine grained
-		 * monitoring statistics. Otherwise, simply return an empty string "".
-		 * 
-		 * Count some monitoring statistics separately for different topic groups. Return a same
-		 * string for all the topics that belong to the same topic group. This string is also appended
-		 * to the keys of the monitoring results. 
-		 * 
-		 * @param topicName
-		 * @return
-		 */
-		public String getMonitoringTag(String topicName);
-		
-		/**
-		 * Proper implementation for this method is needed only if you need more fine grained
-		 * monitoring statistics. Otherwise, simply return Arrays.asList(new String[] {""}).
-		 * 
-		 * All possible tag values of the above method. This is needed to produce zero values in the statistics
-		 * even when a topic group doesn't have any topics. 
-		 * @return
-		 */
-		public List<String> getMonitoringTags();
-	}
 
-	public PubSubServer(String baseUri, String path, AuthenticationClient authService, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException, DeploymentException {
+	public PubSubServer(String baseUri, String path, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException, DeploymentException {
 		this.baseUri = baseUri;
 		this.path = path;
-		this.authService = authService;
 		this.replyHandler = replyHandler;
 		this.topicConfig = topicCheck;
 		this.name = name;
@@ -218,7 +94,7 @@ public class PubSubServer implements StatusSource {
         logger.debug("context path " + contextPath);
         context.setContextPath(contextPath);
 
-        PubSubTokenServletFilter filter = new PubSubTokenServletFilter(authService, topicConfig, contextPath + path);
+        PubSubTokenServletFilter filter = new PubSubTokenServletFilter(topicConfig, contextPath + path);
         context.addFilter(new FilterHolder(filter), "/*", null);
 
         server.setHandler(context);
@@ -246,8 +122,8 @@ public class PubSubServer implements StatusSource {
 		Topic topic = topics.get(topicName);
 		if (topic != null) {
 			topic.publish(msg);
-			this.messagesSent += topic.subscribers.size();
-			this.bytesSent += topic.subscribers.size() * msg.length();
+			this.messagesSent += topic.getSubscribers().size();
+			this.bytesSent += topic.getSubscribers().size() * msg.length();
 		} else {
 			this.messagesDiscarded++;
 			logger.debug("no one listening on topic: " + topicName);
@@ -342,7 +218,7 @@ public class PubSubServer implements StatusSource {
 				
 				// total count of subscribers in the topics with this tag
 				status.put("wsSubscribersCurrent" + tag, tagTopics.stream()
-						.mapToInt(t -> topics.get(t).subscribers.size()).sum());
+						.mapToInt(t -> topics.get(t).getSubscribers().size()).sum());
 			}
 			status.put("wsMessagesDiscarded", this.messagesDiscarded);
 			status.put("wsMessagesReceived",  this.messagesReceived);

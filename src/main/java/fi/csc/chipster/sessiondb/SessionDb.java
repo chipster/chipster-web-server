@@ -3,29 +3,24 @@ package fi.csc.chipster.sessiondb;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.server.Server;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
@@ -51,20 +46,12 @@ import fi.csc.chipster.sessiondb.resource.SessionResource;
  *
  */
 @SuppressWarnings("unused")
-public class SessionDb implements TopicConfig {
-
-	private static final String TOPIC_GROUP_CLIENT = ",topicGroup=client";
-	private static final String TOPIC_GROUP_SERVER = ",topicGroup=server";
+public class SessionDb {
 
 	private Logger logger = LogManager.getLogger();
 	
 	public static final String EVENTS_PATH = "events";
-	public static final String JOBS_TOPIC = "jobs";
-	public static final String FILES_TOPIC = "files";
-	public static final String AUTHORIZATIONS_TOPIC = "authorizations";
-	public static final String DATASETS_TOPIC = "datasets";
-	public static final String SESSIONS_TOPIC = "sessions";
-
+	
 	private static HibernateUtil hibernate;
 
 	private String serviceId;
@@ -139,7 +126,8 @@ public class SessionDb implements TopicConfig {
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
-		this.pubSubServer = new PubSubServer(pubSubUri, path, authService, null, this, "session-db-events");
+		SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(authService, hibernate, sessionResource);
+		this.pubSubServer = new PubSubServer(pubSubUri, path, null, topicConfig, "session-db-events");
 		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
 		this.pubSubServer.start();
 		
@@ -206,53 +194,5 @@ public class SessionDb implements TopicConfig {
 	
 	public HttpServer getHttpServer() {
 		return httpServer;
-	}
-
-	@Override
-	public boolean isAuthorized(final AuthPrincipal principal, String topic) {
-		logger.debug("check topic authorization for topic " + topic);
-		
-		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic)) {
-			return principal.getRoles().contains(Role.SERVER);
-			
-		} else if (DATASETS_TOPIC.equals(topic) || AUTHORIZATIONS_TOPIC.equals(topic) || SESSIONS_TOPIC.equals(topic)) {
-			return principal.getRoles().contains(Role.SESSION_DB);
-			
-		} else {
-			final UUID sessionId = UUID.fromString(topic);
-			Boolean isAuthorized = hibernate.runInTransaction(new HibernateRunnable<Boolean>() {
-				@Override
-				public Boolean run(org.hibernate.Session hibernateSession) {
-					try {
-						Session session = sessionResource.getRuleTable().checkAuthorization(principal.getName(), sessionId, false, hibernateSession);
-						return session != null;
-					} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
-							|javax.ws.rs.NotFoundException
-							|javax.ws.rs.ForbiddenException e) {
-						return false;
-					}		
-				}
-			});
-			return isAuthorized;
-		} 
-	}
-	
-	@Override
-	public String getMonitoringTag(String topic) {
-		if (JOBS_TOPIC.equals(topic) || 
-				FILES_TOPIC.equals(topic) || 
-				DATASETS_TOPIC.equals(topic) || 
-				AUTHORIZATIONS_TOPIC.equals(topic) || 
-				SESSIONS_TOPIC.equals(topic)) {			
-			
-			return TOPIC_GROUP_SERVER;
-		} else {
-			return TOPIC_GROUP_CLIENT;
-		}
-	}
-	
-	@Override
-	public List<String> getMonitoringTags() {
-		return Arrays.asList(new String[] {TOPIC_GROUP_SERVER, TOPIC_GROUP_CLIENT});
 	}
 }

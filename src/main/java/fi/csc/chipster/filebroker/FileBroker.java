@@ -23,8 +23,8 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 
 
 public class FileBroker {
@@ -86,7 +86,7 @@ public class FileBroker {
         
         stats = RestUtils.createStatisticsListener(server);
 		
-        sessionDbClient.subscribe(SessionDb.FILES_TOPIC, fileServlet, "file-broker-file-listener");
+        sessionDbClient.subscribe(SessionDbTopicConfig.FILES_TOPIC, fileServlet, "file-broker-file-listener");
 		
         server.start();                      
                

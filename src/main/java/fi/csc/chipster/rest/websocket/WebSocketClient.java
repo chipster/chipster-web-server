@@ -64,7 +64,7 @@ public class WebSocketClient implements EndpointListener {
 		this.connect();
 	}
 	
-	public void connect() throws WebSocketErrorException, InterruptedException, WebSocketClosedException {
+	private void connect() throws WebSocketErrorException, InterruptedException, WebSocketClosedException {
 		
 		final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 		client = ClientManager.createClient();
@@ -100,6 +100,17 @@ public class WebSocketClient implements EndpointListener {
 			}			
 		}, PING_INTERVAL, PING_INTERVAL);
 	}	
+	
+	/*
+	 * For reconnection tests
+	 */
+	public void waitForConnection() throws InterruptedException, WebSocketClosedException, WebSocketErrorException {
+		if (this.endpoint != null) {
+			this.endpoint.waitForConnection();
+		} else {
+			throw new IllegalStateException("not connected");
+		}
+	}
 	
 	public static class WebSocketClosedException extends Exception {
 

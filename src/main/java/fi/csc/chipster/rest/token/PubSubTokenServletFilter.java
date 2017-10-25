@@ -20,23 +20,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.uri.UriTemplate;
 
-import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.websocket.PrincipalRequestWrapper;
 import fi.csc.chipster.rest.websocket.PubSubEndpoint;
-import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
+import fi.csc.chipster.rest.websocket.TopicConfig;
 
 public class PubSubTokenServletFilter implements Filter {
 	
 	private static final Logger logger = LogManager.getLogger();
-	private AuthenticationClient authService;
 	private TopicConfig topicCheck;
 	private String pathTemplate;
     
-    public PubSubTokenServletFilter(AuthenticationClient authService, TopicConfig topicAuthorization, String pathTemplate) {
-		this.authService = authService;
-		this.topicCheck = topicAuthorization;
+    public PubSubTokenServletFilter(TopicConfig topicConfig, String pathTemplate) {
+		this.topicCheck = topicConfig;
 		this.pathTemplate = pathTemplate;
 	}
 
@@ -61,15 +57,11 @@ public class PubSubTokenServletFilter implements Filter {
     		return;
     	}
     	
-    	Token dbToken = null;
-    	
     	try {
-    		dbToken = authService.getDbToken(tokenKey);
-
-
-    		if (dbToken != null) {    		
-    			AuthPrincipal principal = new AuthPrincipal(dbToken.getUsername(), dbToken.getRoles());
-
+    		AuthPrincipal principal = topicCheck.getUserPrincipal(tokenKey);
+    		
+    		if (principal != null) {    		
+    			
     			/* topic authorization is checked twice: ones here to make a client 
     			 * notice errors already in the connection handshake and the second 
     			 * time in when the connection is opened, because the topic parsing

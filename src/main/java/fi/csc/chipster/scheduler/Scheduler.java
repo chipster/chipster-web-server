@@ -2,7 +2,6 @@ package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,27 +20,23 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.resource.AuthPrincipal;
-import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.rest.websocket.PubSubServer.TopicConfig;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDb;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
+import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.microarray.messaging.JobState;
 
-public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, TopicConfig, StatusSource {
-	
-	private static final String TOPIC_GROUP_SERVER = ",topicGroup=server";
+public class Scheduler implements SessionEventListener, MessageHandler.Whole<String>, StatusSource {
 
 	private Logger logger = LogManager.getLogger();
 	
@@ -88,9 +83,10 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.authService = new AuthenticationClient(serviceLocator, username, password);	      
 
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
-    	this.sessionDbClient.subscribe(SessionDb.JOBS_TOPIC, this, "scheduler-job-listener");    	
+    	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");    	
     	
-    	this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), "events", authService, this, this, "scheduler-events");
+    	SchedulerTopicConfig topicConfig = new SchedulerTopicConfig(authService);
+    	this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), "events", this, topicConfig, "scheduler-events");
     	this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
     	this.pubSubServer.start();	
     	    
@@ -117,22 +113,6 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	    	
     	logger.info("scheduler is up and running");    		
     }
-    
-    @Override
-	public boolean isAuthorized(AuthPrincipal principal, String topic) {
-		// check the authorization of the connecting comps
-		return principal.getRoles().contains(Role.COMP);			
-	}
-    
-	@Override
-	public String getMonitoringTag(String topicName) {
-		return TOPIC_GROUP_SERVER;
-	}
-	
-	@Override
-	public List<String> getMonitoringTags() {
-		return Arrays.asList(new String[] {TOPIC_GROUP_SERVER});
-	}
     
 	/**
 	 * Get unfinished jobs from the session-db
@@ -275,15 +255,23 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				
 				logger.info("received an offer for job " + jobIdPair + " from comp " + asShort(compMsg.getCompId()));
 				// respond only to the first offer
-				if (!jobs.get(jobIdPair).isRunning()) {
-					jobs.get(jobIdPair).setRunningTimestamp();
-					run(compMsg, jobIdPair);
+				if (jobs.get(jobIdPair) != null) {				
+					if (!jobs.get(jobIdPair).isRunning()) {
+						jobs.get(jobIdPair).setRunningTimestamp();
+						run(compMsg, jobIdPair);
+					}
+				} else {
+					logger.warn("comp " + asShort(compMsg.getCompId()) + " sent a offer of an non-existing job " + asShort(jobIdPair.getJobId()));
 				}
 				break;
 			case BUSY:
 				// there is a comp that is able to run this job later
 				logger.info("job " + jobIdPair + " is runnable on comp " + asShort(compMsg.getCompId()));
-				jobs.get(jobIdPair).setRunnableTimestamp();
+				if (jobs.get(jobIdPair) != null) {
+					jobs.get(jobIdPair).setRunnableTimestamp();				
+				} else {
+					logger.warn("comp " + asShort(compMsg.getCompId()) + " sent a busy message of an non-existing job " + asShort(jobIdPair.getJobId()));
+				}
 				break;
 				
 			case AVAILABLE:
@@ -299,7 +287,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				// update the heartbeat timestamps of the running jobs
 				
 				logger.debug("job running " + jobIdPair);
-				jobs.get(jobIdPair).setRunningTimestamp();
+				if (jobs.get(jobIdPair) != null) {
+					jobs.get(jobIdPair).setRunningTimestamp();
+				} else {
+					logger.warn("comp " + asShort(compMsg.getCompId()) + " sent a heartbeat of an non-existing job " + asShort(jobIdPair.getJobId()));
+				}
+				
 				break;
 	
 			default:

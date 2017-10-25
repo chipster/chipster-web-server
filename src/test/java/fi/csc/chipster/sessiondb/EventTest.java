@@ -80,7 +80,7 @@ public class EventTest {
     	
     	// jobs topic with client credentials
     	try {       
-    		getTestClient(uri + "/" + SessionDb.JOBS_TOPIC, messages, latch, retry, token);
+    		getTestClient(uri + "/" + SessionDbTopicConfig.JOBS_TOPIC, messages, latch, retry, token);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
