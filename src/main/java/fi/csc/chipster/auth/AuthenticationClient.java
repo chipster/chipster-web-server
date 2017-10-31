@@ -76,7 +76,11 @@ public class AuthenticationClient {
 
 			@Override
 			public void run() {
-				refreshToken();
+				try {
+					refreshToken();
+				} catch (Exception e) {
+					logger.warn("refresh token failed",  e);
+				}
 			}
 			
 		}, TOKEN_REFRESH_INTERVAL.toMillis(), TOKEN_REFRESH_INTERVAL.toMillis());

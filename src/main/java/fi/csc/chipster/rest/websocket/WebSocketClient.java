@@ -33,7 +33,7 @@ public class WebSocketClient implements EndpointListener {
 	private ClientManager client;
 	private WebSocketClientEndpoint endpoint;	
 	private RetryHandler retryHandler;
-	private Timer pingTimer = new Timer();
+	private Timer pingTimer = new Timer("ping timer", true);
 
 	private String uri;
 

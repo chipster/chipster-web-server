@@ -72,7 +72,11 @@ public class TokenResource {
 
 			@Override
 			public void run() {
-				cleanUp();
+				try {
+					cleanUp();
+				} catch (Exception e) {
+					logger.warn("token clean up failed", e);
+				}
 
 			}
 		}, 0, CLEAN_UP_INTERVAL.toMillis());

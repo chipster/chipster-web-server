@@ -34,17 +34,21 @@ public class DatasetTokenTable {
 		
 		long cleanUpIntervalMs = CLEAN_UP_INTERVAL * 1000 * 60;
 		
-		this.cleanUpTimer = new Timer();
+		this.cleanUpTimer = new Timer("dataset clean up timer", true);
 		this.cleanUpTimer.schedule(new TimerTask() {			
 			@Override
 			public void run() {
-				hibernate.runInTransaction(new HibernateRunnable<Void>() {
-					@Override
-					public Void run(org.hibernate.Session hibernateSession) {
-						cleanUp(hibernateSession);
-						return null;
-					}
-				});
+				try {
+					hibernate.runInTransaction(new HibernateRunnable<Void>() {
+						@Override
+						public Void run(org.hibernate.Session hibernateSession) {
+							cleanUp(hibernateSession);
+							return null;
+						}
+					});
+				} catch (Exception e) {
+					logger.warn("dataset token clean up failed", e);
+				}
 			}
 		}, cleanUpIntervalMs, cleanUpIntervalMs);
 	}

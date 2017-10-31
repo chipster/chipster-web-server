@@ -193,7 +193,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		logger.info("toolbox client connecting to: " + toolboxUrl);
 		
 		// initialize timeout checker
-		timeoutTimer = new Timer(true);
+		timeoutTimer = new Timer("timeout timer", true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
 		
 		heartbeatTimer = new Timer(true);
@@ -562,14 +562,18 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 
 				@Override
 				public void run() {
-					sendOfferMessage(cmd);
-					updateStatus();
+					try {
+						sendOfferMessage(cmd);
+						updateStatus();
+					} catch (Exception e) {
+						logger.warn("offer failed", e);
+					}
 				}
 			}, delay);
 		} else {
 			sendOfferMessage(cmd);
 		}
-		
+
 		updateStatus();
 	}
 
@@ -629,44 +633,52 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	 * 
 	 */
 	private class TimeoutTimerTask extends TimerTask {
-		
+
 		@Override
 		public void run() {
-			synchronized(jobsLock) {
-				
-				ArrayList<CompJob> jobsToBeRemoved = new ArrayList<CompJob>();
+			try {
+				synchronized(jobsLock) {
 
-				// get old scheduled jobs	
-				jobsToBeRemoved.clear();
-				for (CompJob job: scheduledJobs.values()) {
-					if ((System.currentTimeMillis() - scheduleTimeout * 1000) > job.getScheduleTime().getTime()) {
-						jobsToBeRemoved.add(job);
-					} else {
-						break;
+					ArrayList<CompJob> jobsToBeRemoved = new ArrayList<CompJob>();
+
+					// get old scheduled jobs	
+					jobsToBeRemoved.clear();
+					for (CompJob job: scheduledJobs.values()) {
+						if ((System.currentTimeMillis() - scheduleTimeout * 1000) > job.getScheduleTime().getTime()) {
+							jobsToBeRemoved.add(job);
+						} else {
+							break;
+						}
+					}
+
+					// remove old scheduled jobs
+					for (CompJob job: jobsToBeRemoved) {
+						scheduledJobs.remove(job.getId());
+						logger.debug("Removing old scheduled job: " + job.getId());
+						activeJobRemoved();
 					}
 				}
-
-				// remove old scheduled jobs
-				for (CompJob job: jobsToBeRemoved) {
-					scheduledJobs.remove(job.getId());
-					logger.debug("Removing old scheduled job: " + job.getId());
-					activeJobRemoved();
-				}
+			} catch (Exception e) {
+				logger.warn("removing old jobs failed", e);
 			}
 		}
 	}
-	
+
 	public class CompStatusTask extends TimerTask {
 
 		@Override
 		public void run() {
-			synchronized (jobsLock) {				
-				for (CompJob job : runningJobs.values()) {
-					sendJobCommand(new JobCommand(job.getInputMessage().getSessionId(), UUID.fromString(job.getId()), compId, Command.RUNNING));
+			try {
+				synchronized (jobsLock) {				
+					for (CompJob job : runningJobs.values()) {
+						sendJobCommand(new JobCommand(job.getInputMessage().getSessionId(), UUID.fromString(job.getId()), compId, Command.RUNNING));
+					}
+					if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
+						sendCompAvailable();
+					}
 				}
-				if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
-					sendCompAvailable();
-				}
+			} catch (Exception e) {
+				logger.warn("comp status failed", e);
 			}
 		}	
 	}

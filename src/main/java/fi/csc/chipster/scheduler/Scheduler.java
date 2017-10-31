@@ -93,7 +93,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	logger.info("getting unfinished jobs from the session-db");
     	getStateFromDb();    	
     	
-    	this.jobTimer = new Timer();
+    	this.jobTimer = new Timer("job timer", true);
     	this.jobTimer.schedule(new TimerTask() {
 			@Override
 			public void run() {

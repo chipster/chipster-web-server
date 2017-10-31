@@ -134,8 +134,12 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 
 					@Override
 					public void run() {
-						synchronized (tokenCache) {
-							tokenCache.remove(clientTokenKey); // clientTokeyKey is effectively final
+						try {
+							synchronized (tokenCache) {
+								tokenCache.remove(clientTokenKey); // clientTokeyKey is effectively final
+							}
+						} catch (Exception e) {
+							logger.warn("remove token from cache failed", e);
 						}
 					}			
 				}, TOKEN_CACHE_LIFETIME.toMillis());
