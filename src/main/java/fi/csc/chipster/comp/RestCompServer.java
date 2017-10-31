@@ -583,7 +583,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			this.schedulerClient.sendText(RestUtils.asJson(new JobCommand(cmd.getSessionId(), cmd.getJobId(), compId, Command.OFFER)));
 		} catch (IOException | InterruptedException e) {
 			synchronized(jobsLock) {
-				scheduledJobs.remove(cmd.getJobId());
+				scheduledJobs.remove(cmd.getJobId().toString());
 			}
 			logger.error("Could not send OFFER for job " + cmd.getJobId());
 		}
