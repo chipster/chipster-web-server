@@ -63,11 +63,14 @@ export class TypeTags {
   }
 
 
-  static getSlowTypeTags(headers: string[]) {
+  static getSlowTypeTags(table: string[][]) {
     let slowTags = {};
+    let headers = table[0];
+    let firstRow = table[1];
 
-    //FIXME implement proper identifier column checks
-    if (headers.indexOf('identifier') !== -1) {
+    if (headers.indexOf('identifier') !== -1 ||
+      headers.indexOf(' ') !== -1 ||
+      headers.length === firstRow.length - 1) {
       slowTags[Tags.GENELIST.id] = null;
     }
 
@@ -86,9 +89,9 @@ export class TypeTags {
     return slowTags;
   }
 
-  static parseHeader(data: string) : string[] {
-    let firstRow = data.split('\n', 1)[0];
-    return firstRow.split('\t');
+  static parseTsv(data: string) : string[][] {
+    let rows = data.split('\n', 2);
+    return rows.map(row => row.split('\t'));
   }
 
   static pValueAndFoldChangeCompatible(headers: string[]) {

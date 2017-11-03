@@ -245,8 +245,8 @@ export default class TypeService {
 	getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
     let observable;
     if (Tags.TSV.id in fastTags) {
-      observable = this.getHeaderNames(sessionId, dataset, token).map(headers => {
-        return TypeTags.getSlowTypeTags(headers);
+      observable = this.getParsedTsv(sessionId, dataset, token).map(table => {
+        return TypeTags.getSlowTypeTags(table);
       });
     } else {
       observable = Observable.of({});
@@ -255,11 +255,11 @@ export default class TypeService {
     return observable;
   }
 
-	getHeaderNames(sessionId, dataset, token) {
+	getParsedTsv(sessionId, dataset, token) {
 	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
 		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).map(data => {
-			return TypeTags.parseHeader(data);
+			return TypeTags.parseTsv(data);
 		});
 	}
 
