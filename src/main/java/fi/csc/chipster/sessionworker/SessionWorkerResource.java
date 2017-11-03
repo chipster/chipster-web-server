@@ -124,32 +124,6 @@ public class SessionWorkerResource {
 		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials);
 		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials);
 		
-		/*
-		 *  Workaround for proxy timeouts
-		 *  
-		 *  OpenShift router timeouts if it takes longer than 30 seconds before the response starts.
-		 *  Respond immediately to keep the connection open and only then extract the session.
-		 */
-		
-		/*
-		ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
-		
-		if (sessionData == null) {
-			sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
-		}
-		
-		if (sessionData == null) {
-			throw new BadRequestException("unrecognized file format");
-		}
-		
-		ArrayList<String> warnings = updateSession(sessionDb, sessionId, sessionData);
-		
-		HashMap<String, ArrayList<String>> output = new HashMap<>();
-		output.put("warnings", warnings);
-
-		return Response.ok(output).build();
-		*/
-		
 		return Response.ok(new StreamingOutput() {
 			
 			private CountDownLatch latch = new CountDownLatch(1);

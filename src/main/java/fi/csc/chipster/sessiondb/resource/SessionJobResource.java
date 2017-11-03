@@ -2,7 +2,6 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
@@ -80,15 +79,7 @@ public class SessionJobResource {
     
     public Job getJob(UUID jobId, org.hibernate.Session hibernateSession) {
     	
-    	Job job = hibernateSession.get(Job.class, jobId);
-    	if (job != null) {
-	    	// detach the object, so that the next duplicate removal won't try to update the database
-	    	hibernateSession.evict(job);
-	    	// remove input duplicates http://stackoverflow.com/questions/1995080/hibernate-criteria-returns-children-multiple-times-with-fetchtype-eager
-	    	job.setInputs(new LinkedHashSet<Input>(job.getInputs()));
-    	}
-    	
-    	return job;
+    	return hibernateSession.get(Job.class, jobId);    	
     }
     
 	@GET
