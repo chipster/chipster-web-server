@@ -21,6 +21,7 @@ export const Tags = {
   BED: new Tag('BED', ['.bed']),
   GTF: new Tag('GTF', ['.gtf', '.gff', '.gff2', '.gff3']),
   FASTA: new Tag('FASTA', ['.fasta', '.fa', '.fna', '.fsa', '.mpfa']),
+  FAI: new Tag('FAI', ['.fai']),
   FASTQ: new Tag('FASTQ', ['.fastq', '.fq']),
   GZIP: new Tag('GZIP', ['.gz']),
   VCF: new Tag('VCF', ['.vcf']),
@@ -40,6 +41,7 @@ export const Tags = {
   PHENODATA: new Tag('PHENODATA', []),
   GENERIC: new Tag('GENERIC', []),
   PVALUE_AND_FOLD_CHANGE: new Tag('PVALUE_AND_FOLD_CHANGE', []),
+  COLUMN_TITLES: new Tag('COLUMN_TITLES', []),
 };
 
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
@@ -58,6 +60,18 @@ export class TypeTags {
           typeTags[tagKey] = null;
         }
       }
+    }
+
+    if (Tags.GTF.id in typeTags) {
+      typeTags[Tags.COLUMN_TITLES.id] = 'seqname\tsource\tfeature\tstart\tend\tscore\tstrand\tframe\tattribute';
+    }
+
+    if (Tags.BED.id in typeTags) {
+      typeTags[Tags.COLUMN_TITLES.id] = 'chrom\tchromStart\tchromEnd\tname\tscore\tstrand\tthickStart\tthickEnd\titemRgb\tblockCount\tblockSizes\tblockStarts';
+    }
+
+    if (Tags.FAI.id in typeTags) {
+      typeTags[Tags.COLUMN_TITLES.id] = 'NAME\tLENGTH\tOFFSET\tLINEBASES\tLINEWIDTH';
     }
     return typeTags;
   }
