@@ -1,6 +1,6 @@
 package fi.csc.chipster.proxy;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +31,12 @@ public class ConnectionManager {
 			this.route = route;
 		}
 		public void addConnection(Connection connection) {
-	        connection.setOpenTime(LocalDateTime.now());
+	        connection.setOpenTime(Instant.now());
 			connections.add(connection);
 			requestCount.getAndIncrement();
 		}
 		public void removeConnection(Connection connection) {
-			connection.setCloseTime(LocalDateTime.now());
+			connection.setCloseTime(Instant.now());
 			connections.removeAll(getOldConnections());
 //			System.out.println(
 //					ChronoUnit.MILLIS.between(connection.getOpenTime(), connection.getCloseTime()) + "\t" + 
@@ -55,7 +55,7 @@ public class ConnectionManager {
 		private ArrayList<Connection> getLatestConnections() {
 			ArrayList<Connection> filtered = new ArrayList<>();
 			for (Connection con : connections) {
-				if (con.getCloseTime() != null && con.getCloseTime().isAfter(LocalDateTime.now().minus(1, ChronoUnit.SECONDS))) {
+				if (con.getCloseTime() != null && con.getCloseTime().isAfter(Instant.now().minus(1, ChronoUnit.SECONDS))) {
 					filtered.add(con);
 				}
 			}
@@ -64,7 +64,7 @@ public class ConnectionManager {
 		private ArrayList<Connection> getOldConnections() {
 			ArrayList<Connection> filtered = new ArrayList<>();
 			for (Connection con : connections) {
-				if (con.getCloseTime() != null && con.getCloseTime().isBefore(LocalDateTime.now().minus(1, ChronoUnit.SECONDS))) {
+				if (con.getCloseTime() != null && con.getCloseTime().isBefore(Instant.now().minus(1, ChronoUnit.SECONDS))) {
 					filtered.add(con);
 				}
 			}

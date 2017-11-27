@@ -2,7 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
@@ -59,15 +59,15 @@ public class DatasetTokenResource {
 		// Although the token is written to a DB, this doesn't really change anything for others.
 		Dataset dataset = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId, false);
 		
-		LocalDateTime valid = null;
+		Instant valid = null;
 		if (validString == null) {
-			valid = LocalDateTime.now().plus(Duration.ofSeconds(DATASET_TOKEN_VALID_DEFAULT));
+			valid = Instant.now().plus(Duration.ofSeconds(DATASET_TOKEN_VALID_DEFAULT));
 		} else {
 			try {
-				valid = LocalDateTime.parse(validString);
+				valid = Instant.parse(validString);
 			} catch (DateTimeParseException e) {
-				logger.error("query parameter 'valid' can't be parsed to LocalDateTime", e);
-				throw new BadRequestException("query parameter 'valid' can't be parsed to LocalDateTime");
+				logger.error("query parameter 'valid' can't be parsed to Instant", e);
+				throw new BadRequestException("query parameter 'valid' can't be parsed to Instant");
 			}
 		}
 		

@@ -2,7 +2,7 @@ package fi.csc.chipster.sessiondb;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -361,7 +361,7 @@ public class SessionDbClient {
 		.path("datasets").path(datasetId.toString());
 		
 		if (validSeconds != null) {
-			target = target.queryParam("valid", LocalDateTime.now().plus(Duration.ofSeconds(validSeconds)).toString());
+			target = target.queryParam("valid", Instant.now().plus(Duration.ofSeconds(validSeconds)).toString());
 		}
 		
 		DatasetToken datasetToken = postWithObjectResponse(target, null, DatasetToken.class);

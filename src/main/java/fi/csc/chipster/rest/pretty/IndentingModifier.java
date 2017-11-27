@@ -4,11 +4,11 @@ import java.io.IOException;
 
 import javax.ws.rs.core.MultivaluedMap;
 
-import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.EndpointConfigBase;
-import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.ObjectWriterModifier;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.jaxrs.cfg.EndpointConfigBase;
+import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
 
 public class IndentingModifier extends ObjectWriterModifier {
 

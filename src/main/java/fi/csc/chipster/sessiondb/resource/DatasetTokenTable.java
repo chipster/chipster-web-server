@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb.resource;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -89,7 +89,7 @@ public class DatasetTokenTable {
 			throw new ForbiddenException("token not valid for this dataset");			
 		}
 		
-		if (token.getValid().isBefore(LocalDateTime.now())) {			
+		if (token.getValid().isBefore(Instant.now())) {			
 			throw new ForbiddenException("token expired");
 		}
 		
@@ -102,7 +102,7 @@ public class DatasetTokenTable {
 
 	public void cleanUp(org.hibernate.Session hibernateSession) {
 		String hql = "delete from " + DatasetToken.class.getSimpleName() + " where valid< :valid";
-		int result = hibernateSession.createQuery(hql).setParameter("valid", LocalDateTime.now()).executeUpdate();
+		int result = hibernateSession.createQuery(hql).setParameter("valid", Instant.now()).executeUpdate();
 		if (result > 0) {
 			logger.info(result + " expired dataset tokens removed");
 		}

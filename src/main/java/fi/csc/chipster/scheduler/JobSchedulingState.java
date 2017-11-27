@@ -1,39 +1,39 @@
 package fi.csc.chipster.scheduler;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 public class JobSchedulingState {
 	
-		private LocalDateTime newTimestamp;
-		private LocalDateTime scheduleTimestamp;
-		private LocalDateTime runningTimestamp;
-		private LocalDateTime runnableTimestamp;
+		private Instant newTimestamp;
+		private Instant scheduleTimestamp;
+		private Instant runningTimestamp;
+		private Instant runnableTimestamp;
 		
 		public JobSchedulingState() {
 			setNewTimestamp();
 		}
 		
-		public LocalDateTime getNewTimestamp() {
+		public Instant getNewTimestamp() {
 			return newTimestamp;
 		}
 		public void setNewTimestamp() {
 			// set the new timestamp only once so that we can timeout it properly
 			if (newTimestamp == null) {
-				this.newTimestamp = LocalDateTime.now();
+				this.newTimestamp = Instant.now();
 			}
 		}
-		public LocalDateTime getScheduleTimestamp() {
+		public Instant getScheduleTimestamp() {
 			return scheduleTimestamp;
 		}
 		public void setScheduleTimestamp() {
-			this.scheduleTimestamp = LocalDateTime.now();
+			this.scheduleTimestamp = Instant.now();
 		}
-		public LocalDateTime getRunningTimestamp() {
+		public Instant getRunningTimestamp() {
 			return runningTimestamp;
 		}
 		public void setRunningTimestamp() {
-			this.runningTimestamp = LocalDateTime.now();
+			this.runningTimestamp = Instant.now();
 		}		
 		
 		public boolean isScheduled() {
@@ -53,19 +53,19 @@ public class JobSchedulingState {
 		}
 		
 		public long getTimeSinceNew() {
-			return newTimestamp.until(LocalDateTime.now(), ChronoUnit.SECONDS);
+			return newTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
 		}
 		
 		public long getTimeSinceScheduled() {
-			return scheduleTimestamp.until(LocalDateTime.now(), ChronoUnit.SECONDS);
+			return scheduleTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
 		}
 
 		public long getTimeSinceLastHeartbeat() {
-			return runningTimestamp.until(LocalDateTime.now(), ChronoUnit.SECONDS);
+			return runningTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
 		}
 
 		public void setRunnableTimestamp() {
-			runnableTimestamp = LocalDateTime.now();
+			runnableTimestamp = Instant.now();
 		}
 
 		public boolean isRunnable() {

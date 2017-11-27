@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import javax.persistence.CascadeType;
@@ -17,7 +17,7 @@ public class DatasetToken {
 	@Id // db
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
 	private UUID tokenKey;
-	private LocalDateTime valid;
+	private Instant valid;
 	
 	private String username;
 	@OneToOne(cascade=CascadeType.ALL)
@@ -27,7 +27,7 @@ public class DatasetToken {
 	
 	public DatasetToken() { } // hibernate needs this			
 	
-	public DatasetToken(UUID tokenKey, String username, Session session, Dataset dataset, LocalDateTime valid) {
+	public DatasetToken(UUID tokenKey, String username, Session session, Dataset dataset, Instant valid) {
 		this.tokenKey = tokenKey;
 		this.username = username;
 		this.session = session;
@@ -59,11 +59,11 @@ public class DatasetToken {
 		this.dataset = dataset;
 	}
 
-	public LocalDateTime getValid() {
+	public Instant getValid() {
 		return valid;
 	}
 
-	public void setValid(LocalDateTime valid) {
+	public void setValid(Instant valid) {
 		this.valid = valid;
 	}
 

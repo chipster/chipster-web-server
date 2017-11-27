@@ -7,7 +7,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.xml.bind.annotation.XmlTransient;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 public class Rule {
@@ -17,7 +17,6 @@ public class Rule {
 	private UUID ruleId;	 
 	private String username;
 	
-	@XmlTransient
 	@ManyToOne
 	@JoinColumn(name="sessionId")	
 	private Session session;
@@ -50,7 +49,7 @@ public class Rule {
 		this.ruleId = authorizationId;
 	}
 	
-	@XmlTransient
+	@JsonIgnore
 	public Session getSession() {
 		return session;
 	}

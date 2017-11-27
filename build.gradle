@@ -86,17 +86,17 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-1.2-api:2.4.1"
 
     // jersey
-    compile "org.glassfish.jersey:jersey-bom:2.26"
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.26"
-    //compile "org.glassfish.jersey.containers:jersey-container-servlet:2.26" // Jersey in Jetty
-    compile "org.glassfish.jersey.media:jersey-media-json-jackson:2.26"
     compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26" // JAX-RS in Jetty
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.9.1"
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.1"
-    compile "com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.1"
-	compile group: 'com.fasterxml.jackson.jaxrs', name: 'jackson-jaxrs-json-provider', version: '2.9.1'
-	compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.26'    
-
+    compile "org.glassfish.jersey.inject:jersey-hk2:2.26"
+    
+    // jackson
+	compile "com.fasterxml.jackson.core:jackson-core:2.9.2"
+    compile "com.fasterxml.jackson.core:jackson-databind:2.9.2"
+    compile "com.fasterxml.jackson.core:jackson-annotations:2.9.2"
+	compile "com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.9.2"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
+	
     // hibernate
     compile "org.hibernate:hibernate-java8:5.2.10.Final"
     compile "org.hibernate:hibernate-c3p0:5.2.10.Final"

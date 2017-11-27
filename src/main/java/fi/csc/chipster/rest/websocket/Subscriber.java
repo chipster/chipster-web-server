@@ -1,7 +1,6 @@
 package fi.csc.chipster.rest.websocket;
 
-import java.time.LocalDateTime;
-
+import java.time.Instant;
 import javax.websocket.RemoteEndpoint.Basic;
 
 public class Subscriber {
@@ -9,13 +8,13 @@ public class Subscriber {
 	private Basic remote;
 	private String remoteAddress;
 	private String username;
-	private LocalDateTime created;
+	private Instant created;
 
 	public Subscriber(Basic remote, String remoteAddress, String username) {
 		this.remote = remote;
 		this.remoteAddress = remoteAddress;
 		this.setUsername(username);
-		this.created = LocalDateTime.now();
+		this.created = Instant.now();
 	}
 
 	public Basic getRemote() {
@@ -39,7 +38,7 @@ public class Subscriber {
 		this.username = username;
 	}
 
-	public LocalDateTime getCreated() {
+	public Instant getCreated() {
 		return created;
 	}
 }

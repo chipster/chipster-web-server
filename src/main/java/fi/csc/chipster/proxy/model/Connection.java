@@ -1,6 +1,6 @@
 package fi.csc.chipster.proxy.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import javax.ws.rs.core.UriBuilder;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -17,8 +17,8 @@ public class Connection {
 	private Route route;
 	private String sourceAddress;
 	private String requestURI;
-	private LocalDateTime openTime;
-	private LocalDateTime closeTime;
+	private Instant openTime;
+	private Instant closeTime;
 	private String method;
 	
 	public String getSourceAddress() {
@@ -27,16 +27,16 @@ public class Connection {
 	public void setSourceAddress(String sourceAddress) {
 		this.sourceAddress = sourceAddress;
 	}
-	public LocalDateTime getOpenTime() {
+	public Instant getOpenTime() {
 		return openTime;
 	}
-	public void setOpenTime(LocalDateTime openTime) {
+	public void setOpenTime(Instant openTime) {
 		this.openTime = openTime;
 	}
-	public LocalDateTime getCloseTime() {
+	public Instant getCloseTime() {
 		return closeTime;
 	}
-	public void setCloseTime(LocalDateTime closeTime) {
+	public void setCloseTime(Instant closeTime) {
 		this.closeTime = closeTime;
 	}
 	public String getRequestURI() {

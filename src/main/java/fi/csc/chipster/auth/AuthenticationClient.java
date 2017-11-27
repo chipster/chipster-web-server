@@ -1,7 +1,7 @@
 package fi.csc.chipster.auth;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
@@ -23,14 +23,17 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.hibernate.service.spi.ServiceException;
 
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.DynamicCredentials;
-import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
+import fi.csc.chipster.rest.JavaTimeObjectMapperProvider;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+
 
 public class AuthenticationClient {
 	
@@ -125,13 +128,15 @@ public class AuthenticationClient {
 	}
 	
 	public static Client getClient(String username, String password, boolean enableAuth) {
-		Client c = ClientBuilder.newClient();
+
+		Client c = ClientBuilder.newClient()
+				.register(JacksonJaxbJsonProvider.class)
+				.register(JavaTimeObjectMapperProvider.class)
+				;
 		if (enableAuth) {
 			HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(username, password);
 			c.register(feature);
 		}
-		c.register(LocalDateTimeContextResolver.class);
-		//c.register(new LoggingFilter());
 		return c;
 	}
 	
@@ -186,7 +191,7 @@ public class AuthenticationClient {
 					setToken(serverToken); 
 					
 					// if token is expiring before refresh interval * 2, get a new token
-					if (serverToken.getValid().isBefore(LocalDateTime.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
+					if (serverToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
 						logger.info("refreshed token expiring soon, getting a new one");
 						try {
 							setToken(getTokenFromAuth());

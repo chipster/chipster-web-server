@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -151,7 +151,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	    	response.setContentType(getType(dataset).toString());
 	    }
 	    		   		    	  
-	    LocalDateTime before = LocalDateTime.now();
+	    Instant before = Instant.now();
 	    
 		// delegate to super class
 		super.doGet(rewrittenRequest, response);
@@ -162,7 +162,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 	}
 		
-	private void logAsyncGet(HttpServletRequest request, HttpServletResponse response, File f, LocalDateTime before) {
+	private void logAsyncGet(HttpServletRequest request, HttpServletResponse response, File f, Instant before) {
 		
 		// addListener() complains about an illegal state, if we do this before super.doGET().
 		// Now afterwards we have to check that the request isn't handled already 
@@ -186,7 +186,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 	}
 	
-	private void logGet(HttpServletRequest request, File f, LocalDateTime before) {
+	private void logGet(HttpServletRequest request, File f, Instant before) {
 		
 		long length = f.length();
 		
@@ -196,7 +196,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			length = ranges.get(0).getLast() - ranges.get(0).getFirst();
 		}
 		
-		Duration duration = Duration.between(before, LocalDateTime.now());
+		Duration duration = Duration.between(before, Instant.now());
 		double rate = getTransferRate(length, duration);
 		
 		logger.info("GET " + f.getName()  + " " + 
@@ -362,7 +362,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 					fi.csc.chipster.sessiondb.model.File file = new fi.csc.chipster.sessiondb.model.File();
 					file.setFileId(fileId);
 					file.setSize(f.length());
-					file.setFileCreated(LocalDateTime.now());
+					file.setFileCreated(Instant.now());
 					dataset.setFile(file);
 					sessionDbClient.updateDataset(path.getSessionId(), dataset);					
 				} catch (EOFException e) {

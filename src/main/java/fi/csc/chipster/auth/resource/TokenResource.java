@@ -2,7 +2,6 @@ package fi.csc.chipster.auth.resource;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
@@ -110,10 +109,10 @@ public class TokenResource {
 		//FIXME has to be cryptographically secure
 		UUID tokenKey = RestUtils.createUUID();
 		String rolesJson = RestUtils.asJson(roles);
-		LocalDateTime now = LocalDateTime.now();
+		Instant now = Instant.now();
 
 		Token token = new Token(username, tokenKey, now, now, rolesJson);
-		token.setValid(getTokenNextExpiration(token));
+		token.setValidUntil(getTokenNextExpiration(token));
 		return token;
 	}
 
@@ -126,9 +125,9 @@ public class TokenResource {
 	 */
 	private void cleanUp() {
 		Instant begin = Instant.now();
-		LocalDateTime now = LocalDateTime.now();
-		LocalDateTime clientOldestValidCreationTime = now.minus(CLIENT_TOKEN_MAX_LIFETIME);
-		LocalDateTime serverOldestValidCreationTime = now.minus(SERVER_TOKEN_MAX_LIFETIME);
+		Instant now = Instant.now();
+		Instant clientOldestValidCreationTime = now.minus(CLIENT_TOKEN_MAX_LIFETIME);
+		Instant serverOldestValidCreationTime = now.minus(SERVER_TOKEN_MAX_LIFETIME);
 
 		logger.info("cleaning up expired tokens");
 		logger.info("client token max lifetime is " + CLIENT_TOKEN_MAX_LIFETIME +
@@ -143,8 +142,8 @@ public class TokenResource {
 		for (Token t: tokens) {
 
 			// expired
-			if (t.getValid().isBefore(now)) {
-				logger.info("deleting expired token " + t.getTokenKey() + " " + t.getUsername() + ", was valid until " + t.getValid());
+			if (t.getValidUntil().isBefore(now)) {
+				logger.info("deleting expired token " + t.getTokenKey() + " " + t.getUsername() + ", was valid until " + t.getValidUntil());
 				getHibernate().session().delete(t);
 				deleteCount++;
 			} 
@@ -153,15 +152,15 @@ public class TokenResource {
 			else {
 				boolean delete = false;
 				if (t.getRoles().contains(Role.SERVER)) {
-					if (t.getCreationTime().isBefore(serverOldestValidCreationTime)) {
+					if (t.getCreated().isBefore(serverOldestValidCreationTime)) {
 						delete = true;
 					}
-				} else if (t.getCreationTime().isBefore(clientOldestValidCreationTime)) { 
+				} else if (t.getCreated().isBefore(clientOldestValidCreationTime)) { 
 					delete = true;
 				}
 
 				if (delete) {
-					logger.info("deleting token " + t.getTokenKey() + " " + t.getUsername() + ", max life time reached, was created " + t.getCreationTime());
+					logger.info("deleting token " + t.getTokenKey() + " " + t.getUsername() + ", max life time reached, was created " + t.getCreated());
 					getHibernate().session().delete(t);
 					deleteCount++;
 				}
@@ -180,7 +179,7 @@ public class TokenResource {
 
 		Token dbToken = getToken(requestToken);
 
-		if (dbToken.getValid().isAfter(LocalDateTime.now())) {
+		if (dbToken.getValidUntil().isAfter(Instant.now())) {
 			return Response.ok(dbToken).build();
 		} else {
 			// not a ForbiddenException because the server's token was authenticated correctly in the TokenRequestFilter 
@@ -200,10 +199,10 @@ public class TokenResource {
 
 		failIfTokenExpired(dbToken);
 		if (dbToken.getUsername().equals("comp")) {
-			logger.info("REFRESH " + dbToken.getValid() + " " + getTokenNextExpiration(dbToken));
+			logger.info("REFRESH " + dbToken.getValidUntil() + " " + getTokenNextExpiration(dbToken));
 		}
 
-		dbToken.setValid(getTokenNextExpiration(dbToken));
+		dbToken.setValidUntil(getTokenNextExpiration(dbToken));
 
 		return Response.ok(dbToken).build();
 	}
@@ -229,35 +228,35 @@ public class TokenResource {
 
 
 	private void failIfTokenExpired(Token token) {
-		if (!token.getValid().isAfter(LocalDateTime.now())) {
+		if (!token.getValidUntil().isAfter(Instant.now())) {
 			throw new ForbiddenException("token expired");
 		}
 
 		// token is (was) valid but token max lifetime may have been changed and could result in expiration
 		// unlikely to happen if max lifetime change needs server restart as expired tokens are cleaned up at startup
-		if (getTokenFinalExpiration(token).isBefore(LocalDateTime.now())) {
+		if (getTokenFinalExpiration(token).isBefore(Instant.now())) {
 			throw new ForbiddenException("token expired, max lifetime reached");
 		}
 	}
 
-	private LocalDateTime getTokenNextExpiration(Token token) {
-		LocalDateTime nextCandidateExpiration = getTokenNextCandidateExpiration(token);
-		LocalDateTime finalExpiration = getTokenFinalExpiration(token);
+	private Instant getTokenNextExpiration(Token token) {
+		Instant nextCandidateExpiration = getTokenNextCandidateExpiration(token);
+		Instant finalExpiration = getTokenFinalExpiration(token);
 
 		return nextCandidateExpiration.isBefore(finalExpiration) ? nextCandidateExpiration: finalExpiration;
 	}
 
-	private LocalDateTime getTokenNextCandidateExpiration(Token token) {
+	private Instant getTokenNextCandidateExpiration(Token token) {
 		return token.getRoles().contains(Role.SERVER) ? 
-				LocalDateTime.now().plus(SERVER_TOKEN_LIFETIME) : 
-					LocalDateTime.now().plus(CLIENT_TOKEN_LIFETIME);
+				Instant.now().plus(SERVER_TOKEN_LIFETIME) : 
+					Instant.now().plus(CLIENT_TOKEN_LIFETIME);
 
 	}
 
-	private LocalDateTime getTokenFinalExpiration(Token token) {
+	private Instant getTokenFinalExpiration(Token token) {
 		return token.getRoles().contains(Role.SERVER) ? 
-				token.getCreationTime().plus(SERVER_TOKEN_MAX_LIFETIME) : 
-					token.getCreationTime().plus(CLIENT_TOKEN_MAX_LIFETIME);
+				token.getCreated().plus(SERVER_TOKEN_MAX_LIFETIME) : 
+					token.getCreated().plus(CLIENT_TOKEN_MAX_LIFETIME);
 	}
 
 

@@ -1,7 +1,7 @@
 package fi.csc.chipster.rest.token;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -146,7 +146,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			}
 		}
 
-		if (dbClientToken.getValid().isBefore(LocalDateTime.now())) {
+		if (dbClientToken.getValidUntil().isBefore(Instant.now())) {
 			// auth responses with NotFoundException
 			throw new NotFoundException("token expired");
 		}

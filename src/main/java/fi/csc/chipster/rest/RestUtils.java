@@ -6,11 +6,9 @@ import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
@@ -42,11 +40,12 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.exception.LocalDateTimeContextResolver;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -69,8 +68,9 @@ public class RestUtils {
 	private static Random rand = new Random();
 	
 	public static ObjectMapper getObjectMapper() {
-		ObjectMapper mapper = new LocalDateTimeContextResolver().getContext(null);
-		return mapper;
+		return new ObjectMapper()
+		.registerModule(new JavaTimeModule())
+		.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 	}
 	
 	public static String asJson(Object obj) {
@@ -81,7 +81,6 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringWriter writer = new StringWriter();
-			// support for LocalDateTime
 			ObjectMapper mapper = getObjectMapper();
 			if (pretty) {
 				mapper.writerWithDefaultPrettyPrinter().writeValue(writer, obj);
@@ -103,7 +102,6 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			// support for LocalDateTime
 			ObjectMapper mapper = getObjectMapper();
 			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
 			return mapper.readValue(reader, obj);
@@ -124,7 +122,6 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			// support for LocalDateTime
 			ObjectMapper mapper = getObjectMapper();
 			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
 			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
@@ -134,23 +131,6 @@ public class RestUtils {
 		}
 	}
 	
-	public static Date toDate(LocalDateTime dateTime) {
-		if (dateTime != null) {
-			return Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
-		} else {
-			return null;
-		}
-	}
-	
-	public static LocalDateTime toLocalDateTime(Date date) {
-		if (date != null) {
-			return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
-		} else {
-			return null;
-		}
-	}
-	
-
 	public static String createId() {
 		return createUUID().toString();
 	}
@@ -165,8 +145,8 @@ public class RestUtils {
     	Session s = new Session();    	    	
     	//s.setSessionId(createUUID());
     	s.setName("session" + rand.nextInt(1000));
-    	s.setCreated(LocalDateTime.now());
-    	s.setAccessed(LocalDateTime.now());
+    	s.setCreated(Instant.now());
+    	s.setAccessed(Instant.now());
     	
     	return s;
     }
@@ -191,10 +171,10 @@ public class RestUtils {
 
 	public static Job getRandomJob() {
 		Job j = new Job();
-		j.setEndTime(LocalDateTime.now());
+		j.setEndTime(Instant.now());
 		//j.setJobId(createUUID());
 		j.setState(JobState.NEW);
-		j.setStartTime(LocalDateTime.now());
+		j.setStartTime(Instant.now());
 		j.setToolCategory("utilities");
 		j.setToolDescription("very important tool");
 		j.setToolId("UtilTool.py");
@@ -280,9 +260,9 @@ public class RestUtils {
 				 */
 				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
 				.register(JacksonJaxbJsonProvider.class)
+				.register(JavaTimeObjectMapperProvider.class)
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
-				//.register(LocalDateTimeContextResolver.class)
 				// add CORS headers
 				.register(CORSResponseFilter.class)
 				// enable the RolesAllowed annotation
@@ -416,7 +396,7 @@ public class RestUtils {
     	        	final int timeout = 60 * 60; // seconds
     	        	
     	        	int connections = 0;
-    	        	LocalDateTime waitStart = LocalDateTime.now();
+    	        	Instant waitStart = Instant.now();
     	        	
     	        	shutdownWait:while (true) {
     	        		for (int i = 0; i < logInterval; i++) {
@@ -426,7 +406,7 @@ public class RestUtils {
 	    	        	
 	    	        		if (connections == 0) {
 	    	        			break shutdownWait;
-	    	        		} else if (LocalDateTime.now().isAfter(waitStart.plusSeconds(timeout))){
+	    	        		} else if (Instant.now().isAfter(waitStart.plusSeconds(timeout))){
 	    	        			System.err.println(name + " shutdown wait timeout reached");
 	    	        			break shutdownWait;
 	    	        		} else {

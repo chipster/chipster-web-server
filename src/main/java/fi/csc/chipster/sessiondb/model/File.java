@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import javax.persistence.Column;
@@ -15,7 +15,7 @@ public class File {
 	private UUID fileId;
 	private long size = -1;
 	private String checksum;
-	private LocalDateTime fileCreated;
+	private Instant fileCreated;
 	
 	public File() {} // JAXB needs this	
 
@@ -43,11 +43,11 @@ public class File {
 		this.fileId = fileId;
 	}
 
-	public LocalDateTime getFileCreated() {
+	public Instant getFileCreated() {
 		return fileCreated;
 	}
 	
-	public void setFileCreated(LocalDateTime created) {
+	public void setFileCreated(Instant created) {
 	}
 
 	@Override

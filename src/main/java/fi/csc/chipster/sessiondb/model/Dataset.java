@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,8 +19,7 @@ import javax.persistence.ManyToOne;
 import javax.persistence.MapKeyColumn;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
@@ -45,9 +44,8 @@ public class Dataset {
 	private Integer x;
 	private Integer y;
 	private UUID sourceJob;
-	private LocalDateTime created;
+	private Instant created;
 	
-	@XmlTransient
 	@ManyToOne
 	@JoinColumn(name="sessionId")
 	private Session session;
@@ -134,7 +132,7 @@ public class Dataset {
 		this.metadata = metadata;
 	}
 
-	@XmlTransient
+	@JsonIgnore
 	public Session getSession() {
 		return session;
 	}
@@ -159,11 +157,11 @@ public class Dataset {
 		this.typeTags = typeTags;
 	}
 
-	public LocalDateTime getCreated() {
+	public Instant getCreated() {
 		return created;
 	}
 
-	public void setCreated(LocalDateTime created) {
+	public void setCreated(Instant created) {
 		this.created = created;
 	}
 }

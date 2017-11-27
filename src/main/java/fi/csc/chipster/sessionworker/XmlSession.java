@@ -2,7 +2,7 @@ package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -280,7 +280,7 @@ public class XmlSession {
 		fi.csc.chipster.sessiondb.model.Session session = new fi.csc.chipster.sessiondb.model.Session();
 		
 		session.setAccessed(null);
-		session.setCreated(LocalDateTime.now());
+		session.setCreated(Instant.now());
 		session.setNotes(sessionType.getNotes());
 		
 		session.setDatasets(getDatasets(sessionType.getData()));
@@ -326,10 +326,10 @@ public class XmlSession {
 			job.setJobId(UUID.fromString(operationType.getId()));
 		}
 		if (operationType.getStartTime() != null) {				
-			job.setStartTime(RestUtils.toLocalDateTime(operationType.getStartTime().toGregorianCalendar().getTime()));
+			job.setStartTime(operationType.getStartTime().toGregorianCalendar().toInstant());
 		}
 		if (operationType.getEndTime() != null) {
-			job.setEndTime(RestUtils.toLocalDateTime(operationType.getEndTime().toGregorianCalendar().getTime()));
+			job.setEndTime(operationType.getEndTime().toGregorianCalendar().toInstant());
 		}
 		job.setModule(operationType.getModule());
 		job.setToolCategory(operationType.getCategory());
@@ -395,7 +395,7 @@ public class XmlSession {
 		dataset.setNotes(dataType.getNotes());
 		dataset.setX(dataType.getLayoutX());
 		dataset.setY(dataType.getLayoutY());
-		dataset.setCreated(RestUtils.toLocalDateTime(dataType.getCreationTime().toGregorianCalendar().getTime()));
+		dataset.setCreated(dataType.getCreationTime().toGregorianCalendar().toInstant());
 		
 		dataset.setSourceJob(UUID.fromString(dataType.getResultOf()));
 		

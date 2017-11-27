@@ -1,7 +1,7 @@
 package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -381,7 +381,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		try {			
 			Job job = sessionDbClient.getJob(jobId.getSessionId(), jobId.getJobId());
 			logger.warn("max wait time reached for job " + jobId);
-			job.setEndTime(LocalDateTime.now());
+			job.setEndTime(Instant.now());
 			job.setState(JobState.EXPIRED_WAITING);
 			job.setStateDetail("Job expired (" + reason + ")");
 			sessionDbClient.updateJob(jobId.getSessionId(), job);

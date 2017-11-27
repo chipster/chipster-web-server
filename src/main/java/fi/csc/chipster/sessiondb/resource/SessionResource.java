@@ -2,7 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -102,7 +102,7 @@ public class SessionResource {
     	}	
     	
     	// does this update the db?
-    	result.setAccessed(LocalDateTime.now());
+    	result.setAccessed(Instant.now());
     	
     	return Response.ok(result).build();    	
     }
@@ -141,8 +141,8 @@ public class SessionResource {
 
 		UUID id = RestUtils.createUUID();
 		session.setSessionId(id);
-		session.setCreated(LocalDateTime.now());
-		session.setAccessed(LocalDateTime.now());
+		session.setCreated(Instant.now());
+		session.setAccessed(Instant.now());
 		
 		String username = sc.getUserPrincipal().getName();
 		if (username == null) {
@@ -187,7 +187,7 @@ public class SessionResource {
 		// checks the authorization and verifies that the session exists
 		ruleTable.getSessionForWriting(sc, sessionId);
 		
-		requestSession.setAccessed(LocalDateTime.now());
+		requestSession.setAccessed(Instant.now());
 		
 		update(requestSession, getHibernate().session());
 		

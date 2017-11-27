@@ -1,11 +1,10 @@
 package fi.csc.chipster.sessiondb.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
-
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -16,8 +15,7 @@ import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import fi.csc.microarray.messaging.JobState;
 
 @Entity // db
@@ -33,8 +31,8 @@ public class Job {
 	private String toolName;
 	@Lob
 	private String toolDescription;
-	private LocalDateTime startTime;
-	private LocalDateTime endTime;
+	private Instant startTime;
+	private Instant endTime;
 	private String module;
 	@Lob
 	private String sourceCode;
@@ -43,10 +41,6 @@ public class Job {
 	@Lob
 	private String stateDetail;
 	
-	
-	// don't parse from the JSON, because this would usually come from the client 
-	// and couldn't be trusted
-	@XmlTransient
 	@ManyToOne
 	@JoinColumn(name="sessionId")
 	private Session session;
@@ -89,16 +83,16 @@ public class Job {
 	public void setToolDescription(String toolDescription) {
 		this.toolDescription = toolDescription;
 	}
-	public LocalDateTime getStartTime() {
+	public Instant getStartTime() {
 		return startTime;
 	}
-	public void setStartTime(LocalDateTime startTime) {
+	public void setStartTime(Instant startTime) {
 		this.startTime = startTime;
 	}
-	public LocalDateTime getEndTime() {
+	public Instant getEndTime() {
 		return endTime;
 	}
-	public void setEndTime(LocalDateTime endTime) {
+	public void setEndTime(Instant endTime) {
 		this.endTime = endTime;
 	}
 	public JobState getState() {
@@ -146,10 +140,15 @@ public class Job {
 		this.stateDetail = stateDetail;
 	}
 	
+	// don't parse from the JSON, because this would usually come from the client 
+	// and couldn't be trusted
+	@JsonIgnore
 	public Session getSession() {
 		return session;
 	}
+	
 	public void setSession(Session session) {
 		this.session = session;
 	}
+	
 }

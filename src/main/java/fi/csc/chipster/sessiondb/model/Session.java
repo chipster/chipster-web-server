@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,7 +14,8 @@ import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity // db
 @XmlRootElement // REST
 public class Session {
@@ -27,8 +28,8 @@ public class Session {
 	private String name;
 	@Lob
 	private String notes;
-	private LocalDateTime created;
-	private LocalDateTime accessed;
+	private Instant created;
+	private Instant accessed;
 	
 	// mappedBy="session" means that this relation is owned by the other side
 	@OneToMany(mappedBy="session")
@@ -48,7 +49,7 @@ public class Session {
 	 * @return
 	 */
 	// not needed in session JSON, because there is a separate endpoint for this
-	@XmlTransient // rest
+	@JsonIgnore
 	public Map<UUID, Job> getJobs() {
 		HashMap<UUID, Job> map = new HashMap<>();
 		for (Job job : jobs) {
@@ -76,7 +77,7 @@ public class Session {
 	 * @return
 	 */
 	// not needed in session JSON, because there is a separate endpoint for this
-	@XmlTransient // rest
+	@JsonIgnore
 	public Map<UUID, Dataset> getDatasets() {
 		HashMap<UUID, Dataset> map = new HashMap<>();
 		for (Dataset dataset : datasets) {
@@ -85,7 +86,7 @@ public class Session {
 		return map;
 	}
 	
-	@XmlTransient 
+	@JsonIgnore
 	public Collection<Dataset> getDatasetCollection() {
 		return datasets;
 	}
@@ -125,19 +126,19 @@ public class Session {
 		this.notes = notes;
 	}
 
-	public LocalDateTime getCreated() {
+	public Instant getCreated() {
 		return created;
 	}
 
-	public void setCreated(LocalDateTime created) {
+	public void setCreated(Instant created) {
 		this.created = created;
 	}
 
-	public LocalDateTime getAccessed() {
+	public Instant getAccessed() {
 		return accessed;
 	}
 
-	public void setAccessed(LocalDateTime accessed) {
+	public void setAccessed(Instant accessed) {
 		this.accessed = accessed;
 	}
 
@@ -148,4 +149,5 @@ public class Session {
 	public void setRules(Set<Rule> rules) {
 		this.rules = rules;
 	}
+	
 }
