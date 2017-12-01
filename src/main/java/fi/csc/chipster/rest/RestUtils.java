@@ -136,7 +136,7 @@ public class RestUtils {
 	}
 	
 	public static UUID createUUID() {
-		// FIXME secure UUID generation
+		// cryptographically strong pseudo random UUID (type 4)
 		return UUID.randomUUID();
 	}
 	
