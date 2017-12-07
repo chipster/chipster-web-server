@@ -53,18 +53,23 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	private static final Logger logger = Logger.getLogger(LegacyRestFileBrokerClient.class);
 		
 	private SessionDbClient sessionDbClient;
-	private WebTarget fileBrokerTarget;
 	private SessionManager sessionManager;
+	private AuthenticationClient authClient;
+	
+	private String restProxyHost;
+	private ServiceLocatorClient serviceLocator;
 
 	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient2, String restProxy, AuthenticationClient authClient, SessionManager sessionManager) {
 		this.sessionDbClient = sessionDbClient2;
-		this.fileBrokerTarget = authClient.getAuthenticatedClient().target("http://" + restProxy + "/filebroker/");
+		this.authClient = authClient;
+		this.restProxyHost = restProxy;
 		this.sessionManager = sessionManager;
 	}
 
 	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient2, ServiceLocatorClient serviceLocator, AuthenticationClient authClient) {
 		this.sessionDbClient = sessionDbClient2;
-		this.fileBrokerTarget = authClient.getAuthenticatedClient().target(serviceLocator.get(Role.FILE_BROKER).get(0)); 
+		this.authClient = authClient;
+		this.serviceLocator = serviceLocator;
 	}
 
 	@Override
@@ -94,12 +99,12 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	
 	private void upload(UUID sessionId, String dataId, InputStream inputStream) throws IOException {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
-		WebTarget datasetTarget = fileBrokerTarget.path(datasetPath);
+		WebTarget datasetTarget = getFileBrokerTarget().path(datasetPath);
 
 		// Use chunked encoding to disable buffering. HttpUrlConnector in 
 		// Jersey buffers the whole file before sending it by default, which 
 		// won't work with big files.
-		fileBrokerTarget.property(ClientProperties .REQUEST_ENTITY_PROCESSING, "CHUNKED");
+		datasetTarget.property(ClientProperties .REQUEST_ENTITY_PROCESSING, "CHUNKED");
 		Response response = datasetTarget.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new IOException("upload failed: " + response.getStatus() + " " + response.readEntity(String.class) + " " + datasetTarget.getUri());
@@ -131,7 +136,7 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	
 	private InputStream download(UUID sessionId, String dataId) throws FileBrokerException {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
-		WebTarget datasetTarget = fileBrokerTarget.path(datasetPath);
+		WebTarget datasetTarget = getFileBrokerTarget().path(datasetPath);
 		Response response = datasetTarget.request().get(Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new FileBrokerException("get input stream failed: " + response.getStatus() + " " + response.readEntity(String.class) + " " + datasetTarget.getUri());
@@ -234,5 +239,11 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	@Override
 	public Long getContentLength(String dataId) throws IOException, FileBrokerException {
 		return null;
+	}
+	
+	private WebTarget getFileBrokerTarget() {
+		return this.restProxyHost != null ? 
+				authClient.getAuthenticatedClient().target("http://" + this.restProxyHost + "/filebroker/") :
+					authClient.getAuthenticatedClient().target(serviceLocator.get(Role.FILE_BROKER).get(0));
 	}
 }
