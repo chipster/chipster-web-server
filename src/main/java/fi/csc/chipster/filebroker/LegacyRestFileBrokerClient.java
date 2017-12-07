@@ -56,15 +56,7 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	private SessionManager sessionManager;
 	private AuthenticationClient authClient;
 	
-	private String restProxyHost;
 	private ServiceLocatorClient serviceLocator;
-
-	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient2, String restProxy, AuthenticationClient authClient, SessionManager sessionManager) {
-		this.sessionDbClient = sessionDbClient2;
-		this.authClient = authClient;
-		this.restProxyHost = restProxy;
-		this.sessionManager = sessionManager;
-	}
 
 	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient2, ServiceLocatorClient serviceLocator, AuthenticationClient authClient) {
 		this.sessionDbClient = sessionDbClient2;
@@ -242,8 +234,6 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	}
 	
 	private WebTarget getFileBrokerTarget() {
-		return this.restProxyHost != null ? 
-				authClient.getAuthenticatedClient().target("http://" + this.restProxyHost + "/filebroker/") :
-					authClient.getAuthenticatedClient().target(serviceLocator.get(Role.FILE_BROKER).get(0));
+		return authClient.getAuthenticatedClient().target(serviceLocator.get(Role.FILE_BROKER).get(0));
 	}
 }
