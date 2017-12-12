@@ -213,7 +213,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		schedulerUri = UriBuilder
 				.fromUri(serviceLocator.get(Role.SCHEDULER).get(0))
 				.path("events")
-				.queryParam("token", authClient.getTokenKey())
 				.toString();
 		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client", authClient.getCredentials());
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials());
@@ -678,7 +677,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 					}
 				}
 			} catch (Exception e) {
-				logger.warn("comp status failed", e);
+				logger.warn("failed to report the status to scheduler", e);
 			}
 		}	
 	}
