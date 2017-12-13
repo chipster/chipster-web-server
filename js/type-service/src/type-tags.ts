@@ -42,6 +42,7 @@ export const Tags = {
   GENERIC: new Tag('GENERIC', []),
   PVALUE_AND_FOLD_CHANGE: new Tag('PVALUE_AND_FOLD_CHANGE', []),
   COLUMN_TITLES: new Tag('COLUMN_TITLES', []),
+  SKIP_LINES: new Tag('SKIP_LINES', []),
 };
 
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
@@ -60,6 +61,10 @@ export class TypeTags {
           typeTags[tagKey] = null;
         }
       }
+    }
+
+    if (Tags.VCF.id in typeTags) {
+      typeTags[Tags.SKIP_LINES.id] = '##';
     }
 
     if (Tags.GTF.id in typeTags) {
