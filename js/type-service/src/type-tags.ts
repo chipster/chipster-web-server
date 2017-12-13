@@ -78,13 +78,14 @@ export class TypeTags {
 
 
   static getSlowTypeTags(table: string[][]) {
+
     let slowTags = {};
     let headers = table[0];
     let firstRow = table[1];
 
     if (headers.indexOf('identifier') !== -1 ||
       headers.indexOf(' ') !== -1 ||
-      headers.length === firstRow.length - 1) {
+      (firstRow && headers.length === firstRow.length - 1)) {
       slowTags[Tags.GENELIST.id] = null;
     }
 
