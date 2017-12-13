@@ -2,6 +2,7 @@ package fi.csc.chipster.filebroker;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -66,6 +67,10 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 
 	@Override
 	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file, CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
+		
+		if (!file.exists()) {
+			throw new FileNotFoundException(file.getPath());
+		}
 		
 		if (RestPhenodataUtils.FILE_PHENODATA.equals(file.getName()) || RestPhenodataUtils.FILE_PHENODATA2.equals(file.getName())) {
 			// phenodata is stored now in the dataset properties, so the phenodata files can be skipped 
