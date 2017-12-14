@@ -90,7 +90,7 @@ public class XmlSession {
 						// Create only dummy datasets now and update them with real dataset data later
 						UUID datasetId = sessionDb.createDataset(sessionId, new Dataset());
 														
-						datasetIdMap.put(UUID.fromString(entryToDatasetIdMap.get(entry.getName())), datasetId);
+						datasetIdMap.put(UUID.fromString(entryToDatasetIdMap.get(entry.getName())), datasetId);					
 						
 						// prevent Jersey client from closing the stream after the upload
 						// try-with-resources will close it after the whole zip file is read
@@ -102,13 +102,53 @@ public class XmlSession {
 						logger.info("unknown file " + entry.getName());
 					}
 				}
-			}
+			}			
+			
+			fixModificationParents(sessionType, session);
 			
 			convertPhenodata(sessionType, session, sessionId, datasetIdMap, fileBroker, sessionDb);
 					
 			return new ExtractedSession(session, datasetIdMap);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
+		}
+	}
+
+	/**
+	 * Fix dataset relations of the user modified datasets 
+	 * 
+	 * When user creates a new dataset from the selected rows of an old dataset, the Java client
+	 * creates a MODIFICATION type of link between the datasets and creates a dummy Operation
+	 * object, which will converted to a Job object for the web app. The new client doesn't 
+	 * use links, but gets dataset relations from the Job inputs. However, the Java client 
+	 * doesn't create the input definitions for the dummy job, so the web app wouldn't be able 
+	 * to show them. This method creates the Input objects for the Jobs to
+	 * show these the dataset relationship correctly in the web app.
+	 * 
+	 * @param sessionType
+	 * @param session
+	 * @throws RestException
+	 */
+	private static void fixModificationParents(SessionType sessionType, Session session) throws RestException {
+		
+		for (DataType dataType : sessionType.getData()) {
+						
+			UUID datasetId = UUID.fromString(dataType.getDataId());
+			Dataset dataset = session.getDatasets().get(datasetId);			
+			Job job = session.getJobs().get(dataset.getSourceJob());
+			
+			if (job != null && "operation-definition-id-user-modification".equals(job.getToolId())) {							
+				List<DataType> parents = getLinked(sessionType, dataType, Link.MODIFICATION);
+				
+				if (parents.size() == 1) {
+					Input input = new Input();
+					String dataId = parents.get(0).getDataId();
+					input.setDatasetId(dataId);
+					LinkedHashSet<Input> inputs = new LinkedHashSet<>();
+					inputs.add(input);
+					job.setInputs(inputs);
+				}
+			}
 		}
 	}
 
@@ -342,7 +382,7 @@ public class XmlSession {
 		job.setInputs(getInputs(operationType.getInput()));
 		job.setParameters(getParameters(operationType.getParameter()));
 		
-		//job.setSourceCode(sourceCode);
+		//job.setSourceCode(sourceCode);	
 
 		return job;
 	}
