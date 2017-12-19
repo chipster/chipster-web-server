@@ -270,7 +270,8 @@ public class PubSubServer implements StatusSource {
 	 * 
 	 * @param timeout
 	 */
-	public void setIdleTimeout(long timeout) {
+	public void setIdleTimeout(long timeout) {		
+		logger.info(name + " idle timeout: " + timeout + "ms");
 		this.idleTimeout = timeout;
 	}	
 }

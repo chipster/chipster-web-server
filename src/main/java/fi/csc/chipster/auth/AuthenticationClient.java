@@ -192,41 +192,43 @@ public class AuthenticationClient {
 					
 					// if token is expiring before refresh interval * 2, get a new token
 					if (serverToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
-						logger.info("refreshed token expiring soon, getting a new one");
+						logger.info("refreshed token expiring soon, getting a new one (" + this.username + ")");
 						try {
 							setToken(getTokenFromAuth());
+							logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
 						} catch (Exception e) {
-							logger.warn("getting new token to replace soon expiring token failed", e);
+							logger.warn("getting new token to replace soon expiring token failed (" + this.username + ")", e);
 						}
 					}
 					
 					return;
 				} else {
 					// is it possible to get here?
-					logger.warn("got null as response to refresh token");
+					logger.warn("got null as response to refresh token (" + this.username + ")");
 				}
 					
 			} catch (ForbiddenException fe) {
-				logger.info("got forbidden when refreshing token, getting new one");
+				logger.info("got forbidden when refreshing token, getting new one (" + this.username + ")");
 				try {
 					setToken(getTokenFromAuth());
+					logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
 					return;
 				} catch (Exception e) {
-					logger.warn("getting new token after forbidden failed", e);
+					logger.warn("getting new token after forbidden failed (" + this.username + ")", e);
 				}
 			} catch (ServiceException e) {
-				logger.warn("auth not available", e);
+				logger.warn("auth not available (" + this.username + ")", e);
 			} catch (Exception e) {
-				logger.warn("refresh token failed", e);
+				logger.warn("refresh token failed (" + this.username + ")", e);
 			}
 		}
 
-	logger.warn("refresh token failing");
+		logger.warn("refresh token failing (" + this.username + ")");
 	}
 
 	private void setToken(Token token) {
 		this.token = token;
-		this.dynamicCredentials.setCredentials(TokenRequestFilter.TOKEN_USER, this.token.getTokenKey().toString());
+		this.dynamicCredentials.setCredentials(TokenRequestFilter.TOKEN_USER, this.token.getTokenKey().toString());		
 	}
 
 	/**

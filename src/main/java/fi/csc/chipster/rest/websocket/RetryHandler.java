@@ -14,7 +14,7 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 	private static final Logger logger = LogManager.getLogger();
 
 	private int counter = 0;
-	private int retries = 30;
+	private int retries = -1;
 
 	private String name;
 
@@ -53,10 +53,8 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 			return false;
 		}
 		counter++;
-		if (counter <= retries) {
-			logger.info("reconnecting... (" + counter + "/" + retries + ")");
-			// Thread.sleep(...) or something other "sleep-like" expression can be put here - you might want
-			// to do it here to avoid potential DDoS when you don't limit number of reconnects.					
+		if (retries < 0 || counter <= retries) {
+			logger.info("reconnecting... (" + counter + "/" + retries + ")");					
 			return true;
 		} else {
 			return false;

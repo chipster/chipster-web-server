@@ -60,7 +60,6 @@ public class WebSocketClient implements EndpointListener {
 			this.retryHandler = new RetryHandler(name);
 		}
 		
-		logger.info("websocket client " + name + " connecting to " + uri);
 		this.connect();
 	}
 	
@@ -80,6 +79,12 @@ public class WebSocketClient implements EndpointListener {
 				uriBuilder = uriBuilder.queryParam("token", credentials.getPassword().toString());
 			}
 			
+			logger.info("websocket client " + this.name + " connecting to " + UriBuilder
+				.fromUri(this.uri)
+				.queryParam("token", credentials.getPassword().toString().substring(0,  4) + "...")
+				.toString());
+			//logger.info("websocket client " + name + " connecting to " + uri);
+			
 			endpoint = new WebSocketClientEndpoint(messageHandler, this);
 			client.connectToServer(endpoint, cec, new URI(uriBuilder.toString()));
 		} catch (DeploymentException | IOException | URISyntaxException e) {
@@ -89,16 +94,16 @@ public class WebSocketClient implements EndpointListener {
 		endpoint.waitForConnection();
 		 
 		// prevent jetty from closing this connection if it is idle for 5 minutes
-		pingTimer.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				try {
-					ping();
-				} catch (IOException | TimeoutException | InterruptedException e) {
-					logger.error("failed to send a ping", e);
-				}
-			}			
-		}, PING_INTERVAL, PING_INTERVAL);
+//		pingTimer.schedule(new TimerTask() {
+//			@Override
+//			public void run() {
+//				try {
+//					ping();
+//				} catch (IOException | TimeoutException | InterruptedException e) {
+//					logger.error("failed to send a ping", e);
+//				}
+//			}			
+//		}, PING_INTERVAL, PING_INTERVAL);
 	}	
 	
 	/*
