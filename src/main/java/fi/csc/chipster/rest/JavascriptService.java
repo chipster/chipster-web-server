@@ -119,6 +119,8 @@ public class JavascriptService {
     	
         final JavascriptService server = new JavascriptService(serviceName);
         server.startServer();
+        
+        server.process.waitFor();
     }
 	
 	public void close() throws InterruptedException {

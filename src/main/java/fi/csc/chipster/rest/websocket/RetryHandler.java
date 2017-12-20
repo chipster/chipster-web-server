@@ -36,7 +36,7 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 			throw new RuntimeException(closeReason.getReasonPhrase());
 		}
 		counter++;
-		if (counter <= retries) {
+		if (retries < 0 || counter <= retries) {
 			logger.info("reconnecting... (" + counter + "/" + retries + ")");
 			return true;
 		} else {
