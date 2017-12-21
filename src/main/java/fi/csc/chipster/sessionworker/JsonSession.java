@@ -130,7 +130,7 @@ public class JsonSession {
 	 */
 	private static int getCompressionLevel(String name) {
 		for (String extension : compressedExtensions) {
-			if (name.endsWith(extension)) {
+			if (name != null && name.endsWith(extension)) {
 				// there is no point to compress files that are compressed already
 				return Deflater.NO_COMPRESSION;
 			}
