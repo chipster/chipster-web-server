@@ -150,7 +150,9 @@ public class Config {
 				Map confFileMap = (Map) object;
 				
 				for (Object key : confFileMap.keySet()) {
-					conf.put(key.toString(), confFileMap.get(key).toString());
+					Object valueObj = confFileMap.get(key);
+					String value = valueObj != null ? valueObj.toString() : null;
+					conf.put(key.toString(), value);
 				}
 			} else if (object == null){
 				// empty config file

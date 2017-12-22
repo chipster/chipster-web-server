@@ -83,7 +83,7 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-core:+"
     compile "org.apache.logging.log4j:log4j-jul:+"
     compile "org.apache.logging.log4j:log4j-slf4j-impl:+"
-    compile "org.apache.logging.log4j:log4j-1.2-api:2.4.1"
+    compile "org.apache.logging.log4j:log4j-1.2-api:+"
 
     // jersey
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.26"
@@ -98,8 +98,8 @@ dependencies {
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
 	
     // hibernate
-    compile "org.hibernate:hibernate-java8:5.2.10.Final"
-    compile "org.hibernate:hibernate-c3p0:5.2.10.Final"
+    compile "org.hibernate:hibernate-java8:5.2.12.Final"
+    compile "org.hibernate:hibernate-c3p0:5.2.12.Final"
     compile "com.h2database:h2:1.4.196"
 
     // websockets
@@ -118,11 +118,11 @@ dependencies {
 	// jetty version set to latest stable release
 	compile "org.eclipse.jetty:jetty-jmx:9.4.+"
     compile "org.eclipse.jetty:jetty-proxy:9.4.+"
-    compile "commons-io:commons-io:2.4"
+    compile "commons-io:commons-io:+"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
-    compile "net.sourceforge.argparse4j:argparse4j:0.7.0"
-    compile "org.apache.commons:commons-lang3:3.4"
-    compile "com.esotericsoftware.yamlbeans:yamlbeans:1.06"
+    compile "net.sourceforge.argparse4j:argparse4j:+"
+    compile "org.apache.commons:commons-lang3:+"
+    compile "com.esotericsoftware.yamlbeans:yamlbeans:+"
     
     
     // old codebase

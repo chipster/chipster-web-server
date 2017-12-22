@@ -10,7 +10,6 @@ service-password-scheduler: scheduler
 service-password-comp: comp
 service-password-file-broker: file-broker
 service-password-session-worker: session-worker
-service-password-proxy: proxy
 service-password-web-server: web-server
 service-password-toolbox: toolbox
 
@@ -19,7 +18,6 @@ service-password-toolbox: toolbox
 
 url-int-web-server: http://{{public-ip}}:8000
 url-ext-web-server: http://{{public-ip}}:8000
-url-ext-proxy: http://{{public-ip}}:8001
 url-int-auth: http://{{public-ip}}:8002
 url-ext-auth: http://{{public-ip}}:8002
 url-int-service-locator: http://{{public-ip}}:8003
@@ -42,7 +40,6 @@ url-ext-type-service: http://{{public-ip}}:8010
 # Address for the server to bind
 
 url-bind-web-server: http://{{bind-ip}}:8000
-url-bind-proxy: http://{{bind-ip}}:8001
 url-bind-auth: http://{{bind-ip}}:8002
 url-bind-service-locator: http://{{bind-ip}}:8003
 url-bind-session-db: http://{{bind-ip}}:8004
@@ -54,7 +51,6 @@ url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
 
 url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
-url-admin-bind-proxy: http://{{admin-bind-ip}}:8101
 url-admin-bind-auth: http://{{admin-bind-ip}}:8102
 url-admin-bind-service-locator: http://{{admin-bind-ip}}:8103
 url-admin-bind-session-db: http://{{admin-bind-ip}}:8104
@@ -71,10 +67,10 @@ auth-monitoring-username: monitoring
 auth-db-driver: org.h2.Driver
 auth-db-url: jdbc:h2:./database/chipster-auth-db
 auth-db-user: sa
-auth-db-pass: 
+auth-db-pass: ""
 auth-db-dialect: org.hibernate.dialect.H2Dialect
 auth-db-show-sql: false
-auth-db-c3p0-min-size:
+auth-db-c3p0-min-size: ""
 # validate: check schema
 # update: simple schema updates (but hibernate docs don't recommend for production use)    		
 # create: drop old table and create new one
@@ -126,10 +122,10 @@ session-db-driver: org.h2.Driver
 // DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
 session-db-url: jdbc:h2:./database/session-db;DB_CLOSE_ON_EXIT=FALSE
 session-db-user: sa
-session-db-pass: 
+session-db-pass: ""
 session-db-dialect: org.hibernate.dialect.H2Dialect
 session-db-show-sql: false
-session-db-c3p0-min-size:
+session-db-c3p0-min-size: ""
 session-db-bm2ddl-auto: update
 
     

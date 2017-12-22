@@ -32,7 +32,6 @@ import fi.csc.chipster.rest.exception.NotAuthorizedException;
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class TokenRequestFilter implements ContainerRequestFilter {
 
-	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	public static final String QUERY_PARAMETER_TOKEN = "token";
