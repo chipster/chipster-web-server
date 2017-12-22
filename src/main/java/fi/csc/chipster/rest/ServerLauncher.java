@@ -6,7 +6,6 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
-import fi.csc.chipster.proxy.ChipsterProxyServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -24,7 +23,6 @@ public class ServerLauncher {
 	private SessionDb sessionDb;
 	private Scheduler scheduler;
 	private ToolboxService toolbox;
-	private ChipsterProxyServer proxy;
 	private FileBroker fileBroker;
 	private WebServer web;
 
@@ -112,12 +110,6 @@ public class ServerLauncher {
 		typeService.startServer();
 		
 		if (verbose) {
-			logger.info("starting proxy");
-		}		
-		proxy = new ChipsterProxyServer(config);
-		proxy.startServer();
-		
-		if (verbose) {
 			logger.info("up and running (" + ((System.currentTimeMillis() - t)/1000) + " seconds)" );
 			logger.info("---------------------------");
 			logger.info("press enter to stop");
@@ -130,14 +122,6 @@ public class ServerLauncher {
 	}		
 
 	public void stop() {
-		
-		if (proxy != null) {
-			try {
-				proxy.close();
-			} catch (Exception e) {
-				logger.warn("closing proxy failed", e);
-			}
-		}
 		
 		if (web != null) {
 			try {

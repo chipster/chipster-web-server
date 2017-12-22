@@ -93,6 +93,9 @@ public class JsonSession {
 		Collection<Dataset> datasets = sessionDb.getDatasets(sessionId).values();
 		Collection<Job> jobs = sessionDb.getJobs(sessionId).values();
 		
+		// we can't know if a username would refer to same person on the server where this session will be opened  
+		session.setRules(null);
+		
 		String sessionJson = RestUtils.asJson(session, true);
 		String datasetsJson = RestUtils.asJson(datasets, true);
 		String jobsJson = RestUtils.asJson(jobs, true);
