@@ -5,6 +5,7 @@ import {Config} from "./config";
 const restify = require('restify');
 const request = require('request');
 const fs = require('fs');
+const errors = require('restify-errors');
 
 const logger = Logger.getLogger(__filename);
 
@@ -199,7 +200,7 @@ export class RestClient {
 		return this.getServices().map(services => {
 			let service = services.filter(service => service.role === serviceName)[0];
 			if (!service) {
-				Observable.throw(new restify.InternalServerError('service not found' + serviceName));
+				Observable.throw(new errors.InternalServerError('service not found' + serviceName));
 			}
 			return this.isClient ? service.publicUri : service.uri;
 		});
@@ -278,7 +279,7 @@ export class RestClient {
         throw this.responseToError(data.response);
       } else {
         logger.error('error', data.response.statusCode + ' ' + data.response.statusMessage + ' ' + data.response.body);
-        throw new restify.InternalServerError('request ' + data.response.request.method + ' ' + data.response.request.href + ' failed');
+        throw new errors.InternalServerError('request ' + data.response.request.method + ' ' + data.response.request.href + ' failed');
       }
     }
   }
@@ -287,7 +288,7 @@ export class RestClient {
 	  if (this.isClient) {
 	    return new Error(response.statusCode + ' - ' + response.statusMessage + ' (' + response.body + ') ' + response.request.href);
     } else {
-      return new restify.HttpError({
+      return new errors.HttpError({
         restCode: response.statusMessage,
         statusCode: response.statusCode,
         message: response.body

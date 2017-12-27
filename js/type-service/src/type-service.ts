@@ -6,6 +6,8 @@ import {Tag, Tags, TypeTags} from "./type-tags";
 const os = require('os');
 const url = require('url');
 const restify = require('restify');
+const corsMiddleware = require('restify-cors-middleware');
+const errors = require('restify-errors');
 
 const logger = Logger.getLogger(__filename);
 
@@ -68,24 +70,18 @@ export default class TypeService {
 
   createServer() {
     var server = restify.createServer();
-    server.use(restify.authorizationParser());
-    server.use(restify.CORS({
-      //origins: ['https://foo.com', 'http://bar.com', 'http://baz.com:8081'],   // defaults to ['*']
-      //credentials: true,                 // defaults to false
-      //headers: ['authorization']                 // sets expose-headers
-    }));
-    // CORS constructor above doesn't have way to add this
-    restify.CORS.ALLOW_HEADERS.push('authorization');
+    server.use(restify.plugins.authorizationParser());
+
+    const cors = corsMiddleware({
+      origins: ['*'],
+      allowHeaders: ['Authorization']
+    });
+    server.pre(cors.preflight);
+    server.use(cors.actual);
 
     // add bodyParser to access the body, but disable the automatic parsing
-    server.use(restify.bodyParser({ mapParams: false }));
+    server.use(restify.plugins.bodyParser({ mapParams: false }));
 
-    // reply to browser's pre-flight requests with CORS headers
-    server.opts(/.*/, ( req, res ) => {
-      // what is the purpose of the CORS plugin if it doesn't set this header?
-      res.header( "Access-Control-Allow-Headers",     restify.CORS.ALLOW_HEADERS.join( ", " ) );
-      res.send( 204 )
-    } );
     return server;
   }
 
@@ -141,8 +137,6 @@ export default class TypeService {
 			logger.info('type tagging ' + typesArray.length + ' datasets took ' + (Date.now() - t0) + 'ms');
 		}, err => {
 		  this.respondError(next, err);
-      // stop executing this method
-      throw Error(err);
 		});
 	}
 
@@ -168,7 +162,7 @@ export default class TypeService {
       next(err);
     } else {
       logger.error('type tagging failed', err);
-      next(new restify.InternalServerError('type tagging failed'));
+      next(new errors.InternalServerError('type tagging failed'));
     }
   }
 
@@ -265,10 +259,10 @@ export default class TypeService {
 
 	getToken(req: any, next: any) {
 		if (req.authorization.scheme !== 'Basic') {
-			throw new restify.UnauthorizedError('username must be token');
+			throw new errors.UnauthorizedError('username must be token');
 		}
 		if (req.authorization.basic.username !== 'token') {
-			throw new restify.UnauthorizedError('only token authentication supported');
+			throw new errors.UnauthorizedError('only token authentication supported');
 		}
 
 		return req.authorization.basic.password;
