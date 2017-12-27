@@ -382,16 +382,24 @@ export default class CliClient {
   }
 
   datasetDelete(args) {
-    this.getDatasetByNameOrId(args.name)
-      .flatMap(dataset => this.restClient.deleteDataset(dataset.session.sessionId, dataset.datasetId))
+    let sessionId;
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .do(id => sessionId = id)
+      .flatMap(() => this.getDatasetByNameOrId(args.name))
+      .flatMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId))
       .subscribe();
   }
 
   datasetDownload(args) {
-    this.getDatasetByNameOrId(args.name)
+    let sessionId;
+    this.checkLogin()
+      .flatMap(() => this.getSessionId())
+      .do(id => sessionId = id)
+      .flatMap(() => this.getDatasetByNameOrId(args.name))
       .flatMap(dataset => {
         let file = args.file || args.name;
-        return this.restClient.downloadFile(dataset.session.sessionId, dataset.datasetId, file);
+        return this.restClient.downloadFile(sessionId, dataset.datasetId, file);
       })
       .subscribe();
   }
