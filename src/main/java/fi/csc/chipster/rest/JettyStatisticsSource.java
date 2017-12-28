@@ -3,16 +3,16 @@ package fi.csc.chipster.rest;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.eclipse.jetty.server.ConnectorStatistics;
+import org.eclipse.jetty.io.ConnectionStatistics;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 
 public class JettyStatisticsSource implements StatusSource {
 
-	private ConnectorStatistics connectorStats;
+	private ConnectionStatistics connectorStats;
 	private StatisticsHandler requestStats;
 
-	public JettyStatisticsSource(ConnectorStatistics connectorStats, StatisticsHandler requestStats) {
-		this.connectorStats = connectorStats;
+	public JettyStatisticsSource(ConnectionStatistics connectionStats, StatisticsHandler requestStats) {
+		this.connectorStats = connectionStats;
 		this.requestStats = requestStats;
 	}
 
@@ -32,16 +32,22 @@ public class JettyStatisticsSource implements StatusSource {
 		status.put("responseCodes400", requestStats.getResponses4xx());
 		status.put("responseCodes500", requestStats.getResponses5xx());
 		status.put("responseCodesOther", requestStats.getResponses1xx() + requestStats.getResponses3xx());
-		status.put("connectionsOpen", connectorStats.getConnectionsOpen());
+		status.put("connectionsOpen", connectorStats.getConnections());
 		
 		// Jetty specific statistics
-		status.put("jettyBytesIn", connectorStats.getBytesIn());
-		status.put("jettybytesOut", connectorStats.getBytesOut());
-		status.put("jettyConnectionsCount", connectorStats.getConnections());
-		status.put("jettyMessagesInPerSecond", connectorStats.getMessagesInPerSecond());
-		status.put("jettyMessagesOutPerSecond", connectorStats.getMessagesOutPerSecond());
-		status.put("jettyMessagesInCount", connectorStats.getMessagesIn());
-		status.put("jettyMessagesOutCount", connectorStats.getMessagesOut());
+		status.put("jettyConnectionDurationMax", connectorStats.getConnectionDurationMax());
+		status.put("jettyConnectionDurationMean", connectorStats.getConnectionDurationMean());
+		status.put("jettyConnectionDurationStdDev", connectorStats.getConnectionDurationStdDev());
+		status.put("jettyConnectionsMax", connectorStats.getConnectionsMax());
+		status.put("jettyConnectionsTotal", connectorStats.getConnectionsTotal());
+		status.put("jettyReceivedBytes", connectorStats.getReceivedBytes());
+		status.put("jettyReceivedBytesRate", connectorStats.getReceivedBytesRate());
+		status.put("jettyReceivedMessages", connectorStats.getReceivedMessages());
+		status.put("jettyReceivedMessagesRate", connectorStats.getReceivedMessagesRate());
+		status.put("jettySentBytes", connectorStats.getSentBytes());
+		status.put("jettySentBytesRate", connectorStats.getSentBytesRate());
+		status.put("jettySentMessages", connectorStats.getSentMessages());
+		status.put("jettySentMessagesRate", connectorStats.getSentMessagesRate());
 		
 		status.put("jettyRquestsActive", requestStats.getRequestsActive());
 		status.put("jettyResponseBytesTotal", requestStats.getResponsesBytesTotal());

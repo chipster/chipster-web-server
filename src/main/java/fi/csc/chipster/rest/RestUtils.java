@@ -1,11 +1,14 @@
 package fi.csc.chipster.rest;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,13 +25,17 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.io.ConnectionStatistics;
 import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.ConnectorStatistics;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.ServerConnectionStatistics;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.util.component.Container;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.CommonProperties;
@@ -355,16 +362,27 @@ public class RestUtils {
 	}
 
 	public static StatusSource createStatisticsListener(Server server) {
-		ConnectorStatistics connectorStats = new ConnectorStatistics();
-		for (Connector connector : server.getConnectors()) {
-			((ServerConnector)connector).addBean(connectorStats);
-		}
+				
+		ServerConnectionStatistics.addToAllConnectors(server);
+		
+        ConnectionStatistics connectionStats = null;
+        
+        if (server.getConnectors().length == 1) {
+        	Connector connector = server.getConnectors()[0];
+        	if (connector instanceof Container) {
+        		connectionStats = ((Container)connector).getBean(ConnectionStatistics.class);
+        	} else {
+        		throw new NotImplementedException("only Containers supported");
+        	}
+        } else {
+        	throw new NotImplementedException("server has multiple connectors");
+        }
 		
 		StatisticsHandler requestStats = new StatisticsHandler();
 		requestStats.setHandler(server.getHandler());
         server.setHandler(requestStats);
         
-        return new JettyStatisticsSource(connectorStats, requestStats);
+        return new JettyStatisticsSource(connectionStats, requestStats);
 	}
 
 	/**
@@ -461,5 +479,21 @@ public class RestUtils {
 
 	public static void shutdownGracefullyOnInterrupt(Server server, String name) {
 		shutdownGracefullyOnInterrupt(server, 10, name);
+	}
+
+	public static String toString(InputStream inputStream) throws IOException {
+		return IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
+	}
+
+	public static InputStream toInputStream(String str) throws IOException {
+		return IOUtils.toInputStream(str, StandardCharsets.UTF_8.name());
+	}
+
+	public static String readFileToString(File file) throws IOException {
+		return FileUtils.readFileToString(file, StandardCharsets.UTF_8.name());
+	}
+
+	public static void writeStringToFile(File file, String str) throws IOException {
+		FileUtils.writeStringToFile(file, str, StandardCharsets.UTF_8.name());
 	}
 }

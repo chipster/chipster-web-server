@@ -11,7 +11,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.io.IOUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -80,7 +79,7 @@ public class AdminResourceTest {
     
 	@SuppressWarnings("unchecked")
     private HashMap<String, Object> getMap(Response response) throws IOException {
-		return RestUtils.parseJson(HashMap.class, IOUtils.toString((InputStream)response.getEntity()));
+		return RestUtils.parseJson(HashMap.class, RestUtils.toString((InputStream)response.getEntity()));
 	}
 
 	public Response getStatusResponse(Client client, String role) throws IOException {    	

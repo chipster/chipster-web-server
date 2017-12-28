@@ -111,8 +111,9 @@ dependencies {
 	// toolbox
 	compile "org.apache.activemq:activemq-client:5.10.0"
 
-	// cli
+	// RestCliClient
 	compile "org.apache.commons:commons-compress:+"
+    compile "net.sourceforge.argparse4j:argparse4j:+"
 
 	// other
 	// jetty version set to latest stable release
@@ -120,7 +121,7 @@ dependencies {
     compile "org.eclipse.jetty:jetty-proxy:9.4.+"
     compile "commons-io:commons-io:+"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
-    compile "org.apache.commons:commons-lang3:+"
+    compile "org.apache.commons:commons-text:+"
     compile "com.esotericsoftware.yamlbeans:yamlbeans:+"
     
     

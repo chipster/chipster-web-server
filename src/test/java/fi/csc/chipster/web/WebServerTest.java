@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.RestException;
 
@@ -87,8 +88,8 @@ public class WebServerTest {
 		assertEquals(200, respIndex.getStatus());
 		assertEquals(200, resp404.getStatus());
 		
-		String bodyIndex = IOUtils.toString((InputStream)respIndex.getEntity());
-		String body404 = IOUtils.toString((InputStream)resp404.getEntity());
+		String bodyIndex = RestUtils.toString((InputStream)respIndex.getEntity());
+		String body404 = RestUtils.toString((InputStream)resp404.getEntity());
 		
 		assertEquals(bodyIndex, body404);
     }

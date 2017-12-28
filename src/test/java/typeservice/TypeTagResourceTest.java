@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import javax.ws.rs.client.WebTarget;
@@ -61,8 +62,8 @@ public class TypeTagResourceTest {
         tsvDatasetId = sessionDbClient.createDataset(sessionId, tsv);
         pngDatasetId = sessionDbClient.createDataset(sessionId, png);
         
-        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, tsvDatasetId, IOUtils.toInputStream("chip.1	chip.2"));
-        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, pngDatasetId, IOUtils.toInputStream("abc"));
+        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, tsvDatasetId, RestUtils.toInputStream("chip.1	chip.2"));
+        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, pngDatasetId, RestUtils.toInputStream("abc"));
     }
 
     @AfterClass
@@ -75,7 +76,7 @@ public class TypeTagResourceTest {
 						
 		Response resp = typeServiceTarget1.path("sessions").path(sessionId.toString()).request().get();
 		assertEquals(200, resp.getStatus());
-		String json = IOUtils.toString((InputStream) resp.getEntity());
+		String json = IOUtils.toString((InputStream) resp.getEntity(), StandardCharsets.UTF_8.name());
 		
 		// test that both datasets were typed
 		assertEquals(true, json.contains(tsvDatasetId.toString()));
@@ -94,7 +95,7 @@ public class TypeTagResourceTest {
 						
 		Response resp = typeServiceTarget1.path("sessions").path(emptySessionId.toString()).request().get();
 		assertEquals(200, resp.getStatus());
-		String json = IOUtils.toString((InputStream) resp.getEntity());	
+		String json = RestUtils.toString((InputStream) resp.getEntity());	
 		assertEquals("{}", json);
     }
 	
@@ -107,7 +108,7 @@ public class TypeTagResourceTest {
 				.request().get();
 		
 		assertEquals(200, resp.getStatus());
-		String json = IOUtils.toString((InputStream) resp.getEntity());
+		String json = RestUtils.toString((InputStream) resp.getEntity());
 		
 		assertEquals(true, json.contains(pngDatasetId.toString()));
 		assertEquals(true, json.contains("PNG"));						
@@ -125,7 +126,7 @@ public class TypeTagResourceTest {
 				.path("datasets").path(datasetId.toString())
 				.request().get();
 		
-		String json = IOUtils.toString((InputStream) resp.getEntity());		
+		String json = RestUtils.toString((InputStream) resp.getEntity());		
 		assertEquals(true, json.contains("PNG"));
 		
 		// rename the file name and check that the file type is changed
@@ -137,7 +138,7 @@ public class TypeTagResourceTest {
 				.path("datasets").path(datasetId.toString())
 				.request().get();
 		
-		json = IOUtils.toString((InputStream) resp.getEntity());		
+		json = RestUtils.toString((InputStream) resp.getEntity());		
 		assertEquals(false, json.contains("PNG"));
 		assertEquals(true, json.contains("TEXT"));
     }

@@ -6,8 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
-import org.apache.commons.io.IOUtils;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -17,7 +17,6 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import org.junit.Assert;
 
 public class DatasetTokenTest {
 	private static final String TEST_FILE_CONTENT = "test file content";
@@ -54,8 +53,8 @@ public class DatasetTokenTest {
 		datasetId1 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
 		datasetId2 = user2Client.createDataset(sessionId2, RestUtils.getRandomDataset());
 					
-		fileBrokerClient1.upload(sessionId1, datasetId1, IOUtils.toInputStream(TEST_FILE_CONTENT));				
-		fileBrokerClient2.upload(sessionId2, datasetId2, IOUtils.toInputStream(TEST_FILE_CONTENT));
+		fileBrokerClient1.upload(sessionId1, datasetId1, RestUtils.toInputStream(TEST_FILE_CONTENT));				
+		fileBrokerClient2.upload(sessionId2, datasetId2, RestUtils.toInputStream(TEST_FILE_CONTENT));
     }
 
 	@AfterClass
@@ -69,7 +68,7 @@ public class DatasetTokenTest {
 		try {
 			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
 			InputStream is = fileBroker.download(sessionId1, datasetId1);
-			assertEquals(TEST_FILE_CONTENT, IOUtils.toString(is));
+			assertEquals(TEST_FILE_CONTENT, RestUtils.toString(is));
 		} catch (RestException e) {
 			Assert.fail(e.toString());
 		}		
@@ -81,7 +80,7 @@ public class DatasetTokenTest {
 		try {
 			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
 			InputStream is = fileBroker.download(sessionId1, datasetId1);
-			assertEquals(TEST_FILE_CONTENT, IOUtils.toString(is));
+			assertEquals(TEST_FILE_CONTENT, RestUtils.toString(is));
 		} catch (RestException e) {
 			assertEquals(true, false);
 		}		
@@ -137,7 +136,7 @@ public class DatasetTokenTest {
 		try {
 			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
 			// DatasetToken is for read-only operations
-			fileBroker.upload(sessionId1, datasetId, IOUtils.toInputStream(TEST_FILE_CONTENT));
+			fileBroker.upload(sessionId1, datasetId, RestUtils.toInputStream(TEST_FILE_CONTENT));
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());

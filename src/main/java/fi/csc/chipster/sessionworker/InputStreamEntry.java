@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.util.concurrent.Callable;
 import java.util.zip.Deflater;
 
-import org.apache.commons.io.IOUtils;
+import fi.csc.chipster.rest.RestUtils;
 
 /**
  * Object for defining a file that will go to a zip file
@@ -68,7 +68,7 @@ public class InputStreamEntry {
     	return new Callable<InputStream>() {
 			@Override
 			public InputStream call() throws Exception {
-				return IOUtils.toInputStream(str);
+				return RestUtils.toInputStream(str);
 			}
 		};
     }

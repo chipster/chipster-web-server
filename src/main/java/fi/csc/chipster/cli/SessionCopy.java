@@ -7,8 +7,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.io.FileUtils;
-
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.CredentialsProvider;
@@ -89,7 +87,7 @@ public class SessionCopy {
 		File datasets = new File(datasetLinks, "UUID");
 		File files = new File(fileLinks, "UUID");
 		
-		Session session = RestUtils.parseJson(Session.class, FileUtils.readFileToString(new File(sessionDir,  "session.json")));
+		Session session = RestUtils.parseJson(Session.class, RestUtils.readFileToString(new File(sessionDir,  "session.json")));
 		if (name != null) {
 			session.setName(name);
 		}	
@@ -98,7 +96,7 @@ public class SessionCopy {
 		UUID sessionId = getSessionDbClient().createSession(session);
 		
 		for (File file : datasets.listFiles()) {
-			Dataset dataset = RestUtils.parseJson(Dataset.class, FileUtils.readFileToString(file));
+			Dataset dataset = RestUtils.parseJson(Dataset.class, RestUtils.readFileToString(file));
 			dataset.setDatasetId(null);
 			dataset.setFile(null);
 			getSessionDbClient().createDataset(sessionId, dataset);
@@ -106,7 +104,7 @@ public class SessionCopy {
 		}
 		
 		for (File file : jobs.listFiles()) {
-			Job job = RestUtils.parseJson(Job.class, FileUtils.readFileToString(file));
+			Job job = RestUtils.parseJson(Job.class, RestUtils.readFileToString(file));
 			job.setJobId(null);
 			getSessionDbClient().createJob(sessionId, job);
 		}

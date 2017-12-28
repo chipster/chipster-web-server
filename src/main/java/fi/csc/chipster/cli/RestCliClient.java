@@ -18,10 +18,9 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.compress.utils.IOUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.text.WordUtils;
+import org.apache.commons.text.WordUtils;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
@@ -842,11 +841,11 @@ public class RestCliClient {
 		
 		Session session = getSessionDbClient().getSession(getSessionId(namespace));
 		
-		FileUtils.writeStringToFile(new File(dir,  "session.json"), RestUtils.asJson(session));
+		RestUtils.writeStringToFile(new File(dir,  "session.json"), RestUtils.asJson(session));
 		
 		for (Dataset dataset : session.getDatasets().values()) {
 			verbose(dataset.getName());
-			FileUtils.writeStringToFile(new File(datasets,  dataset.getDatasetId().toString()), RestUtils.asJson(dataset));
+			RestUtils.writeStringToFile(new File(datasets,  dataset.getDatasetId().toString()), RestUtils.asJson(dataset));
 			// I guess we can use datasetId for the file also, because there should be no need for file deduplication within a session
 			getFileBrokerClient().download(getSessionId(namespace),dataset.getDatasetId(), new File(files, dataset.getDatasetId().toString()));
 			
@@ -855,7 +854,7 @@ public class RestCliClient {
 		}
 		
 		for (Job job : session.getJobs().values()) {
-			FileUtils.writeStringToFile(new File(jobs,  job.getJobId().toString()), RestUtils.asJson(job));
+			RestUtils.writeStringToFile(new File(jobs,  job.getJobId().toString()), RestUtils.asJson(job));
 			Files.createSymbolicLink(getUniqueFile(jobLinks, job.getToolId()).toPath(), new File("UUID", job.getJobId().toString()).toPath());
 		}	
 	}
@@ -870,7 +869,7 @@ public class RestCliClient {
 		File datasets = new File(datasetLinks, "UUID");
 		File files = new File(fileLinks, "UUID");
 		
-		Session session = RestUtils.parseJson(Session.class, FileUtils.readFileToString(new File(dir,  "session.json")));
+		Session session = RestUtils.parseJson(Session.class, RestUtils.readFileToString(new File(dir,  "session.json")));
 		if (name != null) {
 			session.setName(name);
 		}	
@@ -884,7 +883,7 @@ public class RestCliClient {
 		
 		// post datasets
 		for (File file : getUUIDFiles(datasets)) {
-			Dataset dataset = RestUtils.parseJson(Dataset.class, FileUtils.readFileToString(file));
+			Dataset dataset = RestUtils.parseJson(Dataset.class, RestUtils.readFileToString(file));
 			verbose(dataset.getName());
 			UUID oldId = dataset.getDatasetId();
 			dataset.setDatasetId(null);
@@ -897,7 +896,7 @@ public class RestCliClient {
 		
 		// post jobs
 		for (File file : getUUIDFiles(jobs)) {
-			Job job = RestUtils.parseJson(Job.class, FileUtils.readFileToString(file));
+			Job job = RestUtils.parseJson(Job.class, RestUtils.readFileToString(file));
 			UUID oldId = job.getJobId();
 			job.setJobId(null);
 			// this will update the jobId

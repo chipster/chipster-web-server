@@ -111,7 +111,7 @@ public class SessionResource {
     @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
-		
+
 		List<Rule> result = ruleTable.getRules(sc.getUserPrincipal().getName());
 		
 		List<Session> sessions = new ArrayList<>();

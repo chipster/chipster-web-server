@@ -14,7 +14,6 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -61,13 +60,13 @@ public class JsonSession {
 			while ((entry = zipInputStream.getNextEntry()) != null) {
 				
 				if (entry.getName().equals(SESSION_JSON)) {
-					session = RestUtils.parseJson(Session.class, IOUtils.toString(zipInputStream));
+					session = RestUtils.parseJson(Session.class, RestUtils.toString(zipInputStream));
 					
 				} else if (entry.getName().equals(DATASETS_JSON)) {
-					datasets = RestUtils.parseJson(List.class, Dataset.class, IOUtils.toString(zipInputStream));
+					datasets = RestUtils.parseJson(List.class, Dataset.class, RestUtils.toString(zipInputStream));
 					
 				} else if (entry.getName().equals(JOBS_JSON)) {
-					jobs = RestUtils.parseJson(List.class, Job.class, IOUtils.toString(zipInputStream));
+					jobs = RestUtils.parseJson(List.class, Job.class, RestUtils.toString(zipInputStream));
 					
 				} else {
 					// Create only dummy datasets now and update them with real dataset data later.

@@ -15,9 +15,9 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.Query;
 import org.hibernate.ScrollMode;
 import org.hibernate.ScrollableResults;
+import org.hibernate.query.Query;
 
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -137,8 +137,10 @@ public class RuleTable {
 	    	public void write(final OutputStream output) {
 	    		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 	    			@Override
-	    			public Void run(org.hibernate.Session hibernateSession) {	    				try {
-	    					Query query = hibernateSession.createQuery("from Rule");
+	    			public Void run(org.hibernate.Session hibernateSession) {	    				
+	    				try {
+	    					
+	    					Query<Rule> query = hibernateSession.createQuery("from Rule", Rule.class);
 	    					query.setReadOnly(true);
 
 	    					ScrollableResults results = query.scroll(ScrollMode.FORWARD_ONLY);

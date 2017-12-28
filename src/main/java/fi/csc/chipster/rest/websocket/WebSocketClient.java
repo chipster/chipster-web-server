@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.TimeoutException;
 
 import javax.websocket.ClientEndpointConfig;
@@ -26,7 +25,7 @@ public class WebSocketClient implements EndpointListener {
 	
 	public static final Logger logger = LogManager.getLogger();
 
-	private static final long PING_INTERVAL = 60_000;	
+//	private static final long PING_INTERVAL = 60_000;	
 
 	private String name;
 
