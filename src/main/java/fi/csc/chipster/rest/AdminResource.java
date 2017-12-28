@@ -41,7 +41,8 @@ public class AdminResource {
 	private List<StatusSource> statusSources;
 	private HashMap<String, File> fileSystems = new HashMap<>();
 		
-    public AdminResource(HibernateUtil hibernate, List<Class<?>> dbTables, StatusSource... stats) {
+    @SuppressWarnings({ "unchecked", "rawtypes" }) // Jersey logs a warning if the dbTables is typed 
+	public AdminResource(HibernateUtil hibernate, List dbTables, StatusSource... stats) {
 		this.hibernate = hibernate;
 		this.dbTables = dbTables;
 		if (stats != null) {
