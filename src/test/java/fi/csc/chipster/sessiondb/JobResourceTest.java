@@ -3,17 +3,20 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
+import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 
 public class JobResourceTest {
@@ -135,6 +138,59 @@ public class JobResourceTest {
         // wrong session
 		testUpdateJob(403, sessionId2, job, user1Client);
 		testUpdateJob(404, sessionId2, job, user2Client);
+    }
+	
+	@Test
+    public void createJobWithInputs() throws RestException {
+        
+		Job job = RestUtils.getRandomJob();
+		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+		
+		LinkedHashSet<Input> i = new LinkedHashSet<>();
+		i.add(RestUtils.getRandomInput(datasetId));
+		job.setInputs(i);
+		
+		UUID jobId = user1Client.createJob(sessionId1, job);
+		
+		Assert.assertNotNull(jobId);
+    }
+	
+	/**
+	 * Creating a job isn't allowed if we don't have access rights to its inputs
+	 * 
+	 * @throws RestException
+	 */
+	@Test
+    public void createJobWithWrongInputs() throws RestException {
+        
+		Job job = RestUtils.getRandomJob();
+		UUID datasetId = user2Client.createDataset(sessionId2, RestUtils.getRandomDataset());
+		
+		LinkedHashSet<Input> i = new LinkedHashSet<>();
+		i.add(RestUtils.getRandomInput(datasetId));
+		job.setInputs(i);
+		
+		testCreateJob(403, sessionId1, job, user1Client);
+    }
+	
+	/**
+	 * Updating a job isn't allowed if we don't have access rights to its inputs
+	 * 
+	 * @throws RestException
+	 */
+	@Test
+    public void updateJobWithWrongInputs() throws RestException {
+        
+		Job job = RestUtils.getRandomJob();
+		user1Client.createJob(sessionId1, job);
+		
+		UUID datasetId = user2Client.createDataset(sessionId2, RestUtils.getRandomDataset());
+		
+		LinkedHashSet<Input> i = new LinkedHashSet<>();
+		i.add(RestUtils.getRandomInput(datasetId));
+		job.setInputs(i);
+		
+		testUpdateJob(403, sessionId1, job, user1Client);
     }
 	
 	public static void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {

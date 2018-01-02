@@ -192,11 +192,6 @@ public class RestUtils {
 		p.add(getRandomParameter());
 		j.setParameters(p);
 		
-		LinkedHashSet<Input> i = new LinkedHashSet<>();
-		i.add(getRandomInput());
-		i.add(getRandomInput());
-		j.setInputs(i);
-		
 		return j;
 	}
 	
@@ -206,13 +201,13 @@ public class RestUtils {
 		return j;
 	}
 
-	private static Input getRandomInput() {
+	public static Input getRandomInput(UUID datasetId) {
 		Input i = new Input();
 		i.setInputId("inFile");
 		i.setDisplayName("Input file");
 		i.setDescription("Input file to process");
 		i.setType("GENERIC");
-		i.setDatasetId("apsodifupoiwuerpoiu");
+		i.setDatasetId(datasetId.toString());
 		return i;
 	}
 

@@ -8,6 +8,7 @@ import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
@@ -110,6 +111,8 @@ public class SessionJobResource {
 		// make sure a hostile client doesn't set the session
 		job.setSession(session);
 		
+		this.checkInputAccessRights(session, job);
+		
 		// let the db generate ids
 		for (Input input : job.getInputs()) {
 			input.setDbId(0);
@@ -128,6 +131,33 @@ public class SessionJobResource {
 		
 		return Response.created(uri).entity(json).build();
     }
+
+	/**
+	 * Check that the user is allowed to access all input datasets
+	 * 
+	 * Comp is allowed to get any datasetId with its credentials. This check makes sure that
+	 * user can't use others' dataset as a job input even if she is able to find out its datasetId. Throws 
+	 * ForbiddenException if the check fails.
+	 * 
+	 * The current implementation assumes that all the input datasets are in the same session. If user wants
+	 * to use a dataset from a different session, she would have to import the dataset to this session first. If this use
+	 * case needs a better support in the future, we could either: 
+	 * - implement more thorough access right checks here
+	 * - implement the user interface for making it easier to copy individual datasets between sessions without 
+	 * really copying or moving the file content (server side implementation should be there already)       
+	 * 
+	 * @param session All datasets in this session are assumed to be ok
+	 * @param job Job to test
+	 */
+	private void checkInputAccessRights(Session session, Job job) {
+		
+		for (Input input : job.getInputs()) {
+			if (!session.getDatasets().containsKey(UUID.fromString(input.getDatasetId()))) {
+				throw new ForbiddenException("dataset not found from this session "
+						+ "(input: " + input.getInputId() + ", datasetId:" + input.getDatasetId() + ")");
+			}
+		}
+	}
 
 	public void create(Job job, org.hibernate.Session hibernateSession) {
 		hibernateSession.save(job);
@@ -156,6 +186,8 @@ public class SessionJobResource {
 		}
 		// make sure a hostile client doesn't set the session
 		requestJob.setSession(session);
+		
+		this.checkInputAccessRights(session, requestJob);
 		
 		// let the db generate ids
 		for (Input input : requestJob.getInputs()) {
