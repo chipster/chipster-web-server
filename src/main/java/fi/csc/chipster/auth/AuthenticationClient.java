@@ -1,7 +1,7 @@
 package fi.csc.chipster.auth;
 
 import java.time.Duration;
-import java.time.Instant;
+//import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
