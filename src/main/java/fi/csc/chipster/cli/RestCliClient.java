@@ -153,7 +153,7 @@ public class RestCliClient {
 	}
 	
 	private ArgumentParser getArgumentParser() {
-		ArgumentParser parser = ArgumentParsers.newArgumentParser("chipster-cli");
+		ArgumentParser parser = ArgumentParsers.newFor("chipster-cli").build();
 	    parser.addArgument(ARG_HOST).help("hostname or IP address of the Chipster server and [:PORT]");
 	    parser.addArgument("-u", "--" + OPT_USERNAME).action(Arguments.store()).help("username");
 	    parser.addArgument("-p", "--" + OPT_PASSWORD).action(Arguments.store()).help("password");
