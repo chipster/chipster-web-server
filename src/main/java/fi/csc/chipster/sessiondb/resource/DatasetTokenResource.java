@@ -7,6 +7,7 @@ import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
 import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -21,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
@@ -51,7 +51,9 @@ public class DatasetTokenResource {
 		String username = sc.getUserPrincipal().getName();
 		
 		if(username == null) {
-			throw new NotAuthorizedException("username is null");
+			// this is 403 because TokenRequestFilter would have already thrown 401 if the 
+			// authentication header was missing
+			throw new ForbiddenException("token not found");
 		}
 		
 		// checks authorization
