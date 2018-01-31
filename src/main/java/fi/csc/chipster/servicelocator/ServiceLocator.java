@@ -67,15 +67,17 @@ public class ServiceLocator {
     	
     	Map<String, String> intServices = config.getInternalServiceUrls();
     	Map<String, String> extServices = config.getExternalServiceUrls();
+    	Map<String, String> adminServices = config.getAdminServiceUrls();
     	
-    	// all services having internal or external address
+    	// all services having internal, external or admin address
     	HashSet<String> services = new HashSet<>();
     	services.addAll(intServices.keySet());
     	services.addAll(extServices.keySet());
+    	services.addAll(adminServices.keySet());
     	
     	for (String service : services) {    		
     		// map returns null for missing addresses
-    		addService(service, intServices.get(service), extServices.get(service));
+    		addService(service, intServices.get(service), extServices.get(service), adminServices.get(service));
     	}
     	
     	// static configuration, discard updates
@@ -103,8 +105,8 @@ public class ServiceLocator {
         this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, jerseyStatisticsSource);
     }
     
-    public void addService(String role, String uri, String publicUri) {
-    	Service service = new Service(role, uri, publicUri);
+    public void addService(String role, String uri, String publicUri, String adminUri) {
+    	Service service = new Service(role, uri, publicUri, adminUri);
     	serviceCatalog.add(role, service);
     }
 

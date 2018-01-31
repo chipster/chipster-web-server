@@ -7,6 +7,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -23,9 +24,11 @@ public class Config {
 	
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
+	private static final String URL_ADMIN_EXT_PREFIX = "url-admin-ext-";
 	private static final String URL_BIND_PREFIX = "url-bind-";
 	private static final String URL_ADMIN_BIND_PREFIX = "url-admin-bind-";
 	private static final String SERVICE_PASSWORD_PREFIX = "service-password-";
+	private static final String ADMIN_USERNAME_PREFIX = "admin-username-";
 	private static final String VARIABLE_PREFIX = "variable-";
 	
 	public static final String DEFAULT_CONF_PATH = "conf/chipster-defaults.yaml";	
@@ -211,8 +214,18 @@ public class Config {
 				.collect(Collectors.toMap(service -> service, service -> getPassword(service)));
 	}
 	
+	public Set<String> getAdminAccounts() {
+		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
+		conf.putAll(readFile(confFilePath));
+		
+		return conf.entrySet().stream()
+			.filter(entry -> entry.getKey().startsWith(ADMIN_USERNAME_PREFIX))
+			.map(entry -> entry.getValue())
+			.collect(Collectors.toSet());
+	}
+	
 	/**
-	 * Service having an internal address
+	 * Services having an internal address
 	 * 
 	 * @return a map where keys are the service names and values are their internal addresses 
 	 */
@@ -223,7 +236,7 @@ public class Config {
 	}
 
 	/**
-	 * Service having an external address
+	 * Services having an external address
 	 * 
 	 * @return a map where keys are the service names and values are their external addresses 
 	 */
@@ -231,6 +244,17 @@ public class Config {
 		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
 			.filter(entry -> entry.getKey().startsWith(URL_EXT_PREFIX))
 			.collect(Collectors.toMap(e -> e.getKey().replace(URL_EXT_PREFIX, ""), e -> getString(e.getKey())));
+	}
+	
+	/**
+	 * Services having an admin address
+	 * 
+	 * @return a map where keys are the service names and values are their admin addresses 
+	 */
+	public Map<String, String> getAdminServiceUrls() {
+		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
+			.filter(entry -> entry.getKey().startsWith(URL_ADMIN_EXT_PREFIX))
+			.collect(Collectors.toMap(e -> e.getKey().replace(URL_ADMIN_EXT_PREFIX, ""), e -> getString(e.getKey())));
 	}
 	
 	public String getBindUrl(String service) {

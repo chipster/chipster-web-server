@@ -13,6 +13,10 @@ service-password-session-worker: session-worker
 service-password-web-server: web-server
 service-password-toolbox: toolbox
 
+# Admin accounts
+# all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
+admin-username-1: admin
+
    
 # Internal and external service addresses
 
@@ -35,6 +39,17 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
+
+url-admin-ext-web-server: http://{{admin-ip}}:8100
+url-admin-ext-auth: http://{{admin-ip}}:8102
+url-admin-ext-service-locator: http://{{admin-ip}}:8103
+url-admin-ext-session-db: http://{{admin-ip}}:8104
+url-admin-ext-scheduler: http://{{admin-ip}}:8106
+url-admin-ext-file-broker: http://{{admin-ip}}:8107
+url-admin-ext-toolbox: http://{{admin-ip}}:8108
+url-admin-ext-session-worker: http://{{admin-ip}}:8109
+url-admin-ext-type-service: http://{{admin-ip}}:8110
+url-admin-ext-comp: http://{{admin-ip}}:8111
     
 
 # Address for the server to bind
@@ -155,5 +170,6 @@ websocket-idle-timeout: 300000
 # variables
 
 variable-public-ip: 127.0.0.1
-variable-bind-ip: 0.0.0.0 
-variable-admin-bind-ip: 127.0.0.1
+variable-admin-ip: 127.0.0.1 
+variable-bind-ip: 0.0.0.0
+variable-admin-bind-ip: 0.0.0.0

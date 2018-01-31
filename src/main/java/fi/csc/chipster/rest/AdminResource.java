@@ -70,7 +70,7 @@ public class AdminResource {
 	
 	@GET
 	@Path(PATH_STATUS)
-	@RolesAllowed(Role.MONITORING)
+	@RolesAllowed({Role.MONITORING, Role.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public HashMap<String, Object> getStatus(@Context SecurityContext sc) {
