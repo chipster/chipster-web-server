@@ -9,11 +9,13 @@ public class Subscriber {
 	private String remoteAddress;
 	private String username;
 	private Instant created;
+	private String xForwardedFor;
 
-	public Subscriber(Basic remote, String remoteAddress, String username) {
+	public Subscriber(Basic remote, String remoteAddress, String xForwardedFor, String username) {
 		this.remote = remote;
 		this.remoteAddress = remoteAddress;
-		this.setUsername(username);
+		this.xForwardedFor = xForwardedFor;
+		this.username = username;
 		this.created = Instant.now();
 	}
 
@@ -40,5 +42,13 @@ public class Subscriber {
 
 	public Instant getCreated() {
 		return created;
+	}
+
+	public String getXForwardedFor() {
+		return xForwardedFor;
+	}
+
+	public void setXForwardedFor(String xForwardedFor) {
+		this.xForwardedFor = xForwardedFor;
 	}
 }

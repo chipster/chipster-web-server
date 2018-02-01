@@ -9,6 +9,8 @@ public class AuthPrincipal implements Principal {
 	String username;
 	private HashSet<String> roles;
 	private String tokenKey;
+	private String xForwardedFor;
+	private String remoteAddress;
 
 	public AuthPrincipal(String username, String role) {
 		this(username, null, new HashSet<String>(Arrays.asList(role)));
@@ -43,5 +45,21 @@ public class AuthPrincipal implements Principal {
 
 	public void setTokenKey(String tokenKey) {
 		this.tokenKey = tokenKey;
+	}
+
+	public void setXForwardedFor(String xForwardedFor) {
+		this.xForwardedFor = xForwardedFor;
+	}
+
+	public String getXForwardedFor() {
+		return xForwardedFor;
+	}
+
+	public void setRemoteAddress(String remoteAddr) {
+		this.remoteAddress = remoteAddr;
+	}
+	
+	public String getRemoteAddress() {
+		return this.remoteAddress;
 	}
 }

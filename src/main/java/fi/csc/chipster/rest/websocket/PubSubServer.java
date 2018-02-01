@@ -248,6 +248,7 @@ public class PubSubServer implements StatusSource {
 					HashMap<String, Object> subscriberCopy = new HashMap<>();
 					
 					subscriberCopy.put("address", subscriber.getRemoteAddress());
+					subscriberCopy.put("xForwardedFor", subscriber.getXForwardedFor());
 					subscriberCopy.put("username", subscriber.getUsername());
 					subscriberCopy.put("created", subscriber.getCreated());				
 					

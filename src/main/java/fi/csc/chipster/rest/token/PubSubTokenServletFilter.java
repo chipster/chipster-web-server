@@ -27,6 +27,7 @@ import fi.csc.chipster.rest.websocket.TopicConfig;
 
 public class PubSubTokenServletFilter implements Filter {
 	
+	public static final String HEADER_X_FORWARDED_FOR = "X-Forwarded-For";
 	private static final Logger logger = LogManager.getLogger();
 	private TopicConfig topicCheck;
 	private String pathTemplate;
@@ -68,10 +69,16 @@ public class PubSubTokenServletFilter implements Filter {
     			 * here is little bit worrying
     			 */
     			if (isAuthorized(principal, request)) {
+    				
     				// authentication ok
     				// use PrincipalRequestWrapper to transmit username and roles
     				// to PubSubEndpoint
     				logger.debug("authentication ok");
+    				
+    				// transmit also remote address and X-Forwarded-For header for the admin view
+    				principal.setRemoteAddress(request.getRemoteAddr());
+    				principal.setXForwardedFor(request.getHeader(HEADER_X_FORWARDED_FOR));
+    				
     				filterChain.doFilter(new PrincipalRequestWrapper(principal, request), response);
     				return;
     			} else {
