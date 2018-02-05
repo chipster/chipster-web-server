@@ -84,6 +84,9 @@ public class PubSubTokenServletFilter implements Filter {
     					System.out.println(key + ": " + request.getHeader(key));
     				}
     				
+    				System.out.println("header " + request.getHeader(HEADER_X_FORWARDED_FOR));
+    				System.out.println("principal " + principal.getXForwardedFor());
+    				
     				filterChain.doFilter(new PrincipalRequestWrapper(principal, request), response);
     				return;
     			} else {

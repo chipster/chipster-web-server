@@ -250,7 +250,10 @@ public class PubSubServer implements StatusSource {
 					subscriberCopy.put("address", subscriber.getRemoteAddress());
 					subscriberCopy.put("xForwardedFor", subscriber.getXForwardedFor());
 					subscriberCopy.put("username", subscriber.getUsername());
-					subscriberCopy.put("created", subscriber.getCreated());				
+					subscriberCopy.put("created", subscriber.getCreated());
+					
+					System.out.println("server subscriber " + subscriber.getXForwardedFor());
+					System.out.println("server copy " + subscriberCopy.get("xForwardedFor"));
 					
 					subscribersCopy.add(subscriberCopy);
 				}
