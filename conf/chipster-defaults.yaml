@@ -128,7 +128,18 @@ session-db-show-sql: false
 session-db-c3p0-min-size: ""
 session-db-bm2ddl-auto: update
 
-    
+#job-history-db
+job-history-db-driver: org.h2.Driver
+// DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
+job-history-db-url: jdbc:h2:./database/job-history-db;DB_CLOSE_ON_EXIT=FALSE
+job-history-db-user: sa
+job-history-db-pass: ""
+job-history-db-dialect: org.hibernate.dialect.H2Dialect
+job-history-db-show-sql: false
+job-history-db-c3p0-min-size: ""
+job-history-db-bm2ddl-auto: update
+
+
 # web-server
 
 web-server-web-root-path: ../chipster-web/src
