@@ -2,8 +2,9 @@ package fi.csc.chipster.rest.token;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.Filter;
@@ -27,8 +28,11 @@ import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.TopicConfig;
 
 public class PubSubTokenServletFilter implements Filter {
+
+	private static final String X_FORWARDED_FOR = "X-Forwarded-For";
 	
-	public static final String HEADER_X_FORWARDED_FOR = "X-Forwarded-For";
+	private List<String> detailHeaders = Arrays.asList(new String[] {X_FORWARDED_FOR}); 
+	
 	private static final Logger logger = LogManager.getLogger();
 	private TopicConfig topicCheck;
 	private String pathTemplate;
@@ -78,14 +82,10 @@ public class PubSubTokenServletFilter implements Filter {
     				
     				// transmit also remote address and X-Forwarded-For header for the admin view
     				principal.setRemoteAddress(request.getRemoteAddr());
-    				principal.setXForwardedFor(request.getHeader(HEADER_X_FORWARDED_FOR));
     				
-    				for (String key : Collections.list(request.getHeaderNames())) {
-    					System.out.println(key + ": " + request.getHeader(key));
-    				}
-    				
-    				System.out.println("header " + request.getHeader(HEADER_X_FORWARDED_FOR));
-    				System.out.println("principal " + principal.getXForwardedFor());
+    				for (String headerName : detailHeaders) {
+    					principal.getDetails().put(headerName, request.getHeader(headerName));
+    				}    				
     				
     				filterChain.doFilter(new PrincipalRequestWrapper(principal, request), response);
     				return;

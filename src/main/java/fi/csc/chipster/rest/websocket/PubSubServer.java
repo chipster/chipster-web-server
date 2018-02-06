@@ -240,6 +240,7 @@ public class PubSubServer implements StatusSource {
 			HashMap<String, Object> topicsCopy = new HashMap<>();
 					
 			for (String topicName : topics.keySet()) {
+				System.out.println("topic " + topicName);
 				ArrayList<Object> subscribersCopy = new ArrayList<>();
 				
 				ConcurrentHashMap<Basic, Subscriber> subscribers = topics.get(topicName).getSubscribers();
@@ -248,12 +249,10 @@ public class PubSubServer implements StatusSource {
 					HashMap<String, Object> subscriberCopy = new HashMap<>();
 					
 					subscriberCopy.put("address", subscriber.getRemoteAddress());
-					subscriberCopy.put("xForwardedFor", subscriber.getXForwardedFor());
 					subscriberCopy.put("username", subscriber.getUsername());
 					subscriberCopy.put("created", subscriber.getCreated());
 					
-					System.out.println("server subscriber " + subscriber.getXForwardedFor());
-					System.out.println("server copy " + subscriberCopy.get("xForwardedFor"));
+					subscriberCopy.putAll(subscriber.getDetails());
 					
 					subscribersCopy.add(subscriberCopy);
 				}

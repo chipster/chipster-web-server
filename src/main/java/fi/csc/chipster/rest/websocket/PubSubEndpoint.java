@@ -62,13 +62,10 @@ public class PubSubEndpoint extends Endpoint {
 		Subscriber subscriber = new Subscriber(
 				session.getBasicRemote(), 
 				((AuthPrincipal)session.getUserPrincipal()).getRemoteAddress(),
-				((AuthPrincipal)session.getUserPrincipal()).getXForwardedFor(),
+				((AuthPrincipal)session.getUserPrincipal()).getDetails(),
 				session.getUserPrincipal().getName());
 				
 		getServer(session).subscribe(topic, subscriber);
-		
-		System.out.println("endpoint principal " + ((AuthPrincipal)session.getUserPrincipal()).getXForwardedFor());
-		System.out.println("endpoint subscriber " + subscriber.getXForwardedFor());
 
 		// listen for client replies
 		MessageHandler messageHandler = getServer(session).getMessageHandler();
