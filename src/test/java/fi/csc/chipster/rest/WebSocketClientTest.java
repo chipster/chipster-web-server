@@ -123,7 +123,7 @@ public class WebSocketClientTest {
 		server.start();
 
 		// it takes a while for the client to notice the disconnection
-		Thread.sleep(1000);
+		Thread.sleep(2000);
 		// wait for the reconnection
 		client.waitForConnection();
 		

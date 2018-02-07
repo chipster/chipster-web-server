@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -22,6 +23,8 @@ import org.hibernate.query.Query;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonGenerator;
 
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -71,20 +74,37 @@ public class RuleTable {
     	}
     }
     
+    public Session checkAuthorization(AuthPrincipal principal, UUID sessionId, boolean requireReadWrite, boolean allowAdmin) {
+    	return checkAuthorization(principal, sessionId, requireReadWrite, hibernate.session(), allowAdmin);
+    }
+    
+    /**
+     * Check authorization solely based on the username
+     * 
+     * A dummy security context is created for the username.
+     * 
+     * @param sc
+     * @param sessionId
+     * @param requireReadWrite
+     * @param allowAdmin
+     * @return
+     */
     public Session checkAuthorization(String username, UUID sessionId, boolean requireReadWrite) {
-    	return checkAuthorization(username, sessionId, requireReadWrite, hibernate.session());
+    	return checkAuthorization(new AuthPrincipal(username, new HashSet<>()), sessionId, requireReadWrite, false);
     }
     
 	/**
-	 * Check if username is authorized to access or modify the whole session
+	 * Check if a user is authorized to access or modify the whole session
 	 * 
-	 * @param username
+	 * @param sc
 	 * @param sessionId
 	 * @param requireReadWrite
 	 * @param hibernateSession
 	 * @return
 	 */
-	public Session checkAuthorization(String username, UUID sessionId, boolean requireReadWrite, org.hibernate.Session hibernateSession) {
+	public Session checkAuthorization(AuthPrincipal principal, UUID sessionId, boolean requireReadWrite, org.hibernate.Session hibernateSession, boolean allowAdmin) {
+		
+		String username = principal.getName();
 
 		if(username == null) {
 			throw new ForbiddenException("username is null");
@@ -96,6 +116,10 @@ public class RuleTable {
 		}
 		
 		Rule auth = getRule(username, session, hibernateSession);
+		
+		if (allowAdmin && principal.getRoles().contains(Role.ADMIN)) {
+			return session;
+		}
 		
 		if (auth == null) {
 			throw new ForbiddenException("access denied");
@@ -263,7 +287,7 @@ public class RuleTable {
 	 */
 	public Dataset checkAuthorization(String username, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
 		// check that the user has an Authorization to access the session		
-		Session session = checkAuthorization(username, sessionId, requireReadWrite, hibernate.session());
+		Session session = checkAuthorization(username, sessionId, requireReadWrite);
 
 		Dataset dataset = session.getDatasets().get(datasetId);
 		// check that the requested dataset is in the session
@@ -276,11 +300,15 @@ public class RuleTable {
 	}
 
 	public Session getSessionForReading(SecurityContext sc, UUID sessionId) {
-		return checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
+		return getSessionForReading(sc, sessionId, false);
+	}
+	
+	public Session getSessionForReading(SecurityContext sc, UUID sessionId, boolean allowAdmin) {
+		return checkAuthorization((AuthPrincipal)sc.getUserPrincipal(), sessionId, false, allowAdmin);
 	}
 	
 	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
-		return checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+		return checkAuthorization((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, false);
 	}
 	
 	public void setRuleRemovedListener(SessionResource sessionResource) {

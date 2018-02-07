@@ -41,6 +41,8 @@ public class Job {
 	@Lob
 	private String stateDetail;
 	
+	private String createdBy;
+	
 	@ManyToOne
 	@JoinColumn(name="sessionId")
 	private Session session;
@@ -149,6 +151,12 @@ public class Job {
 	
 	public void setSession(Session session) {
 		this.session = session;
+	}
+	public String getCreatedBy() {
+		return createdBy;
+	}
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
 	}
 	
 }

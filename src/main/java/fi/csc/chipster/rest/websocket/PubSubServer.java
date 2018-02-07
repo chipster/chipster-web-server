@@ -240,7 +240,6 @@ public class PubSubServer implements StatusSource {
 			HashMap<String, Object> topicsCopy = new HashMap<>();
 					
 			for (String topicName : topics.keySet()) {
-				System.out.println("topic " + topicName);
 				ArrayList<Object> subscribersCopy = new ArrayList<>();
 				
 				ConcurrentHashMap<Basic, Subscriber> subscribers = topics.get(topicName).getSubscribers();
