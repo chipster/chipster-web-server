@@ -37,6 +37,7 @@ import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
+import fi.csc.chipster.sessiondb.resource.UserResource;
 
 //import sun.misc.SignalHandler;
 //import sun.misc.Signal;
@@ -77,6 +78,8 @@ public class SessionDb {
 	private TokenRequestFilter tokenRequestFilter;
 
 	private HttpServer adminServer;
+
+	private UserResource userResource;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -121,7 +124,8 @@ public class SessionDb {
 		this.authorizationTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
 		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
 		this.sessionResource = new SessionResource(hibernate, authorizationTable, config);
-		this.globalJobResource = new GlobalJobResource(hibernate);		
+		this.globalJobResource = new GlobalJobResource(hibernate);
+		this.userResource = new UserResource(hibernate);
 				
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
@@ -138,6 +142,7 @@ public class SessionDb {
 				.register(authorizationTable)
 				.register(sessionResource)
 				.register(globalJobResource)
+				.register(userResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
 				//.register(RestUtils.getLoggingFeature("session-db"))
