@@ -49,7 +49,10 @@ public class UserResource {
 		@SuppressWarnings("unchecked")
 		List<String> users = hibernate.session()
 				.createQuery("select distinct(username) from Rule")
-				.list();		
+				.list();
+		
+		// everyone isn't a real user
+		users.remove(RuleTable.EVERYONE);
 		
 		return Response.ok(users).build();
     }
