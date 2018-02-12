@@ -12,6 +12,8 @@ service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-web-server: web-server
 service-password-toolbox: toolbox
+service-password-job-history: job-history
+
 
    
 # Internal and external service addresses

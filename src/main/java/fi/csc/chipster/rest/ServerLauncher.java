@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
+import fi.csc.chipster.jobhistory.JobHistoryService;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -33,6 +34,8 @@ public class ServerLauncher {
 	private SessionWorker sessionWorker;
 
 	private JavascriptService typeService;
+	
+	private JobHistoryService jobHistoryService;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 		
@@ -102,6 +105,12 @@ public class ServerLauncher {
 		}
 		web = new WebServer(config);
 		web.start();
+		
+		if(verbose){
+			logger.info("starting job history service");
+		}
+		jobHistoryService=new JobHistoryService(config);
+		jobHistoryService.startServer();
 				
 		if (verbose) {
 			logger.info("starting type service");
