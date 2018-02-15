@@ -9,11 +9,13 @@ public class Service {
 	private String role;
 	private String uri;
 	private String publicUri;
+	private String adminUri;
 	
-	public Service(String role, String uri, String publicUri) {
+	public Service(String role, String uri, String publicUri, String adminUri) {
 		this.role = role;
 		this.uri = uri;
 		this.publicUri = publicUri;
+		this.setAdminUri(adminUri);
 	}
 	
 	public Service() {
@@ -50,4 +52,11 @@ public class Service {
 		this.publicUri = publicUri;
 	}
 
+	public String getAdminUri() {
+		return adminUri;
+	}
+
+	public void setAdminUri(String adminUri) {
+		this.adminUri = adminUri;
+	}
 }

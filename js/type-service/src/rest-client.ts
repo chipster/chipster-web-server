@@ -207,9 +207,9 @@ export class RestClient {
 	}
 
 	getServiceLocator(webServer) {
-    return RxHR.get(webServer + '/main.bundle.js').map(resp => {
+    return RxHR.get(webServer + '/assets/app.constants.ts').map(resp => {
       let body = this.handleResponse(resp);
-      body = body.slice(body.indexOf('var ServiceLocator = \''));
+      body = body.slice(body.indexOf('export const ServiceLocator = \''));
       let parts = body.split('\'');
       return parts[1];
     });

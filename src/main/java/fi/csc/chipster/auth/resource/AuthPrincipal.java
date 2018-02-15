@@ -2,13 +2,17 @@ package fi.csc.chipster.auth.resource;
 
 import java.security.Principal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 public class AuthPrincipal implements Principal {
 	
 	String username;
 	private HashSet<String> roles;
 	private String tokenKey;
+	private String remoteAddress;
+	private Map<String, String> details = new HashMap<>();
 
 	public AuthPrincipal(String username, String role) {
 		this(username, null, new HashSet<String>(Arrays.asList(role)));
@@ -43,5 +47,21 @@ public class AuthPrincipal implements Principal {
 
 	public void setTokenKey(String tokenKey) {
 		this.tokenKey = tokenKey;
+	}
+
+	public void setRemoteAddress(String remoteAddr) {
+		this.remoteAddress = remoteAddr;
+	}
+	
+	public String getRemoteAddress() {
+		return this.remoteAddress;
+	}
+
+	public Map<String, String> getDetails() {
+		return details;
+	}
+
+	public void setDetails(Map<String, String> details) {
+		this.details = details;
 	}
 }

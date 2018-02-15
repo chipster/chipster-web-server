@@ -49,7 +49,7 @@ public class SessionDbAdminResource extends AdminResource {
 	
 	@GET
 	@Path(AdminResource.PATH_STATUS)
-	@RolesAllowed(Role.MONITORING)
+	@RolesAllowed({Role.MONITORING, Role.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public HashMap<String, Object> getStatus(@Context SecurityContext sc) {
@@ -73,7 +73,7 @@ public class SessionDbAdminResource extends AdminResource {
 	
 	@GET
 	@Path("topics")
-	@RolesAllowed(Role.MONITORING)
+	@RolesAllowed({Role.MONITORING, Role.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getClients(@Context SecurityContext sc) {

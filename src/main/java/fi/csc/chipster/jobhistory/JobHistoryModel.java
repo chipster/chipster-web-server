@@ -18,6 +18,7 @@ public class JobHistoryModel {
 	//tool name
 	//comp
 	//time duration
+	//Start time
 	//End time
 	//Output
 	//Status
@@ -38,6 +39,7 @@ public class JobHistoryModel {
 	private String toolName;
 	private String compName;
 	private String timeDuration;
+	private Instant startTime;
 	private Instant endTime;
 	@Lob
 	private String output;
@@ -94,6 +96,14 @@ public class JobHistoryModel {
 	}
 	public void setJobStatus(String jobStatus) {
 		this.jobStatus = jobStatus;
+	}
+
+	public Instant getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(Instant startTime) {
+		this.startTime = startTime;
 	}
 	
 

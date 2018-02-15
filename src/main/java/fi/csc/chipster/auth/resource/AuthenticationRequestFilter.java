@@ -1,9 +1,9 @@
 package fi.csc.chipster.auth.resource;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Priority;
@@ -39,6 +39,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	private HibernateUtil hibernate;
 
 	private HashMap<String, String> serviceAccounts;
+	private Set<String> adminAccounts;
 
 	private JaasAuthenticationProvider authenticationProvider;
 
@@ -48,11 +49,14 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		this.hibernate = hibernate;
 		this.config = config;
 
-		serviceAccounts = new HashMap<>();	
+		serviceAccounts = new HashMap<>();
+		adminAccounts = new HashSet<>();
 
 		for (Entry<String, String> entry : config.getServicePasswords().entrySet()) {
 			serviceAccounts.put(entry.getKey(), entry.getValue());
 		}
+		
+		adminAccounts = config.getAdminAccounts();
 
 		authenticationProvider = new JaasAuthenticationProvider(false);
 	}
@@ -137,18 +141,26 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	public HashSet<String> getRoles(String username) {
 
-		String[] roles;
+		HashSet<String> roles = new HashSet<>();
+		roles.add(Role.PASSWORD);
+		
 		if (serviceAccounts.keySet().contains(username)) {
-			roles = new String[] { Role.PASSWORD, Role.SERVER, username };
+			roles.add(Role.SERVER);
+			roles.add(username);
 		} else {
-			if (config.getString(Config.KEY_MONITORING_USERNAME).equals(username)) {
-				roles = new String[] { Role.PASSWORD, Role.CLIENT, Role.MONITORING};
-			} else {
-				roles = new String[] { Role.PASSWORD, Role.CLIENT};
+			roles.add(Role.CLIENT);
+			
+			if (adminAccounts.contains(username)) {
+				roles.add(Role.ADMIN);
 			}
 		}
+		
+		
+		if (config.getString(Config.KEY_MONITORING_USERNAME).equals(username)) {
+			roles.add(Role.MONITORING);
+		}
 
-		return new HashSet<>(Arrays.asList(roles));
+		return roles;
 	}
 
 	private HibernateUtil getHibernate() {

@@ -2,7 +2,9 @@ package fi.csc.chipster.rest.token;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.Filter;
@@ -26,6 +28,10 @@ import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.TopicConfig;
 
 public class PubSubTokenServletFilter implements Filter {
+
+	private static final String X_FORWARDED_FOR = "X-Forwarded-For";
+	
+	private List<String> detailHeaders = Arrays.asList(new String[] {X_FORWARDED_FOR}); 
 	
 	private static final Logger logger = LogManager.getLogger();
 	private TopicConfig topicCheck;
@@ -62,16 +68,25 @@ public class PubSubTokenServletFilter implements Filter {
     		
     		if (principal != null) {    		
     			
-    			/* topic authorization is checked twice: ones here to make a client 
+    			/* topic authorization is checked twice: once here to make a client 
     			 * notice errors already in the connection handshake and the second 
     			 * time in when the connection is opened, because the topic parsing
     			 * here is little bit worrying
     			 */
     			if (isAuthorized(principal, request)) {
+    				
     				// authentication ok
     				// use PrincipalRequestWrapper to transmit username and roles
     				// to PubSubEndpoint
     				logger.debug("authentication ok");
+    				
+    				// transmit also remote address and X-Forwarded-For header for the admin view
+    				principal.setRemoteAddress(request.getRemoteAddr());
+    				
+    				for (String headerName : detailHeaders) {
+    					principal.getDetails().put(headerName, request.getHeader(headerName));
+    				}    				
+    				
     				filterChain.doFilter(new PrincipalRequestWrapper(principal, request), response);
     				return;
     			} else {

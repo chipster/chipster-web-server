@@ -37,7 +37,7 @@ public class GlobalJobResource {
 	}
     
 	@GET
-	@RolesAllowed(Role.SCHEDULER)
+	@RolesAllowed({Role.SCHEDULER, Role.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@QueryParam("state") String stateString, @Context SecurityContext sc) {

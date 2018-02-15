@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
@@ -68,7 +69,7 @@ public class SessionJobResource {
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
     	
     	// checks authorization
-    	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
+    	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId, true);
     	Job result = getJob(jobId, getHibernate().session());
     	
     	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
@@ -106,10 +107,13 @@ public class SessionJobResource {
 		
 		UUID id = RestUtils.createUUID();
 		job.setJobId(id);
+		job.setStartTime(Instant.now());
 		
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		// make sure a hostile client doesn't set the session
 		job.setSession(session);
+		
+		job.setCreatedBy(sc.getUserPrincipal().getName());
 		
 		this.checkInputAccessRights(session, job);
 		
@@ -184,8 +188,9 @@ public class SessionJobResource {
 		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
 			throw new NotFoundException("job doesn't exist");
 		}
-		// make sure a hostile client doesn't set the session
+		// make sure a hostile client doesn't set the session or change the createdBy username
 		requestJob.setSession(session);
+		requestJob.setCreatedBy(dbJob.getCreatedBy());
 		
 		this.checkInputAccessRights(session, requestJob);
 		

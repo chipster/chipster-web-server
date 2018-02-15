@@ -1,6 +1,9 @@
 package fi.csc.chipster.rest.websocket;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.websocket.RemoteEndpoint.Basic;
 
 public class Subscriber {
@@ -9,11 +12,13 @@ public class Subscriber {
 	private String remoteAddress;
 	private String username;
 	private Instant created;
+	private Map<String, String> details = new HashMap<>();
 
-	public Subscriber(Basic remote, String remoteAddress, String username) {
+	public Subscriber(Basic remote, String remoteAddress, Map<String, String> details, String username) {
 		this.remote = remote;
 		this.remoteAddress = remoteAddress;
-		this.setUsername(username);
+		this.details = details;
+		this.username = username;
 		this.created = Instant.now();
 	}
 
@@ -40,5 +45,13 @@ public class Subscriber {
 
 	public Instant getCreated() {
 		return created;
+	}
+
+	public Map<String, String> getDetails() {
+		return details;
+	}
+
+	public void setDetails(Map<String, String> details) {
+		this.details = details;
 	}
 }

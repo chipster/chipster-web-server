@@ -58,7 +58,14 @@ public class PubSubEndpoint extends Endpoint {
 		session.getUserProperties().put(TOPIC_KEY, topic);
 
 		// subscribe for server messages
-		getServer(session).subscribe(topic, new Subscriber(session.getBasicRemote(), getRemoteAddress(session), session.getUserPrincipal().getName()));
+		
+		Subscriber subscriber = new Subscriber(
+				session.getBasicRemote(), 
+				((AuthPrincipal)session.getUserPrincipal()).getRemoteAddress(),
+				((AuthPrincipal)session.getUserPrincipal()).getDetails(),
+				session.getUserPrincipal().getName());
+				
+		getServer(session).subscribe(topic, subscriber);
 
 		// listen for client replies
 		MessageHandler messageHandler = getServer(session).getMessageHandler();
@@ -66,11 +73,6 @@ public class PubSubEndpoint extends Endpoint {
 			session.addMessageHandler(messageHandler);
 		}
     }
-    
-    private String getRemoteAddress(Session session) {
-    	// jetty seems to offer remote address, which is convenient for debug prints
-    	return session.getUserProperties().get("javax.websocket.endpoint.remoteAddress").toString();
-	}
 
 	private void close(Session session, CloseCodes closeCode, String reason) {
     	try {
@@ -98,7 +100,7 @@ public class PubSubEndpoint extends Endpoint {
     @Override
     public void onError(Session session, Throwable thr) {
     	if (thr instanceof SocketTimeoutException) {
-    		logger.warn("idle timeout, unsubscribe a pub-sub client " + getRemoteAddress(session)); 
+    		logger.warn("idle timeout, unsubscribe a pub-sub client " + ((AuthPrincipal)session.getUserPrincipal()).getRemoteAddress()); 
     	} else {
     		logger.error("websocket error", thr);
     	}

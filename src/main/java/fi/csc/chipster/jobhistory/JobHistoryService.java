@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 
+
 import javax.websocket.MessageHandler;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.hibernate.Session;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -21,6 +23,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -40,7 +43,7 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 	
 	private Logger logger = LogManager.getLogger();
 	private HttpServer httpServer;
-	private static HibernateUtil hibernate;
+	private HibernateUtil hibernate;
 	private JobHistoryResource jobHistoryResource;
 	private Config config;
 	private ServiceLocatorClient serviceLocator;
@@ -106,7 +109,7 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 		jobHistoryService.startServer();
 		RestUtils.shutdownGracefullyOnInterrupt(jobHistoryService.httpServer, "job-history");
 		RestUtils.waitForShutdown("Job History service", jobHistoryService.getHttpServer());
-		hibernate.getSessionFactory().close();
+
 	}
 
 
@@ -131,15 +134,16 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 	 */
 	
 	private void handleDbEvent(SessionEvent e,IdPair jobIdPair) throws RestException{
-		System.out.println("got job information");
+		System.out.println(e.getType()); 
 		switch(e.getType()){
 		case CREATE:
 			Job job=sessionDbClient.getJob(e.getSessionId(),e.getResourceId());
-		
+			System.out.println(job.getState());
 			switch(job.getState()){
 			case NEW:
 				//When a client adds a new job, save it the job history database
 				//hibernate.getsession.save()
+				saveJobHistory(job);
 			break;
 			default:
 				break;
@@ -147,11 +151,14 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 			break;
 		case UPDATE:
 			job=sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
+			System.out.println(job.getState());
 			switch (job.getState()){
 			case COMPLETED:
 			case FAILED:
 			case FAILED_USER_ERROR:
 				// update the DB entry for that Job
+				System.out.println("Job failed");
+				updateJobHistory(job);
 				break;
 			default:
 				break;
@@ -163,5 +170,45 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 		
 		}
 	}
+	
+	
+	private void saveJobHistory(Job job){
+		JobHistoryModel jobHistory=new JobHistoryModel();
+		jobHistory.setJobId(job.getJobId());
+		System.out.println(job.getJobId());
+		jobHistory.setToolName(job.getToolName());
+		jobHistory.setStartTime(job.getStartTime());
+		jobHistory.setEndTime(job.getEndTime());
+		jobHistory.setOutput(job.getScreenOutput());
+		jobHistory.setJobStatus(job.getStateDetail());
+		
+		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
+			@Override
+			public Void run(Session hibernateSession) {
+				hibernateSession.save(jobHistory);		
+				JobHistoryModel js=hibernateSession.get(JobHistoryModel.class, jobHistory.getJobId());
+				System.out.println(js.getJobId());
+				return null;
+			}
+		});
+		
+		//getHibernate().getSessionFactory().getCurrentSession().beginTransaction();
+		//getHibernate().session().save(jobHistory);
+		 
+		  
+	}
+	
+	
+		
+	private void updateJobHistory(Job job){
+		System.out.print(job.getStateDetail());
+	}
+	
+	private HibernateUtil getHibernate(){
+		return hibernate;
+	}
+	
+	
+	
 
 }

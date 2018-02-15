@@ -90,7 +90,7 @@ public class AdminResourceTest {
     
     public Response getAdminResponse(Client client, String role, String path) throws IOException {    	
     	Response response = getJson(
-    			client.target(config.getAdminBindUrl(role))
+    			client.target(config.getAdminServiceUrls().get(role))
     			.path("admin")
     			.path(path));
     	

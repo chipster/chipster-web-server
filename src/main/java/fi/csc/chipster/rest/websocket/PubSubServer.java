@@ -249,7 +249,9 @@ public class PubSubServer implements StatusSource {
 					
 					subscriberCopy.put("address", subscriber.getRemoteAddress());
 					subscriberCopy.put("username", subscriber.getUsername());
-					subscriberCopy.put("created", subscriber.getCreated());				
+					subscriberCopy.put("created", subscriber.getCreated());
+					
+					subscriberCopy.putAll(subscriber.getDetails());
 					
 					subscribersCopy.add(subscriberCopy);
 				}
