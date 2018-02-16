@@ -2,6 +2,7 @@ package fi.csc.chipster.comp;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -422,6 +423,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 				details += result.getErrorMessage();
 			}
 			dbJob.setStateDetail(details);
+			dbJob.setEndTime(Instant.now());
 			dbJob.setSourceCode(result.getSourceCode());
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 		} catch (RestException e) {
