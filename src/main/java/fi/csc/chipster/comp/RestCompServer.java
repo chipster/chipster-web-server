@@ -410,9 +410,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 			
 			JobCommand jobCommand = ((RestJobMessage)jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
-
-			//FIXME CompJob shouldn't generate a new jobId
-			dbJob.setJobId(jobCommand.getJobId());
 			dbJob.setScreenOutput(result.getOutputText());
 			dbJob.setState(result.getState());
 			String details = "";
