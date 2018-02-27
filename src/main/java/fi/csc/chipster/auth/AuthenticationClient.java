@@ -12,6 +12,7 @@ import java.util.UUID;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -27,6 +28,8 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.model.User;
+import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.DynamicCredentials;
@@ -236,6 +239,22 @@ public class AuthenticationClient {
 	 */
 	public CredentialsProvider getCredentials() {
 		return this.dynamicCredentials;		
+	}
+
+	public Token ssoLogin(User user) {
+
+		try {
+			Token token = getAuthenticatedClient()
+					.target(serviceLocator.getM2mUri(Role.AUTH))
+					.path(SsoTokenResource.SSO)
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.post(Entity.json(user), Token.class);
+			
+			return token;
+		} catch (ProcessingException e) {
+			logger.error("could not connect to " + serviceLocator.getM2mUri(Role.AUTH) + " to login the user", e);
+			throw new InternalServerErrorException("couldn't connect to the auth service");
+		}
 	}
 }
 

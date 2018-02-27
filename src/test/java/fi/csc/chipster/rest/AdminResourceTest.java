@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Set;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
@@ -36,16 +37,25 @@ public class AdminResourceTest {
     	launcher.stop();
     }
     
+    public Set<String> getRolesWithAdminUrl() {
+    	if (config.getAdminServiceUrls().get(Role.SHIBBOLETH) != null) {
+    		throw new IllegalStateException("test assumes that the shibboleth service doesn't have an admin url");
+    	}
+    	Set<String> roles = config.getServicePasswords().keySet();
+    	roles.remove(Role.SHIBBOLETH);
+    	return roles;
+    }
+    
     @Test
     public void getStatus() throws IOException {
-    	for (String role : config.getServicePasswords().keySet()) {
+    	for (String role : getRolesWithAdminUrl()) {
     		getStatus(role);
     	}
     }
     
     @Test
     public void getAlive() throws IOException {
-    	for (String role : config.getServicePasswords().keySet()) {
+    	for (String role : getRolesWithAdminUrl()) {
     		// doesn't require authentication
     		assertEquals(200, getAdminResponse(launcher.getNoAuthClient(), role, "alive").getStatus());
     	}
@@ -53,7 +63,7 @@ public class AdminResourceTest {
     
     @Test
     public void noAuth() throws IOException {
-    	for (String role : config.getServicePasswords().keySet()) {
+    	for (String role : getRolesWithAdminUrl()) {
      		assertEquals(403, getStatusResponse(launcher.getUser1Client(), role).getStatus());
      		assertEquals(403, getStatusResponse(launcher.getNoAuthClient(), role).getStatus());
      		assertEquals(403, getStatusResponse(launcher.getTokenFailClient(), role).getStatus());

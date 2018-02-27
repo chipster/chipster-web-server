@@ -3,6 +3,7 @@ package fi.csc.chipster.servicelocator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -30,7 +31,7 @@ public class ServiceLocatorClient {
 	public List<String> get(String role) {
 		List<String> uriList = new ArrayList<>();
 		
-		List<Service> services = getServices(role);
+		List<Service> services = getServices();
 		
 		for (Service service : services) {
 			if (role.equals(service.getRole())) {
@@ -40,8 +41,21 @@ public class ServiceLocatorClient {
 		
 		return uriList;
 	}
+	
+	public String getM2mUri(String role) {
 
-	public List<Service> getServices(String role) {
+		List<Service> services = getServices();
+		
+		for (Service service : services) {
+			if (role.equals(service.getRole())) {
+				return service.getM2mUri();
+			}
+		}
+		
+		return null;
+	}
+
+	public List<Service> getServices() {
 		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("services");
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
@@ -50,5 +64,21 @@ public class ServiceLocatorClient {
 		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
 
 		return services;
+	}
+
+	public Service getService(String role) {
+		List<Service> services = getServices().stream()
+			.filter(s -> role.equals(s.getRole()))
+			.collect(Collectors.toList());
+		
+		if (services.isEmpty()) {
+			throw new IllegalStateException("service " + role + " not found");
+		}
+		
+		if (services.size() > 1) {
+			logger.warn(services.size() + " " + role + " services, using the first one");
+		}
+		
+		return services.get(0);
 	}
 }

@@ -50,7 +50,10 @@ export class Config {
 	get(key: string) {
 		let value;
 		if (this.confPath) {
-			value = this.readFile(this.confPath)[key];
+			let confFile = this.readFile(this.confPath);
+			if (confFile) {				
+				value = confFile[key];
+			}
 		}
 		if (!value) {
 			value = this.getDefault(key);

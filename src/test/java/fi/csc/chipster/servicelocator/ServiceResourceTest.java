@@ -73,7 +73,7 @@ public class ServiceResourceTest {
     public void getAll() throws IOException {
 						
 		// test client library
-		List<Service> services = new ServiceLocatorClient(new Config()).getServices(Role.SESSION_DB);
+		List<Service> services = new ServiceLocatorClient(new Config()).getServices();
 		
 		HashSet<String> roles = new HashSet<>();
 		for (Service service : services) {

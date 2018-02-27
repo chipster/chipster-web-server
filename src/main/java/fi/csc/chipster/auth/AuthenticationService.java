@@ -14,8 +14,11 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
+import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
+import fi.csc.chipster.auth.resource.TokenTable;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
@@ -23,6 +26,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
@@ -41,6 +45,8 @@ public class AuthenticationService {
 	private HttpServer httpServer;
 
 	private HttpServer adminServer;
+
+	private HttpServer ssoHttpServer;
 	
 	public AuthenticationService(Config config) {
 		this.config = config;
@@ -52,17 +58,21 @@ public class AuthenticationService {
      * @throws IOException 
      * @throws IllegalConfigurationException 
      */
-    public void startServer() throws IOException, IllegalConfigurationException {
-    	    	
-    	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-    			Token.class,
-    	});
+    public void startServer() throws IOException, IllegalConfigurationException {    	    	
     	
     	// init Hibernate
-    	hibernate = new HibernateUtil(config, Role.AUTH);
-    	hibernate.buildSessionFactory(hibernateClasses);
+    	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
+    		Token.class,
+    		User.class,
+    	});
     	
-    	TokenResource authResource = new TokenResource(hibernate);
+    	hibernate = new HibernateUtil(config, Role.AUTH);
+		hibernate.buildSessionFactory(hibernateClasses);    	
+    	
+    	TokenTable tokenTable = new TokenTable(hibernate);
+    	UserTable userTable = new UserTable(hibernate);
+    	
+    	TokenResource authResource = new TokenResource(tokenTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config);
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
@@ -97,7 +107,22 @@ public class AuthenticationService {
 		this.adminServer = RestUtils.startAdminServer(
         		adminResource, hibernate, 
         		Role.AUTH, config, authClient);
-
+		
+		// separate port for the sso tokens, but only if configured explicitly
+		
+		String ssoBindUrlString = config.getM2mBindUrl(Role.AUTH);
+		
+		if (ssoBindUrlString != null && !ssoBindUrlString.isEmpty()) {
+	        final ResourceConfig ssoRc = RestUtils.getDefaultResourceConfig()        	
+	            	.register(new TokenRequestFilter(authClient))
+	            	.register(new SsoTokenResource(config, tokenTable, userTable));
+	        
+	    	ssoRc.register(new HibernateRequestFilter(hibernate))
+	    		.register(new HibernateResponseFilter(hibernate));
+	
+	        this.ssoHttpServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(ssoBindUrlString), ssoRc);
+	        this.ssoHttpServer.start();
+		}
     }
 
     /**
@@ -128,6 +153,7 @@ public class AuthenticationService {
 	
 	public void close() {
 		RestUtils.shutdown("auth-admin", adminServer);
+		RestUtils.shutdown("auth-sso", ssoHttpServer);
 		RestUtils.shutdown("auth", httpServer);
 	}
 }
