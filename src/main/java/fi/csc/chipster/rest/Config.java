@@ -30,6 +30,7 @@ public class Config {
 	private static final String URL_ADMIN_BIND_PREFIX = "url-admin-bind-";
 	private static final String URL_M2M_BIND_PREFIX = "url-m2m-bind-";
 	private static final String SERVICE_PASSWORD_PREFIX = "service-password-";
+	private static final String SSO_SERVICE_PASSWORD_PREFIX = "sso-service-password-";
 	private static final String ADMIN_USERNAME_PREFIX = "admin-username-";
 	private static final String VARIABLE_PREFIX = "variable-";
 	
@@ -199,6 +200,19 @@ public class Config {
 		return SERVICE_PASSWORD_PREFIX + username;
 	}
 	
+	public String getSsoPassword(String username) {
+		String key = getSsoPasswordConfigKey(username);
+		// there are no sso accounts in the default config
+		if (hasDefault(key)) {
+			logger.warn("default password for username " + username);
+		}		
+		return getString(key);
+	}
+	
+	public String getSsoPasswordConfigKey(String username) {
+		return SSO_SERVICE_PASSWORD_PREFIX + username;
+	}
+	
 	/**
 	 * Collect all services that have a service password entry and their configured passwords
 	 * 
@@ -228,6 +242,20 @@ public class Config {
 			.filter(entry -> entry.getKey().startsWith(ADMIN_USERNAME_PREFIX))
 			.map(entry -> entry.getValue())
 			.collect(Collectors.toSet());
+	}
+	
+	public Map<String, String> getSsoServicePasswords() {
+		
+		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
+		// new sso services can be added in configuration
+		conf.putAll(readFile(confFilePath));
+		List<String> services = conf.keySet().stream()
+				.filter(confKey -> confKey.startsWith(SSO_SERVICE_PASSWORD_PREFIX))
+				.map(confKey -> confKey.replace(SSO_SERVICE_PASSWORD_PREFIX, ""))
+				.collect(Collectors.toList());
+		
+		return services.stream()
+				.collect(Collectors.toMap(service -> service, service -> getSsoPassword(service)));
 	}
 	
 	/**
@@ -295,6 +323,10 @@ public class Config {
 			throw new IllegalArgumentException("configuration key not found: " + key);
 		}
 		return replaceVariables(template);
+	}
+	
+	public boolean hasDefault(String key) {
+		return readFile(DEFAULT_CONF_PATH).containsKey(key);		
 	}
 	
 	public boolean isDefault(String key) {

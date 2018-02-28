@@ -1,8 +1,7 @@
 package fi.csc.chipster.auth.resource;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,25 +37,24 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private HibernateUtil hibernate;
 
-	private HashMap<String, String> serviceAccounts;
+	private Map<String, String> serviceAccounts;
 	private Set<String> adminAccounts;
+	private Map<String, String> ssoAccounts;
 
 	private JaasAuthenticationProvider authenticationProvider;
 
 	private Config config;
 
+
 	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
 		this.config = config;
 
-		serviceAccounts = new HashMap<>();
-		adminAccounts = new HashSet<>();
-
-		for (Entry<String, String> entry : config.getServicePasswords().entrySet()) {
-			serviceAccounts.put(entry.getKey(), entry.getValue());
-		}
-		
+		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
+		ssoAccounts = config.getSsoServicePasswords();
+		
+		serviceAccounts.putAll(ssoAccounts);
 
 		authenticationProvider = new JaasAuthenticationProvider(false);
 	}
@@ -154,10 +152,13 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 				roles.add(Role.ADMIN);
 			}
 		}
-		
-		
+				
 		if (config.getString(Config.KEY_MONITORING_USERNAME).equals(username)) {
 			roles.add(Role.MONITORING);
+		}
+		
+		if (ssoAccounts.keySet().contains(username)) {
+			roles.add(Role.SSO);
 		}
 
 		return roles;

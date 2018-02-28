@@ -12,7 +12,10 @@ service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-web-server: web-server
 service-password-toolbox: toolbox
-service-password-shibboleth: shibboleth
+
+# SSO accounts
+# all config items starting with "sso-service-password-" will be automatically authenticated as Role.SSO, none by default
+# sso-service-password-shibboleth: shibboleth
 
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
@@ -67,7 +70,7 @@ url-bind-file-broker: http://{{bind-ip}}:8007
 url-bind-toolbox: http://{{bind-ip}}:8008
 url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
-url-bind-shibboleth: ajp://127.0.0.1:8012
+url-bind-sso: ajp://127.0.0.1:8012
 
 url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
 url-admin-bind-auth: http://{{admin-bind-ip}}:8102

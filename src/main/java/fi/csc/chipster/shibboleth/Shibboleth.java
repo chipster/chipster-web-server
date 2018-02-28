@@ -2,6 +2,7 @@ package fi.csc.chipster.shibboleth;
 
 import java.io.File;
 import java.net.URI;
+import java.util.Map;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Connector;
@@ -41,13 +42,23 @@ public class Shibboleth {
      */
     public void startServer() throws Exception {
     	
-    	String username = Role.SHIBBOLETH;
-    	String password = config.getPassword(username);    	
+    	Map<String, String> ssoAccounts = config.getSsoServicePasswords();
+    	
+    	if (ssoAccounts.isEmpty()) {
+    		throw new IllegalStateException("sso service username and password is not configured");
+    	}
+    	    	
+    	String username = ssoAccounts.keySet().toArray(new String[0])[0];
+    	String password = config.getSsoPassword(username);
+    	
+    	if (ssoAccounts.size() > 1) {
+    		logger.warn(ssoAccounts.size() + " sso accounts configured, will pick one: " + username);
+    	}
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);		    	
 
-    	URI baseUri = URI.create(this.config.getBindUrl(Role.SHIBBOLETH));
+    	URI baseUri = URI.create(this.config.getBindUrl(Role.SSO));
     	    
         tomcat = new Tomcat();
                 
@@ -82,7 +93,7 @@ public class Shibboleth {
 
         tomcat.start();
         
-        logger.info(Role.SHIBBOLETH + " up and running");
+        logger.info(Role.SSO + " " + username + " started");
         
         //tomcat.getServer().await();        
     }

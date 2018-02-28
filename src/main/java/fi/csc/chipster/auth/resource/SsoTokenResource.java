@@ -22,7 +22,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 @Path(SsoTokenResource.SSO)
-@RolesAllowed(Role.SHIBBOLETH)
+@RolesAllowed(Role.SSO)
 public class SsoTokenResource {
 
 	public static final String SSO = "sso";
@@ -33,9 +33,6 @@ public class SsoTokenResource {
 	private UserTable userTable;
 
 	public SsoTokenResource(Config config, TokenTable tokenTable, UserTable userTable) {
-		if (config.getDefault(config.getPasswordConfigKey(Role.SHIBBOLETH)).equals(config.getPassword(Role.SHIBBOLETH))) {
-			throw new IllegalStateException("refusing to start the SSO service with the default password for username " + Role.SHIBBOLETH);
-		}
 				
 		this.tokenTable = tokenTable;
 		this.userTable = userTable;

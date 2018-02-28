@@ -38,11 +38,11 @@ public class AdminResourceTest {
     }
     
     public Set<String> getRolesWithAdminUrl() {
-    	if (config.getAdminServiceUrls().get(Role.SHIBBOLETH) != null) {
+    	if (config.getAdminServiceUrls().get(Role.SSO) != null) {
     		throw new IllegalStateException("test assumes that the shibboleth service doesn't have an admin url");
     	}
     	Set<String> roles = config.getServicePasswords().keySet();
-    	roles.remove(Role.SHIBBOLETH);
+    	roles.remove(Role.SSO);
     	return roles;
     }
     
