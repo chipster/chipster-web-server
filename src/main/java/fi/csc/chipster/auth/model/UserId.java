@@ -10,6 +10,14 @@ public class UserId implements Serializable {
 	private static final String DELIMITER = "/";
 	
 	private String username;
+
+	/**
+	 * Authenticator
+	 * 
+	 * Username or other string identifier of the service who authenticated this user.
+	 * Effectively creates username namespaces which ensure that each authenticator can
+	 * only login its own users. 
+	 */
 	private String auth;
 	
 	public UserId() { }
