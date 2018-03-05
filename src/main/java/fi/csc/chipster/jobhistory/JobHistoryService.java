@@ -181,7 +181,8 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 		jobHistory.setEndTime(job.getEndTime());
 		jobHistory.setOutput(job.getScreenOutput());
 		jobHistory.setJobStatus(job.getStateDetail());
-		
+		jobHistory.setUserName(job.getCreatedBy());
+		System.out.println("saveJobHistory() " + job.getCreatedBy());
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
@@ -190,7 +191,7 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 				System.out.println(js.getJobId());
 				return null;
 			}
-		});
+		});		
 		
 		//getHibernate().getSessionFactory().getCurrentSession().beginTransaction();
 		//getHibernate().session().save(jobHistory);
@@ -201,7 +202,7 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 	
 		
 	private void updateJobHistory(Job job){
-		System.out.print(job.getStateDetail());
+		
 	}
 	
 	private HibernateUtil getHibernate(){

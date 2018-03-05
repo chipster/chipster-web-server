@@ -41,6 +41,7 @@ public class JobHistoryModel {
 	private String timeDuration;
 	private Instant startTime;
 	private Instant endTime;
+	private String userName;
 	@Lob
 	private String output;
 	private String jobStatus;
@@ -104,6 +105,14 @@ public class JobHistoryModel {
 
 	public void setStartTime(Instant startTime) {
 		this.startTime = startTime;
+	}
+
+	public String getUserName() {
+		return userName;
+	}
+
+	public void setUserName(String userName) {
+		this.userName = userName;
 	}
 	
 
