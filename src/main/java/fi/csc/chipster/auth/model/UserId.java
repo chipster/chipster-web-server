@@ -32,6 +32,8 @@ public class UserId implements Serializable {
 		if (parts.length == 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
 			this.auth = parts[0];
 			this.username = parts[1];
+		} else {
+			throw new IllegalArgumentException("unable to parse the userId: " + userId);
 		}
 	}
 	

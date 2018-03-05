@@ -157,11 +157,11 @@ public class TestServerLauncher {
 	}
 	
 	public CredentialsProvider getUser1Credentials() {
-		return new StaticCredentials("client", "clientPassword");
+		return new StaticCredentials("jaas/client", "clientPassword");
 	}
 	
 	public CredentialsProvider getUser2Credentials() {
-		return new StaticCredentials("client2", "client2Password");
+		return new StaticCredentials("jaas/client2", "client2Password");
 	}
 
 	public ServerLauncher getServerLauncher() {

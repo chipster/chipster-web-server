@@ -33,7 +33,11 @@ public class User {
 	}
 
 	public User(String username, String mail, String organization, String name) {
-		this.userId = new UserId(null, username);
+		this(null, username, mail, organization, name);
+	}
+	
+	public User(String auth, String username, String mail, String organization, String name) {
+		this.userId = new UserId(auth, username);
 		this.mail = mail;
 		this.organization = organization;
 		this.name = name;

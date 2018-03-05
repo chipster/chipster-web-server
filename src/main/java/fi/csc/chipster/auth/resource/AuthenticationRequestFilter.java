@@ -14,12 +14,17 @@ import javax.ws.rs.ext.Provider;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.Session;
 
+import fi.csc.chipster.auth.UserTable;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.model.User;
+import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.microarray.auth.JaasAuthenticationProvider;
@@ -33,9 +38,13 @@ import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationExceptio
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
+	private static final String AUTH_ID_JAAS = "jaas";
+
 	private static final Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
+	private Config config;
+	private UserTable userTable;
 
 	private Map<String, String> serviceAccounts;
 	private Set<String> adminAccounts;
@@ -43,12 +52,10 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private JaasAuthenticationProvider authenticationProvider;
 
-	private Config config;
-
-
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config) throws IOException, IllegalConfigurationException {
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
 		this.config = config;
+		this.userTable = userTable;
 
 		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
@@ -130,11 +137,42 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			// don't let other providers to authenticate internal usernames
 			throw new ForbiddenException("wrong password");	
 		}
-		if (authenticationProvider.authenticate(username, password.toCharArray())) {
+		
+		// allow both plain username "jdoe" or userId "jaas/jdoe" 
+		String jaasUsername;		
+		try {
+			// throws if username is not a userId
+			UserId userId = new UserId(username);			
+			if (userId.getAuth().equals(AUTH_ID_JAAS)) {
+				// jaas userId (e.g. "jaas/jdoe"), login without the prefix
+				jaasUsername = userId.getUsername();
+			} else {
+				// userId, but not from jaas (e.g. "sso/jdoe"), no point to try for jaas
+				jaasUsername = null;
+			}
+		} catch (IllegalArgumentException e) {
+			// not a userId but only a username (e.g. "jdoe"), but that's fine
+			jaasUsername = username;
+		}
+		
+		if (jaasUsername != null && authenticationProvider.authenticate(jaasUsername, password.toCharArray())) {
+			User user = addOrUpdateUser(jaasUsername);
 			// authenticate with username/password ok
-			return new AuthPrincipal(username, getRoles(username));
+			return new AuthPrincipal(user.getUserId().toUserIdString(), getRoles(username));
 		}
 		throw new ForbiddenException("wrong username or password");
+	}
+
+	private User addOrUpdateUser(String username) {
+		User user = new User(AUTH_ID_JAAS, username, null, null, username);
+		hibernate.runInTransaction(new HibernateRunnable<Void>() {
+			@Override
+			public Void run(Session hibernateSession) {
+				userTable.addOrUpdate(user, hibernateSession);
+				return null;
+			}
+		});
+		return user;
 	}
 
 	public HashSet<String> getRoles(String username) {

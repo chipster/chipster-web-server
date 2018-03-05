@@ -73,7 +73,7 @@ public class AuthenticationService {
     	UserTable userTable = new UserTable(hibernate);
     	
     	TokenResource authResource = new TokenResource(tokenTable);
-    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config);
+    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
