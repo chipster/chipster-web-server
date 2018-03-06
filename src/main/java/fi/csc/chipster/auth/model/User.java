@@ -23,6 +23,7 @@ public class User {
 	
 	@Version
 	private long version;
+	
 	private Instant	created;
 	private Instant	modified;
 	private Instant	accessed;
@@ -71,7 +72,6 @@ public class User {
 	public void setVersion(long version) {
 		this.version = version;
 	}
-
 
 	public Instant getCreated() {
 		return created;

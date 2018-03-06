@@ -16,7 +16,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 
-import fi.csc.chipster.auth.UserTable;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;

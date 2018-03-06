@@ -9,9 +9,7 @@ import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 
@@ -21,16 +19,17 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CredentialsProvider;
+import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
@@ -158,64 +157,6 @@ public class SessionDbClient {
 		return getRulesTarget(sessionId).path(authorizationId.toString());
 	}
 	
-	// methods 
-	
-	@SuppressWarnings("unchecked")
-	private <T> List<T> getList(WebTarget target, Class<T> type) throws RestException {
-		Response response = target.request().get(Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("get a list of " + type.getSimpleName() + " failed ", response, target.getUri());
-		}
-		String json = response.readEntity(String.class);
-		return RestUtils.parseJson(List.class, type, json);
-	}
-	
-	private <T> T get(WebTarget target, Class<T> type) throws RestException {
-		Response response = target.request().get(Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("get " + type.getSimpleName() + " failed ", response, target.getUri());
-		}		
-		return response.readEntity(type);
-	}
-	
-	private UUID post(WebTarget target, Object obj) throws RestException {
-		Response response = target.request().post(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("post " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
-		}
-		return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));		
-	}
-	
-	private <T> T postWithObjectResponse(WebTarget target, Object obj, Class<T> responseType) throws RestException {
-		Entity<Object> entity = null;
-		if (obj != null) {
-			entity = Entity.entity(obj, MediaType.APPLICATION_JSON);
-		} else {
-			entity = Entity.json("");
-		}
-		Response response = target.request().post(entity, Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("post " + (obj == null ? null : obj.getClass().getSimpleName()) + " failed ", response, target.getUri());
-		}
-		
-		return response.readEntity(responseType);		
-	}
-	
-	private Response put(WebTarget target, Object obj) throws RestException {
-		Response response = target.request().put(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("put " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
-		}
-		return response;
-	}
-	
-	private void delete(WebTarget target) throws RestException {
-		Response response = target.request().delete(Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("delete failed ", response, target.getUri());
-		}
-	}
-	
 	// sessions
 	
 	/**
@@ -223,7 +164,7 @@ public class SessionDbClient {
 	 * @throws MicroarrayException
 	 */
 	public HashMap<UUID, Session> getSessions() throws RestException {		
-		List<Session> sessionList = getList(getSessionsTarget(), Session.class);
+		List<Session> sessionList = RestMethods.getList(getSessionsTarget(), Session.class);
 		
 		HashMap<UUID, Session> map = new HashMap<>();
 		
@@ -241,7 +182,7 @@ public class SessionDbClient {
 	 */
 	public fi.csc.chipster.sessiondb.model.Session getSession(UUID sessionId) throws RestException {
 		
-		Session session = get(getSessionTarget(sessionId), Session.class);
+		Session session = RestMethods.get(getSessionTarget(sessionId), Session.class);
 		
 		HashMap<UUID, Dataset> datasets = getDatasets(sessionId);
 		HashMap<UUID, Job> jobs = getJobs(sessionId);
@@ -262,23 +203,23 @@ public class SessionDbClient {
 	 * @throws RestException
 	 */
 	public UUID createSession(Session session) throws RestException {
-		UUID id =  post(getSessionsTarget(), session);
+		UUID id =  RestMethods.post(getSessionsTarget(), session);
 		session.setSessionId(id);
 		return id;
 	}
 
 	public void updateSession(Session session) throws RestException {
-		put(getSessionTarget(session.getSessionId()), session);
+		RestMethods.put(getSessionTarget(session.getSessionId()), session);
 	}
 
 	public void deleteSession(UUID sessionId) throws RestException {
-		delete(getSessionTarget(sessionId));
+		RestMethods.delete(getSessionTarget(sessionId));
 	}	
 	
 	// dataset
 	
 	public HashMap<UUID, Dataset> getDatasets(UUID sessionId) throws RestException {
-		List<Dataset> datasetList = getList(getDatasetsTarget(sessionId), Dataset.class);
+		List<Dataset> datasetList = RestMethods.getList(getDatasetsTarget(sessionId), Dataset.class);
 		
 		HashMap<UUID, Dataset> datasetMap = new HashMap<>();
 		
@@ -307,7 +248,7 @@ public class SessionDbClient {
 		if (requireReadWrite) {
 			target.queryParam(SessionDatasetResource.QUERY_PARAM_READ_WRITE, requireReadWrite);
 		}
-		return get(target, Dataset.class);		
+		return RestMethods.get(target, Dataset.class);		
 	}
 
 	/**
@@ -321,23 +262,23 @@ public class SessionDbClient {
 	 * @throws RestException
 	 */
 	public UUID createDataset(UUID sessionId, Dataset dataset) throws RestException {
-		UUID id = post(getDatasetsTarget(sessionId), dataset);
+		UUID id = RestMethods.post(getDatasetsTarget(sessionId), dataset);
 		dataset.setDatasetId(id);
 		return id;
 	}
 	
 	public Response updateDataset(UUID sessionId, Dataset dataset) throws RestException {
-		return put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
+		return RestMethods.put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
 	}
 	
 	public void deleteDataset(UUID sessionId, UUID datasetId) throws RestException {
-		delete(getDatasetTarget(sessionId, datasetId));
+		RestMethods.delete(getDatasetTarget(sessionId, datasetId));
 	}	
 	
 	// jobs
 	
 	public HashMap<UUID, Job> getJobs(UUID sessionId) throws RestException {
-		List<Job> jobsList = getList(getJobsTarget(sessionId), Job.class);
+		List<Job> jobsList = RestMethods.getList(getJobsTarget(sessionId), Job.class);
 		
 		HashMap<UUID, Job> jobMap = new HashMap<>();
 		
@@ -348,11 +289,11 @@ public class SessionDbClient {
 	}
 	
 	public Job getJob(UUID sessionId, UUID jobId) throws RestException {
-		return get(getJobTarget(sessionId, jobId), Job.class);	
+		return RestMethods.get(getJobTarget(sessionId, jobId), Job.class);	
 	}
 	
 	public List<IdPair> getJobs(JobState state) throws RestException {
-		return getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
+		return RestMethods.getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
 	public UUID createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {
@@ -364,7 +305,7 @@ public class SessionDbClient {
 			target = target.queryParam("valid", Instant.now().plus(Duration.ofSeconds(validSeconds)).toString());
 		}
 		
-		DatasetToken datasetToken = postWithObjectResponse(target, null, DatasetToken.class);
+		DatasetToken datasetToken = RestMethods.postWithObjectResponse(target, null, DatasetToken.class);
 		
 		return datasetToken.getTokenKey();
 	}
@@ -380,42 +321,42 @@ public class SessionDbClient {
 	 * @throws RestException
 	 */
 	public UUID createJob(UUID sessionId, Job job) throws RestException {
-		UUID id = post(getJobsTarget(sessionId), job);
+		UUID id = RestMethods.post(getJobsTarget(sessionId), job);
 		job.setJobId(id);
 		return id;
 	}
 	
 	public void updateJob(UUID sessionId, Job job) throws RestException {
-		put(getJobTarget(sessionId, job.getJobId()), job);
+		RestMethods.put(getJobTarget(sessionId, job.getJobId()), job);
 	}
 	
 	public void deleteJob(UUID sessionId, UUID jobId) throws RestException {
-		delete(getJobTarget(sessionId, jobId));
+		RestMethods.delete(getJobTarget(sessionId, jobId));
 	}
 	
 	public Rule getRule(UUID sessionId, UUID ruleId) throws RestException {
-		return get(getRuleTarget(sessionId, ruleId), Rule.class);
+		return RestMethods.get(getRuleTarget(sessionId, ruleId), Rule.class);
 	}
 
 	public List<TableStats> getTableStats() throws RestException {
-		List<TableStats> tables = getList(getSessionDbTarget().path("admin").path("tables"), TableStats.class);
+		List<TableStats> tables = RestMethods.getList(getSessionDbTarget().path("admin").path("tables"), TableStats.class);
 		
 		return tables;
 	}
 	
 	public UUID createRule(UUID sessionId, String username, boolean readWrite) throws RestException {
-		return post(getRulesTarget(sessionId), new Rule(username, readWrite));
+		return RestMethods.post(getRulesTarget(sessionId), new Rule(username, readWrite));
 	}
 
 	public UUID createRule(UUID sessionId, Rule rule) throws RestException {
-		return post(getRulesTarget(sessionId), rule);
+		return RestMethods.post(getRulesTarget(sessionId), rule);
 	}
 	
 	public void deleteRule(UUID sessionId, UUID ruleId) throws RestException {
-		delete(getRulesTarget(sessionId).path(ruleId.toString()));
+		RestMethods.delete(getRulesTarget(sessionId).path(ruleId.toString()));
 	}
 	
 	public List<Rule> getRules(UUID sessionId) throws RestException {
-		return getList(getRulesTarget(sessionId), Rule.class);
+		return RestMethods.getList(getRulesTarget(sessionId), Rule.class);
 	}
 }

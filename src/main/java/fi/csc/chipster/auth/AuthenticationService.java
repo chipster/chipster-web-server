@@ -15,10 +15,12 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
+import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.auth.resource.TokenTable;
+import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
@@ -73,10 +75,12 @@ public class AuthenticationService {
     	UserTable userTable = new UserTable(hibernate);
     	
     	TokenResource authResource = new TokenResource(tokenTable);
+    	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
+        	.register(userResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	//.register(new LoggingFilter())
@@ -113,17 +117,25 @@ public class AuthenticationService {
 		String ssoBindUrlString = config.getM2mBindUrl(Role.AUTH);
 		
 		if (ssoBindUrlString != null && !ssoBindUrlString.isEmpty()) {
-	        final ResourceConfig ssoRc = RestUtils.getDefaultResourceConfig()        	
-	            	.register(new TokenRequestFilter(authClient))
-	            	.register(new SsoTokenResource(config, tokenTable, userTable));
-	        
-	    	ssoRc.register(new HibernateRequestFilter(hibernate))
-	    		.register(new HibernateResponseFilter(hibernate));
-	
-	        this.ssoHttpServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(ssoBindUrlString), ssoRc);
-	        this.ssoHttpServer.start();
+			this.ssoHttpServer = enableSsoLogins(tokenTable, userTable, authClient, ssoBindUrlString);
 		}
     }
+
+	private HttpServer enableSsoLogins(TokenTable tokenTable, UserTable userTable, AuthenticationClient authClient,
+			String ssoBindUrlString) throws IOException {
+		
+        final ResourceConfig ssoRc = RestUtils.getDefaultResourceConfig()        	
+            	.register(new TokenRequestFilter(authClient))
+            	.register(new SsoTokenResource(config, tokenTable, userTable));
+        
+    	ssoRc.register(new HibernateRequestFilter(hibernate))
+    		.register(new HibernateResponseFilter(hibernate));
+
+        HttpServer ssoHttpServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(ssoBindUrlString), ssoRc);
+        ssoHttpServer.start();
+        
+        return ssoHttpServer;
+	}
 
     /**
      * Main method.

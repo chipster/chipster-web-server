@@ -1,6 +1,7 @@
-package fi.csc.chipster.auth;
+package fi.csc.chipster.auth.resource;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.hibernate.Session;
 
@@ -51,5 +52,14 @@ public class UserTable {
 
 	public void addOrUpdate(User user) {
 		this.addOrUpdate(user, this.hibernate.session());
+	}
+
+	public User get(UserId userId) {
+		return get(userId, this.hibernate.session());
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<User> getAll() {
+		return this.hibernate.session().createQuery("from " + User.class.getSimpleName()).list();
 	}
 }

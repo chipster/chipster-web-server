@@ -39,7 +39,7 @@ public class UserResource {
 	public UserResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
-    
+
 	@GET
 	@RolesAllowed({Role.ADMIN})
     @Produces(MediaType.APPLICATION_JSON)

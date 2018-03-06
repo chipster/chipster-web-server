@@ -14,18 +14,17 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
-import fi.csc.chipster.auth.UserTable;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
-@Path(SsoTokenResource.SSO)
+@Path(SsoTokenResource.PATH_SSO)
 @RolesAllowed(Role.SSO)
 public class SsoTokenResource {
 
-	public static final String SSO = "sso";
+	public static final String PATH_SSO = "sso";
 		
 	private TokenTable tokenTable;
 

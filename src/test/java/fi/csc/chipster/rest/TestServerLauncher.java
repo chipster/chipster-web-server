@@ -113,9 +113,13 @@ public class TestServerLauncher {
 	
 	public WebTarget getAuthFailTarget(String role) {
 		// password login should be enabled only on auth, but this tries to use it on the session storage
-		return AuthenticationClient.getClient("client", "clientPassword", true).target(getTargetUri(role));
+		return getAuthFailClient().target(getTargetUri(role));
 	}
 	
+	public Client getAuthFailClient() {
+		return AuthenticationClient.getClient("client", "clientPassword", true);
+	}
+
 	public Client getNoAuthClient() {
 		return AuthenticationClient.getClient();
 	}
@@ -170,5 +174,9 @@ public class TestServerLauncher {
 
 	public ServiceLocatorClient getServiceLocator() {
 		return serviceLocatorClient;
+	}
+
+	public Client getAdminClient() {
+		return AuthenticationClient.getClient("admin", "admin", true);
 	}
 }
