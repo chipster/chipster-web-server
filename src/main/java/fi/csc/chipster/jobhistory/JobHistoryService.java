@@ -6,7 +6,6 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 
-
 import javax.websocket.MessageHandler;
 
 import org.apache.logging.log4j.LogManager;
@@ -39,8 +38,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
  * 
  *
  */
-public class JobHistoryService implements SessionEventListener,MessageHandler{
-	
+public class JobHistoryService implements SessionEventListener, MessageHandler {
+
 	private Logger logger = LogManager.getLogger();
 	private HttpServer httpServer;
 	private HibernateUtil hibernate;
@@ -51,37 +50,38 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 	private SessionDbClient sessionDbClient;
 
 	public JobHistoryService(Config config) {
-		this.config=config;
-	
+		this.config = config;
 
 	}
-	
-	
+
 	/**
 	 * Starts the Grizzly HTTP Server
-	 * @throws URISyntaxException 
+	 * 
+	 * @throws URISyntaxException
 	 * @throws IOException
-	 * @throws RestException 
+	 * @throws RestException
 	 */
-	
-	public void startServer() throws URISyntaxException, IOException, RestException{
-		//WebSocket connection to Session DB
-		String username=Role.JOB_HISTORY;
-		String password=this.config.getPassword(username);
-		
-		this.serviceLocator=new ServiceLocatorClient(this.config);
-		this.authService=new AuthenticationClient(serviceLocator, username, password);
-		
-		this.sessionDbClient=new SessionDbClient(serviceLocator, authService.getCredentials());
-		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "job-history");
-		
-		
-		
+
+	public void startServer() throws URISyntaxException, IOException,
+			RestException {
+		// WebSocket connection to Session DB
+		String username = Role.JOB_HISTORY;
+		String password = this.config.getPassword(username);
+
+		this.serviceLocator = new ServiceLocatorClient(this.config);
+		this.authService = new AuthenticationClient(serviceLocator, username,
+				password);
+
+		this.sessionDbClient = new SessionDbClient(serviceLocator,
+				authService.getCredentials());
+		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this,
+				"job-history");
+
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistoryModel.class);
 		// Initializing hibernate components
 		hibernate = new HibernateUtil(this.config, "job-history");
 		hibernate.buildSessionFactory(hibernateClasses);
-		
+
 		jobHistoryResource = new JobHistoryResource(hibernate, this.config);
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(jobHistoryResource)
@@ -89,75 +89,79 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 				.register(new HibernateResponseFilter(hibernate))
 		// .register(RestUtils.getLoggingFeature("session-db"))
 		;
-		
-		//Start the HTTP server, now the URL is hard coded, which needed to change
+
+		// Start the HTTP server, now the URL is hard coded, which needed to
+		// change
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(new URI(
 				"http://127.0.0.1:8200"), rc);
 
 		httpServer.start();
-		
-		
+
 	}
-	
-	private HttpServer getHttpServer(){
+
+	private HttpServer getHttpServer() {
 		return httpServer;
 	}
-	
 
-	public static void main(String[] args) throws URISyntaxException, IOException, RestException  {
-		final JobHistoryService jobHistoryService= new JobHistoryService(new Config());
+	public static void main(String[] args) throws URISyntaxException,
+			IOException, RestException {
+		final JobHistoryService jobHistoryService = new JobHistoryService(
+				new Config());
 		jobHistoryService.startServer();
-		RestUtils.shutdownGracefullyOnInterrupt(jobHistoryService.httpServer, "job-history");
-		RestUtils.waitForShutdown("Job History service", jobHistoryService.getHttpServer());
+		RestUtils.shutdownGracefullyOnInterrupt(jobHistoryService.httpServer,
+				"job-history");
+		RestUtils.waitForShutdown("Job History service",
+				jobHistoryService.getHttpServer());
 
 	}
-
 
 	@Override
 	public void onEvent(SessionEvent e) {
 		// TODO Auto-generated method stub
-		logger.info("received a job event: " + e.getResourceType() + " " + e.getType());
-		try {			
+		logger.info("received a job event: " + e.getResourceType() + " "
+				+ e.getType());
+		try {
 			if (e.getResourceType() == ResourceType.JOB) {
-				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()));
+				handleDbEvent(e,
+						new IdPair(e.getSessionId(), e.getResourceId()));
 			}
 		} catch (Exception ex) {
 			logger.error("error when handling a session event", ex);
 		}
-		
-		
+
 	}
-	
+
 	/**
 	 * Handling the events received from session-db
 	 * 
 	 */
-	
-	private void handleDbEvent(SessionEvent e,IdPair jobIdPair) throws RestException{
-		System.out.println(e.getType()); 
-		switch(e.getType()){
+
+	private void handleDbEvent(SessionEvent e, IdPair jobIdPair)
+			throws RestException {
+		System.out.println(e.getType());
+		switch (e.getType()) {
 		case CREATE:
-			Job job=sessionDbClient.getJob(e.getSessionId(),e.getResourceId());
+			Job job = sessionDbClient.getJob(e.getSessionId(),
+					e.getResourceId());
 			System.out.println(job.getState());
-			switch(job.getState()){
+			switch (job.getState()) {
 			case NEW:
-				//When a client adds a new job, save it the job history database
-				//hibernate.getsession.save()
+				// When a client adds a new job, save it the job history
+				// database
+				// hibernate.getsession.save()
 				saveJobHistory(job);
-			break;
+				break;
 			default:
 				break;
 			}
 			break;
 		case UPDATE:
-			job=sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			System.out.println(job.getState());
-			switch (job.getState()){
+			job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
+			System.out.println( "IN Update"+ job.getState());
+			switch (job.getState()) {
 			case COMPLETED:
 			case FAILED:
 			case FAILED_USER_ERROR:
-				// update the DB entry for that Job
-				System.out.println("Job failed");
 				updateJobHistory(job);
 				break;
 			default:
@@ -165,51 +169,59 @@ public class JobHistoryService implements SessionEventListener,MessageHandler{
 			}
 		default:
 			break;
-			
-			//what to do with if the client has cancelled the job?
-		
+
+		// what to do with if the client has cancelled the job?
+
 		}
 	}
-	
-	
-	private void saveJobHistory(Job job){
-		JobHistoryModel jobHistory=new JobHistoryModel();
+
+	private void saveJobHistory(Job job) {
+		JobHistoryModel jobHistory = new JobHistoryModel();
 		jobHistory.setJobId(job.getJobId());
 		System.out.println(job.getJobId());
 		jobHistory.setToolName(job.getToolName());
 		jobHistory.setStartTime(job.getStartTime());
 		jobHistory.setEndTime(job.getEndTime());
 		jobHistory.setOutput(job.getScreenOutput());
-		jobHistory.setJobStatus(job.getStateDetail());
+		jobHistory.setJobStatus(job.getState().toString());
 		jobHistory.setUserName(job.getCreatedBy());
-		System.out.println("saveJobHistory() " + job.getCreatedBy());
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
-				hibernateSession.save(jobHistory);		
-				JobHistoryModel js=hibernateSession.get(JobHistoryModel.class, jobHistory.getJobId());
+				hibernateSession.save(jobHistory);
+				JobHistoryModel js = hibernateSession.get(
+						JobHistoryModel.class, jobHistory.getJobId());
 				System.out.println(js.getJobId());
 				return null;
 			}
-		});		
-		
-		//getHibernate().getSessionFactory().getCurrentSession().beginTransaction();
-		//getHibernate().session().save(jobHistory);
-		 
-		  
+		});
 	}
-	
-	
-		
-	private void updateJobHistory(Job job){
-		
+
+	//Should we be using merge or update??
+	private void updateJobHistory(Job job) {
+		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
+			@Override
+			public Void run(Session hibernateSession) {
+				JobHistoryModel js = hibernateSession.get(
+						JobHistoryModel.class, job.getJobId());
+				System.out.println("Before update" + js.getJobStatus());
+				js.setToolName(job.getToolName());
+				js.setStartTime(job.getStartTime());
+				js.setEndTime(job.getEndTime());
+				js.setOutput(job.getScreenOutput());
+				js.setJobStatus(job.getState().toString());
+				js.setUserName(job.getCreatedBy());
+				hibernateSession.merge(js);
+				System.out.println("after update"+js.getJobStatus());
+
+				return null;
+			}
+		});
+
 	}
-	
-	private HibernateUtil getHibernate(){
+
+	private HibernateUtil getHibernate() {
 		return hibernate;
 	}
-	
-	
-	
 
 }
