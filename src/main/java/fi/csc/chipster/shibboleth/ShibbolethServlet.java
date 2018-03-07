@@ -8,6 +8,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.BadRequestException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +24,6 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 public class ShibbolethServlet extends HttpServlet {
 
-	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	private AuthenticationClient authService;
@@ -38,6 +38,9 @@ public class ShibbolethServlet extends HttpServlet {
 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		// add query parameter "debug" to disable the redirect
+		boolean debug = request.getParameterMap().containsKey("debug");
 
 		String eppn = fixEncoding(request.getAttribute("SHIB_eppn"));
 		String cn = fixEncoding(request.getAttribute("SHIB_cn"));
@@ -48,8 +51,16 @@ public class ShibbolethServlet extends HttpServlet {
 		String org = o != null ? o : schachHomeOrganization;
 		
 		User user = new User(eppn, mail, org, cn);	
-		
-		Token token = authService.ssoLogin(user);
+				
+		Token token;
+		try {
+			token = authService.ssoLogin(user);
+		} catch (BadRequestException e) {
+			// BadRequests aren't logged by default
+			// comment out this try block to test this servlet locally without shibboleth attributes
+			logger.error("sso login failed: " + e.getResponse().readEntity(String.class));
+			throw e;
+		}
 		
 		String saveTokenUrl = webAppUrl + "/assets/save-token.html";
 		String loggedInUrl = webAppUrl + "/sessions";
@@ -58,37 +69,56 @@ public class ShibbolethServlet extends HttpServlet {
 			response.setContentType("text/html;charset=UTF-8");
 			
 			String tokenJson = RestUtils.asJson(token);
-			// encode the token object with base64 to make it safe to embed it to the js code (can't escape
-			// from the quotes without special characters)
-			String tokenBase64 = DatatypeConverter.printBase64Binary(tokenJson.getBytes());
 			
 			/* Send token to the Angular app
 			 * 
-			 * We can't set the token to the app's LocalStorage directly, because this is service
+			 * We can't set the token to the app's LocalStorage directly, because this service
 			 * is in a different (sub)domain. We don't want to send the token in the query 
 			 * parameter, because it would stay in the page history. We have to open an iframe 
 			 * to the app's domain and post the token there. 
 			 */
 			
-			out.print("<html><head><script>\n"
-					+ "var token = atob('" + tokenBase64 + "');\n"
-					+ "console.log('save token', token);\n"
-					+ " \n"
-					+ "window.onload = function() {\n"
-					+ "    var win = document.getElementsByTagName('iframe')[0].contentWindow;\n"
-					+ "    \n"
-					+ "    // don't allow the token to be send anywhere else\n"
-					+ "    win.postMessage(token, '" + webAppUrl + "');\n"
-					+ "    \n"
-					+ "    // redirect to the app without saving this page to the session history\n"
-					+ "    window.location.replace('" + loggedInUrl + "');\n"
-					+ "};\n"
-					+ " \n"					
+			
+			String htmlStart = "<html><head><script>\n";
+
+			// encode and decode variables with base64 to make it safe to embed them to the js code (the values can't escape
+			// from the quotes without special characters)
+			String jsVars = "\n"
+					+ "let token = atob('" + DatatypeConverter.printBase64Binary(tokenJson.getBytes()) + "');\n"
+					+ "let webAppUrl = atob('" + DatatypeConverter.printBase64Binary(webAppUrl.getBytes()) + "');\n"
+					+ "let loggedInUrl = atob('" + DatatypeConverter.printBase64Binary(loggedInUrl.getBytes()) + "');\n"
+					+ "let saveTokenUrl = atob('" + DatatypeConverter.printBase64Binary(saveTokenUrl.getBytes()) + "');\n"
+					+ "let debug = " + debug + ";\n";
+			
+			String jsCode = "\n"			
+					 + "console.log('got token', token, webAppUrl, loggedInUrl, saveTokenUrl, debug);\n"
+					 + "\n"
+					 + "window.onload = function() {\n"
+					 + "	var win = document.getElementsByTagName('iframe')[0].contentWindow;\n"
+					 + "	\n"
+					 + "	console.log('post to iframe', webAppUrl);\n"
+					 + "	// don't allow the token to be send anywhere else\n"
+					 + "	win.postMessage(token, webAppUrl);\n"
+					 + "}\n"
+					 + "\n"
+					 + "window.onmessage = function(e) {\n"
+					 + "	console.log('received a message from iframe', e);\n"
+					 + "	if (!debug) {\n"
+					 + "		console.log('redirecting to', loggedInUrl);\n"
+					 + "		// redirect to the app without saving this page to the session history\n"
+					 + "		window.location.replace(loggedInUrl);\n"
+					 + "	}\n"
+					 + "}\n";
+					
+			String htmlEnd = "\n"
 					+ "</script></head>\n"
 					+ "<body>\n"
 					+ " Post token to " + webAppUrl + "...<br>\n"		
 					+ "	<iframe src='" + saveTokenUrl + "' frameborder='0'>\n"
-					+ "</body></html>\n");
+					+ "	<a href='" + loggedInUrl + "'>Continue to the app...</a>\n"
+					+ "</body></html>\n";
+						
+			out.print(htmlStart + jsVars + jsCode + htmlEnd);
 		}
 	}
 

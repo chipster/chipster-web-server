@@ -76,7 +76,8 @@ public class Shibboleth {
         	tomcat.setPort(baseUri.getPort());
         }
 
-        Context ctx = tomcat.addContext("", new File(".").getAbsolutePath());
+        // the dir "webroot" isn't used and doesn't exist, but at least the tomcat doesn't share anything by accident
+        Context ctx = tomcat.addContext("", new File("webroot").getAbsolutePath());
 
         Tomcat.addServlet(ctx, ShibbolethServlet.class.getSimpleName(), new ShibbolethServlet(this.authService, this.serviceLocator));
         ctx.addServletMappingDecoded("/*", ShibbolethServlet.class.getSimpleName());
