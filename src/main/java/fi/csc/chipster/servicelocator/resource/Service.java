@@ -30,6 +30,11 @@ public class Service {
 		this.serviceId = serviceId;
 	}
 
+	/**
+	 * Get the internal URI
+	 * 
+	 * @return
+	 */
 	public String getUri() {
 		return uri;
 	}

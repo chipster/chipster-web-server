@@ -49,11 +49,11 @@ public class EventTest {
     	config = new Config();
     	launcher = new TestServerLauncher(config);
         ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
-        uri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0) + "/" + SessionDb.EVENTS_PATH + "/";
+        uri = serviceLocator.getPublicUri(Role.SESSION_DB_EVENTS) + "/" + SessionDb.EVENTS_PATH + "/";
         token = new AuthenticationClient(serviceLocator, "client", "clientPassword").getTokenKey().toString();
         token2 = new AuthenticationClient(serviceLocator, "client2", "client2Password").getTokenKey().toString();
         schedulerToken = new AuthenticationClient(serviceLocator, Role.SCHEDULER, Role.SCHEDULER).getTokenKey().toString();
-        user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+        user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
     }
 
     @AfterClass

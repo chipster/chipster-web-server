@@ -11,6 +11,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
@@ -28,7 +29,7 @@ public class AuthUserResourceTest {
     	launcher = new TestServerLauncher(config);
             
     	// login two users to add them to the User table
-		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
     }
 
     @AfterClass

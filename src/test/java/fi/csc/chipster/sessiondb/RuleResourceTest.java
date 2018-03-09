@@ -11,6 +11,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -36,13 +37,13 @@ public class RuleResourceTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
         
-		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
-		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
-		sessionDbClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionDbToken());
-		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken());
-		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken());
-		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials());
-		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null);
+		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+		sessionDbClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionDbToken(), Role.CLIENT);
+		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
+		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
+		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
+		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
     }
 
     @AfterClass
@@ -87,7 +88,8 @@ public class RuleResourceTest {
 		Session session = RestUtils.getRandomSession();
 		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
 				launcher.getServiceLocator(), 
-				new AuthenticationClient(launcher.getServiceLocator(), "example_session_owner", "example_session_owner").getCredentials());
+				new AuthenticationClient(launcher.getServiceLocator(), "example_session_owner", "example_session_owner").getCredentials(),
+				Role.CLIENT);
 
 		UUID sessionId = exampleSessionOwnerClient.createSession(session);
 				
@@ -108,7 +110,8 @@ public class RuleResourceTest {
 		Session session = RestUtils.getRandomSession();
 		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
 				launcher.getServiceLocator(), 
-				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner").getCredentials());
+				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner").getCredentials(),
+				Role.CLIENT);
 
 		UUID sessionId = exampleSessionOwnerClient.createSession(session);
 						

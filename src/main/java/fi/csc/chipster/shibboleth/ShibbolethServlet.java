@@ -32,7 +32,7 @@ public class ShibbolethServlet extends HttpServlet {
 
 	public ShibbolethServlet(AuthenticationClient authService, ServiceLocatorClient serviceLocator) {
 		this.authService = authService;
-		this.webAppUrl = serviceLocator.getService(Role.WEB_SERVER).getPublicUri();
+		this.webAppUrl = serviceLocator.getPublicUri(Role.WEB_SERVER);
 				
 	}
 

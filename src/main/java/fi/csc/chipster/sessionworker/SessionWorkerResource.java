@@ -32,6 +32,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
@@ -63,8 +64,8 @@ public class SessionWorkerResource {
     public Response get(@PathParam("sessionId") UUID sessionId, @Context SecurityContext sc) throws IOException, RestException {
     	    
     	StaticCredentials credentials = getUserCredentials(sc);
-    	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials);
-		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials);
+    	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
+		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 				
 		ArrayList<InputStreamEntry> entries = new ArrayList<>();
 		Session session = sessionDb.getSession(sessionId);
@@ -121,8 +122,8 @@ public class SessionWorkerResource {
 		// curl localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a/datasets/8997e0d1-1c0a-4295-af3f-f191c96e589a -I -X POST --user token:<TOKEN>
 				
 		StaticCredentials credentials = getUserCredentials(sc);
-		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials);
-		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials);
+		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
+		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 		
 		return Response.ok(new StreamingOutput() {
 			

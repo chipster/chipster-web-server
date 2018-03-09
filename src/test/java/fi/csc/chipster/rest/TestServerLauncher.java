@@ -56,8 +56,8 @@ public class TestServerLauncher {
 			return config.getInternalServiceUrls().get(Role.AUTH);
 		} else if (Role.SERVICE_LOCATOR.equals(role)) {
 			return config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
-		} else if (serviceLocatorClient.get(role) != null && serviceLocatorClient.get(role).get(0) != null) {			
-			return serviceLocatorClient.get(role).get(0);			
+		} else if (serviceLocatorClient.getPublicUri(role) != null) {			
+			return serviceLocatorClient.getPublicUri(role);			
 		} else {
 			throw new IllegalArgumentException("no target uri for role " + role);
 		}

@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -41,11 +42,11 @@ public class DatasetTokenTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
     	
-		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
-		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
+		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 
-		fileBrokerClient1 = new RestFileBrokerClient(launcher.getServiceLocator(), launcher.getUser1Token());
-		fileBrokerClient2 = new RestFileBrokerClient(launcher.getServiceLocator(), launcher.getUser2Token());
+		fileBrokerClient1 = new RestFileBrokerClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		fileBrokerClient2 = new RestFileBrokerClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 		
 		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
@@ -66,7 +67,8 @@ public class DatasetTokenTest {
     public void post() throws RestException, IOException {		
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, null);
 		try {
-			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 			InputStream is = fileBroker.download(sessionId1, datasetId1);
 			assertEquals(TEST_FILE_CONTENT, RestUtils.toString(is));
 		} catch (RestException e) {
@@ -78,7 +80,8 @@ public class DatasetTokenTest {
     public void postValid() throws RestException, IOException {		
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
 		try {
-			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 			InputStream is = fileBroker.download(sessionId1, datasetId1);
 			assertEquals(TEST_FILE_CONTENT, RestUtils.toString(is));
 		} catch (RestException e) {
@@ -121,7 +124,8 @@ public class DatasetTokenTest {
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
 		Thread.sleep(1000);
 		try {
-			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 			fileBroker.download(sessionId1, datasetId1);
 			assertEquals(true, false);
 		} catch (RestException e) {
@@ -134,7 +138,8 @@ public class DatasetTokenTest {
 		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
 		try {
-			RestFileBrokerClient fileBroker = new RestFileBrokerClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 			// DatasetToken is for read-only operations
 			fileBroker.upload(sessionId1, datasetId, RestUtils.toInputStream(TEST_FILE_CONTENT));
 			assertEquals(true, false);
@@ -147,7 +152,7 @@ public class DatasetTokenTest {
     public void updateDataset() throws RestException, IOException, InterruptedException {
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
 		Dataset dataset = user1Client.getDataset(sessionId1, datasetId1);
-		SessionDbClient sessionDb = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+		SessionDbClient sessionDb = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 		try {
 			// DatasetToken is for read-only operations
 			sessionDb.updateDataset(sessionId1, dataset);
@@ -161,7 +166,7 @@ public class DatasetTokenTest {
     public void deleteDataset() throws RestException, IOException, InterruptedException {
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
 		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
-		SessionDbClient sessionDb = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+		SessionDbClient sessionDb = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 		try {
 			// DatasetToken is for read-only operations
 			sessionDb.deleteDataset(sessionId1, datasetId);
@@ -174,7 +179,7 @@ public class DatasetTokenTest {
 	@Test
     public void getSession() throws RestException, IOException, InterruptedException {
 		UUID datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
-		SessionDbClient sessionDb = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()));
+		SessionDbClient sessionDb = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", datasetToken.toString()), Role.CLIENT);
 		try {
 			// DatasetToken must not work for sessions
 			sessionDb.getSession(sessionId1);

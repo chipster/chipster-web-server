@@ -10,6 +10,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -31,10 +32,10 @@ public class DatasetResourceTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
     	
-		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
-		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
+		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 		
-		fileBrokerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getFileBrokerToken());
+		fileBrokerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getFileBrokerToken(), Role.CLIENT);
 
 		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());

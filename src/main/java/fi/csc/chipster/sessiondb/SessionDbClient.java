@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.websocket.MessageHandler.Whole;
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
@@ -48,8 +47,6 @@ public class SessionDbClient {
 
 	@SuppressWarnings("unused")
 	private ServiceLocatorClient serviceLocator;
-	private List<String> sessionDbList;
-	private List<String> sessionDbEventsList;
 	private CredentialsProvider credentials;
 
 	private WebSocketClient client;
@@ -57,22 +54,29 @@ public class SessionDbClient {
 	private String sessionDbUri;
 	private String sessionDbEventsUri;
 
-	public SessionDbClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
+	/**
+	 * @param serviceLocator
+	 * @param credentials
+	 * @param role set to Role.CLIENT to use public addresses, anything else, e.g. Role.SERVER to use internal addresses 
+	 */
+	public SessionDbClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials, String role) {
 		this.serviceLocator = serviceLocator;
 		this.credentials = credentials;
 		
-		this.sessionDbList = serviceLocator.get(Role.SESSION_DB);
-		this.sessionDbEventsList = serviceLocator.get(Role.SESSION_DB_EVENTS);
-	
-		if (sessionDbList.isEmpty()) {
-			throw new InternalServerErrorException("no session-dbs registered to service-locator");
-		}
-		if (sessionDbEventsList.isEmpty()) {
-			throw new InternalServerErrorException("no session-db-events registered to service-locator");
-		}
+		String sessionDbUri;
+		String eventsUri;
 		
-		// just take the first one for now
-		init(sessionDbList.get(0), sessionDbEventsList.get(0));
+		if (Role.CLIENT.equals(role)) {
+			// client doesn't have access to internal URIs
+			sessionDbUri = serviceLocator.getPublicUri(Role.SESSION_DB);
+			eventsUri = serviceLocator.getPublicUri(Role.SESSION_DB_EVENTS);
+		} else {
+			// prefer internal URI's between servers
+			sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB, credentials).getUri();
+			eventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS, credentials).getUri();
+		}
+			
+		init(sessionDbUri, eventsUri);
 	}	
 	
 	public SessionDbClient(String sessionDbUri, String sessionDbEventsUri, CredentialsProvider credentials) {		

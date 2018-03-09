@@ -46,8 +46,8 @@ public class FileResourceTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
 
-    	sessionDbClient1 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
-    	sessionDbClient2 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
+    	sessionDbClient1 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+    	sessionDbClient2 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 		
         fileBrokerTarget1 = launcher.getUser1Target(Role.FILE_BROKER);
         fileBrokerTarget2 = launcher.getUser2Target(Role.FILE_BROKER);

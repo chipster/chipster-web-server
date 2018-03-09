@@ -201,8 +201,11 @@ export class RestClient {
 			let service = services.filter(service => service.role === serviceName)[0];
 			if (!service) {
 				Observable.throw(new errors.InternalServerError('service not found' + serviceName));
-			}
-			return this.isClient ? service.publicUri : service.uri;
+      }
+      // the typeService doesn't have up-to-date token for itself, so we don't have access
+      // to the internal URL
+      //return this.isClient ? service.publicUri : service.uri;
+      return service.publicUri;
 		});
 	}
 

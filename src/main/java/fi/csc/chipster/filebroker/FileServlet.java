@@ -32,6 +32,7 @@ import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.server.InclusiveByteRange;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
@@ -73,12 +74,12 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	private String sessionDbEventsUri;
 
 
-	public FileServlet(File storageRoot, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator) {
+	public FileServlet(File storageRoot, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator, AuthenticationClient authService) {
 
 		this.storageRoot = storageRoot;
 		this.sessionDbClient = sessionDbClient;
-		this.sessionDbUri = serviceLocator.get(Role.SESSION_DB).get(0);
-		this.sessionDbEventsUri = serviceLocator.get(Role.SESSION_DB_EVENTS).get(0);
+		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB, authService.getCredentials()).getUri();
+		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS, authService.getCredentials()).getUri();
 		
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);				

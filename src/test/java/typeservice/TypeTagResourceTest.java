@@ -45,7 +45,7 @@ public class TypeTagResourceTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
 
-    	sessionDbClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+    	sessionDbClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		
         fileBrokerTarget = launcher.getUser1Target(Role.FILE_BROKER);
         typeServiceTarget1 = launcher.getUser1Target(Role.TYPE_SERVICE);

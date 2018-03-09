@@ -1,7 +1,6 @@
 package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,8 +13,10 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
+import fi.csc.chipster.servicelocator.resource.ServiceResource;
 
 public class ServiceLocatorClient {
 	
@@ -28,35 +29,15 @@ public class ServiceLocatorClient {
 		logger.info("get services from " + baseUri);
 	}
 
-	public List<String> get(String role) {
-		List<String> uriList = new ArrayList<>();
+	/**
+	 * Public resource returns full Service objects but most fields are null
+	 * 
+	 * @return
+	 */
+	public List<Service> getPublicServices() {
 		
-		List<Service> services = getServices();
-		
-		for (Service service : services) {
-			if (role.equals(service.getRole())) {
-				uriList.add(service.getUri());
-			}
-		}
-		
-		return uriList;
-	}
-	
-	public String getM2mUri(String role) {
-
-		List<Service> services = getServices();
-		
-		for (Service service : services) {
-			if (role.equals(service.getRole())) {
-				return service.getM2mUri();
-			}
-		}
-		
-		return null;
-	}
-
-	public List<Service> getServices() {
-		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("services");
+		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri)
+					.path(ServiceResource.PATH_SERVICES);	
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 		
@@ -66,8 +47,42 @@ public class ServiceLocatorClient {
 		return services;
 	}
 
-	public Service getService(String role) {
-		List<Service> services = getServices().stream()
+	
+	public List<Service> getInternalServices(CredentialsProvider credentials) {
+		
+		if (credentials == null) {
+			throw new IllegalArgumentException("only public URIs are available without the authentication");
+		}
+		
+		WebTarget serviceTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
+				.target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
+
+		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+		
+		@SuppressWarnings("unchecked")
+		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
+
+		return services;
+	}
+	
+	/**
+	 * Public URIs are available without authentication 
+	 * 
+	 * @param role
+	 * @return
+	 */
+	public String getPublicUri(String role) {
+
+		return filterByRole(getPublicServices(), role).getPublicUri();
+	}
+	
+	public Service getInternalService(String role, CredentialsProvider credentials) {
+
+		return filterByRole(getInternalServices(credentials), role);
+	}
+
+	private Service filterByRole(List<Service> services, String role) {
+		services = services.stream()
 			.filter(s -> role.equals(s.getRole()))
 			.collect(Collectors.toList());
 		

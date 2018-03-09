@@ -82,7 +82,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.serviceLocator = new ServiceLocatorClient(config);		
 		this.authService = new AuthenticationClient(serviceLocator, username, password);	      
 
-    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
+    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
     	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");    	
     	
     	SchedulerTopicConfig topicConfig = new SchedulerTopicConfig(authService);

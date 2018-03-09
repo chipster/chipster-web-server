@@ -2,9 +2,8 @@ package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +19,6 @@ import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
-import fi.csc.chipster.servicelocator.resource.ServiceCatalog;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
 
 /**
@@ -34,8 +32,6 @@ public class ServiceLocator {
 	
 	@SuppressWarnings("unused")
 	private String serverId;
-
-	private ServiceCatalog serviceCatalog;
 
 	private AuthenticationClient authService;
 
@@ -59,11 +55,9 @@ public class ServiceLocator {
     	String username = Role.SERVICE_LOCATOR;
     	String password = config.getPassword(username);
     	String authUri = this.config.getInternalServiceUrls().get(Role.AUTH);
-    	List<String> auths = Arrays.asList(authUri);    	
-    	this.authService = new AuthenticationClient(auths, username, password);    
+    	this.authService = new AuthenticationClient(authUri, username, password);    
     	
     	this.serverId = RestUtils.createId();
-    	this.serviceCatalog = new ServiceCatalog();
     	
     	Map<String, String> intServices = config.getInternalServiceUrls();
     	Map<String, String> extServices = config.getExternalServiceUrls();
@@ -76,24 +70,27 @@ public class ServiceLocator {
     	services.addAll(extServices.keySet());
     	services.addAll(adminServices.keySet());
     	
-    	for (String service : services) {    		
+    	ArrayList<Service> publicServices = new ArrayList<>();
+    	ArrayList<Service> allServices = new ArrayList<>();
+    	
+    	for (String service : services) {
+    		
+    		publicServices.add(new Service(service, null, extServices.get(service), null, null));
+    		
     		// map returns null for missing addresses
-    		addService(
+    		allServices.add(new Service(
     			service, 
     			intServices.get(service), 
     			extServices.get(service), 
     			adminServices.get(service), 
-    			m2mServices.get(service));
-    	}
-    	
-    	// static configuration, discard updates
-    	serviceCatalog.setReadOnly(true);
+    			m2mServices.get(service)));    		    		
+    	}    
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	tokenRequestFilter.authenticationRequired(false, false);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-        	.register(new ServiceResource(serviceCatalog))
+        	.register(new ServiceResource(publicServices, allServices))
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
     	
@@ -109,11 +106,6 @@ public class ServiceLocator {
         this.httpServer.start();
                 
         this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, jerseyStatisticsSource);
-    }
-    
-    public void addService(String role, String uri, String publicUri, String adminUri, String m2mUri) {
-    	Service service = new Service(role, uri, publicUri, adminUri, m2mUri);
-    	serviceCatalog.add(role, service);
     }
 
     /**
