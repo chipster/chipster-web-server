@@ -88,6 +88,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private int compStatusInterval;
 	private boolean sweepWorkDir;
 	private int maxJobs;
+	private int jobTimeout;
 	
 	/**
 	 * Id of the comp server instance.
@@ -165,6 +166,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		this.moduleFilterName = config.getString(Config.KEY_COMP_MODULE_FILTER_NAME);
 		this.moduleFilterMode = config.getString(Config.KEY_COMP_MODULE_FILTER_MODE);
 		this.monitoringInterval = config.getInt(Config.KEY_COMP_RESOURCE_MONITORING_INTERVAL);
+		this.jobTimeout = config.getInt(Config.KEY_COMP_JOB_TIMEOUT);
 		
 		logger = Logger.getLogger(RestCompServer.class);
 		loggerJobs = Logger.getLogger("jobs");
@@ -499,7 +501,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 				metadataMap.put(input.getInputId(), dataset.getMetadata());
 			}
 			jobMessage.setMetadata(metadataMap, toolboxTool);
-			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this);
+			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this, jobTimeout);
 			
 		} catch (CompException | RestException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);

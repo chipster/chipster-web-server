@@ -54,6 +54,8 @@ public class Config {
 	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
+	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
+
 	
 	public static final String KEY_SCHEDULER_WAIT_TIMEOUT = "scheduler-wait-timeout";
 	public static final String KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT = "scheduler-wait-runnable-timeout";
