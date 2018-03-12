@@ -31,6 +31,7 @@ public class Job {
 	private String toolName;
 	@Lob
 	private String toolDescription;
+	private Instant created;
 	private Instant startTime;
 	private Instant endTime;
 	private String module;
@@ -96,6 +97,12 @@ public class Job {
 	}
 	public void setEndTime(Instant endTime) {
 		this.endTime = endTime;
+	}
+	public Instant getCreated() {
+		return created;
+	}
+	public void setCreated(Instant created) {
+		this.created = created;
 	}
 	public JobState getState() {
 		return state;

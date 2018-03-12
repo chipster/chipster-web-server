@@ -26,8 +26,8 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
-import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
@@ -115,7 +115,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
 	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
 	private Timer timeoutTimer;
-	private Timer heartbeatTimer;
 	private Timer compStatusTimer;
 	@SuppressWarnings("unused")
 	private String localFilebrokerPath;
@@ -202,11 +201,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		// initialize timeout checker
 		timeoutTimer = new Timer("timeout timer", true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
-		
-		heartbeatTimer = new Timer(true);
-
-		// disable heartbeat for jobs for now
-		//heartbeatTimer.schedule(new JobHeartbeatTask(), heartbeatInterval, heartbeatInterval);
 		
 		compStatusTimer = new Timer(true);
 		compStatusTimer.schedule(new CompStatusTask(), compStatusInterval, compStatusInterval);
@@ -407,20 +401,20 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		}
 		
 		try {
-			
 			JobCommand jobCommand = ((RestJobMessage)jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
+
+			dbJob.setStartTime(result.getStartTime());
+			dbJob.setEndTime(result.getEndTime());
 			dbJob.setScreenOutput(result.getOutputText());
 			dbJob.setState(result.getState());
 			String details = "";
-			if (result.getStateDetail() != null) {
-				details += result.getStateDetail();
-			}
 			if (result.getErrorMessage() != null) {
-				details += result.getErrorMessage();
+				details = result.getErrorMessage();
+			} else if (result.getStateDetail() != null) {
+				details = result.getStateDetail();
 			}
 			dbJob.setStateDetail(details);
-			dbJob.setEndTime(Instant.now());
 			dbJob.setSourceCode(result.getSourceCode());
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 		} catch (RestException e) {
@@ -691,7 +685,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		compStatusTimer.cancel();
 		timeoutTimer.cancel();
-		heartbeatTimer.cancel();		
 
 		try {
 			schedulerClient.shutdown();
