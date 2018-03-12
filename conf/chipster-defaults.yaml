@@ -126,7 +126,8 @@ comp-module-filter-name: kielipankki
 comp-module-filter-mode: exclude 
 # how often to monitor job resource usage or -1 to disable it, milliseconds
 comp-resource-monitoring-interval: 10000
-
+# timeout after which a job is killed, seconds
+comp-job-timeout: 604800 # 7 days
 
 # scheduler
 
