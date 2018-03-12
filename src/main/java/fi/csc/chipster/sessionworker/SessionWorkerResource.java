@@ -122,8 +122,10 @@ public class SessionWorkerResource {
 		// curl localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a/datasets/8997e0d1-1c0a-4295-af3f-f191c96e589a -I -X POST --user token:<TOKEN>
 				
 		StaticCredentials credentials = getUserCredentials(sc);
-		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
-		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
+		
+		//TODO we can get only the public address of the file-broker and session-db with client credentials, use server credentials to get the address, but client creds for the actual file operations (to check the access rights)
+		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.CLIENT);		
+		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.CLIENT);
 		
 		return Response.ok(new StreamingOutput() {
 			
