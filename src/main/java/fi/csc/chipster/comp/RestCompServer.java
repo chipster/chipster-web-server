@@ -25,8 +25,8 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
-import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
@@ -88,6 +88,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private int compStatusInterval;
 	private boolean sweepWorkDir;
 	private int maxJobs;
+	private int jobTimeout;
 	
 	/**
 	 * Id of the comp server instance.
@@ -114,7 +115,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
 	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
 	private Timer timeoutTimer;
-	private Timer heartbeatTimer;
 	private Timer compStatusTimer;
 	@SuppressWarnings("unused")
 	private String localFilebrokerPath;
@@ -166,6 +166,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		this.moduleFilterName = config.getString(Config.KEY_COMP_MODULE_FILTER_NAME);
 		this.moduleFilterMode = config.getString(Config.KEY_COMP_MODULE_FILTER_MODE);
 		this.monitoringInterval = config.getInt(Config.KEY_COMP_RESOURCE_MONITORING_INTERVAL);
+		this.jobTimeout = config.getInt(Config.KEY_COMP_JOB_TIMEOUT);
 		
 		logger = Logger.getLogger(RestCompServer.class);
 		loggerJobs = Logger.getLogger("jobs");
@@ -201,11 +202,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		// initialize timeout checker
 		timeoutTimer = new Timer("timeout timer", true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
-		
-		heartbeatTimer = new Timer(true);
-
-		// disable heartbeat for jobs for now
-		//heartbeatTimer.schedule(new JobHeartbeatTask(), heartbeatInterval, heartbeatInterval);
 		
 		compStatusTimer = new Timer(true);
 		compStatusTimer.schedule(new CompStatusTask(), compStatusInterval, compStatusInterval);
@@ -406,20 +402,18 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		}
 		
 		try {
-			
 			JobCommand jobCommand = ((RestJobMessage)jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
 
-			//FIXME CompJob shouldn't generate a new jobId
-			dbJob.setJobId(jobCommand.getJobId());
+			dbJob.setStartTime(result.getStartTime());
+			dbJob.setEndTime(result.getEndTime());
 			dbJob.setScreenOutput(result.getOutputText());
 			dbJob.setState(result.getState());
 			String details = "";
-			if (result.getStateDetail() != null) {
-				details += result.getStateDetail();
-			}
 			if (result.getErrorMessage() != null) {
-				details += result.getErrorMessage();
+				details = result.getErrorMessage();
+			} else if (result.getStateDetail() != null) {
+				details = result.getStateDetail();
 			}
 			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
@@ -507,7 +501,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 				metadataMap.put(input.getInputId(), dataset.getMetadata());
 			}
 			jobMessage.setMetadata(metadataMap, toolboxTool);
-			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this);
+			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this, jobTimeout);
 			
 		} catch (CompException | RestException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);
@@ -692,7 +686,6 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		compStatusTimer.cancel();
 		timeoutTimer.cancel();
-		heartbeatTimer.cancel();		
 
 		try {
 			schedulerClient.shutdown();

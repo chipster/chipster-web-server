@@ -107,7 +107,7 @@ public class SessionJobResource {
 		
 		UUID id = RestUtils.createUUID();
 		job.setJobId(id);
-		job.setStartTime(Instant.now());
+		job.setCreated(Instant.now());
 		
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		// make sure a hostile client doesn't set the session
