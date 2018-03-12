@@ -68,6 +68,7 @@ public class ServiceLocator {
     	Map<String, String> intServices = config.getInternalServiceUrls();
     	Map<String, String> extServices = config.getExternalServiceUrls();
     	Map<String, String> adminServices = config.getAdminServiceUrls();
+    	Map<String, String> m2mServices = config.getM2mServiceUrls();
     	
     	// all services having internal, external or admin address
     	HashSet<String> services = new HashSet<>();
@@ -77,7 +78,12 @@ public class ServiceLocator {
     	
     	for (String service : services) {    		
     		// map returns null for missing addresses
-    		addService(service, intServices.get(service), extServices.get(service), adminServices.get(service));
+    		addService(
+    			service, 
+    			intServices.get(service), 
+    			extServices.get(service), 
+    			adminServices.get(service), 
+    			m2mServices.get(service));
     	}
     	
     	// static configuration, discard updates
@@ -105,8 +111,8 @@ public class ServiceLocator {
         this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, jerseyStatisticsSource);
     }
     
-    public void addService(String role, String uri, String publicUri, String adminUri) {
-    	Service service = new Service(role, uri, publicUri, adminUri);
+    public void addService(String role, String uri, String publicUri, String adminUri, String m2mUri) {
+    	Service service = new Service(role, uri, publicUri, adminUri, m2mUri);
     	serviceCatalog.add(role, service);
     }
 

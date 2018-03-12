@@ -41,7 +41,7 @@ public class GlobalJobResource {
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@QueryParam("state") String stateString, @Context SecurityContext sc) {
-		
+
 		if (stateString == null) {
 			return Response.status(Status.BAD_REQUEST).entity("query parameter 'state' is mandatory").build();
 		}

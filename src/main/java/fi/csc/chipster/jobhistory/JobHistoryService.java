@@ -23,6 +23,7 @@ import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -48,6 +49,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	private ServiceLocatorClient serviceLocator;
 	private AuthenticationClient authService;
 	private SessionDbClient sessionDbClient;
+	private TokenRequestFilter tokenRequestFilter;
 
 	public JobHistoryService(Config config) {
 		this.config = config;
@@ -71,6 +73,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		this.serviceLocator = new ServiceLocatorClient(this.config);
 		this.authService = new AuthenticationClient(serviceLocator, username,
 				password);
+		this.tokenRequestFilter=new TokenRequestFilter(authService);
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator,
 				authService.getCredentials());
@@ -87,6 +90,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				.register(jobHistoryResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
+				.register(tokenRequestFilter)
 		// .register(RestUtils.getLoggingFeature("session-db"))
 		;
 
@@ -178,7 +182,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	private void saveJobHistory(Job job) {
 		JobHistoryModel jobHistory = new JobHistoryModel();
 		jobHistory.setJobId(job.getJobId());
-		System.out.println(job.getJobId());
 		jobHistory.setToolName(job.getToolName());
 		jobHistory.setStartTime(job.getStartTime());
 		jobHistory.setEndTime(job.getEndTime());
@@ -191,7 +194,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				hibernateSession.save(jobHistory);
 				JobHistoryModel js = hibernateSession.get(
 						JobHistoryModel.class, jobHistory.getJobId());
-				System.out.println(js.getJobId());
 				return null;
 			}
 		});
@@ -204,7 +206,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			public Void run(Session hibernateSession) {
 				JobHistoryModel js = hibernateSession.get(
 						JobHistoryModel.class, job.getJobId());
-				System.out.println("Before update" + js.getJobStatus());
 				js.setToolName(job.getToolName());
 				js.setStartTime(job.getStartTime());
 				js.setEndTime(job.getEndTime());
@@ -212,7 +213,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				js.setJobStatus(job.getState().toString());
 				js.setUserName(job.getCreatedBy());
 				hibernateSession.merge(js);
-				System.out.println("after update"+js.getJobStatus());
 
 				return null;
 			}

@@ -1,5 +1,7 @@
 package fi.csc.chipster.auth;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -12,12 +14,14 @@ import java.util.UUID;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.compress.utils.Charsets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
@@ -27,12 +31,18 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.model.User;
+import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.resource.AuthUserResource;
+import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.DynamicCredentials;
 import fi.csc.chipster.rest.JavaTimeObjectMapperProvider;
+import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.RestException;
 
 
 public class AuthenticationClient {
@@ -236,6 +246,48 @@ public class AuthenticationClient {
 	 */
 	public CredentialsProvider getCredentials() {
 		return this.dynamicCredentials;		
+	}
+
+	public Token ssoLogin(User user) {
+
+		try {
+			Token token = getAuthenticatedClient()
+					.target(serviceLocator.getM2mUri(Role.AUTH))
+					.path(SsoTokenResource.PATH_SSO)
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.post(Entity.json(user), Token.class);
+			
+			return token;
+		} catch (ProcessingException e) {
+			logger.error("could not connect to " + serviceLocator.getM2mUri(Role.AUTH) + " to login the user", e);
+			throw new InternalServerErrorException("couldn't connect to the auth service");
+		}
+	}
+	
+	public User getUser(UserId userId) throws RestException {
+		return AuthenticationClient.getUser(userId, getAuthenticatedClient(), serviceLocator);
+	}
+	
+	public static User getUser(UserId userId, Client client, ServiceLocatorClient serviceLocator) throws RestException {
+		try {
+			return RestMethods.get(client
+				.target(serviceLocator.getService(Role.AUTH).getPublicUri())
+				.path(AuthUserResource.USERS)
+				.path(URLEncoder.encode(userId.toUserIdString(), Charsets.UTF_8.name())), User.class);
+		} catch (UnsupportedEncodingException e) {
+			// convert to UncheckedException, because there is nothing the caller can do for this
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public List<User> getUsers() throws RestException {
+		return AuthenticationClient.getUsers(getAuthenticatedClient(), serviceLocator);
+	}
+	
+	public static List<User> getUsers(Client client, ServiceLocatorClient serviceLocator) throws RestException {
+		return RestMethods.getList(client
+			.target(serviceLocator.getService(Role.AUTH).getPublicUri())
+			.path(AuthUserResource.USERS), User.class);
 	}
 }
 

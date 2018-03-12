@@ -108,7 +108,7 @@ public class RuleResourceTest {
 		Session session = RestUtils.getRandomSession();
 		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
 				launcher.getServiceLocator(), 
-				new AuthenticationClient(launcher.getServiceLocator(), "example_session_owner", "example_session_owner").getCredentials());
+				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner").getCredentials());
 
 		UUID sessionId = exampleSessionOwnerClient.createSession(session);
 						

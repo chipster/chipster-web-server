@@ -15,6 +15,10 @@ service-password-toolbox: toolbox
 service-password-job-history: job-history
 
 
+# SSO accounts
+# all config items starting with "sso-service-password-" will be automatically authenticated as Role.SSO, none by default
+# sso-service-password-shibboleth: shibboleth
+
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
 admin-username-1: admin
@@ -41,6 +45,8 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
+url-int-job-history: http://{{public-ip}}:8200
+url-ext-job-history: http://{{public-ip}}:8200
 
 url-admin-ext-web-server: http://{{admin-ip}}:8100
 url-admin-ext-auth: http://{{admin-ip}}:8102
@@ -52,6 +58,8 @@ url-admin-ext-toolbox: http://{{admin-ip}}:8108
 url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
+
+url-m2m-int-auth: http://{{public-ip}}:8013
     
 
 # Address for the server to bind
@@ -66,6 +74,8 @@ url-bind-file-broker: http://{{bind-ip}}:8007
 url-bind-toolbox: http://{{bind-ip}}:8008
 url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
+url-bind-sso: ajp://127.0.0.1:8012
+url-bind-job-history: http://{{bind-ip}}:8200
 
 url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
 url-admin-bind-auth: http://{{admin-bind-ip}}:8102
@@ -77,6 +87,12 @@ url-admin-bind-toolbox: http://{{admin-bind-ip}}:8108
 url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
+
+# Username "shibboleth" can login anyone in this service (port 8013 by default)
+# This must be disabled by default. If you configure this, make sure you have
+# 1) set password for the username "shibboleth" (the configuration key service-password-shibboleth)
+# 2) firewall this port, only the shibboleth service needs to access it 
+url-m2m-bind-auth: ""
 
 # auth
 
@@ -133,7 +149,7 @@ scheduler-job-timer-interval: 1
 # session-db 
     
 # allow sharing to everyone only for one username, empty allows for everybody
-session-db-restrict-sharing-to-everyone: example_session_owner
+session-db-restrict-sharing-to-everyone: jaas/example_session_owner
 
 session-db-driver: org.h2.Driver
 // DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests

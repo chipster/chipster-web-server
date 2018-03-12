@@ -6,21 +6,26 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import javax.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -40,6 +45,7 @@ public class JobHistoryResource {
 
 	// http://localhost:8200/jobhistory?startTime=gt=2018-02-21T14:16:18.585Z
 	@GET
+	@RolesAllowed({Role.ADMIN})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getJobHistory(@Context UriInfo uriInfo) {
@@ -93,8 +99,8 @@ public class JobHistoryResource {
 							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
 								Instant timeVal = Instant.parse(parameters.get(
 										key).split("=")[1]);
-								predicate.add(builder.lessThan(
-										root.get(key), timeVal));
+								predicate.add(builder.lessThan(root.get(key),
+										timeVal));
 							} else {
 								predicate.add(builder.lessThan(root.get(key),
 										parameters.get(key)));
@@ -111,14 +117,13 @@ public class JobHistoryResource {
 						}
 					}
 				}
-			}//End of For loop
+			}// End of For loop
 
-				// Query itself
-				criteria.select(root).where(
-						predicate.toArray(new Predicate[] {}));
-				Collection<JobHistoryModel> jobHistoryList = getHibernate()
-						.session().createQuery(criteria).getResultList();
-				return Response.ok(toJaxbList(jobHistoryList)).build();
+			// Query itself
+			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
+			Collection<JobHistoryModel> jobHistoryList = getHibernate()
+					.session().createQuery(criteria).getResultList();
+			return Response.ok(toJaxbList(jobHistoryList)).build();
 
 		} else {
 			// Returning simple job history list without any filter attribute
@@ -128,8 +133,17 @@ public class JobHistoryResource {
 			return Response.ok(toJaxbList(jobHistoryList)).build();
 
 		}
-		
 
+	}
+
+	@GET
+	@Path("{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getJob(@PathParam("id") UUID jobId) {
+		JobHistoryModel result = getHibernate().session().get(
+				JobHistoryModel.class, jobId);
+		return Response.ok(result).build();
 	}
 
 	private GenericEntity<Collection<JobHistoryModel>> toJaxbList(

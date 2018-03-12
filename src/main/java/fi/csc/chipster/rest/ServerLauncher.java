@@ -106,11 +106,11 @@ public class ServerLauncher {
 		web = new WebServer(config);
 		web.start();
 		
-		/*if(verbose){
+		if(verbose){
 			logger.info("starting job history service");
 		}
 		jobHistoryService=new JobHistoryService(config);
-		jobHistoryService.startServer();*/
+		jobHistoryService.startServer();
 				
 		if (verbose) {
 			logger.info("starting type service");

@@ -25,9 +25,12 @@ public class Config {
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
 	private static final String URL_ADMIN_EXT_PREFIX = "url-admin-ext-";
+	private static final String URL_M2M_INT_PREFIX = "url-m2m-int-";
 	private static final String URL_BIND_PREFIX = "url-bind-";
 	private static final String URL_ADMIN_BIND_PREFIX = "url-admin-bind-";
+	private static final String URL_M2M_BIND_PREFIX = "url-m2m-bind-";
 	private static final String SERVICE_PASSWORD_PREFIX = "service-password-";
+	private static final String SSO_SERVICE_PASSWORD_PREFIX = "sso-service-password-";
 	private static final String ADMIN_USERNAME_PREFIX = "admin-username-";
 	private static final String VARIABLE_PREFIX = "variable-";
 	
@@ -186,11 +189,28 @@ public class Config {
 	 * @throws IOException 
 	 */
 	public String getPassword(String username) {
-		String key = SERVICE_PASSWORD_PREFIX + username;
+		String key = getPasswordConfigKey(username);
 		if (isDefault(key)) {
 			logger.warn("default password for username " + username);
 		}		
 		return getString(key);
+	}
+	
+	public String getPasswordConfigKey(String username) {
+		return SERVICE_PASSWORD_PREFIX + username;
+	}
+	
+	public String getSsoPassword(String username) {
+		String key = getSsoPasswordConfigKey(username);
+		// there are no sso accounts in the default config
+		if (hasDefault(key)) {
+			logger.warn("default password for username " + username);
+		}		
+		return getString(key);
+	}
+	
+	public String getSsoPasswordConfigKey(String username) {
+		return SSO_SERVICE_PASSWORD_PREFIX + username;
 	}
 	
 	/**
@@ -224,6 +244,20 @@ public class Config {
 			.collect(Collectors.toSet());
 	}
 	
+	public Map<String, String> getSsoServicePasswords() {
+		
+		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
+		// new sso services can be added in configuration
+		conf.putAll(readFile(confFilePath));
+		List<String> services = conf.keySet().stream()
+				.filter(confKey -> confKey.startsWith(SSO_SERVICE_PASSWORD_PREFIX))
+				.map(confKey -> confKey.replace(SSO_SERVICE_PASSWORD_PREFIX, ""))
+				.collect(Collectors.toList());
+		
+		return services.stream()
+				.collect(Collectors.toMap(service -> service, service -> getSsoPassword(service)));
+	}
+	
 	/**
 	 * Services having an internal address
 	 * 
@@ -241,7 +275,10 @@ public class Config {
 	 * @return a map where keys are the service names and values are their external addresses 
 	 */
 	public Map<String, String> getExternalServiceUrls() {
-		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
+		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
+		// new sso services can be added in configuration
+		conf.putAll(readFile(confFilePath));
+		return conf.entrySet().stream()
 			.filter(entry -> entry.getKey().startsWith(URL_EXT_PREFIX))
 			.collect(Collectors.toMap(e -> e.getKey().replace(URL_EXT_PREFIX, ""), e -> getString(e.getKey())));
 	}
@@ -257,6 +294,17 @@ public class Config {
 			.collect(Collectors.toMap(e -> e.getKey().replace(URL_ADMIN_EXT_PREFIX, ""), e -> getString(e.getKey())));
 	}
 	
+	/**
+	 * Services having a machine-to-machine address
+	 * 
+	 * @return a map where keys are the service names and values are their m2m addresses 
+	 */
+	public Map<String, String> getM2mServiceUrls() {
+		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
+			.filter(entry -> entry.getKey().startsWith(URL_M2M_INT_PREFIX))
+			.collect(Collectors.toMap(e -> e.getKey().replace(URL_M2M_INT_PREFIX, ""), e -> getString(e.getKey())));
+	}
+	
 	public String getBindUrl(String service) {
 		return getString(URL_BIND_PREFIX + service);
 	}
@@ -265,12 +313,20 @@ public class Config {
 		return getString(URL_ADMIN_BIND_PREFIX + service);
 	}
 	
-	private String getDefault(String key) {
+	public String getM2mBindUrl(String service) {
+		return getString(URL_M2M_BIND_PREFIX + service);
+	}
+	
+	public String getDefault(String key) {
 		String template = getFromFile(DEFAULT_CONF_PATH, key);
 		if (template == null) {
 			throw new IllegalArgumentException("configuration key not found: " + key);
 		}
 		return replaceVariables(template);
+	}
+	
+	public boolean hasDefault(String key) {
+		return readFile(DEFAULT_CONF_PATH).containsKey(key);		
 	}
 	
 	public boolean isDefault(String key) {
