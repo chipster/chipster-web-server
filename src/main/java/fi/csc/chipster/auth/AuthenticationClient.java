@@ -5,7 +5,6 @@ import java.net.URLEncoder;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -55,7 +54,7 @@ public class AuthenticationClient {
 	private String username;
 	private String password;
 
-	private List<String> authenticationServiceUris;
+	private String authenticationServiceUri;
 	
 	private Timer tokenRefreshTimer;
 	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(1, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER
@@ -66,14 +65,9 @@ public class AuthenticationClient {
 		this.serviceLocator = serviceLocator;
 		construct(username, password);
 	}
-	
-	public AuthenticationClient(String authUri, String username, String password) {
-		this.authenticationServiceUris = Arrays.asList(new String[] {authUri});
-		construct(username, password);
-	}
 
-	public AuthenticationClient(List<String> auths, String username, String password) {
-		this.authenticationServiceUris = auths;
+	public AuthenticationClient(String authUri, String username, String password) {
+		this.authenticationServiceUri = authUri;
 		construct(username, password);
 	}
 
@@ -105,35 +99,40 @@ public class AuthenticationClient {
 	 * @return
 	 */
 	private Token getTokenFromAuth() {
-		List<String> auths = getAuths();
+		String authUri = getAuth();
 
-		if (auths.size() == 0) {
-			throw new InternalServerErrorException("no auths registered to service locator");
+		if (authUri == null) {
+			throw new InternalServerErrorException("no auth in service locator");
 		}
-
-		for (String authUri : auths) {
 			
-			Client authClient = getClient(username, password, true);
-			WebTarget authTarget = authClient.target(authUri);
-			
-			logger.info("get token from " + authUri);
+		Client authClient = getClient(username, password, true);
+		WebTarget authTarget = authClient.target(authUri);
+		
+		logger.info("get token from " + authUri);
 
-			Token serverToken = authTarget
-					.path("tokens")
-					.request(MediaType.APPLICATION_JSON_TYPE)
-					.post(Entity.json(""), Token.class);		
+		Token serverToken = authTarget
+				.path("tokens")
+				.request(MediaType.APPLICATION_JSON_TYPE)
+				.post(Entity.json(""), Token.class);		
 
-			return serverToken;
-
-		}
-		throw new RuntimeException("get token from auth failed");
+		return serverToken;
 	}
 
-	private List<String> getAuths() {
+	/**
+	 * Get Auth's URI
+	 * 
+	 * We use auth's public URI, because we can't get the internal from the service-locator before 
+	 * we have authenticated. In theory we could use the public URI for the first authentication and 
+	 * internal afterwards, but then misconfiguration of the internal URI would be difficult to notice and 
+	 * would cause problems later unexpectedly.  
+	 * 
+	 * @return
+	 */
+	private String getAuth() {
 		if (serviceLocator != null) {
-			return serviceLocator.get(Role.AUTH);
+			return serviceLocator.getPublicUri(Role.AUTH);
 		} else {
-			return authenticationServiceUris;
+			return authenticationServiceUri;
 		}
 	}
 	
@@ -159,26 +158,25 @@ public class AuthenticationClient {
 	}
 
 	public Token getDbToken(String tokenKey) {
-		List<String> auths = getAuths();
+		
+		String authUri = getAuth();
 
-		for (String authUri : auths) {
-			try {
-				Token dbToken = getAuthenticatedClient()
-						.target(authUri)
-						.path(TokenResource.TOKENS)
-						.request(MediaType.APPLICATION_JSON_TYPE)
-						.header("chipster-token", tokenKey)
-						.get(Token.class);
+		try {
+			Token dbToken = getAuthenticatedClient()
+					.target(authUri)
+					.path(TokenResource.TOKENS)
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.header("chipster-token", tokenKey)
+					.get(Token.class);
 
-				if (dbToken != null) {
-					return dbToken;
-				}
-			} catch (ServiceException e) {
-				logger.warn("auth not available", e);
-			} catch (NotFoundException e) {
-				return null;
+			if (dbToken != null) {
+				return dbToken;
 			}
-		}
+		} catch (ServiceException e) {
+			logger.warn("auth not available", e);
+		} catch (NotFoundException e) {
+			return null;
+		}	
 		return null;
 	}
 
@@ -187,50 +185,49 @@ public class AuthenticationClient {
 	}
 	
 	private void refreshToken() {
-		
-		for (String authUri : getAuths()) {
-			try {
-				Token serverToken = getAuthenticatedClient()
-						.target(authUri)
-						.path(TokenResource.TOKENS)
-						.path("refresh")
-						.request(MediaType.APPLICATION_JSON_TYPE)
-						.post(Entity.json(""), Token.class);
+		String authUri = getAuth();
+				
+		try {
+			Token serverToken = getAuthenticatedClient()
+					.target(authUri)
+					.path(TokenResource.TOKENS)
+					.path("refresh")
+					.request(MediaType.APPLICATION_JSON_TYPE)
+					.post(Entity.json(""), Token.class);
 
-				if (serverToken != null) {
-					setToken(serverToken); 
-					
-					// if token is expiring before refresh interval * 2, get a new token
-					if (serverToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
-						logger.info("refreshed token expiring soon, getting a new one (" + this.username + ")");
-						try {
-							setToken(getTokenFromAuth());
-							logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
-						} catch (Exception e) {
-							logger.warn("getting new token to replace soon expiring token failed (" + this.username + ")", e);
-						}
+			if (serverToken != null) {
+				setToken(serverToken); 
+				
+				// if token is expiring before refresh interval * 2, get a new token
+				if (serverToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
+					logger.info("refreshed token expiring soon, getting a new one (" + this.username + ")");
+					try {
+						setToken(getTokenFromAuth());
+						logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
+					} catch (Exception e) {
+						logger.warn("getting new token to replace soon expiring token failed (" + this.username + ")", e);
 					}
-					
-					return;
-				} else {
-					// is it possible to get here?
-					logger.warn("got null as response to refresh token (" + this.username + ")");
 				}
-					
-			} catch (ForbiddenException fe) {
-				logger.info("got forbidden when refreshing token, getting new one (" + this.username + ")");
-				try {
-					setToken(getTokenFromAuth());
-					logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
-					return;
-				} catch (Exception e) {
-					logger.warn("getting new token after forbidden failed (" + this.username + ")", e);
-				}
-			} catch (ServiceException e) {
-				logger.warn("auth not available (" + this.username + ")", e);
-			} catch (Exception e) {
-				logger.warn("refresh token failed (" + this.username + ")", e);
+				
+				return;
+			} else {
+				// is it possible to get here?
+				logger.warn("got null as response to refresh token (" + this.username + ")");
 			}
+				
+		} catch (ForbiddenException fe) {
+			logger.info("got forbidden when refreshing token, getting new one (" + this.username + ")");
+			try {
+				setToken(getTokenFromAuth());
+				logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
+				return;
+			} catch (Exception e) {
+				logger.warn("getting new token after forbidden failed (" + this.username + ")", e);
+			}
+		} catch (ServiceException e) {
+			logger.warn("auth not available (" + this.username + ")", e);
+		} catch (Exception e) {
+			logger.warn("refresh token failed (" + this.username + ")", e);
 		}
 
 		logger.warn("refresh token failing (" + this.username + ")");
@@ -250,16 +247,18 @@ public class AuthenticationClient {
 
 	public Token ssoLogin(User user) {
 
+		String authM2mUri = serviceLocator.getInternalService(Role.AUTH, this.getCredentials()).getM2mUri();
+		
 		try {
 			Token token = getAuthenticatedClient()
-					.target(serviceLocator.getM2mUri(Role.AUTH))
+					.target(authM2mUri)
 					.path(SsoTokenResource.PATH_SSO)
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.post(Entity.json(user), Token.class);
 			
 			return token;
 		} catch (ProcessingException e) {
-			logger.error("could not connect to " + serviceLocator.getM2mUri(Role.AUTH) + " to login the user", e);
+			logger.error("could not connect to " + authM2mUri + " to login the user", e);
 			throw new InternalServerErrorException("couldn't connect to the auth service");
 		}
 	}
@@ -271,7 +270,7 @@ public class AuthenticationClient {
 	public static User getUser(UserId userId, Client client, ServiceLocatorClient serviceLocator) throws RestException {
 		try {
 			return RestMethods.get(client
-				.target(serviceLocator.getService(Role.AUTH).getPublicUri())
+				.target(serviceLocator.getPublicUri(Role.AUTH))
 				.path(AuthUserResource.USERS)
 				.path(URLEncoder.encode(userId.toUserIdString(), Charsets.UTF_8.name())), User.class);
 		} catch (UnsupportedEncodingException e) {
@@ -286,7 +285,7 @@ public class AuthenticationClient {
 	
 	public static List<User> getUsers(Client client, ServiceLocatorClient serviceLocator) throws RestException {
 		return RestMethods.getList(client
-			.target(serviceLocator.getService(Role.AUTH).getPublicUri())
+			.target(serviceLocator.getPublicUri(Role.AUTH))
 			.path(AuthUserResource.USERS), User.class);
 	}
 }

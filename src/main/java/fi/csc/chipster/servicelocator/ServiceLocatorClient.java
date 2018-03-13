@@ -28,35 +28,33 @@ public class ServiceLocatorClient {
 		logger.info("get services from " + baseUri);
 	}
 
-	public List<String> get(String role) {
-		List<String> uriList = new ArrayList<>();
+	/**
+	 * Public resource returns full Service objects but most fields are null
+	 * 
+	 * @return
+	 */
+	public List<Service> getPublicServices() {
 		
-		List<Service> services = getServices();
+		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri)
+					.path(ServiceResource.PATH_SERVICES);	
+
+		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 		
-		for (Service service : services) {
-			if (role.equals(service.getRole())) {
-				uriList.add(service.getUri());
-			}
-		}
-		
-		return uriList;
+		@SuppressWarnings("unchecked")
+		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
+
+		return services;
 	}
+
 	
-	public String getM2mUri(String role) {
-
-		List<Service> services = getServices();
+	public List<Service> getInternalServices(CredentialsProvider credentials) {
 		
-		for (Service service : services) {
-			if (role.equals(service.getRole())) {
-				return service.getM2mUri();
-			}
+		if (credentials == null) {
+			throw new IllegalArgumentException("only public URIs are available without the authentication");
 		}
 		
-		return null;
-	}
-
-	public List<Service> getServices() {
-		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("services");
+		WebTarget serviceTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
+				.target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
 		
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 		
@@ -66,9 +64,25 @@ public class ServiceLocatorClient {
 
 		return services;
 	}
+	
+	/**
+	 * Public URIs are available without authentication 
+	 * 
+	 * @param role
+	 * @return
+	 */
+	public String getPublicUri(String role) {
 
-	public Service getService(String role) {
-		List<Service> services = getServices().stream()
+		return filterByRole(getPublicServices(), role).getPublicUri();
+	}
+	
+	public Service getInternalService(String role, CredentialsProvider credentials) {
+
+		return filterByRole(getInternalServices(credentials), role);
+	}
+
+	private Service filterByRole(List<Service> services, String role) {
+		services = services.stream()
 			.filter(s -> role.equals(s.getRole()))
 			.collect(Collectors.toList());
 		

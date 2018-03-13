@@ -5,10 +5,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.util.List;
 import java.util.UUID;
 
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -32,23 +30,24 @@ public class RestFileBrokerClient {
 
 	@SuppressWarnings("unused")
 	private ServiceLocatorClient serviceLocator;
-	private List<String> fileBrokerList;
 	private CredentialsProvider credentials;
 
 	private WebTarget fileBrokerTarget;
 
-	public RestFileBrokerClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
+	/**
+	 * @param serviceLocator
+	 * @param credentials
+	 * @param role set to Role.CLIENT to use the public file-broker address, anything else e.g. Role.SERVER to the internal address
+	 */
+	public RestFileBrokerClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials, String role) {
 		this.serviceLocator = serviceLocator;
 		this.credentials = credentials;
 		
-		this.fileBrokerList = serviceLocator.get(Role.FILE_BROKER);
-	
-		if (fileBrokerList.isEmpty()) {
-			throw new InternalServerErrorException("no session-dbs registered to service-locator");
+		if (Role.CLIENT.equals(role)) {
+			init(serviceLocator.getPublicUri(Role.FILE_BROKER));			
+		} else {
+			init(serviceLocator.getInternalService(Role.FILE_BROKER, credentials).getUri());
 		}
-		
-		// just take the first one for now
-		init(fileBrokerList.get(0));
 	}	
 	
 	public RestFileBrokerClient(String fileBrokerUri, CredentialsProvider credentials) {		

@@ -88,10 +88,11 @@ url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 
-# Username "shibboleth" can login anyone in this service (port 8013 by default)
+# Single sing-on usernames (defined above with config key "service-sso-passowrd-") can login anyone 
+# in this service (port 8013 by default)
 # This must be disabled by default. If you configure this, make sure you have
-# 1) set password for the username "shibboleth" (the configuration key service-password-shibboleth)
-# 2) firewall this port, only the shibboleth service needs to access it 
+# 1) set a proper password for the SSO username
+# 2) firewall this port, only the SSO service needs to access it 
 url-m2m-bind-auth: ""
 
 # auth
@@ -130,7 +131,8 @@ comp-module-filter-name: kielipankki
 comp-module-filter-mode: exclude 
 # how often to monitor job resource usage or -1 to disable it, milliseconds
 comp-resource-monitoring-interval: 10000
-
+# timeout after which a job is killed, seconds
+comp-job-timeout: 604800 # 7 days
 
 # scheduler
 

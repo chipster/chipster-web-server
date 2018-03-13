@@ -14,6 +14,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -31,7 +32,7 @@ public class DbPeroformanceTest {
 		Config config = new Config();
     	launcher = new TestServerLauncher(config);
 
-    	client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
+    	client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		ids = postManyParallel();
 	}
 	

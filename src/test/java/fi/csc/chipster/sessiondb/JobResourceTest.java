@@ -13,6 +13,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -38,9 +39,9 @@ public class JobResourceTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
     	
-    	user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
-		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
-		compClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken());
+    	user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+		compClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken(), Role.CLIENT);
 		    	
 		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());

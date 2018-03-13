@@ -82,7 +82,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		this.serviceLocator = new ServiceLocatorClient(config);		
 		this.authService = new AuthenticationClient(serviceLocator, username, password);	      
 
-    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());
+    	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
     	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");    	
     	
     	SchedulerTopicConfig topicConfig = new SchedulerTopicConfig(authService);
@@ -215,18 +215,16 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	
 			case UPDATE:				
 				job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-				switch (job.getState()) {					
-				case COMPLETED:
-				case FAILED:
-				case FAILED_USER_ERROR:
 					
 					// when the comp has finished the job, we can forget it
-					
-					logger.info("job finished " + jobIdPair);
+				if (job.getState().isFinishedByComp()) {
+					logger.info("job finished by comp" + jobIdPair);
 					jobs.remove(jobIdPair);
-					break;
-				default:
-					break;
+				} 
+					
+				// job has been cancelled, inform comps and remove from scheduler
+				else if (job.getState() == JobState.CANCELLED) {
+					cancel(jobIdPair);
 				}
 				break;
 			case DELETE:
@@ -391,9 +389,9 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	}
 
 	/**
-	 * The client has cancelled the job
+	 * The job has been cancelled or deleted
 	 * 
-	 * Inform the comps to cancel the job and remove it from the db. By doing this here
+	 * Inform the comps to cancel the job and remove it from the scheduler. By doing this here
 	 * in the scheduler we can handle both waiting and running jobs.
 	 * 
 	 * @param jobId

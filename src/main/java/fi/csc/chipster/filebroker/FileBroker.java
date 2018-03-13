@@ -61,7 +61,7 @@ public class FileBroker {
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
-		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials());		
+		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.CLIENT);		
     	
 		File storage = new File("storage");
 		storage.mkdir();
@@ -79,7 +79,7 @@ public class FileBroker {
 		contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
 		contextHandler.setResourceBase(storage.getPath());
 				
-		FileServlet fileServlet = new FileServlet(storage, sessionDbClient, serviceLocator);
+		FileServlet fileServlet = new FileServlet(storage, sessionDbClient, serviceLocator, authService);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter()), "/*", null);

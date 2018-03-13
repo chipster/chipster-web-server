@@ -9,6 +9,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -31,14 +32,14 @@ public class SessionResourceTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
         
-		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token());
-		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token());
-		schedulerClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSchedulerToken());
-		compClient 				= new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken());
-		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken());
-		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken());
-		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials());
-		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null);
+		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+		schedulerClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSchedulerToken(), Role.SERVER);
+		compClient 				= new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken(), Role.SERVER);
+		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
+		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
+		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
+		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
     }
 
     @AfterClass
