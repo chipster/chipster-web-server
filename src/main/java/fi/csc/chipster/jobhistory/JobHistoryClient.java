@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
@@ -17,7 +16,6 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestMethods;
-import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 
@@ -37,15 +35,8 @@ public class JobHistoryClient {
 		this.serviceLocator = serviceLocator;
 		this.credentials = credentials;
 		
-		this.jobHistoryList = serviceLocator.get(Role.JOB_HISTORY);
-	
-		if (jobHistoryList.isEmpty()) {
-			throw new InternalServerErrorException("no jobhistory service registered to service-locator");
-		}
-		
-		// just take the first one for now
-		init(jobHistoryList.get(0));
-		
+		init(serviceLocator.getPublicUri(Role.JOB_HISTORY));	
+			
 	}
 	
 	

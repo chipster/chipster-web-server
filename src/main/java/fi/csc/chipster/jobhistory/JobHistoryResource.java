@@ -137,6 +137,7 @@ public class JobHistoryResource {
 	}
 
 	@GET
+	@RolesAllowed({Role.ADMIN})
 	@Path("{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction

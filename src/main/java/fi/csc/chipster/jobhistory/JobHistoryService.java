@@ -73,10 +73,10 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		this.serviceLocator = new ServiceLocatorClient(this.config);
 		this.authService = new AuthenticationClient(serviceLocator, username,
 				password);
-		this.tokenRequestFilter=new TokenRequestFilter(authService);
+		this.tokenRequestFilter = new TokenRequestFilter(authService);
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator,
-				authService.getCredentials());
+				authService.getCredentials(), Role.SERVER);
 		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this,
 				"job-history");
 
@@ -94,10 +94,8 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		// .register(RestUtils.getLoggingFeature("session-db"))
 		;
 
-		// Start the HTTP server, now the URL is hard coded, which needed to
-		// change
-		httpServer = GrizzlyHttpServerFactory.createHttpServer(new URI(
-				"http://127.0.0.1:8200"), rc);
+		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
+		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 
 		httpServer.start();
 
@@ -161,7 +159,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			break;
 		case UPDATE:
 			job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			System.out.println( "IN Update"+ job.getState());
+			System.out.println("IN Update" + job.getState());
 			switch (job.getState()) {
 			case COMPLETED:
 			case FAILED:
@@ -199,7 +197,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		});
 	}
 
-	//Should we be using merge or update??
+	// Should we be using merge or update??
 	private void updateJobHistory(Job job) {
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
@@ -222,6 +220,10 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	private HibernateUtil getHibernate() {
 		return hibernate;
+	}
+
+	public void close() {
+		RestUtils.shutdown("JobHistory-service", httpServer);
 	}
 
 }

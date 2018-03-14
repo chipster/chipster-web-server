@@ -9,6 +9,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -32,7 +33,7 @@ public class JobHistoryResourceTest {
 		launcher = new TestServerLauncher(config);
 
 		sessionDBClient1 = new SessionDbClient(launcher.getServiceLocator(),
-				launcher.getUser1Token());
+				launcher.getUser1Token(),Role.CLIENT);
 		
 		jobHistoryClient1= new JobHistoryClient(launcher.getServiceLocator(),
 				launcher.getUser1Token());

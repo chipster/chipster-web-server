@@ -1,7 +1,6 @@
 package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,8 +13,10 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
+import fi.csc.chipster.servicelocator.resource.ServiceResource;
 
 public class ServiceLocatorClient {
 	
@@ -55,12 +56,11 @@ public class ServiceLocatorClient {
 		
 		WebTarget serviceTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
 				.target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
-		
+
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 		
 		@SuppressWarnings("unchecked")
 		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
-	
 
 		return services;
 	}
