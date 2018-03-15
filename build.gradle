@@ -129,7 +129,7 @@ dependencies {
     compile "org.apache.tomcat.embed:tomcat-embed-core:8.5.+"
 
     // rxJava
-    //compile "io.reactivex.rxjava2:rxjava:2.1.+"
+    compile "io.reactivex.rxjava2:rxjava:2.1.+"
     
     
     // old codebase
