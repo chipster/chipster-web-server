@@ -92,7 +92,8 @@ url-m2m-bind-auth: ""
 
 # auth
 
-auth-monitoring-username: monitoring
+auth-monitoring-password: monitoring
+
 auth-db-driver: org.h2.Driver
 auth-db-url: jdbc:h2:./database/chipster-auth-db
 auth-db-user: sa
