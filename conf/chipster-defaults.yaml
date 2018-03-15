@@ -148,15 +148,15 @@ scheduler-job-timer-interval: 1
 # allow sharing to everyone only for one username, empty allows for everybody
 session-db-restrict-sharing-to-everyone: jaas/example_session_owner
 
-session-db-driver: org.h2.Driver
+session-db-db-driver: org.h2.Driver
 // DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
-session-db-url: jdbc:h2:./database/session-db;DB_CLOSE_ON_EXIT=FALSE
-session-db-user: sa
-session-db-pass: ""
-session-db-dialect: org.hibernate.dialect.H2Dialect
-session-db-show-sql: false
-session-db-c3p0-min-size: ""
-session-db-bm2ddl-auto: update
+session-db-db-url: jdbc:h2:./database/session-db;DB_CLOSE_ON_EXIT=FALSE
+session-db-db-user: sa
+session-db-db-pass: ""
+session-db-db-dialect: org.hibernate.dialect.H2Dialect
+session-db-db-show-sql: false
+session-db-db-c3p0-min-size: ""
+session-db-db-bm2ddl-auto: update
 
     
 # web-server
