@@ -64,7 +64,8 @@ public class FileResourceTest {
 	@Test
     public void putAndChange() throws FileNotFoundException, RestException {
 		
-		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+		
 		assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());	
 		
 		// not possible to upload a new file, if the dataset has one already

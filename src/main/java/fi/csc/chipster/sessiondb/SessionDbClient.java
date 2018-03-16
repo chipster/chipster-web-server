@@ -160,7 +160,7 @@ public class SessionDbClient {
 	private WebTarget getRuleTarget(UUID sessionId, UUID authorizationId) {
 		return getRulesTarget(sessionId).path(authorizationId.toString());
 	}
-	
+
 	// sessions
 	
 	/**

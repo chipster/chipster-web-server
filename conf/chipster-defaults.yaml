@@ -12,6 +12,8 @@ service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-web-server: web-server
 service-password-toolbox: toolbox
+service-password-job-history: job-history
+
 
 # SSO accounts
 # all config items starting with "sso-service-password-" will be automatically authenticated as Role.SSO, none by default
@@ -43,6 +45,8 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
+url-int-job-history: http://{{public-ip}}:8014
+url-ext-job-history: http://{{public-ip}}:8014
 
 url-admin-ext-web-server: http://{{admin-ip}}:8100
 url-admin-ext-auth: http://{{admin-ip}}:8102
@@ -71,6 +75,7 @@ url-bind-toolbox: http://{{bind-ip}}:8008
 url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
 url-bind-sso: ajp://127.0.0.1:8012
+url-bind-job-history: http://{{bind-ip}}:8014
 
 url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
 url-admin-bind-auth: http://{{admin-bind-ip}}:8102
@@ -159,7 +164,18 @@ session-db-db-show-sql: false
 session-db-db-c3p0-min-size: ""
 session-db-db-bm2ddl-auto: update
 
-    
+#job-history-db
+job-history-db-driver: org.h2.Driver
+// DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
+job-history-db-url: jdbc:h2:./database/job-history-db;DB_CLOSE_ON_EXIT=FALSE
+job-history-db-user: sa
+job-history-db-pass: ""
+job-history-db-dialect: org.hibernate.dialect.H2Dialect
+job-history-db-show-sql: false
+job-history-db-c3p0-min-size: ""
+job-history-db-bm2ddl-auto: update
+
+
 # web-server
 
 web-server-web-root-path: ../chipster-web/src

@@ -152,6 +152,10 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getCredentials();
 	}
 	
+	public CredentialsProvider getAdminToken() {
+		return new AuthenticationClient(serviceLocatorClient, Role.ADMIN, Role.ADMIN).getCredentials();
+	}
+	
 	public CredentialsProvider getUnparseableToken() {
 		return new StaticCredentials("token", "unparseableToken");
 	}
@@ -167,6 +171,7 @@ public class TestServerLauncher {
 	public CredentialsProvider getUser2Credentials() {
 		return new StaticCredentials("jaas/client2", "client2Password");
 	}
+	
 
 	public ServerLauncher getServerLauncher() {
 		return serverLauncher;

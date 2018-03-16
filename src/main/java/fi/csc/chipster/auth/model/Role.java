@@ -25,5 +25,6 @@ public class Role {
 	public static final String TYPE_SERVICE = "type-service";
 	public static final String WEB_SERVER = "web-server";
 	public static final String PROXY_ADMIN = "proxy-admin";
+	public static final String JOB_HISTORY="job-history";
 	public static final String SSO = "sso";
 }	

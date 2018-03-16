@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
+import fi.csc.chipster.jobhistory.JobHistoryService;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -14,7 +15,7 @@ import fi.csc.chipster.toolbox.ToolboxService;
 import fi.csc.chipster.web.WebServer;
 
 public class ServerLauncher {
-	
+
 	// this must not be static, otherwise logging configuration fails
 	private final Logger logger = LogManager.getLogger();
 
@@ -34,95 +35,106 @@ public class ServerLauncher {
 
 	private JavascriptService typeService;
 
+	private JobHistoryService jobHistoryService;
+
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
-		
+
 		long t = System.currentTimeMillis();
-		
+
 		if (verbose) {
 			logger.info("starting authentication-service");
-		}		
+		}
 		auth = new AuthenticationService(config);
 		auth.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting service-locator");
-		}		
+		}
 		serviceLocator = new ServiceLocator(config);
 		serviceLocator.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting session-db");
-		}		
+		}
 		sessionDb = new SessionDb(config);
 		sessionDb.startServer();
-		
-//		if (verbose) {
-//			logger.info("starting session-db slave");
-//		}		
-//		Config slaveConfig = new Config();
-//		slaveConfig.set("session-db-replicate", "true");
-//		slaveConfig.set("session-db-bind", "http://127.0.0.1:8070/sessiondb/");
-//		slaveConfig.set("session-db-events-bind", "http://127.0.0.1:8074/sessiondbevents/");
-//		slaveConfig.set("session-db-name", "session-db-replicate");
-//		sessionDbSlave = new SessionDb(slaveConfig);
-//		sessionDbSlave.startServer();
-		
+
+		// if (verbose) {
+		// logger.info("starting session-db slave");
+		// }
+		// Config slaveConfig = new Config();
+		// slaveConfig.set("session-db-replicate", "true");
+		// slaveConfig.set("session-db-bind",
+		// "http://127.0.0.1:8070/sessiondb/");
+		// slaveConfig.set("session-db-events-bind",
+		// "http://127.0.0.1:8074/sessiondbevents/");
+		// slaveConfig.set("session-db-name", "session-db-replicate");
+		// sessionDbSlave = new SessionDb(slaveConfig);
+		// sessionDbSlave.startServer();
+
 		if (verbose) {
 			logger.info("starting file-broker");
-		}		
+		}
 		fileBroker = new FileBroker(config);
 		fileBroker.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting session-worker");
-		}		
+		}
 		sessionWorker = new SessionWorker(config);
 		sessionWorker.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting scheduler");
-		}		
+		}
 		scheduler = new Scheduler(config);
 		scheduler.startServer();
 
 		if (verbose) {
 			logger.info("starting toolbox");
-		}		
+		}
 		toolbox = new ToolboxService(config);
 		toolbox.startServer();
 
 		if (verbose) {
 			logger.info("starting comp");
-		}		
+		}
 		comp = new RestCompServer(null, config);
 		comp.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting web server");
 		}
 		web = new WebServer(config);
 		web.start();
-				
+
+		if (verbose) {
+			logger.info("starting job history service");
+		}
+		jobHistoryService = new JobHistoryService(config);
+		jobHistoryService.startServer();
+
 		if (verbose) {
 			logger.info("starting type service");
 		}
 		typeService = new JavascriptService("js/type-service");
 		typeService.startServer();
-		
+
 		if (verbose) {
-			logger.info("up and running (" + ((System.currentTimeMillis() - t)/1000) + " seconds)" );
+			logger.info("up and running ("
+					+ ((System.currentTimeMillis() - t) / 1000) + " seconds)");
 			logger.info("---------------------------");
 			logger.info("press enter to stop");
 		}
-		
+
 		System.in.read();
-		
+
 		stop();
 		System.exit(0);
-	}		
+	}
 
 	public void stop() {
-		
+
 		if (web != null) {
 			try {
 				web.close();
@@ -130,7 +142,15 @@ public class ServerLauncher {
 				logger.warn("closing web server failed", e);
 			}
 		}
-		
+
+		if (jobHistoryService != null) {
+			try {
+				jobHistoryService.close();
+			} catch (Exception e) {
+				logger.warn("closing job history service failed");
+			}
+		}
+
 		if (typeService != null) {
 			try {
 				typeService.close();
@@ -138,7 +158,7 @@ public class ServerLauncher {
 				logger.warn("closing type service failed");
 			}
 		}
-		
+
 		if (comp != null) {
 			try {
 				comp.shutdown();
@@ -146,7 +166,7 @@ public class ServerLauncher {
 				logger.warn("closing toolbox failed", e);
 			}
 		}
-		
+
 		if (toolbox != null) {
 			try {
 				toolbox.close();
@@ -203,8 +223,8 @@ public class ServerLauncher {
 				logger.warn("closing auth failed", e);
 			}
 		}
-	}	
-		
+	}
+
 	public static void main(String[] args) throws Exception {
 		Config config = new Config();
 		new ServerLauncher(config, true);
