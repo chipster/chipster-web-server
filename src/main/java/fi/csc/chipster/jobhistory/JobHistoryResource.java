@@ -22,8 +22,10 @@ import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -34,8 +36,8 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 public class JobHistoryResource {
 
 	private Config config;
-	private String jobDetail;
 	private HibernateUtil hibernate;
+	private Logger logger = LogManager.getLogger();
 	public static final String FILTER_ATTRIBUTE_TIME = "Time";
 
 	public JobHistoryResource(HibernateUtil hibernate, Config config) {
@@ -45,7 +47,7 @@ public class JobHistoryResource {
 
 	// http://localhost:8200/jobhistory?startTime=gt=2018-02-21T14:16:18.585Z
 	@GET
-	@RolesAllowed({Role.ADMIN})
+	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getJobHistory(@Context UriInfo uriInfo) {
@@ -57,7 +59,6 @@ public class JobHistoryResource {
 		for (String str : queryParams.keySet()) {
 			parameters.put(str, queryParams.getFirst(str));
 		}
-		System.out.println("parameters" + parameters);
 
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		// Create CriteriaQuery
@@ -67,21 +68,16 @@ public class JobHistoryResource {
 		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
 
 		if (parameters.size() > 0) {
-			// handle multiple filter attribute
-			// Constructing the list of parameters
 			List<Predicate> predicate = new ArrayList<Predicate>();
 
-			for (String key : queryParams.keySet()) {
+			for (String key : parameters.keySet()) {
 				if (key != null) {
-					// Need to address gt and lt here
 					if (parameters.get(key).contains("gt")) {
 						// add greater than filter
 						try {
 							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
 								Instant timeVal = Instant.parse(parameters.get(
 										key).split("=")[1]);
-								System.out.println("time is"
-										+ timeVal.toString());
 								predicate.add(builder.greaterThan(
 										root.get(key), timeVal));
 							} else {
@@ -90,7 +86,8 @@ public class JobHistoryResource {
 							}
 
 						} catch (IllegalArgumentException e) {
-							//
+							logger.error(
+									"error in parsing job hostory parameter", e);
 						}
 
 					} else if (parameters.get(key).contains("lt")) {
@@ -105,20 +102,21 @@ public class JobHistoryResource {
 								predicate.add(builder.lessThan(root.get(key),
 										parameters.get(key)));
 							}
-
 						} catch (IllegalArgumentException e) {
-							//
+							logger.error(
+									"error in parsing job hostory parameter", e);
 						}
 					} else {
 						try {
 							predicate.add(builder.equal(root.get(key),
 									parameters.get(key)));
 						} catch (IllegalArgumentException e) {
+							logger.error(
+									"error in parsing job hostory parameter", e);
 						}
 					}
 				}
-			}// End of For loop
-
+			}
 			// Query itself
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
 			Collection<JobHistoryModel> jobHistoryList = getHibernate()
@@ -137,7 +135,7 @@ public class JobHistoryResource {
 	}
 
 	@GET
-	@RolesAllowed({Role.ADMIN})
+	@RolesAllowed({ Role.ADMIN })
 	@Path("{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -157,6 +155,4 @@ public class JobHistoryResource {
 		return hibernate;
 	}
 
-	// http://127.0.0.1:8200
-	// http://0.0.0.0:8200
 }

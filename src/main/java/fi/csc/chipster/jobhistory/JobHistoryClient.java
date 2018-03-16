@@ -26,22 +26,17 @@ public class JobHistoryClient {
 
 	@SuppressWarnings("unused")
 	private ServiceLocatorClient serviceLocator;
-	private List<String> jobHistoryList;
 	private CredentialsProvider credentials;
 
 	private WebTarget jobHistoryTarget;
 
 	public JobHistoryClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
 		this.serviceLocator = serviceLocator;
-		this.credentials = credentials;
-		
-		init(serviceLocator.getPublicUri(Role.JOB_HISTORY));	
-			
+		this.credentials = credentials;	
+		init(serviceLocator.getPublicUri(Role.JOB_HISTORY));			
 	}
 	
-	
 	private void init(String jobHistoryTargetUri) {
-		System.out.println("the target uri"+jobHistoryTargetUri);
 		if (credentials != null) {
 			jobHistoryTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(jobHistoryTargetUri);
 		} else {
@@ -50,9 +45,7 @@ public class JobHistoryClient {
 		}
 	}
 	
-	
-	// targets
-	
+		
 	private WebTarget getJobHistoryTarget() {
 		return jobHistoryTarget.path("jobhistory");
 	}
@@ -80,12 +73,9 @@ public class JobHistoryClient {
 		return response;
 	}
 	
-	
 	public UUID getJobByID(UUID jobId) throws RestException{
 		JobHistoryModel js=RestMethods.get(getJobByIDTarget(jobId), JobHistoryModel.class);
-		System.out.println("got Job"+ js.getJobId());
-		return js.getJobId();
-	
+		return js.getJobId();	
 	}
 	
 	

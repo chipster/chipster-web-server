@@ -34,11 +34,6 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
-/**
- * Main class for Job Log Service
- * 
- *
- */
 public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	private Logger logger = LogManager.getLogger();
@@ -90,13 +85,10 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				.register(jobHistoryResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
-				.register(tokenRequestFilter)
-		// .register(RestUtils.getLoggingFeature("session-db"))
-		;
+				.register(tokenRequestFilter);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
-
 		httpServer.start();
 
 	}
@@ -119,7 +111,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	@Override
 	public void onEvent(SessionEvent e) {
-		// TODO Auto-generated method stub
 		logger.info("received a job event: " + e.getResourceType() + " "
 				+ e.getType());
 		try {
@@ -140,7 +131,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	private void handleDbEvent(SessionEvent e, IdPair jobIdPair)
 			throws RestException {
-		System.out.println(e.getType());
 		switch (e.getType()) {
 		case CREATE:
 			Job job = sessionDbClient.getJob(e.getSessionId(),
@@ -171,9 +161,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			}
 		default:
 			break;
-
 		// what to do with if the client has cancelled the job?
-
 		}
 	}
 
@@ -215,7 +203,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				return null;
 			}
 		});
-
 	}
 
 	private HibernateUtil getHibernate() {
