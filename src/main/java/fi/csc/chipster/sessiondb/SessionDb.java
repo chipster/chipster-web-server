@@ -106,7 +106,7 @@ public class SessionDb {
 				Job.class, Parameter.class, Input.class, File.class);
 
 		// init Hibernate
-		hibernate = new HibernateUtil(config, "session");
+		hibernate = new HibernateUtil(config, Role.SESSION_DB);
 		hibernate.buildSessionFactory(hibernateClasses);
 
 		this.tokenRequestFilter = new TokenRequestFilter(authService);

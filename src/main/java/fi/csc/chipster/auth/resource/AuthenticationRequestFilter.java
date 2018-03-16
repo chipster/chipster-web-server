@@ -1,5 +1,6 @@
 package fi.csc.chipster.auth.resource;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -42,6 +43,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	private static final Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
+	
+	@SuppressWarnings("unused")
 	private Config config;
 	private UserTable userTable;
 
@@ -50,6 +53,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	private Map<String, String> ssoAccounts;
 
 	private JaasAuthenticationProvider authenticationProvider;
+
+	private HashMap<String, String> monitoringAccounts;
 
 	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
@@ -60,8 +65,16 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		adminAccounts = config.getAdminAccounts();
 		ssoAccounts = config.getSsoServicePasswords();
 		
+		// give Role.SERVER also for SSO accounts
 		serviceAccounts.putAll(ssoAccounts);
-
+		
+		String monitoringPassword = config.getString(Config.KEY_MONITORING_PASSWORD);
+		if (config.getDefault(Config.KEY_MONITORING_PASSWORD).equals(monitoringPassword)) {
+			logger.warn("default password for username " + Role.MONITORING);
+		}
+		
+		monitoringAccounts = new HashMap<String, String>() {{ put(Role.MONITORING, monitoringPassword); }};
+		
 		authenticationProvider = new JaasAuthenticationProvider(false);
 	}
 
@@ -137,6 +150,15 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			throw new ForbiddenException("wrong password");	
 		}
 		
+		if (monitoringAccounts.containsKey(username)) { 
+			if (monitoringAccounts.get(username).equals(password)) {		
+				// authenticate with username/password ok
+				return new AuthPrincipal(username, getRoles(username));
+			}
+			// don't let other providers to authenticate internal usernames
+			throw new ForbiddenException("wrong password");	
+		}
+		
 		// allow both plain username "jdoe" or userId "jaas/jdoe" 
 		String jaasUsername;		
 		try {
@@ -190,7 +212,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			}
 		}
 				
-		if (config.getString(Config.KEY_MONITORING_USERNAME).equals(username)) {
+		if (monitoringAccounts.containsKey(username)) {
 			roles.add(Role.MONITORING);
 		}
 		

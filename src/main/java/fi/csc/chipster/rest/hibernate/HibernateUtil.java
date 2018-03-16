@@ -33,10 +33,17 @@ public class HibernateUtil {
     		
     		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
     		
+    		String url = config.getString(role + "-db-url");
+    		String password = config.getString(role + "-db-pass");
+    		
+    		if (password.length() < 8) {
+    			logger.warn("weak db passowrd for " + role + ", length " + password.length());
+    		}
+    		
     		hibernateConf.setProperty(Environment.DRIVER, config.getString(role + "-db-driver"));
-    		hibernateConf.setProperty(Environment.URL, config.getString(role + "-db-url"));
+    		hibernateConf.setProperty(Environment.URL, url);
     		hibernateConf.setProperty(Environment.USER, config.getString(role + "-db-user"));
-    		hibernateConf.setProperty(Environment.PASS, config.getString(role + "-db-pass"));
+    		hibernateConf.setProperty(Environment.PASS, password);
     		hibernateConf.setProperty(Environment.DIALECT, config.getString(role + "-db-dialect"));
     		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(role + "-db-show-sql"));
     		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
@@ -46,11 +53,15 @@ public class HibernateUtil {
     		for (Class<?> c : hibernateClasses) {
     			hibernateConf.addAnnotatedClass(c);
     		}    		    	   
-    		
+    		 
+    		logger.info("connect to db " + url);
+
     		sessionFactory = hibernateConf.buildSessionFactory(
     				new StandardServiceRegistryBuilder()
     				.applySettings(hibernateConf.getProperties())
     				.build());
+    		
+    		logger.info("connected");
  
     	} catch (Throwable ex) {
     		logger.error("sessionFactory creation failed.", ex);
