@@ -62,7 +62,6 @@ public class ShibbolethServlet extends HttpServlet {
 			throw e;
 		}
 		
-		String saveTokenUrl = webAppUrl + "/assets/save-token.html";
 		String loggedInUrl = webAppUrl + "/sessions";
 				
 		try (ServletOutputStream out = response.getOutputStream()) {
@@ -70,53 +69,49 @@ public class ShibbolethServlet extends HttpServlet {
 			
 			String tokenJson = RestUtils.asJson(token);
 			
-			/* Send token to the Angular app
+			/*
+			 * Save token to the local storage
 			 * 
-			 * We can't set the token to the app's LocalStorage directly, because this service
-			 * is in a different (sub)domain. We don't want to send the token in the query 
-			 * parameter, because it would stay in the page history. We have to open an iframe 
-			 * to the app's domain and post the token there. 
+			 * Browsers allow this only if this servlet is served from the same domain where the token is used. 
+			 * It would be possible to circumvent this restrictions with an iframe, but even that doesn't work in Safari.  
 			 */
 			
-			
-			String htmlStart = "<html><head><script>\n";
+			String htmlStart = "\n"
+					+ "<html>\n"
+					+ "<head>\n"
+					+ "<!-- disable IE's compatibility mode for intranet sites. Must be the first meta tag.-->\n"
+					+ "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n"
+					+ "<script>\n";
 
 			// encode and decode variables with base64 to make it safe to embed them to the js code (the values can't escape
 			// from the quotes without special characters)
 			String jsVars = "\n"
-					+ "let token = atob('" + DatatypeConverter.printBase64Binary(tokenJson.getBytes()) + "');\n"
-					+ "let webAppUrl = atob('" + DatatypeConverter.printBase64Binary(webAppUrl.getBytes()) + "');\n"
+					+ "let tokenString = atob('" + DatatypeConverter.printBase64Binary(tokenJson.getBytes()) + "');\n"
 					+ "let loggedInUrl = atob('" + DatatypeConverter.printBase64Binary(loggedInUrl.getBytes()) + "');\n"
-					+ "let saveTokenUrl = atob('" + DatatypeConverter.printBase64Binary(saveTokenUrl.getBytes()) + "');\n"
-					+ "let debug = " + debug + ";\n";
+					+ "let debug = " + debug + ";\n"
+					+ "let token = JSON.parse(tokenString);\n";
 			
-			String jsCode = "\n"			
-					 + "console.log('got token', token, webAppUrl, loggedInUrl, saveTokenUrl, debug);\n"
-					 + "\n"
-					 + "window.onload = function() {\n"
-					 + "	var win = document.getElementsByTagName('iframe')[0].contentWindow;\n"
-					 + "	\n"
-					 + "	console.log('post to iframe', webAppUrl);\n"
-					 + "	// don't allow the token to be send anywhere else\n"
-					 + "	win.postMessage(token, webAppUrl);\n"
-					 + "}\n"
-					 + "\n"
-					 + "window.onmessage = function(e) {\n"
-					 + "	console.log('received a message from iframe', e);\n"
-					 + "	if (!debug) {\n"
-					 + "		console.log('redirecting to', loggedInUrl);\n"
-					 + "		// redirect to the app without saving this page to the session history\n"
-					 + "		window.location.replace(loggedInUrl);\n"
-					 + "	}\n"
-					 + "}\n";
+			String jsCode = "\n"					
+					+ "window.localStorage.setItem('ch-auth-token', token.tokenKey);\n"
+					+ "window.localStorage.setItem('ch-auth-username', token.username);\n"
+					+ "window.localStorage.setItem('ch-auth-valid-until', token.validUntil);\n"
+					+ "window.localStorage.setItem('ch-auth-roles', token.rolesJson);\n"
+					+ "\n"
+					+ "	if (!debug) {\n"
+					+ "		console.log('redirecting to', loggedInUrl);\n"
+					+ "		// redirect to the app without saving this page to the session history\n"
+					+ "		window.location.replace(loggedInUrl);\n"
+					+ "	}\n"
+					+ "\n";										
 					
 			String htmlEnd = "\n"
-					+ "</script></head>\n"
+					+ "</script>\n"
+					+ "</head>\n"
 					+ "<body>\n"
-					+ " Post token to " + webAppUrl + "...<br>\n"		
-					+ "	<iframe src='" + saveTokenUrl + "' frameborder='0'>\n"
+					+ " Save token...<br>\n"		
 					+ "	<a href='" + loggedInUrl + "'>Continue to the app...</a>\n"
-					+ "</body></html>\n";
+					+ "</body>\n"
+					+ "</html>\n";
 						
 			out.print(htmlStart + jsVars + jsCode + htmlEnd);
 		}

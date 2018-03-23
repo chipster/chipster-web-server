@@ -55,8 +55,7 @@ url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
 
-url-m2m-int-auth: http://{{public-ip}}:8013
-    
+url-m2m-int-auth: http://{{public-ip}}:8013    
 
 # Address for the server to bind
 
@@ -83,7 +82,7 @@ url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 
-# Single sing-on usernames (defined above with config key "service-sso-passowrd-") can login anyone 
+# Single sing-on usernames (defined above with config key "sso-service-passowrd-") can login anyone 
 # in this service (port 8013 by default)
 # This must be disabled by default. If you configure this, make sure you have
 # 1) set a proper password for the SSO username

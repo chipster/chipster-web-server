@@ -266,9 +266,7 @@ public class Config {
 	 * @return a map where keys are the service names and values are their internal addresses 
 	 */
 	public Map<String, String> getInternalServiceUrls() {
-		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
-			.filter(entry -> entry.getKey().startsWith(URL_INT_PREFIX))
-			.collect(Collectors.toMap(e -> e.getKey().replace(URL_INT_PREFIX, ""), e -> getString(e.getKey())));
+		return getConfigEntriesFixed(URL_INT_PREFIX);		
 	}
 
 	/**
@@ -277,12 +275,7 @@ public class Config {
 	 * @return a map where keys are the service names and values are their external addresses 
 	 */
 	public Map<String, String> getExternalServiceUrls() {
-		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
-		// new sso services can be added in configuration
-		conf.putAll(readFile(confFilePath));
-		return conf.entrySet().stream()
-			.filter(entry -> entry.getKey().startsWith(URL_EXT_PREFIX))
-			.collect(Collectors.toMap(e -> e.getKey().replace(URL_EXT_PREFIX, ""), e -> getString(e.getKey())));
+		return getConfigEntries(URL_EXT_PREFIX);		
 	}
 	
 	/**
@@ -291,9 +284,7 @@ public class Config {
 	 * @return a map where keys are the service names and values are their admin addresses 
 	 */
 	public Map<String, String> getAdminServiceUrls() {
-		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
-			.filter(entry -> entry.getKey().startsWith(URL_ADMIN_EXT_PREFIX))
-			.collect(Collectors.toMap(e -> e.getKey().replace(URL_ADMIN_EXT_PREFIX, ""), e -> getString(e.getKey())));
+		return getConfigEntriesFixed(URL_ADMIN_EXT_PREFIX);		
 	}
 	
 	/**
@@ -302,9 +293,39 @@ public class Config {
 	 * @return a map where keys are the service names and values are their m2m addresses 
 	 */
 	public Map<String, String> getM2mServiceUrls() {
+		return getConfigEntriesFixed(URL_M2M_INT_PREFIX);		
+	} 
+	
+	/**
+	 * Get all config entries starting with the prefix
+	 * 
+	 * The config keys are searched only from the default configuration, so the configuration file
+	 * can only change the values, but not add new keys.
+	 * 
+	 * @param prefix
+	 * @return Map of entries. Keys without the prefix.
+	 */
+	private Map<String, String> getConfigEntriesFixed(String prefix) {
 		return readFile(DEFAULT_CONF_PATH).entrySet().stream()
-			.filter(entry -> entry.getKey().startsWith(URL_M2M_INT_PREFIX))
-			.collect(Collectors.toMap(e -> e.getKey().replace(URL_M2M_INT_PREFIX, ""), e -> getString(e.getKey())));
+			.filter(entry -> entry.getKey().startsWith(prefix))
+			.collect(Collectors.toMap(e -> e.getKey().replace(prefix, ""), e -> getString(e.getKey())));
+	}
+	
+	/**
+	 * Get all config entries starting with the prefix
+	 * 
+	 * New keys can be added also in the configuration.
+	 * 
+	 * @param prefix
+	 * @return Map of entries. Keys without the prefix.
+	 */
+	private Map<String, String> getConfigEntries(String prefix) {
+		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
+		// new sso services can be added in configuration
+		conf.putAll(readFile(confFilePath));
+		return conf.entrySet().stream()
+			.filter(entry -> entry.getKey().startsWith(prefix))
+			.collect(Collectors.toMap(e -> e.getKey().replace(prefix, ""), e -> getString(e.getKey())));
 	}
 	
 	public String getBindUrl(String service) {

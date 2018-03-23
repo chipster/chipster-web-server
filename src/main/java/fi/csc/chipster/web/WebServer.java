@@ -5,7 +5,6 @@ import java.net.URI;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
@@ -72,8 +71,8 @@ public class WebServer {
         forwardingResourceHandler.setWelcomeFiles(new String[] { INDEX_HTML });
         forwardingResourceHandler.setResourceBase(rootPath);
         
-        // some ContextHandler is needed to enable symlinks and  
-        ContextHandler contextHandler = new ContextHandler();
+        // some ContextHandler is needed to enable symlinks
+        ContextHandler contextHandler = new ContextHandler("/");
 		contextHandler.setHandler(forwardingResourceHandler );
         contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
         
@@ -82,12 +81,11 @@ public class WebServer {
         File indexFile = new File(root, INDEX_HTML); 
         if (!indexFile.exists()) {
         	logger.warn("index.html " + indexFile + " doesn't exist");
-        }     
-                
-        // Add the ResourceHandler to the server.
-        HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[] { contextHandler,  new DefaultHandler() });
+        }
         
+        HandlerList handlers = new HandlerList();                               
+        handlers.addHandler(contextHandler);
+        handlers.addHandler(new DefaultHandler());        
         server.setHandler(handlers);
         
         StatusSource stats = RestUtils.createStatisticsListener(server);
