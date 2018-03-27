@@ -171,7 +171,7 @@ public class SessionResource {
 		UUID sessionId = session.getSessionId();
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
 		
-		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getRuleId(), EventType.CREATE), hibernateSession);
+		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.CREATE), hibernateSession);
 	}
 
 	@PUT
@@ -242,8 +242,8 @@ public class SessionResource {
 		
 		hibernateSession.delete(auth.getSession());
 
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, sessionId, EventType.DELETE), hibernateSession);
-		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.AUTHORIZATION, auth.getRuleId(), EventType.DELETE), hibernateSession);
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, sessionId, EventType.DELETE), hibernateSession);
+		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.DELETE), hibernateSession);
 	}
     	
 	/**

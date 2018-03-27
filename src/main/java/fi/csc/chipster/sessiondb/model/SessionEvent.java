@@ -15,7 +15,7 @@ public class SessionEvent {
 	private UUID resourceId;
 	
 	public enum EventType { CREATE, UPDATE, DELETE }
-	public enum ResourceType { AUTHORIZATION, DATASET, JOB, FILE, SESSION }
+	public enum ResourceType { RULE, DATASET, JOB, FILE, SESSION }
 
 	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {
 		this.resource = resource;

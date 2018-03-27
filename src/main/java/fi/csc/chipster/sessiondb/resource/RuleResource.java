@@ -101,7 +101,7 @@ public class RuleResource {
     	
     	authorizationTable.save(newAuthorization, hibernate.session());
     
-    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, newAuthorization.getRuleId(), EventType.CREATE), hibernate.session());
+    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, newAuthorization.getRuleId(), EventType.CREATE), hibernate.session());
     	
     	URI uri = uriInfo.getAbsolutePathBuilder().path(newAuthorization.getRuleId().toString()).build();
     	
@@ -130,7 +130,7 @@ public class RuleResource {
     	    	
     	authorizationTable.delete(sessionId, authorizationToDelete, hibernate.session());
     	
-    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, authorizationId, EventType.DELETE), hibernate.session());
+    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, authorizationId, EventType.DELETE), hibernate.session());
     
     	return Response.noContent().build();
     }
