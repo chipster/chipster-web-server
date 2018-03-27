@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.AfterClass;
@@ -26,7 +27,6 @@ public class RuleResourceTest {
 	private static TestServerLauncher launcher;
 	private static SessionDbClient user1Client;
 	private static SessionDbClient user2Client;
-	private static SessionDbClient sessionDbClient;
 	private static SessionDbClient unparseableTokenClient;
 	private static SessionDbClient tokenFailClient;
 	private static SessionDbClient authFailClient;
@@ -39,7 +39,6 @@ public class RuleResourceTest {
         
 		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
-		sessionDbClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionDbToken(), Role.CLIENT);
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
 		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
@@ -181,17 +180,20 @@ public class RuleResourceTest {
 		
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);				
-		Rule authorization = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
-    	UUID authorizationId = user1Client.createRule(sessionId, authorization);
-    	    			
-		// only allowed for sessionDb
-    	sessionDbClient.getRule(sessionId, authorizationId);
+		
+		Set<Rule> rules = user1Client.getSession(sessionId).getRules();		
+		assertEquals(1, rules.size());
+		UUID ruleId = rules.iterator().next().getRuleId();
+		
+		// allowed for the owner
+    	user1Client.getRule(sessionId, ruleId);
+    	// not for others
+    	testGetRule(403, sessionId, ruleId, user2Client);
     	
-		testGetRule(403, sessionId, authorizationId, user1Client);
-    	testGetRule(401, sessionId, authorizationId, unparseableTokenClient);
-		testGetRule(403, sessionId, authorizationId, tokenFailClient);
-		testGetRule(401, sessionId, authorizationId, authFailClient);
-		testGetRule(401, sessionId, authorizationId, noAuthClient);
+    	testGetRule(401, sessionId, ruleId, unparseableTokenClient);
+		testGetRule(403, sessionId, ruleId, tokenFailClient);
+		testGetRule(401, sessionId, ruleId, authFailClient);
+		testGetRule(401, sessionId, ruleId, noAuthClient);
     }
 	
 	@Test

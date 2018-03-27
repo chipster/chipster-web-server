@@ -284,8 +284,7 @@ public class SessionResource {
 				if (ResourceType.DATASET == obj.getResourceType()) {
 					events.publish(SessionDbTopicConfig.DATASETS_TOPIC, obj);
 				}
-				// authorization events are sent directly to AUTHORIZATIONS_TOPIC, because
-				// client's don't need them
+				// AUTHORIZATIONS_TOPIC hasn't been needed yet
 			}				
 		});	
 	}

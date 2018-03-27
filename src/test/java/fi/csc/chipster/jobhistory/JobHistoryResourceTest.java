@@ -59,7 +59,7 @@ public class JobHistoryResourceTest {
 	public void testSaveJob() throws InterruptedException, RestException {
 		UUID jobId = sessionDBClient1.createJob(sessionID,
 				RestUtils.getRandomJob());
-		Thread.sleep(100);
+		Thread.sleep(200);
 		assertEquals(true, jobHistoryClient2.getJobByID(jobId) != null);
 	}
 

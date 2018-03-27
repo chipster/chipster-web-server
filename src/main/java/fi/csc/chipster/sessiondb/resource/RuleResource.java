@@ -5,7 +5,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
-import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -22,24 +21,30 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
-import fi.csc.chipster.auth.model.Role;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
-@Path("authorizations")
 public class RuleResource {
 	private UUID sessionId;
 	private RuleTable authorizationTable;
 	private HibernateUtil hibernate;
 	private Config config;
+	private SessionResource sessionResource;
 
 	public RuleResource(SessionResource sessionResource, UUID id, RuleTable authorizationTable, Config config) {
 		this.sessionId = id;
 		this.authorizationTable = authorizationTable;
+		this.sessionResource = sessionResource;
 		this.hibernate = sessionResource.getHibernate();
 		this.config = config;
 	}
@@ -47,10 +52,10 @@ public class RuleResource {
 	@GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
-	@RolesAllowed(Role.SESSION_DB)
     @Transaction
     public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
-    	    
+    	
+		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
 		Rule result = authorizationTable.getRule(authorizationId, hibernate.session());
     	if (result == null) {
     		throw new NotFoundException();
@@ -71,6 +76,7 @@ public class RuleResource {
     
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response post(Rule newAuthorization, @Context UriInfo uriInfo, @Context SecurityContext sc) {
     	
@@ -95,9 +101,14 @@ public class RuleResource {
     	
     	authorizationTable.save(newAuthorization, hibernate.session());
     
+    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, newAuthorization.getRuleId(), EventType.CREATE), hibernate.session());
+    	
     	URI uri = uriInfo.getAbsolutePathBuilder().path(newAuthorization.getRuleId().toString()).build();
     	
-    	return Response.created(uri).build();
+    	ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("ruleId", newAuthorization.getRuleId().toString());
+		
+		return Response.created(uri).entity(json).build();
     }
     
     @DELETE
@@ -107,13 +118,19 @@ public class RuleResource {
     	
     	Rule authorizationToDelete = authorizationTable.getRule(authorizationId, hibernate.session());
     	
+    	if (authorizationToDelete == null) {
+    		throw new NotFoundException("rule not found");
+    	}
+    	
     	// everybody is allowed remove their own rules, even if they are read-only
     	if (!authorizationToDelete.getUsername().equals(sc.getUserPrincipal().getName())) {
     		// others need read-write permissions
     		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
     	}
     	    	
-    	authorizationTable.delete(sessionId, authorizationToDelete, hibernate.session());    	
+    	authorizationTable.delete(sessionId, authorizationToDelete, hibernate.session());
+    	
+    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.AUTHORIZATION, authorizationId, EventType.DELETE), hibernate.session());
     
     	return Response.noContent().build();
     }
