@@ -21,6 +21,10 @@ public class User {
 	private String organization;
 	private String name;
 	
+	// terms of use
+	private int termsVersion;
+	private Instant termsAccepted;
+	
 	@Version
 	private long version;
 	
@@ -117,5 +121,21 @@ public class User {
 
 	public void setUserId(UserId userId) {
 		this.userId = userId;
+	}
+
+	public int getTermsVersion() {
+		return termsVersion;
+	}
+
+	public void setTermsVersion(int termsVersion) {
+		this.termsVersion = termsVersion;
+	}
+
+	public Instant getTermsAccepted() {
+		return termsAccepted;
+	}
+
+	public void setTermsAccepted(Instant termsAccepted) {
+		this.termsAccepted = termsAccepted;
 	}
 }
