@@ -3,6 +3,8 @@ package fi.csc.chipster.auth.resource;
 import java.time.Instant;
 import java.util.List;
 
+import javax.ws.rs.NotFoundException;
+
 import org.hibernate.Session;
 
 import fi.csc.chipster.auth.model.User;
@@ -23,7 +25,25 @@ public class UserTable {
 		hibernateSession.save(user);
 	}
 	
+	public void update(User user) {
+		User oldUser = get(user.getUserId(), hibernate.session());
+		
+		if (oldUser != null) {
+			update(oldUser, user, hibernate.session());
+		} else {
+			throw new NotFoundException("user not found");
+		}
+	}
+	
 	public void update(User oldUser, User user, Session hibernateSession) {
+		
+		// unless the approval is updated 
+		if (user.getTermsVersion() < oldUser.getTermsVersion()) {
+			// keep the old approval
+			user.setTermsVersion(oldUser.getTermsVersion());
+			user.setTermsAccepted(oldUser.getTermsAccepted());
+		}
+		
 		user.setModified(Instant.now());
 		user.setVersion(oldUser.getVersion());
 		
