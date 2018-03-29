@@ -225,7 +225,8 @@ public class RestPhenodataUtils {
 			String line;
 			List<String> headers = null;
 			while ((line = reader.readLine()) != null) {
-				String[] splitted = line.split("\t");
+				// -1 to keep the trailing empty strings (e.g. the Define NGS experiment tool creates empty cells)
+				String[] splitted = line.split("\t", -1);
 				if (headers == null) {
 					headers = Arrays.asList(splitted);
 					continue;
