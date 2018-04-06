@@ -10,9 +10,9 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -187,7 +187,7 @@ public class RestUtils {
 		j.setToolId("UtilTool.py");
 		j.setToolName("Utility tool");
 		
-		LinkedHashSet<Parameter> p = new LinkedHashSet<>();
+		ArrayList<Parameter> p = new ArrayList<>();
 		p.add(getRandomParameter());
 		p.add(getRandomParameter());
 		j.setParameters(p);

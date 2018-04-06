@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.util.StringUtils;
@@ -263,12 +262,12 @@ public class RestPhenodataUtils {
 		return metadata;
 	}
 
-	public static void derivePhenodata(UUID sessionId, Set<Input> set, GenericResultMessage result, SessionDbClient sessionDbClient) throws RestException {
+	public static void derivePhenodata(UUID sessionId, List<Input> inputs, GenericResultMessage result, SessionDbClient sessionDbClient) throws RestException {
 		
 		ArrayList<MetadataEntry> derivedMetadata = new ArrayList<>();
 		
 		// combine metadata of all inputs
-		for (Input input : set) {
+		for (Input input : inputs) {
 			Dataset dataset = sessionDbClient.getDataset(sessionId, UUID.fromString(input.getDatasetId()));
 			if (dataset.getMetadata() == null ) {
 				continue;

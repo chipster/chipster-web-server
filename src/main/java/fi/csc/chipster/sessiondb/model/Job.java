@@ -1,21 +1,25 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import fi.csc.microarray.messaging.JobState;
 
 @Entity // db
@@ -48,13 +52,15 @@ public class Job {
 	@JoinColumn(name="sessionId")
 	private Session session;
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="jobId")
-	private Set<Parameter> parameters = new HashSet<>();
+	@LazyCollection(LazyCollectionOption.FALSE)
+	private List<Parameter> parameters = new ArrayList<>();
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@OneToMany(cascade=CascadeType.ALL)
 	@JoinColumn(name="jobId")
-	private Set<Input> inputs = new HashSet<>();
+	@LazyCollection(LazyCollectionOption.FALSE)
+	private List<Input> inputs = new ArrayList<>();
 	
 	public UUID getJobId() {
 		return this.jobId;
@@ -110,18 +116,18 @@ public class Job {
 	public void setState(JobState state) {
 		this.state = state;
 	}
-	public Set<Parameter> getParameters() {
+	public List<Parameter> getParameters() {
 		return parameters;
 	}
-	public void setParameters(Set<Parameter> parameters) {
+	public void setParameters(List<Parameter> parameters) {
 		this.parameters = parameters;
 	}
 	
-	public Set<Input> getInputs() {
+	public List<Input> getInputs() {
 		return inputs;
 	}
 	
-	public void setInputs(LinkedHashSet<Input> inputs) {
+	public void setInputs(List<Input> inputs) {
 		this.inputs = inputs;
 	}
 	public String getModule() {

@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -519,7 +518,7 @@ public class RestCliClient {
 			}
 		}
 		
-		LinkedHashSet<Input> jobInputs = new LinkedHashSet<>();
+		ArrayList<Input> jobInputs = new ArrayList<>();
 		
 		//TODO take input types into account
 		
@@ -555,7 +554,7 @@ public class RestCliClient {
 			jobInputs.add(jobInput);
 		}
 		
-		LinkedHashSet<Parameter> jobParameters = new LinkedHashSet<>();
+		ArrayList<Parameter> jobParameters = new ArrayList<>();
 		
 		for (SADLDescription.Parameter toolParameter : tool.getSadlDescription().getParameters()) {
 			Parameter jobParameter = new Parameter();

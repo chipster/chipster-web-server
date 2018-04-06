@@ -3,7 +3,7 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
@@ -147,7 +147,7 @@ public class JobResourceTest {
 		Job job = RestUtils.getRandomJob();
 		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
 		
-		LinkedHashSet<Input> i = new LinkedHashSet<>();
+		ArrayList<Input> i = new ArrayList<>();
 		i.add(RestUtils.getRandomInput(datasetId));
 		job.setInputs(i);
 		
@@ -167,7 +167,7 @@ public class JobResourceTest {
 		Job job = RestUtils.getRandomJob();
 		UUID datasetId = user2Client.createDataset(sessionId2, RestUtils.getRandomDataset());
 		
-		LinkedHashSet<Input> i = new LinkedHashSet<>();
+		ArrayList<Input> i = new ArrayList<>();
 		i.add(RestUtils.getRandomInput(datasetId));
 		job.setInputs(i);
 		
@@ -187,7 +187,7 @@ public class JobResourceTest {
 		
 		UUID datasetId = user2Client.createDataset(sessionId2, RestUtils.getRandomDataset());
 		
-		LinkedHashSet<Input> i = new LinkedHashSet<>();
+		ArrayList<Input> i = new ArrayList<>();
 		i.add(RestUtils.getRandomInput(datasetId));
 		job.setInputs(i);
 		

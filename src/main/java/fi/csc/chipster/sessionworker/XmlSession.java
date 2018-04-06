@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -144,7 +143,7 @@ public class XmlSession {
 					Input input = new Input();
 					String dataId = parents.get(0).getDataId();
 					input.setDatasetId(dataId);
-					LinkedHashSet<Input> inputs = new LinkedHashSet<>();
+					List<Input> inputs = new ArrayList<>();
 					inputs.add(input);
 					job.setInputs(inputs);
 				}
@@ -335,16 +334,16 @@ public class XmlSession {
 				.collect(Collectors.toMap(Job::getJobId, j -> j));		
 	}
 
-	private static LinkedHashSet<Parameter> getParameters(List<ParameterType> parameterTypes) {
+	private static ArrayList<Parameter> getParameters(List<ParameterType> parameterTypes) {
 		return parameterTypes.stream()
 				.map(XmlSession::getParameter)
-				.collect(Collectors.toCollection(LinkedHashSet::new));
+				.collect(Collectors.toCollection(ArrayList::new));
 	}
 
-	private static LinkedHashSet<Input> getInputs(List<InputType> inputTypes) {
+	private static ArrayList<Input> getInputs(List<InputType> inputTypes) {
 		return inputTypes.stream()
 				.map(XmlSession::getInput)
-				.collect(Collectors.toCollection(LinkedHashSet::new));
+				.collect(Collectors.toCollection(ArrayList::new));
 	}
 
 	private static Map<UUID, Dataset> getDatasets(List<DataType> dataTypes) {
