@@ -64,8 +64,9 @@ public class SessionWorkerResource {
     public Response get(@PathParam("sessionId") UUID sessionId, @Context SecurityContext sc) throws IOException, RestException {
     	    
     	StaticCredentials credentials = getUserCredentials(sc);
-    	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
-		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
+    	// we only allowed to get the public URI with client credentials
+    	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.CLIENT);
+		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.CLIENT);
 				
 		ArrayList<InputStreamEntry> entries = new ArrayList<>();
 		Session session = sessionDb.getSession(sessionId);
