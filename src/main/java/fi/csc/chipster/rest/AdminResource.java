@@ -111,6 +111,7 @@ public class AdminResource {
 		status.put("load", ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage());
 		status.put("cores", Runtime.getRuntime().availableProcessors());
 		status.put("memoryJvmMax", Runtime.getRuntime().maxMemory());
+		status.put("memoryJvmFree", Runtime.getRuntime().freeMemory());
 
 		for (String name : fileSystems.keySet()) {
 			collectDiskStats(status, fileSystems.get(name), name);			
