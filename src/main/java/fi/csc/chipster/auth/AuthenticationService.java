@@ -68,8 +68,7 @@ public class AuthenticationService {
     		User.class,
     	});
     	
-    	hibernate = new HibernateUtil(config, Role.AUTH);
-		hibernate.buildSessionFactory(hibernateClasses);    	
+    	hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);    	
     	
     	TokenTable tokenTable = new TokenTable(hibernate);
     	UserTable userTable = new UserTable(hibernate);

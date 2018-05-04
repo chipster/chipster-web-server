@@ -45,6 +45,7 @@ public class Job {
 	private String screenOutput;
 	@Lob
 	private String stateDetail;
+	private Long memoryUsage;
 	
 	private String createdBy;
 	
@@ -170,6 +171,12 @@ public class Job {
 	}
 	public void setCreatedBy(String createdBy) {
 		this.createdBy = createdBy;
+	}
+	public Long getMemoryUsage() {
+		return memoryUsage;
+	}
+	public void setMemoryUsage(Long memoryUsage) {
+		this.memoryUsage = memoryUsage;
 	}
 	
 }

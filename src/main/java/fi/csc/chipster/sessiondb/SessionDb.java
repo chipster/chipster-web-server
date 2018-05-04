@@ -106,8 +106,7 @@ public class SessionDb {
 				Job.class, Parameter.class, Input.class, File.class);
 
 		// init Hibernate
-		hibernate = new HibernateUtil(config, Role.SESSION_DB);
-		hibernate.buildSessionFactory(hibernateClasses);
+		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
 
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 		// access with DatasetTokens is anonymous

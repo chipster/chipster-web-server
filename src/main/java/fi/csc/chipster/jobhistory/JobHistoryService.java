@@ -77,8 +77,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistoryModel.class);
 		// Initializing hibernate components
-		hibernate = new HibernateUtil(this.config, "job-history");
-		hibernate.buildSessionFactory(hibernateClasses);
+		hibernate = new HibernateUtil(this.config, "job-history", hibernateClasses);
 
 		jobHistoryResource = new JobHistoryResource(hibernate, this.config);
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
@@ -178,8 +177,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			@Override
 			public Void run(Session hibernateSession) {
 				hibernateSession.save(jobHistory);
-				JobHistoryModel js = hibernateSession.get(
-						JobHistoryModel.class, jobHistory.getJobId());
 				return null;
 			}
 		});
