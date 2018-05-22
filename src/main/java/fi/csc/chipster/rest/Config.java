@@ -384,4 +384,12 @@ public class Config {
 	public long getLong(String key) throws NumberFormatException {
 		return Long.parseLong(getString(key));
 	}
+
+	public String getVariableString(String key) {
+		return this.replaceVariables("{{" + key + "}}");
+	}
+	
+	public int getVariableInt(String key) {
+		return Integer.parseInt(getVariableString(key));
+	}
 }
