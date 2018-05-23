@@ -94,20 +94,35 @@ url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 # 2) firewall this port, only the SSO service needs to access it 
 url-m2m-bind-auth: ""
 
+# db backups
+
+db-backup-s3-endpoint: object.pouta.csc.fi
+db-backup-s3-region: regionOne
+db-backup-s3-access-key: ""
+db-backup-s3-secret-key: ""
+db-backup-s3-signer-override: S3SignerType
+# ensures that you remove the db restore setting  
+db-backup-exit-after-restore: true
+
 # auth
 
 auth-monitoring-password: monitoring
 
 auth-db-driver: org.h2.Driver
-auth-db-url: jdbc:h2:./database/chipster-auth-db
+auth-db-url: jdbc:h2:tcp://localhost:{{auth-db-port}}/chipster-auth-db
 auth-db-user: sa
 auth-db-pass: ""
 auth-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
 auth-db-show-sql: false
 auth-db-c3p0-min-size: ""
-# convert a pre-Flyway DB: set to true, start the service and change this back to false
-auth-db-baseline: true
-
+# assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand
+auth-db-baseline-version: ""
+auth-db-backup-bucket: ""
+# hours
+auth-db-backup-interval: 24
+auth-db-backup-time: 05:10
+# restore the db from the backup object
+auth-db-restore-key: ""
  
 # comp
 
@@ -153,27 +168,39 @@ session-db-restrict-sharing-to-everyone: jaas/example_session_owner
 
 session-db-db-driver: org.h2.Driver
 // DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
-session-db-db-url: jdbc:h2:./database/session-db;DB_CLOSE_ON_EXIT=FALSE
+session-db-db-url: jdbc:h2:tcp://localhost:{{session-db-db-port}}/chipster-session-db-db;DB_CLOSE_ON_EXIT=FALSE
 session-db-db-user: sa
 session-db-db-pass: ""
 session-db-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
 session-db-db-show-sql: false
 session-db-db-c3p0-min-size: ""
-# convert a pre-Flyway DB: set to true, start the service and change this back to false
-session-db-db-baseline: true
+# assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand
+session-db-db-baseline-version: ""
+session-db-db-backup-bucket: ""
+session-db-db-backup-bucket: ""
+# hours
+session-db-db-backup-interval: 24
+session-db-db-backup-time: 05:20
+# restore the db from the backup object
+session-db-db-restore-key: ""
 
 #job-history-db
 job-history-db-driver: org.h2.Driver
-// DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
-job-history-db-url: jdbc:h2:./database/job-history-db;DB_CLOSE_ON_EXIT=FALSE
+job-history-db-url: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
 job-history-db-user: sa
 job-history-db-pass: ""
 job-history-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
 job-history-db-show-sql: false
 job-history-db-c3p0-min-size: ""
-# convert a pre-Flyway DB: set to true, start the service and change this back to false
-job-history-db-baseline: true
-
+# assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand
+job-history-db-baseline-version: ""
+job-history-db-backup-bucket: ""
+job-history-db-backup-bucket: ""
+# hours
+job-history-db-backup-interval: 24
+job-history-db-backup-time: 05:10
+# restore the db from the backup object
+job-history-db-restore-key: ""
 
 # web-server
 
@@ -204,3 +231,6 @@ variable-public-ip: 127.0.0.1
 variable-admin-ip: 127.0.0.1 
 variable-bind-ip: 0.0.0.0
 variable-admin-bind-ip: 0.0.0.0
+variable-auth-db-port: 1521
+variable-session-db-db-port: 1522
+variable-job-history-db-port: 1523

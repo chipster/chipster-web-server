@@ -105,6 +105,9 @@ dependencies {
     
     // flyway
     compile "org.flywaydb:flyway-core:+"
+    
+    // db backups
+    compile "com.amazonaws:aws-java-sdk-s3:+"
 
     // websockets
     compile "javax.websocket:javax.websocket-api:+"

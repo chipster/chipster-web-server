@@ -45,6 +45,7 @@ public class HibernateUtil {
     	    	
     	this.dbSchema = new DbSchema(config, role);
     	this.dbSchema.export(hibernateClasses);
+
     	
     	String url = config.getString(role + CONF_ROLE_DB_URL);
     	String user = config.getString(role + CONF_ROLE_DB_USER);
@@ -54,13 +55,7 @@ public class HibernateUtil {
     	this.dbBackup.checkRestore();
     	
     	this.dbSchema.migrate(url, user, password);
-    	
-    	String url = config.getString(role + "-db-url");
-    	String user = config.getString(role + "-db-user");
-    	String password = config.getString(role + "-db-pass");
-    			
-    	//this.migrateSchema(url, user, password);
-		
+
     	this.dbBackup.printTableStats(buildSessionFactory(hibernateClasses, url, "", user, password, config, role).openSession());
     	    	
 		if (password.length() < 8) {
