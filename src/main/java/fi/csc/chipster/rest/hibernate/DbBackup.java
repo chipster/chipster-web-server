@@ -1,25 +1,30 @@
 package fi.csc.chipster.rest.hibernate;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
-import java.util.Map.Entry;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.ScrollMode;
+import org.hibernate.ScrollableResults;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.query.Query;
 import org.joda.time.Instant;
 
 import com.amazonaws.AmazonClientException;
@@ -32,37 +37,38 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 
 public class DbBackup {
-	
-	public class RestoreException extends RuntimeException {
 
+	public class RestoreException extends RuntimeException {
+		
 		public RestoreException(Exception cause) {
 			super(cause);
 		}
-
+		
 		public RestoreException(String msg) {
 			super(msg);
 		}		
 	}
 	
+	private static final String CONF_DB_BACKUP_DAILY_COUNT_FILE = "db-backup-daily-count-file";
+	private static final String CONF_DB_BACKUP_MONTHLY_COUNT_S3 = "db-backup-monthly-count-s3";
+	private static final String CONF_DB_BACKUP_DAILY_COUNT_S3 = "db-backup-daily-count-s3";
+
+	
 	private final Logger logger = LogManager.getLogger();
 	
-	private static final String BACKUP_NAME_POSTFIX = ".zip";
+	private static final String BACKUP_NAME_POSTFIX = ".sql";
 	private static final String BACKUP_OBJECT_NAME_PART = "-db-backup_";
 	
-	private static final String CONF_ROLE_DB_BACKUP_TIME = "-db-backup-time";
-	private static final String CONF_ROLE_DB_BACKUP_INTERVAL = "-db-backup-interval";
-	private static final String CONF_ROLE_DB_RESTORE_KEY = "-db-restore-key";
-	private static final String CONF_ROLE_DB_BACKUP_BUCKET = "-db-backup-bucket";
+	private static final String CONF_DB_BACKUP_TIME = "db-backup-time";
+	private static final String CONF_DB_BACKUP_INTERVAL = "db-backup-interval";
+	private static final String CONF_DB_RESTORE_KEY = "db-restore-key";
+	private static final String CONF_DB_BACKUP_BUCKET = "db-backup-bucket";
 	
-	private static final String CONF_DB_BACKUP_EXIT_AFTER_RESTORE = "db-backup-exit-after-restore";
 	private static final String COND_DB_BACKUP_S3_SIGNER_OVERRIDE = "db-backup-s3-signer-override";
 	private static final String CONF_DB_BACKUP_S3_SECRET_KEY = "db-backup-s3-secret-key";
 	private static final String CONF_DB_BACKUP_S3_ACCESS_KEY = "db-backup-s3-access-key";
 	private static final String CONF_DB_BACKUP_S3_REGION = "db-backup-s3-region";
 	private static final String CONF_DB_BACKUP_S3_ENDPOINT = "db-backup-s3-endpoint";
-	
-	private static final int ROTATION_DAILY_COUNT = 90;
-	private static final int ROTATION_MONTHLY_COUNT = 24;	
 
 	private Config config;
 	private String role;	
@@ -74,6 +80,10 @@ public class DbBackup {
 	private final String backupPrefix;
 	private final String backupPostfix;
 
+	private int dailyCountS3;
+	private int monthlyCountS3;
+	private int dailyCountFile;
+
 	public DbBackup(Config config, String role, String url, String user, String password) {
 		this.config = config;
 		this.role = role;
@@ -82,31 +92,38 @@ public class DbBackup {
 		this.password = password;
 		
 		backupPrefix = role + BACKUP_OBJECT_NAME_PART;
-		backupPostfix = BACKUP_NAME_POSTFIX;	
+		backupPostfix = BACKUP_NAME_POSTFIX;
+		dailyCountS3 = Math.max(3, Integer.parseInt(config.getString(CONF_DB_BACKUP_DAILY_COUNT_S3, role)));
+		monthlyCountS3 = Integer.parseInt(config.getString(CONF_DB_BACKUP_MONTHLY_COUNT_S3, role));
+		dailyCountFile = Integer.parseInt(config.getString(CONF_DB_BACKUP_DAILY_COUNT_FILE, role));
+		
 	}
 	
 	public void checkRestore() {
 		
-		String restoreKey = config.getString(role + CONF_ROLE_DB_RESTORE_KEY);    	
-    	boolean exitAfterRestore = config.getBoolean(CONF_DB_BACKUP_EXIT_AFTER_RESTORE);
+		String restoreKey = getRestoryKey(config, role);
 		
 		if (!restoreKey.isEmpty()) {
     		restore(restoreKey, url, user, password);
-    		
-    		if (exitAfterRestore) {
-    			throw new RestoreException(role + "-h2 restore completed, but the service won't start until you remove the " + role + "-db-restore-key from the configuration");
-    		}
+    		// don't start backups when restoring to make it safer to restore from the backups of some other installation    		
+    		throw new RestoreException(role + "-h2 restore completed. Remove the db-restore-key-" + role + " from the configuration, restart the Backup service and start all other services");
     	}
 	}
 	
-	public void scheduleBackups(SessionFactory sessionFactory) {
-		int backupInterval = config.getInt(role + CONF_ROLE_DB_BACKUP_INTERVAL);
-	    String backupTimeString = config.getString(role + CONF_ROLE_DB_BACKUP_TIME);	    
+	public static String getRestoryKey(Config config, String role) {
+		return config.getString(CONF_DB_RESTORE_KEY, role);
+	}
+
+	public void scheduleBackups() {
+		int backupInterval = Integer.parseInt(config.getString(CONF_DB_BACKUP_INTERVAL, role));
+	    String backupTimeString = config.getString(CONF_DB_BACKUP_TIME, role);
+	    
+	    SessionFactory sessionFactory = HibernateUtil.buildSessionFactory(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
 		
 		startBackupTimer(backupInterval, backupTimeString, sessionFactory);		
 	}
 	
-private void startBackupTimer(int backupInterval, String backupTimeString, SessionFactory sessionFactory) {
+	private void startBackupTimer(int backupInterval, String backupTimeString, SessionFactory sessionFactory) {
     	
     	int startHour = Integer.parseInt(backupTimeString.split(":")[0]);
 	    int startMinute = Integer.parseInt(backupTimeString.split(":")[1]);
@@ -120,7 +137,8 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
     	firstBackupTime.set(Calendar.MINUTE, startMinute);
     	firstBackupTime.set(Calendar.SECOND, 0);
     	firstBackupTime.set(Calendar.MILLISECOND, 0);
-    	logger.info("Next database backup is scheduled at " + firstBackupTime.getTime().toString());
+    	logger.info("next " + role + "-h2 backup is scheduled at " + firstBackupTime.getTime().toString());
+    	logger.info("save " + role + "-h2 backups to bucket:  " + getBackupBucket());
     	
 		backupTimer = new Timer();
 		backupTimer.scheduleAtFixedRate(new TimerTask() {			
@@ -138,8 +156,8 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 					}
 				}, sessionFactory);
 			}
-		//}, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
-    	}, new Date(), backupInterval * 60 * 60 * 1000);
+		}, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
+    	//}, new Date(), backupInterval * 60 * 60 * 1000);
 	}
     
     private void restore(String key, String url, String user, String password) throws RestoreException {
@@ -153,7 +171,7 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 			public Exception run(Session hibernateSession) {				
 				try {					
 					if (!getTableStats(hibernateSession).isEmpty()) {
-						throw new RestoreException("Restore is allowed only to an empty DB. Please delete the database files first.");
+						throw new RestoreException("Restore is allowed only to an empty DB. Please stop all services using the DB, delete the DB files and restart the DB process.");
 					}
 					
 					// set the presigned URL to expire after a few seconds
@@ -163,7 +181,7 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 					
 					logger.info("restore " + role + "-h2 backup from " + url.toString());					
 					int rows = hibernateSession
-						.createNativeQuery("RUNSCRIPT FROM '" + url.toString() + "' COMPRESSION ZIP")
+						.createNativeQuery("RUNSCRIPT FROM '" + url.toString() + "'")
 						.executeUpdate();
 					logger.info("backup restored, rows: " + rows);
 					
@@ -193,22 +211,40 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 		}
 		printTableStats(hibernateSession);
 		
-		File backupFile = new File("db-backups", backupPrefix + Instant.now() + BACKUP_NAME_POSTFIX);		
+		File backupFile = new File("db-backups", backupPrefix + Instant.now() + backupPostfix);		
 		
 		logger.info("save " + role + "-h2 backup to " + backupFile.getAbsolutePath());
-		hibernateSession.createNativeQuery("SCRIPT TO '" + backupFile.getAbsolutePath() + "' COMPRESSION ZIP").getResultList();
 		
-		logger.info("upload " + role + "-h2 backup");
+		
+		// Stream the script to a local file. We can't use 'SCRIPT TO', because it would save the file to the DB node
+		streamNativeQueryToFile("SCRIPT", backupFile, hibernateSession);
+		
+		logger.info("upload " + role + "-h2 backup (" + FileUtils.byteCountToDisplaySize(backupFile.length()) + ")");
 				
 		TransferManager transferManager = getTransferManager();
 		Upload upload = transferManager.upload(bucket, backupFile.getName(), backupFile);
 		upload.waitForCompletion();		
 		
-		backupFile.delete();
-		
-		removeOldBackups(transferManager, bucket, backupPrefix, backupPostfix);
+		removeOldFileBackups(backupFile.getParentFile(), backupPrefix, backupPostfix);
+		removeOldS3Backups(transferManager, bucket, backupPrefix, backupPostfix);
 	}
 	
+	private void streamNativeQueryToFile(String queryString, File file, Session hibernateSession) throws IOException {
+		
+		@SuppressWarnings("unchecked")
+		Query<Object[]> query = hibernateSession.createNativeQuery(queryString);
+		query.setReadOnly(true);
+		ScrollableResults results = query.scroll(ScrollMode.FORWARD_ONLY);
+
+		try (BufferedWriter writer = Files.newBufferedWriter(file.toPath()))
+		{
+			while (results.next()) {
+				String line = results.get(0).toString();
+				writer.write(line + "\n");
+			}
+		}
+	}
+
 	private Map<String, Long> getTableStats(Session hibernateSession) {
 		@SuppressWarnings("unchecked")
 		List<Object[]> tables = hibernateSession.createNativeQuery("SHOW TABLES").getResultList();
@@ -233,11 +269,11 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 	}
 
 	private TransferManager getTransferManager() {
-		String endpoint = config.getString(CONF_DB_BACKUP_S3_ENDPOINT);
-		String region = config.getString(CONF_DB_BACKUP_S3_REGION);
-		String access = config.getString(CONF_DB_BACKUP_S3_ACCESS_KEY);
-		String secret = config.getString(CONF_DB_BACKUP_S3_SECRET_KEY);
-		String signerOverride = config.getString(COND_DB_BACKUP_S3_SIGNER_OVERRIDE);		
+		String endpoint = config.getString(CONF_DB_BACKUP_S3_ENDPOINT, role);
+		String region = config.getString(CONF_DB_BACKUP_S3_REGION, role);
+		String access = config.getString(CONF_DB_BACKUP_S3_ACCESS_KEY, role);
+		String secret = config.getString(CONF_DB_BACKUP_S3_SECRET_KEY, role);
+		String signerOverride = config.getString(COND_DB_BACKUP_S3_SIGNER_OVERRIDE, role);		
 		
 		if (endpoint == null || region == null || access == null || secret == null) {
 			logger.warn("backups are not configured");
@@ -247,7 +283,7 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 	}
 	
 	private String getBackupBucket() {
-		return config.getString(role + CONF_ROLE_DB_BACKUP_BUCKET);
+		return config.getString(CONF_DB_BACKUP_BUCKET, role);
 	}
 
 	/**
@@ -262,38 +298,68 @@ private void startBackupTimer(int backupInterval, String backupTimeString, Sessi
 	 * @param backupPrefix
 	 * @param backupPostfix
 	 */
-	private void removeOldBackups(TransferManager transferManager, String bucket, String backupPrefix, String backupPostfix) {
-		logger.info("list " + role + "-h2 backups");
+	private void removeOldS3Backups(TransferManager transferManager, String bucket, String backupPrefix, String backupPostfix) {
+		logger.info("list " + role + "-h2 s3 backups");
 		List<S3ObjectSummary> summaries = S3Util.getObjects(transferManager, bucket);
-				
-		logger.info(summaries.size() + " backups found, total size " 
-				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSize(summaries)));
+		
 		// all backups
-		TreeMap<Instant, S3ObjectSummary> filesToDelete = BackupRotation2.parse(summaries, backupPrefix, backupPostfix);
+		TreeMap<Instant, S3ObjectSummary> filesToDelete = BackupRotation2.parse(summaries, backupPrefix, backupPostfix, o -> o.getKey());
+		
+		logger.info(summaries.size() + " s3 backups found, total size " 
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeS3(filesToDelete.values())));
 				
 		TreeMap<Instant, S3ObjectSummary> daily = BackupRotation2.getFirstOfEachDay(filesToDelete);
 		TreeMap<Instant, S3ObjectSummary> monthly = BackupRotation2.getFirstOfEachMonth(filesToDelete);
 		
 		// keep these
-		TreeMap<Instant, S3ObjectSummary> latestDaily = BackupRotation2.getLast(daily, ROTATION_DAILY_COUNT);
-		TreeMap<Instant, S3ObjectSummary> latestMonthly = BackupRotation2.getLast(monthly, ROTATION_MONTHLY_COUNT);
+		TreeMap<Instant, S3ObjectSummary> latestDaily = BackupRotation2.getLast(daily, dailyCountS3);
+		TreeMap<Instant, S3ObjectSummary> latestMonthly = BackupRotation2.getLast(monthly, monthlyCountS3);
 		
-		logger.info(latestDaily.size() + " daily backups kept, total size "
-				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSize(latestDaily.values())));
-		logger.info(latestMonthly.size() + " monthly backups kept, total size "
-				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSize(latestMonthly.values())));
+		logger.info(latestDaily.size() + " daily s3 backups kept, total size "
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeS3(latestDaily.values())));
+		logger.info(latestMonthly.size() + " monthly s3 backups kept, total size "
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeS3(latestMonthly.values())));
 		
 		// remove the backups to keep from the list of all backups to get those that we want to remove 
 		filesToDelete = BackupRotation2.removeAll(filesToDelete, latestDaily.keySet());
 		filesToDelete = BackupRotation2.removeAll(filesToDelete, latestMonthly.keySet());
 				
 		for (S3ObjectSummary obj : filesToDelete.values()) {
-			logger.info("delete backup " + obj.getKey());
+			logger.info("delete s3 backup " + obj.getKey());
 			transferManager.getAmazonS3Client().deleteObject(bucket, obj.getKey());
 		}	
 			
-		logger.info(filesToDelete.size() + " backups deleted, total size "
-				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSize(filesToDelete.values())));
+		logger.info(filesToDelete.size() + " s3 backups deleted, total size "
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeS3(filesToDelete.values())));
 	}
-
+	
+	private void removeOldFileBackups(File dir, String backupPrefix, String backupPostfix) {
+		logger.info("list " + role + "-h2 backup files");	
+		List<File> allFiles = Arrays.asList(dir.listFiles());
+		
+		// all backups
+		TreeMap<Instant, File> filesToDelete = BackupRotation2.parse(allFiles, backupPrefix, backupPostfix, f -> f.getName());
+		
+		logger.info(allFiles.size() + " backup files found, total size " 
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeFiles(filesToDelete.values())));
+				
+		TreeMap<Instant, File> daily = BackupRotation2.getFirstOfEachDay(filesToDelete);
+		
+		// keep these
+		TreeMap<Instant, File> latestDaily = BackupRotation2.getLast(daily, dailyCountFile);
+		
+		logger.info(latestDaily.size() + " daily backup files kept, total size "
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeFiles(latestDaily.values())));
+		
+		// remove the backups to keep from the list of all backups to get those that we want to remove 
+		filesToDelete = BackupRotation2.removeAll(filesToDelete, latestDaily.keySet());
+				
+		for (File obj : filesToDelete.values()) {
+			logger.info("delete backup file " + obj.getName());
+			obj.delete();
+		}	
+			
+		logger.info(filesToDelete.size() + " backup files deleted, total size "
+				+ FileUtils.byteCountToDisplaySize(BackupRotation2.getTotalSizeFiles(filesToDelete.values())));
+	}
 }

@@ -1,11 +1,13 @@
 package fi.csc.chipster.rest.hibernate;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
@@ -77,10 +79,10 @@ public class BackupRotation2 {
 		return last;
 	}
 
-	public static TreeMap<Instant, S3ObjectSummary> parse(List<S3ObjectSummary> summaries, String backupPrefix, String backupPostfix) {
-		TreeMap<Instant, S3ObjectSummary> files = new TreeMap<>();		
-		for (S3ObjectSummary s3Obj : summaries) {
-			String key = s3Obj.getKey();
+	public static <T> TreeMap<Instant, T> parse(List<T> summaries, String backupPrefix, String backupPostfix, Function<T, String> nameFunction) {
+		TreeMap<Instant, T> files = new TreeMap<>();		
+		for (T s3Obj : summaries) {
+			String key = nameFunction.apply(s3Obj);
 			if (key.startsWith(backupPrefix) && key.endsWith(backupPostfix)) {
 				String timestamp = key.replace(backupPrefix, "").replace(backupPostfix, "");
 				try {
@@ -89,8 +91,6 @@ public class BackupRotation2 {
 				} catch (IllegalArgumentException e) {
 					logger.warn("unparseable timestamp in the backup object: " + key);
 				}
-			} else {
-				logger.warn("unparseable key in the backup bucket: " + key);
 			}
 		}
 		return files;
@@ -106,9 +106,17 @@ public class BackupRotation2 {
 		return filtered;
 	}
 
-	public static long getTotalSize(Collection<S3ObjectSummary> summaries) {
+	public static <T> long getTotalSize(Collection<T> summaries, Function<T, Long> sizeFunction) {
 		return summaries.stream()
-				.map(s -> s.getSize())
+				.map(s -> sizeFunction.apply(s))
 				.reduce(0l, Long::sum);
+	}
+	
+	public static long getTotalSizeS3(Collection<S3ObjectSummary> summaries) {
+		return getTotalSize(summaries, s -> s.getSize());
+	}
+	
+	public static long getTotalSizeFiles(Collection<File> summaries) {
+		return getTotalSize(summaries, f -> f.length());
 	}
 }

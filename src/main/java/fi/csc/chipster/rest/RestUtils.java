@@ -345,6 +345,16 @@ public class RestUtils {
     	URI baseUri = URI.create(config.getAdminBindUrl(role));
         return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 	}
+	
+	public static HttpServer startUnauthenticatedAdminServer(Object adminResource, 
+			String role, Config config) {
+		
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
+            	.register(adminResource);
+
+    	URI baseUri = URI.create(config.getAdminBindUrl(role));
+        return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+	}
 
 	public static JerseyStatisticsSource createJerseyStatisticsSource(ResourceConfig rc) {
 		
