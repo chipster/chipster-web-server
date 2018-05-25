@@ -22,6 +22,7 @@ import com.esotericsoftware.yamlbeans.YamlReader;
 
 public class Config {
 	
+	private static final String DB_URL_PREFIX = "db-url-";
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
 	private static final String URL_ADMIN_EXT_PREFIX = "url-admin-ext-";
@@ -121,6 +122,24 @@ public class Config {
 	public String getString(String key) {
 		return getString(key, true, true, true);
 	}
+	
+	/**
+	 * Get config value of <key>-<role> if exists or <key> otherwise
+	 * 
+	 * Makes it simpler to configure default values for e.g. db configs but allows 
+	 * individual configurations for each role when necessary.
+	 * 
+	 * @param key
+	 * @param role
+	 * @return
+	 */
+	public String getString(String key, String role) {
+		if (hasKey(key + "-" + role)) {
+			return getString(key + "-" + role);			
+		}
+		return getString(key);		
+	}
+
 
 	private HashMap<String, String> getVariableDefaults() {
 		return (HashMap<String, String>) readFile(DEFAULT_CONF_PATH).entrySet().stream()
@@ -391,5 +410,18 @@ public class Config {
 	
 	public int getVariableInt(String key) {
 		return Integer.parseInt(getVariableString(key));
+	}
+
+	public Set<String> getDbBackupRoles() {
+		return getConfigEntries(DB_URL_PREFIX).keySet();
+	}
+
+	public boolean hasKey(String key) {
+		try {
+			getString(key);
+			return true;
+		} catch (IllegalArgumentException e) {
+			return false;
+		}
 	}
 }

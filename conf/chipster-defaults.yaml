@@ -14,7 +14,6 @@ service-password-web-server: web-server
 service-password-toolbox: toolbox
 service-password-job-history: job-history
 
-
 # SSO accounts
 # all config items starting with "sso-service-password-" will be automatically authenticated as Role.SSO, none by default
 # sso-service-password-shibboleth: shibboleth
@@ -56,7 +55,7 @@ url-admin-ext-toolbox: http://{{admin-ip}}:8108
 url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
-url-admin-ext-job-history: http://{{admin-ip}}:8114
+url-admin-ext-backup: http://{{admin-ip}}:8115
 
 url-m2m-int-auth: http://{{public-ip}}:8013    
 
@@ -85,7 +84,7 @@ url-admin-bind-toolbox: http://{{admin-bind-ip}}:8108
 url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
-url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
+url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 
 # Single sing-on usernames (defined above with config key "sso-service-passowrd-") can login anyone 
 # in this service (port 8013 by default)
@@ -94,6 +93,21 @@ url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 # 2) firewall this port, only the SSO service needs to access it 
 url-m2m-bind-auth: ""
 
+
+# DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
+
+db-show-sql: false
+db-c3p0-min-size: ""
+db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
+db-driver: org.h2.Driver
+db-user: sa
+# This is just a placeholder, because it wouldn't make sense to try to restore all the databaes from the same file. Set this for individual role 
+# according to instructions above.
+db-restore-key: ""
+# Assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand. 
+# Most likely configured individually for each role, like instructed above.
+db-baseline-version: ""
+
 # db backups
 
 db-backup-s3-endpoint: object.pouta.csc.fi
@@ -101,32 +115,24 @@ db-backup-s3-region: regionOne
 db-backup-s3-access-key: ""
 db-backup-s3-secret-key: ""
 db-backup-s3-signer-override: S3SignerType
-# ensures that you remove the db restore setting  
-db-backup-exit-after-restore: true
+db-backup-bucket: ""
+db-backup-time: 05:10
+# hours
+db-backup-interval: 24
+db-backup-daily-count-s3: 90
+db-backup-monthly-count-s3: 24
+db-backup-daily-count-file: 7
 
 # auth
 
 auth-monitoring-password: monitoring
 
-auth-db-driver: org.h2.Driver
-auth-db-url: jdbc:h2:tcp://localhost:{{auth-db-port}}/chipster-auth-db
-auth-db-user: sa
-auth-db-pass: ""
-auth-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
-auth-db-show-sql: false
-auth-db-c3p0-min-size: ""
-# assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand
-auth-db-baseline-version: ""
-auth-db-backup-bucket: ""
-# hours
-auth-db-backup-interval: 24
-auth-db-backup-time: 05:10
-# restore the db from the backup object
-auth-db-restore-key: ""
+db-url-auth: jdbc:h2:tcp://localhost:{{auth-db-port}}/chipster-auth-db
+db-pass-auth: ""
  
 # comp
 
-# max number of jobs run simultaneusly
+# max number of jobs run simultaneously
 comp-max-jobs: 2
 # time after which a scheuduled job is removed if there is no reponse from the scheduler
 comp-schedule-timeout: 10
@@ -165,42 +171,13 @@ scheduler-job-timer-interval: 1
     
 # allow sharing to everyone only for one username, empty allows for everybody
 session-db-restrict-sharing-to-everyone: jaas/example_session_owner
-
-session-db-db-driver: org.h2.Driver
 // DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
-session-db-db-url: jdbc:h2:tcp://localhost:{{session-db-db-port}}/chipster-session-db-db;DB_CLOSE_ON_EXIT=FALSE
-session-db-db-user: sa
-session-db-db-pass: ""
-session-db-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
-session-db-db-show-sql: false
-session-db-db-c3p0-min-size: ""
-# assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand
-session-db-db-baseline-version: ""
-session-db-db-backup-bucket: ""
-session-db-db-backup-bucket: ""
-# hours
-session-db-db-backup-interval: 24
-session-db-db-backup-time: 05:20
-# restore the db from the backup object
-session-db-db-restore-key: ""
+db-url-session-db: jdbc:h2:tcp://localhost:{{session-db-db-port}}/chipster-session-db-db;DB_CLOSE_ON_EXIT=FALSE
+db-pass-session-db: ""
 
 #job-history-db
-job-history-db-driver: org.h2.Driver
-job-history-db-url: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
-job-history-db-user: sa
-job-history-db-pass: ""
-job-history-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
-job-history-db-show-sql: false
-job-history-db-c3p0-min-size: ""
-# assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand
-job-history-db-baseline-version: ""
-job-history-db-backup-bucket: ""
-job-history-db-backup-bucket: ""
-# hours
-job-history-db-backup-interval: 24
-job-history-db-backup-time: 05:10
-# restore the db from the backup object
-job-history-db-restore-key: ""
+db-url-job-history: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
+db-pass-job-history: ""
 
 # web-server
 

@@ -17,7 +17,7 @@ public class DbSchema {
 	
 	private Logger logger = LogManager.getLogger();
 	
-	private static final String CONF_ROLE_DB_BASELINE = "-db-baseline-version";
+	private static final String CONF_DB_BASELINE = "db-baseline-version";
 	private static final String EXPORT_PATH_PREFIX = "src/main/resources/flyway/";
 	private static final String EXPORT_PATH_POSTFIX = "/exported_hibernate_schema.ddl";
 	private static final String MIGRATION_RESOURCE_PREFIX = "classpath:flyway.";
@@ -40,13 +40,13 @@ public class DbSchema {
 		flyway.setLocations(MIGRATION_RESOURCE_PREFIX + role);
 		
 		// enable once for converting pre-Flyway databases
-		String baselineKey = role + CONF_ROLE_DB_BASELINE;
-		String baselineVersion = config.getString(baselineKey);
+		String baselineKey = CONF_DB_BASELINE + "-" + role;
+		String baselineVersion = config.getString(CONF_DB_BASELINE, role);
 		if (!baselineVersion.isEmpty()) {
 			logger.info("baseline " + role + "-h2 to schema version " + baselineVersion);
 			flyway.setBaselineVersionAsString(baselineVersion);
 			flyway.baseline();
-			logger.warn("Protection against migrating a wrong database is disabled. Set " + baselineKey + " to empty string \"\".");			
+			logger.warn("protection against migrating a wrong database is disabled. Remove " + CONF_DB_BASELINE + "-" + role + " from the configuration");			
 		}	
 		
 		try {
