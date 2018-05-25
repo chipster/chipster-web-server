@@ -28,25 +28,29 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
-@Path("jobhistory")
-public class JobHistoryResource {
 
+public class JobHistoryResource extends AdminResource {
+	@SuppressWarnings("unused")
 	private Config config;
 	private HibernateUtil hibernate;
 	private Logger logger = LogManager.getLogger();
 	public static final String FILTER_ATTRIBUTE_TIME = "Time";
+	
 
-	public JobHistoryResource(HibernateUtil hibernate, Config config) {
+	public JobHistoryResource(HibernateUtil hibernate,Config config) {
+		super();
 		this.config = config;
 		this.hibernate = hibernate;
 	}
 
-	// http://localhost:8200/jobhistory?startTime=gt=2018-02-21T14:16:18.585Z
+	// http://localhost:8014/jobhistory?startTime=gt=2018-02-21T14:16:18.585Z
 	@GET
+	@Path("jobhistory")
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -54,12 +58,13 @@ public class JobHistoryResource {
 
 		MultivaluedMap<String, String> queryParams = uriInfo
 				.getQueryParameters();
+		System.out.println("query param"+queryParams);
 		Map<String, String> parameters = new HashMap<String, String>();
 
 		for (String str : queryParams.keySet()) {
 			parameters.put(str, queryParams.getFirst(str));
 		}
-
+		System.out.println(parameters);
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		// Create CriteriaQuery
 		CriteriaQuery<JobHistoryModel> criteria = builder
@@ -76,8 +81,8 @@ public class JobHistoryResource {
 						// add greater than filter
 						try {
 							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
-								Instant timeVal = Instant.parse(parameters.get(
-										key).split("=")[1]);
+								String time=parameters.get(key).split("=")[1];
+								Instant timeVal = Instant.parse(time);
 								predicate.add(builder.greaterThan(
 										root.get(key), timeVal));
 							} else {
@@ -87,7 +92,7 @@ public class JobHistoryResource {
 
 						} catch (IllegalArgumentException e) {
 							logger.error(
-									"error in parsing job hostory parameter", e);
+									"error in parsing job history parameter", e);
 						}
 
 					} else if (parameters.get(key).contains("lt")) {
@@ -104,7 +109,7 @@ public class JobHistoryResource {
 							}
 						} catch (IllegalArgumentException e) {
 							logger.error(
-									"error in parsing job hostory parameter", e);
+									"error in parsing job history parameter", e);
 						}
 					} else {
 						try {
@@ -112,7 +117,7 @@ public class JobHistoryResource {
 									parameters.get(key)));
 						} catch (IllegalArgumentException e) {
 							logger.error(
-									"error in parsing job hostory parameter", e);
+									"error in parsing job history parameter", e);
 						}
 					}
 				}
@@ -121,6 +126,7 @@ public class JobHistoryResource {
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
 			Collection<JobHistoryModel> jobHistoryList = getHibernate()
 					.session().createQuery(criteria).getResultList();
+			System.out.println(jobHistoryList);
 			return Response.ok(toJaxbList(jobHistoryList)).build();
 
 		} else {
@@ -136,7 +142,7 @@ public class JobHistoryResource {
 
 	@GET
 	@RolesAllowed({ Role.ADMIN })
-	@Path("{id}")
+	@Path("/jobhistory/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getJob(@PathParam("id") UUID jobId) {

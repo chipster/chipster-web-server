@@ -159,6 +159,7 @@ public class SessionDb {
 
 		adminServer = RestUtils.startAdminServer(adminResource, hibernate,
 				Role.SESSION_DB, config, authService);
+		System.out.println("Admin server started");
 	}
 
 	public PubSubServer getPubSubServer() {

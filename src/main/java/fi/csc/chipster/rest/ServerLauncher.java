@@ -89,7 +89,7 @@ public class ServerLauncher {
 		// slaveConfig.set("session-db-events-bind",
 		// "http://127.0.0.1:8074/sessiondbevents/");
 		// slaveConfig.set("session-db-name", "session-db-replicate");
-		// sessionDbSlave = new SessionDb(slaveConfig);
+		// sessionDbSlave = new SessionDb(slaveConfig);it 
 		// sessionDbSlave.startServer();
 
 		if (verbose) {

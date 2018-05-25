@@ -38,6 +38,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	private Logger logger = LogManager.getLogger();
 	private HttpServer httpServer;
+	private HttpServer jobHistoryAdminServer;
 	private HibernateUtil hibernate;
 	private JobHistoryResource jobHistoryResource;
 	private Config config;
@@ -78,17 +79,23 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistoryModel.class);
 		// Initializing hibernate components
 		hibernate = new HibernateUtil(this.config, "job-history", hibernateClasses);
-
-		jobHistoryResource = new JobHistoryResource(hibernate, this.config);
+				
+		this.jobHistoryResource=new JobHistoryResource(hibernate, config);
+		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				.register(jobHistoryResource)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
 				.register(tokenRequestFilter);
-
+		
+	
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 		httpServer.start();
+				
+		//Starting the Job History Admin Server
+		this.jobHistoryAdminServer=RestUtils.startAdminServer(jobHistoryResource,hibernate,Role.JOB_HISTORY,config,authService);
+		System.out.println("Admin server started");
+		this.jobHistoryAdminServer.start();
 
 	}
 
@@ -142,16 +149,18 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				// hibernate.getsession.save()
 				saveJobHistory(job);
 				break;
+			case COMPLETED:
+				logger.info("For imported sessions, jobs are not logged in to job history database");
 			default:
 				break;
 			}
 			break;
 		case UPDATE:
 			job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			System.out.println("IN Update" + job.getState());
 			switch (job.getState()) {
 			case COMPLETED:
 			case FAILED:
+			case RUNNING:
 			case FAILED_USER_ERROR:
 				updateJobHistory(job);
 				break;
