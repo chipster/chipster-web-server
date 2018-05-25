@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.backup.Backup;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.jobhistory.JobHistoryService;
@@ -34,7 +35,6 @@ public class ServerLauncher {
 	private SessionDb sessionDbSlave;
 
 	private SessionWorker sessionWorker;
-
 	private JavascriptService typeService;
 
 	private JobHistoryService jobHistoryService;
@@ -42,6 +42,8 @@ public class ServerLauncher {
 	private DbServer authDb;
 	private DbServer sessionDbDb;
 	private DbServer jobHistoryDb;
+
+	private Backup backup;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 
@@ -136,6 +138,13 @@ public class ServerLauncher {
 		}
 		typeService = new JavascriptService("js/type-service");
 		typeService.startServer();
+		
+//		if (verbose) {
+//			logger.info("starting backup service");
+//		}
+//		backup = new Backup(config);
+//		backup.start();
+
 
 		if (verbose) {
 			logger.info("up and running ("
@@ -152,6 +161,14 @@ public class ServerLauncher {
 
 	public void stop() {
 
+		if (backup != null) {
+			try {
+				backup.close();
+			} catch (Exception e) {
+				logger.warn("closing backup service failed", e);
+			}
+		}
+		
 		if (web != null) {
 			try {
 				web.close();
