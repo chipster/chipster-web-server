@@ -38,7 +38,6 @@ import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationExceptio
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
-	private static final String AUTH_ID_JAAS = "jaas";
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -52,6 +51,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	private Set<String> adminAccounts;
 	private Map<String, String> ssoAccounts;
 
+	private final String jaasPrefix;
+
 	private JaasAuthenticationProvider authenticationProvider;
 
 	private HashMap<String, String> monitoringAccounts;
@@ -64,6 +65,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
 		ssoAccounts = config.getSsoServicePasswords();
+		jaasPrefix = config.getString(Config.KEY_AUTH_JAAS_PREFIX);
 		
 		// give Role.SERVER also for SSO accounts
 		serviceAccounts.putAll(ssoAccounts);
@@ -164,7 +166,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		try {
 			// throws if username is not a userId
 			UserId userId = new UserId(username);			
-			if (userId.getAuth().equals(AUTH_ID_JAAS)) {
+			if (userId.getAuth().equals(jaasPrefix)) {
 				// jaas userId (e.g. "jaas/jdoe"), login without the prefix
 				jaasUsername = userId.getUsername();
 			} else {
@@ -185,7 +187,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 
 	private User addOrUpdateUser(String username) {
-		User user = new User(AUTH_ID_JAAS, username, null, null, username);
+		User user = new User(jaasPrefix, username, null, null, username);
 		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
