@@ -56,6 +56,7 @@ url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
+url-admin-ext-job-history: http://{{admin-ip}}:8114
 
 url-m2m-int-auth: http://{{public-ip}}:8013    
 
@@ -86,6 +87,7 @@ url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
+url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 
 # Single sing-on usernames (defined above with config key "sso-service-passowrd-") can login anyone 
 # in this service (port 8013 by default)
