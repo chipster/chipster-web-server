@@ -1,11 +1,15 @@
 import {RxHR} from "@akanass/rx-http-request";
-import {Observable, Subject} from "rxjs";
 import {Logger} from "./logger";
 import {Config} from "./config";
+import { Observable, Subject } from "rxjs";
+import 'rxjs/add/operator/map';
+import 'rxjs/add/operator/mergeMap';
+import 'rxjs/add/observable/forkJoin';
 const restify = require('restify');
 const request = require('request');
 const fs = require('fs');
 const errors = require('restify-errors');
+const YAML = require('yamljs');
 
 const logger = Logger.getLogger(__filename);
 
@@ -210,11 +214,10 @@ export class RestClient {
 	}
 
 	getServiceLocator(webServer) {
-    return RxHR.get(webServer + '/assets/app.constants.ts').map(resp => {
+    return RxHR.get(webServer + '/assets/conf/chipster.yaml').map(resp => {
       let body = this.handleResponse(resp);
-      body = body.slice(body.indexOf('export const ServiceLocator = \''));
-      let parts = body.split('\'');
-      return parts[1];
+      let conf = YAML.parse(body);
+      return conf['service-locator'];
     });
   }
 

@@ -1,5 +1,7 @@
 import {RestClient} from "./rest-client";
-import {Observable} from "rxjs";
+import { Observable } from "rxjs";
+import 'rxjs/add/observable/of';
+import 'rxjs/add/operator/map';
 import {Logger} from "./logger";
 import {Config} from "./config";
 import {Tag, Tags, TypeTags} from "./type-tags";
