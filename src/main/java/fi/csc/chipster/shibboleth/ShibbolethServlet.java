@@ -41,6 +41,7 @@ public class ShibbolethServlet extends HttpServlet {
 		
 		// add query parameter "debug" to disable the redirect
 		boolean debug = request.getParameterMap().containsKey("debug");
+		String appRoute = request.getParameter("appRoute");
 
 		String eppn = fixEncoding(request.getAttribute("SHIB_eppn"));
 		String cn = fixEncoding(request.getAttribute("SHIB_cn"));
@@ -62,7 +63,7 @@ public class ShibbolethServlet extends HttpServlet {
 			throw e;
 		}
 		
-		String loggedInUrl = webAppUrl + "/sessions";
+		String loggedInUrl = webAppUrl + "/" + appRoute + "/login";
 				
 		try (ServletOutputStream out = response.getOutputStream()) {
 			response.setContentType("text/html;charset=UTF-8");
