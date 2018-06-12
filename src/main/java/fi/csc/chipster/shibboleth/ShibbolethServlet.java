@@ -2,6 +2,7 @@ package fi.csc.chipster.shibboleth;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -11,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.BadRequestException;
 import javax.xml.bind.DatatypeConverter;
 
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,6 +25,9 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 
 public class ShibbolethServlet extends HttpServlet {
+
+	private static final String DEBUG = "debug";
+	private static final String APP_ROUTE = "appRoute";
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -40,8 +45,8 @@ public class ShibbolethServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
 		// add query parameter "debug" to disable the redirect
-		boolean debug = request.getParameterMap().containsKey("debug");
-		String appRoute = request.getParameter("appRoute");
+		boolean debug = request.getParameterMap().containsKey(DEBUG);
+		String appRoute = request.getParameter(APP_ROUTE);
 
 		String eppn = fixEncoding(request.getAttribute("SHIB_eppn"));
 		String cn = fixEncoding(request.getAttribute("SHIB_cn"));
@@ -63,7 +68,20 @@ public class ShibbolethServlet extends HttpServlet {
 			throw e;
 		}
 		
-		String loggedInUrl = webAppUrl + "/" + appRoute + "/login";
+		String loggedInUrl;
+		try {
+			URIBuilder loggedInUrlBuilder = new URIBuilder(webAppUrl + "/" + appRoute + "/login");
+		
+			// keep all other query parameters in the url
+			request.getParameterMap().keySet().stream()
+				.filter(p -> !p.equals(APP_ROUTE))
+				.filter(p -> !p.equals(DEBUG))
+				.forEach(p -> loggedInUrlBuilder.addParameter(p, request.getParameter(p)));
+			
+			loggedInUrl = loggedInUrlBuilder.build().toString();
+		} catch (URISyntaxException e) {
+			throw new ServletException("failed to build the return url", e);
+		}
 				
 		try (ServletOutputStream out = response.getOutputStream()) {
 			response.setContentType("text/html;charset=UTF-8");
