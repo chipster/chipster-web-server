@@ -71,14 +71,17 @@ public class ShibbolethServlet extends HttpServlet {
 		String loggedInUrl;
 		try {
 			URIBuilder loggedInUrlBuilder = new URIBuilder(webAppUrl + "/" + appRoute + "/login");
-		
-			// keep all other query parameters in the url
-			request.getParameterMap().keySet().stream()
-				.filter(p -> !p.equals(APP_ROUTE))
-				.filter(p -> !p.equals(DEBUG))
-				.forEach(p -> loggedInUrlBuilder.addParameter(p, request.getParameter(p)));
 			
+			// keep all other query parameters in the url
+			for (String key : request.getParameterMap().keySet()) {
+				logger.info("found parameter " + key + " " + request.getParameter(key));
+				if (!key.equals(APP_ROUTE) && !key.equals(DEBUG)) {
+					loggedInUrlBuilder.addParameter(key, request.getParameter(key));
+				}
+			}
+							
 			loggedInUrl = loggedInUrlBuilder.build().toString();
+			logger.info("after login redirect to: " + loggedInUrl);
 		} catch (URISyntaxException e) {
 			throw new ServletException("failed to build the return url", e);
 		}
