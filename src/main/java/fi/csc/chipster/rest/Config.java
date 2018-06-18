@@ -69,6 +69,8 @@ public class Config {
 	
 	public static final String KEY_TOOLBOX_TOOLS_BIN_PATH = "toolbox-tools-bin-path";
 	
+	public static final String KEY_AUTH_JAAS_PREFIX = "auth-jaas-prefix";
+	
 	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
 
 	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);

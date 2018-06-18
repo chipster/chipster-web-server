@@ -1,9 +1,17 @@
 
-import {RestClient} from "../../type-service/src/rest-client";
-import {Observable, Subject} from "rxjs";
 import {Logger} from "../../type-service/src/logger";
 import CliEnvironment from "./cli-environment";
-import {subscribeOn} from "rxjs/operator/subscribeOn";
+import { Observable } from "rxjs";
+import { Subject } from "rxjs";
+import 'rxjs/add/observable/of';
+import 'rxjs/add/observable/from';
+import 'rxjs/add/observable/forkJoin';
+import 'rxjs/add/observable/empty';
+import 'rxjs/add/operator/do';
+import 'rxjs/add/operator/map';
+import 'rxjs/add/operator/mergeMap';
+import 'rxjs/add/operator/toArray';
+import {RestClient} from "../../type-service/src/rest-client";
 
 const path = require('path');
 const read = require('read');
@@ -163,11 +171,11 @@ export default class CliClient {
       }
     } else if (args.command === 'login') {
       this.login(args)
-        .flatMap(() => this.printLoginStatus(null))
+        .mergeMap(() => this.printLoginStatus(null))
         .subscribe()
     } else if (args.command === 'logout') {
       this.logout()
-        .flatMap(() => this.printLoginStatus(null))
+        .mergeMap(() => this.printLoginStatus(null))
         .subscribe();
     }
   }
@@ -203,7 +211,7 @@ export default class CliClient {
       return Observable.of(this.restClient);
     } else {
       let uri$ = this.env.get('webServerUri')
-        .flatMap(webServerUrl => new RestClient(true, null, null).getServiceLocator(webServerUrl));
+        .mergeMap(webServerUrl => new RestClient(true, null, null).getServiceLocator(webServerUrl));
 
       let token$ = this.env.get('token');
 
@@ -236,32 +244,32 @@ export default class CliClient {
 
     // get the previous uri and use it as a prompt default
     return this.env.get('webServerUri')
-      .flatMap(defaultUri => args.URL ? Observable.of(args.URL) : this.getPrompt('server: ', defaultUri))
+      .mergeMap(defaultUri => args.URL ? Observable.of(args.URL) : this.getPrompt('server: ', defaultUri))
       .map(webServer => this.fixUri(webServer))
       .do(webServer => webServerUri = webServer)
 
       // get the previous username and use it as a prompt default
-      .flatMap(() => this.env.get('username'))
-      .flatMap(defaultUsername => args.username ? Observable.of(args.username) : this.getPrompt('username: ', defaultUsername))
+      .mergeMap(() => this.env.get('username'))
+      .mergeMap(defaultUsername => args.username ? Observable.of(args.username) : this.getPrompt('username: ', defaultUsername))
       .do(u => username = u)
 
       // password prompt
-      .flatMap(() => args.password ? Observable.of(args.password) : this.getPrompt('password: ', '', true))
+      .mergeMap(() => args.password ? Observable.of(args.password) : this.getPrompt('password: ', '', true))
       .do(p => password = p)
 
       // get the service locator address
-      .flatMap(() => new RestClient(true, null, null).getServiceLocator(webServerUri))
+      .mergeMap(() => new RestClient(true, null, null).getServiceLocator(webServerUri))
       // get token
-      .flatMap(serviceLocatorUrl => {
+      .mergeMap(serviceLocatorUrl => {
         let guestClient = new RestClient(true, null, serviceLocatorUrl);
         return guestClient.getToken(username, password)
       })
 
       // save
-      .flatMap(token => this.env.set('token', token.tokenKey))
-      .flatMap(() => this.env.set('webServerUri', webServerUri))
-      .flatMap(() => this.env.set('username', username))
-      .flatMap(() => this.checkLogin());
+      .mergeMap(token => this.env.set('token', token.tokenKey))
+      .mergeMap(() => this.env.set('webServerUri', webServerUri))
+      .mergeMap(() => this.env.set('username', username))
+      .mergeMap(() => this.checkLogin());
   }
 
   fixUri(uri) {
@@ -288,15 +296,15 @@ export default class CliClient {
     let datasetId;
 
     this.checkLogin()
-      .flatMap(() => this.restClient.postSession({name: sessionName}))
+      .mergeMap(() => this.restClient.postSession({name: sessionName}))
       .do(id => sessionId = id)
-      .flatMap(() => this.restClient.postDataset(sessionId, {name: datasetName}))
+      .mergeMap(() => this.restClient.postDataset(sessionId, {name: datasetName}))
       .do(id => datasetId = id)
-      .flatMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
-      .flatMap(() => this.restClient.extractSession(sessionId, datasetId))
+      .mergeMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
+      .mergeMap(() => this.restClient.extractSession(sessionId, datasetId))
       .do((resp) => console.log(resp))
-      .flatMap(() => this.restClient.deleteDataset(sessionId, datasetId))
-      .flatMap(() => this.setOpenSession(sessionId))
+      .mergeMap(() => this.restClient.deleteDataset(sessionId, datasetId))
+      .mergeMap(() => this.setOpenSession(sessionId))
       .subscribe();
   }
 
@@ -304,13 +312,13 @@ export default class CliClient {
     let file = args.file || args.name + '.zip';
 
     this.getSessionByNameOrId(args.name)
-      .flatMap(session => this.restClient.packageSession(session.sessionId, file))
+      .mergeMap(session => this.restClient.packageSession(session.sessionId, file))
       .subscribe();
   }
 
   sessionList() {
     this.checkLogin()
-      .flatMap(() => this.restClient.getSessions())
+      .mergeMap(() => this.restClient.getSessions())
       .map((sessions: Array<any>) => sessions.map(s => s.name))
       .subscribe(sessions => {
         sessions.forEach(name => console.log(name))
@@ -324,7 +332,7 @@ export default class CliClient {
 
   sessionOpen(args) {
     this.getSessionByNameOrId(args.name)
-      .flatMap((session: any) => this.setOpenSession(session.sessionId))
+      .mergeMap((session: any) => this.setOpenSession(session.sessionId))
       .subscribe();
   }
 
@@ -334,33 +342,33 @@ export default class CliClient {
 
   ruleList() {
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.getRules(sessionId))
+      .mergeMap(() => this.getSessionId())
+      .mergeMap(sessionId => this.restClient.getRules(sessionId))
       .subscribe(list => console.log(list));
   }
 
   ruleCreate(args) {
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r'))
+      .mergeMap(() => this.getSessionId())
+      .mergeMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r'))
       .subscribe(res => console.log(res));
   }
 
   ruleDelete(args) {
     let sessionId: string;
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
+      .mergeMap(() => this.getSessionId())
       .do(id => sessionId = id)
-      .flatMap(() => this.restClient.getRules(sessionId))
-      .flatMap((rules: any) => Observable.from(rules.filter(r => r.username === args.username)))
-      .flatMap((rule: any) => this.restClient.deleteRule(sessionId, rule.ruleId))
+      .mergeMap(() => this.restClient.getRules(sessionId))
+      .mergeMap((rules: any) => Observable.from(rules.filter(r => r.username === args.username)))
+      .mergeMap((rule: any) => this.restClient.deleteRule(sessionId, rule.ruleId))
       .subscribe(null, err => console.error('failed to delete the rule', err));
   }
 
   datasetList() {
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.getDatasets(sessionId))
+      .mergeMap(() => this.getSessionId())
+      .mergeMap(sessionId => this.restClient.getDatasets(sessionId))
       .map((datasets: Array<any>) => datasets.map(d => d.name))
       .subscribe(datasets => console.log(datasets));
   }
@@ -374,30 +382,30 @@ export default class CliClient {
     let name = args.name || path.basename(args.file);
     let sessionId;
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
+      .mergeMap(() => this.getSessionId())
       .do(id => sessionId = id)
-      .flatMap(() => this.restClient.postDataset(sessionId, {name: name}))
-      .flatMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
+      .mergeMap(() => this.restClient.postDataset(sessionId, {name: name}))
+      .mergeMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
       .subscribe();
   }
 
   datasetDelete(args) {
     let sessionId;
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
+      .mergeMap(() => this.getSessionId())
       .do(id => sessionId = id)
-      .flatMap(() => this.getDatasetByNameOrId(args.name))
-      .flatMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId))
+      .mergeMap(() => this.getDatasetByNameOrId(args.name))
+      .mergeMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId))
       .subscribe();
   }
 
   datasetDownload(args) {
     let sessionId;
     this.checkLogin()
-      .flatMap(() => this.getSessionId())
+      .mergeMap(() => this.getSessionId())
       .do(id => sessionId = id)
-      .flatMap(() => this.getDatasetByNameOrId(args.name))
-      .flatMap(dataset => {
+      .mergeMap(() => this.getDatasetByNameOrId(args.name))
+      .mergeMap(dataset => {
         let file = args.file || args.name;
         return this.restClient.downloadFile(sessionId, dataset.datasetId, file);
       })
@@ -406,7 +414,7 @@ export default class CliClient {
 
   getSessionByNameOrId(search: string) {
     return this.checkLogin()
-      .flatMap(() => this.restClient.getSessions())
+      .mergeMap(() => this.restClient.getSessions())
       .map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId === search))
       .map(sessions => {
         if (sessions.length !== 1) {
@@ -418,8 +426,8 @@ export default class CliClient {
 
   getDatasetByNameOrId(search: string) {
     return this.checkLogin()
-      .flatMap(() => this.getSessionId())
-      .flatMap(sessionId => this.restClient.getDatasets(sessionId))
+      .mergeMap(() => this.getSessionId())
+      .mergeMap(sessionId => this.restClient.getDatasets(sessionId))
       .map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId === search))
       .map(datasets => {
         if (datasets.length !== 1) {
@@ -431,19 +439,19 @@ export default class CliClient {
 
   sessionDelete(args) {
     this.getSessionByNameOrId(args.name)
-      .flatMap(s => this.restClient.deleteSession(s.sessionId))
+      .mergeMap(s => this.restClient.deleteSession(s.sessionId))
       .subscribe();
   }
 
   sessionCreate(args) {
     this.checkLogin()
-      .flatMap(() => this.restClient.postSession({name: args.name}))
+      .mergeMap(() => this.restClient.postSession({name: args.name}))
       .subscribe();
   }
 
   serviceList() {
     this.checkLogin()
-      .flatMap(() => this.restClient.getServices())
+      .mergeMap(() => this.restClient.getServices())
       .subscribe(
         services => console.log(services),
         err => console.error('failed to list services', err))
@@ -451,11 +459,11 @@ export default class CliClient {
 
   serviceGet(args) {
     this.checkLogin()
-      .flatMap(() => this.restClient.getServices())
+      .mergeMap(() => this.restClient.getServices())
       .map((services: Array<any>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http')))
       .map((services: Array<any>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name))
-      .flatMap(services => Observable.from(services))
-      .flatMap(service => {
+      .mergeMap(services => Observable.from(services))
+      .mergeMap(service => {
         return Observable.forkJoin(
           Observable.of(service),
           this.restClient.getStatus(service.publicUri)
@@ -497,7 +505,7 @@ export default class CliClient {
     return value;
   }
 
-  getPrompt(prompt, defaultValue = null, silent = false) {
+  getPrompt(prompt, defaultValue = '', silent = false) {
     let subject = new Subject();
 
     read({ prompt: prompt, silent: silent, default: defaultValue}, function(err, line) {

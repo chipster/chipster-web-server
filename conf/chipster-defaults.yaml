@@ -85,8 +85,8 @@ url-admin-bind-toolbox: http://{{admin-bind-ip}}:8108
 url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
-url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
+url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 
 # Single sing-on usernames (defined above with config key "sso-service-passowrd-") can login anyone 
 # in this service (port 8013 by default)
@@ -128,6 +128,7 @@ db-backup-daily-count-file: 7
 # auth
 
 auth-monitoring-password: monitoring
+auth-jaas-prefix: jaas
 
 db-url-auth: jdbc:h2:tcp://localhost:{{auth-db-port}}/chipster-auth-db
 db-pass-auth: ""
@@ -178,8 +179,8 @@ db-url-session-db: jdbc:h2:tcp://localhost:{{session-db-db-port}}/chipster-sessi
 db-pass-session-db: ""
 
 #job-history-db
-db-url-job-history: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
-db-pass-job-history: ""
+#db-url-job-history: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
+#db-pass-job-history: ""
 
 # web-server
 
