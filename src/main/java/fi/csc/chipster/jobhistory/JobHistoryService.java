@@ -78,7 +78,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistoryModel.class);
 		// Initializing hibernate components
-		hibernate = new HibernateUtil(this.config, "job-history", hibernateClasses);
+		hibernate = new HibernateUtil(this.config, Role.JOB_HISTORY, hibernateClasses);
 				
 		this.jobHistoryResource=new JobHistoryResource(hibernate, config);
 		

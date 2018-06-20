@@ -179,8 +179,8 @@ db-url-session-db: jdbc:h2:tcp://localhost:{{session-db-db-port}}/chipster-sessi
 db-pass-session-db: ""
 
 #job-history-db
-#db-url-job-history: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
-#db-pass-job-history: ""
+db-url-job-history: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
+db-pass-job-history: ""
 
 # web-server
 
