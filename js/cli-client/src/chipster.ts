@@ -2,7 +2,6 @@
 import {Logger} from "../../type-service/src/logger";
 import CliEnvironment from "./cli-environment";
 import { Observable } from "rxjs";
-import { Subject } from "rxjs";
 import 'rxjs/add/observable/of';
 import 'rxjs/add/observable/from';
 import 'rxjs/add/observable/forkJoin';
@@ -11,10 +10,12 @@ import 'rxjs/add/operator/do';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/mergeMap';
 import 'rxjs/add/operator/toArray';
-import {RestClient} from "../../type-service/src/rest-client";
+import { RestClient } from "../../type-service/src/rest-client";
+import * as _ from 'lodash';
+import WsClient from "./ws-client";
+import ChipsterUtils from "./chipster-utils";
 
 const path = require('path');
-const read = require('read');
 const ArgumentParser = require('argparse').ArgumentParser;
 const logger = Logger.getLogger(__filename);
 
@@ -91,6 +92,38 @@ export default class CliClient {
     datasetDownloadSubparser.addArgument(['name'], {help: 'dataset name or id'});
     datasetDownloadSubparser.addArgument(['--file'], {help: 'file to write or - for stdout'});
 
+
+    let jobSubparsers = subparsers.addParser('job').addSubparsers({
+      title:'job subcommands',
+      dest:"subcommand"
+    });
+
+    let jobListSubparser = jobSubparsers.addParser('list');
+
+    let jobGetSubparser = jobSubparsers.addParser('get');
+    jobGetSubparser.addArgument(['name'], { help: 'job name or id' });
+    
+    let jobRunSubparser = jobSubparsers.addParser('run');
+    jobRunSubparser.addArgument(['tool'], { help: 'tool name or id' });
+    jobRunSubparser.addArgument(['--input', '-i'], { help: 'INPUT_NAME=DATASET_NAME_OR_ID', action: 'append' });
+    jobRunSubparser.addArgument(['--parameter', '-p'], { help: 'PARAMETER_NAME=VALUE', action: 'append' });
+    jobRunSubparser.addArgument(['--background', '-b'], {help: 'do not wait'});
+
+    let jobDeleteSubparser = jobSubparsers.addParser('delete');
+    jobDeleteSubparser.addArgument(['name'], { help: 'job name or id' });
+    
+
+    let toolSubparsers = subparsers.addParser('tool').addSubparsers({
+      title:'tool subcommands',
+      dest:"subcommand"
+    });
+
+    let toolListSubparser = toolSubparsers.addParser('list');
+
+    let toolGetSubparser = toolSubparsers.addParser('get');
+    toolGetSubparser.addArgument(['name'], {help: 'tool name or id'});
+
+
     let loginSubparser = subparsers.addParser('login');
 
 
@@ -154,6 +187,20 @@ export default class CliClient {
         case 'upload': this.datasetUpload(args); break;
         case 'download': this.datasetDownload(args); break;
         case 'delete': this.datasetDelete(args); break;
+        default: throw new Error('unknown subcommand ' + args.subcommand);
+      }
+    } else if (args.command === 'job') {
+      switch (args.subcommand) {
+        case 'list': this.jobList(); break;
+        case 'get': this.jobGet(args); break;
+        case 'run': this.jobRun(args); break;
+        case 'delete': this.jobDelete(args); break;
+        default: throw new Error('unknown subcommand ' + args.subcommand);
+      }
+    } else if (args.command === 'tool') {
+      switch (args.subcommand) {
+        case 'list': this.toolList(); break;
+        case 'get': this.toolGet(args); break;
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'rule') {
@@ -244,17 +291,17 @@ export default class CliClient {
 
     // get the previous uri and use it as a prompt default
     return this.env.get('webServerUri')
-      .mergeMap(defaultUri => args.URL ? Observable.of(args.URL) : this.getPrompt('server: ', defaultUri))
-      .map(webServer => this.fixUri(webServer))
+      .mergeMap(defaultUri => args.URL ? Observable.of(args.URL) : ChipsterUtils.getPrompt('server: ', defaultUri))
+      .map(webServer => ChipsterUtils.fixUri(webServer))
       .do(webServer => webServerUri = webServer)
 
       // get the previous username and use it as a prompt default
       .mergeMap(() => this.env.get('username'))
-      .mergeMap(defaultUsername => args.username ? Observable.of(args.username) : this.getPrompt('username: ', defaultUsername))
+      .mergeMap(defaultUsername => args.username ? Observable.of(args.username) : ChipsterUtils.getPrompt('username: ', defaultUsername))
       .do(u => username = u)
 
       // password prompt
-      .mergeMap(() => args.password ? Observable.of(args.password) : this.getPrompt('password: ', '', true))
+      .mergeMap(() => args.password ? Observable.of(args.password) : ChipsterUtils.getPrompt('password: ', '', true))
       .do(p => password = p)
 
       // get the service locator address
@@ -272,18 +319,6 @@ export default class CliClient {
       .mergeMap(() => this.checkLogin());
   }
 
-  fixUri(uri) {
-    if (!uri.startsWith('http')) {
-      // add protocol
-      uri = 'http://' + uri;
-    }
-    if (uri.endsWith('/')) {
-      // remove trailing slash
-      uri = uri.slice(0, -1);
-    }
-    return uri;
-  }
-
   logout() {
     return this.env.set('token', null);
   }
@@ -295,14 +330,22 @@ export default class CliClient {
     let sessionId;
     let datasetId;
 
-    this.checkLogin()
+    this.checkLogin()  
       .mergeMap(() => this.restClient.postSession({name: sessionName}))
       .do(id => sessionId = id)
+      .do(id => ChipsterUtils.printStatus(args, 'SessionID', id))
       .mergeMap(() => this.restClient.postDataset(sessionId, {name: datasetName}))
       .do(id => datasetId = id)
+      .do(() => ChipsterUtils.printStatus(args, 'Uploading'))
       .mergeMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
+      .do(() => ChipsterUtils.printStatus(args, 'Extracting'))
       .mergeMap(() => this.restClient.extractSession(sessionId, datasetId))
-      .do((resp) => console.log(resp))
+      .do((resp: string) => {
+        const warnings = <string[]>JSON.parse(resp);
+        if (warnings.length > 0) {
+          console.error('warnings', warnings);
+        }
+      })
       .mergeMap(() => this.restClient.deleteDataset(sessionId, datasetId))
       .mergeMap(() => this.setOpenSession(sessionId))
       .subscribe();
@@ -319,9 +362,8 @@ export default class CliClient {
   sessionList() {
     this.checkLogin()
       .mergeMap(() => this.restClient.getSessions())
-      .map((sessions: Array<any>) => sessions.map(s => s.name))
-      .subscribe(sessions => {
-        sessions.forEach(name => console.log(name))
+      .subscribe((sessions: Array<any>) => {
+        sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
       });
   }
 
@@ -369,8 +411,9 @@ export default class CliClient {
     this.checkLogin()
       .mergeMap(() => this.getSessionId())
       .mergeMap(sessionId => this.restClient.getDatasets(sessionId))
-      .map((datasets: Array<any>) => datasets.map(d => d.name))
-      .subscribe(datasets => console.log(datasets));
+      .subscribe((datasets: Array<any>) => {
+        datasets.forEach(d => console.log(d.name.padEnd(50), d.datasetId))
+      });
   }
 
   datasetGet(args) {
@@ -412,10 +455,99 @@ export default class CliClient {
       .subscribe();
   }
 
+  jobList() {
+    this.checkLogin()
+      .mergeMap(() => this.getSessionId())
+      .mergeMap(sessionId => this.restClient.getJobs(sessionId))
+      .subscribe((jobs: Array<any>) => {
+        jobs.forEach(j => ChipsterUtils.printTable(j, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]));
+      });
+  }
+
+  jobGet(args) {
+    this.getJobByNameOrId(args.name)
+      .subscribe(job => console.log(job));
+  }
+
+  jobRun(args) {
+    let sessionId, jobId, inputMap;
+    let wsClient;
+
+    this.checkLogin()
+      .mergeMap(() => this.getSessionId())
+      .do(id => sessionId = id)
+      .do(() => {
+        wsClient = new WsClient(this.restClient);
+        wsClient.connect(sessionId);
+      })
+      .mergeMap(() => {
+        inputMap = ChipsterUtils.parseArgArray(args.input);
+        const datasetObservables = Array.from(inputMap.keys()).map(key => {
+          return this.getDatasetByNameOrId(inputMap.get(key))
+            .do(dataset => inputMap.set(key, dataset.datasetId));
+        });
+        return Observable.forkJoin(datasetObservables);
+      })
+      .mergeMap(() => this.getToolByNameOrId(args.tool))
+      .map(tool => {        
+        const paramMap = ChipsterUtils.parseArgArray(args.parameter);
+        const job = this.restClient.createJob(tool, paramMap, inputMap);
+        return job;
+      })
+      .mergeMap(job => this.restClient.postJob(sessionId, job))
+      .do(id => jobId = id)
+      .do(() => {
+        wsClient.getJobState$(jobId).subscribe(job => {
+          console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
+        }, err => {
+          console.error('failed to get the job state', err);
+        }, () => {
+          wsClient.disconnect();
+        });
+        wsClient.getJobScreenOutput$(jobId).subscribe(output => {
+          process.stdout.write(output);
+        });
+        wsClient.getJobOutputDatasets$(jobId).subscribe(dataset => {
+          console.log('* dataset created: ' + dataset.name.padEnd(24) + dataset.datasetId);
+        });
+      })
+      .subscribe();
+  }
+
+  jobDelete(args) {
+    let sessionId;
+    this.checkLogin()
+      .mergeMap(() => this.getSessionId())
+      .do(id => sessionId = id)
+      .mergeMap(() => this.getJobByNameOrId(args.name))
+      .mergeMap(job => this.restClient.deleteJob(sessionId, job.jobId))
+      .subscribe();
+  }
+
+  toolList() {
+    // login not needed, but it creates restClient
+    this.checkLogin()
+      .mergeMap(() => this.restClient.getTools())
+      .subscribe((modules: Array<any>) => {
+        modules.forEach(module => {
+          module['categories'].forEach(category => {
+            category.tools.forEach(tool => {
+              console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
+            });
+          });
+        });
+      });
+  }
+
+  toolGet(args) {
+    this.getToolByNameOrId(args.name)
+      .subscribe(tool => console.log(JSON.stringify(tool, null, 2)));
+  }
+
   getSessionByNameOrId(search: string) {
     return this.checkLogin()
       .mergeMap(() => this.restClient.getSessions())
-      .map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId === search))
+      .map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId.startsWith(search)))
       .map(sessions => {
         if (sessions.length !== 1) {
           throw new Error('found ' + sessions.length + ' sessions');
@@ -428,12 +560,46 @@ export default class CliClient {
     return this.checkLogin()
       .mergeMap(() => this.getSessionId())
       .mergeMap(sessionId => this.restClient.getDatasets(sessionId))
-      .map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId === search))
+      .map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId.startsWith(search)))
       .map(datasets => {
         if (datasets.length !== 1) {
           throw new Error('found ' + datasets.length + ' datasets');
         }
         return datasets[0];
+      });
+  }
+
+  getJobByNameOrId(search: string) {
+    return this.checkLogin()
+      .mergeMap(() => this.getSessionId())
+      .mergeMap(sessionId => this.restClient.getJobs(sessionId))
+      .map((jobs: Array<any>) => jobs.filter(j => j.toolId === search || j.jobId.startsWith(search)))
+      .map(jobs => {
+        if (jobs.length !== 1) {
+          throw new Error('found ' + jobs.length + ' jobs');
+        }
+        return jobs[0];
+      });
+  }
+
+  getToolByNameOrId(search: string) {
+    // login not needed, but it creates restClient
+    return this.checkLogin()
+      .mergeMap(() => this.restClient.getTools())
+      .map((modules: any[]) => {
+        const categoryArrays = modules.map(module => module.categories);
+        const categories = _.flatten(categoryArrays);
+        const toolArrays = categories.map(category => category.tools);
+        return _.flatten(toolArrays);
+      })
+      .map((tools: Array<any>) => tools.filter(t => {
+        return t.name.id === search || t.name.displayName === search;
+      }))
+      .map(tools => {
+        if (tools.length !== 1) {
+          throw new Error('found ' + tools.length + ' tools');
+        }
+        return tools[0];
       });
   }
 
@@ -480,7 +646,7 @@ export default class CliClient {
             let status = res[1];
             for (let key in status) {
               let value = status[key];
-              console.log(service.role + '\t' + service.serviceId+ '\t' + key + '\t' + value + '\t' + this.toHumanReadable(value));
+              console.log(service.role + '\t' + service.serviceId+ '\t' + key + '\t' + value + '\t' + ChipsterUtils.toHumanReadable(value));
             }
           } else {
             statuses.forEach(res => {
@@ -490,33 +656,6 @@ export default class CliClient {
         },
           err => console.error('failed to list services', err)
       );
-  }
-
-  toHumanReadable(value) {
-    if (Number.isInteger(value)) {
-      if (value > Math.pow(1024, 3)) {
-        value = Math.round(value / Math.pow(1024, 3) * 10) / 10 + ' G';
-      } else if (value > Math.pow(1024, 2)) {
-        value = Math.round(value / Math.pow(1024, 2) * 10) / 10 + ' M';
-      } else if (value > 1024) {
-        value = Math.round(value / 1024 * 10) / 10 + ' k'
-      }
-    }
-    return value;
-  }
-
-  getPrompt(prompt, defaultValue = '', silent = false) {
-    let subject = new Subject();
-
-    read({ prompt: prompt, silent: silent, default: defaultValue}, function(err, line) {
-      if (err) {
-        subject.error(err);
-      }
-      subject.next(line);
-      subject.complete();
-    });
-
-    return subject;
   }
 }
 

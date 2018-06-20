@@ -19,7 +19,7 @@ export class RestClient {
 
   constructor(
     private isClient: boolean,
-    private token: string,
+    public token: string,
     private serviceLocatorUri?: string) {
 
     if (!isClient) {
@@ -93,6 +93,41 @@ export class RestClient {
       .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/sessions/' + sessionId + '/datasets/', this.token, dataset))
       .map((resp: any) => JSON.parse(resp).datasetId);
   }
+
+  getJobs(sessionId): Observable<any> {
+		return this.getSessionDbUri().mergeMap(sessionDbUri => {
+			return this.getJson(sessionDbUri + '/sessions/' + sessionId + '/jobs/', this.token);
+		});
+	}
+
+	getJob(sessionId, jobId): Observable<any> {
+		return this.getSessionDbUri().mergeMap(sessionDbUri => {
+			return this.getJson(sessionDbUri + '/sessions/' + sessionId + '/jobs/' + jobId, this.token);
+		});
+  }
+  
+  postJob(sessionId: string, job: any) {
+    return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.postJson(sessionDbUri + '/sessions/' + sessionId + '/jobs/', this.token, job))
+      .map((resp: any) => JSON.parse(resp).jobId);
+  }
+
+	deleteJob(sessionId: string, jobId: string) {
+	  return this.getSessionDbUri()
+      .mergeMap(sessionDbUri => this.deleteWithToken(sessionDbUri + '/sessions/' + sessionId + '/jobs/' + jobId, this.token));
+  }
+
+  getTools(): Observable<any> {
+		return this.getToolboxUri().mergeMap(uri => {
+			return this.getJson(uri + '/modules/', null);
+		});
+	}
+
+	getTool(toolId): Observable<any> {
+		return this.getToolboxUri().mergeMap(uri => {
+			return this.getJson(uri + '/tools/' + toolId, null);
+		});
+	}
 
   downloadFile(sessionId: string, datasetId: string, file: string) {
     return this.getFileBrokerUri()
@@ -178,7 +213,7 @@ export class RestClient {
 				this.token,
 				{Range: 'bytes=0-' + maxLength});
 		});
-	}
+  }
 
 	getAuthUri() {
 		return this.getServiceUri('auth');
@@ -192,6 +227,14 @@ export class RestClient {
 		return this.getServiceUri('session-db');
 	}
 
+  getSessionDbEventsUri() {
+		return this.getServiceUri('session-db-events');
+  }
+  
+  getToolboxUri() {
+		return this.getServiceUri('toolbox');
+  }
+  
   getSessionWorkerUri() {
     return this.getServiceUri('session-worker');
   }
@@ -219,6 +262,46 @@ export class RestClient {
       let conf = YAML.parse(body);
       return conf['service-locator'];
     });
+  }
+
+  createJob(tool, paramMap, inputMap) {
+    let job = {
+    toolId: tool.name.id,
+      state: 'NEW',
+      parameters: [],
+      inputs: [],
+    };
+
+    tool.parameters.forEach(p => {
+      const param = {
+        parameterId: p.name.id,
+        displayName: p.name.displayName,
+        description: p.name.description,
+        type: p.type,
+        value: p.defaultValue,
+      };
+      if (paramMap.has(p.name.id)) {
+        param.value = paramMap.get(p.name.id);
+      }
+      job.parameters.push(param);
+    });
+
+    tool.inputs.forEach(i => {
+      const input = {
+        inputId: i.name.id,
+        displayName: i.name.displayName,
+        description: i.name.description,
+        type: i.type.name,
+        datasetId: null,
+      };
+      if (inputMap.has(i.name.id)) {
+        input.datasetId = inputMap.get(i.name.id);
+      } else if (i.isOptional !== true) {
+        throw Error('non-optional input "' + i.name.id + '" has no dataset')
+      }
+      job.inputs.push(input);
+    });
+    return job;
   }
 
 	getJson(uri: string, token: string): Observable<any> {
