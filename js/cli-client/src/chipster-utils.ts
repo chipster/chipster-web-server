@@ -71,7 +71,7 @@ export default class ChipsterUtils {
       static fixUri(uri) {
         if (!uri.startsWith('http')) {
           // add protocol
-          uri = 'http://' + uri;
+          uri = 'https://' + uri;
         }
         if (uri.endsWith('/')) {
           // remove trailing slash

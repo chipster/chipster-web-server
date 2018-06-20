@@ -2,20 +2,7 @@ import {Logger} from "../../type-service/src/logger";
 import CliEnvironment from "./cli-environment";
 import { Observable } from "rxjs";
 import { Subject } from "rxjs";
-import 'rxjs/add/observable/of';
-import 'rxjs/add/observable/from';
-import 'rxjs/add/observable/forkJoin';
-import 'rxjs/add/observable/empty';
-import 'rxjs/add/operator/do';
-import 'rxjs/add/operator/map';
-import 'rxjs/add/operator/mergeMap';
-import 'rxjs/add/operator/toArray';
-import 'rxjs/add/operator/filter';
-import 'rxjs/add/operator/takeWhile';
-import 'rxjs/add/operator/pairwise';
-import 'rxjs/add/operator/distinctUntilChanged';
-import 'rxjs/add/operator/startWith';
-import 'rxjs/add/operator/finally';
+import { filter, mergeMap, takeWhile, tap, distinctUntilChanged, map, startWith, pairwise } from 'rxjs/operators';
 
 import { RestClient } from "../../type-service/src/rest-client";
 import * as _ from 'lodash';
@@ -80,32 +67,32 @@ export default class WsClient {
         const successStates = [
             'COMPLETED']          
 
-        return this.wsEvents$
-            .filter(e => e.resourceType === 'JOB' && e.resourceId === jobId)
-            .mergeMap(e => this.restClient.getJob(this.sessionId, jobId))
-            .do(job => {
+        return this.wsEvents$.pipe(
+            filter((e: any) => e.resourceType === 'JOB' && e.resourceId === jobId),
+            mergeMap(e => this.restClient.getJob(this.sessionId, jobId)),
+            tap((job: any) => {
                 if (failedStates.indexOf(job.state) !== -1) {
                     throw Error('job ' + job.state + ': ' + job.stateDetail);
                 }
-            })
-            .takeWhile(job => successStates.indexOf(job.state) === -1);
+            }),
+            takeWhile((job: any) => successStates.indexOf(job.state) === -1));
     }
 
     getJobState$(jobId: string) {
-        return this.getJob$(jobId)
-            .distinctUntilChanged((a, b) => {
+        return this.getJob$(jobId).pipe(
+            distinctUntilChanged((a: any, b: any) => {
                 return a.state === b.state && a.stateDetail === b.stateDetail;
-            });
+            }));
     }
 
     getJobScreenOutput$(jobId: string) {
         let warned = false;
-        return this.getJob$(jobId)
-            .map(job => job.screenOutput)
-            .filter(output => output != null)
-            .startWith('')
-            .pairwise()
-            .map(outputPair => {
+        return this.getJob$(jobId).pipe(
+            map((job: any) => job.screenOutput),
+            filter(output => output != null),
+            startWith(''),
+            pairwise(),
+            map(outputPair => {
                 // It's hard to get perfect copies of the screen output
                 // when we may miss some object versions, but it's good enough
                 // for human eyes.
@@ -124,16 +111,16 @@ export default class WsClient {
                     return outputPair[1];
                 }
                 return outputPair[1].slice(outputPair[0].length);
-            });
+            }));
     }
 
     getJobOutputDatasets$(jobId: string) {
-        return this.wsEvents$
-            .filter(event => event.resourceType === 'DATASET' && event.type === 'CREATE')
+        return this.wsEvents$.pipe(
+            filter((event: any) => event.resourceType === 'DATASET' && event.type === 'CREATE'),
             // we have to get all created datasets to see if 
             // it was created by this job
-            .mergeMap(event => this.restClient.getDataset(this.sessionId, event.resourceId))
-            .filter(dataset => dataset.sourceJob === jobId);
+            mergeMap((event: any) => this.restClient.getDataset(this.sessionId, event.resourceId)),
+            filter((dataset: any) => dataset.sourceJob === jobId));
     }
 
     disconnect() {

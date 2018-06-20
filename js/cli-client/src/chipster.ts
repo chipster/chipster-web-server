@@ -14,6 +14,7 @@ import { RestClient } from "../../type-service/src/rest-client";
 import * as _ from 'lodash';
 import WsClient from "./ws-client";
 import ChipsterUtils from "./chipster-utils";
+import ChipsterClient from "./chipster-client";
 
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
@@ -264,7 +265,7 @@ export default class CliClient {
 
       return Observable.forkJoin(uri$, token$).map(res => {
 
-        let uri = res[0];
+        let uri = <string>res[0];
         let token = res[1];
 
         if (uri && token) {
@@ -292,7 +293,6 @@ export default class CliClient {
     // get the previous uri and use it as a prompt default
     return this.env.get('webServerUri')
       .mergeMap(defaultUri => args.URL ? Observable.of(args.URL) : ChipsterUtils.getPrompt('server: ', defaultUri))
-      .map(webServer => ChipsterUtils.fixUri(webServer))
       .do(webServer => webServerUri = webServer)
 
       // get the previous username and use it as a prompt default
@@ -304,16 +304,9 @@ export default class CliClient {
       .mergeMap(() => args.password ? Observable.of(args.password) : ChipsterUtils.getPrompt('password: ', '', true))
       .do(p => password = p)
 
-      // get the service locator address
-      .mergeMap(() => new RestClient(true, null, null).getServiceLocator(webServerUri))
-      // get token
-      .mergeMap(serviceLocatorUrl => {
-        let guestClient = new RestClient(true, null, serviceLocatorUrl);
-        return guestClient.getToken(username, password)
-      })
-
+      .mergeMap(() => ChipsterClient.login(webServerUri, username, password))
       // save
-      .mergeMap(token => this.env.set('token', token.tokenKey))
+      .mergeMap((token: any) => this.env.set('token', token.tokenKey))
       .mergeMap(() => this.env.set('webServerUri', webServerUri))
       .mergeMap(() => this.env.set('username', username))
       .mergeMap(() => this.checkLogin());
