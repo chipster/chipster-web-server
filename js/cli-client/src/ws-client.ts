@@ -1,17 +1,16 @@
-import {Logger} from "../../type-service/src/logger";
 import CliEnvironment from "./cli-environment";
-import { Observable } from "rxjs";
 import { Subject } from "rxjs";
 import { filter, mergeMap, takeWhile, tap, distinctUntilChanged, map, startWith, pairwise } from 'rxjs/operators';
+//const RestClient = require('rest-client')
 
-import { RestClient } from "../../type-service/src/rest-client";
 import * as _ from 'lodash';
+import { RestClient, Logger } from "rest-client";
 const WebSocket = require('ws');
 
 const path = require('path');
 const read = require('read');
 const ArgumentParser = require('argparse').ArgumentParser;
-const logger = Logger.getLogger(__filename);
+//const logger = Logger.getLogger(__filename);
 
 export default class WsClient {
 
@@ -72,7 +71,7 @@ export default class WsClient {
             mergeMap(e => this.restClient.getJob(this.sessionId, jobId)),
             tap((job: any) => {
                 if (failedStates.indexOf(job.state) !== -1) {
-                    throw Error('job ' + job.state + ': ' + job.stateDetail);
+                    throw Error('job ' + job.state + ': ' + job.stateDetail + "\nscreen output:\n" + job.screenOutput);
                 }
             }),
             takeWhile((job: any) => successStates.indexOf(job.state) === -1));

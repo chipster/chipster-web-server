@@ -6,6 +6,8 @@ import {RxHR} from "@akanass/rx-http-request";
 import {Logger} from "./logger";
 import {Config} from "./config";
 
+
+
 const restify = require('restify');
 const request = require('request');
 const fs = require('fs');
@@ -95,6 +97,12 @@ export class RestClient {
       map((resp: any) => JSON.parse(resp).datasetId),);
   }
 
+  putDataset(sessionId: string, dataset: any) {
+    return this.getSessionDbUri().pipe(
+      mergeMap(sessionDbUri => this.putJson(sessionDbUri + '/sessions/' + sessionId + '/datasets/' + dataset.datasetId, this.token, dataset)),
+    );
+  }
+
   getJobs(sessionId): Observable<any> {
 		return this.getSessionDbUri().pipe(mergeMap(sessionDbUri => {
 			return this.getJson(sessionDbUri + '/sessions/' + sessionId + '/jobs/', this.token);
@@ -125,9 +133,10 @@ export class RestClient {
 	}
 
 	getTool(toolId): Observable<any> {
-		return this.getToolboxUri().pipe(mergeMap(uri => {
-			return this.getJson(uri + '/tools/' + toolId, null);
-		}));
+    return this.getToolboxUri().pipe(
+      mergeMap(uri => this.getJson(uri + '/tools/' + toolId, null)),
+      map((toolBoxTool: any) => toolBoxTool.sadlDescription),
+		);
 	}
 
   downloadFile(sessionId: string, datasetId: string, file: string) {
@@ -141,7 +150,10 @@ export class RestClient {
       .subscribe(fileBrokerUri => {
         request.get(uri)
           .on('response', (resp) => this.checkForError(resp))
-          .on('end', () => subject.next())
+          .on('end', () => {
+            subject.next();
+            subject.complete();
+          })
           .auth('token', this.token)
           .pipe(this.getWriteStream(file));
       });
@@ -172,7 +184,10 @@ export class RestClient {
         let req = request.put(fileBrokerUri + '/sessions/' + sessionId + '/datasets/' + datasetId)
           .auth('token', this.token)
           .on('response', (resp) => this.checkForError(resp))
-          .on('end', () => subject.next());
+          .on('end', () => {
+            subject.next(datasetId);
+            subject.complete();
+          });
 
         this.getReadStream(file)
           .pipe(req);
@@ -257,53 +272,13 @@ export class RestClient {
 		}));
 	}
 
-	getServiceLocator(webServer) {
+  getServiceLocator(webServer) {
     return RxHR.get(webServer + '/assets/conf/chipster.yaml').pipe(
       map(resp => {
       let body = this.handleResponse(resp);
       let conf = YAML.parse(body);
       return conf['service-locator'];
     }));
-  }
-
-  createJob(tool, paramMap, inputMap) {
-    let job = {
-    toolId: tool.name.id,
-      state: 'NEW',
-      parameters: [],
-      inputs: [],
-    };
-
-    tool.parameters.forEach(p => {
-      const param = {
-        parameterId: p.name.id,
-        displayName: p.name.displayName,
-        description: p.name.description,
-        type: p.type,
-        value: p.defaultValue,
-      };
-      if (paramMap.has(p.name.id)) {
-        param.value = paramMap.get(p.name.id);
-      }
-      job.parameters.push(param);
-    });
-
-    tool.inputs.forEach(i => {
-      const input = {
-        inputId: i.name.id,
-        displayName: i.name.displayName,
-        description: i.name.description,
-        type: i.type.name,
-        datasetId: null,
-      };
-      if (inputMap.has(i.name.id)) {
-        input.datasetId = inputMap.get(i.name.id);
-      } else if (i.isOptional !== true) {
-        throw Error('non-optional input "' + i.name.id + '" has no dataset')
-      }
-      job.inputs.push(input);
-    });
-    return job;
   }
 
 	getJson(uri: string, token: string): Observable<any> {
@@ -338,16 +313,26 @@ export class RestClient {
 
   post(uri: string, headers?: Object, body?: Object): Observable<string> {
     let options = {headers: headers, body: body};
-
     logger.debug('post()', uri + ' ' + JSON.stringify(options.headers));
-
     return RxHR.post(uri, options).pipe(map(data => this.handleResponse(data)));
+  }
+
+  put(uri: string, headers?: Object, body?: Object): Observable<string> {
+    let options = {headers: headers, body: body};
+    logger.debug('put()', uri + ' ' + JSON.stringify(options.headers));
+    return RxHR.put(uri, options).pipe(map(data => this.handleResponse(data)));
   }
 
   postJson(uri: string, token: string, data: any): Observable<string> {
     let headers = this.getBasicAuthHeader('token', token);
     headers['content-type'] = 'application/json';
     return this.post(uri, headers, JSON.stringify(data));
+  }
+
+  putJson(uri: string, token: string, data: any): Observable<string> {
+    let headers = this.getBasicAuthHeader('token', token);
+    headers['content-type'] = 'application/json';
+    return this.put(uri, headers, JSON.stringify(data));
   }
 
   deleteWithToken(uri: string, token: string) {

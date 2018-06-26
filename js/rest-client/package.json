@@ -1,0 +1,21 @@
+{
+    "name": "rest-client",
+    "version": "0.0.1",
+    "private": true,
+    "main": "src/exports.js",
+    "dependencies": {
+        "@akanass/rx-http-request": "^3.0.0",
+        "restify": "^7.2.1",
+        "rxjs": "6.0.0",
+        "winston": "^2.4.0",
+        "yamljs": "^0.3.0"
+    },
+    "devDependencies": {
+        "@types/node": "~10.1.2",
+        "ts-node": "~5.0.1",
+        "typescript": "~2.7.2"
+    },
+    "engines": {
+        "node": "v0.6.x"
+    }
+}

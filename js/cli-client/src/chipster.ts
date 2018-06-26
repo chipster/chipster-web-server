@@ -1,24 +1,18 @@
 
-import {Logger} from "../../type-service/src/logger";
+import {empty as observableEmpty, of as observableOf, forkJoin as observableForkJoin, from as observableFrom } from 'rxjs';
+
+import {toArray, tap, mergeMap, map} from 'rxjs/operators';
+
 import CliEnvironment from "./cli-environment";
-import { Observable } from "rxjs";
-import 'rxjs/add/observable/of';
-import 'rxjs/add/observable/from';
-import 'rxjs/add/observable/forkJoin';
-import 'rxjs/add/observable/empty';
-import 'rxjs/add/operator/do';
-import 'rxjs/add/operator/map';
-import 'rxjs/add/operator/mergeMap';
-import 'rxjs/add/operator/toArray';
-import { RestClient } from "../../type-service/src/rest-client";
 import * as _ from 'lodash';
 import WsClient from "./ws-client";
 import ChipsterUtils from "./chipster-utils";
-import ChipsterClient from "./chipster-client";
+import { RestClient, Logger } from "rest-client";
 
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
 const logger = Logger.getLogger(__filename);
+
 
 export default class CliClient {
 
@@ -164,8 +158,8 @@ export default class CliClient {
 
     logger.debug(args);
 
-    this.printLoginStatus(args)
-      .do(() => this.runCommand(args))
+    this.printLoginStatus(args).pipe(
+      tap(() => this.runCommand(args)))
       .subscribe();
   }
 
@@ -218,12 +212,12 @@ export default class CliClient {
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'login') {
-      this.login(args)
-        .mergeMap(() => this.printLoginStatus(null))
+      this.login(args).pipe(
+        mergeMap(() => this.printLoginStatus(null)))
         .subscribe()
     } else if (args.command === 'logout') {
-      this.logout()
-        .mergeMap(() => this.printLoginStatus(null))
+      this.logout().pipe(
+        mergeMap(() => this.printLoginStatus(null)))
         .subscribe();
     }
   }
@@ -231,21 +225,21 @@ export default class CliClient {
   printLoginStatus(args) {
 
     if (args && (args.command === 'login' || args.command === 'logout' || args.quiet)) {
-      return Observable.of(null);
+      return observableOf(null);
     } else {
 
       let uri$ = this.env.get('webServerUri');
       let username$ = this.env.get('username');
       let token$ = this.env.get('token');
 
-      return Observable.forkJoin(uri$, username$, token$).do(res => {
+      return observableForkJoin(uri$, username$, token$).pipe(tap(res => {
         if (res[2]) {
           console.log('Logged in to ' + res[0] + ' as ' + res[1]);
           console.log();
         } else {
           console.log('Logged out');
         }
-      });
+      }));
     }
   }
 
@@ -253,30 +247,22 @@ export default class CliClient {
     return !!this.restClient;
   }
 
-
   checkLogin() {
     if (this.isLoggedIn()) {
-      return Observable.of(this.restClient);
+      return observableOf(this.restClient);
     } else {
-      let uri$ = this.env.get('webServerUri')
-        .mergeMap(webServerUrl => new RestClient(true, null, null).getServiceLocator(webServerUrl));
-
-      let token$ = this.env.get('token');
-
-      return Observable.forkJoin(uri$, token$).map(res => {
-
-        let uri = <string>res[0];
-        let token = res[1];
-
-        if (uri && token) {
-
-          // use existing token
-          this.restClient = new RestClient(true, token, uri);
-          return this.restClient;
-        } else {
-          throw new Error('Login required');
-        }
-      });
+      let webServerUrl;
+      return this.env.get('webServerUri').pipe(
+        tap(url => webServerUrl = url),
+        mergeMap(() => this.env.get('token')),
+        mergeMap(token => {
+          if (!webServerUrl || !token) {
+            throw new Error('Login required');
+          }
+          return ChipsterUtils.getRestClient(webServerUrl, token);
+        }),
+        tap(restClient => this.restClient = restClient),
+      );
     }
   }
 
@@ -291,25 +277,26 @@ export default class CliClient {
     let password;
 
     // get the previous uri and use it as a prompt default
-    return this.env.get('webServerUri')
-      .mergeMap(defaultUri => args.URL ? Observable.of(args.URL) : ChipsterUtils.getPrompt('server: ', defaultUri))
-      .do(webServer => webServerUri = webServer)
+    return this.env.get('webServerUri').pipe(
+      mergeMap(defaultUri => args.URL ? observableOf(args.URL) : ChipsterUtils.getPrompt('server: ', defaultUri)),
+      map(webServer => ChipsterUtils.fixUri(webServer)),
+      tap(webServer => webServerUri = webServer),
 
       // get the previous username and use it as a prompt default
-      .mergeMap(() => this.env.get('username'))
-      .mergeMap(defaultUsername => args.username ? Observable.of(args.username) : ChipsterUtils.getPrompt('username: ', defaultUsername))
-      .do(u => username = u)
+      mergeMap(() => this.env.get('username')),
+      mergeMap(defaultUsername => args.username ? observableOf(args.username) : ChipsterUtils.getPrompt('username: ', defaultUsername)),
+      tap(u => username = u),
 
       // password prompt
-      .mergeMap(() => args.password ? Observable.of(args.password) : ChipsterUtils.getPrompt('password: ', '', true))
-      .do(p => password = p)
+      mergeMap(() => args.password ? observableOf(args.password) : ChipsterUtils.getPrompt('password: ', '', true)),
+      tap(p => password = p),
 
-      .mergeMap(() => ChipsterClient.login(webServerUri, username, password))
+      mergeMap(() => ChipsterUtils.login(webServerUri, username, password)),
       // save
-      .mergeMap((token: any) => this.env.set('token', token.tokenKey))
-      .mergeMap(() => this.env.set('webServerUri', webServerUri))
-      .mergeMap(() => this.env.set('username', username))
-      .mergeMap(() => this.checkLogin());
+      mergeMap((token: any) => this.env.set('token', token.tokenKey)),
+      mergeMap(() => this.env.set('webServerUri', webServerUri)),
+      mergeMap(() => this.env.set('username', username)),
+      mergeMap(() => this.checkLogin()),);
   }
 
   logout() {
@@ -323,38 +310,23 @@ export default class CliClient {
     let sessionId;
     let datasetId;
 
-    this.checkLogin()  
-      .mergeMap(() => this.restClient.postSession({name: sessionName}))
-      .do(id => sessionId = id)
-      .do(id => ChipsterUtils.printStatus(args, 'SessionID', id))
-      .mergeMap(() => this.restClient.postDataset(sessionId, {name: datasetName}))
-      .do(id => datasetId = id)
-      .do(() => ChipsterUtils.printStatus(args, 'Uploading'))
-      .mergeMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
-      .do(() => ChipsterUtils.printStatus(args, 'Extracting'))
-      .mergeMap(() => this.restClient.extractSession(sessionId, datasetId))
-      .do((resp: string) => {
-        const warnings = <string[]>JSON.parse(resp);
-        if (warnings.length > 0) {
-          console.error('warnings', warnings);
-        }
-      })
-      .mergeMap(() => this.restClient.deleteDataset(sessionId, datasetId))
-      .mergeMap(() => this.setOpenSession(sessionId))
+    this.checkLogin().pipe(  
+      mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !args.quiet)),
+      mergeMap(sessionId => this.setOpenSession(sessionId)),)
       .subscribe();
   }
 
   sessionDownload(args) {
     let file = args.file || args.name + '.zip';
 
-    this.getSessionByNameOrId(args.name)
-      .mergeMap(session => this.restClient.packageSession(session.sessionId, file))
+    this.getSessionByNameOrId(args.name).pipe(
+      mergeMap(session => this.restClient.packageSession(session.sessionId, file)))
       .subscribe();
   }
 
   sessionList() {
-    this.checkLogin()
-      .mergeMap(() => this.restClient.getSessions())
+    this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getSessions()))
       .subscribe((sessions: Array<any>) => {
         sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
       });
@@ -366,8 +338,8 @@ export default class CliClient {
   }
 
   sessionOpen(args) {
-    this.getSessionByNameOrId(args.name)
-      .mergeMap((session: any) => this.setOpenSession(session.sessionId))
+    this.getSessionByNameOrId(args.name).pipe(
+      mergeMap((session: any) => this.setOpenSession(session.sessionId)))
       .subscribe();
   }
 
@@ -376,34 +348,34 @@ export default class CliClient {
   }
 
   ruleList() {
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .mergeMap(sessionId => this.restClient.getRules(sessionId))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      mergeMap(sessionId => this.restClient.getRules(sessionId)),)
       .subscribe(list => console.log(list));
   }
 
   ruleCreate(args) {
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .mergeMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r'))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      mergeMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r')),)
       .subscribe(res => console.log(res));
   }
 
   ruleDelete(args) {
     let sessionId: string;
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .do(id => sessionId = id)
-      .mergeMap(() => this.restClient.getRules(sessionId))
-      .mergeMap((rules: any) => Observable.from(rules.filter(r => r.username === args.username)))
-      .mergeMap((rule: any) => this.restClient.deleteRule(sessionId, rule.ruleId))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap(id => sessionId = id),
+      mergeMap(() => this.restClient.getRules(sessionId)),
+      mergeMap((rules: any) => observableFrom(rules.filter(r => r.username === args.username))),
+      mergeMap((rule: any) => this.restClient.deleteRule(sessionId, rule.ruleId)),)
       .subscribe(null, err => console.error('failed to delete the rule', err));
   }
 
   datasetList() {
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .mergeMap(sessionId => this.restClient.getDatasets(sessionId))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      mergeMap(sessionId => this.restClient.getDatasets(sessionId)),)
       .subscribe((datasets: Array<any>) => {
         datasets.forEach(d => console.log(d.name.padEnd(50), d.datasetId))
       });
@@ -417,41 +389,40 @@ export default class CliClient {
   datasetUpload(args) {
     let name = args.name || path.basename(args.file);
     let sessionId;
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .do(id => sessionId = id)
-      .mergeMap(() => this.restClient.postDataset(sessionId, {name: name}))
-      .mergeMap(datasetId => this.restClient.uploadFile(sessionId, datasetId, args.file))
-      .subscribe();
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap(id => sessionId = id),
+      mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, sessionId, args.file, name)),      
+    ).subscribe();
   }
 
   datasetDelete(args) {
     let sessionId;
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .do(id => sessionId = id)
-      .mergeMap(() => this.getDatasetByNameOrId(args.name))
-      .mergeMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap(id => sessionId = id),
+      mergeMap(() => this.getDatasetByNameOrId(args.name)),
+      mergeMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId)),)
       .subscribe();
   }
 
   datasetDownload(args) {
     let sessionId;
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .do(id => sessionId = id)
-      .mergeMap(() => this.getDatasetByNameOrId(args.name))
-      .mergeMap(dataset => {
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap(id => sessionId = id),
+      mergeMap(() => this.getDatasetByNameOrId(args.name)),
+      mergeMap(dataset => {
         let file = args.file || args.name;
         return this.restClient.downloadFile(sessionId, dataset.datasetId, file);
-      })
+      }),)
       .subscribe();
   }
 
   jobList() {
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .mergeMap(sessionId => this.restClient.getJobs(sessionId))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      mergeMap(sessionId => this.restClient.getJobs(sessionId)),)
       .subscribe((jobs: Array<any>) => {
         jobs.forEach(j => ChipsterUtils.printTable(j, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]));
       });
@@ -466,30 +437,28 @@ export default class CliClient {
     let sessionId, jobId, inputMap;
     let wsClient;
 
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .do(id => sessionId = id)
-      .do(() => {
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap(id => sessionId = id),
+      tap(() => {
         wsClient = new WsClient(this.restClient);
         wsClient.connect(sessionId);
-      })
-      .mergeMap(() => {
+      }),
+      mergeMap(() => {
         inputMap = ChipsterUtils.parseArgArray(args.input);
         const datasetObservables = Array.from(inputMap.keys()).map(key => {
-          return this.getDatasetByNameOrId(inputMap.get(key))
-            .do(dataset => inputMap.set(key, dataset.datasetId));
+          return this.getDatasetByNameOrId(inputMap.get(key)).pipe(
+            tap(dataset => inputMap.set(key, dataset)));
         });
-        return Observable.forkJoin(datasetObservables);
-      })
-      .mergeMap(() => this.getToolByNameOrId(args.tool))
-      .map(tool => {        
+        return observableForkJoin(datasetObservables);
+      }),
+      mergeMap(() => this.getToolByNameOrId(args.tool)),
+      mergeMap(tool => {
         const paramMap = ChipsterUtils.parseArgArray(args.parameter);
-        const job = this.restClient.createJob(tool, paramMap, inputMap);
-        return job;
-      })
-      .mergeMap(job => this.restClient.postJob(sessionId, job))
-      .do(id => jobId = id)
-      .do(() => {
+        return ChipsterUtils.jobRun(this.restClient, sessionId, tool, paramMap, inputMap);
+      }),
+      tap(id => jobId = id),
+      tap(() => {
         wsClient.getJobState$(jobId).subscribe(job => {
           console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
         }, err => {
@@ -503,24 +472,24 @@ export default class CliClient {
         wsClient.getJobOutputDatasets$(jobId).subscribe(dataset => {
           console.log('* dataset created: ' + dataset.name.padEnd(24) + dataset.datasetId);
         });
-      })
+      }),)
       .subscribe();
   }
 
   jobDelete(args) {
     let sessionId;
-    this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .do(id => sessionId = id)
-      .mergeMap(() => this.getJobByNameOrId(args.name))
-      .mergeMap(job => this.restClient.deleteJob(sessionId, job.jobId))
+    this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap(id => sessionId = id),
+      mergeMap(() => this.getJobByNameOrId(args.name)),
+      mergeMap(job => this.restClient.deleteJob(sessionId, job.jobId)),)
       .subscribe();
   }
 
   toolList() {
     // login not needed, but it creates restClient
-    this.checkLogin()
-      .mergeMap(() => this.restClient.getTools())
+    this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getTools()))
       .subscribe((modules: Array<any>) => {
         modules.forEach(module => {
           module['categories'].forEach(category => {
@@ -538,100 +507,100 @@ export default class CliClient {
   }
 
   getSessionByNameOrId(search: string) {
-    return this.checkLogin()
-      .mergeMap(() => this.restClient.getSessions())
-      .map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId.startsWith(search)))
-      .map(sessions => {
+    return this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getSessions()),
+      map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId.startsWith(search))),
+      map(sessions => {
         if (sessions.length !== 1) {
           throw new Error('found ' + sessions.length + ' sessions');
         }
         return sessions[0];
-      });
+      }),);
   }
 
   getDatasetByNameOrId(search: string) {
-    return this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .mergeMap(sessionId => this.restClient.getDatasets(sessionId))
-      .map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId.startsWith(search)))
-      .map(datasets => {
+    return this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      mergeMap(sessionId => this.restClient.getDatasets(sessionId)),
+      map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId.startsWith(search))),
+      map(datasets => {
         if (datasets.length !== 1) {
           throw new Error('found ' + datasets.length + ' datasets');
         }
         return datasets[0];
-      });
+      }),);
   }
 
   getJobByNameOrId(search: string) {
-    return this.checkLogin()
-      .mergeMap(() => this.getSessionId())
-      .mergeMap(sessionId => this.restClient.getJobs(sessionId))
-      .map((jobs: Array<any>) => jobs.filter(j => j.toolId === search || j.jobId.startsWith(search)))
-      .map(jobs => {
+    return this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      mergeMap(sessionId => this.restClient.getJobs(sessionId)),
+      map((jobs: Array<any>) => jobs.filter(j => j.toolId === search || j.jobId.startsWith(search))),
+      map(jobs => {
         if (jobs.length !== 1) {
           throw new Error('found ' + jobs.length + ' jobs');
         }
         return jobs[0];
-      });
+      }),);
   }
 
   getToolByNameOrId(search: string) {
     // login not needed, but it creates restClient
-    return this.checkLogin()
-      .mergeMap(() => this.restClient.getTools())
-      .map((modules: any[]) => {
+    return this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getTools()),
+      map((modules: any[]) => {
         const categoryArrays = modules.map(module => module.categories);
         const categories = _.flatten(categoryArrays);
         const toolArrays = categories.map(category => category.tools);
         return _.flatten(toolArrays);
-      })
-      .map((tools: Array<any>) => tools.filter(t => {
+      }),
+      map((tools: Array<any>) => tools.filter(t => {
         return t.name.id === search || t.name.displayName === search;
-      }))
-      .map(tools => {
+      })),
+      map(tools => {
         if (tools.length !== 1) {
           throw new Error('found ' + tools.length + ' tools');
         }
         return tools[0];
-      });
+      }),);
   }
 
   sessionDelete(args) {
-    this.getSessionByNameOrId(args.name)
-      .mergeMap(s => this.restClient.deleteSession(s.sessionId))
+    this.getSessionByNameOrId(args.name).pipe(
+      mergeMap(s => this.restClient.deleteSession(s.sessionId)))
       .subscribe();
   }
 
   sessionCreate(args) {
-    this.checkLogin()
-      .mergeMap(() => this.restClient.postSession({name: args.name}))
+    this.checkLogin().pipe(
+      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)))
       .subscribe();
   }
 
   serviceList() {
-    this.checkLogin()
-      .mergeMap(() => this.restClient.getServices())
+    this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getServices()))
       .subscribe(
         services => console.log(services),
         err => console.error('failed to list services', err))
   }
 
   serviceGet(args) {
-    this.checkLogin()
-      .mergeMap(() => this.restClient.getServices())
-      .map((services: Array<any>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http')))
-      .map((services: Array<any>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name))
-      .mergeMap(services => Observable.from(services))
-      .mergeMap(service => {
-        return Observable.forkJoin(
-          Observable.of(service),
+    this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getServices()),
+      map((services: Array<any>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http'))),
+      map((services: Array<any>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name)),
+      mergeMap(services => observableFrom(services)),
+      mergeMap(service => {
+        return observableForkJoin(
+          observableOf(service),
           this.restClient.getStatus(service.publicUri)
             .catch(err => {
               console.log(service.role + ' error (' + service.publicUri + ')');
-              return Observable.empty();
+              return observableEmpty();
         }));
-      })
-      .toArray()
+      }),
+      toArray(),)
       .subscribe(statuses => {
           if (statuses.length === 1) {
             let res = statuses[0];

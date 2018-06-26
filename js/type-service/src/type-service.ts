@@ -1,7 +1,10 @@
+
+import {of as observableOf,  Observable } from 'rxjs';
+
+import {map} from 'rxjs/operators';
 import {RestClient} from "./rest-client";
-import { Observable } from "rxjs";
-import 'rxjs/add/observable/of';
-import 'rxjs/add/operator/map';
+
+
 import {Logger} from "./logger";
 import {Config} from "./config";
 import {Tag, Tags, TypeTags} from "./type-tags";
@@ -112,7 +115,7 @@ export default class TypeService {
 		// check access permission by getting dataset objects
 		if (datasetId) {
 			// only one dataset requested
-			datasets$ = new RestClient(false, token).getDataset(sessionId, datasetId).map(dataset => [dataset]);
+			datasets$ = new RestClient(false, token).getDataset(sessionId, datasetId).pipe(map(dataset => [dataset]));
 		} else {
 			// all datasets of the session requested
 			datasets$ = new RestClient(false, token).getDatasets(sessionId);
@@ -126,7 +129,7 @@ export default class TypeService {
 			let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
 
 			// wait for all observables to complete and return an array of tuples
-			return types$.length ? Observable.forkJoin(types$) : Observable.of([]);
+			return types$.length ? Observable.forkJoin(types$) : observableOf([]);
 
 		}).subscribe(typesArray => {
 
@@ -209,7 +212,7 @@ export default class TypeService {
 
 		if (cacheItem) {
 			logger.debug('cache hit', sessionId + ' ' + dataset.datasetId);
-			return Observable.of(cacheItem);
+			return observableOf(cacheItem);
 
 		} else {
 			logger.info('cache miss', sessionId + ' ' + dataset.datasetId);
@@ -241,11 +244,11 @@ export default class TypeService {
 	getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
     let observable;
     if (Tags.TSV.id in fastTags) {
-      observable = this.getParsedTsv(sessionId, dataset, token).map(table => {
+      observable = this.getParsedTsv(sessionId, dataset, token).pipe(map(table => {
         return TypeTags.getSlowTypeTags(table);
-      });
+      }));
     } else {
-      observable = Observable.of({});
+      observable = observableOf({});
     }
 
     return observable;
@@ -254,9 +257,9 @@ export default class TypeService {
 	getParsedTsv(sessionId, dataset, token) {
 	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
-		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).map(data => {
+		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).pipe(map(data => {
 			return TypeTags.parseTsv(data);
-		});
+		}));
 	}
 
 	getToken(req: any, next: any) {
