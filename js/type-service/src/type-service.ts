@@ -1,5 +1,5 @@
 
-import {of as observableOf,  Observable } from 'rxjs';
+import {of as observableOf,  Observable, forkJoin } from 'rxjs';
 
 import {map} from 'rxjs/operators';
 import {RestClient} from "./rest-client";
@@ -129,7 +129,7 @@ export default class TypeService {
 			let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
 
 			// wait for all observables to complete and return an array of tuples
-			return types$.length ? Observable.forkJoin(types$) : observableOf([]);
+			return types$.length ? forkJoin(types$) : observableOf([]);
 
 		}).subscribe(typesArray => {
 
