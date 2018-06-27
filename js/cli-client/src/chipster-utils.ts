@@ -196,8 +196,7 @@ export default class ChipsterUtils {
             }
 
         });
-
-        console.log('create job', job);
+        
         return restClient.postJob(sessionId, job);
     }
 
