@@ -1,12 +1,8 @@
 
 import {of as observableOf,  Observable, forkJoin } from 'rxjs';
 
-import {map} from 'rxjs/operators';
-import {RestClient} from "./rest-client";
-
-
-import {Logger} from "./logger";
-import {Config} from "./config";
+import {map, mergeMap} from 'rxjs/operators';
+import {RestClient, Logger, Config} from "rest-client";
 import {Tag, Tags, TypeTags} from "./type-tags";
 const os = require('os');
 const url = require('url');
@@ -123,7 +119,8 @@ export default class TypeService {
 
 		let t0 = Date.now();
 
-		datasets$.flatMap(datasets => {
+		datasets$.pipe(
+			mergeMap((datasets: any[]) => {
 
 			// array of observables that will resolve to [datasetId, typeTags] tuples
 			let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
@@ -131,7 +128,8 @@ export default class TypeService {
 			// wait for all observables to complete and return an array of tuples
 			return types$.length ? forkJoin(types$) : observableOf([]);
 
-		}).subscribe(typesArray => {
+			}),
+		).subscribe(typesArray => {
 
 			let types = this.tupleArrayToObject(typesArray);
 			res.contentType = 'json';
@@ -190,9 +188,10 @@ export default class TypeService {
 		// always calculate fast type tags, because it's difficult to know when the name has changed
 		let fastTags = TypeTags.getFastTypeTags(dataset.name);
 
-		return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags)
-      .map(slowTags => Object.assign({}, fastTags, slowTags))
-			.map(allTags => [dataset.datasetId, allTags]);
+		return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags).pipe(
+			map(slowTags => Object.assign({}, fastTags, slowTags)),
+			map(allTags => [dataset.datasetId, allTags]),
+		);
 	}
 
   /**
@@ -216,10 +215,12 @@ export default class TypeService {
 
 		} else {
 			logger.info('cache miss', sessionId + ' ' + dataset.datasetId);
-			return this.getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags).map(slowTags => {
-				this.addToCache(idPair, slowTags);
-				return slowTags;
-			});
+			return this.getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags).pipe(
+				map(slowTags => {
+					this.addToCache(idPair, slowTags);
+					return slowTags;
+				}),
+			);	
 		}
 	}
 
@@ -244,7 +245,7 @@ export default class TypeService {
 	getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
     let observable;
     if (Tags.TSV.id in fastTags) {
-      observable = this.getParsedTsv(sessionId, dataset, token).pipe(map(table => {
+      observable = this.getParsedTsv(sessionId, dataset, token).pipe(map((table: any[][]) => {
         return TypeTags.getSlowTypeTags(table);
       }));
     } else {
@@ -257,7 +258,7 @@ export default class TypeService {
 	getParsedTsv(sessionId, dataset, token) {
 	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
-		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).pipe(map(data => {
+		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).pipe(map((data: string) => {
 			return TypeTags.parseTsv(data);
 		}));
 	}
