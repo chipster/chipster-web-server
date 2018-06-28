@@ -175,7 +175,7 @@ export default class ChipsterUtils {
         });
         
         tool.inputs.forEach(i => {  
-            if (i.name.id === 'phenodata.tsv') {
+            if (i.name.id === 'phenodata.tsv' || i.name.id === 'phenodata2.tsv') {
                 // phenodata will be generated in comp
                 return;
             } else if (i.name.spliced) {
@@ -196,7 +196,7 @@ export default class ChipsterUtils {
             }
 
         });
-        
+
         return restClient.postJob(sessionId, job);
     }
 

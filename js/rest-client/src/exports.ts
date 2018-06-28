@@ -5,5 +5,5 @@ import { Config } from "./config";
 module.exports = {
     RestClient: RestClient,
     Logger: Logger,
-    Coinfig: Config,
+    Config: Config,
 }
