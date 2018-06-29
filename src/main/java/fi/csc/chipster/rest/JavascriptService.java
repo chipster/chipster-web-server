@@ -37,6 +37,8 @@ public class JavascriptService {
     	
     	System.out.println("Install dependencies");
     	runAndWait("npm", "install");    	
+    	//FIXME add rest-client to npmjs.com
+    	runAndWait("bash", "-c", "pushd ../rest-client; tsc; npm link; popd; npm link rest-client");
     	
     	System.out.println("Compile");
     	runAndWaitCareless("npm", "run", "build");    	
