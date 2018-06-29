@@ -345,7 +345,7 @@ export class RestClient {
     return RxHR.delete(uri, options);
   }
 
-	handleResponse(data) {
+  handleResponse(data) {
     if (data.response.statusCode >= 200 && data.response.statusCode <= 299) {
       logger.debug('response', data.body);
       return data.body;

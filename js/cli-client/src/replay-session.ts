@@ -1,4 +1,4 @@
-import { Observable, observable, Subject, forkJoin, of, concat } from "rxjs";
+import { Observable, observable, Subject, forkJoin, of, concat, from, throwError } from "rxjs";
 import { tap, mergeMap, toArray, take, map, finalize, catchError } from "rxjs/operators";
 import { RestClient, Logger } from "rest-client";
 import ChipsterUtils from "./chipster-utils";
@@ -24,7 +24,7 @@ const logger = Logger.getLogger(__filename);
  * 
  * One session can have multiple jobs and all of them are run, but the outputs 
  * of the previous jobs are not used for the inputs, but the input files are copied always 
- * from the original session. This may allow better parallelization, but also prevents the test 
+ * from the original session. This allows better parallelization, but also prevents the test 
  * from noticing if the new outputs are incompatible for the later tools in the workflow. 
  */
 export default class ReplaySession {
@@ -34,9 +34,6 @@ export default class ReplaySession {
     
     startTime: Date;
     restClient: any;
-    //replaySessionId: {};
-    //originalSessionId: {};
-    //originalSession: any;
     
     constructor() {
         this.parseCommand();
@@ -55,6 +52,7 @@ export default class ReplaySession {
         parser.addArgument(['--username', '-u'], { help: 'username for the server' });
         parser.addArgument(['--password', '-p'], { help: 'password for the server' });
         parser.addArgument(['--debug', '-d'], { help: 'do not delete the test session', action: 'storeTrue' });
+        parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel' , defaultValue: 1});
         
         parser.addArgument(['session'], { help: 'session file or dir to replay' });
         
@@ -79,33 +77,50 @@ export default class ReplaySession {
         } else {
             throw new Error('path ' + sessionPath + ' does not exist');
         }
+
+        this.removeAllFiles(this.RESULTS_PATH);
+        this.mkdirIfMissing(this.RESULTS_PATH);
+
+        const uploadResults: UploadResult[] = [];
+        const quiet = args.parallel !== '1';
         
         console.log('login as', args.username);
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
             tap(restClient => this.restClient = restClient),
             mergeMap(() => {
-                const replays = sessionFiles.map(s => this.replaySession(s, args.debug));
-                return concat(...replays).pipe(toArray());
+                const replays = sessionFiles.map(s => this.uploadSession(s));
+                return concat(...replays);
             }),
+            tap((uploadResult: UploadResult) => uploadResults.push(uploadResult)),
+            mergeMap((uploadResult: UploadResult) => {
+                return this.getSessionJobPlans(uploadResult, quiet);
+            }),
+            mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
+            mergeMap(
+                (plan: JobPlan) => {
+                    return this.replayJob(plan, quiet)
+                }, null, args.parallel),
+            toArray(),
             tap((sessionResults: any[][]) => {
                 const flatResults = sessionResults.reduce((a, b) => a.concat(b), []);
                 this.writeResults(flatResults);
-            })
+            }),
+            mergeMap(() => {
+                const cleanUps = uploadResults.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
+                return concat(...cleanUps).pipe(toArray());
+            }),
         ).subscribe(
             () => console.log('session replay done'),
             err => console.error('session replay error', err),
             () => console.log('session replay completed'));
     }
-    
-    replaySession(sessionFile: string, debug: boolean) {
 
-        let jobSet;
+    uploadSession(sessionFile: string): Observable<UploadResult> {
         let originalSessionId;
         let replaySessionId;
         let originalSession;
-        let results;
-                
+
         return of(null).pipe(
             tap(() => console.log('upload the original sesssion file', sessionFile)),
             mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, sessionFile, null, true)),
@@ -113,8 +128,26 @@ export default class ReplaySession {
             mergeMap(() => this.restClient.getSession(originalSessionId)),
             tap(session => originalSession = session),
             tap(() => console.log('create a new session')),
-            mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, 'session-replay-test')),
+            mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, originalSession.name + '_replay')),
             tap(id => replaySessionId = id),
+            map(() => {
+                return {
+                    originalSessionId: originalSessionId,
+                    replaySessionId: replaySessionId,
+                    originalSession: originalSession,
+                }
+            })
+        );
+    }
+
+    getSessionJobPlans(uploadResult: UploadResult, quiet: boolean): Observable<JobPlan[]> {        
+        let jobSet;
+
+        const originalSessionId = uploadResult.originalSessionId;
+        const replaySessionId = uploadResult.replaySessionId;
+        const originalSession = uploadResult.originalSession;
+
+        return of(null).pipe(
             mergeMap(() => this.restClient.getDatasets(originalSessionId)),
             map((datasets: any[]) => {
                 // collect the list of datasets' sourceJobs
@@ -123,22 +156,28 @@ export default class ReplaySession {
                     .filter(id => id != null));
             }),
             mergeMap(() => this.restClient.getJobs(originalSessionId)),
-            mergeMap((jobs: any[]) => {
-                const replays = jobs
+            map((jobs: any[]) => {
+                return jobs
                     // run only jobs whose output files exist
                     // and don't care about failed or orphan jobs
                     .filter(j => jobSet.has(j.jobId))
                     // a dummy job of the old Java client
                     .filter(j => j.toolId !== 'operation-definition-id-import')
-                    .map(j => this.replayJob(j, originalSessionId, replaySessionId));
-                return concat(...replays).pipe(toArray());
+                    .map(j => {
+                        return {
+                            originalSessionId: originalSessionId,
+                            replaySessionId: replaySessionId,
+                            job: j,
+                            originalSession: originalSession,
+                        }
+                    });
             }),
-            tap((r: any[]) => results = r),
-            catchError(err => {
-                // handle errors here to make sure the sessions are always deleted
-                console.error('sesssion replay error', err);
-                return of(null);
-            }),
+        );
+    }
+
+    cleanUp(originalSessionId, replaySessionId, debug: boolean) {
+                
+        return of(null).pipe(
             mergeMap(() => this.restClient.deleteSession(originalSessionId)),
             mergeMap(() => {
                 if (debug) {
@@ -147,11 +186,14 @@ export default class ReplaySession {
                     return this.restClient.deleteSession(replaySessionId);
                 }
             }),
-            map(() => results),
         );
     }
     
-    replayJob(job, originalSessionId, replaySessionId) {
+    replayJob(plan: JobPlan, quiet: boolean): Observable<ReplayResult> {
+        
+        const job = plan.job;
+        const originalSessionId = plan.originalSessionId;
+        const replaySessionId = plan.replaySessionId;
 
         let originalDataset;
         let wsClient;
@@ -159,15 +201,19 @@ export default class ReplaySession {
         const parameterMap = new Map();        
         const jobSubject = new Subject();
         let replayJobId;
-        
+
         return of(null).pipe(
             tap(() => console.log('replay job ' + job.toolId)),
             mergeMap(() => {
                 const fileCopies = job.inputs.map(input => {
-                    return this.copyDataset(originalSessionId, replaySessionId, input.datasetId).pipe(
+                    return this.copyDataset(originalSessionId, replaySessionId, input.datasetId, job.jobId + input.datasetId).pipe(
                         mergeMap(datasetId => this.restClient.getDataset(replaySessionId, datasetId)),
                         tap(dataset => inputMap.set(input.inputId, dataset)),
-                        tap((dataset: any) => console.log('dataset ' + dataset.name + ' copied for input ' + input.inputId)),
+                        tap((dataset: any) => {
+                            if (!quiet) {
+                                console.log('dataset ' + dataset.name + ' copied for input ' + input.inputId);
+                            }
+                        }),
                     );
                 });
                 return concat(...fileCopies).pipe(toArray());
@@ -175,50 +221,64 @@ export default class ReplaySession {
             tap(() => {
                 job.parameters.forEach(p => {
                     parameterMap.set(p.parameterId, p.value);
-                    console.log('set parameter', p.parameterId, p.value)
+                    if (!quiet) {
+                        console.log('set parameter', p.parameterId, p.value)
+                    }
                 });
             }),
             tap(() => {
-                console.log('connect websocket');
+                if (!quiet)  {
+                    console.log('connect websocket');
+                }
                 wsClient = new WsClient(this.restClient);
-                wsClient.connect(replaySessionId);
+                wsClient.connect(replaySessionId, quiet);
             }),
             mergeMap(() => this.restClient.getTool(job.toolId)),
             mergeMap(tool => ChipsterUtils.jobRun(this.restClient, replaySessionId, tool, parameterMap, inputMap)),
             mergeMap(jobId => {
                 replayJobId = jobId;
                 wsClient.getJobState$(jobId).subscribe(job => {
-                    console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
+                    if (!quiet) {
+                        console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
+                    }
                 }, err => {
-                    console.error('websocket error', err);
+                    jobSubject.thrownError(new Error('websocket error: ' + err));
                 }, () => {
                     jobSubject.next();
                     jobSubject.complete();
                 });
                 wsClient.getJobScreenOutput$(jobId).subscribe(output => {
-                    process.stdout.write(output);
+                    if (!quiet) {
+                        process.stdout.write(output);
+                    }
                 });
                 return jobSubject;
             }),
             finalize(() => wsClient.disconnect()),
+            mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId, plan)),
             catchError(err => {
-                // catch errors to always write results
-                console.error('job error', err);
-                return of(null);
-            }),
-            mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId)),            
+                console.error('replay error', job.toolId, err);
+                const j = _.clone(job);
+                j.state = 'REPLAY_ERROR';
+                j.stateDetail = '(see replay logs)';
+                j.screenOutput = '';
+                return of({
+                    job: j,
+                    messages: [],
+                    errors: [err],
+                    sessionName: plan.originalSession.name,
+                });
+            }),            
         );
     }
 
-    compareOutputs(jobId1, jobId2, sessionId1, sessionId2) {
+    compareOutputs(jobId1, jobId2, sessionId1, sessionId2, plan: JobPlan): Observable<ReplayResult> {
         let outputs1;
         let outputs2;
-        let session1;
 
         return forkJoin(
             this.restClient.getDatasets(sessionId1),
-            this.restClient.getDatasets(sessionId2),
-            this.restClient.getSession(sessionId1),).pipe(
+            this.restClient.getDatasets(sessionId2),).pipe(
                 map((res: any[]) => {
                     outputs1 = res[0]
                         .filter(d => d.sourceJob === jobId1)
@@ -226,23 +286,8 @@ export default class ReplaySession {
                     outputs2 = res[1]
                         .filter(d => d.sourceJob === jobId2)
                         .sort((a, b) => a.name.localeCompare(b.name));
-                    session1 = res[2];
                 }),
-                mergeMap(() => {
-                    if (jobId2 != null) {
-                        return this.restClient.getJob(sessionId2, jobId2);
-                    } else {
-                        // create a dummy job if there was an error when creating or POSTing the job
-                        return this.restClient.getJob(sessionId1, jobId1).pipe(
-                            map((j: any) => {
-                                j.state = 'REPLAY_ERROR';
-                                j.stateDetail = '(see replay logs)';
-                                j.screenOutput = '';
-                                return j;
-                            }),
-                        );
-                    }
-                }),
+                mergeMap(() => this.restClient.getJob(sessionId2, jobId2)),
                 map(job2 => {
                     const errors = [];
                     const messages = [];
@@ -275,23 +320,23 @@ export default class ReplaySession {
                         job: job2,
                         messages: messages,
                         errors: errors,
-                        sessionName: session1.name,
+                        sessionName: plan.originalSession.name,
                     };
             })
         );            
     }
     
-    copyDataset(originalSessionId, replaySessionId, datasetId) {
+    copyDataset(originalSessionId, replaySessionId, datasetId, tempFileName) {
 
-        this.mkdirIfMissing(this.TEMP_PATH);
-
-        const localFileName = this.TEMP_PATH + '/' + datasetId;
+        
+        const localFileName = this.TEMP_PATH + '/' + tempFileName;
         let dataset;
         let copyDatasetId;
-
-
+        
+        
         return this.restClient.getDataset(originalSessionId, datasetId).pipe(
             tap(d => dataset = d),
+            tap(() => this.mkdirIfMissing(this.TEMP_PATH)),
             tap(() => console.log('copy dataset', dataset.name, ChipsterUtils.toHumanReadable(dataset.size))),
             mergeMap(() => this.restClient.downloadFile(originalSessionId, datasetId, localFileName)),
             mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, replaySessionId, localFileName, dataset.name)),
@@ -337,9 +382,6 @@ export default class ReplaySession {
         const failCount = booleanResults.filter(b => !b).length;
 
         const uniqToolsCount = _.uniq(results.map(r => r.job.toolId)).length;
-
-        this.removeAllFiles(this.RESULTS_PATH);
-        this.mkdirIfMissing(this.RESULTS_PATH);
         
         const stream = fs.createWriteStream(this.RESULTS_PATH + '/index.html');
         stream.once('open', fd => {
@@ -466,6 +508,26 @@ th {
             return intSeconds + 's';
         }
     }
+}
+
+export class ReplayResult {
+    job: any;
+    messages: string[];
+    errors: string[];
+    sessionName: string;
+}
+
+export class UploadResult {
+    originalSessionId: string;
+    replaySessionId: string;
+    originalSession: any;
+}
+
+export class JobPlan {
+    originalSessionId: string;
+    replaySessionId: string;
+    job: any;
+    originalSession: any;
 }
 
 if (require.main === module) {

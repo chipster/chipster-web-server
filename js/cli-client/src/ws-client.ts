@@ -21,7 +21,7 @@ export default class WsClient {
     constructor(private restClient: RestClient) {        
     }
 
-    connect(sessionId: string) {
+    connect(sessionId: string, quiet = false) {
         this.sessionId = sessionId;
         return this.restClient.getSessionDbEventsUri()
         .subscribe(url => {        
@@ -30,22 +30,26 @@ export default class WsClient {
   
           this.ws = new WebSocket(url);
   
-          this.ws.on('open', () =>  {
-            console.log('websocket connected');
-          });
+          if (!quiet)  {
+            this.ws.on('open', () => {
+                console.log('websocket connected');
+            });
+        }
   
           this.ws.on('message', data => {
               const event = JSON.parse(data);
               this.wsEvents$.next(event);              
           });
   
-          this.ws.on('close', (code, reason) => {
-            console.log('websocket closed', code, reason);
-          });
+            if (!quiet) {
+                this.ws.on('close', (code, reason) => {
+                    console.log('websocket closed', code, reason);
+                });
   
-          this.ws.on('error', error => {
-            console.log('websocket error', error);
-          });
+                this.ws.on('error', error => {
+                    console.log('websocket error', error);
+                });
+            }  
         })
     }
 
