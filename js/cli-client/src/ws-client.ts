@@ -18,6 +18,19 @@ export default class WsClient {
     wsEvents$ = new Subject<any>();
     ws;
 
+    static readonly failedStates = [
+        'FAILED',
+        'FAILED_USER_ERROR',
+        'ERROR',
+        'CANCELLED',
+        'TIMEOUT',
+        'EXPIRED_WAITING'];
+
+    static readonly successStates = [
+        'COMPLETED'];
+    
+    static readonly finalStates = WsClient.failedStates.concat(WsClient.successStates);
+
     constructor(private restClient: RestClient) {        
     }
 
@@ -53,32 +66,25 @@ export default class WsClient {
         })
     }
 
+    /**
+     * Get job's events
+     * 
+     * Both successful and failed final states complete the stream normally. To recognize
+     * job failures, a subscriber can compare the job state agains the WsClient.failedStates array.
+     * The stream error is reserved for unexpected exceptions.
+     * 
+     * @param jobId 
+     */
     getJob$(jobId: string) {
 
         if (jobId == null) {
             throw new Error('jobId is ' + jobId);
-        }
-
-        const failedStates = [
-            'FAILED', 
-            'FAILED_USER_ERROR',
-            'ERROR',
-            'CANCELLED',
-            'TIMEOUT',
-            'EXPIRED_WAITING']          
-
-        const successStates = [
-            'COMPLETED']          
+        }          
 
         return this.wsEvents$.pipe(
             filter((e: any) => e.resourceType === 'JOB' && e.resourceId === jobId),
             mergeMap(e => this.restClient.getJob(this.sessionId, jobId)),
-            tap((job: any) => {
-                if (failedStates.indexOf(job.state) !== -1) {
-                    throw Error('job ' + job.state + ': ' + job.stateDetail + "\nscreen output:\n" + job.screenOutput);
-                }
-            }),
-            takeWhile((job: any) => successStates.indexOf(job.state) === -1));
+            takeWhile((job: any) => WsClient.finalStates.indexOf(job.state) === -1));
     }
 
     getJobState$(jobId: string) {

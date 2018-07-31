@@ -52,7 +52,8 @@ export default class ReplaySession {
         parser.addArgument(['--username', '-u'], { help: 'username for the server' });
         parser.addArgument(['--password', '-p'], { help: 'password for the server' });
         parser.addArgument(['--debug', '-d'], { help: 'do not delete the test session', action: 'storeTrue' });
-        parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel' , defaultValue: 1});
+        parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel (>1 implies --quiet)', defaultValue: 1 });
+        parser.addArgument(['--quiet', '-q'], { help: 'do not print job state changes' , action: 'storeTrue'});
         
         parser.addArgument(['session'], { help: 'session file or dir to replay' });
         
@@ -82,8 +83,8 @@ export default class ReplaySession {
         this.mkdirIfMissing(this.RESULTS_PATH);
 
         const uploadResults: UploadResult[] = [];
-        const quiet = args.parallel !== '1';
-        
+        const quiet = args.quiet || args.parallel !== 1;
+
         console.log('login as', args.username);
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
@@ -227,7 +228,7 @@ export default class ReplaySession {
                 });
             }),
             tap(() => {
-                if (!quiet)  {
+                if (!quiet) {
                     console.log('connect websocket');
                 }
                 wsClient = new WsClient(this.restClient);
@@ -241,8 +242,8 @@ export default class ReplaySession {
                     if (!quiet) {
                         console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
                     }
-                }, err => {
-                    jobSubject.thrownError(new Error('websocket error: ' + err));
+                }, err => {                                        
+                    jobSubject.error(new Error('job error: ' + err));
                 }, () => {
                     jobSubject.next();
                     jobSubject.complete();
@@ -251,25 +252,32 @@ export default class ReplaySession {
                     if (!quiet) {
                         process.stdout.write(output);
                     }
+                }, err => {
+                    jobSubject.error(new Error('job error: ' + err));
                 });
                 return jobSubject;
             }),
             finalize(() => wsClient.disconnect()),
             mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId, plan)),
             catchError(err => {
+                // unexpected technical problems
                 console.error('replay error', job.toolId, err);
-                const j = _.clone(job);
-                j.state = 'REPLAY_ERROR';
-                j.stateDetail = '(see replay logs)';
-                j.screenOutput = '';
-                return of({
-                    job: j,
-                    messages: [],
-                    errors: [err],
-                    sessionName: plan.originalSession.name,
-                });
+                return of(this.errorToReplayResult(err, job, plan));
             }),            
         );
+    }
+
+    errorToReplayResult(err, job, plan) {
+        const j = _.clone(job);
+        j.state = 'REPLAY_ERROR';
+        j.stateDetail = '(see replay logs)';
+        j.screenOutput = '';
+        return {
+            job: j,
+            messages: [],
+            errors: [err],
+            sessionName: plan.originalSession.name,
+        };
     }
 
     compareOutputs(jobId1, jobId2, sessionId1, sessionId2, plan: JobPlan): Observable<ReplayResult> {
@@ -288,34 +296,41 @@ export default class ReplaySession {
                         .sort((a, b) => a.name.localeCompare(b.name));
                 }),
                 mergeMap(() => this.restClient.getJob(sessionId2, jobId2)),
-                map(job2 => {
+                map((job2: any) => {
                     const errors = [];
                     const messages = [];
 
-                    if (outputs1.length !== outputs2.length) {
-                        errors.push('different number of outputs: expected ' +  outputs1.length + ' but found ' + outputs2.length);
-                    }
-                    messages.push('correct number of outputs (' + outputs2.length + ')');
+                    if (WsClient.successStates.indexOf(job2.state) === -1) {
+                        errors.push('unsuccessful job state');
+                    } else {
 
-                    const names1 = outputs1.map(d => d.name);
-                    const names2 = outputs2.map(d => d.name);
-                    if (!_.isEqual(names1, names2)) {
-                        errors.push('different dataset names: expected ' + names1 + ' but found ' + names2);
-                    }
-                    messages.push('correct dataset names');
-
-                    for (let i = 0; i < Math.min(outputs1.length, outputs2.length); i++) {
-                        const d1 = outputs1[i];
-                        const d2 = outputs2[i];
-                        const sizeDiff = (d2.size - d1.size) / (1.0 * d1.size) * 100;
-                        if (d1.size === d2.size) {
-                            messages.push('the size of the dataset "' + d1.name + '" is correct (' + ChipsterUtils.toHumanReadable(d2.size) + ')');
-                        } else if (Math.abs(sizeDiff) < 30) { // percent
-                            messages.push('the size of the dataset "' + d1.name + '" is close enough (' + Math.round(sizeDiff) + '%)');
+                        if (outputs1.length === outputs2.length) {
+                            messages.push('correct number of outputs (' + outputs2.length + ')');
                         } else {
-                            errors.push('the size of the dataset "' + d1.name + '" differs too much (' + Math.round(sizeDiff) + '%)');
+                            errors.push('different number of outputs: expected ' + outputs1.length + ' but found ' + outputs2.length);
                         }
-                    }
+
+                        const names1 = outputs1.map(d => d.name);
+                        const names2 = outputs2.map(d => d.name);
+                        if (_.isEqual(names1, names2)) {
+                            messages.push('correct dataset names');
+                        } else {
+                            errors.push('different dataset names: expected ' + names1 + ' but found ' + names2);
+                        }
+
+                        for (let i = 0; i < Math.min(outputs1.length, outputs2.length); i++) {
+                            const d1 = outputs1[i];
+                            const d2 = outputs2[i];
+                            const sizeDiff = (d2.size - d1.size) / (1.0 * d1.size) * 100;
+                            if (d1.size === d2.size) {
+                                messages.push('the size of the dataset "' + d1.name + '" is correct (' + ChipsterUtils.toHumanReadable(d2.size) + ')');
+                            } else if (Math.abs(sizeDiff) < 30) { // percent
+                                messages.push('the size of the dataset "' + d1.name + '" is close enough (' + Math.round(sizeDiff) + '%)');
+                            } else {
+                                errors.push('the size of the dataset "' + d1.name + '" differs too much (' + Math.round(sizeDiff) + '%)');
+                            }
+                        }
+                    }    
                     return {
                         job: job2,
                         messages: messages,
