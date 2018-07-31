@@ -1,10 +1,11 @@
-import { Observable, observable, Subject, forkJoin, of, concat, from, throwError } from "rxjs";
+import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest } from "rxjs";
 import { tap, mergeMap, toArray, take, map, finalize, catchError } from "rxjs/operators";
 import { RestClient, Logger } from "rest-client";
 import ChipsterUtils from "./chipster-utils";
 import wsClient from "./ws-client";
 import WsClient from "./ws-client";
 import * as _ from 'lodash';
+import { last } from "rxjs/internal/operators/last";
 
 const ArgumentParser = require('argparse').ArgumentParser;
 const fs = require('fs');
@@ -200,7 +201,6 @@ export default class ReplaySession {
         let wsClient;
         const inputMap = new Map();
         const parameterMap = new Map();        
-        const jobSubject = new Subject();
         let replayJobId;
 
         return of(null).pipe(
@@ -238,24 +238,20 @@ export default class ReplaySession {
             mergeMap(tool => ChipsterUtils.jobRun(this.restClient, replaySessionId, tool, parameterMap, inputMap)),
             mergeMap(jobId => {
                 replayJobId = jobId;
-                wsClient.getJobState$(jobId).subscribe(job => {
-                    if (!quiet) {
-                        console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
-                    }
-                }, err => {                                        
-                    jobSubject.error(new Error('job error: ' + err));
-                }, () => {
-                    jobSubject.next();
-                    jobSubject.complete();
-                });
                 wsClient.getJobScreenOutput$(jobId).subscribe(output => {
                     if (!quiet) {
                         process.stdout.write(output);
                     }
                 }, err => {
-                    jobSubject.error(new Error('job error: ' + err));
+                    logger.error('failed to get the screen output', err);
                 });
-                return jobSubject;
+                return wsClient.getJobState$(jobId).pipe(
+                    tap((job: any) => {
+                        if (!quiet) {
+                            console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
+                        }
+                    }),
+                    last());
             }),
             finalize(() => wsClient.disconnect()),
             mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId, plan)),
