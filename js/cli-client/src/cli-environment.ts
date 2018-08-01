@@ -1,3 +1,5 @@
+
+import {mergeMap, map} from 'rxjs/operators';
 import {Subject} from "rxjs";
 var fs = require('fs');
 
@@ -6,8 +8,8 @@ const ENV_FILE = 'chipster-cli-env.json';
 export default class CliEnvironment {
 
   get(key: string) {
-    return this.read()
-      .map(env => env[key]);
+    return this.read().pipe(
+      map(env => env[key]));
   }
 
   read() {
@@ -30,10 +32,10 @@ export default class CliEnvironment {
   }
 
   set(key: string, value: string) {
-    return this.read().flatMap(env => {
+    return this.read().pipe(mergeMap(env => {
       env[key] = value;
       return this.write(env);
-    });
+    }));
   }
 
   private write(object) {
