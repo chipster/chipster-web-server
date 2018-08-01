@@ -106,18 +106,25 @@ export default class WsClient {
                 // when we may miss some object versions, but it's good enough
                 // for human eyes.
                 if (!outputPair[1].startsWith(outputPair[0])) {
-                    if (!warned) {                                
-                        console.error('\n--- output mangled ---\n');
-                        warned = true;
-                    }
+                    
+                    let output = null;
                     // remove the longest start of the new output that matches with the end 
                     // of the previous output
                     for (let i = outputPair[1].length; i > 0; i--) {
                         if (outputPair[0].endsWith(outputPair[1].slice(0, i))) {
-                            return outputPair[1].slice(i);
+                            output = outputPair[1].slice(i);
+                            break;
                         } 
                     }
-                    return outputPair[1];
+                    if (output == null) {
+                        output = outputPair[1]
+                    }
+                    
+                    if (!warned) {                                
+                        output = '\n--- output mangled ---\n' + output;
+                        warned = true;
+                    }
+                    return output;
                 }
                 return outputPair[1].slice(outputPair[0].length);
             }));
