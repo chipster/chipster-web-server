@@ -491,7 +491,7 @@ th {
                 stream.write('<td>' + duration + '</td>\n');
                 stream.write('</tr>\n');
 
-                const s2 = fs.createWriteStream('results/' + r.job.jobId + '.txt');
+                const s2 = fs.createWriteStream(this.resultsPath + '/' + r.job.jobId + '.txt');
                 s2.once('open', function (fd) {
                     s2.write(r.job.screenOutput);
                     s2.end();
