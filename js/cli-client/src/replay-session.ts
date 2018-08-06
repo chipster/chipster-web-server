@@ -30,11 +30,10 @@ const logger = Logger.getLogger(__filename);
  */
 export default class ReplaySession {
 
-    readonly RESULTS_PATH = 'results'; 
-    readonly TEMP_PATH = 'tmp';
-    
     startTime: Date;
     restClient: any;
+    resultsPath: string;
+    tempPath: string;
     
     constructor() {
         this.parseCommand();
@@ -55,6 +54,8 @@ export default class ReplaySession {
         parser.addArgument(['--debug', '-d'], { help: 'do not delete the test session', action: 'storeTrue' });
         parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel (>1 implies --quiet)', defaultValue: 1 });
         parser.addArgument(['--quiet', '-q'], { help: 'do not print job state changes' , action: 'storeTrue'});
+        parser.addArgument(['--results', '-r'], { help: 'test result directory (cleared automatically)', defaultValue: 'results'});
+        parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: 'tmp'});
         
         parser.addArgument(['session'], { help: 'session file or dir to replay' });
         
@@ -80,8 +81,15 @@ export default class ReplaySession {
             throw new Error('path ' + sessionPath + ' does not exist');
         }
 
-        this.removeAllFiles(this.RESULTS_PATH);
-        this.mkdirIfMissing(this.RESULTS_PATH);
+        this.resultsPath = args.results;
+        this.tempPath = args.temp;
+
+        if (this.resultsPath.length === 0) {
+            throw new Error('results path is not set');
+        }
+
+        this.removeAllFiles(this.resultsPath);
+        this.mkdirIfMissing(this.resultsPath);
 
         const uploadResults: UploadResult[] = [];
         const quiet = args.quiet || args.parallel !== 1;
@@ -340,14 +348,14 @@ export default class ReplaySession {
     copyDataset(originalSessionId, replaySessionId, datasetId, tempFileName) {
 
         
-        const localFileName = this.TEMP_PATH + '/' + tempFileName;
+        const localFileName = this.tempPath + '/' + tempFileName;
         let dataset;
         let copyDatasetId;
         
         
         return this.restClient.getDataset(originalSessionId, datasetId).pipe(
             tap(d => dataset = d),
-            tap(() => this.mkdirIfMissing(this.TEMP_PATH)),
+            tap(() => this.mkdirIfMissing(this.tempPath)),
             tap(() => console.log('copy dataset', dataset.name, ChipsterUtils.toHumanReadable(dataset.size))),
             mergeMap(() => this.restClient.downloadFile(originalSessionId, datasetId, localFileName)),
             mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, replaySessionId, localFileName, dataset.name)),
@@ -376,7 +384,7 @@ export default class ReplaySession {
         if (fs.existsSync(path)) {
             fs.readdirSync(path).forEach((file, index) => {
                 var filePath = path + "/" + file;
-                if (!fs.lstatSync(filePath).isDirectory()) {
+                if (!fs.lstatSync(filePath).isDirectory() && (file.endsWith('.txt') || (file.endsWith('.html')))) {
                     fs.unlinkSync(filePath);
                 }
             });
@@ -394,7 +402,7 @@ export default class ReplaySession {
 
         const uniqToolsCount = _.uniq(results.map(r => r.job.toolId)).length;
         
-        const stream = fs.createWriteStream(this.RESULTS_PATH + '/index.html');
+        const stream = fs.createWriteStream(this.resultsPath + '/index.html');
         stream.once('open', fd => {
             stream.write(`
 <html>
