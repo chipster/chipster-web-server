@@ -30,6 +30,8 @@ const logger = Logger.getLogger(__filename);
  */
 export default class ReplaySession {
 
+    readonly flagFile = "test-ok";
+
     startTime: Date;
     restClient: any;
     resultsPath: string;
@@ -500,6 +502,17 @@ th {
             stream.write('</table></body></html>\n');
             stream.end();
         });
+
+        // create, update or delete the flag file based on the result
+        const flagPath = this.resultsPath + '/' + this.flagFile;
+        if (failCount === 0) {             
+            // touch the file
+            fs.closeSync(fs.openSync(flagPath, 'w'));
+        } else {
+            if (fs.existsSync(flagPath)) {
+                fs.unlinkSync(flagPath);
+            }
+        }
     }
 
     dateDiff(start, end) {
