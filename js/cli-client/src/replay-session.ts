@@ -507,7 +507,7 @@ th {
         const flagPath = this.resultsPath + '/' + this.flagFile;
         if (failCount === 0) {             
             // touch the file
-            fs.closeSync(fs.openSync(flagPath, 'w'));
+            fs.writeFileSync(flagPath, '');
         } else {
             if (fs.existsSync(flagPath)) {
                 fs.unlinkSync(flagPath);
