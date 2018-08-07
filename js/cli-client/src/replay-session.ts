@@ -507,7 +507,7 @@ th {
         const flagPath = this.resultsPath + '/' + this.flagFile;
         if (failCount === 0) {             
             // create the file or update its mtime
-            fs.closeSync(fs.openSync(flagPath, 'a'));
+            fs.writeFileSync(flagPath, 'test-ok');
         } else {
             if (fs.existsSync(flagPath)) {
                 fs.unlinkSync(flagPath);
