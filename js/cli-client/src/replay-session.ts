@@ -506,7 +506,7 @@ th {
         // create, update or delete the flag file based on the result
         const flagPath = this.resultsPath + '/' + this.flagFile;
         if (failCount === 0) {             
-            // update the mtime of the file
+            // create the file or update its mtime
             fs.closeSync(fs.openSync(flagPath, 'a'));
         } else {
             if (fs.existsSync(flagPath)) {
