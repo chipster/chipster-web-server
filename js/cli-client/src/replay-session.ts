@@ -496,16 +496,17 @@ th {
                     stream.write('Screen output is null');    
                 } else {
                     stream.write('<a href = "' + r.job.jobId + '.txt" > Screen output (' + ChipsterUtils.toHumanReadable(r.job.screenOutput.length) + ' B) </a>');
+                    // write the sreen output to a separate file
+                    const s2 = fs.createWriteStream(this.resultsPath + '/' + r.job.jobId + '.txt');
+                    s2.once('open', function (fd) {
+                        s2.write(r.job.screenOutput);
+                        s2.end();
+                    });
                 }
                 stream.write('</td >\n');
                 stream.write('<td>' + duration + '</td>\n');
                 stream.write('</tr>\n');
 
-                const s2 = fs.createWriteStream(this.resultsPath + '/' + r.job.jobId + '.txt');
-                s2.once('open', function (fd) {
-                    s2.write(r.job.screenOutput);
-                    s2.end();
-                });
             });
             stream.write('</table></body></html>\n');
             stream.end();
