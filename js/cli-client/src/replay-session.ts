@@ -85,6 +85,10 @@ export default class ReplaySession {
 
         this.resultsPath = args.results;
         this.tempPath = args.temp;
+        let parallel = parseInt(args.parallel);
+        if (isNaN(parallel)) {
+            throw new Error('the parameter "parallel" is not an integer: ' + args.parallel);
+        }
 
         if (this.resultsPath.length === 0) {
             throw new Error('results path is not set');
@@ -94,7 +98,7 @@ export default class ReplaySession {
         this.mkdirIfMissing(this.resultsPath);
 
         const uploadResults: UploadResult[] = [];
-        const quiet = args.quiet || args.parallel !== 1;
+        const quiet = args.quiet || parallel !== 1;
 
         console.log('login as', args.username);
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
@@ -112,7 +116,7 @@ export default class ReplaySession {
             mergeMap(
                 (plan: JobPlan) => {
                     return this.replayJob(plan, quiet)
-                }, null, args.parallel),
+                }, null, parallel),
             toArray(),
             tap((sessionResults: any[][]) => {
                 const flatResults = sessionResults.reduce((a, b) => a.concat(b), []);
