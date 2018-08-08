@@ -488,7 +488,11 @@ th {
                 stream.write('<td' + errorsStyle + '>' + r.errors.join('<br>') + '</td>\n');
                 stream.write('<td>');
                 stream.write(r.job.stateDetail + '<br>');
-                stream.write('<a href = "' + r.job.jobId + '.txt" > Screen output (' + ChipsterUtils.toHumanReadable(r.job.screenOutput.length) + ' B) </a>');
+                if (r.job.screenOutput == null) {
+                    stream.write('Screen output is null');    
+                } else {
+                    stream.write('<a href = "' + r.job.jobId + '.txt" > Screen output (' + ChipsterUtils.toHumanReadable(r.job.screenOutput.length) + ' B) </a>');
+                }
                 stream.write('</td >\n');
                 stream.write('<td>' + duration + '</td>\n');
                 stream.write('</tr>\n');
