@@ -31,6 +31,11 @@ const logger = Logger.getLogger(__filename);
 export default class ReplaySession {
 
     readonly flagFile = "test-ok";
+    static readonly ignoreJobIds = [
+        'operation-definition-id-import',
+        'operation-definition-id-user-modification',
+        'fi.csc.chipster.tools.ngs.LocalNGSPreprocess.java'
+    ]
 
     startTime: Date;
     restClient: any;
@@ -182,7 +187,7 @@ export default class ReplaySession {
                     // and don't care about failed or orphan jobs
                     .filter(j => jobSet.has(j.jobId))
                     // a dummy job of the old Java client
-                    .filter(j => j.toolId !== 'operation-definition-id-import')
+                    .filter(j => ReplaySession.ignoreJobIds.indexOf(j.toolId) === -1)
                     .map(j => {
                         return {
                             originalSessionId: originalSessionId,
