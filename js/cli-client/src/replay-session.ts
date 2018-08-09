@@ -66,7 +66,7 @@ export default class ReplaySession {
         this.startTime = new Date();
 
         const sessionPath = args.session;
-        const sessionFiles = [];
+        const sessionFiles: string[] = [];
         if (fs.existsSync(sessionPath)) {
             if (fs.lstatSync(sessionPath).isDirectory()) {
                 fs.readdirSync(sessionPath).forEach((file, index) => {
@@ -104,10 +104,10 @@ export default class ReplaySession {
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
             tap(restClient => this.restClient = restClient),
-            mergeMap(() => {
-                const replays = sessionFiles.map(s => this.uploadSession(s));
-                return concat(...replays);
-            }),
+            mergeMap(() => from(sessionFiles)),
+            mergeMap((s: string) => {
+                return this.uploadSession(s, quiet);
+            }, null, parallel),
             tap((uploadResult: UploadResult) => uploadResults.push(uploadResult)),
             mergeMap((uploadResult: UploadResult) => {
                 return this.getSessionJobPlans(uploadResult, quiet);
@@ -132,18 +132,22 @@ export default class ReplaySession {
             () => console.log('session replay completed'));
     }
 
-    uploadSession(sessionFile: string): Observable<UploadResult> {
+    uploadSession(sessionFile: string, quiet: boolean): Observable<UploadResult> {
         let originalSessionId;
         let replaySessionId;
         let originalSession;
 
         return of(null).pipe(
-            tap(() => console.log('upload the original sesssion file', sessionFile)),
-            mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, sessionFile, null, true)),
+            tap(() => console.log('upload ' + sessionFile)),
+            mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, sessionFile, null, !quiet)),
             tap(id => originalSessionId = id),
             mergeMap(() => this.restClient.getSession(originalSessionId)),
             tap(session => originalSession = session),
-            tap(() => console.log('create a new session')),
+            tap(() => {
+                if (!quiet) {
+                    console.log('create a new session');
+                }
+            }),
             mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, originalSession.name + '_replay')),
             tap(id => replaySessionId = id),
             map(() => {
@@ -220,10 +224,10 @@ export default class ReplaySession {
         let replayJobId;
 
         return of(null).pipe(
-            tap(() => console.log('replay job ' + job.toolId)),
+            tap(() => console.log('session ' + plan.originalSession.name + ', replay job ' + job.toolId)),
             mergeMap(() => {
                 const fileCopies = job.inputs.map(input => {
-                    return this.copyDataset(originalSessionId, replaySessionId, input.datasetId, job.jobId + input.datasetId).pipe(
+                    return this.copyDataset(originalSessionId, replaySessionId, input.datasetId, job.jobId + input.datasetId, quiet).pipe(
                         mergeMap(datasetId => this.restClient.getDataset(replaySessionId, datasetId)),
                         tap(dataset => inputMap.set(input.inputId, dataset)),
                         tap((dataset: any) => {
@@ -354,7 +358,7 @@ export default class ReplaySession {
         );            
     }
     
-    copyDataset(originalSessionId, replaySessionId, datasetId, tempFileName) {
+    copyDataset(originalSessionId, replaySessionId, datasetId, tempFileName, quiet) {
 
         
         const localFileName = this.tempPath + '/' + tempFileName;
@@ -365,7 +369,11 @@ export default class ReplaySession {
         return this.restClient.getDataset(originalSessionId, datasetId).pipe(
             tap(d => dataset = d),
             tap(() => this.mkdirIfMissing(this.tempPath)),
-            tap(() => console.log('copy dataset', dataset.name, ChipsterUtils.toHumanReadable(dataset.size))),
+            tap(() => {
+                if (!quiet) {
+                    console.log('copy dataset', dataset.name, ChipsterUtils.toHumanReadable(dataset.size));
+                }
+            }),
             mergeMap(() => this.restClient.downloadFile(originalSessionId, datasetId, localFileName)),
             mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, replaySessionId, localFileName, dataset.name)),
             tap(id => copyDatasetId = id),
