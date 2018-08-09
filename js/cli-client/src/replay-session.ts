@@ -173,7 +173,7 @@ export default class ReplaySession {
             }),
             mergeMap(() => this.restClient.getJobs(originalSessionId)),
             map((jobs: any[]) => {
-                return jobs
+                let jobPlans = jobs
                     // run only jobs whose output files exist
                     // and don't care about failed or orphan jobs
                     .filter(j => jobSet.has(j.jobId))
@@ -186,7 +186,9 @@ export default class ReplaySession {
                             job: j,
                             originalSession: originalSession,
                         }
-                    });
+                    });                
+                console.log('session ' + uploadResult.originalSession.name + ' has ' + jobPlans.length + ' jobs');
+                return jobPlans;
             }),
         );
     }
@@ -214,7 +216,7 @@ export default class ReplaySession {
         let originalDataset;
         let wsClient;
         const inputMap = new Map();
-        const parameterMap = new Map();        
+        const parameterMap = new Map();
         let replayJobId;
 
         return of(null).pipe(
@@ -267,13 +269,14 @@ export default class ReplaySession {
                     }),
                     last());
             }),
-            finalize(() => wsClient.disconnect()),
             mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId, plan)),
             catchError(err => {
                 // unexpected technical problems
                 console.error('replay error', job.toolId, err);
                 return of(this.errorToReplayResult(err, job, plan));
-            }),            
+            }),
+            // why exceptions (like missing tool) interrupt the parallel run if this is before catchError()?
+            finalize(() => wsClient.disconnect()),
         );
     }
 
