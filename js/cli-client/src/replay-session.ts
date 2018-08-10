@@ -9,6 +9,7 @@ import { last } from "rxjs/internal/operators/last";
 
 const ArgumentParser = require('argparse').ArgumentParser;
 const fs = require('fs');
+const path = require('path');
 const logger = Logger.getLogger(__filename);
 
 /**
@@ -61,7 +62,7 @@ export default class ReplaySession {
         parser.addArgument(['--debug', '-d'], { help: 'do not delete the test session', action: 'storeTrue' });
         parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel (>1 implies --quiet)', defaultValue: 1 });
         parser.addArgument(['--quiet', '-q'], { help: 'do not print job state changes' , action: 'storeTrue'});
-        parser.addArgument(['--results', '-r'], { help: 'test result directory (cleared automatically)', defaultValue: 'results'});
+        parser.addArgument(['--results', '-r'], { help: 'replay session prefix and test result directory (both cleared automatically)', defaultValue: 'results'});
         parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: 'tmp'});
         
         parser.addArgument(['session'], { help: 'session file or dir to replay' });
@@ -111,6 +112,7 @@ export default class ReplaySession {
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
             tap(restClient => this.restClient = restClient),
+            mergeMap(() => this.deleteOldSessions(this.resultsPath + '_')),
             mergeMap(() => this.writeResults([], [], false)),
             mergeMap(() => from(sessionFiles)),
             mergeMap((s: string) => {
@@ -151,14 +153,28 @@ export default class ReplaySession {
             () => console.log('session replay completed'));
     }
 
+    deleteOldSessions(nameStart) {
+        return this.restClient.getSessions().pipe(
+            map((sessions: any[]) => sessions.filter(s => s.name.startsWith(nameStart))),
+            mergeMap((sessions: any[]) => from(sessions)),
+            mergeMap((session: any) => {
+                console.log('delete session', session.name);
+                return this.restClient.deleteSession(session.sessionId);
+            }),
+            toArray(),
+        )
+    }
+
     uploadSession(sessionFile: string, quiet: boolean): Observable<UploadResult> {
         let originalSessionId;
         let replaySessionId;
         let originalSession;
 
+        let name = this.resultsPath + '_' + path.basename(sessionFile).replace('.zip', '');
+
         return of(null).pipe(
-            tap(() => console.log('upload ' + sessionFile)),
-            mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, sessionFile, null, !quiet)),
+            tap(() => console.log('upload ' + sessionFile)),            
+            mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, sessionFile, name, !quiet)),
             tap(id => originalSessionId = id),
             mergeMap(() => this.restClient.getSession(originalSessionId)),
             tap(session => originalSession = session),
