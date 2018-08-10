@@ -502,32 +502,35 @@ th {
             stream.write('</tr>');
             stream.write('</table>');
 
-            stream.write(`
-<h3>Session with errors</h3>
-<table>
-<tr>
-<th>Session</th>
-<th>Error</th>
-<th>Stacktrace</th>
-</tr>
-            `);
+            if (importErrors.length > 0) {
 
-            importErrors.forEach(importError => {
-                stream.write('<tr><td>' + importError.file + '</td>');
-                stream.write('<td>' + importError.error.message + '</td>');
-                let errFile = Math.random().toString().replace('.', '') + '.txt';
-                stream.write('<td><a href = "' + errFile + '" > Stacktrace </a></td>');
-                        // write the sreen output to a separate file
-                        const s2 = fs.createWriteStream(this.resultsPath + '/' + errFile);
-                        s2.once('open', function (fd) {
-                            s2.write(importError.error.message + importError.error.stack);
-                            s2.end();
-                        });
-                stream.write('</tr>')
-            });         
-
+                stream.write(`
+                <h3>Session with errors</h3>
+                <table>
+                <tr>
+                <th>Session</th>
+                <th>Error</th>
+                <th>Stacktrace</th>
+                </tr>
+                `);
+                
+                importErrors.forEach(importError => {
+                    stream.write('<tr><td>' + importError.file + '</td>');
+                    stream.write('<td>' + importError.error.message + '</td>');
+                    let errFile = Math.random().toString().replace('.', '') + '.txt';
+                    stream.write('<td><a href = "' + errFile + '" > Stacktrace </a></td>');
+                    // write the sreen output to a separate file
+                    const s2 = fs.createWriteStream(this.resultsPath + '/' + errFile);
+                    s2.once('open', function (fd) {
+                        s2.write(importError.error.message + importError.error.stack);
+                        s2.end();
+                    });
+                    stream.write('</tr>')
+                });         
+                stream.write('</table>');
+            }
+                
             stream.write(`
-</table>            
 <h3>Tool test results</h3>
 <table>
 <tr>
