@@ -105,18 +105,30 @@ export default class ReplaySession {
         const uploadResults: UploadResult[] = [];
         const quiet = args.quiet || parallel !== 1;
 
+        let importErrors: ImportError[] = [];
+
         console.log('login as', args.username);
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
             tap(restClient => this.restClient = restClient),
             mergeMap(() => from(sessionFiles)),
             mergeMap((s: string) => {
-                return this.uploadSession(s, quiet);
+                return this.uploadSession(s, quiet).pipe(
+                    tap((uploadResult: UploadResult) => uploadResults.push(uploadResult)),
+                    mergeMap((uploadResult: UploadResult) => {
+                        return this.getSessionJobPlans(uploadResult, quiet);
+                    }),
+                    catchError(err => {
+                        // unexpected technical problems
+                        console.error('session import error', err);
+                        importErrors.push({
+                            file: s,
+                            error: err,
+                        });
+                        return of([]);
+                    }),
+                )
             }, null, parallel),
-            tap((uploadResult: UploadResult) => uploadResults.push(uploadResult)),
-            mergeMap((uploadResult: UploadResult) => {
-                return this.getSessionJobPlans(uploadResult, quiet);
-            }),
             mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
             mergeMap(
                 (plan: JobPlan) => {
@@ -125,7 +137,7 @@ export default class ReplaySession {
             toArray(),
             tap((sessionResults: any[][]) => {
                 const flatResults = sessionResults.reduce((a, b) => a.concat(b), []);
-                this.writeResults(flatResults);
+                this.writeResults(flatResults, importErrors);
             }),
             mergeMap(() => {
                 const cleanUps = uploadResults.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
@@ -413,7 +425,7 @@ export default class ReplaySession {
         }
     }        
     
-    writeResults(results) {
+    writeResults(results, importErrors: ImportError[]) {
 
         const booleanResults = results
             .map(r => r.job.state === 'COMPLETED' && r.errors.length === 0);
@@ -480,6 +492,31 @@ th {
             stream.write('</table>');
 
             stream.write(`
+<h3>Session with errors</h3>
+<table>
+<tr>
+<th>Session</th>
+<th>Error</th>
+<th>Stacktrace</th>
+</tr>
+            `);
+
+            importErrors.forEach(importError => {
+                stream.write('<tr><td>' + importError.file + '</td>');
+                stream.write('<td>' + importError.error.message + '</td>');
+                let errFile = Math.random().toString().replace('.', '') + '.txt';
+                stream.write('<td><a href = "' + errFile + '" > Stacktrace </a></td>');
+                        // write the sreen output to a separate file
+                        const s2 = fs.createWriteStream(this.resultsPath + '/' + errFile);
+                        s2.once('open', function (fd) {
+                            s2.write(importError.error.message + importError.error.stack);
+                            s2.end();
+                        });
+                stream.write('</tr>')
+            });         
+
+            stream.write(`
+</table>            
 <h3>Tool test results</h3>
 <table>
 <tr>
@@ -572,6 +609,11 @@ export class ReplayResult {
     messages: string[];
     errors: string[];
     sessionName: string;
+}
+
+export class ImportError {
+    file: string;
+    error: Error;
 }
 
 export class UploadResult {
