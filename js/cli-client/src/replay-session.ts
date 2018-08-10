@@ -1,5 +1,5 @@
-import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest } from "rxjs";
-import { tap, mergeMap, toArray, take, map, finalize, catchError } from "rxjs/operators";
+import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest, empty } from "rxjs";
+import { tap, mergeMap, toArray, take, map, finalize, catchError, merge } from "rxjs/operators";
 import { RestClient, Logger } from "rest-client";
 import ChipsterUtils from "./chipster-utils";
 import wsClient from "./ws-client";
@@ -41,6 +41,7 @@ export default class ReplaySession {
     startTime: Date;
     restClient: any;
     resultsPath: string;
+    sesssionPrefix: string;
     tempPath: string;
     
     constructor() {
@@ -63,15 +64,112 @@ export default class ReplaySession {
         parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel (>1 implies --quiet)', defaultValue: 1 });
         parser.addArgument(['--quiet', '-q'], { help: 'do not print job state changes' , action: 'storeTrue'});
         parser.addArgument(['--results', '-r'], { help: 'replay session prefix and test result directory (both cleared automatically)', defaultValue: 'results'});
-        parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: 'tmp'});
-        
-        parser.addArgument(['session'], { help: 'session file or dir to replay' });
+        parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: 'tmp' });
+        parser.addArgument(['--filter', '-F'], { help: 'replay all sessions stored on the server starting with this string', action: 'append'});        
+        parser.addArgument(['session'], { help: 'session file or dir to replay', nargs: '?'});
         
         let args = parser.parseArgs();
 
         this.startTime = new Date();
 
         const sessionPath = args.session;
+
+        this.resultsPath = args.results;
+        this.sesssionPrefix = 'replay_' + args.results + '_';
+        
+        this.tempPath = args.temp;
+        let parallel = parseInt(args.parallel);
+        if (isNaN(parallel)) {
+            throw new Error('the parameter "parallel" is not an integer: ' + args.parallel);
+        }
+
+        if (this.resultsPath.length === 0) {
+            throw new Error('results path is not set');
+        }
+
+        this.mkdirIfMissing(this.resultsPath);
+
+        const originalSessions: any[] = [];
+        const quiet = args.quiet || parallel !== 1;
+
+        let importErrors: ImportError[] = [];
+        let results = [];
+
+        const fileSessionPlans$ = of(null).pipe(
+            mergeMap(() => {
+                if (args.session != null) {
+                    return from(this.getSessionFiles(args.session));
+                } else {
+                    return empty();
+                }
+            }),
+            mergeMap((s: string) => {
+                return this.uploadSession(s, quiet).pipe(
+                    tap((session: any) => originalSessions.push(session)),
+                    mergeMap((session: UploadResult) => {
+                        return this.getSessionJobPlans(session, quiet);
+                    }),
+                    catchError(err => {
+                        // unexpected technical problems
+                        console.error('session import error', err);
+                        importErrors.push({
+                            file: s,
+                            error: err,
+                        });
+                        return of([]);
+                    }),
+                )
+            }, null, parallel)
+        );
+
+        const serverSessionPlans$ = of(null).pipe(
+            mergeMap(() => this.restClient.getSessions()),
+            map((sessions: any[]) => {
+                const filtered = [];
+                if (args.filter && sessions) {
+                    args.filter.forEach(prefix => {
+                        sessions.forEach(s => {
+                            if (s.name.startsWith(prefix)) {
+                                filtered.push(s);
+                            }
+                        });
+                    });
+                }
+                return filtered;
+            }),
+            mergeMap((sessions: any[]) => from(sessions)),
+            mergeMap((session: any) => this.getSessionJobPlans(session, quiet)),            
+        )
+
+        console.log('login as', args.username);
+        ChipsterUtils.login(args.URL, args.username, args.password).pipe(
+            mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
+            tap(restClient => this.restClient = restClient),
+            mergeMap(() => this.deleteOldSessions(this.sesssionPrefix)),
+            mergeMap(() => this.writeResults([], [], false)),
+            mergeMap(() => fileSessionPlans$.pipe(merge(serverSessionPlans$))),
+            mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
+            mergeMap(
+                (plan: JobPlan) => {
+                    return this.replayJob(plan, quiet)
+                }, null, parallel),
+            tap((sessionResults: any[][]) => {
+                results = results.concat(sessionResults);
+            }),
+            mergeMap(() => this.writeResults(results, importErrors, false)),
+            toArray(), // wait for completion
+            mergeMap(() => this.writeResults(results, importErrors, true)),
+            mergeMap(() => {
+                const cleanUps = originalSessions.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
+                return concat(...cleanUps).pipe(toArray());
+            }),
+        ).subscribe(
+            () => console.log('session replay done'),
+            err => console.error('session replay error', err),
+            () => console.log('session replay completed'));
+    }
+
+    getSessionFiles(sessionPath) {
         const sessionFiles: string[] = [];
         if (fs.existsSync(sessionPath)) {
             if (fs.lstatSync(sessionPath).isDirectory()) {
@@ -88,69 +186,7 @@ export default class ReplaySession {
         } else {
             throw new Error('path ' + sessionPath + ' does not exist');
         }
-
-        this.resultsPath = args.results;
-        this.tempPath = args.temp;
-        let parallel = parseInt(args.parallel);
-        if (isNaN(parallel)) {
-            throw new Error('the parameter "parallel" is not an integer: ' + args.parallel);
-        }
-
-        if (this.resultsPath.length === 0) {
-            throw new Error('results path is not set');
-        }
-
-        this.mkdirIfMissing(this.resultsPath);
-
-        const uploadResults: UploadResult[] = [];
-        const quiet = args.quiet || parallel !== 1;
-
-        let importErrors: ImportError[] = [];
-        let results = [];
-
-        console.log('login as', args.username);
-        ChipsterUtils.login(args.URL, args.username, args.password).pipe(
-            mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
-            tap(restClient => this.restClient = restClient),
-            mergeMap(() => this.deleteOldSessions(this.resultsPath + '_')),
-            mergeMap(() => this.writeResults([], [], false)),
-            mergeMap(() => from(sessionFiles)),
-            mergeMap((s: string) => {
-                return this.uploadSession(s, quiet).pipe(
-                    tap((uploadResult: UploadResult) => uploadResults.push(uploadResult)),
-                    mergeMap((uploadResult: UploadResult) => {
-                        return this.getSessionJobPlans(uploadResult, quiet);
-                    }),
-                    catchError(err => {
-                        // unexpected technical problems
-                        console.error('session import error', err);
-                        importErrors.push({
-                            file: s,
-                            error: err,
-                        });
-                        return of([]);
-                    }),
-                )
-            }, null, parallel),
-            mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
-            mergeMap(
-                (plan: JobPlan) => {
-                    return this.replayJob(plan, quiet)
-                }, null, parallel),
-            tap((sessionResults: any[][]) => {
-                results = results.concat(sessionResults);
-            }),
-            mergeMap(() => this.writeResults(results, importErrors, false)),
-            toArray(), // wait for completion
-            mergeMap(() => this.writeResults(results, importErrors, true)),
-            mergeMap(() => {
-                const cleanUps = uploadResults.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
-                return concat(...cleanUps).pipe(toArray());
-            }),
-        ).subscribe(
-            () => console.log('session replay done'),
-            err => console.error('session replay error', err),
-            () => console.log('session replay completed'));
+        return sessionFiles;
     }
 
     deleteOldSessions(nameStart) {
@@ -165,44 +201,30 @@ export default class ReplaySession {
         )
     }
 
-    uploadSession(sessionFile: string, quiet: boolean): Observable<UploadResult> {
-        let originalSessionId;
-        let replaySessionId;
-        let originalSession;
-
-        let name = this.resultsPath + '_' + path.basename(sessionFile).replace('.zip', '');
+    uploadSession(sessionFile: string, quiet: boolean): Observable<any> {
+        let name = this.sesssionPrefix + path.basename(sessionFile).replace('.zip', '');
 
         return of(null).pipe(
             tap(() => console.log('upload ' + sessionFile)),            
             mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, sessionFile, name, !quiet)),
-            tap(id => originalSessionId = id),
-            mergeMap(() => this.restClient.getSession(originalSessionId)),
-            tap(session => originalSession = session),
+            mergeMap(id => this.restClient.getSession(id)),
+        );
+    }
+
+    getSessionJobPlans(originalSession: any, quiet: boolean): Observable<JobPlan[]> {        
+        let jobSet;
+        let replaySessionId: string;
+
+        const originalSessionId = originalSession.sessionId;
+
+        return of(null).pipe(
             tap(() => {
                 if (!quiet) {
                     console.log('create a new session');
                 }
             }),
             mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, originalSession.name + '_replay')),
-            tap(id => replaySessionId = id),
-            map(() => {
-                return {
-                    originalSessionId: originalSessionId,
-                    replaySessionId: replaySessionId,
-                    originalSession: originalSession,
-                }
-            })
-        );
-    }
-
-    getSessionJobPlans(uploadResult: UploadResult, quiet: boolean): Observable<JobPlan[]> {        
-        let jobSet;
-
-        const originalSessionId = uploadResult.originalSessionId;
-        const replaySessionId = uploadResult.replaySessionId;
-        const originalSession = uploadResult.originalSession;
-
-        return of(null).pipe(
+            tap((id: string) => replaySessionId = id),            
             mergeMap(() => this.restClient.getDatasets(originalSessionId)),
             map((datasets: any[]) => {
                 // collect the list of datasets' sourceJobs
@@ -226,7 +248,7 @@ export default class ReplaySession {
                             originalSession: originalSession,
                         }
                     });                
-                console.log('session ' + uploadResult.originalSession.name + ' has ' + jobPlans.length + ' jobs');
+                console.log('session ' + originalSession.name + ' has ' + jobPlans.length + ' jobs');
                 return jobPlans;
             }),
         );
