@@ -101,8 +101,6 @@ export default class ReplaySession {
 
         this.mkdirIfMissing(this.resultsPath);
 
-        this.writeResults([], [], false);
-
         const uploadResults: UploadResult[] = [];
         const quiet = args.quiet || parallel !== 1;
 
@@ -113,6 +111,7 @@ export default class ReplaySession {
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
             tap(restClient => this.restClient = restClient),
+            mergeMap(() => this.writeResults([], [], false)),
             mergeMap(() => from(sessionFiles)),
             mergeMap((s: string) => {
                 return this.uploadSession(s, quiet).pipe(
@@ -139,9 +138,9 @@ export default class ReplaySession {
             tap((sessionResults: any[][]) => {
                 results = results.concat(sessionResults);
             }),
-            tap(() => this.writeResults(results, importErrors, false)),
+            mergeMap(() => this.writeResults(results, importErrors, false)),
             toArray(), // wait for completion
-            tap(() => this.writeResults(results, importErrors, true)),
+            mergeMap(() => this.writeResults(results, importErrors, true)),
             mergeMap(() => {
                 const cleanUps = uploadResults.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
                 return concat(...cleanUps).pipe(toArray());
@@ -428,18 +427,38 @@ export default class ReplaySession {
         }
     }        
     
-    writeResults(results, importErrors: ImportError[], isCompleted: boolean) {
+    writeResults(results, importErrors: ImportError[], isCompleted: boolean): Observable<any> {
 
         this.removeAllFiles(this.resultsPath);
 
+        let toolIds = new Set();
+        let allToolsCount: number;
+
+        return this.restClient.getTools().pipe(
+            tap((modules: Array<any>) => {
+                modules.forEach(module => {
+                    module['categories'].forEach(category => {
+                        category.tools.forEach(tool => {
+                            toolIds.add(tool.name.id);
+                        });
+                    });
+                });
+                allToolsCount = toolIds.size;
+            }),  
+            tap(() => this.writeResultsSync(results, importErrors, isCompleted, allToolsCount))
+        );
+    }
+
+        
+    writeResultsSync(results, importErrors: ImportError[], isCompleted: boolean, allToolsCount: number) {
         const booleanResults = results
             .map(r => r.job.state === 'COMPLETED' && r.errors.length === 0);
         
         const totalCount = booleanResults.length;
         const okCount = booleanResults.filter(b => b).length;
         const failCount = booleanResults.filter(b => !b).length;
-
-        const uniqToolsCount = _.uniq(results.map(r => r.job.toolId)).length;
+        
+        const uniqTestToolsCount = _.uniq(results.map(r => r.job.toolId)).length;
         
         const stream = fs.createWriteStream(this.resultsPath + '/index.html');
         stream.once('open', fd => {
@@ -488,7 +507,7 @@ th {
 
             stream.write('<tr>');
             stream.write('<td>Tool coverage</td>');
-            stream.write('<td>' + uniqToolsCount + '</td>');
+            stream.write('<td>' + uniqTestToolsCount + ' / ' + allToolsCount + '</td>');
             stream.write('</tr>');
 
             stream.write('<tr>');
