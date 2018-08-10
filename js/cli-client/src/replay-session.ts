@@ -99,13 +99,15 @@ export default class ReplaySession {
             throw new Error('results path is not set');
         }
 
-        this.removeAllFiles(this.resultsPath);
         this.mkdirIfMissing(this.resultsPath);
+
+        this.writeResults([], [], false);
 
         const uploadResults: UploadResult[] = [];
         const quiet = args.quiet || parallel !== 1;
 
         let importErrors: ImportError[] = [];
+        let results = [];
 
         console.log('login as', args.username);
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
@@ -134,11 +136,12 @@ export default class ReplaySession {
                 (plan: JobPlan) => {
                     return this.replayJob(plan, quiet)
                 }, null, parallel),
-            toArray(),
             tap((sessionResults: any[][]) => {
-                const flatResults = sessionResults.reduce((a, b) => a.concat(b), []);
-                this.writeResults(flatResults, importErrors);
+                results = results.concat(sessionResults);
             }),
+            tap(() => this.writeResults(results, importErrors, false)),
+            toArray(), // wait for completion
+            tap(() => this.writeResults(results, importErrors, true)),
             mergeMap(() => {
                 const cleanUps = uploadResults.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
                 return concat(...cleanUps).pipe(toArray());
@@ -425,7 +428,9 @@ export default class ReplaySession {
         }
     }        
     
-    writeResults(results, importErrors: ImportError[]) {
+    writeResults(results, importErrors: ImportError[], isCompleted: boolean) {
+
+        this.removeAllFiles(this.resultsPath);
 
         const booleanResults = results
             .map(r => r.job.state === 'COMPLETED' && r.errors.length === 0);
@@ -462,10 +467,16 @@ th {
 <body>                
             `);
 
-            if (failCount === 0) {
-                stream.write('<h2>Tool tests - <span style="color: green">everything ok!</span></h2>');
+            let runningState = isCompleted ? 'completed' : 'running';
+
+            if (failCount === 0 && importErrors.length === 0) {
+                if (isCompleted) {
+                    stream.write('<h2>Tool tests ' + runningState + ' - <span style="color: green">everything ok!</span></h2>');
+                } else {
+                    stream.write('<h2>Tool tests ' + runningState + '</h2>');
+                }
             } else {
-                stream.write('<h2>Tool tests - <span style="color: red">' + failCount + ' tool(s) failed</span></h2>');
+                stream.write('<h2>Tool tests ' + runningState + ' - <span style="color: red">' + failCount + ' tool(s) failed, ' + importErrors.length + ' session(s) with errors</span></h2>');
             }
 
             stream.write('<h3>Summary</h3>');
