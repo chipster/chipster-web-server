@@ -17,8 +17,11 @@ const logger = Logger.getLogger(__filename);
  * 
  * Replay the jobs in a session to test that the tools still work. 
  * 
- * First we upload and extract the local session file which allows us to 
- * investigate it with the Rest API. We create a new empty session for the test jobs.
+ * The original sessions can be local zip files (given as parameter "session") or a 
+ * server session (selected with parameter --filter). Zip files are uploaded and 
+ * extracted which allows us to investigate it with the Rest API. 
+ * 
+ * We create a new empty session for the test jobs.
  * We copy (by downloading and uploading) the input files of each job from the original
  * (uploaded) session to this new session and replay the jobs using the same inputs and
  * parameters. Phenodata is copied from the original dataset and there is basic support for
@@ -41,7 +44,8 @@ export default class ReplaySession {
     startTime: Date;
     restClient: any;
     resultsPath: string;
-    sesssionPrefix: string;
+    uploadSessionPrefix: string;
+    replaySessionPrefix: string;
     tempPath: string;
     
     constructor() {
@@ -63,7 +67,7 @@ export default class ReplaySession {
         parser.addArgument(['--debug', '-d'], { help: 'do not delete the test session', action: 'storeTrue' });
         parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel (>1 implies --quiet)', defaultValue: 1 });
         parser.addArgument(['--quiet', '-q'], { help: 'do not print job state changes' , action: 'storeTrue'});
-        parser.addArgument(['--results', '-r'], { help: 'replay session prefix and test result directory (both cleared automatically)', defaultValue: 'results'});
+        parser.addArgument(['--results', '-r'], { help: 'replay session prefix and test result directory (both cleared automatically)', defaultValue: 'default-test-set'});
         parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: 'tmp' });
         parser.addArgument(['--filter', '-F'], { help: 'replay all sessions stored on the server starting with this string', action: 'append'});        
         parser.addArgument(['session'], { help: 'session file or dir to replay', nargs: '?'});
@@ -75,7 +79,19 @@ export default class ReplaySession {
         const sessionPath = args.session;
 
         this.resultsPath = args.results;
-        this.sesssionPrefix = 'replay_' + args.results + '_';
+
+        /* Session prefixes for recognizing old sessions produced by this job
+
+        Failing cronjobs create easily lots of sessions. We want to delete all old sessions
+        created by this cronjob or test set, but don't want to disturb other test sets that 
+        might be running at the same time. Most likely the user uses different result directories for
+        different test sets, so it's a good value for grouping these temporaray sessions too.
+        */
+        const testSet = path.basename(args.results); 
+        this.uploadSessionPrefix = 'zip-upload/' + testSet + '/';
+        //FIXME use this to name the sessions and delete then in the beginning
+        //TODO modify OpenShift script to run test sessions and copy test-sessions to the server
+        this.replaySessionPrefix = 'replay/' + testSet + '/';
         
         this.tempPath = args.temp;
         let parallel = parseInt(args.parallel);
@@ -145,7 +161,7 @@ export default class ReplaySession {
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
             mergeMap((token: any) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
             tap(restClient => this.restClient = restClient),
-            mergeMap(() => this.deleteOldSessions(this.sesssionPrefix)),
+            mergeMap(() => this.deleteOldSessions(this.uploadSessionPrefix, this.replaySessionPrefix)),
             mergeMap(() => this.writeResults([], [], false)),
             mergeMap(() => fileSessionPlans$.pipe(merge(serverSessionPlans$))),
             mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
@@ -189,9 +205,13 @@ export default class ReplaySession {
         return sessionFiles;
     }
 
-    deleteOldSessions(nameStart) {
+    deleteOldSessions(nameStart1, nameStart2) {
         return this.restClient.getSessions().pipe(
-            map((sessions: any[]) => sessions.filter(s => s.name.startsWith(nameStart))),
+            map((sessions: any[]) => {
+                return sessions.filter(s => {
+                    return s.name.startsWith(nameStart1) || s.name.startsWith(nameStart2);
+                })
+            }),
             mergeMap((sessions: any[]) => from(sessions)),
             mergeMap((session: any) => {
                 console.log('delete session', session.name);
@@ -202,7 +222,7 @@ export default class ReplaySession {
     }
 
     uploadSession(sessionFile: string, quiet: boolean): Observable<any> {
-        let name = this.sesssionPrefix + path.basename(sessionFile).replace('.zip', '');
+        let name = this.uploadSessionPrefix + path.basename(sessionFile).replace('.zip', '');
 
         return of(null).pipe(
             tap(() => console.log('upload ' + sessionFile)),            
@@ -217,13 +237,15 @@ export default class ReplaySession {
 
         const originalSessionId = originalSession.sessionId;
 
+        const replaySessionName = this.replaySessionPrefix + path.basename(originalSession.name);
+
         return of(null).pipe(
             tap(() => {
                 if (!quiet) {
                     console.log('create a new session');
                 }
             }),
-            mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, originalSession.name + '_replay')),
+            mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, replaySessionName)),
             tap((id: string) => replaySessionId = id),            
             mergeMap(() => this.restClient.getDatasets(originalSessionId)),
             map((datasets: any[]) => {
