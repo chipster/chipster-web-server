@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -200,15 +201,19 @@ public class SessionWorkerResource {
 		session.setSessionId(sessionId);
 		sessionDb.updateSession(session);
 
-		// create jobs objects
+		// create job objects
 		for (Job job : jobs) {
 			UUID oldId = job.getJobId();
 			job.setJobId(null);
 			// dataset ids have changed
-			for (Input input : job.getInputs()) {
+			Iterator<Input> inputIter = job.getInputs().iterator();
+			while (inputIter.hasNext()) {
+				Input input = inputIter.next();
 				UUID newDatasetId = datasetIdMap.get(UUID.fromString(input.getDatasetId()));
 				if (input.getDatasetId() != null && newDatasetId == null) {					
-					warnings.add("input dataset of job " + job.getToolId() + " " + input.getInputId() + " missing");
+					warnings.add("job '" + job.getToolId() + "' has input '" + input.getInputId() + "' but the dataset is no more in the session");
+					// the server doesn't allow jobs with invalid inputs
+					inputIter.remove();
 				} else {
 					input.setDatasetId(newDatasetId.toString());
 				}
