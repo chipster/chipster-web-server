@@ -192,7 +192,10 @@ export default class ChipsterUtils {
             } else {
                 // normal single input
                 const input = ChipsterUtils.getInput(i.name.id, i, inputMap);
-                job.inputs.push(input);
+                // dont' add optional unbound inputs
+                if (input != null) {                    
+                    job.inputs.push(input);
+                }
             }
 
         });
@@ -213,7 +216,9 @@ export default class ChipsterUtils {
         if (inputMap.has(inputId)) {
             input.datasetId = inputMap.get(inputId).datasetId;
             input.displayName = inputMap.get(inputId).name;
-        } else if (!toolInput.isOptional) {
+        } else if (toolInput.optional) {
+            return null;
+        } else {
             console.log('input', inputId, toolInput, inputMap.get(inputId));
             throw Error('non-optional input "' + inputId + '" has no dataset');
         }
