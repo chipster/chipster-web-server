@@ -185,6 +185,7 @@ public class XmlSession {
 		for (UUID datasetId : convertedPhenodatas) {
 			session.getDatasetCollection().removeIf(d -> datasetId.equals(d.getDatasetId()));
 			sessionDb.deleteDataset(sessionId, datasetIdMap.get(datasetId));
+			datasetIdMap.remove(datasetId);
 		}
 	}
 
