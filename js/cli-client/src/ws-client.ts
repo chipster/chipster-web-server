@@ -56,11 +56,19 @@ export default class WsClient {
   
             if (!quiet) {
                 this.ws.on('close', (code, reason) => {
-                    console.log('websocket closed', code, reason);
+                    if (code === 1001) {
+                        // idle timeout
+                        console.log('websocket ' + reason + ', reconnecting...');
+                        this.connect(sessionId, quiet);
+                    } else {
+                        console.log('websocket closed', code, reason);
+                        this.wsEvents$.error("websocket closed: " + code + " " + reason);
+                    }
                 });
   
                 this.ws.on('error', error => {
                     console.log('websocket error', error);
+                    this.wsEvents$.error("websocket error: " + error);
                 });
             }  
         })

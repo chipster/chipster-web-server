@@ -350,7 +350,8 @@ export default class ReplaySession {
                             console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
                         }
                     }),
-                    last());
+                    last(),
+                );
             }),
             mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId, plan)),
             catchError(err => {
