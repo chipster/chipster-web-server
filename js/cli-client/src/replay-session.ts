@@ -233,6 +233,7 @@ export default class ReplaySession {
 
     getSessionJobPlans(originalSession: any, quiet: boolean): Observable<JobPlan[]> {        
         let jobSet;
+        let datasetIdSet = new Set<string>();
         let replaySessionId: string;
 
         const originalSessionId = originalSession.sessionId;
@@ -253,6 +254,7 @@ export default class ReplaySession {
                 jobSet = new Set(datasets
                     .map(d => d.sourceJob)
                     .filter(id => id != null));
+                datasets.forEach(d => datasetIdSet.add(d.datasetId));
             }),
             mergeMap(() => this.restClient.getJobs(originalSessionId)),
             map((jobs: any[]) => {
@@ -260,6 +262,14 @@ export default class ReplaySession {
                     // run only jobs whose output files exist
                     // and don't care about failed or orphan jobs
                     .filter(j => jobSet.has(j.jobId))
+                    // run only jobs that still have at least one input file in the session
+                    .filter(j => {
+                        for (let i of j.inputs) {
+                            if (datasetIdSet.has((<any>i).datasetId)) {
+                                return true;
+                            }
+                        }
+                    })
                     // a dummy job of the old Java client
                     .filter(j => ReplaySession.ignoreJobIds.indexOf(j.toolId) === -1)
                     .map(j => {
