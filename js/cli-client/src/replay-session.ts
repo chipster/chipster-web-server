@@ -172,8 +172,9 @@ export default class ReplaySession {
             tap((sessionResults: any[][]) => {
                 results = results.concat(sessionResults);
             }),
+            // update results afte each job
             mergeMap(() => this.writeResults(results, importErrors, false)),
-            toArray(), // wait for completion
+            toArray(), // wait for completion and write the final results
             mergeMap(() => this.writeResults(results, importErrors, true)),
             mergeMap(() => {
                 const cleanUps = originalSessions.map(u => this.cleanUp(u.originalSessionId, u.replaySessionId, args.debug));
@@ -561,7 +562,11 @@ th {
 
             if (failCount === 0 && importErrors.length === 0) {
                 if (isCompleted) {
-                    stream.write('<h2>Tool tests ' + runningState + ' - <span style="color: green">everything ok!</span></h2>');
+                    if (okCount > 0) {
+                        stream.write('<h2>Tool tests ' + runningState + ' - <span style="color: green">everything ok!</span></h2>');
+                    } else {
+                        stream.write('<h2>Tool tests  - <span style="color: orange">not found!</span></h2>');
+                    }
                 } else {
                     stream.write('<h2>Tool tests ' + runningState + '</h2>');
                 }
@@ -668,15 +673,17 @@ th {
             stream.write('</table></body></html>\n');
             stream.end();
         });
-
+        
         // create, update or delete the flag file based on the result
-        const flagPath = this.resultsPath + '/' + this.flagFile;
-        if (failCount === 0) {             
-            // create the file or update its mtime
-            fs.writeFileSync(flagPath, 'test-ok');
-        } else {
-            if (fs.existsSync(flagPath)) {
-                fs.unlinkSync(flagPath);
+        if (isCompleted) {
+            const flagPath = this.resultsPath + '/' + this.flagFile;
+            if (failCount === 0 && okCount > 0) {             
+                // create the file or update its mtime
+                fs.writeFileSync(flagPath, 'test-ok');
+            } else {
+                if (fs.existsSync(flagPath)) {
+                    fs.unlinkSync(flagPath);
+                }
             }
         }
     }
