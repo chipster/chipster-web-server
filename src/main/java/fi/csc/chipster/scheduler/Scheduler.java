@@ -88,6 +88,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	SchedulerTopicConfig topicConfig = new SchedulerTopicConfig(authService);
     	this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), "events", this, topicConfig, "scheduler-events");
     	this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
+    	this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
     	this.pubSubServer.start();	
     	    
     	logger.info("getting unfinished jobs from the session-db");

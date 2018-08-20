@@ -129,6 +129,7 @@ public class SessionDb {
 				topicConfig, "session-db-events");
 		this.pubSubServer.setIdleTimeout(config
 				.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
+		this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
 		this.pubSubServer.start();
 
 		sessionResource.setPubSubServer(pubSubServer);

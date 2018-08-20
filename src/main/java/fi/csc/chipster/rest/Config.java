@@ -72,6 +72,7 @@ public class Config {
 	public static final String KEY_AUTH_JAAS_PREFIX = "auth-jaas-prefix";
 	
 	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
+	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
 
 	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
 	
