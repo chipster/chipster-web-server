@@ -1,6 +1,6 @@
 import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest, empty } from "rxjs";
 import { tap, mergeMap, toArray, take, map, finalize, catchError, merge } from "rxjs/operators";
-import { RestClient, Logger } from "rest-client";
+import { RestClient, Logger } from "chipster-js-common";
 import ChipsterUtils from "./chipster-utils";
 import wsClient from "./ws-client";
 import WsClient from "./ws-client";

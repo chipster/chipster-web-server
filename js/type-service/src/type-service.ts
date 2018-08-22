@@ -2,7 +2,7 @@
 import {of as observableOf,  Observable, forkJoin } from 'rxjs';
 
 import {map, mergeMap} from 'rxjs/operators';
-import {RestClient, Logger, Config} from "rest-client";
+import {RestClient, Logger, Config} from "chipster-js-common";
 import {Tag, Tags, TypeTags} from "./type-tags";
 const os = require('os');
 const url = require('url');

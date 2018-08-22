@@ -1,6 +1,6 @@
 import { Subject } from "rxjs";
 import { mergeMap, tap, map } from "rxjs/operators";
-import { RestClient } from "rest-client";
+import { RestClient } from "chipster-js-common";
 import { Observable } from "rxjs";
 import * as _ from 'lodash';
 

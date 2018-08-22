@@ -4,7 +4,7 @@ import { filter, mergeMap, takeWhile, tap, distinctUntilChanged, map, startWith,
 //const RestClient = require('rest-client')
 
 import * as _ from 'lodash';
-import { RestClient, Logger } from "rest-client";
+import { RestClient, Logger } from "chipster-js-common";
 const WebSocket = require('ws');
 
 const path = require('path');

@@ -7,7 +7,7 @@ import CliEnvironment from "./cli-environment";
 import * as _ from 'lodash';
 import WsClient from "./ws-client";
 import ChipsterUtils from "./chipster-utils";
-import { RestClient, Logger } from "rest-client";
+import { RestClient, Logger } from "chipster-js-common";
 
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
