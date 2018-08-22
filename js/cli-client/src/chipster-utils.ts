@@ -1,6 +1,7 @@
 import { Subject } from "rxjs";
 import { mergeMap, tap, map } from "rxjs/operators";
-import { RestClient } from "chipster-js-common";
+import { RestClient } from "chipster-nodejs-core";
+import { Tool, Dataset, ToolInput } from "chipster-js-common";
 import { Observable } from "rxjs";
 import * as _ from 'lodash';
 
@@ -152,7 +153,7 @@ export default class ChipsterUtils {
         );
     }
     
-    static jobRun(restClient, sessionId, tool, paramMap, inputMap) {
+    static jobRun(restClient: RestClient, sessionId: string, tool: Tool, paramMap: Map<string, string>, inputMap: Map<string, Dataset>) {
         let job = {
             toolId: tool.name.id,
             state: 'NEW',
@@ -203,7 +204,7 @@ export default class ChipsterUtils {
         return restClient.postJob(sessionId, job);
     }
 
-    static getInput(inputId, toolInput, inputMap) {
+    static getInput(inputId: string, toolInput: ToolInput, inputMap: Map<string, Dataset>) {
         const input = {
             inputId: inputId,
             // apparently the app sends something here, because comp throws if this is null

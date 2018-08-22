@@ -7,7 +7,8 @@ import CliEnvironment from "./cli-environment";
 import * as _ from 'lodash';
 import WsClient from "./ws-client";
 import ChipsterUtils from "./chipster-utils";
-import { RestClient, Logger } from "chipster-js-common";
+import { RestClient, Logger } from "chipster-nodejs-core";
+import { Token, Session, Rule, Dataset, Job, Module, Tool, Service } from "chipster-js-common";
 
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
@@ -293,7 +294,7 @@ export default class CliClient {
 
       mergeMap(() => ChipsterUtils.login(webServerUri, username, password)),
       // save
-      mergeMap((token: any) => this.env.set('token', token.tokenKey)),
+      mergeMap((token: Token) => this.env.set('token', token.tokenKey)),
       mergeMap(() => this.env.set('webServerUri', webServerUri)),
       mergeMap(() => this.env.set('username', username)),
       mergeMap(() => this.checkLogin()),);
@@ -327,7 +328,7 @@ export default class CliClient {
   sessionList() {
     this.checkLogin().pipe(
       mergeMap(() => this.restClient.getSessions()))
-      .subscribe((sessions: Array<any>) => {
+      .subscribe((sessions: Array<Session>) => {
         sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
       });
   }
@@ -339,7 +340,7 @@ export default class CliClient {
 
   sessionOpen(args) {
     this.getSessionByNameOrId(args.name).pipe(
-      mergeMap((session: any) => this.setOpenSession(session.sessionId)))
+      mergeMap((session: Session) => this.setOpenSession(session.sessionId)))
       .subscribe();
   }
 
@@ -367,8 +368,8 @@ export default class CliClient {
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       mergeMap(() => this.restClient.getRules(sessionId)),
-      mergeMap((rules: any) => observableFrom(rules.filter(r => r.username === args.username))),
-      mergeMap((rule: any) => this.restClient.deleteRule(sessionId, rule.ruleId)),)
+      mergeMap((rules: Rule[]) => observableFrom(rules.filter(r => r.username === args.username))),
+      mergeMap((rule: Rule) => this.restClient.deleteRule(sessionId, rule.ruleId)),)
       .subscribe(null, err => console.error('failed to delete the rule', err));
   }
 
@@ -376,7 +377,7 @@ export default class CliClient {
     this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getDatasets(sessionId)),)
-      .subscribe((datasets: Array<any>) => {
+      .subscribe((datasets: Array<Dataset>) => {
         datasets.forEach(d => console.log(d.name.padEnd(50), d.datasetId))
       });
   }
@@ -423,7 +424,7 @@ export default class CliClient {
     this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getJobs(sessionId)),)
-      .subscribe((jobs: Array<any>) => {
+      .subscribe((jobs: Array<Job>) => {
         jobs.forEach(j => ChipsterUtils.printTable(j, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]));
       });
   }
@@ -490,9 +491,9 @@ export default class CliClient {
     // login not needed, but it creates restClient
     this.checkLogin().pipe(
       mergeMap(() => this.restClient.getTools()))
-      .subscribe((modules: Array<any>) => {
+      .subscribe((modules: Array<Module>) => {
         modules.forEach(module => {
-          module['categories'].forEach(category => {
+          module.categories.forEach(category => {
             category.tools.forEach(tool => {
               console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
             });
@@ -509,7 +510,7 @@ export default class CliClient {
   getSessionByNameOrId(search: string) {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getSessions()),
-      map((sessions: Array<any>) => sessions.filter(s => s.name === search || s.sessionId.startsWith(search))),
+      map((sessions: Array<Session>) => sessions.filter(s => s.name === search || s.sessionId.startsWith(search))),
       map(sessions => {
         if (sessions.length !== 1) {
           throw new Error('found ' + sessions.length + ' sessions');
@@ -522,7 +523,7 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getDatasets(sessionId)),
-      map((datasets: Array<any>) => datasets.filter(d => d.name === search || d.datasetId.startsWith(search))),
+      map((datasets: Array<Dataset>) => datasets.filter(d => d.name === search || d.datasetId.startsWith(search))),
       map(datasets => {
         if (datasets.length !== 1) {
           throw new Error('found ' + datasets.length + ' datasets');
@@ -535,7 +536,7 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getJobs(sessionId)),
-      map((jobs: Array<any>) => jobs.filter(j => j.toolId === search || j.jobId.startsWith(search))),
+      map((jobs: Array<Job>) => jobs.filter(j => j.toolId === search || j.jobId.startsWith(search))),
       map(jobs => {
         if (jobs.length !== 1) {
           throw new Error('found ' + jobs.length + ' jobs');
@@ -548,13 +549,13 @@ export default class CliClient {
     // login not needed, but it creates restClient
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getTools()),
-      map((modules: any[]) => {
+      map((modules: Module[]) => {
         const categoryArrays = modules.map(module => module.categories);
         const categories = _.flatten(categoryArrays);
         const toolArrays = categories.map(category => category.tools);
         return _.flatten(toolArrays);
       }),
-      map((tools: Array<any>) => tools.filter(t => {
+      map((tools: Array<Tool>) => tools.filter(t => {
         return t.name.id === search || t.name.displayName === search;
       })),
       map(tools => {
@@ -588,8 +589,8 @@ export default class CliClient {
   serviceGet(args) {
     this.checkLogin().pipe(
       mergeMap(() => this.restClient.getServices()),
-      map((services: Array<any>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http'))),
-      map((services: Array<any>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name)),
+      map((services: Array<Service>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http'))),
+      map((services: Array<Service>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name)),
       mergeMap(services => observableFrom(services)),
       mergeMap(service => {
         return observableForkJoin(
