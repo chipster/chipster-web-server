@@ -8,9 +8,8 @@
     "target": "es5",
     "lib": [
       // rxjs references staff from DOM
-      "DOM",
-      "ES5",
-      "ES2016"
+      "dom",
+      "es2017"
     ]
   }
 }

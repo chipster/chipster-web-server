@@ -1,12 +1,12 @@
 import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest, empty } from "rxjs";
 import { tap, mergeMap, toArray, take, map, finalize, catchError, merge } from "rxjs/operators";
-import { RestClient, Logger } from "chipster-js-common";
+import { RestClient, Logger } from "chipster-nodejs-core";
 import ChipsterUtils from "./chipster-utils";
 import wsClient from "./ws-client";
 import WsClient from "./ws-client";
 import * as _ from 'lodash';
 import { last } from "rxjs/internal/operators/last";
-import { Session, Token, Dataset, Job, Module, Category } from "chipster-js-common";
+import { Session, Dataset, Job, Module, Category, Token } from "chipster-js-common";
 
 const ArgumentParser = require('argparse').ArgumentParser;
 const fs = require('fs');
@@ -123,7 +123,7 @@ export default class ReplaySession {
             mergeMap((s: string) => {
                 return this.uploadSession(s, quiet).pipe(
                     tap((session: Session) => originalSessions.push(session)),
-                    mergeMap((session: UploadResult) => {
+                    mergeMap((session: Session) => {
                         return this.getSessionJobPlans(session, quiet);
                     }),
                     catchError(err => {
@@ -320,7 +320,7 @@ export default class ReplaySession {
                 const fileCopies = job.inputs.map(input => {
                     return this.copyDataset(originalSessionId, replaySessionId, input.datasetId, job.jobId + input.datasetId, quiet).pipe(
                         mergeMap(datasetId => this.restClient.getDataset(replaySessionId, datasetId)),
-                        tap(dataset => inputMap.set(input.inputId, dataset)),
+                        tap((dataset: Dataset) => inputMap.set(input.inputId, dataset)),
                         tap((dataset: Dataset) => {
                             if (!quiet) {
                                 console.log('dataset ' + dataset.name + ' copied for input ' + input.inputId);

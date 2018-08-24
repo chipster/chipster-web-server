@@ -141,10 +141,10 @@ export default class WsClient {
 
     getJobOutputDatasets$(jobId: string) {
         return this.wsEvents$.pipe(
-            filter((event: SessionEvent) => event.resourceType === 'DATASET' && event.type === 'CREATE'),
+            filter((event: WsEvent) => event.resourceType === 'DATASET' && event.type === 'CREATE'),
             // we have to get all created datasets to see if 
             // it was created by this job
-            mergeMap((event: SessionEvent) => this.restClient.getDataset(this.sessionId, event.resourceId)),
+            mergeMap((event: WsEvent) => this.restClient.getDataset(this.sessionId, event.resourceId)),
             filter((dataset: Dataset) => dataset.sourceJob === jobId));
     }
 
