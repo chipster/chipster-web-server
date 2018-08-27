@@ -57,7 +57,7 @@ public class Dataset {
 	@JsonUnwrapped // rest
 	private File file;
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER, orphanRemoval=true)
 	@JoinColumn(name="datasetId")
 	private List<MetadataEntry> metadata;
 	
