@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
+import java.nio.charset.Charset;
 
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
@@ -60,13 +60,15 @@ public class WebServerTest {
     @Test
     public void getFile() throws RestException, JsonParseException, JsonMappingException, IOException {
 				
-		Response resp = webServerTarget.path("favicon.ico").request().get();
+    	// in the dev setup the web server is serving just the src folder
+    	// the app won't work without the build, but the content is enough for these tests
+		Response resp = webServerTarget.path("main.ts").request().get();
 		
 		assertEquals(200, resp.getStatus());
 		
-		// check the first "magic bytes" to recognize the .ico format
-		byte[] ico = IOUtils.toByteArray((InputStream)resp.getEntity());
-		assertEquals(true, Arrays.equals(new byte[] {0, 0, 1, 0}, Arrays.copyOfRange(ico, 0, 4)));
+		// check something in the content to make sure this is not the index.html
+		String main = IOUtils.toString((InputStream)resp.getEntity(), Charset.defaultCharset());
+		assertEquals(true, main.contains("platformBrowserDynamic()"));
     }
     
 	/**
