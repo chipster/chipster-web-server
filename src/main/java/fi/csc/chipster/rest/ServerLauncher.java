@@ -139,11 +139,11 @@ public class ServerLauncher {
 		typeService = new JavascriptService("js/type-service");
 		typeService.startServer();
 		
-//		if (verbose) {
-//			logger.info("starting backup service");
-//		}
-//		backup = new Backup(config);
-//		backup.start();
+		if (verbose) {
+			logger.info("starting backup service");
+		}
+		backup = new Backup(config);
+		backup.start();
 
 
 		if (verbose) {

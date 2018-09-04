@@ -205,6 +205,9 @@ file-broker-shutdown-timeout: 3600
 # when to timeout idle websocket connections, milliseconds. Set to zero to wait indefinitely.
 websocket-idle-timeout: 300000
 
+# send regular ping messages to prevent idle timeouts, 0 to disable
+websocket-ping-interval: 120000
+
 # variables
 
 variable-public-ip: 127.0.0.1

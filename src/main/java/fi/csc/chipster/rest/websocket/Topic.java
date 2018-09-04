@@ -43,6 +43,21 @@ public class Topic {
 			}
 		}
 	}
+	
+	public void ping() {
+		synchronized (this) {
+			logger.debug("ping " + subscribers.size() + " subscribers");
+			for (Subscriber s: subscribers.values()) {
+				try {
+					logger.debug("send to " + s.getRemoteAddress());
+					s.getRemote().sendPing(null);
+				} catch (IOException e) {
+					// nothing to worry about if the client just unsubscribed 
+					logger.warn("failed to ping " + subscribers.get(s.getRemoteAddress()), e);
+				}
+			}
+		}
+	}
 
 	public ConcurrentHashMap<Basic, Subscriber> getSubscribers() {
 		return subscribers;

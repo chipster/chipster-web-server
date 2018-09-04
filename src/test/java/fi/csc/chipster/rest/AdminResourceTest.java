@@ -47,6 +47,10 @@ public class AdminResourceTest {
     @Test
     public void getStatus() throws IOException {
     	for (String role : getRolesWithAdminUrl()) {
+    		if (Role.BACKUP.equals(role)) {
+    			// the backup service doesn't offer status information
+    			continue;
+    		}
     		getStatus(role);
     	}
     }
@@ -54,6 +58,7 @@ public class AdminResourceTest {
     @Test
     public void getAlive() throws IOException {
     	for (String role : getRolesWithAdminUrl()) {
+    		System.out.println(role);
     		// doesn't require authentication
     		assertEquals(200, getAdminResponse(launcher.getNoAuthClient(), role, "alive").getStatus());
     	}
@@ -62,6 +67,11 @@ public class AdminResourceTest {
     @Test
     public void noAuth() throws IOException {
     	for (String role : getRolesWithAdminUrl()) {
+    		if (Role.BACKUP.equals(role)) {
+    			// the backup service doesn't offer status information
+    			continue;
+    		}
+    		
      		assertEquals(403, getStatusResponse(launcher.getUser1Client(), role).getStatus());
      		assertEquals(403, getStatusResponse(launcher.getNoAuthClient(), role).getStatus());
      		assertEquals(403, getStatusResponse(launcher.getTokenFailClient(), role).getStatus());

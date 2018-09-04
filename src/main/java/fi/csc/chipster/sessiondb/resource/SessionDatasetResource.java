@@ -252,8 +252,10 @@ public class SessionDatasetResource {
 			// there isn't anymore anyone using this file and the file-broker
 			// can delete it
 			if (fileDatasets.isEmpty()) {
-				// only for file-broker
+				// remove from file-broker
 				sessionResource.publish(SessionDbTopicConfig.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
+				// remove from db
+				hibernateSession.delete(dataset.getFile());
 			}
 			
 		}

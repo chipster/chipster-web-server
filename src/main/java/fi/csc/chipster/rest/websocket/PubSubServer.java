@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -36,6 +38,7 @@ public class PubSubServer implements StatusSource {
 	private static final Logger logger = LogManager.getLogger();
 	
 	public static final String DEFAULT_TOPIC = "default-topic";
+
 	
 	ConcurrentHashMap<String, Topic> topics = new ConcurrentHashMap<>();
 
@@ -61,6 +64,9 @@ public class PubSubServer implements StatusSource {
 	private int bytesSent;
 
 	private long idleTimeout = 0;
+	
+	private Timer pingTimer;
+	private long pingInterval = 0;
 	
 
 	public PubSubServer(String baseUri, String path, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException, DeploymentException {
@@ -168,9 +174,31 @@ public class PubSubServer implements StatusSource {
 	public MessageHandler.Whole<String> getMessageHandler() {
 		return this.replyHandler;
 	}
+	
+	public void startPingTimer() {
+		pingTimer = new Timer();
+		
+		if (pingInterval != 0) {
+			// prevent jetty from closing this connection if it is idle for 5 minutes
+			// or the haproxy in OpenShift after one hour
+			pingTimer.schedule(new TimerTask() {
+				@Override
+				public void run() {
+					for (Topic topic : topics.values()) {
+						topic.ping();
+					}
+				}			
+			}, pingInterval, pingInterval);
+		}
+	}
+	
+	public void stopPingTimer() {
+		pingTimer.cancel();
+	}
 
 	public void stop() {
 		try {
+			stopPingTimer();
 			this.server.stop();
 			logger.info("stopped a pub-sub server: " + name);
 		} catch (Exception e) {
@@ -181,6 +209,7 @@ public class PubSubServer implements StatusSource {
 	public void start() {
 		try {
 			logger.debug("start a pub-sub server: " + name);
+			startPingTimer();
 			this.server.start();
 		} catch (Exception e) {
 			logger.error("failed to start PubSubServer", e);
@@ -275,5 +304,18 @@ public class PubSubServer implements StatusSource {
 	public void setIdleTimeout(long timeout) {		
 		logger.info(name + " idle timeout: " + timeout + "ms");
 		this.idleTimeout = timeout;
-	}	
+	}
+
+	/**
+	 * Send regular ping messages to all connected subscribers
+	 * 
+	 * This helps against this Jetty and other possible intermediate proxies to closing the idle connection.
+	 * Settings this is only effective before the method start() is called.
+	 * 
+	 * @param pingInterval in milliseconds
+	 */
+	public void setPingInterval(long pingInterval) {
+		logger.info(name + " ping interval: " + pingInterval + "ms");
+		this.pingInterval = pingInterval;
+	}
 }

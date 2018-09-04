@@ -4,7 +4,8 @@ import { filter, mergeMap, takeWhile, tap, distinctUntilChanged, map, startWith,
 //const RestClient = require('rest-client')
 
 import * as _ from 'lodash';
-import { RestClient, Logger } from "rest-client";
+import { RestClient, Logger } from "chipster-nodejs-core";
+import { WsEvent, Job, SessionEvent, Dataset } from "chipster-js-common";
 const WebSocket = require('ws');
 
 const path = require('path');
@@ -15,7 +16,7 @@ const ArgumentParser = require('argparse').ArgumentParser;
 export default class WsClient {
 
     sessionId: string;
-    wsEvents$ = new Subject<any>();
+    wsEvents$ = new Subject<WsEvent>();
     ws;
 
     static readonly failedStates = [
@@ -90,14 +91,14 @@ export default class WsClient {
         }          
 
         return this.wsEvents$.pipe(
-            filter((e: any) => e.resourceType === 'JOB' && e.resourceId === jobId),
+            filter((e: WsEvent) => e.resourceType === 'JOB' && e.resourceId === jobId),
             mergeMap(e => this.restClient.getJob(this.sessionId, jobId)),
-            takeWhile((job: any) => WsClient.finalStates.indexOf(job.state) === -1));
+            takeWhile((job: Job) => WsClient.finalStates.indexOf(job.state) === -1));
     }
 
     getJobState$(jobId: string) {
         return this.getJob$(jobId).pipe(
-            distinctUntilChanged((a: any, b: any) => {
+            distinctUntilChanged((a: Job, b: Job) => {
                 return a.state === b.state && a.stateDetail === b.stateDetail;
             }));
     }
@@ -105,7 +106,7 @@ export default class WsClient {
     getJobScreenOutput$(jobId: string) {
         let warned = false;
         return this.getJob$(jobId).pipe(
-            map((job: any) => job.screenOutput),
+            map((job: Job) => job.screenOutput),
             filter(output => output != null),
             startWith(''),
             pairwise(),
@@ -140,11 +141,11 @@ export default class WsClient {
 
     getJobOutputDatasets$(jobId: string) {
         return this.wsEvents$.pipe(
-            filter((event: any) => event.resourceType === 'DATASET' && event.type === 'CREATE'),
+            filter((event: WsEvent) => event.resourceType === 'DATASET' && event.type === 'CREATE'),
             // we have to get all created datasets to see if 
             // it was created by this job
-            mergeMap((event: any) => this.restClient.getDataset(this.sessionId, event.resourceId)),
-            filter((dataset: any) => dataset.sourceJob === jobId));
+            mergeMap((event: WsEvent) => this.restClient.getDataset(this.sessionId, event.resourceId)),
+            filter((dataset: Dataset) => dataset.sourceJob === jobId));
     }
 
     disconnect() {

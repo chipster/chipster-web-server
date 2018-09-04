@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +58,9 @@ public class Dataset {
 	@JsonUnwrapped // rest
 	private File file;
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER, orphanRemoval=true)
 	@JoinColumn(name="datasetId")
-	private List<MetadataEntry> metadata;
+	private List<MetadataEntry> metadata = new ArrayList<>();
 	
 	public Dataset() {} // JAXB needs this
 

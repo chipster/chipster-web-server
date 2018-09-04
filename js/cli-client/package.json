@@ -11,13 +11,15 @@
   "dependencies": {
     "@akanass/rx-http-request": "^3.0.0",
     "argparse": "^1.0.9",
+    "chipster-js-common": "^0.3.1",
+    "chipster-nodejs-core": "0.0.1",
     "lodash": "^4.17.10",
     "read": "^1.0.7",
     "restify": "^7.2.1",
     "rxjs": "6.0.0",
     "url": "^0.11.0",
     "winston": "^2.4.0",
-    "ws": "^5.2.0",
+    "ws": "^5.2.2",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {

@@ -74,6 +74,8 @@ public class JobHistoryResource extends AdminResource {
 		if (pageParam != null) {			
 			pageNumber = Integer.parseInt(pageParam);
 		}
+		System.out.println("page number is" + pageNumber);
+
 		parameters.remove(FILTER_ATTRIBUTE_PAGE);
 		System.out.println("page number is" + pageNumber);
 		
