@@ -69,12 +69,14 @@ public class JobHistoryResource extends AdminResource {
 		for (String str : queryParams.keySet()) {
 			parameters.put(str, queryParams.getFirst(str));
 		}
-		pageNumber = Integer.parseInt(parameters.get(FILTER_ATTRIBUTE_PAGE));
-		System.out.println("page number is" + pageNumber);
-
+		
+		String pageParam = parameters.get(FILTER_ATTRIBUTE_PAGE);
+		if (pageParam != null) {			
+			pageNumber = Integer.parseInt(pageParam);
+		}
 		parameters.remove(FILTER_ATTRIBUTE_PAGE);
-		System.out.println(parameters);
-
+		System.out.println("page number is" + pageNumber);
+		
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		// Create CriteriaQuery
 		CriteriaQuery<JobHistoryModel> criteria = builder
