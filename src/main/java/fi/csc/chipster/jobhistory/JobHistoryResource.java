@@ -3,6 +3,7 @@ package fi.csc.chipster.jobhistory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +61,7 @@ public class JobHistoryResource extends AdminResource {
 	public Response getJobHistory(@Context UriInfo uriInfo) {
 
 		int pageNumber = 1;
-		int pageSize = 200;
+		int pageSize = 20;
 
 		MultivaluedMap<String, String> queryParams = uriInfo
 				.getQueryParameters();
@@ -99,11 +100,14 @@ public class JobHistoryResource extends AdminResource {
 		} else {
 			// Returning simple job history list without any filter attribute
 			criteria.select(root);
+			//criteria.orderBy(builder.desc(root.get("startTime")));
 			Query<JobHistoryModel> query = getHibernate().session()
 					.createQuery(criteria);
 			query.setFirstResult((pageNumber - 1) * pageSize);
 			query.setMaxResults(pageSize);
-			Collection<JobHistoryModel> jobHistoryList = query.getResultList();
+			List<JobHistoryModel> jobHistoryList = query.getResultList();
+			System.out.println(jobHistoryList);
+			
 			return Response.ok(toJaxbList(jobHistoryList)).build();
 
 		}
