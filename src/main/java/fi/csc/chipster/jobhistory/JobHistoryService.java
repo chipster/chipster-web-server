@@ -141,7 +141,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		case CREATE:
 			Job job = sessionDbClient.getJob(e.getSessionId(),
 					e.getResourceId());
-			System.out.println(job.getState());
+			System.out.println(job);
 			switch (job.getState()) {
 			case NEW:
 				// When a client adds a new job, save it the job history
@@ -176,6 +176,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	private void saveJobHistory(Job job) {
 		JobHistoryModel jobHistory = new JobHistoryModel();
 		jobHistory.setJobId(job.getJobId());
+		jobHistory.setToolId(job.getToolId());
 		jobHistory.setToolName(job.getToolName());
 		jobHistory.setStartTime(job.getStartTime());
 		jobHistory.setEndTime(job.getEndTime());
@@ -198,6 +199,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			public Void run(Session hibernateSession) {
 				JobHistoryModel js = hibernateSession.get(
 						JobHistoryModel.class, job.getJobId());
+				js.setToolId(job.getToolId());
 				js.setToolName(job.getToolName());
 				js.setStartTime(job.getStartTime());
 				js.setEndTime(job.getEndTime());
