@@ -162,7 +162,7 @@ public class RestUtils {
     	
     	Dataset d = new Dataset();
     	//d.setDatasetId(createUUID());
-    	d.setName("dataset" + d.getDatasetId());
+    	d.setName("dataset" + RestUtils.createUUID());
     	d.setSourceJob(RestUtils.createUUID());
     	d.setX(100);
     	d.setY(100);
