@@ -16,6 +16,15 @@ import fi.csc.chipster.rest.UnauthenticatedAdminResource;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 
+/**
+ * Backup service for all Chipster databases
+ * 
+ * Backups are taken in a centralized service, because we wan't only one backup, but 
+ * there may be many instances of the actual service. 
+ * 
+ * @author klemela
+ *
+ */
 public class Backup {
 	
 	private Logger logger = LogManager.getLogger();
