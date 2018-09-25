@@ -99,8 +99,8 @@ dependencies {
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
 	
     // hibernate
-    compile "org.hibernate:hibernate-java8:5.2.12.Final"
-    compile "org.hibernate:hibernate-c3p0:5.2.12.Final"
+    compile "org.hibernate:hibernate-java8:5.2.13.Final"
+    compile "org.hibernate:hibernate-c3p0:5.2.13.Final"
     compile "com.h2database:h2:1.4.196"
     
     // flyway

@@ -3,7 +3,6 @@ package fi.csc.chipster.jobhistory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +60,7 @@ public class JobHistoryResource extends AdminResource {
 	public Response getJobHistory(@Context UriInfo uriInfo) {
 
 		int pageNumber = 1;
-		int pageSize = 20;
+		int pageSize = 200;
 
 		MultivaluedMap<String, String> queryParams = uriInfo
 				.getQueryParameters();
@@ -75,7 +74,6 @@ public class JobHistoryResource extends AdminResource {
 		if (pageParam != null) {			
 			pageNumber = Integer.parseInt(pageParam);
 		}
-		System.out.println("page number is" + pageNumber);
 
 		parameters.remove(FILTER_ATTRIBUTE_PAGE);
 		System.out.println("page number is" + pageNumber);
@@ -92,15 +90,18 @@ public class JobHistoryResource extends AdminResource {
 		if (parameters.size() > 0) {
 			// Query itself
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
+			criteria.orderBy(builder.desc(root.get("startTime")));
 			Query<JobHistoryModel> query = getHibernate().session()
 					.createQuery(criteria);
+			query.setFirstResult((pageNumber - 1) * pageSize);
+			query.setMaxResults(pageSize);
 			Collection<JobHistoryModel> jobHistoryList = query.getResultList();
 			return Response.ok(toJaxbList(jobHistoryList)).build();
 
 		} else {
 			// Returning simple job history list without any filter attribute
 			criteria.select(root);
-			//criteria.orderBy(builder.desc(root.get("startTime")));
+			criteria.orderBy(builder.desc(root.get("startTime")));
 			Query<JobHistoryModel> query = getHibernate().session()
 					.createQuery(criteria);
 			query.setFirstResult((pageNumber - 1) * pageSize);
@@ -146,7 +147,6 @@ public class JobHistoryResource extends AdminResource {
 				q.where(predicate.toArray(new Predicate[] {}));
 				Long count = getHibernate().session().createQuery(q)
 						.getSingleResult();
-				System.out.println(" the parametered row numbers are" + count);
 				return Response.ok(count).build();
 			} catch (Exception e) {
 				System.out.println("exception" + e);
