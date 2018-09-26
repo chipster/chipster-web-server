@@ -29,7 +29,7 @@ public class JobHistoryResourceTest {
 	private static JobHistoryClient jobHistoryClient2;
 
 	private static UUID sessionID;
-	private static int MAX_NUM = 100000;
+	private static int MAX_NUM = 1000;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -52,21 +52,6 @@ public class JobHistoryResourceTest {
 	public void get() throws RestException {
 		assertEquals(200, jobHistoryClient2.get().getStatus());
 	}
-
-	/*
-	 * @Test public void testSaveJob() throws InterruptedException,
-	 * RestException { UUID jobId = sessionDBClient1.createJob(sessionID,
-	 * RestUtils.getRandomJob()); Thread.sleep(200); assertEquals(true,
-	 * jobHistoryClient2.getJobByID(jobId) != null); }
-	 * 
-	 * /*@Test public void testSaveJobDbPerformance() throws
-	 * InterruptedException, RestException { for (int i = 0; i < 10; i++) {
-	 * sessionDBClient1.createJob(sessionID, RestUtils.getRandomJob());
-	 * Thread.sleep(100);
-	 * 
-	 * } assertEquals(true, jobHistoryClient2.getJobHistoryList().size() >
-	 * 1000); }
-	 */
 
 	@Test
 	public void inserTestJobs() throws InterruptedException, RestException {
@@ -93,13 +78,23 @@ public class JobHistoryResourceTest {
 			j.setToolName("Input Output");
 			j.setOutput(getRandomString());
 			jobHistoryClient2.saveTestJob(j);
-			;
 
 		}
 
 		long endTime = System.nanoTime();
 		System.out.println(endTime - startTime);
 	}
+	
+	/*
+	@Test
+	public void testSaveJobDbPerformance() throws InterruptedException, RestException {
+		for (int i = 0; i < 10; i++) {
+			sessionDBClient1.createJob(sessionID, RestUtils.getRandomJob());
+			Thread.sleep(100);
+
+		}
+		assertEquals(true, jobHistoryClient2.getJobHistoryList().size() > 10);
+	}*/
 
 	private Instant getRandomTimeStamp() {
 		long offset = Timestamp.valueOf("2018-09-11 00:00:00").getTime();
