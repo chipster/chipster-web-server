@@ -2,39 +2,26 @@ package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import javax.persistence.CascadeType;
-import javax.persistence.CollectionTable;
 import javax.persistence.Column;
-import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
-import javax.persistence.MapKeyColumn;
-import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import org.hibernate.annotations.Type;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
 @XmlRootElement // rest
 public class Dataset {
-	
-	@Entity
-	public static class ColumnMetadata {
-		@ElementCollection(fetch=FetchType.EAGER)
-		@MapKeyColumn(name="key")
-		@Column(name="value")
-		@CollectionTable(name="Metadata", joinColumns=@JoinColumn(name="datasetId"))
-		private Map<String, String> metadata;	
-	}
 	
 	@Id // db
 	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
@@ -58,8 +45,8 @@ public class Dataset {
 	@JsonUnwrapped // rest
 	private File file;
 	
-	@OneToMany(cascade=CascadeType.ALL, fetch=FetchType.EAGER, orphanRemoval=true)
-	@JoinColumn(name="datasetId")
+	@Column
+	@Type(type = MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE)
 	private List<MetadataEntry> metadata = new ArrayList<>();
 	
 	public Dataset() {} // JAXB needs this
@@ -140,22 +127,6 @@ public class Dataset {
 
 	public void setSession(Session session) {
 		this.session = session;
-	}
-
-	// no idea why this has to be defined on the getter method
-	// if defined on the field: org.hibernate.AnnotationException: Illegal attempt to map a non collection as a @OneToMany, @ManyToMany or @CollectionOfElements: fi.csc.chipster.sessiondb.model.Dataset.typeTags
-	@ElementCollection(fetch=FetchType.EAGER)
-	@CollectionTable(name="TypeTag", joinColumns=@JoinColumn(name="datasetId"))
-	@MapKeyColumn(name="key")
-	@Column(name="value")
-	public HashMap<String, String> getTypeTags() {
-		return typeTags;
-	}
-	
-	private HashMap<String, String> typeTags;
-
-	public void setTypeTags(HashMap<String, String> typeTags) {
-		this.typeTags = typeTags;
 	}
 
 	public Instant getCreated() {

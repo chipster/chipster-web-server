@@ -1,25 +1,18 @@
 package fi.csc.chipster.sessiondb.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-
-@Entity
 public class MetadataEntry {
-
-	@Id 
-	@GeneratedValue
-	private long metadataEntryId;
 	
-	private String column;
+	public static final String METADATA_ENTRY_LIST_JSON_TYPE = "MetadataEntryListJsonType";
+	
+	private String col;
 	private String key;
 	private String value;
 	
 	public String getColumn() {
-		return column;
+		return col;
 	}
 	public void setColumn(String column) {
-		this.column = column;
+		this.col = column;
 	}
 	public String getKey() {
 		return key;

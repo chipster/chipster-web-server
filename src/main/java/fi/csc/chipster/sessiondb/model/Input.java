@@ -1,16 +1,10 @@
 package fi.csc.chipster.sessiondb.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
 import javax.persistence.Lob;
 
-@Entity
 public class Input {
 	
-	@Id 
-	@GeneratedValue
-	private int dbId;
+	public static final String INPUT_LIST_JSON_TYPE = "InputListJsonType";
 
 	private String inputId;
 	private String displayName;
@@ -49,10 +43,4 @@ public class Input {
 	public void setDatasetId(String datasetId) {
 		this.datasetId = datasetId;
 	}
-	public int getDbId() {
-		return dbId;
-	}
-	public void setDbId(int dbId) {
-		this.dbId = dbId;
-	}	
 }

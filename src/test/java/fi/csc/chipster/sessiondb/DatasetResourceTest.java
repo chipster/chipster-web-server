@@ -50,23 +50,6 @@ public class DatasetResourceTest {
     public void post() throws RestException {
 		user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
     }
-		
-	@Test
-    public void typeTags() throws RestException {
-		
-		Dataset dataset = RestUtils.getRandomDataset();
-		HashMap<String, String> typeTags = new HashMap<>();
-		typeTags.put("key1", "value1");
-		typeTags.put("key2", "value2");
-		dataset.setTypeTags(typeTags);
-		
-		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
-		Dataset dbDataset = user1Client.getDataset(sessionId1, datasetId);
-		
-		assertEquals(2, dbDataset.getTypeTags().size());
-		assertEquals(true, dbDataset.getTypeTags().containsKey("key1"));
-		assertEquals("value1", dbDataset.getTypeTags().get("key1"));
-    }	
 	
 	@Test
     public void postModification() throws RestException {

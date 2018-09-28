@@ -5,18 +5,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
+import org.hibernate.annotations.Type;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -53,14 +50,25 @@ public class Job {
 	@JoinColumn(name="sessionId")
 	private Session session;
 	
-	@OneToMany(cascade=CascadeType.ALL, orphanRemoval=true)
-	@JoinColumn(name="jobId")
-	@LazyCollection(LazyCollectionOption.FALSE)
+////	@OneToMany(cascade=CascadeType.ALL, orphanRemoval=true)
+////	@JoinColumn(name="jobId")
+////	@LazyCollection(LazyCollectionOption.FALSE)
+//	@OneToMany(mappedBy="job", cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+//	private List<Parameter> parameters = new ArrayList<>();
+	
+//	@OneToMany(cascade=CascadeType.ALL, orphanRemoval=true)
+//	@JoinColumn(name="jobId")
+//	@LazyCollection(LazyCollectionOption.FALSE)
+////	@OneToMany(mappedBy="job", cascade=CascadeType.ALL, fetch=FetchType.EAGER)
+//	private List<Input> inputs = new ArrayList<>();
+	
+	
+	@Column
+	@Type(type = Parameter.PARAMETER_LIST_JSON_TYPE)
 	private List<Parameter> parameters = new ArrayList<>();
 	
-	@OneToMany(cascade=CascadeType.ALL, orphanRemoval=true)
-	@JoinColumn(name="jobId")
-	@LazyCollection(LazyCollectionOption.FALSE)
+	@Column
+	@Type(type = Input.INPUT_LIST_JSON_TYPE)
 	private List<Input> inputs = new ArrayList<>();
 	
 	public UUID getJobId() {

@@ -11,6 +11,9 @@ import org.hibernate.cfg.Environment;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
 
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.sessiondb.model.Input;
+import fi.csc.chipster.sessiondb.model.MetadataEntry;
+import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class HibernateUtil {
 
@@ -44,26 +47,28 @@ public class HibernateUtil {
     	
     	// The restore configuration is really used in the Backups service, but configuring it also for the actual service 
     	// might be a handy way to prevent it from creating the schema
-    	String restoreKey = DbBackup.getRestoryKey(config, role);
-    	if (!restoreKey.isEmpty()) {
-    		throw new RuntimeException("Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
-    	}
-    	    	
-    	this.dbSchema = new DbSchema(config, role);
-    	this.dbSchema.export(hibernateClasses);
+//    	String restoreKey = DbBackup.getRestoryKey(config, role);
+//    	if (!restoreKey.isEmpty()) {
+//    		throw new RuntimeException("Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
+//    	}
+//    	    	
+//    	this.dbSchema = new DbSchema(config, role);
+//    	this.dbSchema.export(hibernateClasses);
     	
     	String url = config.getString(CONF_DB_URL, role);
     	String user = config.getString(CONF_DB_USER, role);
     	String password = config.getString(CONF_DB_PASS, role);
     	
-    	this.dbSchema.migrate(url, user, password);    	
-
-		if (password.length() < 8) {
-			logger.warn("weak db passowrd for " + role + ", length " + password.length());
-		}
-        	
-		// make sure the Flyway migrations match with the current Hibernate classes  
-		String hbm2ddlAuto = "validate";
+//    	this.dbSchema.migrate(url, user, password);    	
+//
+//		if (password.length() < 8) {
+//			logger.warn("weak db passowrd for " + role + ", length " + password.length());
+//		}
+//        	
+//		// make sure the Flyway migrations match with the current Hibernate classes  
+//		String hbm2ddlAuto = "validate";
+		String hbm2ddlAuto = "update";
+//		String hbm2ddlAuto = "create";
 		
 		logger.info("connect to db " + url);
 		try {
@@ -92,13 +97,40 @@ public class HibernateUtil {
 		
 		for (Class<?> c : hibernateClasses) {
 			hibernateConf.addAnnotatedClass(c);
-		}    		    	   
+		}
+		
+		boolean isPostgres = isPostgres(config, role);
+		
+		if (isPostgres) {
+			hibernateConf.setProperty(Environment.DIALECT, "fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect");
+		}
+		
+		// store these child objects as json
+        hibernateConf.registerTypeOverride(new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class), new String[] {MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE});
+        hibernateConf.registerTypeOverride(new ListJsonType<Parameter>(!isPostgres, Parameter.class), new String[] {Parameter.PARAMETER_LIST_JSON_TYPE});
+        hibernateConf.registerTypeOverride(new ListJsonType<Input>(!isPostgres, Input.class), new String[] {Input.INPUT_LIST_JSON_TYPE});
+		
+		/* Allow hibernate to make inserts and updates in batches to overcome the network latency.
+		 * It's crucial when e.g. a dataset may have 600 MetadataEntries. However, this doesn't
+		 * help if there are other queries/updates for each row, like for getting the next sequence id 
+		 * for the object or updating the object references.
+		 */
+		hibernateConf.setProperty("hibernate.jdbc.batch_size", "1000");
+		hibernateConf.setProperty("hibernate.order_inserts", "true");
+		hibernateConf.setProperty("hibernate.order_updates", "true");
+		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
 		 
-		return hibernateConf.buildSessionFactory(
+		SessionFactory sessionFactory = hibernateConf.buildSessionFactory(
 				new StandardServiceRegistryBuilder()
 				.applySettings(hibernateConf.getProperties())
 				.build());
+		
+		return sessionFactory;
     }
+	
+	public static boolean isPostgres(Config config, String role) {
+		return config.getString(CONF_DB_DIALECT, role).toLowerCase().contains("postgres");
+	}
 
 	public SessionFactory getSessionFactory() {
         return sessionFactory;
@@ -107,6 +139,11 @@ public class HibernateUtil {
 	public org.hibernate.Session beginTransaction() {
 		org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
+		
+		if (isPostgres(config, role)) {
+			session.createNativeQuery("SET LOCAL synchronous_commit TO OFF").executeUpdate();
+		}
+		
 		return session;
 	}
 

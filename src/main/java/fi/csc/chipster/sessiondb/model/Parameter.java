@@ -1,18 +1,15 @@
 package fi.csc.chipster.sessiondb.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
 
 import fi.csc.microarray.description.SADLSyntax.ParameterType;
 
-@Entity // db
 public class Parameter {
 
-	@Id 
-	@GeneratedValue
-	private int dbId;
+	public static final String PARAMETER_LIST_JSON_TYPE = "ParameterListJsonType";
 	
 	private String parameterId;
 	private String displayName;
@@ -20,6 +17,10 @@ public class Parameter {
 	private String description;
 	private ParameterType type;
 	private String value;
+	
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn(name="jobId")
+	private Job job;
 	
 	public String getParameterId() {
 		return parameterId;
@@ -51,10 +52,4 @@ public class Parameter {
 	public void setValue(String value) {
 		this.value = value;
 	}
-	public int getDbId() {
-		return dbId;
-	}
-	public void setDbId(int dbId) {
-		this.dbId = dbId;
-	}	
 }

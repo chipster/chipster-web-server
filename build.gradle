@@ -101,7 +101,8 @@ dependencies {
     // hibernate
     compile "org.hibernate:hibernate-java8:5.2.12.Final"
     compile "org.hibernate:hibernate-c3p0:5.2.12.Final"
-    compile "com.h2database:h2:1.4.196"
+    compile "com.h2database:h2:1.4.196"    
+    compile "org.postgresql:postgresql:+"
     
     // flyway
     compile "org.flywaydb:flyway-core:+"
