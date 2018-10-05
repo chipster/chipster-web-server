@@ -169,7 +169,7 @@ public class RuleTable {
 
 	    					ScrollableResults results = query.scroll(ScrollMode.FORWARD_ONLY);
 
-	    					JsonGenerator jg = RestUtils.getObjectMapper().getFactory().createGenerator(output, JsonEncoding.UTF8);
+	    					JsonGenerator jg = RestUtils.getObjectMapper(false).getFactory().createGenerator(output, JsonEncoding.UTF8);
 	    					jg.writeStartArray();
 
 	    					// iterate over results

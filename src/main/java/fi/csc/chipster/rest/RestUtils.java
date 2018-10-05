@@ -74,10 +74,27 @@ public class RestUtils {
 	
 	private static Random rand = new Random();
 	
-	public static ObjectMapper getObjectMapper() {
+	private static ObjectMapper objectMapperDefault;
+	private static ObjectMapper objectMapperFailOnUnknwonProperties;	
+	
+	public static ObjectMapper getObjectMapper(boolean failOnUnknownProperties) {
+		if (objectMapperDefault == null || objectMapperFailOnUnknwonProperties == null) {
+			
+			// separate instance, because configuration may not be thread safe
+			objectMapperDefault = getNewObjectMapper();			
+			objectMapperFailOnUnknwonProperties = getNewObjectMapper()
+					.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
+		}
+		if (failOnUnknownProperties) {
+			return objectMapperFailOnUnknwonProperties;
+		}
+		return objectMapperDefault;
+	}
+	
+	public static ObjectMapper getNewObjectMapper() {
 		return new ObjectMapper()
-		.registerModule(new JavaTimeModule())
-		.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+					.registerModule(new JavaTimeModule())
+					.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 	}
 	
 	public static String asJson(Object obj) {
@@ -88,7 +105,7 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringWriter writer = new StringWriter();
-			ObjectMapper mapper = getObjectMapper();
+			ObjectMapper mapper = getObjectMapper(false);
 			if (pretty) {
 				mapper.writerWithDefaultPrettyPrinter().writeValue(writer, obj);
 			} else {
@@ -109,8 +126,7 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			ObjectMapper mapper = getObjectMapper();
-			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
+			ObjectMapper mapper = getObjectMapper(true);
 			return mapper.readValue(reader, obj);
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);
@@ -129,8 +145,7 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			ObjectMapper mapper = getObjectMapper();
-			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
+			ObjectMapper mapper = getObjectMapper(failOnUnknownProperties);
 			return mapper.readValue(reader, mapper.getTypeFactory().constructCollectionType(collectionType, itemType));
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);

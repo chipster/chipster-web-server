@@ -81,7 +81,7 @@ public class ModuleResource {
 				ArrayNode tools = factory.arrayNode();
 				category.set("tools", tools);
     			for (ToolboxTool toolboxTool : toolboxCategory.getTools()) {
-    				JsonNode tool = RestUtils.getObjectMapper().convertValue(
+    				JsonNode tool = RestUtils.getObjectMapper(false).convertValue(
     						toolboxTool.getSadlDescription(), JsonNode.class);
     				tools.add(tool);
     			}
