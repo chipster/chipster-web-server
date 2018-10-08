@@ -1,6 +1,7 @@
 package fi.csc.chipster.auth.model;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
@@ -25,6 +26,8 @@ public class User {
 	private int termsVersion;
 	private Instant termsAccepted;
 	
+	private UUID latestSession;
+
 	@Version
 	private long version;
 	
@@ -55,6 +58,14 @@ public class User {
 
 	public void setMail(String mail) {
 		this.mail = mail;
+	}
+
+	public UUID getLatestSession() {
+		return latestSession;
+	}
+
+	public void setLatestSession(UUID latestSession) {
+		this.latestSession = latestSession;
 	}
 
 
