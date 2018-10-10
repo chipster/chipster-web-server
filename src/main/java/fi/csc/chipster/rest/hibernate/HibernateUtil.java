@@ -55,7 +55,7 @@ public class HibernateUtil {
 //    	this.dbSchema = new DbSchema(config, role);
 //    	this.dbSchema.export(hibernateClasses);
     	
-    	String url = config.getString(CONF_DB_URL, role);
+    	String url = config. getString(CONF_DB_URL, role);
     	String user = config.getString(CONF_DB_USER, role);
     	String password = config.getString(CONF_DB_PASS, role);
     	
@@ -140,9 +140,11 @@ public class HibernateUtil {
 		org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
 		
-		if (isPostgres(config, role)) {
-			session.createNativeQuery("SET LOCAL synchronous_commit TO OFF").executeUpdate();
-		}
+//		if (isPostgres(config, role)) {
+//			session.createNativeQuery("SET LOCAL synchronous_commit TO OFF").executeUpdate();
+//		}
+		
+		session.setDefaultReadOnly(true);
 		
 		return session;
 	}
