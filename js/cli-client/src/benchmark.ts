@@ -1,5 +1,5 @@
 import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest, empty, range, timer } from "rxjs";
-import { tap, mergeMap, toArray, take, map, finalize, catchError, merge, takeUntil, concatMap, concatAll } from "rxjs/operators";
+import { tap, mergeMap, toArray, take, map, finalize, catchError, merge, takeUntil, concatMap, concatAll, delay } from "rxjs/operators";
 import { RestClient, Logger } from "chipster-nodejs-core";
 import ChipsterUtils from "./chipster-utils";
 import wsClient from "./ws-client";
@@ -18,7 +18,9 @@ export default class Benchmark {
     restClient: RestClient;
     sessionPrefix = "benchmark_session_"
     sessionIds: string[] = [];
+    sessionIdsWithoutMetadata: string[] = [];
     datasetIds: Map<string, string> = new Map();
+    datasetIdsWithoutMetadata: Map<string, string> = new Map();
     jobIds: Map<string, string> = new Map();
 
     influxUrl;
@@ -62,21 +64,28 @@ export default class Benchmark {
                     logger.warn("account is not empty, results may be lower:", s.length, "session(s)");
                 }
             }),            
-            mergeMap(() => this.measure("post session                     ", i => this.postEmptySession(i))),
-            mergeMap(() => this.measure("get sessions by username         ", i => this.getSessionsByUsername(i))),
-            mergeMap(() => this.measure("post and get sessions by username", i => this.postAndGetSessions(i))),
-            mergeMap(() => this.measure("get sessions by id               ", i => this.getSessionById(i))),
-            mergeMap(() => this.measure("post dataset                     ", i => this.postDataset(i))),
-            mergeMap(() => this.measure("get dataset                      ", i => this.getDataset(i))),
-            mergeMap(() => this.measure("get datasets by session          ", i => this.getDatasetsBySession(i))),
-            mergeMap(() => this.measure("get and put dataset              ", i => this.getAndPutDataset(i))),
-            mergeMap(() => this.measure("post job                         ", i => this.postJob(i))),
-            mergeMap(() => this.measure("get job                          ", i => this.getJob(i))),
-            mergeMap(() => this.measure("get jobs by session              ", i => this.getJobsBySession(i))),
-            mergeMap(() => this.measure("get and put job                  ", i => this.getAndPutJob(i))),
-            mergeMap(() => this.measureOnce("delete job                       ", this.deleteJob())),
-            mergeMap(() => this.measureOnce("delete dataset                   ", this.deleteDataset())),
-            mergeMap(() => this.measureOnce("delete session                   ", this.deleteSession())),
+            mergeMap(() => this.measure("post session                            ", i => this.postEmptySession(i, this.sessionIds))),
+            // mergeMap(() => this.measure("post session without metadata           ", i => this.postEmptySession(i, this.sessionIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("get sessions by username                ", i => this.getSessionsByUsername(i))),
+            // mergeMap(() => this.measure("post and get sessions by username       ", i => this.postAndGetSessions(i))),
+            // mergeMap(() => this.measure("get sessions by id                      ", i => this.getSessionById(i))),
+            mergeMap(() => this.measure("post dataset                            ", i => this.postDataset(i, 100, this.datasetIds, this.sessionIds))),
+            // mergeMap(() => this.measure("post dataset without metadata           ", i => this.postDataset(i, 0, this.datasetIdsWithoutMetadata, this.sessionIdsWithoutMetadata))),
+            mergeMap(() => this.measure("get dataset                             ", i => this.getDataset(i, this.datasetIds))),
+            // mergeMap(() => this.measure("get dataset without metadata            ", i => this.getDataset(i, this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("get datasets by session                 ", i => this.getDatasetsBySession(i, this.datasetIds))),
+            // mergeMap(() => this.measure("get datasets by session without metadata", i => this.getDatasetsBySession(i, this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("get and put dataset                     ", i => this.getAndPutDataset(i, this.datasetIds))),
+            // mergeMap(() => this.measure("get and put dataset without metadata    ", i => this.getAndPutDataset(i, this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("post job                                ", i => this.postJob(i))),
+            // mergeMap(() => this.measure("get job                                 ", i => this.getJob(i))),
+            // mergeMap(() => this.measure("get jobs by session                     ", i => this.getJobsBySession(i))),
+            // mergeMap(() => this.measure("get and put job                         ", i => this.getAndPutJob(i))),
+            // mergeMap(() => this.measureOnce("delete job                              ", this.deleteJob())),
+            mergeMap(() => this.measureOnce("delete dataset                          ", this.deleteDataset(this.datasetIds))),
+            // mergeMap(() => this.measureOnce("delete dataset without metadata         ", this.deleteDataset(this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measureOnce("delete session                          ", this.deleteSession(this.sessionIds))),
+            // mergeMap(() => this.measureOnce("delete session without metadata         ", this.deleteSession(this.sessionIdsWithoutMetadata))),
             mergeMap(() => this.postResults()),
         ).subscribe(
             () => console.log('chipster benchmark done'),
@@ -106,6 +115,7 @@ export default class Benchmark {
     }
 
     measure(name, jobFunction) {
+        // return of(this.loop(jobFunction, 1, name), empty()).pipe(
         return of(this.loop(jobFunction, 1, name), this.loop(jobFunction, 4, name)).pipe(
             concatAll(),
             toArray(),
@@ -144,7 +154,7 @@ export default class Benchmark {
         );
     }    
 
-    postEmptySession(i: number) {
+    postEmptySession(i: number, sessionIds: string[]) {
         return of(i).pipe(
             map(i => {
                 return {
@@ -152,13 +162,13 @@ export default class Benchmark {
                 };
             }),
             mergeMap(s => this.restClient.postSession(s)),
-            tap((sessionId: string) => this.sessionIds.push(sessionId)),
+            tap((sessionId: string) => sessionIds.push(sessionId)),
         );   
     }
 
-    postDataset(i: number) {       
+    postDataset(i: number, metadataCount: number, idMap: Map<string, string>, sessionIds: string[]) {       
         // about 100 datasets per session
-        const sessionId = this.sessionIds[Math.floor(Math.random() * this.sessionIds.length / 100 + 1)];
+        const sessionId = sessionIds[Math.floor(Math.random() * sessionIds.length / 100 + 1)];
         return of(i).pipe(
             map(i => {
                 const dataset = {
@@ -166,7 +176,7 @@ export default class Benchmark {
                     fileId: null,
                     metadata: [],
                 };
-                for (let j = 0; j < 100; j++) {
+                for (let j = 0; j < metadataCount; j++) {
                     dataset.metadata.push({
                         // col: "col_" + j,
                         key: "metadatakey_" + j,
@@ -176,39 +186,39 @@ export default class Benchmark {
                 return dataset;
             }),
             mergeMap(dataset => this.restClient.postDataset(sessionId, dataset)),
-            tap((id: string) => this.datasetIds.set(id, sessionId)),
+            tap((id: string) => idMap.set(id, sessionId)),
         );   
     }
 
-    getDataset(i: number) {
-        const datasetId = Array.from(this.datasetIds.keys())[i % this.datasetIds.size];
+    getDataset(i: number, datasetIds: Map<string, string>) {
+        const datasetId = Array.from(datasetIds.keys())[i % datasetIds.size];
         return of(i).pipe(
-            mergeMap(s => this.restClient.getDataset(this.datasetIds.get(datasetId), datasetId)),
+            mergeMap(s => this.restClient.getDataset(datasetIds.get(datasetId), datasetId)),
         );
     }
 
-    getDatasetsBySession(i: number) {
-        const datasetSessions = Array.from(this.datasetIds.values());
+    getDatasetsBySession(i: number, datasetIds: Map<string, string>) {
+        const datasetSessions = Array.from(datasetIds.values());
         const sessionId = datasetSessions[Math.floor(Math.random() * datasetSessions.length)];
         return of(i).pipe(
             mergeMap(s => this.restClient.getDatasets(sessionId)),
         );
     }
 
-    getAndPutDataset(i: number) {
-        return this.getDataset(i).pipe(
+    getAndPutDataset(i: number, datasetIds: Map<string, string>) {
+        return this.getDataset(i, datasetIds).pipe(
             mergeMap((d: Dataset) => {
                 d.notes = d.notes + "-";
-                return this.restClient.putDataset(this.datasetIds.get(d.datasetId), d);
+                return this.restClient.putDataset(datasetIds.get(d.datasetId), d);
             }),
         );
     }
 
-    deleteDataset() {
-        return from(this.datasetIds.keys()).pipe(
-            mergeMap(id => this.restClient.deleteDataset(this.datasetIds.get(id), id), null, 1),
+    deleteDataset(datasetIds: Map<string, string>) {
+        return from(datasetIds.keys()).pipe(
+            mergeMap(id => this.restClient.deleteDataset(datasetIds.get(id), id), null, 1),
             toArray(),
-            map(() => this.datasetIds.size),
+            map(() => datasetIds.size),
         );                
     }
 
@@ -307,11 +317,11 @@ export default class Benchmark {
         );   
     }
 
-    deleteSession() {
-        return from(this.sessionIds).pipe(
+    deleteSession(sessionIds: string[]) {
+        return from(sessionIds).pipe(
             mergeMap(id => this.restClient.deleteSession(id), null, 1),
             toArray(),
-            map(() => this.sessionIds.length),
+            map(() => sessionIds.length),
         );                
     }
 
