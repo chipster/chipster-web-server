@@ -2,7 +2,9 @@ package fi.csc.chipster.sessiondb.model;
 
 import javax.persistence.Lob;
 
-public class Input {
+import fi.csc.chipster.rest.hibernate.DeepCopyable;
+
+public class Input implements DeepCopyable {
 	
 	public static final String INPUT_LIST_JSON_TYPE = "InputListJsonType";
 
@@ -42,5 +44,15 @@ public class Input {
 	}
 	public void setDatasetId(String datasetId) {
 		this.datasetId = datasetId;
+	}
+	@Override
+	public Object deepCopy() {
+		Input i = new Input();
+		i.inputId = inputId;
+		i.displayName = displayName;
+		i.description = description;
+		i.type = type;
+		i.datasetId = datasetId;
+		return i;
 	}
 }

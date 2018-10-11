@@ -1,13 +1,11 @@
 package fi.csc.chipster.sessiondb.model;
 
-import javax.persistence.FetchType;
-import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
 
+import fi.csc.chipster.rest.hibernate.DeepCopyable;
 import fi.csc.microarray.description.SADLSyntax.ParameterType;
 
-public class Parameter {
+public class Parameter implements DeepCopyable {
 
 	public static final String PARAMETER_LIST_JSON_TYPE = "ParameterListJsonType";
 	
@@ -17,10 +15,6 @@ public class Parameter {
 	private String description;
 	private ParameterType type;
 	private String value;
-	
-	@ManyToOne(fetch=FetchType.LAZY)
-	@JoinColumn(name="jobId")
-	private Job job;
 	
 	public String getParameterId() {
 		return parameterId;
@@ -51,5 +45,15 @@ public class Parameter {
 	}
 	public void setValue(String value) {
 		this.value = value;
+	}
+	@Override
+	public Object deepCopy() {
+		Parameter p = new Parameter();
+		p.parameterId = parameterId;
+		p.displayName = displayName;
+		p.description = description;
+		p.type = type;
+		p.value = value;
+		return p;
 	}
 }

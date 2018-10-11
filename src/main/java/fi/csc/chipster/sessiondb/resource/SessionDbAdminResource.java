@@ -57,8 +57,7 @@ public class SessionDbAdminResource extends AdminResource {
 		HashMap<String, Object> status = super.getStatus(sc);
 		
 		List<Class<?>> dbTables = Arrays.asList(new Class<?>[] { 
-			Session.class, Dataset.class, Job.class, DatasetToken.class, File.class, 
-			Input.class, MetadataEntry.class, Parameter.class, Rule.class });
+			Session.class, Dataset.class, Job.class, DatasetToken.class, File.class, Rule.class });
 			
 		for (Class<?> table : dbTables) {				
 			

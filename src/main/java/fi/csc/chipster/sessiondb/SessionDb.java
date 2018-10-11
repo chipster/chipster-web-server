@@ -102,8 +102,7 @@ public class SessionDb {
 				password);
 
 		List<Class<?>> hibernateClasses = Arrays.asList(DatasetToken.class,
-				Rule.class, Session.class, Dataset.class, MetadataEntry.class,
-				Job.class, Parameter.class, Input.class, File.class);
+				Rule.class, Session.class, Dataset.class, Job.class, File.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);

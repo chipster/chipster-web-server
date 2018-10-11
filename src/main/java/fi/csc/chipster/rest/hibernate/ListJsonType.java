@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
@@ -38,7 +39,7 @@ import fi.csc.chipster.rest.RestUtils;
  *
  * @param <T>
  */
-public class ListJsonType<T> implements UserType { 
+public class ListJsonType<T extends DeepCopyable> implements UserType { 
 	
     private boolean fallbackToClob;
 	private Class<T> innerType;
@@ -94,10 +95,13 @@ public class ListJsonType<T> implements UserType {
         ps.setObject(idx, json, type);
 	}
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public Object deepCopy(final Object value) throws HibernateException {
-		// use serialization to create a deep copy        	
-    	return RestUtils.parseJson(returnedClass(), returnedClassInner(), RestUtils.asJson(value));
+		
+    	return ((ArrayList<T>)value).stream()
+    			.map(e -> e.deepCopy())
+    			.collect(Collectors.toList());    	
     }
 
     @Override
