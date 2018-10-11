@@ -12,7 +12,7 @@
     "@akanass/rx-http-request": "^3.0.0",
     "argparse": "^1.0.9",
     "chipster-js-common": "^0.3.1",
-    "chipster-nodejs-core": "0.0.1",
+    "chipster-nodejs-core": "0.0.6",
     "lodash": "^4.17.10",
     "read": "^1.0.7",
     "restify": "^7.2.1",
