@@ -32,8 +32,8 @@ public class Session {
 	private Instant accessed;
 	
 	// mappedBy="session" means that this relation is owned by the other side
-	@OneToMany(mappedBy="session")
-	private Collection<Dataset> datasets;
+//	@OneToMany(mappedBy="session")
+//	private Collection<Dataset> datasets;
 	
 	@OneToMany(mappedBy="session")
 	private Collection<Job> jobs;
@@ -69,38 +69,22 @@ public class Session {
 		this.jobs = jobs.values();
 	}
 
-	/**
-	 * All dataset in the session
-	 * 
-	 * Changes to the database has to made with Dataset.setSession().
-	 * 
-	 * @return
-	 */
-	// not needed in session JSON, because there is a separate endpoint for this
-	@JsonIgnore
-	public Map<UUID, Dataset> getDatasets() {
-		HashMap<UUID, Dataset> map = new HashMap<>();
-		for (Dataset dataset : datasets) {
-			map.put(dataset.getDatasetId(), dataset);
-		}
-		return map;
-	}
-	
-	@JsonIgnore
-	public Collection<Dataset> getDatasetCollection() {
-		return datasets;
-	}
-
-	/**
-	 * Set dataset to this instance
-	 * 
-	 * Changes to the database has to be made with Dataset.setSession().
-	 * 
-	 * @param datasets
-	 */
-	public void setDatasets(Map<UUID, Dataset> datasets) {
-		this.datasets = datasets.values();
-	}
+//	/**
+//	 * All dataset in the session
+//	 * 
+//	 * Changes to the database has to made with Dataset.setSession().
+//	 * 
+//	 * @return
+//	 */
+//	// not needed in session JSON, because there is a separate endpoint for this
+//	@JsonIgnore
+//	public Map<UUID, Dataset> getDatasets() {
+//		HashMap<UUID, Dataset> map = new HashMap<>();
+//		for (Dataset dataset : datasets) {
+//			map.put(dataset.getDatasetId(), dataset);
+//		}
+//		return map;
+//	}
 	
 	public UUID getSessionId() {
 		return this.sessionId;

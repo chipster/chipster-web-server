@@ -62,6 +62,7 @@ public class XmlSession {
 		
 			SessionType sessionType = null;
 			fi.csc.chipster.sessiondb.model.Session session = null;
+			Map<UUID, Dataset> datasetMap = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
 			HashMap<UUID, UUID> datasetIdMap = new HashMap<>();
 			
@@ -77,6 +78,7 @@ public class XmlSession {
 						convertJobIds(sessionType);
 						
 						session = getSession(sessionType);
+						datasetMap = getDatasets(sessionType.getData());
 												
 						// the session name isn't saved inside the xml session, so let's use whatever the uploader has set
 						session.setName(sessionDb.getSession(sessionId).getName());
@@ -103,11 +105,11 @@ public class XmlSession {
 				}
 			}			
 			
-			fixModificationParents(sessionType, session);
+			fixModificationParents(sessionType, session, datasetMap);
 			
-			convertPhenodata(sessionType, session, sessionId, datasetIdMap, fileBroker, sessionDb);
+			convertPhenodata(sessionType, session, sessionId, datasetIdMap, fileBroker, sessionDb, datasetMap);
 					
-			return new ExtractedSession(session, datasetIdMap);
+			return new ExtractedSession(session, datasetIdMap, datasetMap);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
@@ -126,14 +128,15 @@ public class XmlSession {
 	 * 
 	 * @param sessionType
 	 * @param session
+	 * @param datasetMap 
 	 * @throws RestException
 	 */
-	private static void fixModificationParents(SessionType sessionType, Session session) throws RestException {
+	private static void fixModificationParents(SessionType sessionType, Session session, Map<UUID, Dataset> datasetMap) throws RestException {
 		
 		for (DataType dataType : sessionType.getData()) {
 						
 			UUID datasetId = UUID.fromString(dataType.getDataId());
-			Dataset dataset = session.getDatasets().get(datasetId);			
+			Dataset dataset = datasetMap.get(datasetId);			
 			Job job = session.getJobs().get(dataset.getSourceJob());
 			
 			if (job != null && "operation-definition-id-user-modification".equals(job.getToolId())) {							
@@ -151,7 +154,7 @@ public class XmlSession {
 		}
 	}
 
-	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId, HashMap<UUID, UUID> datasetIdMap, RestFileBrokerClient fileBroker, SessionDbClient sessionDb) throws RestException {
+	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId, HashMap<UUID, UUID> datasetIdMap, RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap) throws RestException {
 		
 		HashSet<UUID> convertedPhenodatas = new HashSet<>();
 		
@@ -171,7 +174,7 @@ public class XmlSession {
 					
 					ArrayList<MetadataEntry> newPhenodata = RestPhenodataUtils.parseMetadata(phenodata, false, "");
 					
-					session.getDatasets().get(UUID.fromString(dataType.getDataId())).setMetadata(newPhenodata);
+					datasetMap.get(UUID.fromString(dataType.getDataId())).setMetadata(newPhenodata);
 					
 					convertedPhenodatas.add(oldPhenodataId);
 				
@@ -183,7 +186,7 @@ public class XmlSession {
 		
 		// delete the old phenodata  files to avoid confusion
 		for (UUID datasetId : convertedPhenodatas) {
-			session.getDatasetCollection().removeIf(d -> datasetId.equals(d.getDatasetId()));
+			datasetMap.values().removeIf(d -> datasetId.equals(d.getDatasetId()));
 			sessionDb.deleteDataset(sessionId, datasetIdMap.get(datasetId));
 			datasetIdMap.remove(datasetId);
 		}
@@ -323,7 +326,6 @@ public class XmlSession {
 		session.setCreated(Instant.now());
 		session.setNotes(sessionType.getNotes());
 		
-		session.setDatasets(getDatasets(sessionType.getData()));
 		session.setJobs(getJobs(sessionType.getOperation()));
 		
 		return session;

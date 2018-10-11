@@ -191,7 +191,7 @@ public class SessionWorkerResource {
 	private ArrayList<String> updateSession(SessionDbClient sessionDb, UUID sessionId, ExtractedSession extractedSession) throws RestException {
 		
 		Session session = extractedSession.getSession();
-		Collection<Dataset> datasets = session.getDatasets().values();
+		Collection<Dataset> datasets = extractedSession.getDatasetMap().values();
 		Collection<Job> jobs = session.getJobs().values();
 		HashMap<UUID, UUID> datasetIdMap = extractedSession.getDatasetIdMap();
 		HashMap<UUID, UUID> jobIdMap = new HashMap<>();

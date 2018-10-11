@@ -188,10 +188,8 @@ public class SessionDbClient {
 		
 		Session session = RestMethods.get(getSessionTarget(sessionId), Session.class);
 		
-		HashMap<UUID, Dataset> datasets = getDatasets(sessionId);
 		HashMap<UUID, Job> jobs = getJobs(sessionId);
 		
-		session.setDatasets(datasets);
 		session.setJobs(jobs);
 		
         return session;

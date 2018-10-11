@@ -7,6 +7,10 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Root;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -87,7 +91,8 @@ public class SessionDatasetResource {
     }
     
     public Dataset getDataset(UUID datasetId, org.hibernate.Session hibernateSession) {
-    	return hibernateSession.get(Dataset.class, datasetId);
+    	Dataset dataset = hibernateSession.get(Dataset.class, datasetId);
+    	return dataset;
     }
     
 	@GET
@@ -96,11 +101,27 @@ public class SessionDatasetResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-		Collection<Dataset> result = sessionResource.getRuleTable().getSessionForReading(sc, sessionId).getDatasets().values();
+//		Collection<Dataset> result = sessionResource.getRuleTable().getSessionForReading(sc, sessionId).getDatasets().values();
 
+		Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
+		List<Dataset> result = getDatasets(getHibernate().session(), session);
+		
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
-    }	
+    }
+	
+	public static List<Dataset> getDatasets(org.hibernate.Session hibernateSession, Session session) {
+		
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Dataset> c = cb.createQuery(Dataset.class);
+		Root<Dataset> r = c.from(Dataset.class);
+		r.fetch("file", JoinType.LEFT);
+		c.select(r);		
+		c.where(cb.equal(r.get("session"), session));		
+		List<Dataset> datasets = hibernateSession.getEntityManagerFactory().createEntityManager().createQuery(c).getResultList();	
+				
+		return datasets;
+	}
 
 	@POST
 	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED

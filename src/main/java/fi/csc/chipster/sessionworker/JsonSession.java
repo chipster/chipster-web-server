@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -81,10 +82,10 @@ public class JsonSession {
 			}
 		}
 		
-		session.setDatasets(datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d)));
+		Map<UUID, Dataset> datasetMap = datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d));
 		session.setJobs(jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j)));
 		
-		return new ExtractedSession(session, datasetIdMap);
+		return new ExtractedSession(session, datasetIdMap, datasetMap);
 	}
 	
 	public static void packageSession(SessionDbClient sessionDb, RestFileBrokerClient fileBroker, Session session, UUID sessionId, ArrayList<InputStreamEntry> entries) throws RestException {

@@ -72,7 +72,7 @@ public class UserResource {
     	
     	List<Dataset> datasets = rules.stream()
 	    	.map(rule -> rule.getSession())	    	
-	    	.flatMap(session -> session.getDatasets().values().stream())
+	    	.flatMap(session -> SessionDatasetResource.getDatasets(hibernate.session(), session).stream())
 	    	.collect(Collectors.toList());
     	
     	Map<UUID, File> uniqueFiles = datasets.stream()
@@ -126,14 +126,16 @@ public class UserResource {
     	
     	for (Session session : sessions) {
     		
-    		long sessionSize = session.getDatasets().values().stream()
+    		List<Dataset> datasets = SessionDatasetResource.getDatasets(hibernate.session(), session);    		
+    		
+    		long sessionSize = datasets.stream()
     		.map(dataset -> dataset.getFile())
     		.filter(file -> file != null)
 	    	.collect(Collectors.toMap(file -> file.getFileId(), file -> file))
 	    	.values().stream()
 	    	.collect(Collectors.summingLong(file -> file.getSize()));
     		
-    		long datasetsCount = session.getDatasets().size();
+    		long datasetsCount = datasets.size();
     		long jobCount = session.getJobs().size();
     		long inputCount = session.getJobs().values().stream()
     				.flatMap(job -> job.getInputs().stream())
@@ -141,7 +143,7 @@ public class UserResource {
     		long parameterCount = session.getJobs().values().stream()
     				.flatMap(job -> job.getParameters().stream())
     				.count();
-    		long metadataCount = session.getDatasets().values().stream()
+    		long metadataCount = datasets.stream()
     				.flatMap(dataset -> dataset.getMetadata().stream())
     				.count();
     		

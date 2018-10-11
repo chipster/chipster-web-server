@@ -226,7 +226,7 @@ public class SessionResource {
 		 * the dataset and the session. This also generates the necessary events e.g. to remove
 		 * files.  
 		 */
-		for (Dataset dataset : auth.getSession().getDatasets().values()) {
+		for (Dataset dataset : SessionDatasetResource.getDatasets(hibernateSession, auth.getSession())) {
 			getDatasetResource(sessionId).deleteDataset(dataset, hibernateSession);
 		}
 		

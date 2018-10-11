@@ -9,9 +9,11 @@ import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.hibernate.annotations.Type;
@@ -21,6 +23,9 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
 @XmlRootElement // rest
+@Table(indexes = {
+        @Index(columnList = "fileId", name = "dataset_fileid_index"),
+})
 public class Dataset {
 	
 	@Id // db
