@@ -6,8 +6,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
+import org.hibernate.context.internal.ManagedSessionContext;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
 
 import fi.csc.chipster.rest.Config;
@@ -91,7 +93,8 @@ public class HibernateUtil {
 		hibernateConf.setProperty(Environment.PASS, password);
 		hibernateConf.setProperty(Environment.DIALECT, config.getString(CONF_DB_DIALECT, role));
 		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(CONF_DB_SHOW_SQL, role));
-		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");		
+//		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
+		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		
@@ -120,10 +123,15 @@ public class HibernateUtil {
 		hibernateConf.setProperty("hibernate.order_updates", "true");
 		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
 		 
-		SessionFactory sessionFactory = hibernateConf.buildSessionFactory(
-				new StandardServiceRegistryBuilder()
-				.applySettings(hibernateConf.getProperties())
-				.build());
+//		//FIXME enable for localhost by default, make configurable 
+//		logger.warn("db latency simulation enabled");
+//		hibernateConf.setInterceptor(new DelayInterceptor());
+		
+		StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
+			.applySettings(hibernateConf.getProperties())
+			.build();
+	
+		SessionFactory sessionFactory = hibernateConf.buildSessionFactory(registry);
 		
 		return sessionFactory;
     }
@@ -136,25 +144,36 @@ public class HibernateUtil {
         return sessionFactory;
     }
 
-	public org.hibernate.Session beginTransaction() {
-		org.hibernate.Session session = getSessionFactory().getCurrentSession();
+	public org.hibernate.Session beginTransaction() {			
+		
+		Session session = getSessionFactory()
+				.withOptions()
+//				.interceptor(new LoggingInterceptor())
+				.openSession();
+		
+		ManagedSessionContext.bind(session);
+		
+		session.setDefaultReadOnly(true);		
+		
+//		org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
 		
 //		if (isPostgres(config, role)) {
 //			session.createNativeQuery("SET LOCAL synchronous_commit TO OFF").executeUpdate();
 //		}
 		
-		session.setDefaultReadOnly(true);
 		
 		return session;
 	}
 
 	public void commit() {
 		getSessionFactory().getCurrentSession().getTransaction().commit();
+		ManagedSessionContext.unbind(getSessionFactory());
 	}
 	
 	public void rollback() {
 		getSessionFactory().getCurrentSession().getTransaction().rollback();
+		ManagedSessionContext.unbind(getSessionFactory());
 	}
 
 	public org.hibernate.Session session() {
