@@ -1,11 +1,13 @@
 {
-  "name": "chipster-cli-client",
-  "version": "1.0.0",
+  "name": "chipster-cli-js",
+  "version": "0.0.1",
   "description": "Command line client for Chipster",
-  "main": "index.js",
+  "private": false,
+  "main": "lib/chipster.js",
+  "bin": { "chipster": "lib/chipster.js" },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+      "prepare": "tsc"
+  },  
   "author": "",
   "license": "MIT",
   "dependencies": {
