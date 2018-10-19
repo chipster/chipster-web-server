@@ -3,7 +3,6 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -161,17 +160,21 @@ public class RuleTable {
 	@SuppressWarnings("unchecked")
 	ArrayList<Rule> getRulesOfEveryoneCached() {
 		
-		synchronized (everyoneRulesLock) {			
-			if (everyoneRulesTimestamp == null || everyoneRulesTimestamp.isBefore(Instant.now().minus(1,ChronoUnit.SECONDS))) {
-
-				this.everyoneRules = hibernate.session()
+//		synchronized (everyoneRulesLock) {			
+//			if (everyoneRulesTimestamp == null || everyoneRulesTimestamp.isBefore(Instant.now().minus(1,ChronoUnit.SECONDS))) {
+//
+//				this.everyoneRules = hibernate.session()
+//				.createQuery("from Rule where username='" + EVERYONE + "'")
+//				.list();
+//				everyoneRulesTimestamp = Instant.now();
+//			}
+//			
+//			return new ArrayList<Rule>(everyoneRules);
+//		}
+		
+		return (ArrayList<Rule>) hibernate.session()
 				.createQuery("from Rule where username='" + EVERYONE + "'")
 				.list();
-				everyoneRulesTimestamp = Instant.now();
-			}
-			
-			return new ArrayList<Rule>(everyoneRules);
-		}
 	}
 	
 	@SuppressWarnings("unchecked")
