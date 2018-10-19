@@ -118,10 +118,10 @@ public class HibernateUtil {
 		 * help if there are other queries/updates for each row, like for getting the next sequence id 
 		 * for the object or updating the object references.
 		 */
-		hibernateConf.setProperty("hibernate.jdbc.batch_size", "1000");
-		hibernateConf.setProperty("hibernate.order_inserts", "true");
-		hibernateConf.setProperty("hibernate.order_updates", "true");
-		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
+//		hibernateConf.setProperty("hibernate.jdbc.batch_size", "1000");
+//		hibernateConf.setProperty("hibernate.order_inserts", "true");
+//		hibernateConf.setProperty("hibernate.order_updates", "true");
+//		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
 		 
 //		//FIXME enable for localhost by default, make configurable 
 //		logger.warn("db latency simulation enabled");
@@ -153,7 +153,7 @@ public class HibernateUtil {
 		
 		ManagedSessionContext.bind(session);
 		
-		session.setDefaultReadOnly(true);		
+//		session.setDefaultReadOnly(true);		
 		
 //		org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
