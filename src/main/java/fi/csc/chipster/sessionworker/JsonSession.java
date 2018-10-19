@@ -83,9 +83,9 @@ public class JsonSession {
 		}
 		
 		Map<UUID, Dataset> datasetMap = datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d));
-		session.setJobs(jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j)));
+		Map<UUID, Job> jobMap = jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j));
 		
-		return new ExtractedSession(session, datasetIdMap, datasetMap);
+		return new ExtractedSession(session, datasetIdMap, datasetMap, jobMap);
 	}
 	
 	public static void packageSession(SessionDbClient sessionDb, RestFileBrokerClient fileBroker, Session session, UUID sessionId, ArrayList<InputStreamEntry> entries) throws RestException {

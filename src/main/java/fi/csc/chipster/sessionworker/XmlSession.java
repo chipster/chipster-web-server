@@ -63,6 +63,7 @@ public class XmlSession {
 			SessionType sessionType = null;
 			fi.csc.chipster.sessiondb.model.Session session = null;
 			Map<UUID, Dataset> datasetMap = null;
+			Map<UUID, Job> jobMap = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
 			HashMap<UUID, UUID> datasetIdMap = new HashMap<>();
 			
@@ -79,6 +80,7 @@ public class XmlSession {
 						
 						session = getSession(sessionType);
 						datasetMap = getDatasets(sessionType.getData());
+						jobMap = getJobs(sessionType.getOperation());
 												
 						// the session name isn't saved inside the xml session, so let's use whatever the uploader has set
 						session.setName(sessionDb.getSession(sessionId).getName());
@@ -105,11 +107,11 @@ public class XmlSession {
 				}
 			}			
 			
-			fixModificationParents(sessionType, session, datasetMap);
+			fixModificationParents(sessionType, session, datasetMap, jobMap);
 			
 			convertPhenodata(sessionType, session, sessionId, datasetIdMap, fileBroker, sessionDb, datasetMap);
 					
-			return new ExtractedSession(session, datasetIdMap, datasetMap);
+			return new ExtractedSession(session, datasetIdMap, datasetMap, jobMap);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
@@ -129,15 +131,16 @@ public class XmlSession {
 	 * @param sessionType
 	 * @param session
 	 * @param datasetMap 
+	 * @param jobMap 
 	 * @throws RestException
 	 */
-	private static void fixModificationParents(SessionType sessionType, Session session, Map<UUID, Dataset> datasetMap) throws RestException {
+	private static void fixModificationParents(SessionType sessionType, Session session, Map<UUID, Dataset> datasetMap, Map<UUID, Job> jobMap) throws RestException {
 		
 		for (DataType dataType : sessionType.getData()) {
 						
 			UUID datasetId = UUID.fromString(dataType.getDataId());
 			Dataset dataset = datasetMap.get(datasetId);			
-			Job job = session.getJobs().get(dataset.getSourceJob());
+			Job job = jobMap.get(dataset.getSourceJob());
 			
 			if (job != null && "operation-definition-id-user-modification".equals(job.getToolId())) {							
 				List<DataType> parents = getLinked(sessionType, dataType, Link.MODIFICATION);
@@ -325,8 +328,6 @@ public class XmlSession {
 		session.setAccessed(null);
 		session.setCreated(Instant.now());
 		session.setNotes(sessionType.getNotes());
-		
-		session.setJobs(getJobs(sessionType.getOperation()));
 		
 		return session;
 	}

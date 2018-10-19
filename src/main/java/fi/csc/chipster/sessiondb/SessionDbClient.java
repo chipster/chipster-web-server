@@ -181,16 +181,12 @@ public class SessionDbClient {
 
 	/**
 	 * @param sessionId
-	 * @return get a session object and it's datasets and jobs
+	 * @return get a session object
 	 * @throws RestException
 	 */
 	public fi.csc.chipster.sessiondb.model.Session getSession(UUID sessionId) throws RestException {
 		
 		Session session = RestMethods.get(getSessionTarget(sessionId), Session.class);
-		
-		HashMap<UUID, Job> jobs = getJobs(sessionId);
-		
-		session.setJobs(jobs);
 		
         return session;
 	}

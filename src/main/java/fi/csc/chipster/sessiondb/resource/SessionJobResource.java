@@ -3,9 +3,14 @@ package fi.csc.chipster.sessiondb.resource;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Root;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -89,11 +94,24 @@ public class SessionJobResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 		
-		Collection<Job> result = sessionResource.getRuleTable().getSessionForReading(sc, sessionId).getJobs().values();
+		Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
+		List<Job> result = getJobs(getHibernate().session(), session);
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
-    }	
+    }
+	
+	public static List<Job> getJobs(org.hibernate.Session hibernateSession, Session session) {
+		
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Job> c = cb.createQuery(Job.class);
+		Root<Job> r = c.from(Job.class);
+		c.select(r);		
+		c.where(cb.equal(r.get("session"), session));		
+		List<Job> datasets = hibernateSession.getEntityManagerFactory().createEntityManager().createQuery(c).getResultList();	
+				
+		return datasets;
+	}
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)

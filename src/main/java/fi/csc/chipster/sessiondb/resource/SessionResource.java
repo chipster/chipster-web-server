@@ -231,7 +231,7 @@ public class SessionResource {
 		}
 		
 		// see the note about datasets above
-		for (Job job : auth.getSession().getJobs().values()) {
+		for (Job job : SessionJobResource.getJobs(hibernateSession, auth.getSession())) {
 			getJobResource(sessionId).deleteJob(job, hibernateSession);
 		}
 		

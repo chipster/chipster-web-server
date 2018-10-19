@@ -25,6 +25,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
@@ -126,7 +127,8 @@ public class UserResource {
     	
     	for (Session session : sessions) {
     		
-    		List<Dataset> datasets = SessionDatasetResource.getDatasets(hibernate.session(), session);    		
+    		List<Dataset> datasets = SessionDatasetResource.getDatasets(hibernate.session(), session);
+    		List<Job> jobs = SessionJobResource.getJobs(hibernate.session(), session);
     		
     		long sessionSize = datasets.stream()
     		.map(dataset -> dataset.getFile())
@@ -136,11 +138,11 @@ public class UserResource {
 	    	.collect(Collectors.summingLong(file -> file.getSize()));
     		
     		long datasetsCount = datasets.size();
-    		long jobCount = session.getJobs().size();
-    		long inputCount = session.getJobs().values().stream()
+    		long jobCount = jobs.size();
+    		long inputCount = jobs.stream()
     				.flatMap(job -> job.getInputs().stream())
     				.count();
-    		long parameterCount = session.getJobs().values().stream()
+    		long parameterCount = jobs.stream()
     				.flatMap(job -> job.getParameters().stream())
     				.count();
     		long metadataCount = datasets.stream()

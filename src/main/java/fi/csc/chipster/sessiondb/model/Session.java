@@ -1,9 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -14,7 +11,6 @@ import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlRootElement;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity // db
 @XmlRootElement // REST
@@ -35,39 +31,39 @@ public class Session {
 //	@OneToMany(mappedBy="session")
 //	private Collection<Dataset> datasets;
 	
-	@OneToMany(mappedBy="session")
-	private Collection<Job> jobs;
+//	@OneToMany(mappedBy="session")
+//	private Collection<Job> jobs;
 	
 	@OneToMany(fetch = FetchType.EAGER, mappedBy="session")
 	private Set<Rule> rules;
 	
-	/**
-	 * All jobs in the session
-	 * 
-	 * Changes to the database has to be made with Job.setSession().
-	 * 
-	 * @return
-	 */
-	// not needed in session JSON, because there is a separate endpoint for this
-	@JsonIgnore
-	public Map<UUID, Job> getJobs() {
-		HashMap<UUID, Job> map = new HashMap<>();
-		for (Job job : jobs) {
-			map.put(job.getJobId(), job);
-		}
-		return map;
-	}
-	
-	/**
-	 * Set jobs to this instance.
-	 * 
-	 * Changes to the database has to be made with Job.setSession().
-	 * 
-	 * @param jobs
-	 */
-	public void setJobs(Map<UUID, Job> jobs) {
-		this.jobs = jobs.values();
-	}
+//	/**
+//	 * All jobs in the session
+//	 * 
+//	 * Changes to the database has to be made with Job.setSession().
+//	 * 
+//	 * @return
+//	 */
+//	// not needed in session JSON, because there is a separate endpoint for this
+//	@JsonIgnore
+//	public Map<UUID, Job> getJobs() {
+//		HashMap<UUID, Job> map = new HashMap<>();
+//		for (Job job : jobs) {
+//			map.put(job.getJobId(), job);
+//		}
+//		return map;
+//	}
+//	
+//	/**
+//	 * Set jobs to this instance.
+//	 * 
+//	 * Changes to the database has to be made with Job.setSession().
+//	 * 
+//	 * @param jobs
+//	 */
+//	public void setJobs(Map<UUID, Job> jobs) {
+//		this.jobs = jobs.values();
+//	}
 
 //	/**
 //	 * All dataset in the session

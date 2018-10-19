@@ -192,7 +192,7 @@ public class SessionWorkerResource {
 		
 		Session session = extractedSession.getSession();
 		Collection<Dataset> datasets = extractedSession.getDatasetMap().values();
-		Collection<Job> jobs = session.getJobs().values();
+		Collection<Job> jobs = extractedSession.getJobMap().values();
 		HashMap<UUID, UUID> datasetIdMap = extractedSession.getDatasetIdMap();
 		HashMap<UUID, UUID> jobIdMap = new HashMap<>();
 		ArrayList<String> warnings = new ArrayList<String>();
