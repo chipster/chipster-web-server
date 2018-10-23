@@ -28,7 +28,7 @@ export default class Benchmark {
     influxUrl;
     results = "";
 
-    readonly maxRequestCount = 1000;
+    readonly maxRequestCount = 10;
     readonly maxTime = 1000;
 
     constructor() {
@@ -66,28 +66,29 @@ export default class Benchmark {
                     logger.warn("account is not empty, results may be lower:", s.length, "session(s)");
                 }
             }),            
-            mergeMap(() => this.measure("get static                              ", i => this.getStatic(i))),
+            // mergeMap(() => this.measure("get static                              ", i => this.getStatic(i))),
             mergeMap(() => this.measure("post session                            ", i => this.postEmptySession(i, this.sessionIds))),
-            mergeMap(() => this.measure("post session                            ", i => this.postEmptySession(i, this.sessionIdsWithoutMetadata))),
-            mergeMap(() => this.measure("get sessions by username                ", i => this.getSessionsByUsername(i))),
-            mergeMap(() => this.measure("get sessions by id                      ", i => this.getSessionById(i))),
+            // mergeMap(() => this.measure("post session                            ", i => this.postEmptySession(i, this.sessionIdsWithoutMetadata))),            
+            // mergeMap(() => this.measure("get sessions by id                      ", i => this.getSessionById(i))),
             mergeMap(() => this.measure("post dataset                            ", i => this.postDataset(i, 100, this.datasetIds, this.sessionIds))),
-            mergeMap(() => this.measure("post dataset without metadata           ", i => this.postDataset(i, 0, this.datasetIdsWithoutMetadata, this.sessionIdsWithoutMetadata))),
-            mergeMap(() => this.measure("get dataset                             ", i => this.getDataset(i, this.datasetIds))),
-            mergeMap(() => this.measure("get dataset without metadata            ", i => this.getDataset(i, this.datasetIdsWithoutMetadata))),
-            mergeMap(() => this.measure("get datasets by session                 ", i => this.getDatasetsBySession(i, this.datasetIds))),
-            mergeMap(() => this.measure("get datasets by session without metadata", i => this.getDatasetsBySession(i, this.datasetIdsWithoutMetadata))),
-            mergeMap(() => this.measure("put and get dataset                     ", i => this.getAndPutDataset(i, this.datasetIds))),
-            mergeMap(() => this.measure("put and get dataset without metadata    ", i => this.getAndPutDataset(i, this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("post dataset without metadata           ", i => this.postDataset(i, 0, this.datasetIdsWithoutMetadata, this.sessionIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("get dataset                             ", i => this.getDataset(i, this.datasetIds))),
+            // mergeMap(() => this.measure("get dataset without metadata            ", i => this.getDataset(i, this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("get datasets by session                 ", i => this.getDatasetsBySession(i, this.datasetIds))),
+            // mergeMap(() => this.measure("get datasets by session without metadata", i => this.getDatasetsBySession(i, this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measure("put and get dataset                     ", i => this.getAndPutDataset(i, this.datasetIds))),
+            // mergeMap(() => this.measure("put and get dataset without metadata    ", i => this.getAndPutDataset(i, this.datasetIdsWithoutMetadata))),
             mergeMap(() => this.measure("post job                                ", i => this.postJob(i))),
             mergeMap(() => this.measure("get job                                 ", i => this.getJob(i))),
             mergeMap(() => this.measure("get jobs by session                     ", i => this.getJobsBySession(i))),
             mergeMap(() => this.measure("put and get job                         ", i => this.getAndPutJob(i))),
             mergeMap(() => this.measureOnce("delete job                              ", this.deleteJob())),
             mergeMap(() => this.measureOnce("delete dataset                          ", this.deleteDataset(this.datasetIds))),
-            mergeMap(() => this.measureOnce("delete dataset without metadata         ", this.deleteDataset(this.datasetIdsWithoutMetadata))),
+            // mergeMap(() => this.measureOnce("delete dataset without metadata         ", this.deleteDataset(this.datasetIdsWithoutMetadata))),
+            // measure this only after half of the sessions are deleted already
+            mergeMap(() => this.measure("get sessions by username                ", i => this.getSessionsByUsername(i))),
             mergeMap(() => this.measureOnce("delete session                          ", this.deleteSession(this.sessionIds))),
-            mergeMap(() => this.measureOnce("delete session                          ", this.deleteSession(this.sessionIdsWithoutMetadata))),
+            // mergeMap(() => this.measureOnce("delete session                          ", this.deleteSession(this.sessionIdsWithoutMetadata))),
             mergeMap(() => this.postResults()),
         ).subscribe(
             () => console.log('chipster benchmark done'),
@@ -105,10 +106,10 @@ export default class Benchmark {
     }
 
     measureOnce(name, job$) {
-        const t = new Date();
+        const t = +new Date();
         return job$.pipe(            
             tap((requestCount: number) => {
-                const duration = this.dateDiff(t, new Date());
+                const duration = +new Date() - t;
                 const rps = requestCount * 1000 / duration;
                 this.addResult(name, 1, rps);
                 logger.info(name, rps, "\trequest/s (sequential)");
@@ -134,16 +135,16 @@ export default class Benchmark {
     }
 
     loop(jobFunction, threads, name) {
-        let t;
+        let t: number;
         return of(null).pipe(
-            tap(() => t = new Date()),
+            tap(() => t = +new Date()),
             mergeMap(() => range(0, this.maxRequestCount)),
             mergeMap(jobFunction, null, threads),
             takeUntil(timer(this.maxTime)),
             toArray(),
             map(array => array.length),
             map((requestCount: number) => {
-                const duration = this.dateDiff(t, new Date());
+                const duration = +new Date() - t;
                 const throughput = requestCount * 1000 / duration;
                 this.addResult(name, threads, throughput);
 
@@ -198,7 +199,7 @@ export default class Benchmark {
                     });
                 }
                 return dataset;
-            }),
+            }),            
             mergeMap(dataset => this.restClient.postDataset(sessionId, dataset)),
             tap((id: string) => idMap.set(id, sessionId)),
         );   
@@ -345,10 +346,6 @@ export default class Benchmark {
                 }
             })
         )
-    }
-        
-    dateDiff(start, end) {
-        return Date.parse(end) - Date.parse(start);
     }
 
     millisecondsToHumanReadable(ms: number): string {
