@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 @XmlRootElement // rest
 @Table(indexes = {
         @Index(columnList = "fileId", name = "dataset_fileid_index"),
+        @Index(columnList = "sessionId", name = "dataset_sessionid_index"),
 })
 public class Dataset {
 	

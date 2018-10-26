@@ -9,7 +9,6 @@ import java.util.UUID;
 import javax.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Root;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -74,10 +73,11 @@ public class SessionJobResource {
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
     	
     	// checks authorization
-    	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId, true);
-    	Job result = getJob(jobId, getHibernate().session());
+    	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId, true);    	
     	
-    	if (result == null || result.getSession().getSessionId() != session.getSessionId()) {
+    	Job result = getJob(jobId, getHibernate().session());
+    	    	
+    	if (result == null || !result.getSession().getSessionId().equals(session.getSessionId())) {
     		throw new NotFoundException();
     	}
     	
@@ -108,7 +108,7 @@ public class SessionJobResource {
 		Root<Job> r = c.from(Job.class);
 		c.select(r);		
 		c.where(cb.equal(r.get("session"), session));		
-		List<Job> datasets = hibernateSession.getEntityManagerFactory().createEntityManager().createQuery(c).getResultList();	
+		List<Job> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();	
 				
 		return datasets;
 	}
@@ -182,7 +182,8 @@ public class SessionJobResource {
 	}
 
 	public void create(Job job, org.hibernate.Session hibernateSession) {
-		hibernateSession.save(job);
+		hibernateSession.persist(job);
+		hibernateSession.setReadOnly(job, true);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE), hibernateSession);
 	}
 
@@ -203,7 +204,7 @@ public class SessionJobResource {
 		 */
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Job dbJob = getHibernate().session().get(Job.class, jobId);
-		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
+		if (dbJob == null || !dbJob.getSession().getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job doesn't exist");
 		}
 		// make sure a hostile client doesn't set the session or change the createdBy username
@@ -218,7 +219,7 @@ public class SessionJobResource {
     }
 	
 	public void update(Job job, org.hibernate.Session hibernateSession) {
-		hibernateSession.merge(job);
+		HibernateUtil.update(job, job.getJobId(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE), hibernateSession);
 	}
 
@@ -241,7 +242,7 @@ public class SessionJobResource {
     }
 	
 	public void deleteJob(Job job, org.hibernate.Session hibernateSession) {
-		hibernateSession.delete(job);		
+		HibernateUtil.delete(job, job.getJobId(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE), hibernateSession);
 	}
 

@@ -27,6 +27,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.compress.utils.Sets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.BaseSessionEventListener;
@@ -115,8 +116,12 @@ public class SessionResource {
 		List<Rule> result = ruleTable.getRules(sc.getUserPrincipal().getName());
 		
 		List<Session> sessions = new ArrayList<>();
-		for (Rule auth : result) {
-			sessions.add(auth.getSession());
+		for (Rule rule : result) {
+			Session session = rule.getSession();
+			// user's own rule should be enough in the session list
+			// otherwise we would be selectin rules of sessions of rules of username
+			session.setRules(Sets.newHashSet(rule));
+			sessions.add(session);
 		}
 
 		// if nothing is found, just return 200 (OK) and an empty list
@@ -197,7 +202,7 @@ public class SessionResource {
 	public void update(Session session, org.hibernate.Session hibernateSession) {
 		UUID sessionId = session.getSessionId();
 		// persist
-		hibernateSession.merge(session);
+		HibernateUtil.update(session, session.getSessionId(), hibernateSession);		
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE), hibernateSession);
 	}
 
@@ -240,7 +245,8 @@ public class SessionResource {
 			hibernateSession.delete(rule);
 		}
 		
-		hibernateSession.delete(auth.getSession());
+//		hibernateSession.delete(auth.getSession());
+		HibernateUtil.delete(auth.getSession(), auth.getSession().getSessionId(), hibernateSession);
 
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, sessionId, EventType.DELETE), hibernateSession);
 		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.DELETE), hibernateSession);

@@ -83,7 +83,7 @@ public class SessionDatasetResource {
 		
     	Dataset result = getDataset(datasetId, getHibernate().session());
     	
-    	if (result == null) {
+    	if (result == null || !result.getSession().getSessionId().equals(sessionId)) {
     		throw new NotFoundException();
     	}
 
@@ -118,7 +118,7 @@ public class SessionDatasetResource {
 		r.fetch("file", JoinType.LEFT);
 		c.select(r);		
 		c.where(cb.equal(r.get("session"), session));		
-		List<Dataset> datasets = hibernateSession.getEntityManagerFactory().createEntityManager().createQuery(c).getResultList();	
+		List<Dataset> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();	
 				
 		return datasets;
 	}
@@ -162,9 +162,10 @@ public class SessionDatasetResource {
 		
 		if (dataset.getFile() != null) {
 			// why CascadeType.PERSIST isn't enough?
-			hibernateSession.save(dataset.getFile());
+			hibernateSession.persist(dataset.getFile());
 		}
-		hibernateSession.save(dataset);
+		hibernateSession.persist(dataset);
+		hibernateSession.setReadOnly(dataset, true);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE), hibernateSession);
 	}
 
@@ -200,7 +201,7 @@ public class SessionDatasetResource {
 		 */
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
-		if (dbDataset == null || dbDataset.getSession().getSessionId() != session.getSessionId()) {
+		if (dbDataset == null || !dbDataset.getSession().getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("dataset doesn't exist");
 		}
 		
@@ -222,7 +223,9 @@ public class SessionDatasetResource {
     }
 	
 	public void update(Dataset dataset, org.hibernate.Session hibernateSession) {
-		hibernateSession.merge(dataset);
+		//hibernateSession.merge(dataset);
+		
+		HibernateUtil.update(dataset, dataset.getDatasetId(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.UPDATE), hibernateSession);
 	}
 
@@ -236,7 +239,7 @@ public class SessionDatasetResource {
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		Dataset dataset = sessionResource.getHibernate().session().get(Dataset.class, datasetId);
 		
-		if (dataset == null || dataset.getSession().getSessionId() != session.getSessionId()) {
+		if (dataset == null || !dataset.getSession().getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("dataset not found");
 		}
 		

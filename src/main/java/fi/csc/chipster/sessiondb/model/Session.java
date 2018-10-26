@@ -34,7 +34,8 @@ public class Session {
 //	@OneToMany(mappedBy="session")
 //	private Collection<Job> jobs;
 	
-	@OneToMany(fetch = FetchType.EAGER, mappedBy="session")
+	@OneToMany(fetch = FetchType.LAZY, mappedBy="session")
+	//@Transient
 	private Set<Rule> rules;
 	
 //	/**

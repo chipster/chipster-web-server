@@ -3,13 +3,17 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import javax.persistence.NoResultException;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Root;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.MediaType;
@@ -74,7 +78,7 @@ public class RuleTable {
 	}
 	
     public void delete(UUID sessionId, Rule rule, org.hibernate.Session hibernateSession) {
-    	hibernateSession.delete(rule);
+    	HibernateUtil.delete(rule, rule.getRuleId(), hibernateSession);
     	
     	if (ruleRemovedListener != null) {
     		ruleRemovedListener.ruleRemoved(sessionId, rule);
@@ -116,7 +120,7 @@ public class RuleTable {
 		if(username == null) {
 			throw new ForbiddenException("username is null");
 		}
-		Session session = hibernateSession.get(Session.class, sessionId);
+		Session session = getSession(sessionId);
 		
 		if (session == null) {
 			throw new NotFoundException("session not found");
@@ -137,28 +141,49 @@ public class RuleTable {
 				throw new ForbiddenException("read-write access denied");
 			}
 		}
+		
 		return session;
 	}
 
 	@SuppressWarnings("unchecked")
 	public List<Rule> getRules(String username) {
 		
-		List rules = hibernate.session()
-				.createQuery("from Rule where username=:username")
-				.setParameter("username", username)
-				.list();
-		
-//		List everyoneRules = hibernate.session()
-//				.createQuery("from Rule where username='" + EVERYONE + "'")
-//				.list();
+		List<Rule> rules = getRulesOwn(username);
 		
 		rules.addAll(getRulesOfEveryoneCached());
 		
 		return rules;
 	}
 	
+	public Session getSession(UUID sessionId) {
+		try {
+			CriteriaBuilder cb = hibernate.session().getCriteriaBuilder();
+			CriteriaQuery<Session> c = cb.createQuery(Session.class);
+			Root<Session> r = c.from(Session.class);
+			r.fetch("rules", JoinType.LEFT);
+			c.select(r);		
+			c.where(cb.equal(r.get("sessionId"), sessionId));		
+			return hibernate.getEntityManager().createQuery(c).getSingleResult();
+		} catch (NoResultException e) {
+			return null;
+		}
+	}
+	
+	public List<Rule> getRulesOwn(String username) {		
+		
+		CriteriaBuilder cb = hibernate.session().getCriteriaBuilder();
+		CriteriaQuery<Rule> c = cb.createQuery(Rule.class);
+		Root<Rule> r = c.from(Rule.class);
+		r.fetch("session", JoinType.LEFT);
+		c.select(r);		
+		c.where(cb.equal(r.get("username"), username));		
+		List<Rule> rules = hibernate.getEntityManager().createQuery(c).getResultList();
+		
+		return rules;
+	}
+	
 	@SuppressWarnings("unchecked")
-	ArrayList<Rule> getRulesOfEveryoneCached() {
+	List<Rule> getRulesOfEveryoneCached() {
 		
 //		synchronized (everyoneRulesLock) {			
 //			if (everyoneRulesTimestamp == null || everyoneRulesTimestamp.isBefore(Instant.now().minus(1,ChronoUnit.SECONDS))) {
@@ -172,9 +197,7 @@ public class RuleTable {
 //			return new ArrayList<Rule>(everyoneRules);
 //		}
 		
-		return (ArrayList<Rule>) hibernate.session()
-				.createQuery("from Rule where username='" + EVERYONE + "'")
-				.list();
+		return getRulesOwn(EVERYONE);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -237,17 +260,15 @@ public class RuleTable {
         return Response.ok().entity( stream ).type( MediaType.APPLICATION_JSON ).build()    ;
 	}
 	
-	public Session getSession(UUID sessionId) {
-		return hibernate.session().get(Session.class, sessionId);
-	}
-	
 	public Rule getRule(String username, Session session, org.hibernate.Session hibernateSession) {
 		
 		if (servicesAccounts.contains(username)) {
 			return new Rule(username, true, null);
 		}
 		
-		List<Rule> auths = new ArrayList<Rule>(session.getRules());
+		List<Rule> auths = session.getRules().stream()
+				.filter(r -> username.equals(r.getUsername()) || EVERYONE.equals(r.getUsername()))
+				.collect(Collectors.toList());
 		
 //		@SuppressWarnings("unchecked")
 //		List<Rule> auths = hibernateSession
@@ -265,12 +286,13 @@ public class RuleTable {
 //		
 //		auths.addAll(everyoneAuths);
 		
-		
-		List<Rule> everyoneList = this.getRulesOfEveryoneCached().stream()
-		.filter(r -> EVERYONE.equals(r.getUsername()))
-		.collect(Collectors.toList());
-		
-		auths.addAll(everyoneList);
+
+// these are already found by the sessionId
+//		List<Rule> everyoneList = this.getRulesOfEveryoneCached().stream()
+//		.filter(r -> EVERYONE.equals(r.getUsername()))
+//		.collect(Collectors.toList());
+//		
+//		auths.addAll(everyoneList);
 
 		// return the best (i.e. read-write) Authorization if there are multiple Authorizations 
 		if (auths.isEmpty()) { 

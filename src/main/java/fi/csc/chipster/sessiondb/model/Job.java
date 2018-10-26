@@ -8,9 +8,11 @@ import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.hibernate.annotations.Type;
@@ -21,6 +23,9 @@ import fi.csc.microarray.messaging.JobState;
 
 @Entity // db
 @XmlRootElement // rest
+@Table(indexes = {
+        @Index(columnList = "sessionId", name = "job_sessionid_index"),
+})
 public class Job {
 	 
 	@Id // db
@@ -186,5 +191,4 @@ public class Job {
 	public void setMemoryUsage(Long memoryUsage) {
 		this.memoryUsage = memoryUsage;
 	}
-	
 }
