@@ -1,6 +1,9 @@
 package fi.csc.chipster.rest.hibernate;
 
 import java.util.List;
+import java.util.UUID;
+
+import javax.persistence.EntityManager;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -107,7 +110,7 @@ public class HibernateUtil {
 		if (isPostgres) {
 			hibernateConf.setProperty(Environment.DIALECT, "fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect");
 		}
-		
+
 		// store these child objects as json
         hibernateConf.registerTypeOverride(new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class), new String[] {MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE});
         hibernateConf.registerTypeOverride(new ListJsonType<Parameter>(!isPostgres, Parameter.class), new String[] {Parameter.PARAMETER_LIST_JSON_TYPE});
@@ -122,6 +125,8 @@ public class HibernateUtil {
 //		hibernateConf.setProperty("hibernate.order_inserts", "true");
 //		hibernateConf.setProperty("hibernate.order_updates", "true");
 //		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
+		
+//		hibernateConf.setProperty("hibernate.default_batch_fetch_size", "100");
 		 
 //		//FIXME enable for localhost by default, make configurable 
 //		logger.warn("db latency simulation enabled");
@@ -143,17 +148,22 @@ public class HibernateUtil {
 	public SessionFactory getSessionFactory() {
         return sessionFactory;
     }
+	
+	public org.hibernate.Session beginTransaction() {
+		return beginTransaction(getSessionFactory());
+	}
 
-	public org.hibernate.Session beginTransaction() {			
+	public static org.hibernate.Session beginTransaction(SessionFactory sessionFactory2) {			
 		
-		Session session = getSessionFactory()
+		Session session = sessionFactory2
 				.withOptions()
 //				.interceptor(new LoggingInterceptor())
 				.openSession();
 		
 		ManagedSessionContext.bind(session);
 		
-//		session.setDefaultReadOnly(true);		
+		// update db only explicitly
+		session.setDefaultReadOnly(true);		
 		
 //		org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
@@ -165,15 +175,25 @@ public class HibernateUtil {
 		
 		return session;
 	}
-
+	
 	public void commit() {
-		getSessionFactory().getCurrentSession().getTransaction().commit();
-		ManagedSessionContext.unbind(getSessionFactory());
+		commit(getSessionFactory());
+	}
+
+	public static void commit(SessionFactory sessionFactory) {
+		sessionFactory.getCurrentSession().getTransaction().commit();
+		Session session = ManagedSessionContext.unbind(sessionFactory);
+		session.close();
 	}
 	
 	public void rollback() {
-		getSessionFactory().getCurrentSession().getTransaction().rollback();
-		ManagedSessionContext.unbind(getSessionFactory());
+		rollback(getSessionFactory());		
+	}
+	
+	public static void rollback(SessionFactory sessionFactory) {
+		sessionFactory.getCurrentSession().getTransaction().rollback();
+		Session session = ManagedSessionContext.unbind(sessionFactory);
+		session.close();
 	}
 
 	public org.hibernate.Session session() {
@@ -192,20 +212,73 @@ public class HibernateUtil {
 	public static <T> T runInTransaction(HibernateRunnable<T> runnable, SessionFactory sessionFactory) {
 		
 		T returnObj = null;
-		Session session = sessionFactory.openSession();
-		org.hibernate.Transaction transaction = session.beginTransaction();
+		
+		Session session = beginTransaction(sessionFactory);
 		try {
 			returnObj = runnable.run(session);
-			transaction.commit();
+			commit(sessionFactory);
 		} catch (Exception e) {
-			transaction.rollback();
+			rollback(sessionFactory);
 			logger.error("transaction failed", e);
 		}
-		session.close();
 		return returnObj;
 	}
 	
 	public interface HibernateRunnable<T> {
 		public T run(Session hibernateSession);
+	}
+
+	public static EntityManager getEntityManager(org.hibernate.Session hibernateSession) {
+		return hibernateSession.unwrap(EntityManager.class);
+	}
+	
+	public EntityManager getEntityManager() {
+		return this.session().unwrap(EntityManager.class);
+	}
+
+	/**
+	 * Update an db object in a read-only Hibernate session
+	 * 
+	 * @param class1
+	 * @param value
+	 * @param id
+	 * @param session 
+	 */
+	public <T> void update(T value, UUID id) {
+		
+		HibernateUtil.update(value, id, session());
+	}
+	
+	/**
+	 * Update an db object in a read-only Hibernate session
+	 * 
+	 * @param class1
+	 * @param value
+	 * @param id
+	 */
+	public static <T> void update(T value, UUID id, Session session) {
+		
+		@SuppressWarnings("unchecked")
+		T dbObject = (T) session.load(value.getClass(), id);
+		session.setReadOnly(dbObject, false);
+		session.merge(value);
+		session.flush();
+		session.setReadOnly(dbObject, true);
+	}
+	
+	/**
+	 * Delete an db object in a read-only Hibernate session
+	 * 
+	 * @param class1
+	 * @param value
+	 * @param id
+	 */
+	public static <T> void delete(T value, UUID id, Session session) {
+		
+		@SuppressWarnings("unchecked")
+		T dbObject = (T) session.load(value.getClass(), id);
+		session.setReadOnly(dbObject, false);
+		session.delete(dbObject);
+		session.flush();
 	}
 }

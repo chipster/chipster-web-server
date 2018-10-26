@@ -3,7 +3,6 @@ package fi.csc.chipster.jobhistory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +34,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 public class JobHistoryResource extends AdminResource {
@@ -178,13 +176,8 @@ public class JobHistoryResource extends AdminResource {
 	@Transaction
 	public Response post(JobHistoryModel jobHistory) {
 
-		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
-			@Override
-			public Void run(org.hibernate.Session hibernateSession) {
-				hibernateSession.save(jobHistory);
-				return null;
-			}
-		});
+		getHibernate().session().persist(jobHistory);
+
 		return Response.ok().build();
 	}
 

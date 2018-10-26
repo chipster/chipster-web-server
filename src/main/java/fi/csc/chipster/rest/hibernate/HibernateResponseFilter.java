@@ -19,7 +19,12 @@ public class HibernateResponseFilter implements ContainerResponseFilter {
 	@Override
 	public void filter(ContainerRequestContext requestContext,
 			ContainerResponseContext responseContext) {
-				
+
+		if (requestContext.getProperty(HibernateRequestFilter.PROP_HIBERNATE_SESSION) == null) {
+			// nothing to do if HibernateRequestFilter didn't run, e.g. on AuthenticationRequestFilter errors
+			return;
+		}
+		
 		if (responseContext instanceof ContainerResponse) {
 			ContainerResponse response = (ContainerResponse) responseContext;
 			
@@ -28,6 +33,6 @@ public class HibernateResponseFilter implements ContainerResponseFilter {
 				return;
 			}
 		}
-		hibernate.commit();
+		hibernate.commit();		
 	}
 }

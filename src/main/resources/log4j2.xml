@@ -69,6 +69,8 @@ developing, without having to worry about committing them accidentally.
     <!--  log from libraries only when something is wrong -->
     <Logger name="org.glassfish.grizzly" level="warn" />
     <Logger name="org.hibernate" level="warn" />
+    <!--  Log sql query parameter values -->
+    <!--  <Logger name="org.hibernate.type" level="trace" /> -->
     
     <!--  if this is enabled in the code, we really want to see it's logs -->
     <Logger name="org.glassfish.jersey.filter.LoggingFilter" level="info" />

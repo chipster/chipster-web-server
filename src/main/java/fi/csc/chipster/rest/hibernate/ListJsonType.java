@@ -98,7 +98,9 @@ public class ListJsonType<T extends DeepCopyable> implements UserType {
     @SuppressWarnings("unchecked")
 	@Override
     public Object deepCopy(final Object value) throws HibernateException {
-		
+		if (value == null) {
+			return null;
+		}
     	return ((ArrayList<T>)value).stream()
     			.map(e -> e.deepCopy())
     			.collect(Collectors.toList());    	
