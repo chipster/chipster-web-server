@@ -58,7 +58,7 @@ public class TokenTable {
 
 		Token token = createToken(username, roles);
 
-		getHibernate().session().save(token);
+		getHibernate().session().persist(token);
 		
 		return token;
 	}
@@ -102,7 +102,7 @@ public class TokenTable {
 			// expired
 			if (t.getValidUntil().isBefore(now)) {
 				logger.info("deleting expired token " + t.getTokenKey() + " " + t.getUsername() + ", was valid until " + t.getValidUntil());
-				getHibernate().session().delete(t);
+				HibernateUtil.delete(t, t.getTokenKey(), getHibernate().session());
 				deleteCount++;
 			} 
 
@@ -119,7 +119,7 @@ public class TokenTable {
 
 				if (delete) {
 					logger.info("deleting token " + t.getTokenKey() + " " + t.getUsername() + ", max life time reached, was created " + t.getCreated());
-					getHibernate().session().delete(t);
+					HibernateUtil.delete(t, t.getTokenKey(), getHibernate().session());
 					deleteCount++;
 				}
 			}
@@ -139,6 +139,8 @@ public class TokenTable {
 
 		dbToken.setValidUntil(getTokenNextExpiration(dbToken));
 		
+		HibernateUtil.update(dbToken, dbToken.getTokenKey(), getHibernate().session());
+		
 		return dbToken;		
 	}
 
@@ -149,7 +151,7 @@ public class TokenTable {
 		if (dbToken == null) {
 			throw new NotFoundException();
 		}
-		getHibernate().session().delete(dbToken);
+		HibernateUtil.delete(dbToken, dbToken.getTokenKey(), getHibernate().session());
 	}
 
 
