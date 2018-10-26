@@ -4,12 +4,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationService;
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.backup.Backup;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.jobhistory.JobHistoryService;
-import fi.csc.chipster.rest.hibernate.DbServer;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -39,26 +37,11 @@ public class ServerLauncher {
 
 	private JobHistoryService jobHistoryService;
 
-	private DbServer authDb;
-	private DbServer sessionDbDb;
-	private DbServer jobHistoryDb;
-
 	private Backup backup;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 
 		long t = System.currentTimeMillis();
-		
-		if (verbose) {
-			logger.info("starting databases");
-		}
-		authDb = new DbServer(Role.AUTH, config.getVariableInt("auth-db-port"));
-		sessionDbDb = new DbServer(Role.SESSION_DB, config.getVariableInt("session-db-db-port"));
-		jobHistoryDb = new DbServer(Role.JOB_HISTORY, config.getVariableInt("job-history-db-port"));
-
-		authDb.start();
-		sessionDbDb.start();
-		jobHistoryDb.start();
 
 		if (verbose) {
 			logger.info("starting authentication-service");
@@ -256,31 +239,7 @@ public class ServerLauncher {
 			} catch (Exception e) {
 				logger.warn("closing auth failed", e);
 			}
-		}
-		
-		if (authDb != null) {
-			try {
-				authDb.close();
-			} catch (Exception e) {
-				logger.warn("closing auth db failed", e);
-			}
-		}
-		
-		if (sessionDbDb != null) {
-			try {
-				sessionDbDb.close();
-			} catch (Exception e) {
-				logger.warn("closing session-db db failed", e);
-			}
-		}
-		
-		if (jobHistoryDb != null) {
-			try {
-				jobHistoryDb.close();
-			} catch (Exception e) {
-				logger.warn("closing job-history db failed", e);
-			}
-		}
+		}		
 	}
 
 	public static void main(String[] args) throws Exception {

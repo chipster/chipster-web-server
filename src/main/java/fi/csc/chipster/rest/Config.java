@@ -73,6 +73,7 @@ public class Config {
 	
 	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
 	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
+	public static final String KEY_DB_FALLBACK = "db-fallback";
 
 	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
 	
@@ -141,6 +142,20 @@ public class Config {
 			return getString(key + "-" + role);			
 		}
 		return getString(key);		
+	}
+
+	/**
+	 * Get config value of <key>-<role> if exists or <key> otherwise
+	 * 
+	 * @param key
+	 * @param role
+	 * @return
+	 */
+	public boolean getBoolean(String key, String role) {
+		if (hasKey(key + "-" + role)) {
+			return getBoolean(key + "-" + role);			
+		}
+		return getBoolean(key);		
 	}
 
 

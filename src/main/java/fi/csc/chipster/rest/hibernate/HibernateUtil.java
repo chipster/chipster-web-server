@@ -1,18 +1,22 @@
 package fi.csc.chipster.rest.hibernate;
 
+import java.net.ConnectException;
 import java.util.List;
 import java.util.UUID;
 
 import javax.persistence.EntityManager;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.context.internal.ManagedSessionContext;
+import org.hibernate.exception.GenericJDBCException;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
 
 import fi.csc.chipster.rest.Config;
@@ -22,6 +26,7 @@ import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class HibernateUtil {
 
+	private static final int DB_WARNING_DELAY = 5; // seconds
 	private static final String CONF_DB_C3P0_MIN_SIZE = "db-c3p0-min-size";
 	private static final String CONF_DB_SHOW_SQL = "db-show-sql";
 	private static final String CONF_DB_DIALECT = "db-dialect";
@@ -81,8 +86,9 @@ public class HibernateUtil {
 			logger.info("connected");
 			
     	} catch (SchemaManagementException e) {
+    		
     		this.dbSchema.printSchemaError(e);
-    		throw e;
+    		throw e;    	
     	}
     }
     
@@ -99,6 +105,7 @@ public class HibernateUtil {
 //		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
+		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "0"); // throw on connection errors immediately in startup
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		
 		for (Class<?> c : hibernateClasses) {
@@ -110,11 +117,8 @@ public class HibernateUtil {
 		if (isPostgres) {
 			hibernateConf.setProperty(Environment.DIALECT, "fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect");
 		}
-
-		// store these child objects as json
-        hibernateConf.registerTypeOverride(new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class), new String[] {MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE});
-        hibernateConf.registerTypeOverride(new ListJsonType<Parameter>(!isPostgres, Parameter.class), new String[] {Parameter.PARAMETER_LIST_JSON_TYPE});
-        hibernateConf.registerTypeOverride(new ListJsonType<Input>(!isPostgres, Input.class), new String[] {Input.INPUT_LIST_JSON_TYPE});
+		
+		registerTypeOverrides(hibernateConf, isPostgres);
 		
 		/* Allow hibernate to make inserts and updates in batches to overcome the network latency.
 		 * It's crucial when e.g. a dataset may have 600 MetadataEntries. However, this doesn't
@@ -127,20 +131,77 @@ public class HibernateUtil {
 //		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
 		
 //		hibernateConf.setProperty("hibernate.default_batch_fetch_size", "100");
-		 
-//		//FIXME enable for localhost by default, make configurable 
-//		logger.warn("db latency simulation enabled");
-//		hibernateConf.setInterceptor(new DelayInterceptor());
+				
+		SessionFactory sessionFactory = null;
 		
-		StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-			.applySettings(hibernateConf.getProperties())
-			.build();
-	
-		SessionFactory sessionFactory = hibernateConf.buildSessionFactory(registry);
+		try {
+			sessionFactory = buildSessionFactory(hibernateConf);
+			
+		} catch (GenericJDBCException e) {
+    		if (ExceptionUtils.getRootCause(e) instanceof ConnectException && config.getBoolean(Config.KEY_DB_FALLBACK, role)) {
+    			// The Postgres template in OpenShift doesn't allow dashes
+    			String dbName = role.replace("-", "_") + "_db";
+    			
+    	    	logger.warn(role + "-db not available, starting an in-memory DB "
+    	    			+ "after " + DB_WARNING_DELAY + " seconds. "
+    					+ "All data is lost in service restart. "
+    					+ "Disable this fallback in production! (" + e.getMessage() + ")\n"
+    					+ "Install postgres: \n"
+    					+ "  brew install postgres\n"
+    					+ "  createuser user\n"
+    					+ "  createdb " + dbName + "\n");    	    
+    			sessionFactory = buildSessionFactoryFallback(hibernateConf, role);	    			
+    		} else {
+    			throw e;
+    		}
+		}
 		
 		return sessionFactory;
-    }
+	}
 	
+    private static SessionFactory buildSessionFactoryFallback(Configuration hibernateConf, String role) {
+
+		try {
+			// wait little bit to make the log message above more visible
+			Thread.sleep(DB_WARNING_DELAY * 1000);
+			String url = "jdbc:h2:mem:" + role + "-db";
+			
+			hibernateConf.setProperty(Environment.DRIVER, "org.h2.Driver");
+			hibernateConf.setProperty(Environment.URL, url);
+			hibernateConf.setProperty(Environment.USER, "user");
+			hibernateConf.setProperty(Environment.PASS, "");
+			hibernateConf.setProperty(Environment.DIALECT, ChipsterH2Dialect.class.getName());
+			hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
+			
+			registerTypeOverrides(hibernateConf, false);
+			
+			logger.info("connect to db " + url);
+			SessionFactory sessionFactory = buildSessionFactory(hibernateConf);
+			logger.info("connected");
+			return sessionFactory;
+			
+		} catch (InterruptedException e) {
+			logger.error(e);
+		}
+		return null;
+	}
+    
+	private static void registerTypeOverrides(Configuration hibernateConf, boolean isPostgres) {
+
+		// store these child objects as json
+        hibernateConf.registerTypeOverride(new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class), new String[] {MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE});
+        hibernateConf.registerTypeOverride(new ListJsonType<Parameter>(!isPostgres, Parameter.class), new String[] {Parameter.PARAMETER_LIST_JSON_TYPE});
+        hibernateConf.registerTypeOverride(new ListJsonType<Input>(!isPostgres, Input.class), new String[] {Input.INPUT_LIST_JSON_TYPE});	
+	}
+
+	private static SessionFactory buildSessionFactory(Configuration hibernateConf) {
+		StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
+				.applySettings(hibernateConf.getProperties())
+				.build();
+
+		return hibernateConf.buildSessionFactory(registry);
+	}
+
 	public static boolean isPostgres(Config config, String role) {
 		return config.getString(CONF_DB_DIALECT, role).toLowerCase().contains("postgres");
 	}

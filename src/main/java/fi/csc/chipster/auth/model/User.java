@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
+import javax.persistence.Table;
 import javax.persistence.Version;
 import javax.xml.bind.annotation.XmlRootElement;
 
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
 @XmlRootElement // json
+@Table(name = "user_table") // user is reserved word in Postgres
 public class User {		
 		
 	@EmbeddedId // db

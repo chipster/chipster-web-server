@@ -100,15 +100,18 @@ url-m2m-bind-auth: ""
 
 db-show-sql: false
 db-c3p0-min-size: ""
-db-dialect: fi.csc.chipster.rest.hibernate.ChipsterH2Dialect
-db-driver: org.h2.Driver
-db-user: sa
+db-dialect: org.hibernate.dialect.PostgreSQLDialect
+db-driver: org.postgresql.Driver
+db-user: user
 # This is just a placeholder, because it wouldn't make sense to try to restore all the databaes from the same file. Set this for individual role 
 # according to instructions above.
 db-restore-key: ""
 # Assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand. 
 # Most likely configured individually for each role, like instructed above.
 db-baseline-version: ""
+# fallback to in-memory db if connection to the configured db fails, disable in production
+db-fallback: true
+
 
 # db backups
 
@@ -130,7 +133,7 @@ db-backup-daily-count-file: 7
 auth-monitoring-password: monitoring
 auth-jaas-prefix: jaas
 
-db-url-auth: jdbc:h2:tcp://localhost:{{auth-db-port}}/chipster-auth-db
+db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
  
 # comp
@@ -174,12 +177,11 @@ scheduler-job-timer-interval: 1
     
 # allow sharing to everyone only for one username, empty allows for everybody
 session-db-restrict-sharing-to-everyone: jaas/example_session_owner
-// DB_CLOSE_ON_EXIT=FALSE: don't shutdown h2 on SIGINT, otherwise we can't gracefully handle the remaining requests
-db-url-session-db: jdbc:h2:tcp://localhost:{{session-db-db-port}}/chipster-session-db-db;DB_CLOSE_ON_EXIT=FALSE
+db-url-session-db: jdbc:postgresql://localhost:5432/session_db_db
 db-pass-session-db: ""
 
 #job-history-db
-db-url-job-history: jdbc:h2:tcp://localhost:{{job-history-db-port}}/chipster-job-history-db
+db-url-job-history: jdbc:postgresql://localhost:5432/job_history_db
 db-pass-job-history: ""
 
 # web-server
@@ -214,6 +216,4 @@ variable-public-ip: 127.0.0.1
 variable-admin-ip: 127.0.0.1 
 variable-bind-ip: 0.0.0.0
 variable-admin-bind-ip: 0.0.0.0
-variable-auth-db-port: 1521
-variable-session-db-db-port: 1522
-variable-job-history-db-port: 1523
+

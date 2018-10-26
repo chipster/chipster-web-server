@@ -13,6 +13,16 @@ import org.hibernate.EmptyInterceptor;
 import org.hibernate.Transaction;
 import org.hibernate.type.Type;
 
+/**
+ * Logging interceptor for Hibernate
+ * 
+ * Write the transaction starts, queries and commits to log together with the timestamps.
+ * Queries are printed in a human-friendly form. Use Hibernate's SHOW_SQL option 
+ * configurable also in Chipster config for individual service to get the exact queries.    
+ * 
+ * @author klemela
+ *
+ */
 public class LoggingInterceptor extends EmptyInterceptor {
 	
 	private static Logger logger = LogManager.getLogger();
@@ -127,6 +137,16 @@ public class LoggingInterceptor extends EmptyInterceptor {
 		logger.info("transaction log\n" + log);		
 	}
 
+	/**
+	 * Make Hibernate queries easier to read
+	 * 
+	 * This approach didn't work very well, because many of our class names are reserved words.
+	 * Feel free to try any other approach. How about if we simply hide all the words that have 
+	 * a underscore (Hibernate field names)?
+	 * 
+	 * @param sql
+	 * @return
+	 */
 	public static String getSimpleSql(String sql) {
 		String simple = "";
 		List<String> words = Arrays.asList(sql.split(" "));
