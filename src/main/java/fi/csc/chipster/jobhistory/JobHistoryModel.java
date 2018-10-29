@@ -6,10 +6,17 @@ import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.Lob;
+import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
 
+
 @Entity
+@Table(name="JobHistoryModel", indexes={
+		@Index(columnList="startTime DESC", name="job_history_start_time_index")
+})
+
 @XmlRootElement
 public class JobHistoryModel {
 	@Id
@@ -19,6 +26,7 @@ public class JobHistoryModel {
 	private String toolName;
 	private String compName;
 	private String timeDuration;
+	@Column(name="startTime")
 	private Instant startTime;
 	private Instant endTime;
 	private String userName;

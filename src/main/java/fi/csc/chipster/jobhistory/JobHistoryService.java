@@ -3,6 +3,7 @@ package fi.csc.chipster.jobhistory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -180,6 +181,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		jobHistory.setToolName(job.getToolName());
 		jobHistory.setStartTime(job.getStartTime());
 		jobHistory.setEndTime(job.getEndTime());
+		jobHistory.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
 		jobHistory.setOutput(job.getScreenOutput());
 		jobHistory.setJobStatus(job.getState().toString());
 		jobHistory.setUserName(job.getCreatedBy());
@@ -203,6 +205,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				js.setToolName(job.getToolName());
 				js.setStartTime(job.getStartTime());
 				js.setEndTime(job.getEndTime());
+				js.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
 				js.setOutput(job.getScreenOutput());
 				js.setJobStatus(job.getState().toString());
 				js.setUserName(job.getCreatedBy());
@@ -221,5 +224,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	public void close() {
 		RestUtils.shutdown("JobHistory-service", httpServer);
 	}
+	
 
 }

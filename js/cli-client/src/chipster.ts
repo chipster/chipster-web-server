@@ -1,4 +1,4 @@
-
+#!/usr/bin/env node
 import {empty as observableEmpty, of as observableOf, forkJoin as observableForkJoin, from as observableFrom } from 'rxjs';
 
 import {toArray, tap, mergeMap, map} from 'rxjs/operators';
