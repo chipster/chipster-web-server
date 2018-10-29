@@ -242,7 +242,7 @@ public class SessionResource {
 		
 		// see the note about datasets above
 		for (Rule rule : auth.getSession().getRules()) {
-			hibernateSession.delete(rule);
+			HibernateUtil.delete(rule, rule.getRuleId(), hibernateSession);
 		}
 		
 //		hibernateSession.delete(auth.getSession());

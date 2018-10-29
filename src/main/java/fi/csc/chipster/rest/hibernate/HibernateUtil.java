@@ -1,5 +1,6 @@
 package fi.csc.chipster.rest.hibernate;
 
+import java.io.Serializable;
 import java.net.ConnectException;
 import java.util.List;
 import java.util.UUID;
@@ -317,7 +318,7 @@ public class HibernateUtil {
 	 * @param value
 	 * @param id
 	 */
-	public static <T> void update(T value, UUID id, Session session) {
+	public static <T> void update(T value, Serializable id, Session session) {
 		
 		@SuppressWarnings("unchecked")
 		T dbObject = (T) session.load(value.getClass(), id);

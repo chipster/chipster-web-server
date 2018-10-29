@@ -206,7 +206,8 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				js.setOutput(job.getScreenOutput());
 				js.setJobStatus(job.getState().toString());
 				js.setUserName(job.getCreatedBy());
-				hibernateSession.merge(js);
+				
+				HibernateUtil.update(js, js.getJobId(), hibernateSession);
 
 				return null;
 			}

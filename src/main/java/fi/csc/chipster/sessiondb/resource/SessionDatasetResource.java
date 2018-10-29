@@ -279,7 +279,7 @@ public class SessionDatasetResource {
 				// remove from file-broker
 				sessionResource.publish(SessionDbTopicConfig.FILES_TOPIC, new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
 				// remove from db
-				hibernateSession.delete(dataset.getFile());
+				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernateSession);
 			}
 			
 		}

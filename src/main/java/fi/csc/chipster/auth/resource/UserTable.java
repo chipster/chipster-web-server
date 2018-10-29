@@ -47,7 +47,7 @@ public class UserTable {
 		user.setModified(Instant.now());
 		user.setVersion(oldUser.getVersion());
 		
-		hibernateSession.merge(user);
+		HibernateUtil.update(user, user.getUserId(), hibernateSession);
 	}
 	
 	public void addOrUpdate(User user, Session hibernateSession) {
