@@ -167,14 +167,10 @@ public class SessionJobResource {
 		for (Input input : job.getInputs()) {
 			
 			Dataset dataset = getHibernate().session().get(Dataset.class, UUID.fromString(input.getDatasetId()));
-			
-//			Dataset dataset = session.getDatasets().get(datasetId);
-			
+						
 			// check that the requested dataset is in the session
 			// otherwise anyone with a session can access any dataset
 			if (dataset == null || !dataset.getSession().getSessionId().equals(session.getSessionId())) {
-			
-//			if (!session.getDatasets().containsKey(UUID.fromString(input.getDatasetId()))) {
 				throw new ForbiddenException("dataset not found from this session "
 						+ "(input: " + input.getInputId() + ", datasetId:" + input.getDatasetId() + ")");
 			}

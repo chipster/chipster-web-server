@@ -101,8 +101,6 @@ public class SessionDatasetResource {
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 
-//		Collection<Dataset> result = sessionResource.getRuleTable().getSessionForReading(sc, sessionId).getDatasets().values();
-
 		Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
 		List<Dataset> result = getDatasets(getHibernate().session(), session);
 		
@@ -223,7 +221,6 @@ public class SessionDatasetResource {
     }
 	
 	public void update(Dataset dataset, org.hibernate.Session hibernateSession) {
-		//hibernateSession.merge(dataset);
 		
 		HibernateUtil.update(dataset, dataset.getDatasetId(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.UPDATE), hibernateSession);

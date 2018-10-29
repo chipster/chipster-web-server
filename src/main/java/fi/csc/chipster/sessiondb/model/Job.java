@@ -55,19 +55,6 @@ public class Job {
 	@JoinColumn(name="sessionId")
 	private Session session;
 	
-////	@OneToMany(cascade=CascadeType.ALL, orphanRemoval=true)
-////	@JoinColumn(name="jobId")
-////	@LazyCollection(LazyCollectionOption.FALSE)
-//	@OneToMany(mappedBy="job", cascade=CascadeType.ALL, fetch=FetchType.EAGER)
-//	private List<Parameter> parameters = new ArrayList<>();
-	
-//	@OneToMany(cascade=CascadeType.ALL, orphanRemoval=true)
-//	@JoinColumn(name="jobId")
-//	@LazyCollection(LazyCollectionOption.FALSE)
-////	@OneToMany(mappedBy="job", cascade=CascadeType.ALL, fetch=FetchType.EAGER)
-//	private List<Input> inputs = new ArrayList<>();
-	
-	
 	@Column
 	@Type(type = Parameter.PARAMETER_LIST_JSON_TYPE)
 	private List<Parameter> parameters = new ArrayList<>();

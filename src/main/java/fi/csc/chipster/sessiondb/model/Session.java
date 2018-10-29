@@ -27,61 +27,9 @@ public class Session {
 	private Instant created;
 	private Instant accessed;
 	
-	// mappedBy="session" means that this relation is owned by the other side
-//	@OneToMany(mappedBy="session")
-//	private Collection<Dataset> datasets;
-	
-//	@OneToMany(mappedBy="session")
-//	private Collection<Job> jobs;
-	
 	@OneToMany(fetch = FetchType.LAZY, mappedBy="session")
-	//@Transient
 	private Set<Rule> rules;
 	
-//	/**
-//	 * All jobs in the session
-//	 * 
-//	 * Changes to the database has to be made with Job.setSession().
-//	 * 
-//	 * @return
-//	 */
-//	// not needed in session JSON, because there is a separate endpoint for this
-//	@JsonIgnore
-//	public Map<UUID, Job> getJobs() {
-//		HashMap<UUID, Job> map = new HashMap<>();
-//		for (Job job : jobs) {
-//			map.put(job.getJobId(), job);
-//		}
-//		return map;
-//	}
-//	
-//	/**
-//	 * Set jobs to this instance.
-//	 * 
-//	 * Changes to the database has to be made with Job.setSession().
-//	 * 
-//	 * @param jobs
-//	 */
-//	public void setJobs(Map<UUID, Job> jobs) {
-//		this.jobs = jobs.values();
-//	}
-
-//	/**
-//	 * All dataset in the session
-//	 * 
-//	 * Changes to the database has to made with Dataset.setSession().
-//	 * 
-//	 * @return
-//	 */
-//	// not needed in session JSON, because there is a separate endpoint for this
-//	@JsonIgnore
-//	public Map<UUID, Dataset> getDatasets() {
-//		HashMap<UUID, Dataset> map = new HashMap<>();
-//		for (Dataset dataset : datasets) {
-//			map.put(dataset.getDatasetId(), dataset);
-//		}
-//		return map;
-//	}
 	
 	public UUID getSessionId() {
 		return this.sessionId;

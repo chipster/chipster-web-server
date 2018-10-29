@@ -2,7 +2,6 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,11 +57,6 @@ public class RuleTable {
 	private TokenRequestFilter tokenRequestFilter;
 
 	private SessionResource ruleRemovedListener;
-
-	private Object everyoneRulesLock = new Object();
-	private List<Rule> everyoneRules;
-	private Instant everyoneRulesTimestamp;
-
 
 	public RuleTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
 		this.hibernate = hibernate;
@@ -145,12 +139,10 @@ public class RuleTable {
 		return session;
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<Rule> getRules(String username) {
 		
-		List<Rule> rules = getRulesOwn(username);
-		
-		rules.addAll(getRulesOfEveryoneCached());
+		List<Rule> rules = getRulesOwn(username);		
+		rules.addAll(getRulesOfEveryone());
 		
 		return rules;
 	}
@@ -182,21 +174,7 @@ public class RuleTable {
 		return rules;
 	}
 	
-	@SuppressWarnings("unchecked")
-	List<Rule> getRulesOfEveryoneCached() {
-		
-//		synchronized (everyoneRulesLock) {			
-//			if (everyoneRulesTimestamp == null || everyoneRulesTimestamp.isBefore(Instant.now().minus(1,ChronoUnit.SECONDS))) {
-//
-//				this.everyoneRules = hibernate.session()
-//				.createQuery("from Rule where username='" + EVERYONE + "'")
-//				.list();
-//				everyoneRulesTimestamp = Instant.now();
-//			}
-//			
-//			return new ArrayList<Rule>(everyoneRules);
-//		}
-		
+	List<Rule> getRulesOfEveryone() {
 		return getRulesOwn(EVERYONE);
 	}
 	
@@ -270,30 +248,6 @@ public class RuleTable {
 				.filter(r -> username.equals(r.getUsername()) || EVERYONE.equals(r.getUsername()))
 				.collect(Collectors.toList());
 		
-//		@SuppressWarnings("unchecked")
-//		List<Rule> auths = hibernateSession
-//				.createQuery("from Rule where session=:session and username=:username")
-//				.setParameter("username", username)
-//				.setParameter("session", session)
-//				.list();
-				
-		
-//		@SuppressWarnings("unchecked")
-//		List<Rule> everyoneAuths = hibernateSession
-//				.createQuery("from Rule where session=:session and username='" + EVERYONE + "'")
-//				.setParameter("session", session)
-//				.list();
-//		
-//		auths.addAll(everyoneAuths);
-		
-
-// these are already found by the sessionId
-//		List<Rule> everyoneList = this.getRulesOfEveryoneCached().stream()
-//		.filter(r -> EVERYONE.equals(r.getUsername()))
-//		.collect(Collectors.toList());
-//		
-//		auths.addAll(everyoneList);
-
 		// return the best (i.e. read-write) Authorization if there are multiple Authorizations 
 		if (auths.isEmpty()) { 
 			return null;
@@ -365,12 +319,10 @@ public class RuleTable {
 		// check that the user has an Authorization to access the session		
 		Session session = checkAuthorization(username, sessionId, requireReadWrite);
 		Dataset dataset = hibernate.session().get(Dataset.class, datasetId);
-		
-//		Dataset dataset = session.getDatasets().get(datasetId);
-		
+				
 		// check that the requested dataset is in the session
 		// otherwise anyone with a session can access any dataset
-		if (dataset == null || !dataset.getSession().getSessionId().equals(sessionId)) {
+		if (dataset == null || !dataset.getSession().getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("dataset not found");
 		}
 		
