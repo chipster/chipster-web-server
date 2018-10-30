@@ -166,6 +166,7 @@ public class AuthenticationService {
 		RestUtils.shutdown("auth-admin", adminServer);
 		RestUtils.shutdown("auth-sso", ssoHttpServer);
 		RestUtils.shutdown("auth", httpServer);
+		hibernate.getSessionFactory().close();
 	}
 }
 

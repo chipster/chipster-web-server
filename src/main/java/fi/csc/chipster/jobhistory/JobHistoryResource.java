@@ -177,7 +177,7 @@ public class JobHistoryResource extends AdminResource {
 	@Transaction
 	public Response post(JobHistoryModel jobHistory) {
 
-		getHibernate().session().persist(jobHistory);
+		HibernateUtil.persist(jobHistory, getHibernate().session());
 
 		return Response.ok().build();
 	}

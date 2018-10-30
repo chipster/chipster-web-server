@@ -192,6 +192,7 @@ public class SessionDb {
 	public void close() {
 		RestUtils.shutdown("session-db-admin", adminServer);
 		getPubSubServer().stop();
+		hibernate.getSessionFactory().close();
 		RestUtils.shutdown("session-db", httpServer);
 	}
 

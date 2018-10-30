@@ -271,7 +271,7 @@ public class RuleTable {
 	 */
 	public void save(Rule auth, org.hibernate.Session hibernateSession) {
 		logger.debug("save rule " + auth.getUsername());
-		hibernateSession.save(auth);
+		HibernateUtil.persist(auth, hibernateSession);
 	}
 
 	/**

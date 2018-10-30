@@ -160,10 +160,9 @@ public class SessionDatasetResource {
 		
 		if (dataset.getFile() != null) {
 			// why CascadeType.PERSIST isn't enough?
-			hibernateSession.persist(dataset.getFile());
+			HibernateUtil.persist(dataset.getFile(), hibernateSession);
 		}
-		hibernateSession.persist(dataset);
-		hibernateSession.setReadOnly(dataset, true);
+		HibernateUtil.persist(dataset, hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE), hibernateSession);
 	}
 
@@ -215,15 +214,23 @@ public class SessionDatasetResource {
 		// make sure a hostile client doesn't set the session
 		requestDataset.setSession(session);
 		
-		update(requestDataset, getHibernate().session());
+		update(requestDataset, dbDataset, getHibernate().session());
 		
 		return Response.noContent().build();
     }
 	
-	public void update(Dataset dataset, org.hibernate.Session hibernateSession) {
+	public void update(Dataset newDataset, Dataset dbDataset, org.hibernate.Session hibernateSession) {
 		
-		HibernateUtil.update(dataset, dataset.getDatasetId(), hibernateSession);
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.UPDATE), hibernateSession);
+		if (newDataset.getFile() != null) {
+			if (dbDataset.getFile() == null) {
+				HibernateUtil.persist(newDataset.getFile(), hibernateSession);
+			} else {
+				HibernateUtil.update(newDataset.getFile(), newDataset.getFile().getFileId(), hibernateSession);
+			}
+		}
+		
+		HibernateUtil.update(newDataset, newDataset.getDatasetId(), hibernateSession);
+		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, newDataset.getDatasetId(), EventType.UPDATE), hibernateSession);
 	}
 
 	@DELETE

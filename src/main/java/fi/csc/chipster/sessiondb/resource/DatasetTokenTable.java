@@ -96,8 +96,8 @@ public class DatasetTokenTable {
 		return token;
 	}
 
-	public void save(DatasetToken datasetToken) {
-		hibernate.session().save(datasetToken);
+	public void save(DatasetToken datasetToken) {		
+		HibernateUtil.persist(datasetToken, hibernate.session());
 	}
 
 	public void cleanUp(org.hibernate.Session hibernateSession) {

@@ -188,7 +188,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
-				hibernateSession.save(jobHistory);
+				HibernateUtil.persist(jobHistory, hibernateSession);
 				return null;
 			}
 		});
@@ -223,7 +223,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	public void close() {
 		RestUtils.shutdown("JobHistory-service", httpServer);
+		hibernate.getSessionFactory().close();
 	}
-	
-
 }

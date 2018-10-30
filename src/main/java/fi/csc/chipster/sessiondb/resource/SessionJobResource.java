@@ -178,8 +178,7 @@ public class SessionJobResource {
 	}
 
 	public void create(Job job, org.hibernate.Session hibernateSession) {
-		hibernateSession.persist(job);
-		hibernateSession.setReadOnly(job, true);
+		HibernateUtil.persist(job, hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE), hibernateSession);
 	}
 

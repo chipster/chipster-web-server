@@ -107,6 +107,9 @@ public class HibernateUtil {
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
 		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "0"); // throw on connection errors immediately in startup
+		// following two for debugging connection leaks
+//		hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces", "true");
+//		hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout", "30");
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		
 		for (Class<?> c : hibernateClasses) {
@@ -342,5 +345,17 @@ public class HibernateUtil {
 		session.setReadOnly(dbObject, false);
 		session.delete(dbObject);
 		session.flush();
+	}
+	
+	/**
+	 * Persist an db object in a read-only Hibernate session
+	 * 
+	 * @param class1
+	 * @param value
+	 * @param id
+	 */
+	public static void persist(Object value, Session session) {		
+		session.persist(value);
+		session.setReadOnly(value, true);
 	}
 }

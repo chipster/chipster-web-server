@@ -60,9 +60,10 @@ developing, without having to worry about committing them accidentally.
   </Appenders>
   <Loggers>
     <!--  hide initialization messages of MLog -->
-    <Logger name="com.mchange.v2" level="warn" />
+    <!--  <Logger name="com.mchange.v2" level="warn" /> -->
     <!--  logging level of c3p0 connection pool -->
-    <Logger name="com.mchange.v2.c3p0" level="warn" />
+    <Logger name="com.mchange.v2.c3p0" level="info" />
+    <Logger name="com.mchange.v2.resourcepool" level="debug" />
 
     <Logger name="org.eclipse.jetty" level="warn" />
     

@@ -21,8 +21,7 @@ public class UserTable {
 	
 	public void add(User user, Session hibernateSession) {
 		user.setCreated(Instant.now());
-		
-		hibernateSession.save(user);
+		HibernateUtil.persist(user, hibernateSession);
 	}
 	
 	public void update(User user) {

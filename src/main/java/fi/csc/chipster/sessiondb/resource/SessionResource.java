@@ -170,7 +170,7 @@ public class SessionResource {
     }
 	
 	public void create(Session session, Rule auth, org.hibernate.Session hibernateSession) {
-		hibernateSession.save(session);
+		HibernateUtil.persist(session, hibernateSession);
 		ruleTable.save(auth, hibernateSession);
 
 		UUID sessionId = session.getSessionId();
@@ -241,11 +241,10 @@ public class SessionResource {
 		}
 		
 		// see the note about datasets above
-		for (Rule rule : auth.getSession().getRules()) {
-			HibernateUtil.delete(rule, rule.getRuleId(), hibernateSession);
+		for (Rule rule : ruleTable.getRules(sessionId)) {			
+			getRuleTable().delete(sessionId, rule, hibernateSession);
 		}
 		
-//		hibernateSession.delete(auth.getSession());
 		HibernateUtil.delete(auth.getSession(), auth.getSession().getSessionId(), hibernateSession);
 
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, sessionId, EventType.DELETE), hibernateSession);

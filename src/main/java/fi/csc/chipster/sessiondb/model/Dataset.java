@@ -44,8 +44,7 @@ public class Dataset {
 	@JoinColumn(name="sessionId")
 	private Session session;
 	
-	// handle delete manually only when the file is orphan
-	@ManyToOne(cascade={CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
+	@ManyToOne
 	@JoinColumn(name="fileId")
 	// embed fields of the File object directly 
 	@JsonUnwrapped // rest

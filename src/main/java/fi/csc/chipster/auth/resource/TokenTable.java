@@ -58,7 +58,7 @@ public class TokenTable {
 
 		Token token = createToken(username, roles);
 
-		getHibernate().session().persist(token);
+		HibernateUtil.persist(token, getHibernate().session());
 		
 		return token;
 	}
