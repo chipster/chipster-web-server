@@ -48,6 +48,9 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
@@ -69,6 +72,8 @@ import fi.csc.microarray.description.SADLSyntax.ParameterType;
 import fi.csc.microarray.messaging.JobState;
 
 public class RestUtils {
+	
+	public static final String PATH_ARRAY = "array";
 	
 	private static Logger logger = LogManager.getLogger();
 	
@@ -515,5 +520,17 @@ public class RestUtils {
 
 	public static void writeStringToFile(File file, String str) throws IOException {
 		FileUtils.writeStringToFile(file, str, StandardCharsets.UTF_8.name());
+	}
+	
+	public static ObjectNode getArrayResponse(String arrayKey, String itemKey, ArrayList<UUID> ids) {
+		JsonNodeFactory factory = new JsonNodeFactory(false);
+		ObjectNode json = factory.objectNode();
+		ArrayNode datasetsArray = factory.arrayNode();
+		json.set(arrayKey, datasetsArray);
+		for (UUID id : ids) {
+			ObjectNode obj = datasetsArray.addObject();
+			obj.put(itemKey, id.toString());
+		}
+		return json;
 	}
 }

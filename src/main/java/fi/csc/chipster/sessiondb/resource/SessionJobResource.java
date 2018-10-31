@@ -2,6 +2,8 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -112,13 +114,43 @@ public class SessionJobResource {
 				
 		return datasets;
 	}
+	
+	@POST
+	@Path(RestUtils.PATH_ARRAY)
+    @Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+    public Response postArray(Job[] jobs, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+		ArrayList<UUID> ids = new ArrayList<>();
+		
+		for (Job j: Arrays.asList(jobs)) {
+			UUID id = this.postOne(j, uriInfo, sc);
+			ids.add(id);
+		}
+		
+		ObjectNode json = RestUtils.getArrayResponse("jobs", "jobId", ids);		
+		
+		return Response.created(uriInfo.getRequestUri()).entity(json).build();
+	}
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {		        	
+    public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
+		UUID id = postOne(job, uriInfo, sc);
+		
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
+		
+		ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("jobId", id.toString());		
+		
+		return Response.created(uri).entity(json).build();
+	}
+		
+	public UUID postOne(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+	
 		if (job.getJobId() != null) {
 			throw new BadRequestException("job already has an id, post not allowed");
 		}
@@ -137,12 +169,7 @@ public class SessionJobResource {
 
 		create(job, getHibernate().session());
 		
-		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		
-		ObjectNode json = new JsonNodeFactory(false).objectNode();
-		json.put("jobId", id.toString());		
-		
-		return Response.created(uri).entity(json).build();
+		return id;
     }
 
 	/**

@@ -2,6 +2,8 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -51,7 +53,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class SessionDatasetResource {
-	
+
 	public static final String QUERY_PARAM_READ_WRITE = "read-write";
 
 	private static Logger logger = LogManager.getLogger();
@@ -120,14 +122,43 @@ public class SessionDatasetResource {
 				
 		return datasets;
 	}
+	
+	@POST
+	@Path(RestUtils.PATH_ARRAY)
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
+    @Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+    public Response post(Dataset[] datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+		ArrayList<UUID> ids = new ArrayList<>();
+		
+		for (Dataset d : Arrays.asList(datasets)) {
+			UUID id = this.postOne(d, uriInfo, sc);
+			ids.add(id);
+		}
+		
+		ObjectNode json = RestUtils.getArrayResponse("datasets", "datasetId", ids);		
+		
+		return Response.created(uriInfo.getRequestUri()).entity(json).build();
+	}
 
 	@POST
 	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {	
+    public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+		UUID id = this.postOne(dataset, uriInfo, sc);
+		
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
+		
+		ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("datasetId", id.toString());
+		
+		return Response.created(uri).entity(json).build();
+	}
     	        					
+	public UUID postOne(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		if (dataset.getDatasetId() != null) {
 			throw new BadRequestException("dataset already has an id, post not allowed");
 		}
@@ -144,14 +175,9 @@ public class SessionDatasetResource {
 			dataset.setCreated(Instant.now());
 		}
 		
-		create(dataset, getHibernate().session());
-
-		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
+		create(dataset, getHibernate().session());		
 		
-		ObjectNode json = new JsonNodeFactory(false).objectNode();
-		json.put("datasetId", id.toString());
-		
-		return Response.created(uri).entity(json).build();
+		return id;
     }
 	
 	public void create(Dataset dataset, org.hibernate.Session hibernateSession) {
@@ -181,11 +207,29 @@ public class SessionDatasetResource {
 	}
 
 	@PUT
+	@Path(RestUtils.PATH_ARRAY)	
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
+    @Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
+    public Response putArray(Dataset[] requestDatasets, @PathParam("id") UUID datasetId, @Context SecurityContext sc) {
+		for (Dataset dataset : Arrays.asList(requestDatasets)) {
+			this.putOne(dataset, dataset.getDatasetId(), sc);
+		}
+		return Response.noContent().build();
+	}
+	
+	@PUT
 	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
 	@Path("{id}")
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Dataset requestDataset, @PathParam("id") UUID datasetId, @Context SecurityContext sc) {
+		this.putOne(requestDataset, datasetId, sc);
+		
+		return Response.noContent().build();
+	}
+		
+    public void putOne(Dataset requestDataset, UUID datasetId, @Context SecurityContext sc) {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
@@ -214,9 +258,7 @@ public class SessionDatasetResource {
 		// make sure a hostile client doesn't set the session
 		requestDataset.setSession(session);
 		
-		update(requestDataset, dbDataset, getHibernate().session());
-		
-		return Response.noContent().build();
+		update(requestDataset, dbDataset, getHibernate().session());		
     }
 	
 	public void update(Dataset newDataset, Dataset dbDataset, org.hibernate.Session hibernateSession) {
