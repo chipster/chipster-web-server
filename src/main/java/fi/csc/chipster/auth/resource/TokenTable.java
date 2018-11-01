@@ -14,12 +14,14 @@ import javax.ws.rs.NotFoundException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.Session;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 
 public class TokenTable {
 
@@ -92,40 +94,48 @@ public class TokenTable {
 				", deleting client tokens created before " + clientOldestValidCreationTime);
 		logger.info("server token max lifetime is " + SERVER_TOKEN_MAX_LIFETIME +
 				" deleting server tokens created before " + serverOldestValidCreationTime);
+		
+		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 
-		getHibernate().beginTransaction();
-		List<Token> tokens = getHibernate().session().createQuery("from Token", Token.class).list();
-		logger.info("before clean up db contains " + tokens.size() + " tokens");
-		int deleteCount = 0;
-		for (Token t: tokens) {
-
-			// expired
-			if (t.getValidUntil().isBefore(now)) {
-				logger.info("deleting expired token " + t.getTokenKey() + " " + t.getUsername() + ", was valid until " + t.getValidUntil());
-				HibernateUtil.delete(t, t.getTokenKey(), getHibernate().session());
-				deleteCount++;
-			} 
-
-			// max lifetime reached
-			else {
-				boolean delete = false;
-				if (t.getRoles().contains(Role.SERVER)) {
-					if (t.getCreated().isBefore(serverOldestValidCreationTime)) {
-						delete = true;
+			@Override
+			public Void run(Session hibernateSession) {
+			
+				List<Token> tokens = getHibernate().session().createQuery("from Token", Token.class).list();
+				logger.info("before clean up db contains " + tokens.size() + " tokens");
+				int deleteCount = 0;
+				for (Token t: tokens) {
+		
+					// expired
+					if (t.getValidUntil().isBefore(now)) {
+						logger.info("deleting expired token " + t.getTokenKey() + " " + t.getUsername() + ", was valid until " + t.getValidUntil());
+						HibernateUtil.delete(t, t.getTokenKey(), getHibernate().session());
+						deleteCount++;
+					} 
+		
+					// max lifetime reached
+					else {
+						boolean delete = false;
+						if (t.getRoles().contains(Role.SERVER)) {
+							if (t.getCreated().isBefore(serverOldestValidCreationTime)) {
+								delete = true;
+							}
+						} else if (t.getCreated().isBefore(clientOldestValidCreationTime)) { 
+							delete = true;
+						}
+		
+						if (delete) {
+							logger.info("deleting token " + t.getTokenKey() + " " + t.getUsername() + ", max life time reached, was created " + t.getCreated());
+							HibernateUtil.delete(t, t.getTokenKey(), getHibernate().session());
+							deleteCount++;
+						}
 					}
-				} else if (t.getCreated().isBefore(clientOldestValidCreationTime)) { 
-					delete = true;
 				}
 
-				if (delete) {
-					logger.info("deleting token " + t.getTokenKey() + " " + t.getUsername() + ", max life time reached, was created " + t.getCreated());
-					HibernateUtil.delete(t, t.getTokenKey(), getHibernate().session());
-					deleteCount++;
-				}
+				logger.info("deleted " + deleteCount + " expired token(s) in " + Duration.between(begin, Instant.now()).toMillis() + " ms");
+				
+				return null;
 			}
-		}
-		getHibernate().commit();
-		logger.info("deleted " + deleteCount + " expired token(s) in " + Duration.between(begin, Instant.now()).toMillis() + " ms");
+		});
 	}	
 
 	public Token refreshToken(String token) {

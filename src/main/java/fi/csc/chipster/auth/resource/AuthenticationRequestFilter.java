@@ -111,19 +111,24 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 
 	public AuthPrincipal tokenAuthentication(String tokenKey) {
-		// FIXME fail if token expired??
-		getHibernate().beginTransaction();
+		// FIXME fail if token expired??		
 		UUID uuid;
 		try {
 			uuid = UUID.fromString(tokenKey);
 		} catch (IllegalArgumentException e) {
 			throw new ForbiddenException("tokenKey is not a valid UUID");
 		}
-		Token token = getHibernate().session().get(Token.class, uuid);
+		
+		Token token = getHibernate().runInTransaction(new HibernateRunnable<Token>() {
+			@Override
+			public Token run(Session hibernateSession) {
+				return getHibernate().session().get(Token.class, uuid);
+			}			
+		});
+		
 		if (token == null) {
 			throw new ForbiddenException();
 		}
-		getHibernate().commit();
 
 		return new AuthPrincipal(token.getUsername(), tokenKey, token.getRoles());
 	}

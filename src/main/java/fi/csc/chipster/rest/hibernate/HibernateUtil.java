@@ -106,11 +106,11 @@ public class HibernateUtil {
 //		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
-		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "0"); // throw on connection errors immediately in startup
+		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately in startup
+		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		// following two for debugging connection leaks
 //		hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces", "true");
 //		hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout", "30");
-		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		
 		for (Class<?> c : hibernateClasses) {
 			hibernateConf.addAnnotatedClass(c);
@@ -120,6 +120,7 @@ public class HibernateUtil {
 		
 		if (isPostgres) {
 			hibernateConf.setProperty(Environment.DIALECT, "fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect");
+//			hibernateConf.setProperty(Environment.URL, url + "?reWriteBatchedInserts=true");				
 		}
 		
 		registerTypeOverrides(hibernateConf, isPostgres);
@@ -214,11 +215,17 @@ public class HibernateUtil {
         return sessionFactory;
     }
 	
-	public org.hibernate.Session beginTransaction() {
+	/**
+	 * Use only in HibernateRequestFilter or through runInTransaction() to avoid connection leaks
+	 * 
+	 * @return
+	 */
+	org.hibernate.Session beginTransaction() {
 		return beginTransaction(getSessionFactory());
 	}
 
-	public static org.hibernate.Session beginTransaction(SessionFactory sessionFactory2) {			
+	
+	private static org.hibernate.Session beginTransaction(SessionFactory sessionFactory2) {			
 		
 		Session session = sessionFactory2
 				.withOptions()
@@ -241,21 +248,34 @@ public class HibernateUtil {
 		return session;
 	}
 	
-	public void commit() {
+	
+	/**
+	 * Use only in HibernateResponseFilter or through runInTransaction()
+	 */
+	void commit() {
 		commit(getSessionFactory());
 	}
 
-	public static void commit(SessionFactory sessionFactory) {
+	private static void commit(SessionFactory sessionFactory) {
 		sessionFactory.getCurrentSession().getTransaction().commit();
 		Session session = ManagedSessionContext.unbind(sessionFactory);
 		session.close();
 	}
 	
-	public void rollback() {
+	/**
+	 * Use only in HibernateResponseFilter
+	 */
+	void rollback() {
 		rollback(getSessionFactory());		
 	}
 	
-	public static void rollback(SessionFactory sessionFactory) {
+	
+	/**
+	 * Use only through runInTransaction()
+	 * 
+	 * @param sessionFactory
+	 */
+	private static void rollback(SessionFactory sessionFactory) {
 		sessionFactory.getCurrentSession().getTransaction().rollback();
 		Session session = ManagedSessionContext.unbind(sessionFactory);
 		session.close();
@@ -263,12 +283,6 @@ public class HibernateUtil {
 
 	public org.hibernate.Session session() {
 		return getSessionFactory().getCurrentSession();
-	}
-
-	public void rollbackIfActive() {
-		if (session().getTransaction().getStatus().canRollback()) {
-			session().getTransaction().rollback();
-		}		
 	}
 
 	public <T> T runInTransaction(HibernateRunnable<T> runnable) {
