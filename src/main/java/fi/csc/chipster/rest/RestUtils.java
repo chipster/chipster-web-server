@@ -522,7 +522,7 @@ public class RestUtils {
 		FileUtils.writeStringToFile(file, str, StandardCharsets.UTF_8.name());
 	}
 	
-	public static ObjectNode getArrayResponse(String arrayKey, String itemKey, ArrayList<UUID> ids) {
+	public static ObjectNode getArrayResponse(String arrayKey, String itemKey, List<UUID> ids) {
 		JsonNodeFactory factory = new JsonNodeFactory(false);
 		ObjectNode json = factory.objectNode();
 		ArrayNode datasetsArray = factory.arrayNode();

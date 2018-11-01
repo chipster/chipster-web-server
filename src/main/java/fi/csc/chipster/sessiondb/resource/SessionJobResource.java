@@ -2,11 +2,11 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -121,12 +121,7 @@ public class SessionJobResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response postArray(Job[] jobs, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-		ArrayList<UUID> ids = new ArrayList<>();
-		
-		for (Job j: Arrays.asList(jobs)) {
-			UUID id = this.postOne(j, uriInfo, sc);
-			ids.add(id);
-		}
+		List<UUID> ids = postList(Arrays.asList(jobs), uriInfo, sc);		
 		
 		ObjectNode json = RestUtils.getArrayResponse("jobs", "jobId", ids);		
 		
@@ -139,7 +134,8 @@ public class SessionJobResource {
 	@Transaction
     public Response post(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
-		UUID id = postOne(job, uriInfo, sc);
+		List<UUID> ids = postList(Arrays.asList(job), uriInfo, sc);
+		UUID id = ids.get(0);
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		
@@ -149,27 +145,34 @@ public class SessionJobResource {
 		return Response.created(uri).entity(json).build();
 	}
 		
-	public UUID postOne(Job job, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+	public List<UUID> postList(List<Job> jobs, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 	
-		if (job.getJobId() != null) {
-			throw new BadRequestException("job already has an id, post not allowed");
+		for (Job job : jobs) {			
+			if (job.getJobId() != null) {
+				throw new BadRequestException("job already has an id, post not allowed");
+			}
+			
+			UUID id = RestUtils.createUUID();
+			job.setJobId(id);
+			job.setCreated(Instant.now());
 		}
 		
-		UUID id = RestUtils.createUUID();
-		job.setJobId(id);
-		job.setCreated(Instant.now());
-		
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
-		// make sure a hostile client doesn't set the session
-		job.setSession(session);
 		
-		job.setCreatedBy(sc.getUserPrincipal().getName());
+		for (Job job : jobs) {
+			// make sure a hostile client doesn't set the session
+			job.setSession(session);
+			
+			job.setCreatedBy(sc.getUserPrincipal().getName());
+			
+			this.checkInputAccessRights(session, job);
+	
+			create(job, getHibernate().session());
+		}
 		
-		this.checkInputAccessRights(session, job);
-
-		create(job, getHibernate().session());
-		
-		return id;
+		return jobs.stream()
+				.map(j -> j.getJobId())
+				.collect(Collectors.toList());
     }
 
 	/**

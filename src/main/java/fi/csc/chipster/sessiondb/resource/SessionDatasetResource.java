@@ -2,11 +2,12 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -130,12 +131,7 @@ public class SessionDatasetResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Dataset[] datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-		ArrayList<UUID> ids = new ArrayList<>();
-		
-		for (Dataset d : Arrays.asList(datasets)) {
-			UUID id = this.postOne(d, uriInfo, sc);
-			ids.add(id);
-		}
+		List<UUID> ids = postList(Arrays.asList(datasets), uriInfo, sc);
 		
 		ObjectNode json = RestUtils.getArrayResponse("datasets", "datasetId", ids);		
 		
@@ -148,7 +144,8 @@ public class SessionDatasetResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response post(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-		UUID id = this.postOne(dataset, uriInfo, sc);
+		List<UUID> ids = this.postList(Arrays.asList(new Dataset[] {dataset}), uriInfo, sc);
+		UUID id = ids.get(0);
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		
@@ -158,26 +155,33 @@ public class SessionDatasetResource {
 		return Response.created(uri).entity(json).build();
 	}
     	        					
-	public UUID postOne(Dataset dataset, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-		if (dataset.getDatasetId() != null) {
-			throw new BadRequestException("dataset already has an id, post not allowed");
+	public List<UUID> postList(List<Dataset> datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+		for (Dataset dataset : datasets) {
+			if (dataset.getDatasetId() != null) {
+				throw new BadRequestException("dataset already has an id, post not allowed");
+			}
+			
+			UUID id = RestUtils.createUUID();
+			dataset.setDatasetId(id);
 		}
 		
-		UUID id = RestUtils.createUUID();
-		dataset.setDatasetId(id);
 
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		
-		// make sure a hostile client doesn't set the session
-		dataset.setSession(session);
-		
-		if (dataset.getCreated() == null) {
-			dataset.setCreated(Instant.now());
+		for (Dataset dataset : datasets) {
+			// make sure a hostile client doesn't set the session
+			dataset.setSession(session);
+			
+			if (dataset.getCreated() == null) {
+				dataset.setCreated(Instant.now());
+			}
+			
+			create(dataset, getHibernate().session());		
 		}
 		
-		create(dataset, getHibernate().session());		
-		
-		return id;
+		return datasets.stream()
+				.map(d -> d.getDatasetId())
+				.collect(Collectors.toList());
     }
 	
 	public void create(Dataset dataset, org.hibernate.Session hibernateSession) {
@@ -212,9 +216,7 @@ public class SessionDatasetResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response putArray(Dataset[] requestDatasets, @PathParam("id") UUID datasetId, @Context SecurityContext sc) {
-		for (Dataset dataset : Arrays.asList(requestDatasets)) {
-			this.putOne(dataset, dataset.getDatasetId(), sc);
-		}
+		this.putList(Arrays.asList(requestDatasets), sc);
 		return Response.noContent().build();
 	}
 	
@@ -224,16 +226,17 @@ public class SessionDatasetResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Dataset requestDataset, @PathParam("id") UUID datasetId, @Context SecurityContext sc) {
-		this.putOne(requestDataset, datasetId, sc);
+		
+		// override the url in json with the id in the url, in case a 
+		// malicious client has changed it
+		requestDataset.setDatasetId(datasetId);
+		
+		this.putList(Arrays.asList(new Dataset[] {requestDataset}), sc);
 		
 		return Response.noContent().build();
 	}
 		
-    public void putOne(Dataset requestDataset, UUID datasetId, @Context SecurityContext sc) {
-				    		
-		// override the url in json with the id in the url, in case a 
-		// malicious client has changed it
-		requestDataset.setDatasetId(datasetId);
+    public void putList(List<Dataset> requestDatasets, @Context SecurityContext sc) {				    	
 		
 		/*
 		 * Checks that
@@ -241,24 +244,37 @@ public class SessionDatasetResource {
 		 * - the session contains this dataset
 		 */
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
-		Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
-		if (dbDataset == null || !dbDataset.getSession().getSessionId().equals(session.getSessionId())) {
-			throw new NotFoundException("dataset doesn't exist");
+		
+		HashMap<UUID, Dataset> dbDatasets = new HashMap<>();
+		
+		for (Dataset requestDataset : requestDatasets) {
+			UUID datasetId = requestDataset.getDatasetId();
+			Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
+			
+			if (dbDataset == null || !dbDataset.getSession().getSessionId().equals(session.getSessionId())) {
+				throw new NotFoundException("dataset doesn't exist");
+			}
+			
+			dbDatasets.put(datasetId, dbDataset);
 		}
 		
-		if (!sc.isUserInRole(Role.FILE_BROKER)) {
-			checkFileModification(requestDataset, getHibernate().session());
+		for (Dataset requestDataset : requestDatasets) {
+			if (!sc.isUserInRole(Role.FILE_BROKER)) {
+				checkFileModification(requestDataset, getHibernate().session());
+			}
+			
+			if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
+				// if the client doesn't care about the File, simply keep the db version
+				requestDataset.setFile(dbDatasets.get(requestDataset.getDatasetId()).getFile());
+			}
+			
+			// make sure a hostile client doesn't set the session
+			requestDataset.setSession(session);
 		}
 		
-		if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
-			// if the client doesn't care about the File, simply keep the db version
-			requestDataset.setFile(dbDataset.getFile());
+		for (Dataset requestDataset : requestDatasets) {
+			update(requestDataset, dbDatasets.get(requestDataset.getDatasetId()), getHibernate().session());
 		}
-		
-		// make sure a hostile client doesn't set the session
-		requestDataset.setSession(session);
-		
-		update(requestDataset, dbDataset, getHibernate().session());		
     }
 	
 	public void update(Dataset newDataset, Dataset dbDataset, org.hibernate.Session hibernateSession) {
