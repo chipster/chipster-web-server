@@ -3,9 +3,12 @@ package fi.csc.chipster.sessiondb;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.websocket.MessageHandler.Whole;
 import javax.ws.rs.client.WebTarget;
@@ -14,6 +17,9 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -269,6 +275,10 @@ public class SessionDbClient {
 		return RestMethods.put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
 	}
 	
+	public Response updateDatasets(UUID sessionId, List<Dataset> datasets) throws RestException {
+		return RestMethods.put(getDatasetsTarget(sessionId).path(RestUtils.PATH_ARRAY), datasets);
+	}
+	
 	public void deleteDataset(UUID sessionId, UUID datasetId) throws RestException {
 		RestMethods.delete(getDatasetTarget(sessionId, datasetId));
 	}	
@@ -322,6 +332,22 @@ public class SessionDbClient {
 		UUID id = RestMethods.post(getJobsTarget(sessionId), job);
 		job.setJobId(id);
 		return id;
+	}
+	
+	public List<UUID> createJobs(UUID sessionId, List<Job> jobs) throws RestException, JsonParseException, JsonMappingException, IOException {
+		
+		String json = RestMethods.postWithObjectResponse(getJobsTarget(sessionId).path(RestUtils.PATH_ARRAY), jobs, String.class);		
+		@SuppressWarnings("unchecked")
+		HashMap<String, Object> respObj = RestUtils.getObjectMapper(true).readValue(json, HashMap.class);
+		@SuppressWarnings("unchecked")
+		ArrayList<Map<String, String>> jobListJson = (ArrayList<Map<String, String>>) respObj.get("jobs");
+		
+		List<UUID> ids = jobListJson.stream()
+			.map(o -> o.get("jobId"))
+			.map(s -> UUID.fromString(s))
+			.collect(Collectors.toList());
+		
+		return ids;
 	}
 	
 	public void updateJob(UUID sessionId, Job job) throws RestException {

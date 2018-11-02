@@ -60,7 +60,7 @@ public class RestMethods {
 		
 		return response.readEntity(responseType);		
 	}
-	
+		
 	public static Response put(WebTarget target, Object obj) throws RestException {
 		Response response = target.request().put(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {

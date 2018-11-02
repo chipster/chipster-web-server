@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,9 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
@@ -188,7 +192,7 @@ public class SessionWorkerResource {
     }
 
 	
-	private ArrayList<String> updateSession(SessionDbClient sessionDb, UUID sessionId, ExtractedSession extractedSession) throws RestException {
+	private ArrayList<String> updateSession(SessionDbClient sessionDb, UUID sessionId, ExtractedSession extractedSession) throws RestException, JsonParseException, JsonMappingException, IOException {
 		
 		Session session = extractedSession.getSession();
 		Collection<Dataset> datasets = extractedSession.getDatasetMap().values();
@@ -201,9 +205,13 @@ public class SessionWorkerResource {
 		session.setSessionId(sessionId);
 		sessionDb.updateSession(session);
 
+		ArrayList<UUID> oldIds = new ArrayList<>();
+		ArrayList<Job> updatedJobs = new ArrayList<>();
+		ArrayList<Dataset> updatedDatasets = new ArrayList<>();
+		
 		// create job objects
 		for (Job job : jobs) {
-			UUID oldId = job.getJobId();
+			oldIds.add(job.getJobId());
 			job.setJobId(null);
 			// dataset ids have changed
 			Iterator<Input> inputIter = job.getInputs().iterator();
@@ -218,10 +226,14 @@ public class SessionWorkerResource {
 					input.setDatasetId(newDatasetId.toString());
 				}
 			}
-			UUID newId = sessionDb.createJob(sessionId, job);
-			jobIdMap.put(oldId, newId);
+			updatedJobs.add(job);
 		}
-
+		
+		List<UUID> newIds = sessionDb.createJobs(sessionId, updatedJobs);
+		for (int i = 0; i < newIds.size(); i++) {
+			jobIdMap.put(oldIds.get(i), newIds.get(i));
+		}		
+		
 		// update dataset objects
 		for (Dataset dataset: datasets) {
 			UUID oldId = dataset.getDatasetId();
@@ -242,8 +254,10 @@ public class SessionWorkerResource {
 			
 			System.out.println("updating dataset " + oldId + " " + newId);
 			
-			sessionDb.updateDataset(sessionId, dataset);
+			updatedDatasets.add(dataset);
 		}
+		
+		sessionDb.updateDatasets(sessionId, updatedDatasets);
 		
 		return warnings;
 	}
