@@ -1,17 +1,18 @@
 package fi.csc.chipster.rest.hibernate;
 
 import java.io.File;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.function.Function;
 
 import org.apache.log4j.Logger;
-import org.joda.time.DateTime;
-import org.joda.time.Instant;
 
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
@@ -27,18 +28,19 @@ public class BackupRotation2 {
 
 	public static <T> TreeMap<Instant, T> getFirstOfEachMonth(TreeMap<Instant, T> files) {
 		
-		HashSet<DateTime> months = new HashSet<>();
+		HashSet<LocalDate> months = new HashSet<>();
 		
 		Iterator<Instant> filesIter = files.keySet().iterator();
 		
 		TreeMap<Instant, T> firstOfEachMonth = new TreeMap<>();
 		
 		while (filesIter.hasNext()) {
-			DateTime fileDate = filesIter.next().toDateTime();
-			DateTime month = new DateTime(fileDate.getYear(), fileDate.getMonthOfYear(), 1, 0, 0);
+			Instant fileInstant = filesIter.next();
+			LocalDate fileDate = getLocalDate(fileInstant);
+			LocalDate month = LocalDate.of(fileDate.getYear(), fileDate.getMonthValue(), 1);
 			
 			if (!months.contains(month)) {
-				firstOfEachMonth.put(fileDate.toInstant(), files.get(fileDate));
+				firstOfEachMonth.put(fileInstant, files.get(fileInstant));
 				months.add(month);
 			}
 		}
@@ -46,20 +48,25 @@ public class BackupRotation2 {
 		return firstOfEachMonth;
 	}
 	
+	public static LocalDate getLocalDate(Instant instant) {
+		return instant.atZone(TimeZone.getDefault().toZoneId()).toLocalDate();
+	}
+	
 	public static <T> TreeMap<Instant, T> getFirstOfEachDay(TreeMap<Instant, T> files) {
 		
-		HashSet<DateTime> days = new HashSet<>();
+		HashSet<LocalDate> days = new HashSet<>();
 		
 		Iterator<Instant> filesIter = files.keySet().iterator();
 		
 		TreeMap<Instant, T> firstOfEachDay = new TreeMap<>();
 		
 		while (filesIter.hasNext()) {
-			DateTime fileDate = filesIter.next().toDateTime();
-			DateTime day = new DateTime(fileDate.getYear(), fileDate.getMonthOfYear(), fileDate.getDayOfMonth(), 0, 0);
+			Instant fileInstant = filesIter.next();
+			LocalDate fileDate = getLocalDate(fileInstant);
+			LocalDate day = LocalDate.of(fileDate.getYear(), fileDate.getMonthValue(), fileDate.getDayOfMonth());
 			
 			if (!days.contains(day)) {
-				firstOfEachDay.put(fileDate.toInstant(), files.get(fileDate));
+				firstOfEachDay.put(fileInstant, files.get(fileInstant));
 				days.add(day);
 			}
 		}

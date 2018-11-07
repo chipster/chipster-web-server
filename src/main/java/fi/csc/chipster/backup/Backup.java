@@ -42,7 +42,7 @@ public class Backup {
 			String user = config.getString(HibernateUtil.CONF_DB_USER, role);
 			String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);	    	
 			
-			logger.info("backup " + role + "-h2 in " + url);
+			logger.info("backup " + role + " db in " + url);
 			return new DbBackup(config, role, url, user, dbPassword);
 			
 		}).collect(Collectors.toList());

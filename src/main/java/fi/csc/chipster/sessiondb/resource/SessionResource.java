@@ -300,7 +300,7 @@ public class SessionResource {
 
 	public void ruleRemoved(UUID sessionId, Rule rule) {
 		
-		logger.info("rule deleted, username " + rule.getUsername());
+		logger.debug("rule deleted, username " + rule.getUsername());
 		
 		// don't count public read-only rules, because those can't be deleted afterwards
 		long count = ruleTable.getRules(sessionId).stream()
@@ -308,10 +308,10 @@ public class SessionResource {
 			.count();
 			
 		if (count == 0) {
-			logger.info("last rule deleted, delete the session too");			
+			logger.debug("last rule deleted, delete the session too");			
 			deleteSession(rule, getHibernate().session());
 		} else {
-			logger.info(count + " rules left, session kept");
+			logger.debug(count + " rules left, session kept");
 		}
 	}
 }

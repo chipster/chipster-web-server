@@ -2,7 +2,6 @@ package fi.csc.chipster.rest;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,7 +17,8 @@ import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationExceptio
  */
 public class JavascriptService {
 	
-	private Logger logger = LogManager.getLogger();
+	private static Logger logger = LogManager.getLogger();
+	
 	private String serviceRootPath;
 	private Process process;
 	private File serviceRoot;
@@ -59,48 +59,30 @@ public class JavascriptService {
     	});
     }
     
-    private void runAndWait(String... command) throws IOException, InterruptedException {
+    public ProcessBuilder getProcessBuilder(String... command) {
+    	List<String> commandList = Arrays.asList(command);
+    	// get the full path of the binary
+    	commandList.set(0, ProcessUtils.getPath(commandList.get(0)));
+    	ProcessBuilder builder = new ProcessBuilder(commandList);
+    	builder.environment().put("PATH", StringUtils.join(ProcessUtils.getPaths(), ":"));
+    	builder.inheritIO();
+    	builder.directory(serviceRoot);
+		return builder;
+	}
+    
+    public void runAndWait(String... command) throws IOException, InterruptedException {
     	int exitCode = runAndWaitCareless(command);
     	if (exitCode != 0) {
     		throw new IllegalStateException("error in command " + StringUtils.join(command, " ") + ", exit code " + exitCode);
     	}
     }
     
-    private int runAndWaitCareless(String...command) throws InterruptedException, IOException {    
+    public int runAndWaitCareless(String...command) throws InterruptedException, IOException {    
 		ProcessBuilder builder = getProcessBuilder(command);
-		process = builder.start();
+		Process process = builder.start();
 		return process.waitFor();
     }
-
-    private ProcessBuilder getProcessBuilder(String... command) {
-    	List<String> commandList = Arrays.asList(command);
-    	// get the full path of the binary
-    	commandList.set(0, getPath(commandList.get(0)));
-    	ProcessBuilder builder = new ProcessBuilder(commandList);
-    	builder.environment().put("PATH", StringUtils.join(getPaths(), ":"));
-    	builder.inheritIO();
-    	builder.directory(serviceRoot);
-		return builder;
-	}
     
-    private List<String> getPaths() {
-		List<String> paths = new ArrayList<String>(Arrays.asList(System.getenv("PATH").split(":")));
-		// Eclipse clears the PATH by default, at least on OSX
-		paths.add("/usr/local/bin");
-		return paths;
-    }
-
-	private String getPath(String command) {		
-		for (String path : getPaths()) {
-			File binary = new File(new File(path), command);
-			if (binary.exists()) {
-				System.out.println("using binary " + binary.getAbsolutePath());
-				return binary.getAbsolutePath();
-			}
-		}
-		throw new IllegalArgumentException("command " + command + " not found from PATH");
-	}
-
 	/**
      * Main method.
      * @param args

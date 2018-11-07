@@ -25,6 +25,15 @@ export default class Benchmark {
     datasetIdsWithoutMetadata: Map<string, string> = new Map();
     jobIds: Map<string, string> = new Map();
 
+    readonly notes = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "
+        + "eiusmod tempor incididunt ut labore et dolore magna aliqua.Ut enim ad minim "
+        + "veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo "
+        + "consequat.Duis aute irure dolor in reprehenderit in voluptate velit esse cillum "
+        + "dolore eu fugiat nulla pariatur.Excepteur sint occaecat cupidatat non proident, "
+        + "sunt in culpa qui officia deserunt mollit anim id est laborum.\n";
+    
+    readonly screenOutput = 'print("Hello World!")\n[1] "Hello World!"\n\n'.repeat(100);
+
     influxUrl;
     results = "";
 
@@ -188,9 +197,11 @@ export default class Benchmark {
     postEmptySession(i: number, sessionIds: string[]) {
         return of(i).pipe(
             map(i => {
-                return {
-                    name: this.sessionPrefix + i
+                const s = {
+                    name: this.sessionPrefix + i,
+                    notes: this.notes,
                 };
+                return s;
             }),
             mergeMap(s => this.restClient.postSession(s)),
             tap((sessionId: string) => sessionIds.push(sessionId)),
@@ -214,19 +225,31 @@ export default class Benchmark {
         const sessionId = sessionIds[Math.floor(Math.random() * sessionIds.length / 100 + 1)];
         return of(i).pipe(
             map(i => {
-                const dataset = {
+                const dataset: Dataset = {
                     name: "dataset_" + i,
                     fileId: null,
                     metadata: [],
+                    checksum: null,
+                    created: null,
+                    datasetId: null,
+                    typeTags: null,
+                    notes: null,
+                    size: 0,
+                    sourceJob: null,
+                    x: null,
+                    y: null,
                 };
                 for (let j = 0; j < metadataCount; j++) {
                     dataset.metadata.push({
                         // col: "col_" + j,
                         key: "metadatakey_" + j,
                         value: "value_" + j,
+                        column: null,
                     });
                 }
                 dataset.fileId = this.uuidv4();
+                dataset.notes = this.notes;
+
                 return dataset;
             }),            
             mergeMap(dataset => this.restClient.postDataset(sessionId, dataset)),
@@ -304,6 +327,8 @@ export default class Benchmark {
                         value: "value" + j,
                     });
                 }
+                job.screenOutput = this.screenOutput;
+                
                 return job;
             }),
             mergeMap(job => this.restClient.postJob(sessionId, job)),

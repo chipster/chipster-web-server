@@ -1,14 +1,13 @@
 package fi.csc.chipster.rest.hibernate;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.URL;
-import java.nio.file.Files;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,20 +19,18 @@ import java.util.TreeMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.ScrollMode;
-import org.hibernate.ScrollableResults;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.query.Query;
-import org.joda.time.Instant;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.s3.transfer.Download;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
 
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 
 public class DbBackup {
@@ -56,7 +53,8 @@ public class DbBackup {
 	
 	private final Logger logger = LogManager.getLogger();
 	
-	private static final String BACKUP_NAME_POSTFIX = ".sql";
+	private static final String BACKUP_NAME_POSTFIX = ".sql.lz4";
+	private static final String BACKUP_NAME_POSTFIX_UNCOMPRESSED = ".sql";
 	private static final String BACKUP_OBJECT_NAME_PART = "-db-backup_";
 	
 	private static final String CONF_DB_BACKUP_TIME = "db-backup-time";
@@ -79,10 +77,12 @@ public class DbBackup {
 	
 	private final String backupPrefix;
 	private final String backupPostfix;
+	private final String backupPostfixUncompressed;
 
 	private int dailyCountS3;
 	private int monthlyCountS3;
 	private int dailyCountFile;
+	private SessionFactory sessionFactory;
 
 	public DbBackup(Config config, String role, String url, String user, String password) {
 		this.config = config;
@@ -93,10 +93,12 @@ public class DbBackup {
 		
 		backupPrefix = role + BACKUP_OBJECT_NAME_PART;
 		backupPostfix = BACKUP_NAME_POSTFIX;
+		backupPostfixUncompressed = BACKUP_NAME_POSTFIX_UNCOMPRESSED;
 		dailyCountS3 = Math.max(3, Integer.parseInt(config.getString(CONF_DB_BACKUP_DAILY_COUNT_S3, role)));
 		monthlyCountS3 = Integer.parseInt(config.getString(CONF_DB_BACKUP_MONTHLY_COUNT_S3, role));
 		dailyCountFile = Integer.parseInt(config.getString(CONF_DB_BACKUP_DAILY_COUNT_FILE, role));
 		
+		sessionFactory = HibernateUtil.buildSessionFactory(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
 	}
 	
 	public void checkRestore() {
@@ -104,9 +106,9 @@ public class DbBackup {
 		String restoreKey = getRestoryKey(config, role);
 		
 		if (!restoreKey.isEmpty()) {
-    		restore(restoreKey, url, user, password);
+    		restore(restoreKey);
     		// don't start backups when restoring to make it safer to restore from the backups of some other installation    		
-    		throw new RestoreException(role + "-h2 restore completed. Remove the db-restore-key-" + role + " from the configuration, restart the Backup service and start all other services");
+    		throw new RestoreException(role + " db restore completed. Remove the db-restore-key-" + role + " from the configuration, restart the Backup service and start all other services");
     	}
 	}
 	
@@ -116,9 +118,7 @@ public class DbBackup {
 
 	public void scheduleBackups() {
 		int backupInterval = Integer.parseInt(config.getString(CONF_DB_BACKUP_INTERVAL, role));
-	    String backupTimeString = config.getString(CONF_DB_BACKUP_TIME, role);
-	    
-	    SessionFactory sessionFactory = HibernateUtil.buildSessionFactory(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
+	    String backupTimeString = config.getString(CONF_DB_BACKUP_TIME, role);	    
 		
 		startBackupTimer(backupInterval, backupTimeString, sessionFactory);		
 	}
@@ -137,89 +137,83 @@ public class DbBackup {
     	firstBackupTime.set(Calendar.MINUTE, startMinute);
     	firstBackupTime.set(Calendar.SECOND, 0);
     	firstBackupTime.set(Calendar.MILLISECOND, 0);
-    	logger.info("next " + role + "-h2 backup is scheduled at " + firstBackupTime.getTime().toString());
-    	logger.info("save " + role + "-h2 backups to bucket:  " + getBackupBucket());
+    	logger.info("next " + role + " db backup is scheduled at " + firstBackupTime.getTime().toString());
+    	logger.info("save " + role + " db backups to bucket:  " + getBackupBucket());
     	
 		backupTimer = new Timer();
 		backupTimer.scheduleAtFixedRate(new TimerTask() {			
 			@Override
-			public void run() {
-		    	HibernateUtil.runInTransaction(new HibernateRunnable<Void>() {
-					@Override
-					public Void run(Session hibernateSession) {				
-						try {
-							backup(hibernateSession);
-						} catch (IOException | AmazonClientException | InterruptedException e) {
-							logger.error(role + "-h2 backup failed", e);
-						}				
-						return null;
-					}
-				}, sessionFactory);
+			public void run() {		    					
+				try {
+					backup();
+				} catch (IOException | AmazonClientException | InterruptedException e) {
+					logger.error(role + " db backup failed", e);
+				}				
+				
 			}
 		}, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
-    	//}, new Date(), backupInterval * 60 * 60 * 1000);
+//    	}, new Date(), backupInterval * 60 * 60 * 1000);
 	}
     
-    private void restore(String key, String url, String user, String password) throws RestoreException {
+    private void restore(String key) throws RestoreException {
     	
-    	// create an own Hibernate SessionFactory
-    	// we must do this before the schema migration because the DB must be empty
-    	SessionFactory restoreSessionFactory = HibernateUtil.buildSessionFactory(new ArrayList<Class<?>>(), url, "create", user, password, config, role);
+    	if (!getTableStats().isEmpty()) {
+			throw new RestoreException("Restore is allowed only to an empty DB. Please stop all services using the DB, delete the DB files and restart the DB process.");
+		}
     	
-    	Exception error = HibernateUtil.runInTransaction(new HibernateRunnable<Exception>() {
-			@Override
-			public Exception run(Session hibernateSession) {				
-				try {					
-					if (!getTableStats(hibernateSession).isEmpty()) {
-						throw new RestoreException("Restore is allowed only to an empty DB. Please stop all services using the DB, delete the DB files and restart the DB process.");
-					}
-					
-					// set the presigned URL to expire after a few seconds
-					// to see if it is enough that the url hasn't expired when the download starts
-					TransferManager transferManager = getTransferManager();
-					URL url = S3Util.getPresignedUrl(transferManager, getBackupBucket(), key, 5);
-					
-					logger.info("restore " + role + "-h2 backup from " + url.toString());					
-					int rows = hibernateSession
-						.createNativeQuery("RUNSCRIPT FROM '" + url.toString() + "'")
-						.executeUpdate();
-					logger.info("backup restored, rows: " + rows);
-					
-					printTableStats(hibernateSession);
-					
-				} catch (Exception e) {
-					logger.error(role + "-h2 restore failed", e);
-					return e;
-				}				
-				return null;
-			}
-		}, restoreSessionFactory);
+    	File restoreFile = new File("db-backups", role + "-db-restore.sql.lz4");
+    	File restoreFileExtracted = new File("db-backups", role + "-db-restore.sql");
     	
-    	restoreSessionFactory.close();
-    	
-    	if (error != null) {
-    		throw new RestoreException(error);
-    	}
+    	try {	
+			logger.info("download " + role + " db backup to " + restoreFile);
+			
+			TransferManager transferManager = getTransferManager();
+			Download download = transferManager.download(getBackupBucket(), key, restoreFile);
+			download.waitForCompletion();
+			
+			logger.info("extract  " + role + " db backup");
+			ProcessUtils.run(restoreFile, restoreFileExtracted, "lz4",  "-d");
+			
+			logger.info("restore  " + role + " db backup from " + restoreFileExtracted);
+				
+			runPostgres(restoreFileExtracted, null, "psql");
+						
+			logger.info("backup restored");
+			
+			printTableStats();
+    	} catch (AmazonClientException | InterruptedException | IOException e) {
+			logger.error(role + "db restore failed", e);
+			throw new RestoreException(e);
+		} finally {
+			restoreFile.delete();
+			restoreFileExtracted.delete();
+		}
     }
     
-	private void backup(Session hibernateSession) throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
+	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
 		
 		String bucket = getBackupBucket();
 		if (bucket.isEmpty()) {
-			logger.warn("no backup configuration for " + role + "-h2");
+			logger.warn("no backup configuration for " + role + " db");
 			return;
 		}
-		printTableStats(hibernateSession);
 		
-		File backupFile = new File("db-backups", backupPrefix + Instant.now() + backupPostfix);		
+		printTableStats();
 		
-		logger.info("save " + role + "-h2 backup to " + backupFile.getAbsolutePath());
+		Instant now = Instant.now();
 		
+		File backupFileUncompressed = new File("db-backups", backupPrefix + now + backupPostfixUncompressed);
+		File backupFile = new File("db-backups", backupPrefix + now + backupPostfix);		
 		
-		// Stream the script to a local file. We can't use 'SCRIPT TO', because it would save the file to the DB node
-		streamNativeQueryToFile("SCRIPT", backupFile, hibernateSession);
+		logger.info("save     " + role + " db backup to " + backupFileUncompressed.getAbsolutePath());
 		
-		logger.info("upload " + role + "-h2 backup (" + FileUtils.byteCountToDisplaySize(backupFile.length()) + ")");
+		// Stream the script to a local file
+		runPostgres(null, backupFileUncompressed, "pg_dump");
+		logger.info("compress " + role + " db backup (" + FileUtils.byteCountToDisplaySize(backupFileUncompressed.length()) + ")");
+		ProcessUtils.run(backupFileUncompressed, backupFile, "lz4");
+		backupFileUncompressed.delete();
+		
+		logger.info("upload   " + role + " db backup (" + FileUtils.byteCountToDisplaySize(backupFile.length()) + ")");
 				
 		TransferManager transferManager = getTransferManager();
 		Upload upload = transferManager.upload(bucket, backupFile.getName(), backupFile);
@@ -229,40 +223,41 @@ public class DbBackup {
 		removeOldS3Backups(transferManager, bucket, backupPrefix, backupPostfix);
 	}
 	
-	private void streamNativeQueryToFile(String queryString, File file, Session hibernateSession) throws IOException {
+	private void runPostgres(File stdinFile, File stdoutFile, String command) throws IOException, InterruptedException {
+				
+		List<String> cmd = new ArrayList<String>();
+		cmd.add(command);		
+		cmd.add("--dbname=" + this.url.replace("jdbc:", ""));
+		cmd.add("--username=" + this.user);
 		
-		@SuppressWarnings("unchecked")
-		Query<Object[]> query = hibernateSession.createNativeQuery(queryString);
-		query.setReadOnly(true);
-		ScrollableResults results = query.scroll(ScrollMode.FORWARD_ONLY);
-
-		try (BufferedWriter writer = Files.newBufferedWriter(file.toPath()))
-		{
-			while (results.next()) {
-				String line = results.get(0).toString();
-				writer.write(line + "\n");
-			}
-		}
-	}
-
-	private Map<String, Long> getTableStats(Session hibernateSession) {
-		@SuppressWarnings("unchecked")
-		List<Object[]> tables = hibernateSession.createNativeQuery("SHOW TABLES").getResultList();
+		final Map<String, String> env = new HashMap<>();
+        env.put("PGPASSWORD", this.password);
 		
-		Map<String, Long> tableRows = new LinkedHashMap<>();
-		
-		for (Object[] tableResult : tables) {		
-			String table = tableResult[0].toString();			
-			// the second array element is "PUBLIC"			
-			BigInteger rows = (BigInteger) hibernateSession.createNativeQuery("SELECT count(*) FROM \"" + table + "\"").getSingleResult();
-			tableRows.put(table, rows.longValue());
-		}
-		return tableRows;
+		ProcessUtils.run(stdinFile, stdoutFile, env, cmd.toArray(new String[0]));
 	}
 	
-	public void printTableStats(Session hibernateSession) {
+	private Map<String, Long> getTableStats() {
+		
+		return HibernateUtil.runInTransaction(new HibernateRunnable<Map<String, Long>>() {
+			@Override
+			public Map<String, Long> run(Session hibernateSession) {
+				@SuppressWarnings("unchecked")
+				List<String> tables = hibernateSession.createNativeQuery("SELECT tablename FROM pg_catalog.pg_tables where schemaname='public'").getResultList();
+				
+				Map<String, Long> tableRows = new LinkedHashMap<>();
+				
+				for (String table : tables) {								
+					BigInteger rows = (BigInteger) hibernateSession.createNativeQuery("SELECT count(*) FROM \"" + table + "\"").getSingleResult();
+					tableRows.put(table, rows.longValue());
+				}
+				return tableRows;
+			}
+		}, this.sessionFactory);
+	}
+	
+	public void printTableStats() {
 		String logLine = "table row counts: ";
-		for (Entry<String, Long> entry : getTableStats(hibernateSession).entrySet()) {
+		for (Entry<String, Long> entry : getTableStats().entrySet()) {
 			logLine += entry.getKey() + " " + entry.getValue() + ", ";			
 		}		
 		logger.info(logLine);
@@ -299,7 +294,7 @@ public class DbBackup {
 	 * @param backupPostfix
 	 */
 	private void removeOldS3Backups(TransferManager transferManager, String bucket, String backupPrefix, String backupPostfix) {
-		logger.info("list " + role + "-h2 s3 backups");
+		logger.info("list " + role + " db s3 backups");
 		List<S3ObjectSummary> summaries = S3Util.getObjects(transferManager, bucket);
 		
 		// all backups
@@ -334,7 +329,7 @@ public class DbBackup {
 	}
 	
 	private void removeOldFileBackups(File dir, String backupPrefix, String backupPostfix) {
-		logger.info("list " + role + "-h2 backup files");	
+		logger.info("list " + role + " db backup files");	
 		List<File> allFiles = Arrays.asList(dir.listFiles());
 		
 		// all backups
