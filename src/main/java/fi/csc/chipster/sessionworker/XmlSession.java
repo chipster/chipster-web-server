@@ -65,7 +65,6 @@ public class XmlSession {
 			Map<UUID, Dataset> datasetMap = null;
 			Map<UUID, Job> jobMap = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
-			HashMap<UUID, UUID> datasetIdMap = new HashMap<>();
 			
 			try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
 				ZipEntry entry;
@@ -90,11 +89,15 @@ public class XmlSession {
 						
 					} else if (entryToDatasetIdMap.containsKey(entry.getName())) {				
 								
-						// Create only dummy datasets now and update them with real dataset data later
-						UUID datasetId = sessionDb.createDataset(sessionId, new Dataset());
-														
-						datasetIdMap.put(UUID.fromString(entryToDatasetIdMap.get(entry.getName())), datasetId);					
+						UUID datasetId = UUID.fromString(entryToDatasetIdMap.get(entry.getName()));
+						// Create only dummy datasets now and update them with real dataset data later,
+						// because it's done this way in JsonSession at the moment (although here we rely on the
+						// zip entry order and could create the final datasets already now).
+						Dataset dummyDataset = new Dataset();
+						dummyDataset.setDatasetIdPair(sessionId, datasetId);
 						
+						sessionDb.createDataset(sessionId, dummyDataset);
+
 						// prevent Jersey client from closing the stream after the upload
 						// try-with-resources will close it after the whole zip file is read
 						fileBroker.upload(sessionId, datasetId, new NonClosableInputStream(zipInputStream));				
@@ -109,9 +112,9 @@ public class XmlSession {
 			
 			fixModificationParents(sessionType, session, datasetMap, jobMap);
 			
-			convertPhenodata(sessionType, session, sessionId, datasetIdMap, fileBroker, sessionDb, datasetMap);
+			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap);
 					
-			return new ExtractedSession(session, datasetIdMap, datasetMap, jobMap);
+			return new ExtractedSession(session, datasetMap, jobMap);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
@@ -157,7 +160,7 @@ public class XmlSession {
 		}
 	}
 
-	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId, HashMap<UUID, UUID> datasetIdMap, RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap) throws RestException {
+	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId, RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap) throws RestException {
 		
 		HashSet<UUID> convertedPhenodatas = new HashSet<>();
 		
@@ -170,16 +173,15 @@ public class XmlSession {
 					continue;
 				}
 				
-				UUID oldPhenodataId = UUID.fromString(phenodataDataType.getDataId());
-				UUID newPhenodataId = datasetIdMap.get(oldPhenodataId);
+				UUID phenodataId = UUID.fromString(phenodataDataType.getDataId());
 				
-				try (InputStream phenodata = fileBroker.download(sessionId, newPhenodataId)) {
+				try (InputStream phenodata = fileBroker.download(sessionId, phenodataId)) {
 					
 					ArrayList<MetadataEntry> newPhenodata = RestPhenodataUtils.parseMetadata(phenodata, false, "");
 					
 					datasetMap.get(UUID.fromString(dataType.getDataId())).setMetadata(newPhenodata);
 					
-					convertedPhenodatas.add(oldPhenodataId);
+					convertedPhenodatas.add(phenodataId);
 				
 				} catch (IOException | RestException e) {
 					logger.error("failed to get the phenodata file", e);
@@ -189,9 +191,8 @@ public class XmlSession {
 		
 		// delete the old phenodata  files to avoid confusion
 		for (UUID datasetId : convertedPhenodatas) {
-			datasetMap.values().removeIf(d -> datasetId.equals(d.getDatasetId()));
-			sessionDb.deleteDataset(sessionId, datasetIdMap.get(datasetId));
-			datasetIdMap.remove(datasetId);
+			sessionDb.deleteDataset(sessionId, datasetId);
+			datasetMap.remove(datasetId);
 		}
 	}
 
@@ -366,7 +367,7 @@ public class XmlSession {
 		Job job = new Job();
 		
 		if (operationType.getId() != null) {				
-			job.setJobId(UUID.fromString(operationType.getId()));
+			job.setJobIdPair(null, UUID.fromString(operationType.getId()));
 		}
 		if (operationType.getStartTime() != null) {				
 			job.setStartTime(operationType.getStartTime().toGregorianCalendar().toInstant());
@@ -433,7 +434,7 @@ public class XmlSession {
 	private static Dataset getDataset(DataType dataType) {
 		Dataset dataset = new Dataset();
 		
-		dataset.setDatasetId(UUID.fromString(dataType.getDataId()));
+		dataset.setDatasetIdPair(null, UUID.fromString(dataType.getDataId()));
 		dataset.setName(dataType.getName());
 		dataset.setNotes(dataType.getNotes());
 		dataset.setX(dataType.getLayoutX());

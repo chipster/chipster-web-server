@@ -3,7 +3,6 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.UUID;
 
 import org.junit.AfterClass;
@@ -17,7 +16,7 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 
-public class DatasetResourceTest {
+public class SessionDatasetResourceTest {
 	private static TestServerLauncher launcher;
 
 	private static SessionDbClient user1Client;
@@ -54,9 +53,9 @@ public class DatasetResourceTest {
 	@Test
     public void postModification() throws RestException {
     	Dataset dataset1 = RestUtils.getRandomDataset();
-    	dataset1.setDatasetId(null);
+    	dataset1.setDatasetIdPair(null);
     	Dataset dataset2 = RestUtils.getRandomDataset();
-    	dataset2.setDatasetId(null);
+    	dataset2.setDatasetIdPair(null);
     	// check that properties of the existing File can't be modified
     	
     	File file1 = new File();
@@ -91,6 +90,40 @@ public class DatasetResourceTest {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
+	
+	@Test
+    public void postWithId() throws RestException {
+		Dataset dataset = RestUtils.getRandomDataset();
+		dataset.setDatasetIdPair(sessionId1, RestUtils.createUUID());
+		user1Client.createDataset(sessionId1, dataset);
+    }
+	
+	@Test
+    public void postWithWrongId() throws RestException {
+		Dataset dataset = RestUtils.getRandomDataset();
+		dataset.setDatasetIdPair(sessionId2, RestUtils.createUUID());
+		testCreateDataset(400, sessionId1, dataset, user1Client);
+    }
+	
+	@Test
+    public void postWithSameDatasetId() throws RestException {
+		Dataset dataset1 = RestUtils.getRandomDataset();
+		Dataset dataset2 = RestUtils.getRandomDataset();
+		UUID datasetId = RestUtils.createUUID();
+		dataset1.setDatasetIdPair(sessionId1, datasetId);
+		dataset2.setDatasetIdPair(sessionId2, datasetId);
+		String name1 = "name1";
+		String name2 = "name2";
+		dataset1.setName(name1);
+		dataset2.setName(name2);
+		
+		user1Client.createDataset(sessionId1, dataset1);
+		user2Client.createDataset(sessionId2, dataset2);
+		
+		// check that there are really to different datasets on the server
+		assertEquals(name1, user1Client.getDataset(sessionId1, datasetId).getName());
+		assertEquals(name2, user2Client.getDataset(sessionId2, datasetId).getName());		
+    }
 
 	@Test
     public void get() throws IOException, RestException {
@@ -103,7 +136,7 @@ public class DatasetResourceTest {
         
         // wrong session
 		testGetDataset(403, sessionId2, datasetId, user1Client);
-		testGetDataset(403, sessionId2, datasetId, user2Client);	
+		testGetDataset(404, sessionId2, datasetId, user2Client);	
     }
 	
 	public static void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {

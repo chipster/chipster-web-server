@@ -46,6 +46,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.DatasetIdPair;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -84,17 +85,17 @@ public class SessionDatasetResource {
    		String userToken = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
     	sessionResource.getRuleTable().checkAuthorizationWithToken(userToken, sessionId, datasetId, requireReadWrite);
 		
-    	Dataset result = getDataset(datasetId, getHibernate().session());
+    	Dataset result = getDataset(sessionId, datasetId, getHibernate().session());
     	
-    	if (result == null || !result.getSession().getSessionId().equals(sessionId)) {
+    	if (result == null || !result.getSessionId().equals(sessionId)) {
     		throw new NotFoundException();
     	}
 
    		return Response.ok(result).build();
     }
     
-    public Dataset getDataset(UUID datasetId, org.hibernate.Session hibernateSession) {
-    	Dataset dataset = hibernateSession.get(Dataset.class, datasetId);
+    public static Dataset getDataset(UUID sessionId, UUID datasetId, org.hibernate.Session hibernateSession) {
+    	Dataset dataset = hibernateSession.get(Dataset.class, new DatasetIdPair(sessionId, datasetId));
     	return dataset;
     }
     
@@ -118,7 +119,7 @@ public class SessionDatasetResource {
 		Root<Dataset> r = c.from(Dataset.class);
 		r.fetch("file", JoinType.LEFT);
 		c.select(r);		
-		c.where(cb.equal(r.get("session"), session));		
+		c.where(cb.equal(r.get("datasetIdPair").get("sessionId"), session.getSessionId()));		
 		List<Dataset> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();	
 				
 		return datasets;
@@ -157,21 +158,23 @@ public class SessionDatasetResource {
     	        					
 	public List<UUID> postList(List<Dataset> datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		for (Dataset dataset : datasets) {
-			if (dataset.getDatasetId() != null) {
-				throw new BadRequestException("dataset already has an id, post not allowed");
+			// client's are allowed to set the datasetId to preserve the object references within the session
+			UUID datasetId = dataset.getDatasetId();
+			if (datasetId == null) {
+				datasetId = RestUtils.createUUID();
 			}
 			
-			UUID id = RestUtils.createUUID();
-			dataset.setDatasetId(id);
+			// make sure a hostile client doesn't set the session
+			if (dataset.getSessionId() != null && !sessionId.equals(dataset.getSessionId())) {
+				throw new BadRequestException("different sessionId in the dataset object and in the url");
+			}
+			dataset.setDatasetIdPair(sessionId, datasetId);
 		}
 		
-
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		// check authorization
+		sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		
-		for (Dataset dataset : datasets) {
-			// make sure a hostile client doesn't set the session
-			dataset.setSession(session);
-			
+		for (Dataset dataset : datasets) {			
 			if (dataset.getCreated() == null) {
 				dataset.setCreated(Instant.now());
 			}
@@ -229,7 +232,7 @@ public class SessionDatasetResource {
 		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		requestDataset.setDatasetId(datasetId);
+		requestDataset.setDatasetIdPair(sessionId, datasetId);
 		
 		this.putList(Arrays.asList(new Dataset[] {requestDataset}), sc);
 		
@@ -249,9 +252,9 @@ public class SessionDatasetResource {
 		
 		for (Dataset requestDataset : requestDatasets) {
 			UUID datasetId = requestDataset.getDatasetId();
-			Dataset dbDataset = getHibernate().session().get(Dataset.class, datasetId);
+			Dataset dbDataset = getDataset(sessionId, datasetId, getHibernate().session());
 			
-			if (dbDataset == null || !dbDataset.getSession().getSessionId().equals(session.getSessionId())) {
+			if (dbDataset == null || !dbDataset.getSessionId().equals(session.getSessionId())) {
 				throw new NotFoundException("dataset doesn't exist");
 			}
 			
@@ -269,7 +272,7 @@ public class SessionDatasetResource {
 			}
 			
 			// make sure a hostile client doesn't set the session
-			requestDataset.setSession(session);
+			requestDataset.setDatasetIdPair(session.getSessionId(), requestDataset.getDatasetId());
 		}
 		
 		for (Dataset requestDataset : requestDatasets) {
@@ -287,7 +290,7 @@ public class SessionDatasetResource {
 			}
 		}
 		
-		HibernateUtil.update(newDataset, newDataset.getDatasetId(), hibernateSession);
+		HibernateUtil.update(newDataset, newDataset.getDatasetIdPair(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.DATASET, newDataset.getDatasetId(), EventType.UPDATE), hibernateSession);
 	}
 
@@ -299,9 +302,9 @@ public class SessionDatasetResource {
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
-		Dataset dataset = sessionResource.getHibernate().session().get(Dataset.class, datasetId);
+		Dataset dataset = getDataset(sessionId, datasetId, sessionResource.getHibernate().session());
 		
-		if (dataset == null || !dataset.getSession().getSessionId().equals(session.getSessionId())) {
+		if (dataset == null || !dataset.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("dataset not found");
 		}
 		
@@ -319,8 +322,7 @@ public class SessionDatasetResource {
 		
 		logger.debug("deleted " + rows + " dataset tokens");
 
-		
-		hibernateSession.delete(dataset);
+		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), getHibernate().session());
 		
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
 			UUID fileId = dataset.getFile().getFileId();		

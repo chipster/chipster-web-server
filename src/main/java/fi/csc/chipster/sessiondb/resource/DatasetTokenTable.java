@@ -69,7 +69,7 @@ public class DatasetTokenTable {
 			throw new NotFoundException("session not found");
 		}
 		
-		Dataset dataset = hibernateSession.get(Dataset.class, datasetId);
+		Dataset dataset = SessionDatasetResource.getDataset(sessionId, datasetId, hibernateSession);
 		
 		if (dataset == null) {
 			throw new NotFoundException("dataset not found");

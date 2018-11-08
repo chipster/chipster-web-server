@@ -137,9 +137,13 @@ public class SessionResource {
 	//public Response post(String json, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
 		// curl -i -H "Content-Type: application/json" --user token:<TOKEN> -X POST http://localhost:8080/sessionstorage/session
-//		System.out.println("POST JSON: " + json);
-//		Session session = RestUtils.parseJson(Session.class, json);				
-//		
+		
+		/*
+		 * Decide sessionId on the server
+		 * 
+		 * Sessions are more independent entities than datasets or jobs and there
+		 * should be no need for the client to set it.
+		 */
 		if (session.getSessionId() != null) {
 			throw new BadRequestException("session already has an id, post not allowed");
 		}

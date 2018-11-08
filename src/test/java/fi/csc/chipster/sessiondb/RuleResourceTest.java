@@ -213,7 +213,7 @@ public class RuleResourceTest {
     	    	
     	// user2 must not have access to user1's other sessions 
     	SessionResourceTest.testGetSession(403, sessionId2, user2Client);    	
-    	DatasetResourceTest.testGetDataset(403, sessionId2, datasetId2, user2Client);
+    	SessionDatasetResourceTest.testGetDataset(403, sessionId2, datasetId2, user2Client);
     }
 	
 	@Test
@@ -281,12 +281,12 @@ public class RuleResourceTest {
     	user2Client.getRules(sessionId1);
     	
     	// modification forbidden
-    	DatasetResourceTest.testCreateDataset(403, sessionId1, RestUtils.getRandomDataset(), user2Client);
-    	DatasetResourceTest.testUpdateDataset(403, sessionId1, dataset, user2Client);
-    	DatasetResourceTest.testDeleteDataset(403, sessionId1, datasetId, user2Client);    	
-    	JobResourceTest.testCreateJob(403, sessionId1, RestUtils.getRandomJob(), user2Client);
-    	JobResourceTest.testUpdateJob(403, sessionId1, job, user2Client);
-    	JobResourceTest.testDeleteJob(403, sessionId1, jobId, user2Client);
+    	SessionDatasetResourceTest.testCreateDataset(403, sessionId1, RestUtils.getRandomDataset(), user2Client);
+    	SessionDatasetResourceTest.testUpdateDataset(403, sessionId1, dataset, user2Client);
+    	SessionDatasetResourceTest.testDeleteDataset(403, sessionId1, datasetId, user2Client);    	
+    	SessionJobResourceTest.testCreateJob(403, sessionId1, RestUtils.getRandomJob(), user2Client);
+    	SessionJobResourceTest.testUpdateJob(403, sessionId1, job, user2Client);
+    	SessionJobResourceTest.testDeleteJob(403, sessionId1, jobId, user2Client);
     	SessionResourceTest.testUpdateSession(403, session1, user2Client);
     	SessionResourceTest.testDeleteSession(403, sessionId1, user2Client);
     	testCreateRule(403, sessionId1, new Rule("user", false), user2Client);

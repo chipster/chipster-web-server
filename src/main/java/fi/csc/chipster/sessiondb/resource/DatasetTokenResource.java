@@ -25,6 +25,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
+import fi.csc.chipster.sessiondb.model.Session;
 
 @Path("datasettokens")
 public class DatasetTokenResource {	
@@ -61,6 +62,8 @@ public class DatasetTokenResource {
 		// Although the token is written to a DB, this doesn't really change anything for others.
 		Dataset dataset = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, datasetId, false);
 		
+		Session session = authorizationResource.getSession(dataset.getSessionId());
+		
 		Instant valid = null;
 		if (validString == null) {
 			valid = Instant.now().plus(Duration.ofSeconds(DATASET_TOKEN_VALID_DEFAULT));
@@ -73,7 +76,7 @@ public class DatasetTokenResource {
 			}
 		}
 		
-		DatasetToken datasetToken = new DatasetToken(RestUtils.createUUID(), sc.getUserPrincipal().getName(), dataset.getSession(), dataset, valid);
+		DatasetToken datasetToken = new DatasetToken(RestUtils.createUUID(), sc.getUserPrincipal().getName(), session, dataset, valid);
 		
 		datasetTokenTable.save(datasetToken);
 		

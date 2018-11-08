@@ -352,7 +352,7 @@ public class HibernateUtil {
 	 * @param value
 	 * @param id
 	 */
-	public static <T> void delete(T value, UUID id, Session session) {
+	public static <T> void delete(T value, Serializable id, Session session) {
 		
 		@SuppressWarnings("unchecked")
 		T dbObject = (T) session.load(value.getClass(), id);

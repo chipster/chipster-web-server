@@ -20,7 +20,7 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 
-public class JobResourceTest {
+public class SessionJobResourceTest {
 	
 	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
@@ -65,6 +65,40 @@ public class JobResourceTest {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
+	
+	@Test
+    public void postWithId() throws RestException {
+		Job job = RestUtils.getRandomJob();
+		job.setJobIdPair(sessionId1, RestUtils.createUUID());
+		user1Client.createJob(sessionId1, job);
+    }
+	
+	@Test
+    public void postWithWrongId() throws RestException {
+		Job job = RestUtils.getRandomJob();
+		job.setJobIdPair(sessionId2, RestUtils.createUUID());
+		testCreateJob(400, sessionId1, job, user1Client);
+    }
+	
+	@Test
+    public void postWithSameJobId() throws RestException {
+		Job job1 = RestUtils.getRandomJob();
+		Job job2 = RestUtils.getRandomJob();
+		UUID datasetId = RestUtils.createUUID();
+		job1.setJobIdPair(sessionId1, datasetId);
+		job2.setJobIdPair(sessionId2, datasetId);
+		String name1 = "name1";
+		String name2 = "name2";
+		job1.setToolId(name1);
+		job2.setToolId(name2);
+		
+		user1Client.createJob(sessionId1, job1);
+		user2Client.createJob(sessionId2, job2);
+		
+		// check that there are really to different jobs on the server
+		assertEquals(name1, user1Client.getDataset(sessionId1, datasetId).getName());
+		assertEquals(name2, user2Client.getDataset(sessionId2, datasetId).getName());		
+    }
 
 
 	@Test

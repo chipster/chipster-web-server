@@ -57,7 +57,8 @@ public class GlobalJobResource {
 					.list();
 			
 			// Convert to IdPairs, because the Job JSON doesn't include the sessionId
-			List<IdPair> idPairs = jobs.stream().map(job -> new IdPair(job.getSession().getSessionId(), job.getJobId()))
+			// update: it does now, but is thisidPair list still a good concise format?
+			List<IdPair> idPairs = jobs.stream().map(job -> new IdPair(job.getSessionId(), job.getJobId()))
 					.collect(Collectors.toList());
 			
 			return Response.ok(idPairs).build();

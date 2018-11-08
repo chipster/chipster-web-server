@@ -43,6 +43,7 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.JobIdPair;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -77,18 +78,18 @@ public class SessionJobResource {
     	// checks authorization
     	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId, true);    	
     	
-    	Job result = getJob(jobId, getHibernate().session());
+    	Job result = getJob(sessionId, jobId, getHibernate().session());
     	    	
-    	if (result == null || !result.getSession().getSessionId().equals(session.getSessionId())) {
+    	if (result == null || !result.getSessionId().equals(session.getSessionId())) {
     		throw new NotFoundException();
     	}
     	
    		return Response.ok(result).build();
     }
     
-    public Job getJob(UUID jobId, org.hibernate.Session hibernateSession) {
+    public static Job getJob(UUID sessionId, UUID jobId, org.hibernate.Session hibernateSession) {
     	
-    	return hibernateSession.get(Job.class, jobId);    	
+    	return hibernateSession.get(Job.class, new JobIdPair(sessionId, jobId));    	
     }
     
 	@GET
@@ -109,7 +110,7 @@ public class SessionJobResource {
 		CriteriaQuery<Job> c = cb.createQuery(Job.class);
 		Root<Job> r = c.from(Job.class);
 		c.select(r);		
-		c.where(cb.equal(r.get("session"), session));		
+		c.where(cb.equal(r.get("jobIdPair").get("sessionId"), session.getSessionId()));		
 		List<Job> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();	
 				
 		return datasets;
@@ -148,20 +149,23 @@ public class SessionJobResource {
 	public List<UUID> postList(List<Job> jobs, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 	
 		for (Job job : jobs) {			
-			if (job.getJobId() != null) {
-				throw new BadRequestException("job already has an id, post not allowed");
+			// client's are allowed to set the datasetId to preserve the object references within the session
+			UUID jobId = job.getJobId();
+			if (jobId == null) {
+				jobId = RestUtils.createUUID();
 			}
 			
-			UUID id = RestUtils.createUUID();
-			job.setJobId(id);
+			// make sure a hostile client doesn't set the session
+			if (job.getSessionId() != null && !sessionId.equals(job.getSessionId())) {
+				throw new BadRequestException("different sessionId in the job object and in the url");
+			}
+			job.setJobIdPair(sessionId, jobId);
 			job.setCreated(Instant.now());
-		}
+		}		
 		
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		
 		for (Job job : jobs) {
-			// make sure a hostile client doesn't set the session
-			job.setSession(session);
 			
 			job.setCreatedBy(sc.getUserPrincipal().getName());
 			
@@ -195,12 +199,12 @@ public class SessionJobResource {
 	private void checkInputAccessRights(Session session, Job job) {
 		
 		for (Input input : job.getInputs()) {
-			
-			Dataset dataset = getHibernate().session().get(Dataset.class, UUID.fromString(input.getDatasetId()));
+			UUID datasetId = UUID.fromString(input.getDatasetId());
+			Dataset dataset = SessionDatasetResource.getDataset(session.getSessionId(), datasetId, getHibernate().session());
 						
 			// check that the requested dataset is in the session
 			// otherwise anyone with a session can access any dataset
-			if (dataset == null || !dataset.getSession().getSessionId().equals(session.getSessionId())) {
+			if (dataset == null || !dataset.getSessionId().equals(session.getSessionId())) {
 				throw new ForbiddenException("dataset not found from this session "
 						+ "(input: " + input.getInputId() + ", datasetId:" + input.getDatasetId() + ")");
 			}
@@ -220,7 +224,7 @@ public class SessionJobResource {
 				    		
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
-		requestJob.setJobId(jobId);
+		requestJob.setJobIdPair(sessionId, jobId);
 		
 		/*
 		 * Checks that
@@ -228,12 +232,11 @@ public class SessionJobResource {
 		 * - the session contains this dataset
 		 */
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
-		Job dbJob = getHibernate().session().get(Job.class, jobId);
-		if (dbJob == null || !dbJob.getSession().getSessionId().equals(session.getSessionId())) {
+		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
+		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job doesn't exist");
 		}
-		// make sure a hostile client doesn't set the session or change the createdBy username
-		requestJob.setSession(session);
+		// make sure a hostile client doesn't change the createdBy username
 		requestJob.setCreatedBy(dbJob.getCreatedBy());
 		
 		this.checkInputAccessRights(session, requestJob);
@@ -244,7 +247,7 @@ public class SessionJobResource {
     }
 	
 	public void update(Job job, org.hibernate.Session hibernateSession) {
-		HibernateUtil.update(job, job.getJobId(), hibernateSession);
+		HibernateUtil.update(job, job.getJobIdPair(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE), hibernateSession);
 	}
 
@@ -255,9 +258,9 @@ public class SessionJobResource {
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
-		Job dbJob = getHibernate().session().get(Job.class, jobId);
+		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		
-		if (dbJob == null || dbJob.getSession().getSessionId() != session.getSessionId()) {
+		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job not found");
 		}
 		
@@ -267,7 +270,7 @@ public class SessionJobResource {
     }
 	
 	public void deleteJob(Job job, org.hibernate.Session hibernateSession) {
-		HibernateUtil.delete(job, job.getJobId(), hibernateSession);
+		HibernateUtil.delete(job, job.getJobIdPair(), hibernateSession);
 		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE), hibernateSession);
 	}
 

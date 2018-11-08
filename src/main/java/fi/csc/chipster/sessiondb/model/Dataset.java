@@ -5,10 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
+import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
-import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
@@ -18,7 +17,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import org.hibernate.annotations.Type;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
@@ -29,9 +27,9 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 })
 public class Dataset {
 	
-	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
-	private UUID datasetId;
+	@EmbeddedId // db
+	@JsonUnwrapped
+	private DatasetIdPair datasetIdPair;
 	private String name;
 	@Lob
 	private String notes;
@@ -39,10 +37,6 @@ public class Dataset {
 	private Integer y;
 	private UUID sourceJob;
 	private Instant created;
-	
-	@ManyToOne
-	@JoinColumn(name="sessionId")
-	private Session session;
 	
 	@ManyToOne
 	@JoinColumn(name="fileId")
@@ -57,11 +51,10 @@ public class Dataset {
 	public Dataset() {} // JAXB needs this
 
 	public UUID getDatasetId() {
-		return datasetId;
-	}
-
-	public void setDatasetId(UUID id) {
-		this.datasetId = id;
+		if (datasetIdPair == null) {
+			return null;
+		}
+		return datasetIdPair.getDatasetId();
 	}
 
 	public String getName() {
@@ -125,13 +118,11 @@ public class Dataset {
 		this.metadata = metadata;
 	}
 
-	@JsonIgnore
-	public Session getSession() {
-		return session;
-	}
-
-	public void setSession(Session session) {
-		this.session = session;
+	public UUID getSessionId() {
+		if (datasetIdPair == null) {
+			return null;
+		}
+		return this.datasetIdPair.getSessionId();
 	}
 
 	public Instant getCreated() {
@@ -140,5 +131,17 @@ public class Dataset {
 
 	public void setCreated(Instant created) {
 		this.created = created;
+	}
+
+	public void setDatasetIdPair(DatasetIdPair datasetIdPair) {
+		this.datasetIdPair = datasetIdPair;
+	}
+
+	public void setDatasetIdPair(UUID sessionId, UUID datasetId) {
+		setDatasetIdPair(new DatasetIdPair(sessionId, datasetId));
+	}
+
+	public DatasetIdPair getDatasetIdPair() {
+		return datasetIdPair;
 	}
 }

@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +39,14 @@ public class JsonSession {
 	@SuppressWarnings("unchecked")
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {
 		
+		/*TODO is there better way to recognize the new session format?
+		 * 
+		 * If we rely on the entry order like this, we could make this check right 
+		 * away in the next loop and we could first create the
+		 * db objects and only then upload the files. On the other hand maintaining the support with generic zip
+		 * tools would be nice too, but then we can't rely on the entry order I guess. 
+		 */
+		
 		try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
 			ZipEntry entry = zipInputStream.getNextEntry();		
 			if (entry == null || !entry.getName().equals(SESSION_JSON)) {
@@ -52,7 +59,6 @@ public class JsonSession {
 		Session session = null;
 		List<Dataset> datasets = null;
 		List<Job> jobs = null;
-		HashMap<UUID, UUID> datasetIdMap = new HashMap<>();
 		
 		// read zip stream from the file-broker, upload extracted files back to file-broker and store 
 		// metadata json files in memory
@@ -72,8 +78,10 @@ public class JsonSession {
 				} else {
 					// Create only dummy datasets now and update them with real dataset data later.
 					// This way we don't make assumptions about the entry order.
-					UUID datasetId = sessionDb.createDataset(sessionId, new Dataset());
-					datasetIdMap.put(UUID.fromString(entry.getName()), datasetId);
+					UUID datasetId = UUID.fromString(entry.getName());
+					Dataset dummyDataset = new Dataset();
+					dummyDataset.setDatasetIdPair(sessionId, datasetId);
+					sessionDb.createDataset(sessionId, dummyDataset);
 					
 					// prevent Jersey client from closing the stream after the upload
 					// try-with-resources will close it after the whole zip file is read
@@ -85,7 +93,7 @@ public class JsonSession {
 		Map<UUID, Dataset> datasetMap = datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d));
 		Map<UUID, Job> jobMap = jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j));
 		
-		return new ExtractedSession(session, datasetIdMap, datasetMap, jobMap);
+		return new ExtractedSession(session, datasetMap, jobMap);
 	}
 	
 	public static void packageSession(SessionDbClient sessionDb, RestFileBrokerClient fileBroker, Session session, UUID sessionId, ArrayList<InputStreamEntry> entries) throws RestException {

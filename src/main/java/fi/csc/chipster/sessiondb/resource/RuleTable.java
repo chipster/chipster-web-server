@@ -318,11 +318,11 @@ public class RuleTable {
 	public Dataset checkAuthorization(String username, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
 		// check that the user has an Authorization to access the session		
 		Session session = checkAuthorization(username, sessionId, requireReadWrite);
-		Dataset dataset = hibernate.session().get(Dataset.class, datasetId);
+		Dataset dataset = SessionDatasetResource.getDataset(sessionId, datasetId, this.hibernate.session());
 				
 		// check that the requested dataset is in the session
 		// otherwise anyone with a session can access any dataset
-		if (dataset == null || !dataset.getSession().getSessionId().equals(session.getSessionId())) {
+		if (dataset == null || !dataset.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("dataset not found");
 		}
 		

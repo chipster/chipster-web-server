@@ -6,18 +6,16 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.persistence.Column;
+import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
-import javax.persistence.Id;
 import javax.persistence.Index;
-import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.hibernate.annotations.Type;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import fi.csc.microarray.messaging.JobState;
 
@@ -28,9 +26,11 @@ import fi.csc.microarray.messaging.JobState;
 })
 public class Job {
 	 
-	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
-	private UUID jobId;
+	
+	@EmbeddedId // db
+	@JsonUnwrapped
+	private JobIdPair jobIdPair;
+	
 	private String toolId;
 	private JobState state;
 	private String toolCategory;
@@ -51,10 +51,6 @@ public class Job {
 	
 	private String createdBy;
 	
-	@ManyToOne
-	@JoinColumn(name="sessionId")
-	private Session session;
-	
 	@Column
 	@Type(type = Parameter.PARAMETER_LIST_JSON_TYPE)
 	private List<Parameter> parameters = new ArrayList<>();
@@ -64,11 +60,12 @@ public class Job {
 	private List<Input> inputs = new ArrayList<>();
 	
 	public UUID getJobId() {
-		return this.jobId;
+		if (jobIdPair == null) {
+			return null;
+		}
+		return this.jobIdPair.getJobId();
 	}
-	public void setJobId(UUID jobId) {
-		this.jobId = jobId;
-	}
+
 	public String getToolId() {
 		return toolId;
 	}
@@ -156,16 +153,13 @@ public class Job {
 		this.stateDetail = stateDetail;
 	}
 	
-	// don't parse from the JSON, because this would usually come from the client 
-	// and couldn't be trusted
-	@JsonIgnore
-	public Session getSession() {
-		return session;
+	public UUID getSessionId() {
+		if (jobIdPair == null) {
+			return null;
+		}
+		return jobIdPair.getSessionId();
 	}
 	
-	public void setSession(Session session) {
-		this.session = session;
-	}
 	public String getCreatedBy() {
 		return createdBy;
 	}
@@ -177,5 +171,17 @@ public class Job {
 	}
 	public void setMemoryUsage(Long memoryUsage) {
 		this.memoryUsage = memoryUsage;
+	}
+
+	public JobIdPair getJobIdPair() {
+		return jobIdPair;
+	}
+
+	public void setJobIdPair(JobIdPair jobIdPair) {
+		this.jobIdPair = jobIdPair;
+	}
+	
+	public void setJobIdPair(UUID sessionId, UUID jobId) {
+		setJobIdPair(new JobIdPair(sessionId, jobId));
 	}
 }

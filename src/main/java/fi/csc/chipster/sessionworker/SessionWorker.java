@@ -66,6 +66,7 @@ public class SessionWorker {
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.serviceLocator.setCredentials(authService.getCredentials());
 		
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		

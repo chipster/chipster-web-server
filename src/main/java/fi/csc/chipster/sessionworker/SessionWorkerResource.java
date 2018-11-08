@@ -8,10 +8,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -70,7 +71,7 @@ public class SessionWorkerResource {
     	    
     	StaticCredentials credentials = getUserCredentials(sc);
     	// we only allowed to get the public URI with client credentials
-    	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.CLIENT);
+    	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
 		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.CLIENT);
 				
 		ArrayList<InputStreamEntry> entries = new ArrayList<>();
@@ -197,67 +198,51 @@ public class SessionWorkerResource {
 		Session session = extractedSession.getSession();
 		Collection<Dataset> datasets = extractedSession.getDatasetMap().values();
 		Collection<Job> jobs = extractedSession.getJobMap().values();
-		HashMap<UUID, UUID> datasetIdMap = extractedSession.getDatasetIdMap();
-		HashMap<UUID, UUID> jobIdMap = new HashMap<>();
+		
+		Set<UUID> datasetIds = datasets.stream().map(d -> d.getDatasetId()).collect(Collectors.toSet());
+		Set<UUID> jobIds = jobs.stream().map(j -> j.getJobId()).collect(Collectors.toSet());
+		
 		ArrayList<String> warnings = new ArrayList<String>();
 		
 		// update session object
 		session.setSessionId(sessionId);
 		sessionDb.updateSession(session);
-
-		ArrayList<UUID> oldIds = new ArrayList<>();
-		ArrayList<Job> updatedJobs = new ArrayList<>();
-		ArrayList<Dataset> updatedDatasets = new ArrayList<>();
 		
-		// create job objects
+		// check input references
 		for (Job job : jobs) {
-			oldIds.add(job.getJobId());
-			job.setJobId(null);
-			// dataset ids have changed
 			Iterator<Input> inputIter = job.getInputs().iterator();
 			while (inputIter.hasNext()) {
 				Input input = inputIter.next();
-				UUID newDatasetId = datasetIdMap.get(UUID.fromString(input.getDatasetId()));
-				if (input.getDatasetId() != null && newDatasetId == null) {					
+				String datasetId = input.getDatasetId();
+				if (datasetId != null && !datasetIds.contains(UUID.fromString(datasetId))) {					
 					warnings.add("job '" + job.getToolId() + "' has input '" + input.getInputId() + "' but the dataset is no more in the session");
 					// the server doesn't allow jobs with invalid inputs
 					inputIter.remove();
-				} else {
-					input.setDatasetId(newDatasetId.toString());
 				}
-			}
-			updatedJobs.add(job);
+			}			
 		}
 		
-		List<UUID> newIds = sessionDb.createJobs(sessionId, updatedJobs);
-		for (int i = 0; i < newIds.size(); i++) {
-			jobIdMap.put(oldIds.get(i), newIds.get(i));
-		}		
+		for (Job job : jobs) {
+			job.setJobIdPair(sessionId, job.getJobId());
+		}
 		
-		// update dataset objects
+		sessionDb.createJobs(sessionId, new ArrayList<Job>(jobs));
+		
+		// check source job references
 		for (Dataset dataset: datasets) {
-			UUID oldId = dataset.getDatasetId();
-			UUID newId = datasetIdMap.get(oldId);
-			if (newId == null) {
-				warnings.add("dataset " + dataset.getName() + " missing");
-			}
-			dataset.setDatasetId(newId);
-			UUID newSourceJobId = jobIdMap.get(dataset.getSourceJob());
-			if (dataset.getSourceJob() != null && newSourceJobId == null) {
-				//throw new BadRequestException("source job of dataset " + dataset.getName() + " missing");
+			UUID sourceJobId = dataset.getSourceJob();
+			if (sourceJobId != null && !jobIds.contains(sourceJobId)) {
 				warnings.add("source job of dataset " + dataset.getName() + " missing");
 			}
-			// job ids have changed
-			dataset.setSourceJob(newSourceJobId);
-			// file-broker has set the File already in the upload
-			dataset.setFile(null);
-			
-			System.out.println("updating dataset " + oldId + " " + newId);
-			
-			updatedDatasets.add(dataset);
 		}
 		
-		sessionDb.updateDatasets(sessionId, updatedDatasets);
+		for (Dataset dataset: datasets) {
+			dataset.setDatasetIdPair(sessionId, dataset.getDatasetId());
+			// file-broker has set the File already in the upload
+			dataset.setFile(null);
+		}
+		
+		sessionDb.updateDatasets(sessionId, new ArrayList<Dataset>(datasets));
 		
 		return warnings;
 	}
