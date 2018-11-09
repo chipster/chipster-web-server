@@ -78,8 +78,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 		this.storageRoot = storageRoot;
 		this.sessionDbClient = sessionDbClient;
-		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB, authService.getCredentials()).getUri();
-		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS, authService.getCredentials()).getUri();
+		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
+		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
 		
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);				

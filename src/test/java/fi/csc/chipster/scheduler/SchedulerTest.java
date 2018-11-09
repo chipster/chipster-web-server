@@ -49,11 +49,14 @@ public class SchedulerTest {
     	user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
     	sessionId = user1Client.createSession(RestUtils.getRandomSession());        	
 		
-		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(new Config());
-		token = new AuthenticationClient(serviceLocator, Role.COMP, Role.COMP).getTokenKey().toString();
-		userToken = new AuthenticationClient(serviceLocator, "client", "clientPassword").getTokenKey().toString();
+    	ServiceLocatorClient clientServiceLocator = launcher.getServiceLocator();
+		ServiceLocatorClient adminServiceLocator = launcher.getServiceLocatorForAdmin();
+		AuthenticationClient compAuthentictionClient = new AuthenticationClient(adminServiceLocator, Role.COMP, Role.COMP);
+		
+		token = compAuthentictionClient.getTokenKey().toString();
+		userToken = new AuthenticationClient(clientServiceLocator, "client", "clientPassword").getTokenKey().toString();
 		// scheduler has only an internal address
-		uri = serviceLocator.getInternalService(Role.SCHEDULER, launcher.getCompToken()).getUri() + "/events";
+		uri = adminServiceLocator.getInternalService(Role.SCHEDULER).getUri() + "/events";
     }
 
     @AfterClass

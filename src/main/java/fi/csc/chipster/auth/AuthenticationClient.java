@@ -247,7 +247,7 @@ public class AuthenticationClient {
 
 	public Token ssoLogin(User user) {
 
-		String authM2mUri = serviceLocator.getInternalService(Role.AUTH, this.getCredentials()).getM2mUri();
+		String authM2mUri = serviceLocator.getInternalService(Role.AUTH).getM2mUri();
 		
 		try {
 			Token token = getAuthenticatedClient()

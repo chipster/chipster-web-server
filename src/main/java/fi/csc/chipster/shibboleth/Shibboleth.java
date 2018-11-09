@@ -56,7 +56,8 @@ public class Shibboleth {
     	}
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);		    	
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.serviceLocator.setCredentials(authService.getCredentials());
 
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SSO));
     	    

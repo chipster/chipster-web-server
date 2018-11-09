@@ -23,7 +23,8 @@ public class ServiceLocatorClient {
 	private static final Logger logger = LogManager.getLogger();
 
 	private String baseUri;
-
+	private CredentialsProvider credentials;
+	
 	public ServiceLocatorClient(Config config) throws IOException {
 		this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
 		logger.info("get services from " + baseUri);
@@ -46,10 +47,8 @@ public class ServiceLocatorClient {
 
 		return services;
 	}
-
 	
-	public List<Service> getInternalServices(CredentialsProvider credentials) {
-		
+	public List<Service> getInternalServices() {
 		if (credentials == null) {
 			throw new IllegalArgumentException("only public URIs are available without the authentication");
 		}
@@ -74,11 +73,11 @@ public class ServiceLocatorClient {
 	public String getPublicUri(String role) {
 
 		return filterByRole(getPublicServices(), role).getPublicUri();
-	}
+	}	
 	
-	public Service getInternalService(String role, CredentialsProvider credentials) {
+	public Service getInternalService(String role) {
 
-		return filterByRole(getInternalServices(credentials), role);
+		return filterByRole(getInternalServices(), role);
 	}
 
 	private Service filterByRole(List<Service> services, String role) {
@@ -95,5 +94,9 @@ public class ServiceLocatorClient {
 		}
 		
 		return services.get(0);
+	}
+
+	public void setCredentials(CredentialsProvider credentials) {
+		this.credentials = credentials;
 	}
 }

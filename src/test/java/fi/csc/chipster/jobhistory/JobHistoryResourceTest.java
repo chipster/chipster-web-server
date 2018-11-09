@@ -28,7 +28,6 @@ public class JobHistoryResourceTest {
 	// Users with admin right
 	private static JobHistoryClient jobHistoryClient2;
 
-	private static UUID sessionID;
 	private static int MAX_NUM = 1000;
 
 	@BeforeClass
@@ -37,10 +36,10 @@ public class JobHistoryResourceTest {
 		launcher = new TestServerLauncher(config);
 
 		sessionDBClient1 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		
+		jobHistoryClient2 = new JobHistoryClient(launcher.getServiceLocatorForAdmin(), launcher.getAdminToken());
 
-		jobHistoryClient2 = new JobHistoryClient(launcher.getServiceLocator(), launcher.getAdminToken());
-
-		sessionID = sessionDBClient1.createSession(RestUtils.getRandomSession());
+		sessionDBClient1.createSession(RestUtils.getRandomSession());
 	}
 
 	@AfterClass

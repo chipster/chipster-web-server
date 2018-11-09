@@ -1,5 +1,7 @@
 package fi.csc.chipster.rest;
 
+import java.io.IOException;
+
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
@@ -39,7 +41,7 @@ public class TestServerLauncher {
 		
 		//this.serverLauncher = new ServerLauncher(config, false);
 		
-		this.serviceLocatorClient = new ServiceLocatorClient(config);		
+		this.serviceLocatorClient = new ServiceLocatorClient(config);
 	}		
 
 	public void stop() {
@@ -179,6 +181,12 @@ public class TestServerLauncher {
 
 	public ServiceLocatorClient getServiceLocator() {
 		return serviceLocatorClient;
+	}
+	
+	public ServiceLocatorClient getServiceLocatorForAdmin() throws IOException {
+		ServiceLocatorClient client = new ServiceLocatorClient(config);
+		client.setCredentials(this.getAdminToken());
+		return client;
 	}
 
 	public Client getAdminClient() {

@@ -46,7 +46,8 @@ public class RestFileBrokerClient {
 		if (Role.CLIENT.equals(role)) {
 			init(serviceLocator.getPublicUri(Role.FILE_BROKER));			
 		} else {
-			init(serviceLocator.getInternalService(Role.FILE_BROKER, credentials).getUri());
+			// get with credentials in ServiceLocator
+			init(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
 		}
 	}	
 	
@@ -55,13 +56,13 @@ public class RestFileBrokerClient {
 		init(fileBrokerUri);		
 	}
 	
-	private void init(String sessionDbUri) {
+	private void init(String fileBrokerUri) {
 
 		if (credentials != null) {
-			fileBrokerTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(sessionDbUri);
+			fileBrokerTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(fileBrokerUri);
 		} else {
 			// for testing
-			fileBrokerTarget = AuthenticationClient.getClient().target(sessionDbUri);
+			fileBrokerTarget = AuthenticationClient.getClient().target(fileBrokerUri);
 		}
 	}
 	

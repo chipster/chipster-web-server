@@ -68,8 +68,9 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		String password = this.config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(this.config);
-		this.authService = new AuthenticationClient(serviceLocator, username,
-				password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.serviceLocator.setCredentials(authService.getCredentials());
+		
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator,

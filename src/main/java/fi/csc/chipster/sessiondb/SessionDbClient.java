@@ -78,8 +78,8 @@ public class SessionDbClient {
 			eventsUri = serviceLocator.getPublicUri(Role.SESSION_DB_EVENTS);
 		} else {
 			// prefer internal URI's between servers
-			sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB, credentials).getUri();
-			eventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS, credentials).getUri();
+			sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
+			eventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
 		}
 			
 		init(sessionDbUri, eventsUri);
@@ -267,7 +267,7 @@ public class SessionDbClient {
 	 */
 	public UUID createDataset(UUID sessionId, Dataset dataset) throws RestException {
 		UUID id = RestMethods.post(getDatasetsTarget(sessionId), dataset);
-		dataset.setDatasetId(id);
+		dataset.setDatasetIdPair(sessionId, id);
 		return id;
 	}
 	
@@ -330,7 +330,7 @@ public class SessionDbClient {
 	 */
 	public UUID createJob(UUID sessionId, Job job) throws RestException {
 		UUID id = RestMethods.post(getJobsTarget(sessionId), job);
-		job.setJobId(id);
+		job.setJobIdPair(sessionId, id);
 		return id;
 	}
 	

@@ -191,9 +191,10 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 		
 		serviceLocator = new ServiceLocatorClient(config);
 		authClient = new AuthenticationClient(serviceLocator, username, password);
+		serviceLocator.setCredentials(authClient.getCredentials());
 
-		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX, authClient.getCredentials()).getUri();
-		String schedulerUrl = serviceLocator.getInternalService(Role.SCHEDULER, authClient.getCredentials()).getUri();
+		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
+		String schedulerUrl = serviceLocator.getInternalService(Role.SCHEDULER).getUri();
 		
 		// initialize toolbox client
 		this.toolboxClient = new ToolboxClientComp(toolboxUrl);
@@ -214,7 +215,7 @@ public class RestCompServer implements ShutdownCallback, ResultCallback, Message
 				.path("events")
 				.toString();
 		schedulerClient =  new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client", authClient.getCredentials());
-		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.CLIENT);
+		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
 		
 		// create keep-alive thread and register shutdown hook

@@ -239,6 +239,6 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	}
 	
 	private WebTarget getFileBrokerTarget() {
-		return authClient.getAuthenticatedClient().target(serviceLocator.getInternalService(Role.FILE_BROKER, authClient.getCredentials()).getUri());
+		return authClient.getAuthenticatedClient().target(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
 	}
 }

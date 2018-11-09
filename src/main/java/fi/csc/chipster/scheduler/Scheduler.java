@@ -80,7 +80,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
     	    	
 		this.serviceLocator = new ServiceLocatorClient(config);		
-		this.authService = new AuthenticationClient(serviceLocator, username, password);	      
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.serviceLocator.setCredentials(authService.getCredentials());
 
     	this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
     	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");    	

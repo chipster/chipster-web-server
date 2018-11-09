@@ -31,10 +31,10 @@ public class JobHistoryClient {
 	public JobHistoryClient(ServiceLocatorClient serviceLocator,
 			CredentialsProvider credentials) {
 		this.serviceLocator = serviceLocator;
-		this.credentials = credentials;
+		this.credentials = credentials;		
 
 		String jobHistoryUri = serviceLocator.getInternalService(
-				Role.JOB_HISTORY, credentials).getAdminUri();
+				Role.JOB_HISTORY).getAdminUri();
 		System.out.println(" Creating Job History test client" + jobHistoryUri);
 		if (credentials != null) {
 			jobHistoryTarget = AuthenticationClient.getClient(

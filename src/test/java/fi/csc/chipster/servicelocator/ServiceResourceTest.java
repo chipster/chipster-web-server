@@ -79,9 +79,9 @@ public class ServiceResourceTest {
 	@Test
     public void getInternal() throws IOException {
 						
-		ServiceLocatorClient client = new ServiceLocatorClient(new Config());
+		ServiceLocatorClient client = launcher.getServiceLocatorForAdmin();
 		
-		Set<String> roles = client.getInternalServices(launcher.getSessionDbToken()).stream()
+		Set<String> roles = client.getInternalServices().stream()
 				.map(s -> s.getRole())
 				.collect(Collectors.toSet());		
 		

@@ -31,11 +31,12 @@ public class SessionResourceTest {
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
+        	
         
 		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
-		schedulerClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSchedulerToken(), Role.SERVER);
-		compClient 				= new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken(), Role.SERVER);
+		schedulerClient 		= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getSchedulerToken(), Role.SERVER);
+		compClient 				= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getCompToken(), Role.SERVER);
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
 		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);

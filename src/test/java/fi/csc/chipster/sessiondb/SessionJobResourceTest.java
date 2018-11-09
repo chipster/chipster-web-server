@@ -84,9 +84,9 @@ public class SessionJobResourceTest {
     public void postWithSameJobId() throws RestException {
 		Job job1 = RestUtils.getRandomJob();
 		Job job2 = RestUtils.getRandomJob();
-		UUID datasetId = RestUtils.createUUID();
-		job1.setJobIdPair(sessionId1, datasetId);
-		job2.setJobIdPair(sessionId2, datasetId);
+		UUID jobId = RestUtils.createUUID();
+		job1.setJobIdPair(sessionId1, jobId);
+		job2.setJobIdPair(sessionId2, jobId);
 		String name1 = "name1";
 		String name2 = "name2";
 		job1.setToolId(name1);
@@ -96,8 +96,8 @@ public class SessionJobResourceTest {
 		user2Client.createJob(sessionId2, job2);
 		
 		// check that there are really to different jobs on the server
-		assertEquals(name1, user1Client.getDataset(sessionId1, datasetId).getName());
-		assertEquals(name2, user2Client.getDataset(sessionId2, datasetId).getName());		
+		assertEquals(name1, user1Client.getJob(sessionId1, jobId).getToolId());
+		assertEquals(name2, user2Client.getJob(sessionId2, jobId).getToolId());		
     }
 
 
