@@ -2,6 +2,7 @@ package fi.csc.chipster.scheduler;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class SchedulerJobs {
@@ -46,5 +47,11 @@ public class SchedulerJobs {
 
 	public JobSchedulingState get(IdPair jobIdPair) {
 		return jobs.get(jobIdPair);
+	}
+
+	public boolean containsJobId(UUID jobId) {
+		return jobs.keySet().stream()
+				.map(p -> p.getJobId())
+				.anyMatch(id -> jobId.equals(id));
 	}
 }

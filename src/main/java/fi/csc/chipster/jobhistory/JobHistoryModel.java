@@ -4,12 +4,16 @@ import java.time.Instant;
 import java.util.UUID;
 
 import javax.persistence.Column;
+import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
-import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.Lob;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+
+import fi.csc.chipster.sessiondb.model.JobIdPair;
 
 
 @Entity
@@ -19,9 +23,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class JobHistoryModel {
-	@Id
-	@Column(columnDefinition = "uuid", updatable = false)
-	private UUID jobId;
+	@EmbeddedId // db
+	@JsonUnwrapped
+	private JobIdPair jobIdPair;
 	private String toolId;
 	private String toolName;
 	private String compName;
@@ -36,14 +40,6 @@ public class JobHistoryModel {
 
 	public JobHistoryModel() {
 
-	}
-
-	public UUID getJobId() {
-		return jobId;
-	}
-
-	public void setJobId(UUID jobId) {
-		this.jobId = jobId;
 	}
 
 	public String getToolId() {
@@ -118,4 +114,15 @@ public class JobHistoryModel {
 		this.userName = userName;
 	}
 
+	public JobIdPair getJobIdPair() {
+		return this.jobIdPair;
+	}
+
+	public void setJobIdPair(JobIdPair jobIdPair) {
+		this.jobIdPair = jobIdPair;
+	}
+
+	public void setJobIdPair(UUID sessionId, UUID jobId) {
+		this.setJobIdPair(new JobIdPair(sessionId, jobId));
+	}
 }

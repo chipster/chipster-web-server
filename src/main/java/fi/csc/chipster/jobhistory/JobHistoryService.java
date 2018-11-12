@@ -153,6 +153,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				break;
 			case COMPLETED:
 				logger.info("For imported sessions, jobs are not logged in to job history database");
+				break;
 			default:
 				break;
 			}
@@ -162,8 +163,9 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			switch (job.getState()) {
 			case COMPLETED:
 			case FAILED:
-			case RUNNING:
+			case CANCELLED:	
 			case FAILED_USER_ERROR:
+			case ERROR:
 				updateJobHistory(job);
 				break;
 			default:
@@ -176,13 +178,16 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	}
 
 	private void saveJobHistory(Job job) {
+		logger.info("saveJobHistory " + job.getCreated() + " " + job.getStartTime() + " " + job.getEndTime());
 		JobHistoryModel jobHistory = new JobHistoryModel();
-		jobHistory.setJobId(job.getJobId());
+		jobHistory.setJobIdPair(job.getJobIdPair());
 		jobHistory.setToolId(job.getToolId());
 		jobHistory.setToolName(job.getToolName());
-		jobHistory.setStartTime(job.getStartTime());
+		// this will be changed to real start time when the job ends
+		jobHistory.setStartTime(job.getCreated());
 		jobHistory.setEndTime(job.getEndTime());
-		jobHistory.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
+		// new jobs don't have end time
+		//jobHistory.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
 		jobHistory.setOutput(job.getScreenOutput());
 		jobHistory.setJobStatus(job.getState().toString());
 		jobHistory.setUserName(job.getCreatedBy());
@@ -195,13 +200,14 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		});
 	}
 
-	// Should we be using merge or update??
 	private void updateJobHistory(Job job) {
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
 				JobHistoryModel js = hibernateSession.get(
-						JobHistoryModel.class, job.getJobId());
+						JobHistoryModel.class, job.getJobIdPair());
+				// the HibbernateUtil.update() assumes detached objects, otherwise it won't notice the changes
+				hibernateSession.detach(js);
 				js.setToolId(job.getToolId());
 				js.setToolName(job.getToolName());
 				js.setStartTime(job.getStartTime());
@@ -211,7 +217,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				js.setJobStatus(job.getState().toString());
 				js.setUserName(job.getCreatedBy());
 				
-				HibernateUtil.update(js, js.getJobId(), hibernateSession);
+				HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
 
 				return null;
 			}

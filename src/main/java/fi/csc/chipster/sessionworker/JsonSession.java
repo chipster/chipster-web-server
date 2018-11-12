@@ -39,7 +39,8 @@ public class JsonSession {
 	@SuppressWarnings("unchecked")
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {
 		
-		/*TODO is there better way to recognize the new session format?
+		/*TODO is there better way to recognize the new session format? Maybe adding everything to a folder like 
+		 * "chipster-json-session-format-v1" would be immediately available regardless of the entry order.
 		 * 
 		 * If we rely on the entry order like this, we could make this check right 
 		 * away in the next loop and we could first create the

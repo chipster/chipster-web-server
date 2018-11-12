@@ -204,11 +204,17 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 				switch (job.getState()) {
 				case NEW:
 					
-					// when a client adds a new job, try to schedule it immediately
-					
-					logger.info("received a new job " + jobIdPair + ", trying to schedule it");
-					jobs.addNewJob(jobIdPair);
-					schedule(jobIdPair);
+					// current comp probably doesn't support non-unique jobIds, but this shouldn't be problem
+					// in practice when only finished jobs are copied
+					if (jobs.containsJobId(jobIdPair.getJobId())) {					
+						logger.info("received a new job " + jobIdPair + ", but non-unique jobIds are not supported");
+						endJob(jobIdPair, JobState.ERROR, "non-unique jobId");
+					} else {
+						// when a client adds a new job, try to schedule it immediately
+						logger.info("received a new job " + jobIdPair + ", trying to schedule it");
+						jobs.addNewJob(jobIdPair);
+						schedule(jobIdPair);
+					}
 					break;
 				default:
 					break;
@@ -378,15 +384,28 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	 * @param reason
 	 */
 	private void expire(IdPair jobId, String reason) {
+		logger.warn("max wait time reached for job " + jobId);
+		endJob(jobId, JobState.EXPIRED_WAITING, reason);
+	}
+	
+	/**
+	 * Set dbState in the session-db
+	 * 
+	 * This should be used only when anything else isn't updating the job, e.g. NEW or EXPIRED_WAITING jobs.
+	 * Job's end time is set to current time.
+	 * 
+	 * @param jobId
+	 * @param reason
+	 */
+	private void endJob(IdPair jobId, JobState jobState, String reason) {
 		try {			
 			Job job = sessionDbClient.getJob(jobId.getSessionId(), jobId.getJobId());
-			logger.warn("max wait time reached for job " + jobId);
 			job.setEndTime(Instant.now());
-			job.setState(JobState.EXPIRED_WAITING);
-			job.setStateDetail("Job expired (" + reason + ")");
+			job.setState(jobState);
+			job.setStateDetail("Job state " + jobState + " (" + reason + ")");
 			sessionDbClient.updateJob(jobId.getSessionId(), job);
 		} catch (RestException e) {
-			logger.error("could not set an old job " + jobId + " to expired", e);
+			logger.error("could not set an old job " + jobId + " to " + jobState, e);
 		}
 	}
 

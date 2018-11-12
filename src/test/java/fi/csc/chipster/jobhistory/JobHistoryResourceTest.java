@@ -7,7 +7,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Random;
-import java.util.UUID;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -71,7 +70,7 @@ public class JobHistoryResourceTest {
 				j.setJobStatus("ERROR");
 			}
 
-			j.setJobId(UUID.randomUUID());
+			j.setJobIdPair(RestUtils.createUUID(), RestUtils.createUUID());
 			j.setUserName("testUser" + new Random().nextInt(50 - 1 + 1) + 1);
 			j.setToolId("InputOutput.py");
 			j.setToolName("Input Output");

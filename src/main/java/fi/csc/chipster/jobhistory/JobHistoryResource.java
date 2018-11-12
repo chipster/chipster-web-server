@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -17,7 +16,6 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
@@ -106,7 +104,7 @@ public class JobHistoryResource extends AdminResource {
 			query.setFirstResult((pageNumber - 1) * pageSize);
 			query.setMaxResults(pageSize);
 			List<JobHistoryModel> jobHistoryList = query.getResultList();
-			System.out.println(jobHistoryList);
+			logger.info(jobHistoryList);
 			
 			return Response.ok(toJaxbList(jobHistoryList)).build();
 
@@ -148,7 +146,7 @@ public class JobHistoryResource extends AdminResource {
 						.getSingleResult();
 				return Response.ok(count).build();
 			} catch (Exception e) {
-				System.out.println("exception" + e);
+				logger.error("failed to get job history row count", e);
 			}
 
 		} else {
@@ -159,19 +157,22 @@ public class JobHistoryResource extends AdminResource {
 		return Response.ok().build();
 	}
 
-	@GET
-	@RolesAllowed({ Role.ADMIN })
-	@Path("/jobhistory/{id}")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response getJob(@PathParam("id") UUID jobId) {
-		JobHistoryModel result = getHibernate().session().get(
-				JobHistoryModel.class, jobId);
-		return Response.ok(result).build();
-	}
+	// how to encode jobIdPair to url if this is needed at all
+//	@GET
+//	@RolesAllowed({ Role.ADMIN })
+//	@Path("/jobhistory/{id}")
+//	@Produces(MediaType.APPLICATION_JSON)
+//	@Transaction
+//	public Response getJob(@PathParam("id") UUID jobId) {
+//		JobHistoryModel result = getHibernate().session().get(
+//				JobHistoryModel.class, jobId);
+//		return Response.ok(result).build();
+//	}
 
+	//FIXME only needed in tests, how to disable this in prod?
 	@PUT
 	@Path("jobhistory")
+	@RolesAllowed({ Role.ADMIN })
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
