@@ -144,17 +144,17 @@ public class HibernateUtil {
 			
 		} catch (GenericJDBCException e) {
     		if (ExceptionUtils.getRootCause(e) instanceof ConnectException && config.getBoolean(Config.KEY_DB_FALLBACK, role)) {
-    			// The Postgres template in OpenShift doesn't allow dashes
-    			String dbName = role.replace("-", "_") + "_db";
-    			
-    	    	logger.warn(role + "-db not available, starting an in-memory DB "
+    			logger.warn(role + "-db not available, starting an in-memory DB "
     	    			+ "after " + DB_WARNING_DELAY + " seconds. "
     					+ "All data is lost in service restart. "
     					+ "Disable this fallback in production! (" + e.getMessage() + ")\n"
     					+ "Install postgres: \n"
     					+ "  brew install postgres\n"
+    					+ "  pg_ctl -D /usr/local/var/postgres start\n"
     					+ "  createuser user\n"
-    					+ "  createdb " + dbName + "\n");    	    
+					+ "  createdb session_db_db\n"
+					+ "  createdb auth_db\n"
+					+ "  job_history_db\n");
     			sessionFactory = buildSessionFactoryFallback(hibernateConf, role);	    			
     		} else {
     			throw e;
