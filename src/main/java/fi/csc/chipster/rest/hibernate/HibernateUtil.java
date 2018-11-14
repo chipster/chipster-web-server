@@ -125,7 +125,6 @@ public class HibernateUtil {
     					+ "  createuser user\n"
     					+ "  createdb auth_db\n"
 						+ "  createdb session_db_db\n"
-						+ "  createdb auth_db\n"
 						+ "  createdb job_history_db\n"
     	    			+ "\n");    	    			
     	    	
