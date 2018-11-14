@@ -1,17 +1,18 @@
-;              
-CREATE USER IF NOT EXISTS SA SALT 'df9fe318d66498fb' HASH 'f71aa64eeefad31efaa80ae387437aa3eea28593ef4d92fbf426a088485ffd97' ADMIN;            
-CREATE MEMORY TABLE PUBLIC.JOBHISTORYMODEL(
-    JOBID UUID NOT NULL,
-    COMPNAME VARCHAR(255),
-    ENDTIME TIMESTAMP,
-    JOBSTATUS VARCHAR(255),
-    OUTPUT CLOB,
-    STARTTIME TIMESTAMP,
-    TIMEDURATION VARCHAR(255),
-    TOOLID VARCHAR(255),
-    TOOLNAME VARCHAR(255),
-    USERNAME VARCHAR(255)
-);   
-ALTER TABLE PUBLIC.JOBHISTORYMODEL ADD CONSTRAINT PUBLIC.CONSTRAINT_4 PRIMARY KEY(JOBID);      
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.JOBHISTORYMODEL;          
-CREATE INDEX PUBLIC.JOB_HISTORY_START_TIME_INDEX ON PUBLIC.JOBHISTORYMODEL(STARTTIME DESC);    
+
+    drop table if exists JobHistoryModel cascade;
+
+    create table JobHistoryModel (
+       jobId uuid not null,
+        sessionId uuid not null,
+        compName varchar(255),
+        endTime timestamp,
+        jobStatus varchar(255),
+        output text,
+        startTime timestamp,
+        timeDuration varchar(255),
+        toolId varchar(255),
+        toolName varchar(255),
+        userName varchar(255),
+        primary key (jobId, sessionId)
+    );
+create index job_history_start_time_index on JobHistoryModel (startTime);

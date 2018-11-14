@@ -1,111 +1,125 @@
-;              
-CREATE USER IF NOT EXISTS SA SALT '4b535ec5a6031408' HASH '6440d278f69554dec66aeb0acb7f1b35df2d28d028096fdd31ce69c082e15cb8' ADMIN;            
-CREATE SEQUENCE PUBLIC.HIBERNATE_SEQUENCE START WITH 1;        
-CREATE CACHED TABLE PUBLIC.DATASET(
-    DATASETID UUID NOT NULL,
-    CREATED TIMESTAMP,
-    NAME VARCHAR(255),
-    NOTES CLOB,
-    SOURCEJOB BINARY,
-    TYPETAGS BINARY(255),
-    X INTEGER,
-    Y INTEGER,
-    FILEID UUID,
-    SESSIONID UUID
-);            
-ALTER TABLE PUBLIC.DATASET ADD CONSTRAINT PUBLIC.CONSTRAINT_8 PRIMARY KEY(DATASETID);          
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.DATASET;  
-CREATE CACHED TABLE PUBLIC.DATASETTOKEN(
-    TOKENKEY UUID NOT NULL,
-    USERNAME VARCHAR(255),
-    VALID TIMESTAMP,
-    DATASET_DATASETID UUID,
-    SESSION_SESSIONID UUID
-); 
-ALTER TABLE PUBLIC.DATASETTOKEN ADD CONSTRAINT PUBLIC.CONSTRAINT_2 PRIMARY KEY(TOKENKEY);      
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.DATASETTOKEN;             
-CREATE CACHED TABLE PUBLIC.FILE(
-    FILEID UUID NOT NULL,
-    CHECKSUM VARCHAR(255),
-    FILECREATED TIMESTAMP,
-    SIZE BIGINT NOT NULL
-);   
-ALTER TABLE PUBLIC.FILE ADD CONSTRAINT PUBLIC.CONSTRAINT_20 PRIMARY KEY(FILEID);               
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.FILE;     
-CREATE CACHED TABLE PUBLIC.INPUT(
-    DBID INTEGER NOT NULL,
-    DATASETID VARCHAR(255),
-    DESCRIPTION CLOB,
-    DISPLAYNAME VARCHAR(255),
-    INPUTID VARCHAR(255),
-    TYPE VARCHAR(255),
-    JOBID UUID
-);
-ALTER TABLE PUBLIC.INPUT ADD CONSTRAINT PUBLIC.CONSTRAINT_4 PRIMARY KEY(DBID); 
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.INPUT;    
-CREATE CACHED TABLE PUBLIC.JOB(
-    JOBID UUID NOT NULL,
-    CREATED TIMESTAMP,
-    CREATEDBY VARCHAR(255),
-    ENDTIME TIMESTAMP,
-    MODULE VARCHAR(255),
-    SCREENOUTPUT CLOB,
-    SOURCECODE CLOB,
-    STARTTIME TIMESTAMP,
-    STATE INTEGER,
-    STATEDETAIL CLOB,
-    TOOLCATEGORY VARCHAR(255),
-    TOOLDESCRIPTION CLOB,
-    TOOLID VARCHAR(255),
-    TOOLNAME VARCHAR(255),
-    SESSIONID UUID
-);   
-ALTER TABLE PUBLIC.JOB ADD CONSTRAINT PUBLIC.CONSTRAINT_1 PRIMARY KEY(JOBID);  
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.JOB;      
-CREATE CACHED TABLE PUBLIC.METADATAENTRY(
-    METADATAENTRYID BIGINT NOT NULL,
-    COLUMN VARCHAR(255),
-    KEY VARCHAR(255),
-    VALUE VARCHAR(255),
-    DATASETID UUID
-);    
-ALTER TABLE PUBLIC.METADATAENTRY ADD CONSTRAINT PUBLIC.CONSTRAINT_42 PRIMARY KEY(METADATAENTRYID);             
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.METADATAENTRY;            
-CREATE CACHED TABLE PUBLIC.PARAMETER(
-    DBID INTEGER NOT NULL,
-    DESCRIPTION CLOB,
-    DISPLAYNAME VARCHAR(255),
-    PARAMETERID VARCHAR(255),
-    TYPE INTEGER,
-    VALUE VARCHAR(255),
-    JOBID UUID
-); 
-ALTER TABLE PUBLIC.PARAMETER ADD CONSTRAINT PUBLIC.CONSTRAINT_1A PRIMARY KEY(DBID);            
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.PARAMETER;
-CREATE CACHED TABLE PUBLIC.RULE(
-    RULEID UUID NOT NULL,
-    READWRITE BOOLEAN NOT NULL,
-    SHAREDBY VARCHAR(255),
-    USERNAME VARCHAR(255),
-    SESSIONID UUID
-);         
-ALTER TABLE PUBLIC.RULE ADD CONSTRAINT PUBLIC.CONSTRAINT_26 PRIMARY KEY(RULEID);               
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.RULE;     
-CREATE CACHED TABLE PUBLIC.SESSION(
-    SESSIONID UUID NOT NULL,
-    ACCESSED TIMESTAMP,
-    CREATED TIMESTAMP,
-    NAME VARCHAR(255),
-    NOTES CLOB
-);       
-ALTER TABLE PUBLIC.SESSION ADD CONSTRAINT PUBLIC.CONSTRAINT_A PRIMARY KEY(SESSIONID);          
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.SESSION;  
-ALTER TABLE PUBLIC.JOB ADD CONSTRAINT PUBLIC.FKQCCY38ODNLOKLRR9M2YXP3ML6 FOREIGN KEY(SESSIONID) REFERENCES PUBLIC.SESSION(SESSIONID) NOCHECK;  
-ALTER TABLE PUBLIC.INPUT ADD CONSTRAINT PUBLIC.FKMJCP59L69PP8T781CRKL9EVSG FOREIGN KEY(JOBID) REFERENCES PUBLIC.JOB(JOBID) NOCHECK;            
-ALTER TABLE PUBLIC.DATASETTOKEN ADD CONSTRAINT PUBLIC.FK2LD1310DOY7L3B9T7YP71NI37 FOREIGN KEY(SESSION_SESSIONID) REFERENCES PUBLIC.SESSION(SESSIONID) NOCHECK; 
-ALTER TABLE PUBLIC.RULE ADD CONSTRAINT PUBLIC.FKMF1C6T4LD9ISRGIVJDDORTPER FOREIGN KEY(SESSIONID) REFERENCES PUBLIC.SESSION(SESSIONID) NOCHECK; 
-ALTER TABLE PUBLIC.DATASET ADD CONSTRAINT PUBLIC.FKB2F4QW305W2TB5QKUDARJTEN8 FOREIGN KEY(SESSIONID) REFERENCES PUBLIC.SESSION(SESSIONID) NOCHECK;              
-ALTER TABLE PUBLIC.DATASETTOKEN ADD CONSTRAINT PUBLIC.FK5D6ETF9Q0FP7ULSW2QFVAUSEX FOREIGN KEY(DATASET_DATASETID) REFERENCES PUBLIC.DATASET(DATASETID) NOCHECK; 
-ALTER TABLE PUBLIC.METADATAENTRY ADD CONSTRAINT PUBLIC.FK2FTJ0A3NV8AULU6JWAAYFYDUY FOREIGN KEY(DATASETID) REFERENCES PUBLIC.DATASET(DATASETID) NOCHECK;        
-ALTER TABLE PUBLIC.PARAMETER ADD CONSTRAINT PUBLIC.FKMC1HW2VKOHJOBI8GBGO383NEG FOREIGN KEY(JOBID) REFERENCES PUBLIC.JOB(JOBID) NOCHECK;        
-ALTER TABLE PUBLIC.DATASET ADD CONSTRAINT PUBLIC.FKTNWJERV439JR4LMC37UVDP6HA FOREIGN KEY(FILEID) REFERENCES PUBLIC.FILE(FILEID) NOCHECK;       
+
+    alter table if exists Dataset 
+       drop constraint FKtnwjerv439jr4lmc37uvdp6ha;
+
+    alter table if exists DatasetToken 
+       drop constraint FK2vdi25wvt3n7gd4wadatk8np8;
+
+    alter table if exists DatasetToken 
+       drop constraint FK2ld1310doy7l3b9t7yp71ni37;
+
+    alter table if exists Rule 
+       drop constraint FKmf1c6t4ld9isrgivjddortper;
+
+    drop table if exists Dataset cascade;
+
+    drop table if exists DatasetToken cascade;
+
+    drop table if exists File cascade;
+
+    drop table if exists Job cascade;
+
+    drop table if exists Rule cascade;
+
+    drop table if exists Session cascade;
+
+    create table Dataset (
+       datasetId uuid not null,
+        sessionId uuid not null,
+        created timestamp,
+        metadata jsonb,
+        name varchar(255),
+        notes text,
+        sourceJob uuid,
+        x int4,
+        y int4,
+        fileId uuid,
+        /* Hibernate enforces alphabetical order, but swapped here */
+        primary key (sessionId, datasetId)
+    );
+
+    create table DatasetToken (
+       tokenKey uuid not null,
+        username varchar(255),
+        valid timestamp,
+        dataset_datasetId uuid,
+        dataset_sessionId uuid,
+        session_sessionId uuid,
+        primary key (tokenKey)
+    );
+
+    create table File (
+       fileId uuid not null,
+        checksum varchar(255),
+        fileCreated timestamp,
+        size int8 not null,
+        primary key (fileId)
+    );
+
+    create table Job (
+       jobId uuid not null,
+        sessionId uuid not null,
+        created timestamp,
+        createdBy varchar(255),
+        endTime timestamp,
+        inputs jsonb,
+        memoryUsage int8,
+        module varchar(255),
+        parameters jsonb,
+        screenOutput text,
+        sourceCode text,
+        startTime timestamp,
+        state int4,
+        stateDetail text,
+        toolCategory varchar(255),
+        toolDescription text,
+        toolId varchar(255),
+        toolName varchar(255),
+        /* Hibernate enforces alphabetical order, but swapped here */
+        primary key (sessionId, jobId)
+    );
+
+    create table Rule (
+       ruleId uuid not null,
+        readWrite boolean not null,
+        sharedBy varchar(255),
+        username varchar(255),
+        sessionId uuid,
+        primary key (ruleId)
+    );
+
+    create table Session (
+       sessionId uuid not null,
+        accessed timestamp,
+        created timestamp,
+        name varchar(255),
+        notes text,
+        primary key (sessionId)
+    );
+create index dataset_fileid_index on Dataset (fileId);
+/* not neeeded when the sessionId is first in the primaryKey:
+create index dataset_sessionid_index on Dataset (sessionId);
+create index job_sessionid_index on Job (sessionId); */
+create index rule_username_index on Rule (username);
+create index rule_sessionid_index on Rule (sessionId);
+
+    alter table if exists Dataset 
+       add constraint FKtnwjerv439jr4lmc37uvdp6ha 
+       foreign key (fileId) 
+       references File;
+
+    alter table if exists DatasetToken 
+       add constraint FK2vdi25wvt3n7gd4wadatk8np8
+       /* Hibernate enforces alphabetical order, but swapped here */
+       foreign key (dataset_sessionId, dataset_datasetId) 
+       references Dataset;
+
+    alter table if exists DatasetToken 
+       add constraint FK2ld1310doy7l3b9t7yp71ni37 
+       foreign key (session_sessionId) 
+       references Session;
+
+    alter table if exists Rule 
+       add constraint FKmf1c6t4ld9isrgivjddortper 
+       foreign key (sessionId) 
+       references Session;

@@ -1,27 +1,29 @@
-;              
-CREATE USER IF NOT EXISTS SA SALT 'ae56f4a14263660b' HASH '56e11d78f7abfbee36b40bfb7a4356e30c8e219974168b77ac51864a88a2dcff' ADMIN;            
-CREATE MEMORY TABLE PUBLIC.TOKEN(
-    TOKENKEY UUID NOT NULL,
-    CREATED TIMESTAMP,
-    ROLESJSON VARCHAR(255),
-    USERNAME VARCHAR(255),
-    VALIDUNTIL TIMESTAMP
-);        
-ALTER TABLE PUBLIC.TOKEN ADD CONSTRAINT PUBLIC.CONSTRAINT_4 PRIMARY KEY(TOKENKEY);             
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.TOKEN;    
-CREATE MEMORY TABLE PUBLIC.USER(
-    AUTH VARCHAR(255) NOT NULL,
-    USERNAME VARCHAR(255) NOT NULL,
-    ACCESSED TIMESTAMP,
-    CREATED TIMESTAMP,
-    LATESTSESSION VARBINARY,
-    MAIL VARCHAR(255),
-    MODIFIED TIMESTAMP,
-    NAME VARCHAR(255),
-    ORGANIZATION VARCHAR(255),
-    TERMSACCEPTED TIMESTAMP,
-    TERMSVERSION INTEGER NOT NULL,
-    VERSION BIGINT NOT NULL
-);           
-ALTER TABLE PUBLIC.USER ADD CONSTRAINT PUBLIC.CONSTRAINT_2 PRIMARY KEY(AUTH, USERNAME);        
--- 0 +/- SELECT COUNT(*) FROM PUBLIC.USER;     
+
+    drop table if exists Token cascade;
+
+    drop table if exists user_table cascade;
+
+    create table Token (
+       tokenKey uuid not null,
+        created timestamp,
+        rolesJson varchar(255),
+        username varchar(255),
+        validUntil timestamp,
+        primary key (tokenKey)
+    );
+
+    create table user_table (
+       auth varchar(255) not null,
+        username varchar(255) not null,
+        accessed timestamp,
+        created timestamp,
+        latestSession uuid,
+        mail varchar(255),
+        modified timestamp,
+        name varchar(255),
+        organization varchar(255),
+        termsAccepted timestamp,
+        termsVersion int4 not null,
+        version int8 not null,
+        primary key (auth, username)
+    );

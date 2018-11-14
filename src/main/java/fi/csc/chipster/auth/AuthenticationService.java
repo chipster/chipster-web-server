@@ -3,6 +3,7 @@ package fi.csc.chipster.auth;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -59,8 +60,10 @@ public class AuthenticationService {
      * @return Grizzly HTTP server.
      * @throws IOException 
      * @throws IllegalConfigurationException 
+     * @throws InterruptedException 
+     * @throws SQLException 
      */
-    public void startServer() throws IOException, IllegalConfigurationException {    	    	
+    public void startServer() throws IOException, IllegalConfigurationException, InterruptedException {    	    	
     	
     	// init Hibernate
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
@@ -141,8 +144,10 @@ public class AuthenticationService {
      * @param args
      * @throws IOException
      * @throws IllegalConfigurationException 
+     * @throws InterruptedException 
+     * @throws SQLException 
      */
-    public static void main(String[] args) throws IOException, IllegalConfigurationException {
+    public static void main(String[] args) throws IOException, IllegalConfigurationException, InterruptedException, SQLException {
     	
         final AuthenticationService service = new AuthenticationService(new Config());
         service.startServer();

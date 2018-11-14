@@ -21,6 +21,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -31,6 +32,7 @@ import com.amazonaws.services.s3.transfer.Upload;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
+import fi.csc.chipster.rest.hibernate.HibernateUtil.DatabaseConnectionRefused;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 
 public class DbBackup {
@@ -98,7 +100,14 @@ public class DbBackup {
 		monthlyCountS3 = Integer.parseInt(config.getString(CONF_DB_BACKUP_MONTHLY_COUNT_S3, role));
 		dailyCountFile = Integer.parseInt(config.getString(CONF_DB_BACKUP_DAILY_COUNT_FILE, role));
 		
-		sessionFactory = HibernateUtil.buildSessionFactory(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
+		Configuration hibernateConf = HibernateUtil.getHibernateConf(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
+		try {
+			// fail fast if there is no Postgres
+			HibernateUtil.testConnection(url, user, password);
+			sessionFactory = HibernateUtil.buildSessionFactory(hibernateConf);
+		} catch (DatabaseConnectionRefused e) {
+			logger.error(role + " db backups disabled: " + e.getMessage());
+		}
 	}
 	
 	public void checkRestore() {
@@ -223,15 +232,19 @@ public class DbBackup {
 		removeOldS3Backups(transferManager, bucket, backupPrefix, backupPostfix);
 	}
 	
-	private void runPostgres(File stdinFile, File stdoutFile, String command) throws IOException, InterruptedException {
-				
-		List<String> cmd = new ArrayList<String>();
-		cmd.add(command);		
-		cmd.add("--dbname=" + this.url.replace("jdbc:", ""));
-		cmd.add("--username=" + this.user);
+	private void runPostgres(File stdinFile, File stdoutFile, String... command) throws IOException, InterruptedException {
+		
+		runPostgres(stdinFile, stdoutFile, this.url, this.user, this.password, command);
+	}
+	
+	public static void runPostgres(File stdinFile, File stdoutFile, String url, String user, String password, String... command) throws IOException, InterruptedException {
+		
+		List<String> cmd = new ArrayList<String>(Arrays.asList(command));
+		cmd.add("--dbname=" + url.replace("jdbc:", ""));
+		cmd.add("--username=" + user);
 		
 		final Map<String, String> env = new HashMap<>();
-        env.put("PGPASSWORD", this.password);
+	    env.put("PGPASSWORD", password);
 		
 		ProcessUtils.run(stdinFile, stdoutFile, env, cmd.toArray(new String[0]));
 	}

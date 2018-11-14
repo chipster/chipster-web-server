@@ -106,9 +106,7 @@ db-user: user
 # This is just a placeholder, because it wouldn't make sense to try to restore all the databaes from the same file. Set this for individual role 
 # according to instructions above.
 db-restore-key: ""
-# Assure that a pre-Flyway DB already has a specific schema version. Flyway won't retry failed migrations, so make sure you have backups at hand. 
-# Most likely configured individually for each role, like instructed above.
-db-baseline-version: ""
+db-export-schema: false
 # fallback to in-memory db if connection to the configured db fails, disable in production
 db-fallback: true
 

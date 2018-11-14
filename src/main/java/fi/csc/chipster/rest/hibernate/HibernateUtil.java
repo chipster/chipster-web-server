@@ -1,13 +1,16 @@
 package fi.csc.chipster.rest.hibernate;
 
 import java.io.Serializable;
-import java.net.ConnectException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 
 import javax.persistence.EntityManager;
 
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
@@ -17,8 +20,9 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.context.internal.ManagedSessionContext;
-import org.hibernate.exception.GenericJDBCException;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
+import org.hibernate.usertype.UserType;
+import org.postgresql.util.PSQLException;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Input;
@@ -26,8 +30,20 @@ import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class HibernateUtil {
+	
+	public static class DatabaseNotFoundException extends RuntimeException {
+		public DatabaseNotFoundException(PSQLException e) {
+			super(e);
+		}
+	}
+	
+	public static class DatabaseConnectionRefused extends RuntimeException {
+		public DatabaseConnectionRefused(PSQLException e) {
+			super(e);
+		}
+	}
 
-	private static final int DB_WARNING_DELAY = 5; // seconds
+	private static final int DB_WARNING_DELAY = 1; // seconds
 	private static final String CONF_DB_C3P0_MIN_SIZE = "db-c3p0-min-size";
 	private static final String CONF_DB_SHOW_SQL = "db-show-sql";
 	private static final String CONF_DB_DIALECT = "db-dialect";
@@ -36,6 +52,7 @@ public class HibernateUtil {
 	public static final String CONF_DB_PASS = "db-pass";
 	public static final String CONF_DB_USER = "db-user";
 	public static final String CONF_DB_URL = "db-url";
+	public static final String CONF_DB_EXPORT_SCHEMA = "db-export-schema";
 
 	private static Logger logger = LogManager.getLogger();
 	
@@ -47,53 +64,113 @@ public class HibernateUtil {
 
 	private DbSchema dbSchema;
 
-    public HibernateUtil(Config config, String role, List<Class<?>> hibernateClasses) {
+    public HibernateUtil(Config config, String role, List<Class<?>> hibernateClasses) throws InterruptedException {
 		this.config = config;
 		this.role = role;
 	
 		this.init(hibernateClasses);
 	}
     
-    public void init(List<Class<?>> hibernateClasses) {
+    public void init(List<Class<?>> hibernateClasses) throws InterruptedException {
     	
     	// The restore configuration is really used in the Backups service, but configuring it also for the actual service 
     	// might be a handy way to prevent it from creating the schema
-//    	String restoreKey = DbBackup.getRestoryKey(config, role);
-//    	if (!restoreKey.isEmpty()) {
-//    		throw new RuntimeException("Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
-//    	}
-//    	    	
-//    	this.dbSchema = new DbSchema(config, role);
-//    	this.dbSchema.export(hibernateClasses);
-    	
+    	String restoreKey = DbBackup.getRestoryKey(config, role);
+    	if (!restoreKey.isEmpty()) {
+    		throw new RuntimeException("Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
+    	}
+    	    	    	
     	String url = config. getString(CONF_DB_URL, role);
     	String user = config.getString(CONF_DB_USER, role);
     	String password = config.getString(CONF_DB_PASS, role);
     	
-//    	this.dbSchema.migrate(url, user, password);    	
-//
-//		if (password.length() < 8) {
-//			logger.warn("weak db passowrd for " + role + ", length " + password.length());
-//		}
-//        	
-//		// make sure the Flyway migrations match with the current Hibernate classes  
-//		String hbm2ddlAuto = "validate";
-		String hbm2ddlAuto = "update";
-//		String hbm2ddlAuto = "create";
-		
-		logger.info("connect to db " + url);
-		try {
-			this.sessionFactory = buildSessionFactory(hibernateClasses, url, hbm2ddlAuto, user, password, config, role);
+    	// make sure the Flyway migrations match with the current Hibernate classes  
+    	String hbm2ddlAuto = "validate";
+    	Configuration hibernateConf = getHibernateConf(hibernateClasses, url, hbm2ddlAuto, user, password, config, role);
+    	
+    	try {
+    		// test connection first to make errors easier to catch
+    		testConnection(url, user, password);
+    		
+    		
+    		// the db is there    		
+    		this.dbSchema = new DbSchema(role);
+    		
+    		if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
+    			this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+    		}
+    		
+	    	this.dbSchema.migrate(url, user, password);    	
+	
+			if (password.length() < 8) {
+				logger.warn("weak db passowrd for " + role + ", length " + password.length());
+			}
+	        						
+			logger.info("connect to db " + url);
+			this.sessionFactory = buildSessionFactory(hibernateConf);
 			logger.info("connected");
+		
+		} catch (DatabaseConnectionRefused e) {
 			
+			if (config.getBoolean(Config.KEY_DB_FALLBACK, role)) {    		
+    			// The Postgres template in OpenShift doesn't allow dashes
+    			String dbName = role.replace("-", "_") + "_db";
+			
+    	    	logger.warn(role + " db not available, starting an in-memory DB "
+    	    			+ "after " + DB_WARNING_DELAY + " seconds. "
+    					+ "All data is lost in service restart. "
+    					+ "Disable this fallback in production! (" + e.getMessage() + ")\n"
+						+ "\n"
+    					+ "Install postgres: \n"
+    					+ "  brew install postgres\n"
+    					+ "  createuser user\n"
+    					+ "  createdb " + dbName + "\n"
+    	    			+ "\n");
+    	    	
+    			// wait little bit to make the log message above more visible
+				Thread.sleep(DB_WARNING_DELAY * 1000);
+    	    	
+    			this.sessionFactory = buildSessionFactoryFallback(hibernateConf, role);	    			
+    		} else {
+    			throw e;
+    		}			
     	} catch (SchemaManagementException e) {
     		
     		this.dbSchema.printSchemaError(e);
+    		this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role));
     		throw e;    	
     	}
     }
     
-	public static SessionFactory buildSessionFactory(List<Class<?>> hibernateClasses, String url, String hbm2ddlAuto, String user, String password, Config config, String role) {    	
+	public static void testConnection(String url, String user, String password) {
+		
+		try {
+		    logger.info("test connection to " + url);
+		    Properties connectionProps = new Properties();
+		    connectionProps.put("user", user);
+		    connectionProps.put("password", password);
+
+		    Connection connection = DriverManager.getConnection(url, connectionProps);
+		    logger.info("test connection to " + url + ": OK");
+		    connection.close();
+		    
+		} catch (PSQLException e) { 
+			if (e.getMessage().contains("database")
+				&& e.getMessage().contains("does not exist")) {
+				
+				throw new DatabaseNotFoundException(e);
+				
+			} else if (e.getMessage().toLowerCase().contains("connection")
+					&& e.getMessage().contains("refused")) {
+				throw new DatabaseConnectionRefused(e);
+			}
+			throw new RuntimeException("failed to connect to " + url, e);
+		} catch (SQLException e) {
+			throw new RuntimeException("failed to connect to " + url, e);
+		}
+	}
+
+	public static Configuration getHibernateConf(List<Class<?>> hibernateClasses, String url, String hbm2ddlAuto, String user, String password, Config config, String role) {    	
     	    		
 		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
 				
@@ -103,7 +180,6 @@ public class HibernateUtil {
 		hibernateConf.setProperty(Environment.PASS, password);
 		hibernateConf.setProperty(Environment.DIALECT, config.getString(CONF_DB_DIALECT, role));
 		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(CONF_DB_SHOW_SQL, role));
-//		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "thread");
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
 		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately in startup
@@ -119,7 +195,7 @@ public class HibernateUtil {
 		boolean isPostgres = isPostgres(config, role);
 		
 		if (isPostgres) {
-			hibernateConf.setProperty(Environment.DIALECT, "fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect");
+			hibernateConf.setProperty(Environment.DIALECT, ChipsterPostgreSQL95Dialect.class.getName());
 //			hibernateConf.setProperty(Environment.URL, url + "?reWriteBatchedInserts=true");				
 		}
 		
@@ -136,70 +212,50 @@ public class HibernateUtil {
 //		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
 		
 //		hibernateConf.setProperty("hibernate.default_batch_fetch_size", "100");
-				
-		SessionFactory sessionFactory = null;
 		
-		try {
-			sessionFactory = buildSessionFactory(hibernateConf);
-			
-		} catch (GenericJDBCException e) {
-    		if (ExceptionUtils.getRootCause(e) instanceof ConnectException && config.getBoolean(Config.KEY_DB_FALLBACK, role)) {
-    			// The Postgres template in OpenShift doesn't allow dashes
-    			String dbName = role.replace("-", "_") + "_db";
-    			
-    	    	logger.warn(role + "-db not available, starting an in-memory DB "
-    	    			+ "after " + DB_WARNING_DELAY + " seconds. "
-    					+ "All data is lost in service restart. "
-    					+ "Disable this fallback in production! (" + e.getMessage() + ")\n"
-    					+ "Install postgres: \n"
-    					+ "  brew install postgres\n"
-    					+ "  createuser user\n"
-    					+ "  createdb " + dbName + "\n");    	    
-    			sessionFactory = buildSessionFactoryFallback(hibernateConf, role);	    			
-    		} else {
-    			throw e;
-    		}
-		}
-		
-		return sessionFactory;
+	
+		return hibernateConf;
 	}
 	
     private static SessionFactory buildSessionFactoryFallback(Configuration hibernateConf, String role) {
 
-		try {
-			// wait little bit to make the log message above more visible
-			Thread.sleep(DB_WARNING_DELAY * 1000);
-			String url = "jdbc:h2:mem:" + role + "-db";
-			
-			hibernateConf.setProperty(Environment.DRIVER, "org.h2.Driver");
-			hibernateConf.setProperty(Environment.URL, url);
-			hibernateConf.setProperty(Environment.USER, "user");
-			hibernateConf.setProperty(Environment.PASS, "");
-			hibernateConf.setProperty(Environment.DIALECT, ChipsterH2Dialect.class.getName());
-			hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
-			
-			registerTypeOverrides(hibernateConf, false);
-			
-			logger.info("connect to db " + url);
-			SessionFactory sessionFactory = buildSessionFactory(hibernateConf);
-			logger.info("connected");
-			return sessionFactory;
-			
-		} catch (InterruptedException e) {
-			logger.error(e);
-		}
-		return null;
+		String url = "jdbc:h2:mem:" + role + "-db";
+		
+		hibernateConf.setProperty(Environment.DRIVER, "org.h2.Driver");
+		hibernateConf.setProperty(Environment.URL, url);
+		hibernateConf.setProperty(Environment.USER, "user");
+		hibernateConf.setProperty(Environment.PASS, "");
+		hibernateConf.setProperty(Environment.DIALECT, ChipsterH2Dialect.class.getName());
+		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
+		
+		registerTypeOverrides(hibernateConf, false);
+		
+		logger.info("connect to db " + url);
+		SessionFactory sessionFactory = buildSessionFactory(hibernateConf);
+		logger.info("connected");
+		return sessionFactory;		
 	}
     
-	private static void registerTypeOverrides(Configuration hibernateConf, boolean isPostgres) {
+	public static void registerTypeOverrides(Configuration hibernateConf, boolean isPostgres) {
+
+		HashMap<String, UserType> types = getUserTypes(isPostgres); 
+		
+		for (String name : types.keySet()) {
+			hibernateConf.registerTypeOverride(types.get(name), new String[] { name });
+		}			
+	}
+	
+	public static HashMap<String, UserType> getUserTypes(boolean isPostgres) {
 
 		// store these child objects as json
-        hibernateConf.registerTypeOverride(new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class), new String[] {MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE});
-        hibernateConf.registerTypeOverride(new ListJsonType<Parameter>(!isPostgres, Parameter.class), new String[] {Parameter.PARAMETER_LIST_JSON_TYPE});
-        hibernateConf.registerTypeOverride(new ListJsonType<Input>(!isPostgres, Input.class), new String[] {Input.INPUT_LIST_JSON_TYPE});	
+		return new HashMap<String, UserType>() {{
+	        put(MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE, new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class));
+	        put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(!isPostgres, Parameter.class));
+	        put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
+		}};
 	}
 
-	private static SessionFactory buildSessionFactory(Configuration hibernateConf) {
+	public static SessionFactory buildSessionFactory(Configuration hibernateConf) {
 		StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
 				.applySettings(hibernateConf.getProperties())
 				.build();

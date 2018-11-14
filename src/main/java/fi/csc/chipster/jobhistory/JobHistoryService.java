@@ -59,10 +59,11 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	 * @throws URISyntaxException
 	 * @throws IOException
 	 * @throws RestException
+	 * @throws InterruptedException 
 	 */
 
 	public void startServer() throws URISyntaxException, IOException,
-			RestException {
+			RestException, InterruptedException {
 		// WebSocket connection to Session DB
 		String username = Role.JOB_HISTORY;
 		String password = this.config.getPassword(username);
@@ -106,7 +107,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	}
 
 	public static void main(String[] args) throws URISyntaxException,
-			IOException, RestException {
+			IOException, RestException, InterruptedException {
 		final JobHistoryService jobHistoryService = new JobHistoryService(
 				new Config());
 		jobHistoryService.startServer();
