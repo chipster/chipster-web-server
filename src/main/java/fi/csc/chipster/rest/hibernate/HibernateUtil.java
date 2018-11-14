@@ -113,8 +113,6 @@ public class HibernateUtil {
 		} catch (DatabaseConnectionRefused e) {
 			
 			if (config.getBoolean(Config.KEY_DB_FALLBACK, role)) {    		
-    			// The Postgres template in OpenShift doesn't allow dashes
-    			String dbName = role.replace("-", "_") + "_db";
 			
     	    	logger.warn(role + " db not available, starting an in-memory DB "
     	    			+ "after " + DB_WARNING_DELAY + " seconds. "
@@ -123,9 +121,13 @@ public class HibernateUtil {
 						+ "\n"
     					+ "Install postgres: \n"
     					+ "  brew install postgres\n"
+    					+ "  pg_ctl -D /usr/local/var/postgres start\n"
     					+ "  createuser user\n"
-    					+ "  createdb " + dbName + "\n"
-    	    			+ "\n");
+    					+ "  createdb auth_db\n"
+						+ "  createdb session_db_db\n"
+						+ "  createdb auth_db\n"
+						+ "  createdb job_history_db\n"
+    	    			+ "\n");    	    			
     	    	
     			// wait little bit to make the log message above more visible
 				Thread.sleep(DB_WARNING_DELAY * 1000);
