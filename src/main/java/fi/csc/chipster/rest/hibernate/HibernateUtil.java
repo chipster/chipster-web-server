@@ -381,7 +381,8 @@ public class HibernateUtil {
 	 * @param session 
 	 */
 	public <T> void update(T value, UUID id) {
-		
+		// Hibernate won't notice the changes in managed objects (those that have been loaded from the db in this session)
+		this.session().detach(value);
 		HibernateUtil.update(value, id, session());
 	}
 	

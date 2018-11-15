@@ -20,6 +20,7 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
@@ -55,6 +56,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 @RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED (except sub-resource locators)
 public class SessionResource {
 	
+	private static final String QUERY_PARAM_PREVIEW = "preview";
+
 	private static Logger logger = LogManager.getLogger();
 	
 	private HibernateUtil hibernate;
@@ -93,19 +96,23 @@ public class SessionResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc) throws IOException {
+    public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc, @QueryParam(QUERY_PARAM_PREVIEW) String preview) throws IOException {    
     	    
     	// checks authorization
-    	Session result = ruleTable.getSessionForReading(sc, sessionId);    	
+    	Session dbSession = ruleTable.getSessionForReading(sc, sessionId);    	
     	
-    	if (result == null) {
+    	if (dbSession == null) {
     		throw new NotFoundException();
     	}	
     	
-    	// does this update the db?
-    	result.setAccessed(Instant.now());
+    	// client can suggest not updating the access date by adding the query parameter "preview"
+    	// empty string when set, otherwise null (boolean without value would have been false)
+    	if (preview == null) {
+	    	dbSession.setAccessed(Instant.now());
+	    	getHibernate().update(dbSession, sessionId);
+    	}
     	
-    	return Response.ok(result).build();    	
+    	return Response.ok(dbSession).build();    	
     }
     
 	@GET
