@@ -156,7 +156,6 @@ public class EventTest {
         
         assertEquals(sessionId, sessionEvent.getSessionId());
         assertEquals(ResourceType.RULE, sessionEvent.getResourceType());
-        assertEquals(sessionId, sessionEvent.getResourceId());
         assertEquals(EventType.DELETE, sessionEvent.getType());
         
         client.shutdown();

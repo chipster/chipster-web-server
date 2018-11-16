@@ -36,14 +36,14 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class RuleResource {
 	private UUID sessionId;
-	private RuleTable authorizationTable;
+	private RuleTable ruleTable;
 	private HibernateUtil hibernate;
 	private Config config;
 	private SessionResource sessionResource;
 
 	public RuleResource(SessionResource sessionResource, UUID id, RuleTable authorizationTable, Config config) {
 		this.sessionId = id;
-		this.authorizationTable = authorizationTable;
+		this.ruleTable = authorizationTable;
 		this.sessionResource = sessionResource;
 		this.hibernate = sessionResource.getHibernate();
 		this.config = config;
@@ -55,8 +55,8 @@ public class RuleResource {
     @Transaction
     public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
     	
-		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
-		Rule result = authorizationTable.getRule(authorizationId, hibernate.session());
+		ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
+		Rule result = ruleTable.getRule(authorizationId, hibernate.session());
     	if (result == null) {
     		throw new NotFoundException();
     	}	
@@ -69,9 +69,13 @@ public class RuleResource {
     @Transaction
     public Response getBySession(@Context SecurityContext sc) {
     	    	
-		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);    
-    	List<Rule> authorizations = authorizationTable.getRules(sessionId);    	
-    	return Response.ok(authorizations).build();	       
+		ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);    
+    	List<Rule> rules = getRules(sessionId);    	
+    	return Response.ok(rules).build();	       
+    }
+    
+    public List<Rule> getRules(UUID sessionId) {
+    	return ruleTable.getRules(sessionId);
     }
     
     @POST
@@ -91,7 +95,7 @@ public class RuleResource {
 			}
 		}
     	
-		Session session = authorizationTable.getSessionForWriting(sc, sessionId);
+		Session session = ruleTable.getSessionForWriting(sc, sessionId);
 
 		newAuthorization.setRuleId(RestUtils.createUUID());    	    	
 		
@@ -99,7 +103,7 @@ public class RuleResource {
     	newAuthorization.setSession(session);
     	newAuthorization.setSharedBy(sc.getUserPrincipal().getName());
     	
-    	authorizationTable.save(newAuthorization, hibernate.session());
+    	ruleTable.save(newAuthorization, hibernate.session());
     
     	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, newAuthorization.getRuleId(), EventType.CREATE), hibernate.session());
     	
@@ -116,22 +120,30 @@ public class RuleResource {
     @Transaction
     public Response delete(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) {
     	
-    	Rule authorizationToDelete = authorizationTable.getRule(authorizationId, hibernate.session());
+    	Rule ruleToDelete = ruleTable.getRule(authorizationId, hibernate.session());
     	
-    	if (authorizationToDelete == null) {
+    	if (ruleToDelete == null) {
     		throw new NotFoundException("rule not found");
     	}
     	
     	// everybody is allowed remove their own rules, even if they are read-only
-    	if (!authorizationToDelete.getUsername().equals(sc.getUserPrincipal().getName())) {
+    	if (!ruleToDelete.getUsername().equals(sc.getUserPrincipal().getName())) {
     		// others need read-write permissions
-    		authorizationTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
-    	}
-    	    	
-    	authorizationTable.delete(sessionId, authorizationToDelete, hibernate.session());
-    	
-    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, authorizationId, EventType.DELETE), hibernate.session());
+    		ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    	}    	    	
+ 
+    	delete(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
     
     	return Response.noContent().build();
     }
+
+	public void delete(Session session, Rule rule, org.hibernate.Session hibernateSession, boolean deleteSessionIfLastRule) {
+		ruleTable.delete(session.getSessionId(), rule, hibernate.session());
+		
+		sessionResource.publish(session.getSessionId().toString(), new SessionEvent(session.getSessionId(), ResourceType.RULE, rule.getRuleId(), EventType.DELETE), hibernateSession);
+		
+		if (deleteSessionIfLastRule) {
+			sessionResource.deleteSessionIfOrphan(session);
+		}
+	}   
 }

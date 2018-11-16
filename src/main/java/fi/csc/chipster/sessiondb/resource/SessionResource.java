@@ -71,8 +71,6 @@ public class SessionResource {
 		this.hibernate = hibernate;
 		this.ruleTable = authorizationTable;
 		this.config = config;
-		
-		this.ruleTable.setRuleRemovedListener(this);
 	}
 
 	// sub-resource locators
@@ -87,7 +85,7 @@ public class SessionResource {
 	}
 	
 	@Path("{id}/rules")
-	public RuleResource getAuthorizationResource(@PathParam("id") UUID id) {
+	public RuleResource getRuleResource(@PathParam("id") UUID id) {
 		return new RuleResource(this, id, this.ruleTable, config);
 	}
 	
@@ -187,7 +185,7 @@ public class SessionResource {
 		UUID sessionId = session.getSessionId();
 		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
 		
-		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.CREATE), hibernateSession);
+		publish(session.getSessionId().toString(), new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.CREATE), hibernateSession);
 	}
 
 	@PUT
@@ -225,41 +223,39 @@ public class SessionResource {
 		// check authorization
 		Session session = ruleTable.getSessionForWriting(sc, id);
 		
-		// deleting all the authorizations will eventually delete the session too
-		for (Rule authorization : ruleTable.getRules(session.getSessionId())) {
-			ruleTable.delete(id, authorization, hibernate.session());
-		}
+		this.deleteSession(session, getHibernate().session());
 
 		return Response.noContent().build();
     }
 	
-	public void deleteSession(Rule auth, org.hibernate.Session hibernateSession) {
+	private void deleteSession(Session session, org.hibernate.Session hibernateSession) {
 		
-		UUID sessionId = auth.getSession().getSessionId();
+		UUID sessionId = session.getSessionId();
 		
 		/*
 		 * All datasets have to be removed first, because the dataset owns the reference between 
 		 * the dataset and the session. This also generates the necessary events e.g. to remove
 		 * files.  
 		 */
-		for (Dataset dataset : SessionDatasetResource.getDatasets(hibernateSession, auth.getSession())) {
+		for (Dataset dataset : SessionDatasetResource.getDatasets(hibernateSession, session)) {
 			getDatasetResource(sessionId).deleteDataset(dataset, hibernateSession);
 		}
 		
 		// see the note about datasets above
-		for (Job job : SessionJobResource.getJobs(hibernateSession, auth.getSession())) {
+		for (Job job : SessionJobResource.getJobs(hibernateSession, session)) {
 			getJobResource(sessionId).deleteJob(job, hibernateSession);
 		}
 		
 		// see the note about datasets above
-		for (Rule rule : ruleTable.getRules(sessionId)) {			
-			getRuleTable().delete(sessionId, rule, hibernateSession);
+		RuleResource ruleResource = getRuleResource(sessionId);
+		for (Rule rule : ruleResource.getRules(sessionId)) {
+			// argument "deleteSessionIfLastRule" is set to false, because it would call this method again
+			ruleResource.delete(session, rule, getHibernate().session(), false);
 		}
 		
-		HibernateUtil.delete(auth.getSession(), auth.getSession().getSessionId(), hibernateSession);
-
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, sessionId, EventType.DELETE), hibernateSession);
-		publish(SessionDbTopicConfig.AUTHORIZATIONS_TOPIC, new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.DELETE), hibernateSession);
+		HibernateUtil.delete(session, session.getSessionId(), hibernateSession);
+		
+//		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE), hibernateSession);
 	}
     	
 	/**
@@ -294,13 +290,7 @@ public class SessionResource {
 				if (ResourceType.JOB == obj.getResourceType()) {
 					events.publish(SessionDbTopicConfig.JOBS_TOPIC, obj);
 				}
-				if (ResourceType.SESSION == obj.getResourceType()) {
-					events.publish(SessionDbTopicConfig.SESSIONS_TOPIC, obj);
-				}
-				if (ResourceType.DATASET == obj.getResourceType()) {
-					events.publish(SessionDbTopicConfig.DATASETS_TOPIC, obj);
-				}
-				// AUTHORIZATIONS_TOPIC hasn't been needed yet
+				// global AUTHORIZATIONS_TOPIC and SESSIONS_TOPIC and DATASETS_TOPIC hasn't been needed yet
 			}				
 		});	
 	}
@@ -309,18 +299,16 @@ public class SessionResource {
 		return ruleTable;
 	}
 
-	public void ruleRemoved(UUID sessionId, Rule rule) {
-		
-		logger.debug("rule deleted, username " + rule.getUsername());
+	public void deleteSessionIfOrphan(Session session) {
 		
 		// don't count public read-only rules, because those can't be deleted afterwards
-		long count = ruleTable.getRules(sessionId).stream()
+		long count = ruleTable.getRules(session.getSessionId()).stream()
 			.filter(r -> r.isReadWrite() && !RuleTable.EVERYONE.equals(r.getUsername()))
 			.count();
 			
 		if (count == 0) {
 			logger.debug("last rule deleted, delete the session too");			
-			deleteSession(rule, getHibernate().session());
+			deleteSession(session, getHibernate().session());
 		} else {
 			logger.debug(count + " rules left, session kept");
 		}

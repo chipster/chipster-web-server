@@ -56,8 +56,6 @@ public class RuleTable {
 
 	private TokenRequestFilter tokenRequestFilter;
 
-	private SessionResource ruleRemovedListener;
-
 	public RuleTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
 		this.hibernate = hibernate;
 		this.config = new Config();
@@ -71,12 +69,18 @@ public class RuleTable {
 		return auth;
 	}
 	
+    /**
+     * Delete Rule from the database only
+     * 
+     * Usually you should use this through RuleResource.delete(), because it will
+     * will check if the session can be deleted and publish a WebSocket event.
+     * 
+     * @param sessionId
+     * @param rule
+     * @param hibernateSession
+     */
     public void delete(UUID sessionId, Rule rule, org.hibernate.Session hibernateSession) {
-    	HibernateUtil.delete(rule, rule.getRuleId(), hibernateSession);
-    	
-    	if (ruleRemovedListener != null) {
-    		ruleRemovedListener.ruleRemoved(sessionId, rule);
-    	}
+    	HibernateUtil.delete(rule, rule.getRuleId(), hibernateSession);    	
     }
     
     public Session checkAuthorization(AuthPrincipal principal, UUID sessionId, boolean requireReadWrite, boolean allowAdmin) {
@@ -339,9 +343,5 @@ public class RuleTable {
 	
 	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
 		return checkAuthorization((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, false);
-	}
-	
-	public void setRuleRemovedListener(SessionResource sessionResource) {
-		this.ruleRemovedListener = sessionResource;
 	}
 }
