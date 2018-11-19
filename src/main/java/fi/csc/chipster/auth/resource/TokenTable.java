@@ -165,7 +165,7 @@ public class TokenTable {
 	}
 
 
-	private void failIfTokenExpired(Token token) {
+	public void failIfTokenExpired(Token token) {
 		if (!token.getValidUntil().isAfter(Instant.now())) {
 			throw new ForbiddenException("token expired");
 		}

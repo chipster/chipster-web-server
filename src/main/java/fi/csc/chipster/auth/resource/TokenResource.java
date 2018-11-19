@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.NotFoundException;
@@ -86,6 +87,29 @@ public class TokenResource {
 		return Response.ok(dbToken).build();
 	}
 
+	@GET
+	@Path("{check}")
+	@RolesAllowed({Role.CLIENT, Role.SERVER})
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response checkClientToken(@Context SecurityContext sc) {
+
+		String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
+
+		Token dbToken;
+		try {
+			dbToken = tokenTable.getToken(token);
+		} catch (NotFoundException nfe) {
+			throw new ForbiddenException("token not found");
+		}
+		
+		// throws forbidden
+		tokenTable.failIfTokenExpired(dbToken);
+		
+		return Response.ok(dbToken).build();
+	}
+
+	
 
 	@DELETE
 	@RolesAllowed(Role.CLIENT)
