@@ -30,6 +30,7 @@ public class JsonSession {
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 	
+	private static final String DIR_FILE_FORMAT = "chipster-session-file-format-v1";
 	private static final String SESSION_JSON = "session.json";
 	private static final String DATASETS_JSON = "datasets.json";
 	private static final String JOBS_JSON = "jobs.json";
@@ -37,25 +38,7 @@ public class JsonSession {
 	protected static final List<String> compressedExtensions = Arrays.asList(new String[] {".gz", ".zip", ".bam"});
 	
 	@SuppressWarnings("unchecked")
-	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {
-		
-		/*TODO is there better way to recognize the new session format? Maybe adding everything to a folder like 
-		 * "chipster-json-session-format-v1" would be immediately available regardless of the entry order.
-		 * 
-		 * If we rely on the entry order like this, we could make this check right 
-		 * away in the next loop and we could first create the
-		 * db objects and only then upload the files. On the other hand maintaining the support with generic zip
-		 * tools would be nice too, but then we can't rely on the entry order I guess. 
-		 */
-		
-		try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
-			ZipEntry entry = zipInputStream.getNextEntry();		
-			if (entry == null || !entry.getName().equals(SESSION_JSON)) {
-				// we will close the connection without reading the whole input stream
-				// to fix this we would need create a limited InputStream with a HTTP range
-				return null;
-			}
-		}
+	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {	
 		
 		Session session = null;
 		List<Dataset> datasets = null;
@@ -67,19 +50,39 @@ public class JsonSession {
 			ZipEntry entry;
 			while ((entry = zipInputStream.getNextEntry()) != null) {
 				
-				if (entry.getName().equals(SESSION_JSON)) {
+				if (entry.getName().endsWith("/")) {
+					// skip folders
+					continue;
+				}
+				
+				if (RestUtils.basename(entry.getName()).startsWith(".")) {
+					// skip hidden files (created by e.g. OSX Archive Utility)
+					continue;
+				}
+				
+				if (!entry.getName().contains("/" + DIR_FILE_FORMAT + "/")) {
+					// we will close the connection without reading the whole input stream
+					// to fix this we would need create a limited InputStream with a HTTP range
+					
+					// this class doesn't recognize the file format
+					return null;
+				}
+				
+				String entryName = entry.getName().substring(entry.getName().indexOf(DIR_FILE_FORMAT) + DIR_FILE_FORMAT.length() + 1);
+				
+				if (entryName.equals(SESSION_JSON)) {
 					session = RestUtils.parseJson(Session.class, RestUtils.toString(zipInputStream));
 					
-				} else if (entry.getName().equals(DATASETS_JSON)) {
+				} else if (entryName.equals(DATASETS_JSON)) {
 					datasets = RestUtils.parseJson(List.class, Dataset.class, RestUtils.toString(zipInputStream));
 					
-				} else if (entry.getName().equals(JOBS_JSON)) {
+				} else if (entryName.equals(JOBS_JSON)) {
 					jobs = RestUtils.parseJson(List.class, Job.class, RestUtils.toString(zipInputStream));
 					
 				} else {
 					// Create only dummy datasets now and update them with real dataset data later.
 					// This way we don't make assumptions about the entry order.
-					UUID datasetId = UUID.fromString(entry.getName());
+					UUID datasetId = UUID.fromString(entryName);
 					Dataset dummyDataset = new Dataset();
 					dummyDataset.setDatasetIdPair(sessionId, datasetId);
 					sessionDb.createDataset(sessionId, dummyDataset);
@@ -109,12 +112,26 @@ public class JsonSession {
 		String datasetsJson = RestUtils.asJson(datasets, true);
 		String jobsJson = RestUtils.asJson(jobs, true);
 		
-		entries.add(new InputStreamEntry(SESSION_JSON, sessionJson));
-		entries.add(new InputStreamEntry(DATASETS_JSON, datasetsJson));
-		entries.add(new InputStreamEntry(JOBS_JSON, jobsJson));
+		String sessionName = session.getName();
+		
+		/*
+		 * Add DIR_FILE_FORMAT to all entry names to recognize this file format even if it's 
+		 * packaged with some other zip tool and the order of entries may have changed.
+		 * 
+		 * Add the session name in front to make the extracted folder name more meaningful and 
+		 * to prevent the DIR_FILE_FORMAT being altered when there is already a folder with 
+		 * that name. The session name here is just for humans, it doesn't matter if that 
+		 * is changed.
+		 * 
+		 * Seems to tolerate at least extraction and packaging with OSX Archive Utility. 
+		 * 
+		 */
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + SESSION_JSON, sessionJson));
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + DATASETS_JSON, datasetsJson));
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + JOBS_JSON, jobsJson));
 		
 		for (Dataset dataset : datasets) {
-			entries.add(new InputStreamEntry(dataset.getDatasetId().toString(), new Callable<InputStream>() {
+			entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + dataset.getDatasetId().toString(), new Callable<InputStream>() {
 				@Override
 				public InputStream call() throws Exception {					
 					return fileBroker.download(sessionId, dataset.getDatasetId());
