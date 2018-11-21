@@ -35,7 +35,7 @@ public class JsonSession {
 	private static final String DATASETS_JSON = "datasets.json";
 	private static final String JOBS_JSON = "jobs.json";
 	
-	protected static final List<String> compressedExtensions = Arrays.asList(new String[] {".gz", ".zip", ".bam"});
+	protected static final List<String> compressedExtensions = Arrays.asList(new String[] {".gz", ".zip", ".bam", ".Robj"});
 	
 	@SuppressWarnings("unchecked")
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {	
@@ -50,7 +50,7 @@ public class JsonSession {
 			ZipEntry entry;
 			while ((entry = zipInputStream.getNextEntry()) != null) {
 				
-				if (entry.getName().endsWith("/")) {
+				if (entry.isDirectory()) {
 					// skip folders
 					continue;
 				}
@@ -72,12 +72,15 @@ public class JsonSession {
 				
 				if (entryName.equals(SESSION_JSON)) {
 					session = RestUtils.parseJson(Session.class, RestUtils.toString(zipInputStream));
+					zipInputStream.closeEntry();
 					
 				} else if (entryName.equals(DATASETS_JSON)) {
 					datasets = RestUtils.parseJson(List.class, Dataset.class, RestUtils.toString(zipInputStream));
+					zipInputStream.closeEntry();
 					
 				} else if (entryName.equals(JOBS_JSON)) {
 					jobs = RestUtils.parseJson(List.class, Job.class, RestUtils.toString(zipInputStream));
+					zipInputStream.closeEntry();
 					
 				} else {
 					// Create only dummy datasets now and update them with real dataset data later.
@@ -87,9 +90,9 @@ public class JsonSession {
 					dummyDataset.setDatasetIdPair(sessionId, datasetId);
 					sessionDb.createDataset(sessionId, dummyDataset);
 					
-					// prevent Jersey client from closing the stream after the upload
-					// try-with-resources will close it after the whole zip file is read
-					fileBroker.upload(sessionId, datasetId, new NonClosableInputStream(zipInputStream));
+					// close only the entry instead of the whole zip when Jersey client finished the upload
+					// try-with-resources will close the zipInputStream after the whole zip file is read
+					fileBroker.upload(sessionId, datasetId, new EntryClosingInputStream(zipInputStream));
 				}
 			}
 		}

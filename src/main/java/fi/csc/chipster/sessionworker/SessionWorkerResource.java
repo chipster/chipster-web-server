@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessionworker;
 
 import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -14,6 +15,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipOutputStream;
 
 import javax.ws.rs.BadRequestException;
@@ -32,6 +34,7 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -58,9 +61,21 @@ public class SessionWorkerResource {
 	private static Logger logger = LogManager.getLogger();
 	
 	private ServiceLocatorClient serviceLocator;
+
+	private File tempDir;
 	
 	public SessionWorkerResource(ServiceLocatorClient serviceLocator) {
 		this.serviceLocator = serviceLocator;
+		
+		// all files in this directory will be deleted
+		tempDir = new File("tmp/session-worker");
+		tempDir.mkdirs();
+		
+		// let's assumes all session workers have a private volume
+		// delete temp files of previous run in case it's persistent
+		for (File file : tempDir.listFiles()) {
+			file.delete();
+		}		
 	}
 	
     @GET
@@ -130,9 +145,9 @@ public class SessionWorkerResource {
 				
 		StaticCredentials credentials = getUserCredentials(sc);
 		
-		//TODO we can get only the public address of the file-broker and session-db with client credentials, use server credentials to get the address, but client creds for the actual file operations (to check the access rights)
-		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.CLIENT);		
-		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.CLIENT);
+		// use client creds for the actual file operations (to check the access rights)
+		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);		
+		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 		
 		return Response.ok(new StreamingOutput() {
 			
@@ -140,7 +155,11 @@ public class SessionWorkerResource {
 			
 	        @Override
 	        public void write(OutputStream output) throws IOException, WebApplicationException {
-	        	try {
+	        	
+	        	ArrayList<String> warnings = new ArrayList<>();
+	        	ArrayList<String> errors = new ArrayList<>();
+	        	
+	        	try {	        	
 	        		// keep sending 1k bytes every second to keep the connection open
 	        		// jersey will buffer for 8kB and the OpenShift router expects to get the first bytes in 30 seconds
 	        		new Thread(new Runnable() {						
@@ -169,25 +188,37 @@ public class SessionWorkerResource {
 	        		ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
 	    		
 		    		if (sessionData == null) {
-		    			sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
+		    			sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId, tempDir);
 		    		}
 		    		
 		    		if (sessionData == null) {
 		    			throw new BadRequestException("unrecognized file format");
 		    		}
 		    		
-		    		ArrayList<String> warnings = updateSession(sessionDb, sessionId, sessionData);
+		    		warnings.addAll(updateSession(sessionDb, sessionId, sessionData));
 		    		
-		    		HashMap<String, ArrayList<String>> response = new HashMap<>();
-		    		response.put("warnings", warnings);
-	
-		    		latch.countDown();
-		    		output.write(RestUtils.asJson(warnings).getBytes());
-		    		output.close();
-				} catch (RestException e) {
-					latch.countDown();
-					logger.error("session extraction failed", e);
-				}
+	        	} catch (RestException e) {
+	        		errors.add("session extraction failed: " + e.getMessage());
+	        		logger.warn("session extraction failed", e);	        		
+	        		
+				} catch (Exception e) {
+					if (ExceptionUtils.getRootCause(e) instanceof ZipException) {
+						errors.add("session extraction failed: " + e.getMessage());
+						logger.warn("session extraction failed", e);
+					} else {
+						errors.add("internal server error");
+						logger.error("session extraction failed", e);
+					}
+				}	        
+	        	
+	        	// send errors in the body because HTTP 200 OK was already sent in the beginning of the response
+	    		HashMap<String, ArrayList<String>> response = new HashMap<>();
+	    		response.put("warnings", warnings);
+	    		response.put("errors", errors);
+
+	    		latch.countDown();
+	    		output.write(RestUtils.asJson(response).getBytes());
+	    		output.close();
 	        }
         }).build();
     }

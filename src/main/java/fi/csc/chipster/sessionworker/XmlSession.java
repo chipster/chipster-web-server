@@ -1,9 +1,12 @@
 package fi.csc.chipster.sessionworker;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +15,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+//import java.util.zip.ZipEntry;
+//import java.util.zip.ZipInputStream;
 import java.util.zip.ZipInputStream;
 
 import javax.ws.rs.BadRequestException;
@@ -19,6 +25,7 @@ import javax.ws.rs.InternalServerErrorException;
 import javax.xml.bind.JAXBException;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
@@ -46,14 +53,13 @@ import fi.csc.microarray.client.session.schema2.SessionType;
 import fi.csc.microarray.databeans.DataBean.Link;
 import fi.csc.microarray.databeans.DataManager.StorageMethod;
 import fi.csc.microarray.messaging.JobState;
-import fi.csc.microarray.util.Strings;
 
 public class XmlSession {
 	
 	private static final Logger logger = LogManager.getLogger();
 
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId) {
+			UUID sessionId, UUID zipDatasetId, File tempDir) {
 		
 		try {
 			if (!isValid(fileBroker, sessionId, zipDatasetId)) {
@@ -65,58 +71,93 @@ public class XmlSession {
 			Map<UUID, Dataset> datasetMap = null;
 			Map<UUID, Job> jobMap = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
-			
-			try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
-				ZipEntry entry;
-				while ((entry = zipInputStream.getNextEntry()) != null) {
-					
-					if (entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
-						
-						sessionType = SessionLoaderImpl2.parseXml(new NonClosableInputStream(zipInputStream));
-						
-						// Job objects require UUID identifiers
-						convertJobIds(sessionType);
-						
-						session = getSession(sessionType);
-						datasetMap = getDatasets(sessionType.getData());
-						jobMap = getJobs(sessionType.getOperation());
-												
-						// the session name isn't saved inside the xml session, so let's use whatever the uploader has set
-						session.setName(sessionDb.getSession(sessionId).getName());
-						
-						// support for the older variant of the xml session version 2
-						entryToDatasetIdMap = getEntryToDatasetIdMap(sessionType);						
-						
-					} else if (entryToDatasetIdMap.containsKey(entry.getName())) {				
-								
-						UUID datasetId = UUID.fromString(entryToDatasetIdMap.get(entry.getName()));
-						// Create only dummy datasets now and update them with real dataset data later,
-						// because it's done this way in JsonSession at the moment (although here we rely on the
-						// zip entry order and could create the final datasets already now).
-						Dataset dummyDataset = new Dataset();
-						dummyDataset.setDatasetIdPair(sessionId, datasetId);
-						
-						sessionDb.createDataset(sessionId, dummyDataset);
+			Map<String, String> screenOutputMap = new HashMap<>();
 
-						// prevent Jersey client from closing the stream after the upload
-						// try-with-resources will close it after the whole zip file is read
-						fileBroker.upload(sessionId, datasetId, new NonClosableInputStream(zipInputStream));				
-						
-					} else if (entry.getName().startsWith("source-code-")) {
-						logger.info("omitted source code " + entry.getName());
-					} else {
-						logger.info("unknown file " + entry.getName());
+			/* 
+			 * The default zip implementation can't read from InputStream over 4 GB files 
+			 * written by TrueZip ( java.util.zip.ZipException: invalid entry size (expected 0 but got X bytes).
+			 * 
+			 * Seems to work fine if we first download the file, but requires potentially hundreds of gigabytes 
+			 * of disk space on the session-worker.
+			 */
+			File localTempZip = new File(tempDir, sessionId + ".zip");
+			logger.info("donwload session to " + localTempZip.toString());
+			fileBroker.download(sessionId, zipDatasetId, localTempZip);
+			
+			logger.info("extract session " + localTempZip.toString());
+			try (ZipFile zipFile = new ZipFile(localTempZip)) {
+			
+				Enumeration<? extends ZipEntry> entries = zipFile.entries();
+	
+				while(entries.hasMoreElements()) {
+				
+					ZipEntry entry = entries.nextElement();
+
+					try (InputStream entryInputStream = zipFile.getInputStream(entry)) {
+
+						if (entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
+
+							sessionType = SessionLoaderImpl2.parseXml(entryInputStream);
+
+							// Job objects require UUID identifiers
+							convertJobIds(sessionType);
+
+							session = getSession(sessionType);
+							datasetMap = getDatasets(sessionType.getData());
+							jobMap = getJobs(sessionType.getOperation());
+
+							// the session name isn't saved inside the xml session, so let's use whatever the uploader has set
+							session.setName(sessionDb.getSession(sessionId).getName());
+
+							// support for the older variant of the xml session version 2
+							entryToDatasetIdMap = getEntryToDatasetIdMap(sessionType);						
+
+						} else if (entryToDatasetIdMap.containsKey(entry.getName())) {				
+
+							UUID datasetId = UUID.fromString(entryToDatasetIdMap.get(entry.getName()));
+
+							// Create only dummy datasets now and update them with real dataset data later,
+							// because it's done this way in JsonSession at the moment (although here we rely on the
+							// zip entry order and could create the final datasets already now).
+							Dataset dummyDataset = new Dataset();
+							dummyDataset.setDatasetIdPair(sessionId, datasetId);
+
+							sessionDb.createDataset(sessionId, dummyDataset);
+
+							fileBroker.upload(sessionId, datasetId, entryInputStream);
+
+						} else if (entry.getName().startsWith("source-code-")) {
+							// source code in the old session is actually a screen output
+							String screenOutput = IOUtils.toString(entryInputStream, Charset.defaultCharset());
+							screenOutputMap.put(entry.getName(), screenOutput);
+							
+						} else {
+							logger.info("unknown file " + entry.getName());
+						}
 					}
-				}
-			}			
+				}	
+			} finally {
+				localTempZip.delete();
+			}
 			
+			addScreenOutputs(jobMap, screenOutputMap);
+
 			fixModificationParents(sessionType, session, datasetMap, jobMap);
-			
+
 			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap);
-					
+
 			return new ExtractedSession(session, datasetMap, jobMap);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
+		}
+	}
+
+	private static void addScreenOutputs(Map<UUID, Job> jobMap, Map<String, String> screenOutputMap) {
+		for (Job job : jobMap.values()) {
+			// getJob() saved the file name to the Job.screenOutput field
+			String filename = job.getScreenOutput();
+			// replace it with the file content (or null if not found)
+			job.setScreenOutput(screenOutputMap.get(filename));
 		}
 	}
 
@@ -377,7 +418,8 @@ public class XmlSession {
 		}
 		job.setModule(operationType.getModule());
 		job.setToolCategory(operationType.getCategory());
-		job.setScreenOutput(Strings.delimit(operationType.getOutput(), "\n"));			
+		// seems to be small integers, output dataset IDs perhaps?
+		// operationType.getOutput();			
 		job.setState(JobState.COMPLETED);
 		job.setToolDescription(operationType.getName().getDescription());
 		job.setToolId(operationType.getName().getId());
@@ -385,7 +427,12 @@ public class XmlSession {
 
 		job.setInputs(getInputs(operationType.getInput()));
 		job.setParameters(getParameters(operationType.getParameter()));
+
+		// the content of the sourceCodeFile is actually screenOutput
+		// save the fileName to this field for a moment
+		job.setScreenOutput(operationType.getSourceCodeFile());
 		
+		// the old session doesn't have sourceCode
 		//job.setSourceCode(sourceCode);	
 
 		return job;
