@@ -1,6 +1,7 @@
 package fi.csc.chipster.auth.resource;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
@@ -19,6 +20,7 @@ import javax.ws.rs.core.SecurityContext;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
@@ -30,9 +32,11 @@ public class TokenResource {
 	private static final String TOKEN_HEADER = "chipster-token";
 
 	private TokenTable tokenTable;
+	private UserTable userTable;
 
-	public TokenResource(TokenTable tokenTable) {
+	public TokenResource(TokenTable tokenTable, UserTable userTable) {
 		this.tokenTable = tokenTable;
+		this.userTable = userTable;
 	}
 
 	@POST
@@ -44,7 +48,6 @@ public class TokenResource {
 		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
-
 		String username = sc.getUserPrincipal().getName();
 
 		if (username == null) {
@@ -53,7 +56,8 @@ public class TokenResource {
 		}
 		
 		Token token = tokenTable.createAndSaveToken(username, principal.getRoles());
-
+		token.setName(this.getName(token, principal.getRoles() ));
+		
 		return Response.ok(token).build();
 	}
 
@@ -66,6 +70,7 @@ public class TokenResource {
 		Token dbToken = tokenTable.getToken(requestToken);
 
 		if (dbToken.getValidUntil().isAfter(Instant.now())) {
+			dbToken.setName(this.getName(dbToken, ((AuthPrincipal)sc.getUserPrincipal()).getRoles()));
 			return Response.ok(dbToken).build();
 		} else {
 			// not a ForbiddenException because the server's token was authenticated correctly in the TokenRequestFilter 
@@ -80,10 +85,12 @@ public class TokenResource {
 	@Transaction
 	public Response refreshToken(@Context SecurityContext sc) {
 
-		String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
+		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
+		String token = principal.getTokenKey();
 
 		Token dbToken = tokenTable.refreshToken(token);
-
+		dbToken.setName(this.getName(dbToken, principal.getRoles()));
+		
 		return Response.ok(dbToken).build();
 	}
 
@@ -94,7 +101,8 @@ public class TokenResource {
 	@Transaction
 	public Response checkClientToken(@Context SecurityContext sc) {
 
-		String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
+		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
+		String token = principal.getTokenKey();
 
 		Token dbToken;
 		try {
@@ -106,10 +114,10 @@ public class TokenResource {
 		// throws forbidden
 		tokenTable.failIfTokenExpired(dbToken);
 		
+		dbToken.setName(this.getName(dbToken, principal.getRoles()));
+		
 		return Response.ok(dbToken).build();
 	}
-
-	
 
 	@DELETE
 	@RolesAllowed(Role.CLIENT)
@@ -124,4 +132,13 @@ public class TokenResource {
 
 		return Response.noContent().build();
 	}
+
+	private String getName(Token token, HashSet<String> roles ) {
+		if (roles.contains(Role.CLIENT)) {
+			return this.userTable.get(new UserId(token.getUsername())).getName();
+		} else {
+			return null;
+		}
+	}
+
 }

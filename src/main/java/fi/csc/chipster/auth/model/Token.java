@@ -7,6 +7,7 @@ import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Transient;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -24,6 +25,9 @@ public class Token {
 	private Instant	validUntil, created;
 	private String rolesJson;
 	
+	@Transient
+	private String name;
+
 	public Token() {
 		// JAX-B needs this
 	}
@@ -75,6 +79,14 @@ public class Token {
 
 	public void setCreated(Instant created) {
 		this.created = created;
+	}
+		
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 	
 	@JsonIgnore

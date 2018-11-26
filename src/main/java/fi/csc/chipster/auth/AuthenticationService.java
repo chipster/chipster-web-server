@@ -76,7 +76,7 @@ public class AuthenticationService {
     	TokenTable tokenTable = new TokenTable(hibernate);
     	UserTable userTable = new UserTable(hibernate);
     	
-    	TokenResource authResource = new TokenResource(tokenTable);
+    	TokenResource authResource = new TokenResource(tokenTable, userTable);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
 
