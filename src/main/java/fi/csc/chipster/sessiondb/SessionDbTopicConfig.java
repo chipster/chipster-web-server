@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
@@ -49,25 +50,46 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 		} else if (DATASETS_TOPIC.equals(topic) || AUTHORIZATIONS_TOPIC.equals(topic) || SESSIONS_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SESSION_DB);
 			
-		} else {
-			final UUID sessionId = UUID.fromString(topic);
-			Boolean isAuthorized = hibernate.runInTransaction(new HibernateRunnable<Boolean>() {
-				@Override
-				public Boolean run(org.hibernate.Session hibernateSession) {
-					try {
-						Session session = sessionResource.getRuleTable().checkAuthorization(principal, sessionId, false, hibernateSession, false);
-						return session != null;
-					} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
-							|javax.ws.rs.NotFoundException
-							|javax.ws.rs.ForbiddenException e) {
-						return false;
-					}		
-				}
-			});
-			return isAuthorized;
+		} else {  
+			if (isUUID(topic)) {
+				final UUID sessionId = UUID.fromString(topic);
+				return isAuthorizedSessionId(sessionId, principal);
+			} else {
+				UserId userId = new UserId(topic);
+				return isAuthorizedUserId(userId, principal);
+			}
 		} 
 	}
 	
+	private boolean isUUID(String uuid) {
+		try {
+			UUID.fromString(uuid);
+			return true;	
+		} catch (IllegalArgumentException e) {
+			return false;
+		}
+	}
+	
+	private boolean isAuthorizedSessionId(UUID sessionId, AuthPrincipal principal) {
+		return hibernate.runInTransaction(new HibernateRunnable<Boolean>() {
+			@Override
+			public Boolean run(org.hibernate.Session hibernateSession) {
+				try {
+					Session session = sessionResource.getRuleTable().checkAuthorization(principal, sessionId, false, hibernateSession, false);
+					return session != null;
+				} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
+						|javax.ws.rs.NotFoundException
+						|javax.ws.rs.ForbiddenException e) {
+					return false;
+				}		
+			}
+		});
+	}
+	
+	private boolean isAuthorizedUserId(UserId userId, AuthPrincipal principal) {
+		return principal.getName().equals(userId.toUserIdString());
+	}
+
 	@Override
 	public String getMonitoringTag(String topic) {
 		if (JOBS_TOPIC.equals(topic) || 

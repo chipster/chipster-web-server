@@ -3,7 +3,9 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
@@ -82,13 +84,13 @@ public class RuleResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
-    public Response post(Rule newAuthorization, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+    public Response post(Rule newRule, @Context UriInfo uriInfo, @Context SecurityContext sc) {
     	
-		if (newAuthorization.getRuleId() != null) {
+		if (newRule.getRuleId() != null) {
 			throw new BadRequestException("authorization already has an id, post not allowed");
 		}
 		
-		if (RuleTable.EVERYONE.equals(newAuthorization.getUsername())) {
+		if (RuleTable.EVERYONE.equals(newRule.getUsername())) {
 			String publicSharingUsername = config.getString(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE);
 			if (!publicSharingUsername.isEmpty() && !publicSharingUsername.equals(sc.getUserPrincipal().getName())) {
 				throw new ForbiddenException("sharing to everyone is not allowed for this user");
@@ -97,25 +99,53 @@ public class RuleResource {
     	
 		Session session = ruleTable.getSessionForWriting(sc, sessionId);
 
-		newAuthorization.setRuleId(RestUtils.createUUID());    	    	
-		
-		// make sure a hostile client doesn't set the session
-    	newAuthorization.setSession(session);
-    	newAuthorization.setSharedBy(sc.getUserPrincipal().getName());
+		// don't allow client to set this
+		newRule.setSharedBy(sc.getUserPrincipal().getName());
+
+		UUID ruleId = this.create(newRule, session);
     	
-    	ruleTable.save(newAuthorization, hibernate.session());
-    
-    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, newAuthorization.getRuleId(), EventType.CREATE), hibernate.session());
-    	
-    	URI uri = uriInfo.getAbsolutePathBuilder().path(newAuthorization.getRuleId().toString()).build();
+    	URI uri = uriInfo.getAbsolutePathBuilder().path(ruleId.toString()).build();
     	
     	ObjectNode json = new JsonNodeFactory(false).objectNode();
-		json.put("ruleId", newAuthorization.getRuleId().toString());
+		json.put("ruleId", ruleId.toString());
 		
 		return Response.created(uri).entity(json).build();
     }
     
-    @DELETE
+    public UUID create(Rule newRule, Session session) {
+    	
+		newRule.setRuleId(RestUtils.createUUID());    	    	
+		
+		// make sure a hostile client doesn't set the session
+    	newRule.setSession(session);    	
+    	
+    	ruleTable.save(newRule, hibernate.session());    	
+    	
+    	publishRuleEvent(session, newRule, EventType.CREATE);
+    	
+    	return newRule.getRuleId();
+    }
+    
+    private void publishRuleEvent(Session session, Rule rule, EventType eventType) {
+    	UUID sessionId = session.getSessionId();
+    	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType), hibernate.session());
+    	
+    	Set<String> usernames = session.getRules().stream()
+        		// don't inform about the example sessions
+    			.filter(r -> !RuleTable.EVERYONE.equals(r.getUsername()))
+    			.map(r -> r.getUsername())
+    			.collect(Collectors.toSet());
+    	
+    	// when session is being shared, the recipient is not in the session yet
+    	usernames.add(rule.getUsername());
+    	
+    	// send events to username topics to update the session list
+    	for (String username : usernames) {
+			sessionResource.publish(username, new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType), hibernate.session());
+    	}
+	}
+
+	@DELETE
     @Path("{id}")
     @Transaction
     public Response delete(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) {
@@ -138,12 +168,13 @@ public class RuleResource {
     }
 
 	public void delete(Session session, Rule rule, org.hibernate.Session hibernateSession, boolean deleteSessionIfLastRule) {
-		ruleTable.delete(session.getSessionId(), rule, hibernate.session());
 		
-		sessionResource.publish(session.getSessionId().toString(), new SessionEvent(session.getSessionId(), ResourceType.RULE, rule.getRuleId(), EventType.DELETE), hibernateSession);
+		ruleTable.delete(session.getSessionId(), rule, hibernate.session());		
 		
 		if (deleteSessionIfLastRule) {
 			sessionResource.deleteSessionIfOrphan(session);
 		}
+		
+		publishRuleEvent(session, rule, EventType.DELETE);
 	}   
 }

@@ -67,7 +67,7 @@ public class SessionDb {
 
 	private SessionResource sessionResource;
 
-	private RuleTable authorizationTable;
+	private RuleTable ruleTable;
 
 	private SessionDbAdminResource adminResource;
 
@@ -113,9 +113,9 @@ public class SessionDb {
 
 		DatasetTokenTable datasetTokenTable = new DatasetTokenTable(hibernate);
 		
-		this.authorizationTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
-		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, authorizationTable);
-		this.sessionResource = new SessionResource(hibernate, authorizationTable, config);
+		this.ruleTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
+		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, ruleTable);
+		this.sessionResource = new SessionResource(hibernate, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
 				
@@ -134,7 +134,7 @@ public class SessionDb {
 		sessionResource.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				.register(datasetTokenResource).register(authorizationTable)
+				.register(datasetTokenResource).register(ruleTable)
 				.register(sessionResource).register(globalJobResource)
 				.register(userResource)
 				.register(new HibernateRequestFilter(hibernate))

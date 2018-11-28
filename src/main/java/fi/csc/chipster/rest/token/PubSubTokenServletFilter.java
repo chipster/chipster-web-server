@@ -1,7 +1,8 @@
 package fi.csc.chipster.rest.token;
 
 import java.io.IOException;
-import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -62,18 +63,18 @@ public class PubSubTokenServletFilter implements Filter {
     		response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "no token in request");
     		return;
     	}
-    	
+
     	try {
     		AuthPrincipal principal = topicCheck.getUserPrincipal(tokenKey);
     		
-    		if (principal != null) {    		
+    		if (principal != null) {    			
     			
     			/* topic authorization is checked twice: once here to make a client 
     			 * notice errors already in the connection handshake and the second 
     			 * time in when the connection is opened, because the topic parsing
     			 * here is little bit worrying
     			 */
-    			if (isAuthorized(principal, request)) {
+    			if (isAuthorized(principal, getTopic(request))) {
     				
     				// authentication ok
     				// use PrincipalRequestWrapper to transmit username and roles
@@ -85,9 +86,25 @@ public class PubSubTokenServletFilter implements Filter {
     				
     				for (String headerName : detailHeaders) {
     					principal.getDetails().put(headerName, request.getHeader(headerName));
-    				}    				
+    				}    				    			    		    
+    		    	
+    				PrincipalRequestWrapper authenticatedRequest = new PrincipalRequestWrapper(principal, request);
     				
-    				filterChain.doFilter(new PrincipalRequestWrapper(principal, request), response);
+    				/* Jetty WebSocketUpgradeFilter gets the target path from getServletPath(), which
+    				 * is decoded. If the topic contains an encoded slash like /events/jaas%Fchipster, getServletPath()
+    				 * will return /events/jaas/chipster, which doesn't match with the pathTemplate resulting to a 404
+    				 * response. Make the getServletPath() return he encoded version despite the spec to
+    				 * get to the PubSubEndpoint correctly.
+    				 */
+    				String originalTopic = getTopic(request);
+    				if (originalTopic != null) {
+	    		    	String encodedTopic = URLEncoder.encode(originalTopic, StandardCharsets.UTF_8.toString());
+	    		    	String forwardUri = getUrl(encodedTopic);
+	    		    	authenticatedRequest.setServletPath(forwardUri);
+    				}
+    				
+    		    	filterChain.doFilter(authenticatedRequest, response);    		    	
+    				
     				return;
     			} else {
     				logger.debug("access denied");
@@ -114,20 +131,31 @@ public class PubSubTokenServletFilter implements Filter {
     		return;
     	} 
     }
-
-    private boolean isAuthorized(AuthPrincipal principal, HttpServletRequest request) {
+    
+    public String getTopic(HttpServletRequest request) {
     	Map<String, String> groupValues = new HashMap<>();
-    	String requestPath = URI.create(request.getRequestURI()).getPath();
+    	String requestPath = request.getRequestURI();
 		if (!new UriTemplate(pathTemplate).match(requestPath, groupValues)) {
 			// matching failed
 			logger.warn("uri template matching failed");
 			logger.warn("template: " + pathTemplate);
-			logger.warn("uri:      " + requestPath);
-			return false;
+			logger.warn("uri:      " + requestPath + " (" + request.getRequestURI() + ")");
+			throw new NotFoundException("path " + requestPath + " not found");
 		}
 		
 		String topic = groupValues.get(PubSubEndpoint.TOPIC_KEY);
-		
+		topic = PubSubEndpoint.decodeTopic(topic);
+		return topic;
+    }
+    
+    public String getUrl(String topic) {
+    	HashMap<String, String> groupValues = new HashMap<String, String>(){{
+    		put(PubSubEndpoint.TOPIC_KEY, topic);
+    	}};
+		return new UriTemplate(pathTemplate).createURI(groupValues);				
+    }
+
+    private boolean isAuthorized(AuthPrincipal principal, String topic) {
 		return topicCheck.isAuthorized(principal, topic);
 	}
 	

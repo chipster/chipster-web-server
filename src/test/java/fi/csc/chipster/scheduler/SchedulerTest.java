@@ -72,28 +72,28 @@ public class SchedulerTest {
     	
     	// wrong user
     	try {       
-    		EventTest.getTestClient(uri, messages, latch, false, userToken);
+    		EventTest.getTestClient(uri, null, messages, latch, false, userToken);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
     	
     	// unparseable token
     	try {       
-    		EventTest.getTestClient(uri, messages, latch, false, "unparseableToken");
+    		EventTest.getTestClient(uri, null, messages, latch, false, "unparseableToken");
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
     	
     	// wrong token
     	try {       
-    		EventTest.getTestClient(uri, messages, latch, false, RestUtils.createId());
+    		EventTest.getTestClient(uri, null, messages, latch, false, RestUtils.createId());
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}    
 
     	// no token
     	try {       
-    		EventTest.getTestClient(uri, messages, latch, false, null);
+    		EventTest.getTestClient(uri, null, messages, latch, false, null);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
@@ -105,7 +105,7 @@ public class SchedulerTest {
     	CountDownLatch latch = new CountDownLatch(1);
     	
     	// correct settings
-    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	WebSocketClient client = EventTest.getTestClient(uri, null, messages, latch, false, token);
     	client.ping();
     	client.shutdown();
     }
@@ -120,7 +120,7 @@ public class SchedulerTest {
         
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	WebSocketClient client = EventTest.getTestClient(uri, null, messages, latch, false, token);
     	
     	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
@@ -150,7 +150,7 @@ public class SchedulerTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	WebSocketClient client = EventTest.getTestClient(uri, null, messages, latch, false, token);
     	
     	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
@@ -164,7 +164,7 @@ public class SchedulerTest {
          */
     	final ArrayList<String> messages2 = new ArrayList<>(); 
     	final CountDownLatch latch2 = new CountDownLatch(1);    	
-    	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
+    	WebSocketClient client2 = EventTest.getTestClient(uri, null, messages2, latch2, false, token);
         
         // imaginary comp responds with offer
         UUID compId = RestUtils.createUUID();
@@ -189,7 +189,7 @@ public class SchedulerTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	WebSocketClient client = EventTest.getTestClient(uri, null, messages, latch, false, token);
     	
     	user1Client.createJob(sessionId, RestUtils.getRandomJob());
     	
@@ -203,7 +203,7 @@ public class SchedulerTest {
          */
     	final ArrayList<String> messages2 = new ArrayList<>(); 
     	final CountDownLatch latch2 = new CountDownLatch(1);    	
-    	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
+    	WebSocketClient client2 = EventTest.getTestClient(uri, null, messages2, latch2, false, token);
         
         // imaginary comps respond with offer
     	HashSet<UUID> compIds = new HashSet<>();
@@ -244,7 +244,7 @@ public class SchedulerTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	WebSocketClient client = EventTest.getTestClient(uri, null, messages, latch, false, token);
     	
     	// cancel it
     	user1Client.deleteJob(sessionId, jobId);
@@ -273,7 +273,7 @@ public class SchedulerTest {
         
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);
-    	WebSocketClient client = EventTest.getTestClient(uri, messages, latch, false, token);
+    	WebSocketClient client = EventTest.getTestClient(uri, null, messages, latch, false, token);
     	
     	// try to schedule all possible old jobs
     	UUID compId = RestUtils.createUUID();
@@ -296,7 +296,7 @@ public class SchedulerTest {
          */
     	final ArrayList<String> messages2 = new ArrayList<>(); 
     	final CountDownLatch latch2 = new CountDownLatch(1);    	
-    	WebSocketClient client2 = EventTest.getTestClient(uri, messages2, latch2, false, token);
+    	WebSocketClient client2 = EventTest.getTestClient(uri, null, messages2, latch2, false, token);
         
     	// when the comp has a free slot, it will send an AVAILABLE message
         client.sendText(RestUtils.asJson(new JobCommand(null, null, compId, Command.AVAILABLE)));

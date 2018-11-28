@@ -1,7 +1,10 @@
 package fi.csc.chipster.rest.websocket;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 import javax.websocket.CloseReason;
 import javax.websocket.CloseReason.CloseCodes;
@@ -33,7 +36,7 @@ public class PubSubEndpoint extends Endpoint {
     	session.setMaxIdleTimeout(getServer(session).getIdleTimeout());
     	
     	// get topic from path params    	
-    	String topic = session.getPathParameters().get(TOPIC_KEY);
+    	String topic = getTopic(session);
     	
     	/*
     	 * topic authorization is checked twice: ones in the servlet filter
@@ -74,6 +77,28 @@ public class PubSubEndpoint extends Endpoint {
 		}
     }
 
+	private String getTopic(Session session) {
+		String topic = session.getPathParameters().get(TOPIC_KEY);    	
+    	return decodeTopic(topic);
+	}
+
+	public static String decodeTopic(String topic) {
+		if (topic == null) {
+			return null;
+		}
+		// why jetty decodes the url (and consequently doesn't match the WebsocketEndpoint)
+		// if the slash is decoded just once?
+		String decodedOnce;
+		try {
+			decodedOnce = URLDecoder.decode(topic, StandardCharsets.UTF_8.toString());
+			String decodedTwice = URLDecoder.decode(decodedOnce, StandardCharsets.UTF_8.toString());
+			return decodedTwice;
+			
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException("topic decode failed", e);
+		}
+	}
+
 	private void close(Session session, CloseCodes closeCode, String reason) {
     	try {
 			session.close(new CloseReason(closeCode, reason));
@@ -87,7 +112,7 @@ public class PubSubEndpoint extends Endpoint {
 	}
 
 	private void unsubscribe(Session session) {
-		String topic = (String) session.getUserProperties().get(TOPIC_KEY);
+		String topic = getTopic(session);
     	getServer(session).unsubscribe(topic, session.getBasicRemote());
 	}
 

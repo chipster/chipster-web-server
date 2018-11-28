@@ -10,6 +10,7 @@ public class PrincipalRequestWrapper extends HttpServletRequestWrapper {
 
 	HttpServletRequest realRequest;
 	private AuthPrincipal principal;
+	private String servletPath;
 
 	public PrincipalRequestWrapper(AuthPrincipal principal, HttpServletRequest request) {
 		super(request);
@@ -25,5 +26,23 @@ public class PrincipalRequestWrapper extends HttpServletRequestWrapper {
 	@Override
 	public Principal getUserPrincipal() {
 		return principal;
+	}
+    
+    @Override
+    public String getPathInfo() {
+    	String pathInfo = super.getPathInfo();
+    	return pathInfo;
+    }
+    
+    @Override
+    public String getServletPath() {
+    	if (this.servletPath != null) {
+    		return this.servletPath;
+    	}
+        return super.getServletPath();        
+    }
+
+	public void setServletPath(String servletPath) {
+		this.servletPath = servletPath;
 	}
 }

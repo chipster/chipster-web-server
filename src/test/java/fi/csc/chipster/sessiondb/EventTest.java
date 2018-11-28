@@ -2,6 +2,8 @@ package fi.csc.chipster.sessiondb;
 
 import static org.junit.Assert.assertEquals;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -63,15 +65,25 @@ public class EventTest {
     
     @Test
     public void authErrors() throws Exception {
-    	auth(false);    	
+    	authSessionId(false);    	
     }
     
     @Test
     public void authErrorsCancelRetry() throws Exception {
-    	auth(true);    	
+    	authSessionId(true);    	
     }
     
-    public void auth(boolean retry) throws Exception {
+    @Test
+    public void authErrorsUserId() throws Exception {
+    	authUserEvents(false);    	
+    }
+    
+    @Test
+    public void authErrorsUserIdCancelRetry() throws Exception {
+    	authUserEvents(true);    	
+    }
+    
+    public void authSessionId(boolean retry) throws Exception {
     	
     	String sessionId = user1Client.createSession(RestUtils.getRandomSession()).toString();
     	
@@ -80,35 +92,71 @@ public class EventTest {
     	
     	// jobs topic with client credentials
     	try {       
-    		getTestClient(uri + "/" + SessionDbTopicConfig.JOBS_TOPIC, messages, latch, retry, token);
+    		getTestClient(uri + "/", SessionDbTopicConfig.JOBS_TOPIC, messages, latch, retry, token);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
     	
     	// wrong user
     	try {       
-    		getTestClient(uri + sessionId, messages, latch, retry, token2);
+    		getTestClient(uri, sessionId, messages, latch, retry, token2);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}    	
     	
     	// unparseable token
     	try {       
-    		getTestClient(uri + sessionId, messages, latch, retry, "unparseableToken");
+    		getTestClient(uri, sessionId, messages, latch, retry, "unparseableToken");
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
     	
     	// wrong token
     	try {       
-    		getTestClient(uri + sessionId, messages, latch, retry, RestUtils.createId());
+    		getTestClient(uri, sessionId, messages, latch, retry, RestUtils.createId());
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}    
 
     	// no token
     	try {       
-    		getTestClient(uri + sessionId, messages, latch, retry, null);
+    		getTestClient(uri, sessionId, messages, latch, retry, null);
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}
+    }
+    
+    public void authUserEvents(boolean retry) throws Exception {
+    	
+    	String userId = launcher.getUser1Credentials().getUsername();
+    	
+    	ArrayList<String> messages = new ArrayList<>(); 
+    	CountDownLatch latch = new CountDownLatch(1);    
+    	
+    	// wrong user
+    	try {       
+    		getTestClient(uri, userId, messages, latch, retry, token2);
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}    	
+    	
+    	// unparseable token
+    	try {       
+    		getTestClient(uri, userId, messages, latch, retry, "unparseableToken");
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}
+    	
+    	// wrong token
+    	try {       
+    		getTestClient(uri, userId, messages, latch, retry, RestUtils.createId());
+    		assertEquals(true, false);
+    	} catch (WebSocketErrorException e) {
+    	}    
+
+    	// no token
+    	try {       
+    		getTestClient(uri, userId, messages, latch, retry, null);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
     	}
@@ -122,7 +170,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(uri + sessionId, messages, latch, false, token);
+    	WebSocketClient client = getTestClient(uri, sessionId, messages, latch, false, token);
     	    	
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	
@@ -160,6 +208,52 @@ public class EventTest {
         
         client.shutdown();
     }
+
+    @Test
+    public void createSessionUserEvents() throws Exception {    	
+    	
+    	String userId = launcher.getUser1Credentials().getUsername();
+    	
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = getTestClient(userId, messages, latch);    	
+    	
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+    	
+        // wait for the message
+        assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+        SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
+        
+        assertEquals(sessionId, sessionEvent.getSessionId());
+        assertEquals(ResourceType.RULE, sessionEvent.getResourceType());
+        assertEquals(EventType.CREATE, sessionEvent.getType());
+        
+        client.shutdown();
+        user1Client.deleteSession(sessionId);
+    }
+    
+    @Test
+    public void deleteSessionUserEvents() throws Exception {    	
+    	
+    	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+    	String userId = launcher.getUser1Credentials().getUsername();
+    	
+    	final ArrayList<String> messages = new ArrayList<>(); 
+    	final CountDownLatch latch = new CountDownLatch(1);    	
+    	WebSocketClient client = getTestClient(userId, messages, latch);    	
+    	
+    	user1Client.deleteSession(sessionId);
+    	
+        // wait for the message
+        assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
+        SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
+        
+        assertEquals(sessionId, sessionEvent.getSessionId());
+        assertEquals(ResourceType.RULE, sessionEvent.getResourceType());
+        assertEquals(EventType.DELETE, sessionEvent.getType());
+        
+        client.shutdown();
+    }
     
     // the server can be stopped only if this test suite started it
     //@Test
@@ -169,7 +263,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(uri + sessionId, messages, latch, true, token);
+    	WebSocketClient client = getTestClient(uri, sessionId.toString(), messages, latch, true, token);
     	
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().init();
@@ -200,17 +294,25 @@ public class EventTest {
     }
     
     private WebSocketClient getTestClient(String topic, final ArrayList<String> messages, final CountDownLatch latch) throws Exception {
-    	return getTestClient(uri + topic, messages, latch, false, token);
+    	return getTestClient(uri, topic, messages, latch, false, token);
     }
     
-    public static WebSocketClient getTestClient(String requestUri, final ArrayList<String> messages, final CountDownLatch latch, boolean retry, String token) throws Exception {
+    public static WebSocketClient getTestClient(String requestUri, String topic, final ArrayList<String> messages, final CountDownLatch latch, boolean retry, String token) throws Exception {
     
+    	String encodedTopic = "";
+    	if (topic != null) {
+    		encodedTopic = URLEncoder.encode(topic, StandardCharsets.UTF_8.toString());
+    		// something here in the client decodes the url, so let's encode it twice
+    		// investigate more if this is used in somewhere else than just tests
+    		encodedTopic = URLEncoder.encode(encodedTopic, StandardCharsets.UTF_8.toString());
+    	}
+    	
     	CredentialsProvider credentials = null;
     	if (token != null) {
     		credentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, token);
     	}
     	
-    	WebSocketClient client =  new WebSocketClient(requestUri, new MessageHandler.Whole<String>() {
+    	WebSocketClient client =  new WebSocketClient(requestUri + encodedTopic, new MessageHandler.Whole<String>() {
     		@Override
     		public void onMessage(String msg) {
     			messages.add(msg);
@@ -366,7 +468,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(uri + sessionId.toString(), messages, latch, false, eventToken);
+    	WebSocketClient client = getTestClient(uri, sessionId.toString(), messages, latch, false, eventToken);
     	
     	job.setToolName("new name");
     	user1Client.updateJob(sessionId, job);

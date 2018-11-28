@@ -2,6 +2,7 @@ package fi.csc.chipster.rest.websocket;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 import javax.websocket.MessageHandler;
@@ -101,7 +103,7 @@ public class PubSubServer implements StatusSource {
         context.setContextPath(contextPath);
 
         PubSubTokenServletFilter filter = new PubSubTokenServletFilter(topicConfig, contextPath + path);
-        context.addFilter(new FilterHolder(filter), "/*", null);
+        context.addFilter(new FilterHolder(filter), "/*",  EnumSet.of(DispatcherType.REQUEST));
 
         server.setHandler(context);
 		

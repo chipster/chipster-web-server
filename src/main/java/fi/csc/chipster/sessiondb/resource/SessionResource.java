@@ -180,12 +180,11 @@ public class SessionResource {
 	
 	public void create(Session session, Rule auth, org.hibernate.Session hibernateSession) {
 		HibernateUtil.persist(session, hibernateSession);
-		ruleTable.save(auth, hibernateSession);
+		
+		getRuleResource(session.getSessionId()).create(auth, session);
 
 		UUID sessionId = session.getSessionId();
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);
-		
-		publish(session.getSessionId().toString(), new SessionEvent(sessionId, ResourceType.RULE, auth.getRuleId(), EventType.CREATE), hibernateSession);
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);	
 	}
 
 	@PUT
@@ -255,7 +254,7 @@ public class SessionResource {
 		
 		HibernateUtil.delete(session, session.getSessionId(), hibernateSession);
 		
-//		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE), hibernateSession);
+		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE), hibernateSession);
 	}
     	
 	/**
@@ -286,7 +285,10 @@ public class SessionResource {
 		hibernateSession.addEventListeners(new BaseSessionEventListener() {
 			@Override
 			public void transactionCompletion(boolean successful) {
+				// publish the original event
 				events.publish(topic, obj);
+				
+				// global topics for servers
 				if (ResourceType.JOB == obj.getResourceType()) {
 					events.publish(SessionDbTopicConfig.JOBS_TOPIC, obj);
 				}
