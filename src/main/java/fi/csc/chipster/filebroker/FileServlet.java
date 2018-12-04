@@ -57,6 +57,7 @@ import fi.csc.microarray.util.IOUtils;
 * doesn't support HTTP Range queries, not even when running in Jetty. Implementing range queries efficiently 
 * isn't trivial, but luckily DefaultServlet supports range queries by default.</p>
 */
+@SuppressWarnings("serial")
 public class FileServlet extends DefaultServlet implements SessionEventListener {
 
 	private static final Logger logger = LogManager.getLogger();
@@ -127,7 +128,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 				
 		if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
-			throw new ForbiddenException("file id is null");
+			throw new NotFoundException("file id is null");
 		}
 		
 		UUID fileId = dataset.getFile().getFileId();		
@@ -137,7 +138,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		File f = getStorageFile(fileId);
 		
 	    if (!f.exists()) {
-	    	throw new ForbiddenException("no such file");
+	    	throw new NotFoundException("no such file");
 	    } 
     
 	    RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + fileId.toString());
