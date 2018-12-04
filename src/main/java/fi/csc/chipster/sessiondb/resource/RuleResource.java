@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -121,16 +122,16 @@ public class RuleResource {
     	
     	ruleTable.save(newRule, hibernate.session());    	
     	
-    	publishRuleEvent(session, newRule, EventType.CREATE);
+    	publishRuleEvent(session.getSessionId(), session.getRules(), newRule, EventType.CREATE);
     	
     	return newRule.getRuleId();
     }
     
-    private void publishRuleEvent(Session session, Rule rule, EventType eventType) {
-    	UUID sessionId = session.getSessionId();
+    private void publishRuleEvent(UUID sessionId, Collection<Rule> sessionRules, Rule rule, EventType eventType) {
+
     	sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType), hibernate.session());
-    	
-    	Set<String> usernames = session.getRules().stream()
+    	    	
+    	Set<String> usernames = sessionRules.stream()
         		// don't inform about the example sessions
     			.filter(r -> !RuleTable.EVERYONE.equals(r.getUsername()))
     			.map(r -> r.getUsername())
@@ -175,6 +176,9 @@ public class RuleResource {
 			sessionResource.deleteSessionIfOrphan(session);
 		}
 		
-		publishRuleEvent(session, rule, EventType.DELETE);
+		// why session.getRules() complains: failed to lazily initialize a collection, could not initialize proxy - no Session?
+		List<Rule> sessionRules = ruleTable.getRules(session.getSessionId());
+		
+		publishRuleEvent(session.getSessionId(), sessionRules, rule, EventType.DELETE);
 	}   
 }
