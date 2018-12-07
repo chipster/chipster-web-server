@@ -9,19 +9,33 @@ public class SessionEvent {
 
 	private UUID sessionId;
 	private ResourceType resource;
+	/**
+	 * Generic event type, e.g. an object was created, updated or deleted
+	 */
 	private EventType type;
 	private String serverId;
 	private long eventNumber;
 	private UUID resourceId;
+	/**
+	 * Object specific state, e.g. session is being imported or job is running
+	 */
+	private String state;
 	
 	public enum EventType { CREATE, UPDATE, DELETE }
 	public enum ResourceType { RULE, DATASET, JOB, FILE, SESSION }
 
 	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {
+		this(sessionId, resource, resourceId, type, null);
+	}
+	
+	public <E extends Enum<E>> SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type, Enum<E> state) {
 		this.resource = resource;
 		this.sessionId = sessionId;
 		this.resourceId = resourceId;
 		this.type = type;
+		if (state != null) {
+			this.setState(state.toString());
+		}
 	}
 	
 	public SessionEvent() {
@@ -74,5 +88,13 @@ public class SessionEvent {
 
 	public void setResourceId(UUID resourceId) {
 		this.resourceId = resourceId;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
 	}
 }

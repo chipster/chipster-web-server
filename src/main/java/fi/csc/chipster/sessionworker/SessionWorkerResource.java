@@ -54,6 +54,7 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionState;
 
 @Path("sessions")
 public class SessionWorkerResource {
@@ -233,11 +234,7 @@ public class SessionWorkerResource {
 		Set<UUID> datasetIds = datasets.stream().map(d -> d.getDatasetId()).collect(Collectors.toSet());
 		Set<UUID> jobIds = jobs.stream().map(j -> j.getJobId()).collect(Collectors.toSet());
 		
-		ArrayList<String> warnings = new ArrayList<String>();
-		
-		// update session object
-		session.setSessionId(sessionId);
-		sessionDb.updateSession(session);
+		ArrayList<String> warnings = new ArrayList<String>();	
 		
 		// check input references
 		for (Job job : jobs) {
@@ -274,6 +271,11 @@ public class SessionWorkerResource {
 		}
 		
 		sessionDb.updateDatasets(sessionId, new ArrayList<Dataset>(datasets));
+		
+		// update session object
+		session.setSessionId(sessionId);
+		session.setState(SessionState.READY);
+		sessionDb.updateSession(session);
 		
 		return warnings;
 	}

@@ -104,6 +104,8 @@ public class RuleResource {
 		newRule.setSharedBy(sc.getUserPrincipal().getName());
 
 		UUID ruleId = this.create(newRule, session);
+		
+		sessionResource.sessionModified(session, hibernate.session());
     	
     	URI uri = uriInfo.getAbsolutePathBuilder().path(ruleId.toString()).build();
     	
@@ -157,13 +159,18 @@ public class RuleResource {
     		throw new NotFoundException("rule not found");
     	}
     	
+    	Session session = null;
     	// everybody is allowed remove their own rules, even if they are read-only
     	if (!ruleToDelete.getUsername().equals(sc.getUserPrincipal().getName())) {
     		// others need read-write permissions
-    		ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    		session = ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
     	}    	    	
  
     	delete(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
+    	
+    	if (session != null) {
+    		sessionResource.sessionModified(session, hibernate.session());
+    	}
     
     	return Response.noContent().build();
     }

@@ -18,7 +18,7 @@ public class HibernateRequestFilter implements ContainerRequestFilter {
 
 	@Override
 	public void filter(ContainerRequestContext requestContext) {
-		Session session = hibernate.beginTransaction();
+		Session session = hibernate.beginTransactionAndBind();
 		requestContext.setProperty(PROP_HIBERNATE_SESSION, session);
 	}
 }

@@ -14,6 +14,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionState;
 
 public class SessionResourceTest {
 
@@ -165,6 +166,39 @@ public class SessionResourceTest {
 		testUpdateSession(403, session1, tokenFailClient);
 		testUpdateSession(401, session1, authFailClient);
 		testUpdateSession(401, session1, noAuthClient);
+    }
+	
+	@Test
+    public void sessionState() throws RestException {
+		
+		Session session1 = RestUtils.getRandomSession();
+		session1.setState(SessionState.IMPORT);
+		UUID sessionId = user1Client.createSession(session1);
+		
+		assertEquals(SessionState.IMPORT, user1Client.getSession(sessionId).getState());
+		
+		// we can modify the session in IMPORT state
+		session1.setName("new name");
+		user1Client.updateSession(session1);
+		
+		// and it should be still stay in IMPORt
+		assertEquals(SessionState.IMPORT, user1Client.getSession(sessionId).getState());
+		
+		// change session to TEMPORARY
+		session1.setState(SessionState.TEMPORARY);
+		user1Client.updateSession(session1);
+		
+		// check that change succeeded
+		assertEquals(SessionState.TEMPORARY, user1Client.getSession(sessionId).getState());		
+		
+		// modify a TEMPORARY session
+		session1.setName("new name 2");
+		user1Client.updateSession(session1);
+		
+		// and the state should have changed to READY
+		assertEquals(SessionState.READY, user1Client.getSession(sessionId).getState());
+		
+		user1Client.deleteSession(sessionId);
     }
 	
 	public static void testUpdateSession(int expected, Session newSession, SessionDbClient client) {

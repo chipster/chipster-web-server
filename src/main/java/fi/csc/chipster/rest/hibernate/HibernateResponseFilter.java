@@ -29,10 +29,10 @@ public class HibernateResponseFilter implements ContainerResponseFilter {
 			ContainerResponse response = (ContainerResponse) responseContext;
 			
 			if (response.isMappedFromException()) {
-				hibernate.rollback();
+				hibernate.rollbackAndUnbind();
 				return;
 			}
 		}
-		hibernate.commit();		
+		hibernate.commitAndUnbind();		
 	}
 }

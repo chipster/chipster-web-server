@@ -2,6 +2,7 @@ package fi.csc.chipster.auth;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -20,7 +21,6 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
-import org.apache.commons.compress.utils.Charsets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
@@ -272,7 +272,7 @@ public class AuthenticationClient {
 			return RestMethods.get(client
 				.target(serviceLocator.getPublicUri(Role.AUTH))
 				.path(AuthUserResource.USERS)
-				.path(URLEncoder.encode(userId.toUserIdString(), Charsets.UTF_8.name())), User.class);
+				.path(URLEncoder.encode(userId.toUserIdString(), StandardCharsets.UTF_8.name())), User.class);
 		} catch (UnsupportedEncodingException e) {
 			// convert to UncheckedException, because there is nothing the caller can do for this
 			throw new RuntimeException(e);

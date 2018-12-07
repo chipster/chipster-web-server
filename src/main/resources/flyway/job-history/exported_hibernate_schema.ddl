@@ -15,4 +15,4 @@
         userName varchar(255),
         primary key (jobId, sessionId)
     );
-create index job_history_start_time_index on JobHistoryModel (startTime);
+create index job_history_start_time_index on JobHistoryModel (startTime desc);

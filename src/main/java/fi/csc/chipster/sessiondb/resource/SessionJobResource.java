@@ -174,6 +174,8 @@ public class SessionJobResource {
 			create(job, getHibernate().session());
 		}
 		
+		sessionResource.sessionModified(session, getHibernate().session());
+		
 		return jobs.stream()
 				.map(j -> j.getJobId())
 				.collect(Collectors.toList());
@@ -213,7 +215,8 @@ public class SessionJobResource {
 
 	public void create(Job job, org.hibernate.Session hibernateSession) {
 		HibernateUtil.persist(job, hibernateSession);
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE), hibernateSession);
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE, job.getState());
+		sessionResource.publish(sessionId.toString(), event, hibernateSession);
 	}
 
 	@PUT
@@ -243,12 +246,15 @@ public class SessionJobResource {
 		
 		update(requestJob, getHibernate().session());
 		
+		sessionResource.sessionModified(session, getHibernate().session());
+		
 		return Response.noContent().build();
     }
 	
 	public void update(Job job, org.hibernate.Session hibernateSession) {
 		HibernateUtil.update(job, job.getJobIdPair(), hibernateSession);
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE), hibernateSession);
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE, job.getState());
+		sessionResource.publish(sessionId.toString(), event, hibernateSession);
 	}
 
 	@DELETE
@@ -266,12 +272,15 @@ public class SessionJobResource {
 		
 		deleteJob(dbJob, getHibernate().session());
 		
+		sessionResource.sessionModified(session, getHibernate().session());
+		
 		return Response.noContent().build();
     }
 	
 	public void deleteJob(Job job, org.hibernate.Session hibernateSession) {
 		HibernateUtil.delete(job, job.getJobIdPair(), hibernateSession);
-		sessionResource.publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE), hibernateSession);
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE, job.getState());
+		sessionResource.publish(sessionId.toString(), event, hibernateSession);
 	}
 
     /**

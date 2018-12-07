@@ -33,6 +33,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import fi.csc.chipster.sessiondb.model.SessionState;
 
 public class EventTest {
 	
@@ -203,8 +204,9 @@ public class EventTest {
         SessionEvent sessionEvent = RestUtils.parseJson(SessionEvent.class, messages.get(0));
         
         assertEquals(sessionId, sessionEvent.getSessionId());
-        assertEquals(ResourceType.RULE, sessionEvent.getResourceType());
-        assertEquals(EventType.DELETE, sessionEvent.getType());
+        assertEquals(ResourceType.SESSION, sessionEvent.getResourceType());
+        assertEquals(EventType.UPDATE, sessionEvent.getType());
+        assertEquals(SessionState.DELETE, SessionState.valueOf(sessionEvent.getState()));
         
         client.shutdown();
     }

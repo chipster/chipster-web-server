@@ -26,6 +26,7 @@ public class Session {
 	private String notes;
 	private Instant created;
 	private Instant accessed;
+	private SessionState state;
 	
 	@OneToMany(fetch = FetchType.LAZY, mappedBy="session")
 	private Set<Rule> rules;
@@ -77,6 +78,14 @@ public class Session {
 
 	public void setRules(Set<Rule> rules) {
 		this.rules = rules;
+	}
+
+	public SessionState getState() {
+		return state;
+	}
+
+	public void setState(SessionState state) {
+		this.state = state;
 	}
 	
 }

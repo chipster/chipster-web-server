@@ -277,8 +277,10 @@ public class HibernateUtil {
 	 * 
 	 * @return
 	 */
-	org.hibernate.Session beginTransaction() {
-		return beginTransaction(getSessionFactory());
+	org.hibernate.Session beginTransactionAndBind() {
+		Session session = beginTransaction(getSessionFactory());
+		ManagedSessionContext.bind(session);
+		return session;
 	}
 
 	
@@ -287,9 +289,7 @@ public class HibernateUtil {
 		Session session = sessionFactory2
 				.withOptions()
 //				.interceptor(new LoggingInterceptor())
-				.openSession();
-		
-		ManagedSessionContext.bind(session);
+				.openSession();		
 		
 		// update db only explicitly
 		session.setDefaultReadOnly(true);		
@@ -309,21 +309,26 @@ public class HibernateUtil {
 	/**
 	 * Use only in HibernateResponseFilter or through runInTransaction()
 	 */
-	void commit() {
-		commit(getSessionFactory());
+	void commitAndUnbind() {
+		commitAndUnbind(getSessionFactory());
 	}
 
-	private static void commit(SessionFactory sessionFactory) {
-		sessionFactory.getCurrentSession().getTransaction().commit();
+	private static void commitAndUnbind(SessionFactory sessionFactory) {
 		Session session = ManagedSessionContext.unbind(sessionFactory);
+		commit(session);
+	}
+	
+	private static void commit(Session session) {
+		session.getTransaction().commit();
 		session.close();
 	}
 	
 	/**
 	 * Use only in HibernateResponseFilter
 	 */
-	void rollback() {
-		rollback(getSessionFactory());		
+	void rollbackAndUnbind() {
+		Session session = ManagedSessionContext.unbind(sessionFactory);
+		rollback(session);		
 	}
 	
 	
@@ -332,11 +337,12 @@ public class HibernateUtil {
 	 * 
 	 * @param sessionFactory
 	 */
-	private static void rollback(SessionFactory sessionFactory) {
-		sessionFactory.getCurrentSession().getTransaction().rollback();
-		Session session = ManagedSessionContext.unbind(sessionFactory);
+	private static void rollback(Session session) {
+		session.getTransaction().rollback();
 		session.close();
 	}
+	
+	
 
 	public org.hibernate.Session session() {
 		return getSessionFactory().getCurrentSession();
@@ -345,16 +351,30 @@ public class HibernateUtil {
 	public <T> T runInTransaction(HibernateRunnable<T> runnable) {
 		return runInTransaction(runnable, getSessionFactory());
 	}
+	
 	public static <T> T runInTransaction(HibernateRunnable<T> runnable, SessionFactory sessionFactory) {
+		return runInTransaction(runnable, sessionFactory, true);
+	}
+	
+	public static <T> T runInTransaction(HibernateRunnable<T> runnable, SessionFactory sessionFactory, boolean bind) {
 		
 		T returnObj = null;
 		
 		Session session = beginTransaction(sessionFactory);
+		if (bind) {
+			ManagedSessionContext.bind(session);
+		}
 		try {
 			returnObj = runnable.run(session);
-			commit(sessionFactory);
+			commit(session);
+			if (bind) {
+				ManagedSessionContext.unbind(sessionFactory);
+			}
 		} catch (Exception e) {
-			rollback(sessionFactory);
+			rollback(session);
+			if (bind) {
+				ManagedSessionContext.unbind(sessionFactory);
+			}
 			logger.error("transaction failed", e);
 		}
 		return returnObj;

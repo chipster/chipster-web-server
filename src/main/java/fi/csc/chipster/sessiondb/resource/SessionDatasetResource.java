@@ -172,7 +172,7 @@ public class SessionDatasetResource {
 		}
 		
 		// check authorization
-		sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
 		
 		for (Dataset dataset : datasets) {			
 			if (dataset.getCreated() == null) {
@@ -181,6 +181,8 @@ public class SessionDatasetResource {
 			
 			create(dataset, getHibernate().session());		
 		}
+		
+		sessionResource.sessionModified(session, getHibernate().session());
 		
 		return datasets.stream()
 				.map(d -> d.getDatasetId())
@@ -278,6 +280,8 @@ public class SessionDatasetResource {
 		for (Dataset requestDataset : requestDatasets) {
 			update(requestDataset, dbDatasets.get(requestDataset.getDatasetId()), getHibernate().session());
 		}
+		
+		sessionResource.sessionModified(session, getHibernate().session());
     }
 	
 	public void update(Dataset newDataset, Dataset dbDataset, org.hibernate.Session hibernateSession) {
@@ -309,6 +313,8 @@ public class SessionDatasetResource {
 		}
 		
 		deleteDataset(dataset, getHibernate().session());
+		
+		sessionResource.sessionModified(session, getHibernate().session());
 
 		return Response.noContent().build();
     }

@@ -41,6 +41,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
@@ -51,6 +52,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import fi.csc.chipster.sessiondb.model.SessionState;
 
 @Path("sessions")
 @RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED (except sub-resource locators)
@@ -184,7 +186,8 @@ public class SessionResource {
 		getRuleResource(session.getSessionId()).create(auth, session);
 
 		UUID sessionId = session.getSessionId();
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE), hibernateSession);	
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE, session.getState());
+		publish(sessionId.toString(), event, hibernateSession);	
 	}
 
 	@PUT
@@ -192,17 +195,26 @@ public class SessionResource {
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Session requestSession, @PathParam("id") UUID sessionId, @Context SecurityContext sc) {
+		
 				    				
 		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		ruleTable.getSessionForWriting(sc, sessionId);
+		Session dbSession = ruleTable.getSessionForWriting(sc, sessionId);
+		
+		// get the state before this object is updated
+		SessionState dbSessionState = dbSession.getState();
 		
 		requestSession.setAccessed(Instant.now());
 		
 		update(requestSession, getHibernate().session());
+		
+		// allow client to change the state from IMPORT to TEMPORARY without changing it directly to READY
+		if (SessionState.IMPORT != dbSessionState) {
+			this.sessionModified(requestSession, getHibernate().session());
+		}
 		
 		return Response.noContent().build();
     }
@@ -210,9 +222,25 @@ public class SessionResource {
 	public void update(Session session, org.hibernate.Session hibernateSession) {
 		UUID sessionId = session.getSessionId();
 		// persist
-		HibernateUtil.update(session, session.getSessionId(), hibernateSession);		
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE), hibernateSession);
+		HibernateUtil.update(session, session.getSessionId(), hibernateSession);
+		
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE, session.getState());
+		publish(sessionId.toString(), event, hibernateSession);
 	}
+
+	public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
+		if (session.getState() == null || SessionState.TEMPORARY == session.getState()) {
+			setSessionState(session, SessionState.READY, hibernateSession);
+		}
+	}
+	
+	public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
+		session.setState(state);
+		// otherwise Hibernate won't recognize the change
+		hibernateSession.detach(session);
+		this.update(session, hibernateSession);
+	}
+	
 
 	@DELETE
     @Path("{id}")
@@ -227,9 +255,21 @@ public class SessionResource {
 		return Response.noContent().build();
     }
 	
-	private void deleteSession(Session session, org.hibernate.Session hibernateSession) {
+	private void deleteSession(Session session, org.hibernate.Session hibernateSession) {		
 		
 		UUID sessionId = session.getSessionId();
+		
+		/* Run in separate transaction so that others will see the state change immediately.
+		 * The method sessionFactory.getCurrentSession() will still return the original 
+		 * session, so be careful to use the innerSession only.
+		 */
+		HibernateUtil.runInTransaction(new HibernateRunnable<Void>() {
+			@Override
+			public Void run(org.hibernate.Session innerSession) {
+				setSessionState(session, SessionState.DELETE, innerSession);
+				return null;
+			}
+		}, getHibernate().getSessionFactory(), false);						
 		
 		/*
 		 * All datasets have to be removed first, because the dataset owns the reference between 
@@ -254,7 +294,8 @@ public class SessionResource {
 		
 		HibernateUtil.delete(session, session.getSessionId(), hibernateSession);
 		
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE), hibernateSession);
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE, session.getState());
+		publish(sessionId.toString(), event, hibernateSession);
 	}
     	
 	/**

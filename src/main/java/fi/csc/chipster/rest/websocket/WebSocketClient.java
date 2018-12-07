@@ -78,7 +78,7 @@ public class WebSocketClient implements EndpointListener {
 				uriBuilder = uriBuilder.queryParam("token", credentials.getPassword().toString());
 			}
 			
-			logger.info("websocket client " + name + " connecting to " + uri);
+			logger.info("websocket client" + name + " connecting to " + uri);
 			
 			endpoint = new WebSocketClientEndpoint(messageHandler, this);
 			client.connectToServer(endpoint, cec, new URI(uriBuilder.toString()));

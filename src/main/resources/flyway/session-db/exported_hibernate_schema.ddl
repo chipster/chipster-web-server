@@ -1,15 +1,15 @@
 
     alter table if exists Dataset 
-       drop constraint FKtnwjerv439jr4lmc37uvdp6ha;
+       drop constraint if exists FKtnwjerv439jr4lmc37uvdp6ha;
 
     alter table if exists DatasetToken 
-       drop constraint FK2vdi25wvt3n7gd4wadatk8np8;
+       drop constraint if exists FK2vdi25wvt3n7gd4wadatk8np8;
 
     alter table if exists DatasetToken 
-       drop constraint FK2ld1310doy7l3b9t7yp71ni37;
+       drop constraint if exists FK2ld1310doy7l3b9t7yp71ni37;
 
     alter table if exists Rule 
-       drop constraint FKmf1c6t4ld9isrgivjddortper;
+       drop constraint if exists FKmf1c6t4ld9isrgivjddortper;
 
     drop table if exists Dataset cascade;
 
@@ -92,6 +92,7 @@
         created timestamp,
         name varchar(255),
         notes text,
+        state int4,
         primary key (sessionId)
     );
 create index dataset_fileid_index on Dataset (fileId);
