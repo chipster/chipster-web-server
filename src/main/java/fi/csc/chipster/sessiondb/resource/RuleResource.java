@@ -179,13 +179,14 @@ public class RuleResource {
 		
 		ruleTable.delete(session.getSessionId(), rule, hibernate.session());		
 		
-		if (deleteSessionIfLastRule) {
-			sessionResource.deleteSessionIfOrphan(session);
-		}
-		
 		// why session.getRules() complains: failed to lazily initialize a collection, could not initialize proxy - no Session?
 		List<Rule> sessionRules = ruleTable.getRules(session.getSessionId());
 		
 		publishRuleEvent(session.getSessionId(), sessionRules, rule, EventType.DELETE);
+		
+		if (deleteSessionIfLastRule) {
+			sessionResource.deleteSessionIfOrphan(session);
+		}
+
 	}   
 }
