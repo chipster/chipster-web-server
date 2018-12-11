@@ -229,8 +229,8 @@ public class SessionResource {
 	}
 
 	public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
-		if (session.getState() == null || SessionState.TEMPORARY == session.getState()) {
-			setSessionState(session, SessionState.READY, hibernateSession);
+		if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
+			setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);
 		}
 	}
 	

@@ -185,18 +185,18 @@ public class SessionResourceTest {
 		assertEquals(SessionState.IMPORT, user1Client.getSession(sessionId).getState());
 		
 		// change session to TEMPORARY
-		session1.setState(SessionState.TEMPORARY);
+		session1.setState(SessionState.TEMPORARY_UNMODIFIED);
 		user1Client.updateSession(session1);
 		
 		// check that change succeeded
-		assertEquals(SessionState.TEMPORARY, user1Client.getSession(sessionId).getState());		
+		assertEquals(SessionState.TEMPORARY_UNMODIFIED, user1Client.getSession(sessionId).getState());		
 		
 		// modify a TEMPORARY session
 		session1.setName("new name 2");
 		user1Client.updateSession(session1);
 		
 		// and the state should have changed to READY
-		assertEquals(SessionState.READY, user1Client.getSession(sessionId).getState());
+		assertEquals(SessionState.TEMPORARY_MODIFIED, user1Client.getSession(sessionId).getState());
 		
 		user1Client.deleteSession(sessionId);
     }
