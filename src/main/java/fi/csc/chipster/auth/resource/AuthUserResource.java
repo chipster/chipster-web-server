@@ -30,12 +30,14 @@ public class AuthUserResource {
 	
 	@GET
 	@Path("{userId}")
-	@RolesAllowed(Role.CLIENT)
+	@RolesAllowed({Role.CLIENT, Role.SESSION_WORKER})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response get(@PathParam("userId") String userId, @Context SecurityContext sc) {
-		
-		if (sc.getUserPrincipal().getName().equals(userId)) {
+		String authenticatedUserId = sc.getUserPrincipal().getName();
+		if (authenticatedUserId.equals(userId) // client cat get it's own User object 
+				|| authenticatedUserId.equals(Role.SESSION_WORKER)) { // session-worker can get all
+			
 			return Response.ok(userTable.get(new UserId(userId))).build();
 		}
 		throw new ForbiddenException();			

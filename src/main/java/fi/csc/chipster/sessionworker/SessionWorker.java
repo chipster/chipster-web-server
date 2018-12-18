@@ -45,6 +45,8 @@ public class SessionWorker {
 
 	private HttpServer adminServer;
 
+	private SupportResource supportResource;
+
 	public SessionWorker(Config config) {
 		this.config = config;
 	}
@@ -71,9 +73,11 @@ public class SessionWorker {
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		
 		this.sessionWorkerResource = new SessionWorkerResource(serviceLocator);
+		this.supportResource = new SupportResource(config, authService);
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(sessionWorkerResource)
+				.register(supportResource)
 				.register(tokenRequestFilter);
 		
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);		

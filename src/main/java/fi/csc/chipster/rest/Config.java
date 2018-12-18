@@ -74,6 +74,18 @@ public class Config {
 	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
 	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
 	public static final String KEY_DB_FALLBACK = "db-fallback";
+	
+	public static final String SMTP_HOST = "smtp-host";
+	public static final String SMPT_USERNAME = "smtp-username";
+	public static final String SMTP_TLS = "smtp-tls";
+	public static final String SMTP_AUTH = "smtp-auth";
+	public static final String SMTP_FROM = "smtp-from";
+	public static final String SMTP_FROM_NAME = "smtp-from-name";
+	public static final String SMTP_PORT = "smtp-port";
+	public static final String SMTP_PASSWORD = "smtp-password";
+	public static final String SUPPORT_EMAIL = "support-email";
+	public static final String SUPPORT_THROTTLE_PERIOD = "support-throttle-period";
+	public static final String SUPPORT_THROTTLE_REQEUST_COUNT = "support-throttle-request-count";
 
 	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
 	
