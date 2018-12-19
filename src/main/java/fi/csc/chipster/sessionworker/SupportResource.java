@@ -1,7 +1,10 @@
 package fi.csc.chipster.sessionworker;
 
 import java.io.UnsupportedEncodingException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.Date;
 
 import javax.annotation.security.RolesAllowed;
 import javax.mail.MessagingException;
@@ -106,15 +109,27 @@ public class SupportResource {
 	        "userId: " + userIdString + "\n" +
 	        "session: " + sessionUrl + "\n";
 	    
-	    String userMail = user.getMail();
+	    String replyTo = null;
 	    
 	    if (user.getMail() != null) {
-	    	emailBody += "email (from authentication): " + userMail + "\n";	    	
-	    } else if (feedback.getMail() != null) {
-	    	userMail = feedback.getMail();
-	    	emailBody += "email (supplied by user): " + userMail + "\n";
-	    } else {
-	    	userMail = null;
+	    	replyTo = user.getMail();
+	    	emailBody += "email (from authentication): " + user.getMail() + "\n";	    	
+	    }
+	    
+	    if (feedback.getMail() != null && !feedback.getMail().equals(user.getMail())) {
+	    	replyTo = feedback.getMail();
+	    	emailBody += "email (supplied by user): " + replyTo + "\n";
+	    }
+	    
+	    if (user.getMail() != null && !feedback.getMail().equals(user.getMail())) {
+	    	emailBody += "\n\nPrivacy warning!\n\n The user has entered a different email address than "
+	    			+ "what we got from the authentication. "
+	    			+ "The address given by the user is used for the reply by default. "
+	    			+ "Please check that address is correct before writing or sharing anything private.\n\n";
+	    }
+	    
+	    if (user.getMail() == null && feedback.getMail() == null) {
+	    	replyTo = null;
 	    	emailBody += "email: [not available]\n";
 	    }
 	     
@@ -122,8 +137,11 @@ public class SupportResource {
 	    
 	    emailBody += "error message: \n";
 	    emailBody += feedback.getErrorMessage() + "\n\n";	    		
-	    
-	    String subject = "Help request from " + userIdString;
+	    	    
+	    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); 
+        String dateString = dateFormat.format(new Date());
+        
+	    String subject = dateString + " Help request from " + userIdString;
 	    
 	    if (emailBody.length() + subject.length() > MAX_EMAIL_BYTES) {
 	    	// should be really HTTP 413, but this unusual case is not worth of new exception class
@@ -132,8 +150,8 @@ public class SupportResource {
 	    }
 	    
 	    try {
-	    	this.emails.send(subject, emailBody, supportEmail, userMail);
-	    	
+	    	this.emails.send(subject, emailBody, supportEmail, replyTo);
+	    	 
 	    } catch (UnsupportedEncodingException | MessagingException e) {
 			throw new InternalServerErrorException("sending support email failed", e);
 		}	
