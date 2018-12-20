@@ -62,6 +62,10 @@ public class SupportResource {
 		this.requestThrottle = new RequestThrottle(Duration.ofMinutes(throttleMinutes), throttleRequestCount);
 		
 		this.supportEmails = config.getSupportEmails();
+		
+		for (String app : this.supportEmails.keySet()) {
+			logger.info("app " + app + " is configured to send support emails to " + this.supportEmails.get(app));
+		}
 	}
 	
 	@POST
