@@ -104,8 +104,21 @@ public class SupportResource {
 
 	    String emailBody =
 	        feedback.getMessage() + "\n\n" +
-	        "userId: " + userIdString + "\n" +
-	        "session: " + sessionUrl + "\n";
+	        "userId: " + userIdString + "\n;";
+	    
+	    if (user.getName() != null) {
+	    	emailBody += "name: " + user.getName();
+	    } else {
+	    	emailBody += "name: [not available]";
+	    }
+	    
+	    if (user.getOrganization() != null) {
+	    	emailBody += "organization: " + user.getOrganization();
+	    } else {
+	    	emailBody += "organization: [not available]";
+	    }
+	        
+	    emailBody +=  "session: " + sessionUrl + "\n";
 	    
 	    String replyTo = null;
 	    
@@ -119,11 +132,12 @@ public class SupportResource {
 	    	emailBody += "email (supplied by user): " + replyTo + "\n";
 	    }
 	    
-	    if (user.getMail() != null && !feedback.getMail().equals(user.getMail())) {
-	    	emailBody += "\n\nPrivacy warning!\n\n The user has entered a different email address than "
-	    			+ "what we got from the authentication. "
-	    			+ "The address given by the user is used for the reply by default. "
-	    			+ "Please check that address is correct before writing or sharing anything private.\n\n";
+	    // show warning if we didn't get email address from the authentication or user has changed it
+	    if (!feedback.getMail().equals(user.getMail())) {
+	    	emailBody += "\n\nPrivacy warning!\n\n "
+	    			+ "User can enter any email address. Make sure you share only information about "
+	    			+ "the authenticated user (userId, name, organization above) even if the email address "
+	    			+ "would have someone else's name.\n\n";
 	    }
 	    
 	    if (user.getMail() == null && feedback.getMail() == null) {

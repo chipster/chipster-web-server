@@ -6,7 +6,8 @@
 #
 chipster:chipster::Default user
 admin:admin::Remove or change in production
-example_session_owner:example_session_owner::Remove or change in production 
+example_session_owner:example_session_owner::Remove or change in production
+support_session_owner:support_session_owner::Remove or change in production 
 client:clientPassword::Unit test user, remove in production
 client2:client2Password::Unit test user, remove in production
 monitoring:monitoring::User for read-only monitoring information
