@@ -5,6 +5,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Date;
+import java.util.Map;
 
 import javax.annotation.security.RolesAllowed;
 import javax.mail.MessagingException;
@@ -35,7 +36,7 @@ public class SupportResource {
 	
 	private SmtpEmails emails;
 	private RequestThrottle requestThrottle;
-	private String supportEmail;
+	private Map<String, String> supportEmails;
 
 	private AuthenticationClient authService;
 	
@@ -60,7 +61,7 @@ public class SupportResource {
 		
 		this.requestThrottle = new RequestThrottle(Duration.ofMinutes(throttleMinutes), throttleRequestCount);
 		
-		this.supportEmail = config.getString(Config.SUPPORT_EMAIL);
+		this.supportEmails = config.getSupportEmails();
 	}
 	
 	@POST
@@ -88,7 +89,16 @@ public class SupportResource {
 		    	return Response.status(HttpStatus.PAYLOAD_TOO_LARGE_413).build();
 		    }
 			
-			if (this.supportEmail != null && !supportEmail.isEmpty()) {							        	    	    	  
+			// allow different support addresses to be configured for different apps
+			String supportEmail;
+			if (this.supportEmails.containsKey(feedback.getApp())) {
+				supportEmail = this.supportEmails.get(feedback.getApp());
+			} else {
+				// client didn't set the app or it there was no configuration for it, use the default
+				supportEmail = this.supportEmails.get("chipster");
+			}
+			
+			if (supportEmail != null && !supportEmail.isEmpty()) {							        	    	    	  
 			    try {
 			    	this.emails.send(emailSubject, emailBody, supportEmail, emailReplyTo);
 			    	return Response.noContent().build();

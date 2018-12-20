@@ -83,7 +83,7 @@ public class Config {
 	public static final String SMTP_FROM_NAME = "smtp-from-name";
 	public static final String SMTP_PORT = "smtp-port";
 	public static final String SMTP_PASSWORD = "smtp-password";
-	public static final String SUPPORT_EMAIL = "support-email";
+	public static final String SUPPORT_EMAIL_PREFIX = "support-email-";
 	public static final String SUPPORT_THROTTLE_PERIOD = "support-throttle-period";
 	public static final String SUPPORT_THROTTLE_REQEUST_COUNT = "support-throttle-request-count";
 
@@ -444,6 +444,10 @@ public class Config {
 
 	public Set<String> getDbBackupRoles() {
 		return getConfigEntries(DB_URL_PREFIX).keySet();
+	}
+	
+	public Map<String, String> getSupportEmails() {
+		return getConfigEntries(SUPPORT_EMAIL_PREFIX);
 	}
 
 	public boolean hasKey(String key) {

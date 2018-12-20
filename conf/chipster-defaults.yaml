@@ -209,7 +209,7 @@ smtp-from-name: Chipster
 smtp-port: 25
 smtp-password: ""
 
-support-email: ""
+support-email-chipster: ""
 support-throttle-period: 1
 support-throttle-request-count: 2
 

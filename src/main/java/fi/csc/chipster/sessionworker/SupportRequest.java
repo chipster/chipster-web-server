@@ -5,7 +5,7 @@ public class SupportRequest {
 	private String errorMessage;
 	private String mail;
 	private String session;
-	private boolean isReadWrite;
+	private String app;
 	
 	public String getMessage() {
 		return message;
@@ -31,19 +31,19 @@ public class SupportRequest {
 		this.session = session;
 	}
 	
-	public boolean isReadWrite() {
-		return isReadWrite;
-	}
-	
-	public void setReadWrite(boolean isReadWrite) {
-		this.isReadWrite = isReadWrite;
-	}
-	
 	public String getErrorMessage() {
 		return errorMessage;
 	}
 	
 	public void setErrorMessage(String errorMessage) {
 		this.errorMessage = errorMessage;
+	}
+
+	public String getApp() {
+		return app;
+	}
+
+	public void setApp(String app) {
+		this.app = app;
 	}
 }
