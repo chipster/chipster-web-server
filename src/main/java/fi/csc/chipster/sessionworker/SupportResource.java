@@ -8,12 +8,10 @@ import java.util.Date;
 
 import javax.annotation.security.RolesAllowed;
 import javax.mail.MessagingException;
-import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -21,6 +19,7 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.http.HttpStatus;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -68,8 +67,7 @@ public class SupportResource {
 	@Path("request")
 	@RolesAllowed(Role.CLIENT)
 	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-    public Response post(SupportRequest supportRequest, @Context SecurityContext sc) throws RestException {
+    public Response post(SupportRequest feedback, @Context SecurityContext sc) throws RestException {
 		
 		String userId = sc.getUserPrincipal().getName();
 		
@@ -78,94 +76,116 @@ public class SupportResource {
 		if (retryAfter.isZero()) {
 			
 			User user = authService.getUser(new UserId(userId));
-			
-			sendEmail(supportRequest, user);			
 
-			return Response.ok().entity("{}").build();
+			logger.info("got feedback from: " + user.getUserId().toUserIdString());
+			
+			String emailBody = getEmailBody(feedback, user);
+			String emailSubject = getEmailSubject(feedback, user);
+			String emailReplyTo = getEmailReplyTo(feedback, user);
+			
+			if (emailBody.length() + emailSubject.length() + emailReplyTo.length() > MAX_EMAIL_BYTES) {
+		    	logger.warn("support request from " + user.getUserId().toUserIdString() + " rejected: payload too large");
+		    	return Response.status(HttpStatus.PAYLOAD_TOO_LARGE_413).build();
+		    }
+			
+			if (this.supportEmail != null && !supportEmail.isEmpty()) {							        	    	    	  
+			    try {
+			    	this.emails.send(emailSubject, emailBody, supportEmail, emailReplyTo);
+			    	return Response.noContent().build();
+			    	 
+			    } catch (UnsupportedEncodingException | MessagingException e) {
+					throw new InternalServerErrorException("sending support email failed", e);
+				}
+			} else {
+				// log the message to make the development easier
+				logger.warn("support-email is not configured, the feedback will be logged");
+				logger.info("Subject: " + emailSubject);
+				logger.info("Reply-To: " + emailReplyTo);
+				logger.info("Body: \n" + emailBody);
+				return Response.noContent().build();
+			}
+
 		} else {
 			// + 1 to round up
 			long ceilSeconds = retryAfter.getSeconds() + 1;
 			return Response
-					.status(429)
+					.status(HttpStatus.TOO_MANY_REQUESTS_429)
 					.header("Retry-After", ceilSeconds)
 					.build();
 		}
     }
-
-	private void sendEmail(SupportRequest feedback, User user) {
-		
-		String userIdString = user.getUserId().toUserIdString();
-		logger.info("got feedback from: " + userIdString);	    		   
+	
+	private String getEmailBody(SupportRequest feedback, User user) {
+		String userIdString = user.getUserId().toUserIdString();		   
 	        
 	    String sessionUrl = feedback.getSession();
 	    if (sessionUrl == null) {
 	    	sessionUrl = "[not available]";
 	    }	    
 
-	    String emailBody =
-	        feedback.getMessage() + "\n\n" +
-	        "userId: " + userIdString + "\n;";
+	    String emailBody = "userId: " + userIdString + "\n";
 	    
 	    if (user.getName() != null) {
-	    	emailBody += "name: " + user.getName() + "\n;";
+	    	emailBody += "name: " + user.getName() + "\n";
 	    } else {
 	    	emailBody += "name: [not available]\n";
 	    }
 	    
 	    if (user.getOrganization() != null) {
-	    	emailBody += "organization: " + user.getOrganization() + "\n;";
+	    	emailBody += "organization: " + user.getOrganization() + "\n";
 	    } else {
 	    	emailBody += "organization: [not available]\n";
 	    }
 	        
 	    emailBody +=  "session: " + sessionUrl + "\n";
-	    
-	    String replyTo = null;
-	    
+	    	    
 	    if (user.getMail() != null) {
-	    	replyTo = user.getMail();
 	    	emailBody += "email (from authentication): " + user.getMail() + "\n";	    	
 	    }
 	    
+	    // show the email given by user if it's different
 	    if (feedback.getMail() != null && !feedback.getMail().equals(user.getMail())) {
-	    	replyTo = feedback.getMail();
-	    	emailBody += "email (given by user): " + replyTo + "\n";
+	    	emailBody += "email (given by user): " + feedback.getMail() + "\n";
 	    }
 	    
 	    // show warning if we didn't get email address from the authentication or user has changed it
 	    if (!feedback.getMail().equals(user.getMail())) {
-	    	emailBody += "\n\nPrivacy warning!\n\n "
+	    	emailBody += "Privacy warning!\n"
 	    			+ "User can enter any email address. Make sure you share only information about "
 	    			+ "the authenticated user (userId, name, organization above) even if the email address "
-	    			+ "would have someone else's name.\n\n";
+	    			+ "would have someone else's name.\n";
 	    }
 	    
 	    if (user.getMail() == null && feedback.getMail() == null) {
-	    	replyTo = null;
 	    	emailBody += "email: [not available]\n";
 	    }
 	     
-	    emailBody += "\n\n";
+	    emailBody += "\n";
+	    
+	    emailBody += "message: \n" + feedback.getMessage() + "\n\n";
 	    
 	    emailBody += "error message: \n";
-	    emailBody += feedback.getErrorMessage() + "\n\n";	    		
-	    	    
-	    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); 
-        String dateString = dateFormat.format(new Date());
-        
-	    String subject = dateString + " Help request from " + userIdString;
+	    emailBody += feedback.getErrorMessage() + "\n\n";
 	    
-	    if (emailBody.length() + subject.length() > MAX_EMAIL_BYTES) {
-	    	// should be really HTTP 413, but this unusual case is not worth of new exception class
-	    	logger.warn("support request from " + userIdString  + " rejected: payload too large");
-	    	throw new BadRequestException("Payload Too Large");
+	    return emailBody;
+	}
+
+	private String getEmailReplyTo(SupportRequest feedback, User user) {
+	    
+	    if (feedback.getMail() != null) {
+	    	return feedback.getMail();	    	
 	    }
 	    
-	    try {
-	    	this.emails.send(subject, emailBody, supportEmail, replyTo);
-	    	 
-	    } catch (UnsupportedEncodingException | MessagingException e) {
-			throw new InternalServerErrorException("sending support email failed", e);
-		}	
+	    return user.getMail();	   
+	}
+
+	private String getEmailSubject(SupportRequest feedback, User user) {
+		
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); 
+        String dateString = dateFormat.format(new Date());
+        
+        String subject = dateString + " Help request from " + user.getUserId().toUserIdString();
+
+	    return subject;
 	}
 }
