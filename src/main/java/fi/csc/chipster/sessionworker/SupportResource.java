@@ -13,6 +13,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -26,7 +27,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.RestException;
 
 @Path("support")
@@ -65,10 +65,10 @@ public class SupportResource {
 	}
 	
 	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@RolesAllowed(Role.CLIENT)
 	@Path("request")
-	@Transaction
+	@RolesAllowed(Role.CLIENT)
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
     public Response post(SupportRequest supportRequest, @Context SecurityContext sc) throws RestException {
 		
 		String userId = sc.getUserPrincipal().getName();
@@ -81,7 +81,7 @@ public class SupportResource {
 			
 			sendEmail(supportRequest, user);			
 
-			return Response.ok().build();
+			return Response.ok().entity("{}").build();
 		} else {
 			// + 1 to round up
 			long ceilSeconds = retryAfter.getSeconds() + 1;
@@ -107,15 +107,15 @@ public class SupportResource {
 	        "userId: " + userIdString + "\n;";
 	    
 	    if (user.getName() != null) {
-	    	emailBody += "name: " + user.getName();
+	    	emailBody += "name: " + user.getName() + "\n;";
 	    } else {
-	    	emailBody += "name: [not available]";
+	    	emailBody += "name: [not available]\n";
 	    }
 	    
 	    if (user.getOrganization() != null) {
-	    	emailBody += "organization: " + user.getOrganization();
+	    	emailBody += "organization: " + user.getOrganization() + "\n;";
 	    } else {
-	    	emailBody += "organization: [not available]";
+	    	emailBody += "organization: [not available]\n";
 	    }
 	        
 	    emailBody +=  "session: " + sessionUrl + "\n";
@@ -129,7 +129,7 @@ public class SupportResource {
 	    
 	    if (feedback.getMail() != null && !feedback.getMail().equals(user.getMail())) {
 	    	replyTo = feedback.getMail();
-	    	emailBody += "email (supplied by user): " + replyTo + "\n";
+	    	emailBody += "email (given by user): " + replyTo + "\n";
 	    }
 	    
 	    // show warning if we didn't get email address from the authentication or user has changed it
