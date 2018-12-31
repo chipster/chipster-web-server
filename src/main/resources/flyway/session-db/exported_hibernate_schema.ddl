@@ -79,6 +79,7 @@
 
     create table Rule (
        ruleId uuid not null,
+        created timestamp,
         readWrite boolean not null,
         sharedBy varchar(255),
         username varchar(255),
@@ -100,6 +101,7 @@ create index dataset_sessionid_index on Dataset (sessionId);
 create index job_sessionid_index on Job (sessionId);
 create index rule_username_index on Rule (username);
 create index rule_sessionid_index on Rule (sessionId);
+create index rule_sharedby_index on Rule (sharedBy);
 
     alter table if exists Dataset 
        add constraint FKtnwjerv439jr4lmc37uvdp6ha 

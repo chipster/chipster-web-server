@@ -99,9 +99,28 @@ public class SessionResourceTest {
 		testGetSession(401, sessionId1, noAuthClient);
     }
 	
+	@Test
+    public void getSharesErrors() throws IOException, RestException {				
+		
+		// auth tests
+		testGetShares(401, unparseableTokenClient);
+		testGetShares(403, tokenFailClient);
+		testGetShares(401, authFailClient);
+		testGetShares(401, noAuthClient);
+    }
+	
 	public static void testGetSession(int expected, UUID id, SessionDbClient client) {
 		try {
     		client.getSession(id);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
+	public static void testGetShares(int expected, SessionDbClient client) {
+		try {
+    		client.getShares();
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());

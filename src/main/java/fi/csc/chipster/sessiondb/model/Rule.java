@@ -1,5 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import javax.persistence.Column;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @Table(indexes = {
         @Index(columnList = "username", name = "rule_username_index"),
         @Index(columnList = "sessionId", name = "rule_sessionid_index"),
+        @Index(columnList = "sharedBy", name = "rule_sharedby_index"),
 })
 public class Rule {
 	
@@ -31,8 +33,18 @@ public class Rule {
 	
 	private boolean readWrite;
 	private String sharedBy;
+	private Instant created;
 	
 	public Rule() { } // hibernate needs this			
+	
+	public Rule(Rule o) {
+		this.ruleId = o.ruleId;
+		this.username = o.username;
+		this.session = o.session;
+		this.readWrite = o.readWrite;
+		this.sharedBy = o.sharedBy;
+		this.created = o.created;
+	}
 	
 	public Rule(String username, boolean readWrite) {
 		this(username, readWrite, null);
@@ -80,5 +92,13 @@ public class Rule {
 
 	public void setSharedBy(String sharedBy) {
 		this.sharedBy = sharedBy;
+	}
+
+	public Instant getCreated() {
+		return created;
+	}
+
+	public void setCreated(Instant created) {
+		this.created = created;
 	}	
 }

@@ -3,6 +3,8 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +33,8 @@ public class RuleResourceTest {
 	private static SessionDbClient tokenFailClient;
 	private static SessionDbClient authFailClient;
 	private static SessionDbClient noAuthClient;
+	private static SessionDbClient sessionWorkerClient;
+	private static SessionDbClient exampleSessionOwnerClient;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -39,10 +43,16 @@ public class RuleResourceTest {
         
 		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+		sessionWorkerClient		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(), Role.CLIENT);
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
 		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
 		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
+		
+		exampleSessionOwnerClient = new SessionDbClient(
+				launcher.getServiceLocator(), 
+				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner").getCredentials(),
+				Role.CLIENT);
     }
 
     @AfterClass
@@ -84,11 +94,9 @@ public class RuleResourceTest {
 	@Test
     public void postEveryone() throws IOException, RestException {
 		
+		deleteShares(exampleSessionOwnerClient);
+		
 		Session session = RestUtils.getRandomSession();
-		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
-				launcher.getServiceLocator(), 
-				new AuthenticationClient(launcher.getServiceLocator(), "example_session_owner", "example_session_owner").getCredentials(),
-				Role.CLIENT);
 
 		UUID sessionId = exampleSessionOwnerClient.createSession(session);
 				
@@ -104,13 +112,11 @@ public class RuleResourceTest {
     }
 	
 	@Test
-    public void deleteShared() throws IOException, RestException {
+    public void deleteSharedSession() throws IOException, RestException {
+
+		deleteShares(exampleSessionOwnerClient);
 		
-		Session session = RestUtils.getRandomSession();
-		SessionDbClient exampleSessionOwnerClient = new SessionDbClient(
-				launcher.getServiceLocator(), 
-				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner").getCredentials(),
-				Role.CLIENT);
+		Session session = RestUtils.getRandomSession();		
 
 		UUID sessionId = exampleSessionOwnerClient.createSession(session);
 						
@@ -130,6 +136,8 @@ public class RuleResourceTest {
 	
 	@Test
     public void changeOwnership() throws IOException, RestException {
+		
+		deleteShares(user1Client);
 		
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
@@ -154,6 +162,8 @@ public class RuleResourceTest {
 	
 	@Test
 	public void getBySession() throws RestException {
+		
+		deleteShares(user1Client);
 		
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
@@ -219,6 +229,8 @@ public class RuleResourceTest {
 	@Test
     public void delete() throws IOException, RestException {
 		
+		deleteShares(user1Client);
+		
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
 		
@@ -233,8 +245,101 @@ public class RuleResourceTest {
 		user1Client.deleteRule(sessionId, authorizationId);
     }
 	
+	public void deleteShares(SessionDbClient client) throws RestException {
+		List<Session> shares = client.getShares();
+		for (Session session : shares) {
+			client.deleteSession(session.getSessionId());
+		}
+	}
+	
+	@Test
+    public void acceptShare() throws IOException, RestException {
+		// clear the sharing quota
+		deleteShares(user1Client);
+		
+		Session session = RestUtils.getRandomSession();
+		UUID sessionId = user1Client.createSession(session);
+				
+		Rule user2Rule = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
+    	user1Client.createRule(sessionId, user2Rule);
+    	Rule user2Rule2 = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
+    	user1Client.createRule(sessionId, user2Rule2);
+    	
+    	user2Rule.setSharedBy(null);
+    	// no one else can accept the share
+    	testUpdateRule(403, sessionId, user2Rule, user1Client);
+    	
+    	// except the rule owner and session-worker
+    	user2Client.updateRule(sessionId, user2Rule);    	
+    	sessionWorkerClient.updateRule(sessionId, user2Rule2);
+    }
+	
+	@Test
+    public void sharingQuota() throws IOException, RestException {
+		// clear the sharing quota
+		deleteShares(user1Client);
+		
+		Session session = RestUtils.getRandomSession();
+		UUID sessionId = user1Client.createSession(session);
+		
+		try {		
+			for (int i = 0; i < 100; i++) {
+				Rule user2Rule = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
+				user1Client.createRule(sessionId, user2Rule);
+			}
+			Assert.fail();
+		} catch (RestException e) {
+			// quota reached
+		}
+    	
+		// delete them
+		user1Client.deleteSession(sessionId);
+    }
+	
+	@Test
+    public void putErrors() throws IOException, RestException {
+		// clear the sharing quota
+		deleteShares(user1Client);
+		
+		Session session = RestUtils.getRandomSession();
+		UUID sessionId = user1Client.createSession(session);		
+		
+		Rule rule = user1Client.getRules(sessionId).get(0);
+    	    	    	
+    	testUpdateRule(401, sessionId, rule, unparseableTokenClient);
+    	testUpdateRule(403, sessionId, rule, tokenFailClient);
+    	testUpdateRule(401, sessionId, rule, authFailClient);
+    	testUpdateRule(401, sessionId, rule, noAuthClient);
+    	
+    	// check that client can't change any of these (server doesn't produce errors about these at the moment)
+    	Rule rule2 = new Rule(rule);
+    	rule2.setRuleId(rule.getRuleId());
+    	rule2.setCreated(Instant.now());
+    	rule2.setReadWrite(!rule.isReadWrite());    	
+    	rule2.setUsername("client2");    	
+    	user1Client.updateRule(sessionId, rule2);
+    	Rule serverRule = user1Client.getRule(sessionId, rule.getRuleId());
+    	assertEquals(rule.getCreated(), serverRule.getCreated());
+    	assertEquals(rule.getSharedBy(), serverRule.getSharedBy());
+    	assertEquals(rule.getUsername(), serverRule.getUsername());
+
+    	// check that sharedBy cannot be changed
+    	Rule sharedByRule = new Rule(rule);
+    	sharedByRule.setSharedBy("some-other-user");
+    	testUpdateRule(400, sessionId, sharedByRule, user1Client);
+    	
+    	Rule idRule = new Rule(rule);
+    	idRule.setRuleId(RestUtils.createUUID());
+    	testUpdateRule(404, sessionId, idRule, user1Client);
+    	
+    	user1Client.deleteSession(sessionId);
+    }
+
+	
 	@Test
     public void deleteAuthorization() throws IOException, RestException {
+		
+		deleteShares(user1Client);
 		
 		Session session = RestUtils.getRandomSession();		
 		UUID sessionId = user1Client.createSession(session);
@@ -257,6 +362,8 @@ public class RuleResourceTest {
 	
 	@Test
     public void readOnly() throws IOException, RestException {
+		
+		deleteShares(user1Client);
 		
 		Session session1 = RestUtils.getRandomSession();
 		Dataset dataset = RestUtils.getRandomDataset();
@@ -299,6 +406,8 @@ public class RuleResourceTest {
 	
 	@Test
     public void readWrite() throws IOException, RestException {
+		
+		deleteShares(user1Client);
 		
 		Session session1 = RestUtils.getRandomSession();
 		Dataset dataset = RestUtils.getRandomDataset();
@@ -354,6 +463,15 @@ public class RuleResourceTest {
 	public static void testCreateRule(int expected, UUID sessionId, Rule rule, SessionDbClient client) {
 		try {
     		client.createRule(sessionId, rule);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
+	public static void testUpdateRule(int expected, UUID sessionId, Rule rule, SessionDbClient client) {
+		try {
+    		client.updateRule(sessionId, rule);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());

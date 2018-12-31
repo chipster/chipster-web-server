@@ -39,6 +39,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
+import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.microarray.exception.MicroarrayException;
 import fi.csc.microarray.messaging.JobState;
 
@@ -275,6 +276,10 @@ public class SessionDbClient {
 		return RestMethods.put(getDatasetTarget(sessionId, dataset.getDatasetId()), dataset);
 	}
 	
+	public Response updateRule(UUID sessionId, Rule rule) throws RestException {
+		return RestMethods.put(getRuleTarget(sessionId, rule.getRuleId()), rule);
+	}
+	
 	public Response updateDatasets(UUID sessionId, List<Dataset> datasets) throws RestException {
 		return RestMethods.put(getDatasetsTarget(sessionId).path(RestUtils.PATH_ARRAY), datasets);
 	}
@@ -373,7 +378,9 @@ public class SessionDbClient {
 	}
 
 	public UUID createRule(UUID sessionId, Rule rule) throws RestException {
-		return RestMethods.post(getRulesTarget(sessionId), rule);
+		UUID ruleId = RestMethods.post(getRulesTarget(sessionId), rule);
+		rule.setRuleId(ruleId);
+		return ruleId;
 	}
 	
 	public void deleteRule(UUID sessionId, UUID ruleId) throws RestException {
@@ -382,5 +389,9 @@ public class SessionDbClient {
 	
 	public List<Rule> getRules(UUID sessionId) throws RestException {
 		return RestMethods.getList(getRulesTarget(sessionId), Rule.class);
+	}
+
+	public List<Session> getShares() throws RestException {		
+		return RestMethods.getList(getSessionsTarget().path(SessionResource.PATH_SHARES), Session.class);		
 	}
 }

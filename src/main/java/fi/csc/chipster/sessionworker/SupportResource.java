@@ -5,11 +5,15 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.mail.MessagingException;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -27,7 +31,11 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Rule;
+import fi.csc.chipster.sessiondb.model.Session;
 
 @Path("support")
 public class SupportResource {	
@@ -39,29 +47,35 @@ public class SupportResource {
 	private Map<String, String> supportEmails;
 
 	private AuthenticationClient authService;
+
+	private SessionDbClient sessionDb;
+
+	private String supportSessionOwner;
 	
 	private static final int MAX_EMAIL_BYTES = 100 * 1024;
 	
-	public SupportResource(Config config, AuthenticationClient authService) {
+	public SupportResource(Config config, AuthenticationClient authService, SessionDbClient sessionDb) {
 		this.authService = authService;
+		this.sessionDb = sessionDb;
 		
-		String host = config.getString(Config.SMTP_HOST);
-		int port = config.getInt(Config.SMTP_PORT);
-		String username = config.getString(Config.SMPT_USERNAME);
-		String password = config.getString(Config.SMTP_PASSWORD);
-		boolean tls = config.getBoolean(Config.SMTP_TLS);
-		boolean auth = config.getBoolean(Config.SMTP_AUTH);
-		String from = config.getString(Config.SMTP_FROM);
-		String fromName = config.getString(Config.SMTP_FROM_NAME);
+		String host = config.getString(Config.KEY_SESSION_WORKER_SMTP_HOST);
+		int port = config.getInt(Config.KEY_SESSION_WORKER_SMTP_PORT);
+		String username = config.getString(Config.KEY_SESSION_WORKER_SMPT_USERNAME);
+		String password = config.getString(Config.KEY_SESSION_WORKER_SMTP_PASSWORD);
+		boolean tls = config.getBoolean(Config.KEY_SESSION_WORKER_SMTP_TLS);
+		boolean auth = config.getBoolean(Config.KEY_SESSION_WORKER_SMTP_AUTH);
+		String from = config.getString(Config.KEY_SESSION_WORKER_SMTP_FROM);
+		String fromName = config.getString(Config.KEY_SESSION_WORKER_SMTP_FROM_NAME);
 		
 		this.emails = new SmtpEmails(host, port, username, password, tls, auth, from, fromName);
 		
-		int throttleMinutes = config.getInt(Config.SUPPORT_THROTTLE_PERIOD);
-		int throttleRequestCount = config.getInt(Config.SUPPORT_THROTTLE_REQEUST_COUNT);
+		int throttleMinutes = config.getInt(Config.KEY_SESSION_WORKER_SUPPORT_THROTTLE_PERIOD);
+		int throttleRequestCount = config.getInt(Config.KEY_SESSION_WORKER_SUPPORT_THROTTLE_REQEUST_COUNT);
 		
 		this.requestThrottle = new RequestThrottle(Duration.ofMinutes(throttleMinutes), throttleRequestCount);
 		
 		this.supportEmails = config.getSupportEmails();
+		this.supportSessionOwner = config.getString(Config.KEY_SESSION_WORKER_SUPPORT_SESSION_OWNER);
 		
 		for (String app : this.supportEmails.keySet()) {
 			logger.info("app " + app + " is configured to send support emails to " + this.supportEmails.get(app));
@@ -83,6 +97,14 @@ public class SupportResource {
 			User user = authService.getUser(new UserId(userId));
 
 			logger.info("got feedback from: " + user.getUserId().toUserIdString());
+			
+			if (feedback.getSession() != null) {
+				try {
+					acceptShare(feedback.getSession(), userId);
+				} catch (RestException e) {
+					logger.error("accepting session share failed", e);
+				}
+			}
 			
 			String emailBody = getEmailBody(feedback, user);
 			String emailSubject = getEmailSubject(feedback, user);
@@ -129,6 +151,42 @@ public class SupportResource {
 		}
     }
 	
+	private void acceptShare(String sessionUrl, String userId) throws RestException {
+		String sessionIdString = RestUtils.basename(sessionUrl);
+		UUID sessionId = UUID.fromString(sessionIdString);
+			
+		Session session = sessionDb.getSession(sessionId);	
+		
+		// make sure the user has read-write access to this session
+		Rule userRule = session.getRules().stream()
+			.filter(r -> userId.equals(r.getUsername()))
+			.filter(r -> r.isReadWrite())
+			.findAny().get();
+		
+		if (userRule == null) {
+			throw new ForbiddenException("session access denied");
+		}
+					
+		Rule shareRule = session.getRules().stream()
+			.filter(r -> this.supportSessionOwner.equals(r.getUsername()))
+			.findAny().get();
+							
+		shareRule.setSharedBy(null);
+		sessionDb.updateRule(sessionId, shareRule);
+		
+		// delete all other rules to hide it from the user
+		// this is a copy of the original session made by client
+		List<Rule> otherRules = session.getRules().stream()
+				.filter(r -> !shareRule.getRuleId().equals(r.getRuleId()))
+				.collect(Collectors.toList());
+		
+		
+		// service accounts have read-write rules to everything
+		for (Rule rule : otherRules) {
+			sessionDb.deleteRule(sessionId, rule.getRuleId());
+		}
+	}
+
 	private String getEmailBody(SupportRequest feedback, User user) {
 		String userIdString = user.getUserId().toUserIdString();		   
 	        

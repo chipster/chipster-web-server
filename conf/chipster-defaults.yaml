@@ -178,6 +178,8 @@ session-db-restrict-sharing-to-everyone: jaas/example_session_owner
 db-url-session-db: jdbc:postgresql://localhost:5432/session_db_db
 db-pass-session-db: ""
 
+session-db-max-share-count: 3
+
 #job-history-db
 db-url-job-history: jdbc:postgresql://localhost:5432/job_history_db
 db-pass-job-history: ""
@@ -200,18 +202,19 @@ file-broker-shutdown-timeout: 3600
 
 file-broker-shutdown-timeout: 3600
 
-smtp-host: ""
-smtp-username: ""
-smtp-tls: false
-smtp-auth: false
-smtp-from: ""
-smtp-from-name: Chipster
-smtp-port: 25
-smtp-password: ""
+session-worker-smtp-host: ""
+session-worker-smtp-username: ""
+session-worker-smtp-tls: false
+session-worker-smtp-auth: false
+session-worker-smtp-from: ""
+session-worker-smtp-from-name: Chipster
+session-worker-smtp-port: 25
+session-worker-smtp-password: ""
 
-support-email-chipster: ""
-support-throttle-period: 1
-support-throttle-request-count: 2
+session-worker-support-email-chipster: ""
+session-worker-support-throttle-period: 1
+session-worker-support-throttle-request-count: 2
+session-worker-support-session-owner: jaas/support_session_owner
 
 # shared
 

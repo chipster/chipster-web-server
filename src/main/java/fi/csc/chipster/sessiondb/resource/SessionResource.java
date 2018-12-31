@@ -58,6 +58,7 @@ import fi.csc.chipster.sessiondb.model.SessionState;
 @RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED (except sub-resource locators)
 public class SessionResource {
 	
+	public static final String PATH_SHARES = "shares";
 	private static final String QUERY_PARAM_PREVIEW = "preview";
 
 	private static Logger logger = LogManager.getLogger();
@@ -134,7 +135,27 @@ public class SessionResource {
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
     }
-	
+
+	@GET
+	@Path(PATH_SHARES)
+    @Produces(MediaType.APPLICATION_JSON)	
+	@Transaction
+    public Response getShares(@Context SecurityContext sc) {
+
+		List<Rule> result = ruleTable.getShares(sc.getUserPrincipal().getName());
+		
+		List<Session> sessions = new ArrayList<>();
+		for (Rule rule : result) {
+			Session session = rule.getSession();
+			// the shared rule should be enough in the session list
+			// otherwise we would be selecting rules of sessions of rules of username
+			session.setRules(Sets.newHashSet(rule));
+			sessions.add(session);
+		}
+
+		// if nothing is found, just return 200 (OK) and an empty list
+		return Response.ok(toJaxbList(sessions)).build();		
+    }
 
 	@POST
     @Consumes(MediaType.APPLICATION_JSON)

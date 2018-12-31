@@ -43,6 +43,7 @@ public class Config {
 	public static final String KEY_SESSION_DB_NAME = "session-db-name";
 	public static final String KEY_SESSION_DB_HIBERNATE_SCHEMA = "session-db-hibernate-schema";
 	public static final String KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE = "session-db-restrict-sharing-to-everyone";
+	public static final String KEY_SESSION_DB_MAX_SHARE_COUNT = "session-db-max-share-count";
 	
 	public static final String KEY_WEB_SERVER_WEB_ROOT_PATH = "web-server-web-root-path";
 	
@@ -75,19 +76,22 @@ public class Config {
 	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
 	public static final String KEY_DB_FALLBACK = "db-fallback";
 	
-	public static final String SMTP_HOST = "smtp-host";
-	public static final String SMPT_USERNAME = "smtp-username";
-	public static final String SMTP_TLS = "smtp-tls";
-	public static final String SMTP_AUTH = "smtp-auth";
-	public static final String SMTP_FROM = "smtp-from";
-	public static final String SMTP_FROM_NAME = "smtp-from-name";
-	public static final String SMTP_PORT = "smtp-port";
-	public static final String SMTP_PASSWORD = "smtp-password";
-	public static final String SUPPORT_EMAIL_PREFIX = "support-email-";
-	public static final String SUPPORT_THROTTLE_PERIOD = "support-throttle-period";
-	public static final String SUPPORT_THROTTLE_REQEUST_COUNT = "support-throttle-request-count";
+	public static final String KEY_SESSION_WORKER_SMTP_HOST = "session-worker-smtp-host";
+	public static final String KEY_SESSION_WORKER_SMPT_USERNAME = "session-worker-smtp-username";
+	public static final String KEY_SESSION_WORKER_SMTP_TLS = "session-worker-smtp-tls";
+	public static final String KEY_SESSION_WORKER_SMTP_AUTH = "session-worker-smtp-auth";
+	public static final String KEY_SESSION_WORKER_SMTP_FROM = "session-worker-smtp-from";
+	public static final String KEY_SESSION_WORKER_SMTP_FROM_NAME = "session-worker-smtp-from-name";
+	public static final String KEY_SESSION_WORKER_SMTP_PORT = "session-worker-smtp-port";
+	public static final String KEY_SESSION_WORKER_SMTP_PASSWORD = "session-worker-smtp-password";
+	public static final String KEY_SESSION_WORKER_SUPPORT_EMAIL_PREFIX = "session-worker-support-email-";
+	public static final String KEY_SESSION_WORKER_SUPPORT_THROTTLE_PERIOD = "session-worker-support-throttle-period";
+	public static final String KEY_SESSION_WORKER_SUPPORT_THROTTLE_REQEUST_COUNT = "session-worker-support-throttle-request-count";
+	public static final String KEY_SESSION_WORKER_SUPPORT_SESSION_OWNER = "session-worker-support-session-owner";
 
-	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
+	private static HashMap<String, HashMap<String, String>> confFileCache = new HashMap<>();
+	
+	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);	
 	
 	private static Logger logger;
 	
@@ -197,6 +201,14 @@ public class Config {
 	}
 	
 	private static HashMap<String, String> readFile(String confFilePath) {
+		if (!confFileCache.containsKey(confFilePath)) {
+			confFileCache.put(confFilePath, readFileUncached(confFilePath));
+		}
+		
+		return confFileCache.get(confFilePath);
+	}
+		
+	private static HashMap<String, String> readFileUncached(String confFilePath) {
 		
 		HashMap<String, String> conf = new HashMap<>();
 		try {
@@ -447,7 +459,7 @@ public class Config {
 	}
 	
 	public Map<String, String> getSupportEmails() {
-		return getConfigEntries(SUPPORT_EMAIL_PREFIX);
+		return getConfigEntries(KEY_SESSION_WORKER_SUPPORT_EMAIL_PREFIX);
 	}
 
 	public boolean hasKey(String key) {

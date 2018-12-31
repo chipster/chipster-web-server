@@ -190,6 +190,15 @@ public class RuleTable {
 				.list();
 	}
 	
+	@SuppressWarnings("unchecked")
+	public List<Rule> getShares(String userIdString) {		
+		return hibernate.session()
+				.createQuery("from Rule where sharedBy=:sharedBy")
+				.setParameter("sharedBy", userIdString)
+				.list();
+	}
+	
+	
 	/**
 	 * Stream the whole table as a json array
 	 * 

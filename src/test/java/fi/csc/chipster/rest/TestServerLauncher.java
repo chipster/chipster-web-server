@@ -146,6 +146,10 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP).getCredentials();
 	}
 	
+	public CredentialsProvider getSessionWorkerToken() {
+		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_WORKER, Role.SESSION_WORKER).getCredentials();
+	}
+	
 	public CredentialsProvider getFileBrokerToken() {
 		return new AuthenticationClient(serviceLocatorClient, Role.FILE_BROKER, Role.FILE_BROKER).getCredentials();
 	}

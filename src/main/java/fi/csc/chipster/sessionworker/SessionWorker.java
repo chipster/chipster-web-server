@@ -20,6 +20,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
 
 /**
  * Main class.
@@ -47,6 +48,8 @@ public class SessionWorker {
 
 	private SupportResource supportResource;
 
+	private SessionDbClient sessionDb;
+
 	public SessionWorker(Config config) {
 		this.config = config;
 	}
@@ -69,11 +72,12 @@ public class SessionWorker {
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		this.serviceLocator.setCredentials(authService.getCredentials());
+		this.sessionDb = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		
 		this.sessionWorkerResource = new SessionWorkerResource(serviceLocator);
-		this.supportResource = new SupportResource(config, authService);
+		this.supportResource = new SupportResource(config, authService, sessionDb);
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
 				.register(sessionWorkerResource)
