@@ -185,6 +185,12 @@ public class SessionDbClient {
 		
 		return map;
 	}
+	
+	public List<Session> getSessions(String userIdString) throws RestException {
+		WebTarget target = getSessionsTarget().queryParam(SessionResource.QUERY_PARAM_USER_ID, userIdString);
+		
+		return RestMethods.getList(target, Session.class);		
+	}
 
 	/**
 	 * @param sessionId

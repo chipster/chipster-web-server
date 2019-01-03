@@ -178,7 +178,7 @@ session-db-restrict-sharing-to-everyone: jaas/example_session_owner
 db-url-session-db: jdbc:postgresql://localhost:5432/session_db_db
 db-pass-session-db: ""
 
-session-db-max-share-count: 3
+session-db-max-share-count: 100
 
 #job-history-db
 db-url-job-history: jdbc:postgresql://localhost:5432/job_history_db
@@ -212,9 +212,12 @@ session-worker-smtp-port: 25
 session-worker-smtp-password: ""
 
 session-worker-support-email-chipster: ""
-session-worker-support-throttle-period: 1
-session-worker-support-throttle-request-count: 2
+# 1440 minutes = 24 hours
+session-worker-support-throttle-period: 1440
+session-worker-support-throttle-request-count: 20
 session-worker-support-session-owner: jaas/support_session_owner
+# days
+session-worker-support-session-delete-after: 60 
 
 # shared
 

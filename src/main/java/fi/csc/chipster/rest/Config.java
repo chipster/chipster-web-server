@@ -3,6 +3,9 @@ package fi.csc.chipster.rest;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +38,7 @@ public class Config {
 	private static final String ADMIN_USERNAME_PREFIX = "admin-username-";
 	private static final String VARIABLE_PREFIX = "variable-";
 	
-	public static final String DEFAULT_CONF_PATH = "conf/chipster-defaults.yaml";	
+	public static final String DEFAULT_CONF_PATH = "chipster-defaults.yaml";	
 	public static final String KEY_CONF_PATH = "conf-path";	
 	
 	public static final String KEY_MONITORING_PASSWORD = "auth-monitoring-password";
@@ -88,6 +91,7 @@ public class Config {
 	public static final String KEY_SESSION_WORKER_SUPPORT_THROTTLE_PERIOD = "session-worker-support-throttle-period";
 	public static final String KEY_SESSION_WORKER_SUPPORT_THROTTLE_REQEUST_COUNT = "session-worker-support-throttle-request-count";
 	public static final String KEY_SESSION_WORKER_SUPPORT_SESSION_OWNER = "session-worker-support-session-owner";
+	public static final String KEY_SESSION_WORKER_SUPPORT_SESSION_DELETE_AFTER = "session-worker-support-session-delete-after";
 
 	private static HashMap<String, HashMap<String, String>> confFileCache = new HashMap<>();
 	
@@ -211,8 +215,15 @@ public class Config {
 	private static HashMap<String, String> readFileUncached(String confFilePath) {
 		
 		HashMap<String, String> conf = new HashMap<>();
+		Reader streamReader = null;
 		try {
-			YamlReader reader = new YamlReader(new FileReader(confFilePath));
+			if (DEFAULT_CONF_PATH.equals(confFilePath)) {
+				InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(confFilePath);
+				streamReader = new InputStreamReader(is); 
+			} else {
+				streamReader = new FileReader(confFilePath);				
+			}
+			YamlReader reader = new YamlReader(streamReader);
 			Object object = reader.read();
 			if (object instanceof Map) {
 				@SuppressWarnings("rawtypes")
@@ -238,6 +249,12 @@ public class Config {
 			// convert to runtime exception, because there is no point to continue
 			// (so no point to check exceptions either)
 			throw new RuntimeException("failed to read the config file " + confFilePath, e);	
+		} finally {
+			try {
+				streamReader.close();
+			} catch (IOException e) {
+				logger.warn(e);
+			}
 		}
 		return conf;
 	}

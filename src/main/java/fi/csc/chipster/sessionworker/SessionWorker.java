@@ -2,6 +2,13 @@ package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -21,6 +28,8 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Rule;
+import fi.csc.chipster.sessiondb.model.Session;
 
 /**
  * Main class.
@@ -28,27 +37,21 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
  */
 public class SessionWorker {
 
-	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
 
 	@SuppressWarnings("unused")
 	private String serviceId;
-
-	private ServiceLocatorClient serviceLocator;
-	
 	private Config config;
 
+	private ServiceLocatorClient serviceLocator;
+	private AuthenticationClient authService;
+	private SessionDbClient sessionDb;
+	
 	private HttpServer httpServer;
+	private HttpServer adminServer;
 	
 	private SessionWorkerResource sessionWorkerResource;
-
-	private AuthenticationClient authService;
-
-	private HttpServer adminServer;
-
 	private SupportResource supportResource;
-
-	private SessionDbClient sessionDb;
 
 	public SessionWorker(Config config) {
 		this.config = config;
@@ -96,6 +99,47 @@ public class SessionWorker {
 		httpServer.start();
 		
 		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, jerseyStatisticsSource);
+		
+		// clean up daily
+		long cleanUpInterval = 24l * 60 * 60 * 1000;
+		
+		// start after random time between 0 and cleanUpInterval to make conflicts 
+		// between session-worker replicas less likely
+		long cleanUpStart = Math.abs(new Random().nextLong()) % cleanUpInterval;
+		
+		new Timer(true).schedule(new SupportSessionCleanUp(), cleanUpStart, cleanUpInterval);
+	}
+	
+	class SupportSessionCleanUp extends TimerTask {
+		@Override
+		public void run() {
+			try {
+				logger.info("support session clean-up started");
+				String owner = config.getString(Config.KEY_SESSION_WORKER_SUPPORT_SESSION_OWNER);
+				int deleteAfterDays = config.getInt(Config.KEY_SESSION_WORKER_SUPPORT_SESSION_DELETE_AFTER);
+				List<Session> sessions = sessionDb.getSessions(owner);
+				
+				for (Session session : sessions) {
+					try {
+						Rule rule = session.getRules().stream()
+							.filter(r -> owner.equals(r.getUsername()))
+							.findAny().get();					
+						
+						if (rule.getCreated().isBefore(Instant.now().minus(deleteAfterDays, ChronoUnit.DAYS))) {
+							logger.info("delete old support session " + session.getName());
+							// delete only the support_session_owner's rule and not the whole session in case someone
+							// wants to keep a copy of it
+							sessionDb.deleteRule(session.getSessionId(), rule.getRuleId());
+						}
+					} catch (NoSuchElementException e) {
+						// just continue if a rule wasn't found, this is probably an example session
+					}
+				}
+				logger.info("support session clean-up done");
+			} catch (RestException e) {
+				logger.error("error in support session clean-up", e);
+			}
+		}
 	}
 
 	/**

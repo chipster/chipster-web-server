@@ -27,6 +27,7 @@ public class SessionResourceTest {
 	private static SessionDbClient tokenFailClient;
 	private static SessionDbClient authFailClient;
 	private static SessionDbClient noAuthClient;
+	private static SessionDbClient sessionWorkerClient;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -42,6 +43,7 @@ public class SessionResourceTest {
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
 		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
 		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
+		sessionWorkerClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(), Role.CLIENT);
     }
 
     @AfterClass
@@ -98,7 +100,7 @@ public class SessionResourceTest {
 		testGetSession(401, sessionId1, authFailClient);
 		testGetSession(401, sessionId1, noAuthClient);
     }
-	
+		
 	@Test
     public void getSharesErrors() throws IOException, RestException {				
 		
@@ -149,9 +151,33 @@ public class SessionResourceTest {
 		testGetSessions(401, noAuthClient);
     }
 	
+	@Test
+    public void getAllByUserId() throws RestException {			
+		
+		String userIdString = launcher.getUser1Credentials().getUsername();
+		
+		// session-worker can get the sessions of others
+		sessionWorkerClient.getSessions(userIdString);
+		
+		testGetSessions(403, userIdString, user1Client);		
+		testGetSessions(401, userIdString, unparseableTokenClient);
+		testGetSessions(403, userIdString, tokenFailClient);
+		testGetSessions(401, userIdString, authFailClient);
+		testGetSessions(401, userIdString, noAuthClient);
+    }
+	
 	private void testGetSessions(int expected, SessionDbClient client) {
 		try {
     		client.getSessions();
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
+	private void testGetSessions(int expected, String userIdString, SessionDbClient client) {
+		try {
+    		client.getSessions(userIdString);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());

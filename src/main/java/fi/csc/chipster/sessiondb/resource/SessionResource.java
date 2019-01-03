@@ -13,6 +13,7 @@ import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
@@ -60,6 +61,7 @@ public class SessionResource {
 	
 	public static final String PATH_SHARES = "shares";
 	private static final String QUERY_PARAM_PREVIEW = "preview";
+	public static final String QUERY_PARAM_USER_ID = "userId";
 
 	private static Logger logger = LogManager.getLogger();
 	
@@ -119,9 +121,30 @@ public class SessionResource {
 	@GET
     @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
-    public Response getAll(@Context SecurityContext sc) {
+    public Response getAll(@QueryParam(QUERY_PARAM_USER_ID) String userIdString, @Context SecurityContext sc) {
 
-		List<Rule> result = ruleTable.getRules(sc.getUserPrincipal().getName());
+		String authenticatedUserId = sc.getUserPrincipal().getName();
+		List<Session> sessions;
+		
+		if (Role.SESSION_WORKER.equals(authenticatedUserId)) {
+			if (userIdString == null) {
+				throw new ForbiddenException("query parameter " + QUERY_PARAM_USER_ID + " is null");
+			}
+			// session-worker needs access to support_session_owner's sessions
+			sessions = this.getSessions(userIdString);
+		} else {
+			if (userIdString != null) {
+				throw new ForbiddenException("query parameter " + QUERY_PARAM_USER_ID + " not allowed for the user " + authenticatedUserId);
+			}
+			sessions = this.getSessions(authenticatedUserId);
+		}
+
+		// if nothing is found, just return 200 (OK) and an empty list
+		return Response.ok(toJaxbList(sessions)).build();
+    }
+		
+	private List<Session> getSessions(String username) {
+		List<Rule> result = ruleTable.getRules(username);
 		
 		List<Session> sessions = new ArrayList<>();
 		for (Rule rule : result) {
@@ -131,10 +154,9 @@ public class SessionResource {
 			session.setRules(Sets.newHashSet(rule));
 			sessions.add(session);
 		}
-
-		// if nothing is found, just return 200 (OK) and an empty list
-		return Response.ok(toJaxbList(sessions)).build();
-    }
+		
+		return sessions;
+	}
 
 	@GET
 	@Path(PATH_SHARES)

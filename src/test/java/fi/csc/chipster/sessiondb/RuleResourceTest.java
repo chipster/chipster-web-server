@@ -283,7 +283,7 @@ public class RuleResourceTest {
 		UUID sessionId = user1Client.createSession(session);
 		
 		try {		
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < 200; i++) {
 				Rule user2Rule = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
 				user1Client.createRule(sessionId, user2Rule);
 			}
