@@ -236,8 +236,8 @@ public class SupportResource {
 	    
 	    emailBody += "message: \n" + feedback.getMessage() + "\n\n";
 	    
-	    emailBody += "error message: \n";
-	    emailBody += feedback.getErrorMessage() + "\n\n";
+	    emailBody += "log: \n";
+	    emailBody += feedback.getLog() + "\n\n";
 	    
 	    return emailBody;
 	}

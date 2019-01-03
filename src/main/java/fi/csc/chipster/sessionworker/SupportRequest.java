@@ -2,10 +2,10 @@ package fi.csc.chipster.sessionworker;
 
 public class SupportRequest {
 	private String message;
-	private String errorMessage;
 	private String mail;
 	private String session;
 	private String app;
+	private String log;
 	
 	public String getMessage() {
 		return message;
@@ -30,14 +30,6 @@ public class SupportRequest {
 	public void setSession(String session) {
 		this.session = session;
 	}
-	
-	public String getErrorMessage() {
-		return errorMessage;
-	}
-	
-	public void setErrorMessage(String errorMessage) {
-		this.errorMessage = errorMessage;
-	}
 
 	public String getApp() {
 		return app;
@@ -45,5 +37,13 @@ public class SupportRequest {
 
 	public void setApp(String app) {
 		this.app = app;
+	}
+
+	public String getLog() {
+		return log;
+	}
+
+	public void setLog(String log) {
+		this.log = log;
 	}
 }
