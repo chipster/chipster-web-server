@@ -36,7 +36,7 @@ public class JavascriptService {
     	}
     	
     	System.out.println("Install dependencies");
-    	runAndWait("npm", "install");    	
+    	runAndWait("npm", "ci");    	
     	
     	System.out.println("Compile");
     	runAndWaitCareless("npm", "run", "build");    	
