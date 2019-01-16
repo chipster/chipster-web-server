@@ -134,6 +134,7 @@ public class TokenResource {
 	}
 
 	private String getName(Token token, HashSet<String> roles ) {
+		// service accounts are not in the userTable
 		if (roles.contains(Role.CLIENT)) {
 			return this.userTable.get(new UserId(token.getUsername())).getName();
 		} else {

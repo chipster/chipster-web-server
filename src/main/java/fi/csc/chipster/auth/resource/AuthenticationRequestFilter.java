@@ -211,16 +211,16 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		if (serviceAccounts.keySet().contains(username)) {
 			roles.add(Role.SERVER);
 			roles.add(username);
+			
+		} else if (monitoringAccounts.containsKey(username)) {
+			roles.add(Role.MONITORING);
+			
 		} else {
 			roles.add(Role.CLIENT);
 			
 			if (adminAccounts.contains(username)) {
 				roles.add(Role.ADMIN);
 			}
-		}
-				
-		if (monitoringAccounts.containsKey(username)) {
-			roles.add(Role.MONITORING);
 		}
 		
 		if (ssoAccounts.keySet().contains(username)) {
