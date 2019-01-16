@@ -251,7 +251,9 @@ public class Config {
 			throw new RuntimeException("failed to read the config file " + confFilePath, e);	
 		} finally {
 			try {
-				streamReader.close();
+				if (streamReader != null) {
+					streamReader.close();	
+				}
 			} catch (IOException e) {
 				logger.warn(e);
 			}
