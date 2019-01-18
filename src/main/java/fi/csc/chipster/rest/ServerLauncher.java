@@ -87,16 +87,17 @@ public class ServerLauncher {
 		sessionWorker.startServer();
 
 		if (verbose) {
+			logger.info("starting toolbox");
+		}
+		toolbox = new ToolboxService(config);
+		toolbox.startServer();
+		
+		if (verbose) {
 			logger.info("starting scheduler");
 		}
 		scheduler = new Scheduler(config);
 		scheduler.startServer();
 
-		if (verbose) {
-			logger.info("starting toolbox");
-		}
-		toolbox = new ToolboxService(config);
-		toolbox.startServer();
 
 		if (verbose) {
 			logger.info("starting comp");
@@ -184,18 +185,18 @@ public class ServerLauncher {
 			}
 		}
 
-		if (toolbox != null) {
-			try {
-				toolbox.close();
-			} catch (Exception e) {
-				logger.warn("closing toolbox failed", e);
-			}
-		}
 		if (scheduler != null) {
 			try {
 				scheduler.close();
 			} catch (Exception e) {
 				logger.warn("closing scheduler failed", e);
+			}
+		}
+		if (toolbox != null) {
+			try {
+				toolbox.close();
+			} catch (Exception e) {
+				logger.warn("closing toolbox failed", e);
 			}
 		}
 		if (sessionWorker != null) {

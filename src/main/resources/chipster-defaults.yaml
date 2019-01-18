@@ -137,8 +137,8 @@ db-pass-auth: ""
 # comp
 
 # max number of jobs run simultaneously
-comp-max-jobs: 2
-# time after which a scheuduled job is removed if there is no reponse from the scheduler
+comp-max-jobs: 5
+# time after which a scheduled job is removed if there is no response from the scheduler
 comp-schedule-timeout: 10
 # delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
 comp-offer-delay: 100
@@ -155,7 +155,7 @@ comp-module-filter-mode: exclude
 # how often to monitor job resource usage or -1 to disable it, milliseconds
 comp-resource-monitoring-interval: 10000
 # timeout after which a job is killed, seconds
-comp-job-timeout: 604800 # 7 days
+comp-job-timeout: 604800 # a week
 
 # scheduler
 
@@ -169,6 +169,12 @@ scheduler-schedule-timeout: 1
 scheduler-heartbeat-lost-timeout: 90
 # how often to check job timeouts, seconds
 scheduler-job-timer-interval: 1
+# max number of scheduled and running job slots per user
+scheduler-max-scheduled-and-running-slots-per-user: 10
+# how many job (slots) can be waiting for the free running slots (per user limit)
+scheduler-max-new-slots-per-user: 1000
+# how long a job can wait for the free slot (per user limit), seconds
+scheduler-wait-new-slots-per-user-timeout: 604800 # a week
 
 
 # session-db 
