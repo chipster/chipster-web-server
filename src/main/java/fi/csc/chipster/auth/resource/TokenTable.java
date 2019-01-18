@@ -29,7 +29,7 @@ public class TokenTable {
 	private static final Duration CLIENT_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
 
 	private static final Duration SERVER_TOKEN_LIFETIME = Duration.of(6, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
-	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(24, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
+	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 
 	private Timer cleanUpTimer;
 	private static Duration CLEAN_UP_INTERVAL = Duration.of(30, ChronoUnit.MINUTES); // UNIT MUST BE DAYS OR SHORTER
