@@ -138,8 +138,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			if (!newDbJobs.isEmpty()) {
 				logger.info("found " + newDbJobs.size() + " waiting jobs from the session-db");				
 				for (IdPair idPair : newDbJobs) {
-					Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
-					jobs.addNewJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(), getSlots(job));
+					try {
+						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
+						jobs.addNewJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(), getSlots(job));
+					} catch (RestException e) {
+						logger.error("could not get a job " + asShort(idPair.getJobId()) + " from session-db", e);
+					}
 				}
 			}
 			
@@ -147,8 +151,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			if (!runningDbJobs.isEmpty()) {
 				logger.info("found " + runningDbJobs.size() + " running jobs from the session-db");
 				for (IdPair idPair : runningDbJobs) {
-					Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
-					jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(), getSlots(job));
+					try {
+						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
+						jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(), getSlots(job));
+					} catch (RestException e) {
+						logger.error("could not get a job " + asShort(idPair.getJobId()) + " from session-db", e);
+					}
 				}
 			}			
 		}
@@ -228,8 +236,14 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 	private void handleDbEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
 		synchronized (jobs) {				
 			switch (e.getType()) {
-			case CREATE:				
-				Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
+			case CREATE:
+				Job job = null;
+				try {
+					job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
+				} catch (RestException err) {
+					logger.error("received a CREATE event of job " + asShort(e.getResourceId()) + ", but couldn't get it from session-db", e);
+					break;
+				}
 				switch (job.getState()) {
 				case NEW:
 					
