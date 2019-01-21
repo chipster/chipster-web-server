@@ -242,7 +242,24 @@ public class AuthenticationClient {
 	 * @return
 	 */
 	public CredentialsProvider getCredentials() {
-		return this.dynamicCredentials;		
+		return new CredentialsProvider() {
+			@Override
+			public String getUsername() {
+				return dynamicCredentials.getUsername();
+			}
+
+			@Override
+			public String getPassword() {
+				
+				// refresh token if the laptop has been sleeping or something
+				if (token.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL))) {
+					logger.warn("timer hasn't refreshed the token in time, trying now");
+					refreshToken();
+				}
+								
+				return dynamicCredentials.getPassword();
+			}
+		};
 	}
 
 	public Token ssoLogin(User user) {

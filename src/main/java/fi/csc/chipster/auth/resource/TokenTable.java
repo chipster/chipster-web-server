@@ -27,7 +27,7 @@ public class TokenTable {
 
 	private static final Duration CLIENT_TOKEN_LIFETIME = Duration.of(3, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
 	private static final Duration CLIENT_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
-
+	
 	private static final Duration SERVER_TOKEN_LIFETIME = Duration.of(6, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 
@@ -149,6 +149,7 @@ public class TokenTable {
 
 		dbToken.setValidUntil(getTokenNextExpiration(dbToken));
 		
+		getHibernate().session().detach(dbToken);
 		HibernateUtil.update(dbToken, dbToken.getTokenKey(), getHibernate().session());
 		
 		return dbToken;		
