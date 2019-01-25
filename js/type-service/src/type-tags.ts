@@ -100,7 +100,7 @@ export class TypeTags {
       typeTags[Tags.NO_TITLE_ROW.id] = "";
     }
 
-    if (Tags.MOTHUR_FILES.id in typeTags) {
+    if (Tags.MOTHUR_STABILITY.id in typeTags) {
       typeTags[Tags.NO_TITLE_ROW.id] = "";
       typeTags[Tags.SKIP_LINES.id] = "#";
     }
