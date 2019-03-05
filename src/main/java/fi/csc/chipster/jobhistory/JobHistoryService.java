@@ -59,11 +59,10 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	 * @throws URISyntaxException
 	 * @throws IOException
 	 * @throws RestException
-	 * @throws InterruptedException 
+	 * @throws InterruptedException
 	 */
 
-	public void startServer() throws URISyntaxException, IOException,
-			RestException, InterruptedException {
+	public void startServer() throws URISyntaxException, IOException, RestException, InterruptedException {
 		// WebSocket connection to Session DB
 		String username = Role.JOB_HISTORY;
 		String password = this.config.getPassword(username);
@@ -71,32 +70,28 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		this.serviceLocator = new ServiceLocatorClient(this.config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		this.serviceLocator.setCredentials(authService.getCredentials());
-		
+
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 
-		this.sessionDbClient = new SessionDbClient(serviceLocator,
-				authService.getCredentials(), Role.SERVER);
-		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this,
-				"job-history");
+		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "job-history");
 
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistoryModel.class);
 		// Initializing hibernate components
 		hibernate = new HibernateUtil(this.config, Role.JOB_HISTORY, hibernateClasses);
-				
-		this.jobHistoryResource=new JobHistoryResource(hibernate, config);
-		
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				.register(new HibernateRequestFilter(hibernate))
-				.register(new HibernateResponseFilter(hibernate))
-				.register(tokenRequestFilter);
-		
-	
+
+		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
+
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(new HibernateRequestFilter(hibernate))
+				.register(new HibernateResponseFilter(hibernate)).register(tokenRequestFilter);
+
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
 		httpServer.start();
-				
-		//Starting the Job History Admin Server
-		this.jobHistoryAdminServer=RestUtils.startAdminServer(jobHistoryResource,hibernate,Role.JOB_HISTORY,config,authService);
+
+		// Starting the Job History Admin Server
+		this.jobHistoryAdminServer = RestUtils.startAdminServer(jobHistoryResource, hibernate, Role.JOB_HISTORY, config,
+				authService);
 		System.out.println("Admin server started");
 		this.jobHistoryAdminServer.start();
 
@@ -106,26 +101,20 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		return httpServer;
 	}
 
-	public static void main(String[] args) throws URISyntaxException,
-			IOException, RestException, InterruptedException {
-		final JobHistoryService jobHistoryService = new JobHistoryService(
-				new Config());
+	public static void main(String[] args) throws URISyntaxException, IOException, RestException, InterruptedException {
+		final JobHistoryService jobHistoryService = new JobHistoryService(new Config());
 		jobHistoryService.startServer();
-		RestUtils.shutdownGracefullyOnInterrupt(jobHistoryService.httpServer,
-				"job-history");
-		RestUtils.waitForShutdown("Job History service",
-				jobHistoryService.getHttpServer());
+		RestUtils.shutdownGracefullyOnInterrupt(jobHistoryService.httpServer, "job-history");
+		RestUtils.waitForShutdown("Job History service", jobHistoryService.getHttpServer());
 
 	}
 
 	@Override
 	public void onEvent(SessionEvent e) {
-		logger.info("received a job event: " + e.getResourceType() + " "
-				+ e.getType());
+		logger.info("received a job event: " + e.getResourceType() + " " + e.getType());
 		try {
 			if (e.getResourceType() == ResourceType.JOB) {
-				handleDbEvent(e,
-						new IdPair(e.getSessionId(), e.getResourceId()));
+				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()));
 			}
 		} catch (Exception ex) {
 			logger.error("error when handling a session event", ex);
@@ -138,12 +127,10 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	 * 
 	 */
 
-	private void handleDbEvent(SessionEvent e, IdPair jobIdPair)
-			throws RestException {
+	private void handleDbEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
 		switch (e.getType()) {
 		case CREATE:
-			Job job = sessionDbClient.getJob(e.getSessionId(),
-					e.getResourceId());
+			Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
 			System.out.println(job);
 			switch (job.getState()) {
 			case NEW:
@@ -164,7 +151,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			switch (job.getState()) {
 			case COMPLETED:
 			case FAILED:
-			case CANCELLED:	
+			case CANCELLED:
 			case FAILED_USER_ERROR:
 			case ERROR:
 				updateJobHistory(job);
@@ -188,7 +175,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		jobHistory.setStartTime(job.getCreated());
 		jobHistory.setEndTime(job.getEndTime());
 		// new jobs don't have end time
-		//jobHistory.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
+		// jobHistory.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
 		jobHistory.setOutput(job.getScreenOutput());
 		jobHistory.setJobStatus(job.getState().toString());
 		jobHistory.setUserName(job.getCreatedBy());
@@ -205,19 +192,21 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
-				JobHistoryModel js = hibernateSession.get(
-						JobHistoryModel.class, job.getJobIdPair());
-				// the HibbernateUtil.update() assumes detached objects, otherwise it won't notice the changes
+				JobHistoryModel js = hibernateSession.get(JobHistoryModel.class, job.getJobIdPair());
+				// the HibbernateUtil.update() assumes detached objects, otherwise it won't
+				// notice the changes
 				hibernateSession.detach(js);
 				js.setToolId(job.getToolId());
 				js.setToolName(job.getToolName());
 				js.setStartTime(job.getStartTime());
 				js.setEndTime(job.getEndTime());
-				js.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
+				if ((job.getEndTime() != null) && (job.getStartTime()!=null)){
+					js.setTimeDuration(Long
+							.toString(Math.abs(Duration.between(job.getEndTime(), job.getStartTime()).getSeconds())));
+				}
 				js.setOutput(job.getScreenOutput());
 				js.setJobStatus(job.getState().toString());
 				js.setUserName(job.getCreatedBy());
-				
 				HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
 
 				return null;
