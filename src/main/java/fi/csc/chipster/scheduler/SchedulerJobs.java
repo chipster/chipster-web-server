@@ -1,5 +1,6 @@
 package fi.csc.chipster.scheduler;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -29,20 +30,41 @@ public class SchedulerJobs {
 				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 		return newJobs;
 	}
+	
+	public int getRunningSlots(String userId) {
+		return getSlots(getRunningJobs().values(), userId);
+	}
+	
+	public int getScheduledSlots(String userId) {
+		return getSlots(getScheduledJobs().values(), userId);
+	}
+	
+	public int getNewSlots(String userId) {
+		return getSlots(getNewJobs().values(), userId);
+	}
+		
+	public int getSlots(Collection<JobSchedulingState> jobs, String userId) {
+		return jobs.stream()
+				.filter(j -> userId.equals(j.getUserId()))
+				.mapToInt(j -> j.getSlots())
+				.sum();
+	}
 
 	public void remove(IdPair jobId) {
 		jobs.remove(jobId);	
 	}
 
-	public void addNewJob(IdPair idPair) {
-		jobs.put(idPair, new JobSchedulingState());
+	public JobSchedulingState addNewJob(IdPair idPair, String userId, int slots) {
+		JobSchedulingState jobState = new JobSchedulingState(userId, slots);
+		jobs.put(idPair, jobState);
+		return jobState;
 	}
 	
-	public void addRunningJob(IdPair idPair) {
-		JobSchedulingState job = new JobSchedulingState();
+	public void addRunningJob(IdPair idPair, String userId, int slots) {
+		JobSchedulingState job = new JobSchedulingState(userId, slots);
 		job.setScheduleTimestamp();
 		job.setRunningTimestamp();
-		jobs.put(idPair, new JobSchedulingState());
+		jobs.put(idPair, job);
 	}
 
 	public JobSchedulingState get(IdPair jobIdPair) {

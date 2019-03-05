@@ -9,9 +9,14 @@ public class JobSchedulingState {
 		private Instant scheduleTimestamp;
 		private Instant runningTimestamp;
 		private Instant runnableTimestamp;
+		private String userId;
+		private Instant userLimitReachedTimestamp;
+		private int slots;
 		
-		public JobSchedulingState() {
+		public JobSchedulingState(String userId, int slots) {
 			setNewTimestamp();
+			this.userId = userId;
+			this.slots = slots;
 		}
 		
 		public Instant getNewTimestamp() {
@@ -35,6 +40,14 @@ public class JobSchedulingState {
 		public void setRunningTimestamp() {
 			this.runningTimestamp = Instant.now();
 		}		
+		
+		public void setUserLimitReachedTimestamp(boolean isReached) {
+			if (isReached) {
+				this.userLimitReachedTimestamp = Instant.now();
+			} else {
+				this.userLimitReachedTimestamp = null;
+			}
+		}
 		
 		public boolean isScheduled() {
 			return scheduleTimestamp != null && runningTimestamp == null;
@@ -70,5 +83,17 @@ public class JobSchedulingState {
 
 		public boolean isRunnable() {
 			return runnableTimestamp != null;
+		}
+		
+		public boolean isUserLimitReached() {
+			return userLimitReachedTimestamp != null;
+		}
+
+		public String getUserId() {
+			return userId;
+		}
+
+		public int getSlots() {
+			return slots;
 		}
 	}
