@@ -59,26 +59,23 @@ public class JobHistoryResource extends AdminResource {
 		int pageNumber = 1;
 		int pageSize = 200;
 
-		MultivaluedMap<String, String> queryParams = uriInfo
-				.getQueryParameters();
+		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
 		Map<String, String> parameters = new HashMap<String, String>();
 
 		for (String str : queryParams.keySet()) {
 			parameters.put(str, queryParams.getFirst(str));
 		}
-		
+
 		String pageParam = parameters.get(FILTER_ATTRIBUTE_PAGE);
-		if (pageParam != null) {			
+		if (pageParam != null) {
 			pageNumber = Integer.parseInt(pageParam);
 		}
 
 		parameters.remove(FILTER_ATTRIBUTE_PAGE);
-		System.out.println("page number is" + pageNumber);
-		
+
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		// Create CriteriaQuery
-		CriteriaQuery<JobHistoryModel> criteria = builder
-				.createQuery(JobHistoryModel.class);
+		CriteriaQuery<JobHistoryModel> criteria = builder.createQuery(JobHistoryModel.class);
 
 		// Specify criteria root
 		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
@@ -88,8 +85,7 @@ public class JobHistoryResource extends AdminResource {
 			// Query itself
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
 			criteria.orderBy(builder.desc(root.get("startTime")));
-			Query<JobHistoryModel> query = getHibernate().session()
-					.createQuery(criteria);
+			Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
 			query.setFirstResult((pageNumber - 1) * pageSize);
 			query.setMaxResults(pageSize);
 			Collection<JobHistoryModel> jobHistoryList = query.getResultList();
@@ -99,13 +95,12 @@ public class JobHistoryResource extends AdminResource {
 			// Returning simple job history list without any filter attribute
 			criteria.select(root);
 			criteria.orderBy(builder.desc(root.get("startTime")));
-			Query<JobHistoryModel> query = getHibernate().session()
-					.createQuery(criteria);
+			Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
 			query.setFirstResult((pageNumber - 1) * pageSize);
 			query.setMaxResults(pageSize);
 			List<JobHistoryModel> jobHistoryList = query.getResultList();
 			logger.info(jobHistoryList);
-			
+
 			return Response.ok(toJaxbList(jobHistoryList)).build();
 
 		}
@@ -119,8 +114,7 @@ public class JobHistoryResource extends AdminResource {
 	@Transaction
 	public Response getJobHistoryRowCount(@Context UriInfo uriInfo) {
 
-		MultivaluedMap<String, String> queryParams = uriInfo
-				.getQueryParameters();
+		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
 		Map<String, String> parameters = new HashMap<String, String>();
 
 		for (String str : queryParams.keySet()) {
@@ -128,11 +122,9 @@ public class JobHistoryResource extends AdminResource {
 		}
 
 		parameters.remove(FILTER_ATTRIBUTE_PAGE);
-		System.out.println(parameters);
 
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
-		CriteriaQuery<JobHistoryModel> criteria = builder
-				.createQuery(JobHistoryModel.class);
+		CriteriaQuery<JobHistoryModel> criteria = builder.createQuery(JobHistoryModel.class);
 		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
 		List<Predicate> predicate = createPredicate(parameters, root, builder);
 
@@ -142,8 +134,7 @@ public class JobHistoryResource extends AdminResource {
 				q.select(builder.count(q.from(JobHistoryModel.class)));
 				getHibernate().session().createQuery(q);
 				q.where(predicate.toArray(new Predicate[] {}));
-				Long count = getHibernate().session().createQuery(q)
-						.getSingleResult();
+				Long count = getHibernate().session().createQuery(q).getSingleResult();
 				return Response.ok(count).build();
 			} catch (Exception e) {
 				logger.error("failed to get job history row count", e);
@@ -158,18 +149,18 @@ public class JobHistoryResource extends AdminResource {
 	}
 
 	// how to encode jobIdPair to url if this is needed at all
-//	@GET
-//	@RolesAllowed({ Role.ADMIN })
-//	@Path("/jobhistory/{id}")
-//	@Produces(MediaType.APPLICATION_JSON)
-//	@Transaction
-//	public Response getJob(@PathParam("id") UUID jobId) {
-//		JobHistoryModel result = getHibernate().session().get(
-//				JobHistoryModel.class, jobId);
-//		return Response.ok(result).build();
-//	}
+	// @GET
+	// @RolesAllowed({ Role.ADMIN })
+	// @Path("/jobhistory/{id}")
+	// @Produces(MediaType.APPLICATION_JSON)
+	// @Transaction
+	// public Response getJob(@PathParam("id") UUID jobId) {
+	// JobHistoryModel result = getHibernate().session().get(
+	// JobHistoryModel.class, jobId);
+	// return Response.ok(result).build();
+	// }
 
-	//FIXME only needed in tests, how to disable this in prod?
+	// FIXME only needed in tests, how to disable this in prod?
 	@PUT
 	@Path("jobhistory")
 	@RolesAllowed({ Role.ADMIN })
@@ -183,8 +174,8 @@ public class JobHistoryResource extends AdminResource {
 		return Response.ok().build();
 	}
 
-	private List<Predicate> createPredicate(Map<String, String> parameters,
-			Root<JobHistoryModel> root, CriteriaBuilder builder) {
+	private List<Predicate> createPredicate(Map<String, String> parameters, Root<JobHistoryModel> root,
+			CriteriaBuilder builder) {
 		// the first parameter is the page number we are seeking record, so no
 		// need to add in query
 		List<Predicate> predicate = new ArrayList<Predicate>();
@@ -197,41 +188,32 @@ public class JobHistoryResource extends AdminResource {
 							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
 								String time = parameters.get(key).split("=")[1];
 								Instant timeVal = Instant.parse(time);
-								predicate.add(builder.greaterThan(
-										root.get(key), timeVal));
+								predicate.add(builder.greaterThan(root.get(key), timeVal));
 							} else {
-								predicate.add(builder.greaterThan(
-										root.get(key), parameters.get(key)));
+								predicate.add(builder.greaterThan(root.get(key), parameters.get(key)));
 							}
 
 						} catch (IllegalArgumentException e) {
-							logger.error(
-									"error in parsing job history parameter", e);
+							logger.error("error in parsing job history parameter", e);
 						}
 
 					} else if (parameters.get(key).contains("lt")) {
 						// add lt filter
 						try {
 							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
-								Instant timeVal = Instant.parse(parameters.get(
-										key).split("=")[1]);
-								predicate.add(builder.lessThan(root.get(key),
-										timeVal));
+								Instant timeVal = Instant.parse(parameters.get(key).split("=")[1]);
+								predicate.add(builder.lessThan(root.get(key), timeVal));
 							} else {
-								predicate.add(builder.lessThan(root.get(key),
-										parameters.get(key)));
+								predicate.add(builder.lessThan(root.get(key), parameters.get(key)));
 							}
 						} catch (IllegalArgumentException e) {
-							logger.error(
-									"error in parsing job history parameter", e);
+							logger.error("error in parsing job history parameter", e);
 						}
 					} else {
 						try {
-							predicate.add(builder.equal(root.get(key),
-									parameters.get(key)));
+							predicate.add(builder.equal(root.get(key), parameters.get(key)));
 						} catch (IllegalArgumentException e) {
-							logger.error(
-									"error in parsing job history parameter", e);
+							logger.error("error in parsing job history parameter", e);
 						}
 					}
 				}
@@ -241,8 +223,7 @@ public class JobHistoryResource extends AdminResource {
 		return predicate;
 	}
 
-	private GenericEntity<Collection<JobHistoryModel>> toJaxbList(
-			Collection<JobHistoryModel> result) {
+	private GenericEntity<Collection<JobHistoryModel>> toJaxbList(Collection<JobHistoryModel> result) {
 		return new GenericEntity<Collection<JobHistoryModel>>(result) {
 		};
 	}

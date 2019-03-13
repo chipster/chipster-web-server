@@ -131,7 +131,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		switch (e.getType()) {
 		case CREATE:
 			Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			System.out.println(job);
 			switch (job.getState()) {
 			case NEW:
 				// When a client adds a new job, save it the job history
@@ -200,7 +199,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				js.setToolName(job.getToolName());
 				js.setStartTime(job.getStartTime());
 				js.setEndTime(job.getEndTime());
-				if ((job.getEndTime() != null) && (job.getStartTime()!=null)){
+				if ((job.getEndTime() != null) && (job.getStartTime() != null)) {
 					js.setTimeDuration(Long
 							.toString(Math.abs(Duration.between(job.getEndTime(), job.getStartTime()).getSeconds())));
 				}
