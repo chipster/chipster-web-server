@@ -1,13 +1,15 @@
 {
   "name": "chipster-cli-js",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Command line client for Chipster",
   "private": false,
   "main": "lib/chipster.js",
-  "bin": { "chipster": "lib/chipster.js" },
+  "bin": {
+    "chipster": "lib/chipster.js"
+  },
   "scripts": {
-      "prepare": "tsc"
-  },  
+    "prepare": "tsc"
+  },
   "author": "",
   "license": "MIT",
   "dependencies": {
