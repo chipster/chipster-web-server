@@ -22,7 +22,6 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.MetadataEntry;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 
@@ -36,104 +35,95 @@ public class DbPeroformanceTest {
 	private static SessionDbClient client;
 	private static UUID datasetSessionId;
 	private static Queue<UUID> jobIds;
-	
+
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
 		// once per class
 		Config config = new Config();
-    	launcher = new TestServerLauncher(config);
+		launcher = new TestServerLauncher(config);
 
-    	client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+		client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		sessionIds = postSessionsParallel();
-		
+
 		datasetSessionId = client.createSession(RestUtils.getRandomSession());
 		datasetIds = postDatasetsParallel(datasetSessionId);
 		jobIds = postJobsParallel(datasetSessionId);
 	}
-	
+
 	@AfterClass
 	public static void tearDownAfterClass() throws IOException, InterruptedException {
 		launcher.stop();
 	}
-    
-    //@Test
-    public void postSession() throws RestException {
-    	client.createSession(RestUtils.getRandomSession());
-    }
-    
-    //@Test
-    public void postDataset() throws RestException {
-    	UUID sessionId = client.createSession(RestUtils.getRandomSession());
-    	client.createDataset(sessionId, RestUtils.getRandomDataset());
-    }
-    
-    @Test
-    public void getDataset() throws RestException {    	
-    	client.getDataset(datasetSessionId, datasetIds.peek());
-    }
-    
-    @Test
-    public void postDatasetsParallelTest() throws IOException, InterruptedException, RestException {
-    	postDatasetsParallel(client.createSession(RestUtils.getRandomSession()));
-    }
-    
-    public static Queue<UUID> postDatasetsParallel(UUID sessionId) throws IOException, InterruptedException, RestException {
-    	final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (int i = 0; i < n ; i++) {
-    		executor.submit(new Runnable() {
+
+	// @Test
+	public void postSession() throws RestException {
+		client.createSession(RestUtils.getRandomSession());
+	}
+
+	// @Test
+	public void postDataset() throws RestException {
+		UUID sessionId = client.createSession(RestUtils.getRandomSession());
+		client.createDataset(sessionId, RestUtils.getRandomDataset());
+	}
+
+	@Test
+	public void getDataset() throws RestException {
+		client.getDataset(datasetSessionId, datasetIds.peek());
+	}
+
+	@Test
+	public void postDatasetsParallelTest() throws IOException, InterruptedException, RestException {
+		postDatasetsParallel(client.createSession(RestUtils.getRandomSession()));
+	}
+
+	public static Queue<UUID> postDatasetsParallel(UUID sessionId)
+			throws IOException, InterruptedException, RestException {
+		final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (int i = 0; i < n; i++) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
-						Dataset d = RestUtils.getRandomDataset();					
-						ArrayList<MetadataEntry> meta = new ArrayList<>();
-						
-						for (int i = 0; i < 10; i++) {
-							MetadataEntry e = new MetadataEntry();
-							e.setColumn("col" + i);
-							e.setKey("key" + i);
-							e.setValue("value" + i);
-							meta.add(e);
-						}
-						d.setMetadata(meta);
+						Dataset d = RestUtils.getRandomDataset();
 						ids.add(client.createDataset(sessionId, d));
 					} catch (RestException e) {
 						e.printStackTrace();
-					}		
+					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    	return ids;
-    }
-    
-    @Test
-    public void postJobsParallelTest() throws IOException, InterruptedException, RestException {
-    	postDatasetsParallel(client.createSession(RestUtils.getRandomSession()));
-    }
-    
-    public static Queue<UUID> postJobsParallel(UUID sessionId) throws IOException, InterruptedException, RestException {
-    	final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (int i = 0; i < n ; i++) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+		return ids;
+	}
+
+	@Test
+	public void postJobsParallelTest() throws IOException, InterruptedException, RestException {
+		postDatasetsParallel(client.createSession(RestUtils.getRandomSession()));
+	}
+
+	public static Queue<UUID> postJobsParallel(UUID sessionId) throws IOException, InterruptedException, RestException {
+		final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (int i = 0; i < n; i++) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
-						Job j = RestUtils.getRandomJob();					
+						Job j = RestUtils.getRandomJob();
 						ArrayList<Input> inputs = new ArrayList<>();
-						
+
 						for (int i = 0; i < 10; i++) {
 							Input input = new Input();
-							UUID datasetId = (UUID)datasetIds.toArray()[i];
+							UUID datasetId = (UUID) datasetIds.toArray()[i];
 							input.setDatasetId(datasetId.toString());
 							input.setInputId("input" + i);
 							inputs.add(input);
 						}
 						j.setInputs(inputs);
-						
+
 						ArrayList<Parameter> parameters = new ArrayList<>();
 						for (int i = 0; i < 10; i++) {
 							Parameter p = new Parameter();
@@ -141,60 +131,60 @@ public class DbPeroformanceTest {
 							p.setValue("value" + i);
 							parameters.add(p);
 						}
-						j.setParameters(parameters);						
+						j.setParameters(parameters);
 
 						ids.add(client.createJob(sessionId, j));
 					} catch (RestException e) {
 						e.printStackTrace();
-					}		
+					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    	return ids;
-    }
-    
-    @Test
-    public void postSessionsSerial() throws RestException {
-    	for (int i = 0; i < n ; i++) {
-    		client.createSession(RestUtils.getRandomSession());
-    	}
-    }
-    
-    @Test
-    public void postSessionsParallelTest() throws IOException, InterruptedException {
-    	postSessionsParallel();
-    }
-    
-    public static Queue<UUID> postSessionsParallel() throws IOException, InterruptedException {
-    	
-    	final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (int i = 0; i < n ; i++) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+		return ids;
+	}
+
+	@Test
+	public void postSessionsSerial() throws RestException {
+		for (int i = 0; i < n; i++) {
+			client.createSession(RestUtils.getRandomSession());
+		}
+	}
+
+	@Test
+	public void postSessionsParallelTest() throws IOException, InterruptedException {
+		postSessionsParallel();
+	}
+
+	public static Queue<UUID> postSessionsParallel() throws IOException, InterruptedException {
+
+		final Queue<UUID> ids = new ConcurrentLinkedQueue<>();
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (int i = 0; i < n; i++) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
 						ids.add(client.createSession(RestUtils.getRandomSession()));
 					} catch (RestException e) {
 						e.printStackTrace();
-					}		
+					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    	return ids;
-    }
-    
-    @Test
-    public void getSessionsParallel() throws IOException, InterruptedException {
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (final UUID id : sessionIds) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+		return ids;
+	}
+
+	@Test
+	public void getSessionsParallel() throws IOException, InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (final UUID id : sessionIds) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -204,17 +194,17 @@ public class DbPeroformanceTest {
 					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    }
-    
-    @Test
-    public void putSessionsParallel() throws IOException, InterruptedException {
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (final UUID id : sessionIds) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+	}
+
+	@Test
+	public void putSessionsParallel() throws IOException, InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (final UUID id : sessionIds) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -226,17 +216,17 @@ public class DbPeroformanceTest {
 					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    }
-    
-    @Test
-    public void getDatasetsParallel() throws IOException, InterruptedException {
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (final UUID id : datasetIds) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+	}
+
+	@Test
+	public void getDatasetsParallel() throws IOException, InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (final UUID id : datasetIds) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -246,17 +236,17 @@ public class DbPeroformanceTest {
 					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    }
-    
-    @Test
-    public void putDatasetsParallel() throws IOException, InterruptedException {
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (final UUID id : datasetIds) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+	}
+
+	@Test
+	public void putDatasetsParallel() throws IOException, InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (final UUID id : datasetIds) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -268,17 +258,17 @@ public class DbPeroformanceTest {
 					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    }
-    
-    @Test
-    public void getJobsParallel() throws IOException, InterruptedException {
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (final UUID id : jobIds) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+	}
+
+	@Test
+	public void getJobsParallel() throws IOException, InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (final UUID id : jobIds) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -288,17 +278,17 @@ public class DbPeroformanceTest {
 					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    }
-    
-    @Test
-    public void putJobsParallel() throws IOException, InterruptedException {
-    	ExecutorService executor = Executors.newFixedThreadPool(threads);
-    	for (final UUID id : jobIds) {
-    		executor.submit(new Runnable() {
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+	}
+
+	@Test
+	public void putJobsParallel() throws IOException, InterruptedException {
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		for (final UUID id : jobIds) {
+			executor.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -310,26 +300,26 @@ public class DbPeroformanceTest {
 					}
 				}
 			});
-    	}
-    	executor.shutdown();
-    	boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
-    	assertEquals(false, timeout);
-    }
-    
-    @Test
-    public void getSessionDatasets() throws RestException {
-    	client.getDatasets(datasetSessionId);
-    }
-    
-    @Test
-    public void getSessionJobs() throws RestException {
-    	client.getJobs(datasetSessionId);
-    }
-    
-    @Test
-    public void getSessionsSerial() throws RestException {
-    	for (UUID id : sessionIds) {
-    		client.getSession(id);
-    	}
-    }	
+		}
+		executor.shutdown();
+		boolean timeout = !executor.awaitTermination(60, TimeUnit.SECONDS);
+		assertEquals(false, timeout);
+	}
+
+	@Test
+	public void getSessionDatasets() throws RestException {
+		client.getDatasets(datasetSessionId);
+	}
+
+	@Test
+	public void getSessionJobs() throws RestException {
+		client.getJobs(datasetSessionId);
+	}
+
+	@Test
+	public void getSessionsSerial() throws RestException {
+		for (UUID id : sessionIds) {
+			client.getSession(id);
+		}
+	}
 }

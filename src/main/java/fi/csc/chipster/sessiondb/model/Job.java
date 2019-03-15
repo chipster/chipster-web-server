@@ -21,16 +21,13 @@ import fi.csc.microarray.messaging.JobState;
 
 @Entity // db
 @XmlRootElement // rest
-@Table(indexes = {
-        @Index(columnList = "sessionId", name = "job_sessionid_index"),
-})
+@Table(indexes = { @Index(columnList = "sessionId", name = "job_sessionid_index"), })
 public class Job {
-	 
-	
+
 	@EmbeddedId // db
 	@JsonUnwrapped
 	private JobIdPair jobIdPair;
-	
+
 	private String toolId;
 	private JobState state;
 	private String toolCategory;
@@ -48,17 +45,21 @@ public class Job {
 	@Lob
 	private String stateDetail;
 	private Long memoryUsage;
-	
+
 	private String createdBy;
-	
+
 	@Column
 	@Type(type = Parameter.PARAMETER_LIST_JSON_TYPE)
 	private List<Parameter> parameters = new ArrayList<>();
-	
+
 	@Column
 	@Type(type = Input.INPUT_LIST_JSON_TYPE)
 	private List<Input> inputs = new ArrayList<>();
-	
+
+	@Column
+	@Type(type = MetadataFile.METADATA_FILE_LIST_JSON_TYPE)
+	private List<MetadataFile> metadataFiles = new ArrayList<>();
+
 	public UUID getJobId() {
 		if (jobIdPair == null) {
 			return null;
@@ -69,106 +70,134 @@ public class Job {
 	public String getToolId() {
 		return toolId;
 	}
+
 	public void setToolId(String toolId) {
 		this.toolId = toolId;
 	}
+
 	public String getToolCategory() {
 		return toolCategory;
 	}
+
 	public void setToolCategory(String toolCategory) {
 		this.toolCategory = toolCategory;
 	}
+
 	public String getToolName() {
 		return toolName;
 	}
+
 	public void setToolName(String toolName) {
 		this.toolName = toolName;
 	}
+
 	public String getToolDescription() {
 		return toolDescription;
 	}
+
 	public void setToolDescription(String toolDescription) {
 		this.toolDescription = toolDescription;
 	}
+
 	public Instant getStartTime() {
 		return startTime;
 	}
+
 	public void setStartTime(Instant startTime) {
 		this.startTime = startTime;
 	}
+
 	public Instant getEndTime() {
 		return endTime;
 	}
+
 	public void setEndTime(Instant endTime) {
 		this.endTime = endTime;
 	}
+
 	public Instant getCreated() {
 		return created;
 	}
+
 	public void setCreated(Instant created) {
 		this.created = created;
 	}
+
 	public JobState getState() {
 		return state;
 	}
+
 	public void setState(JobState state) {
 		this.state = state;
 	}
+
 	public List<Parameter> getParameters() {
 		return parameters;
 	}
+
 	public void setParameters(List<Parameter> parameters) {
 		this.parameters = parameters;
 	}
-	
+
 	public List<Input> getInputs() {
 		return inputs;
 	}
-	
+
 	public void setInputs(List<Input> inputs) {
 		this.inputs = inputs;
 	}
+
 	public String getModule() {
 		return module;
 	}
+
 	public void setModule(String module) {
 		this.module = module;
 	}
+
 	public String getSourceCode() {
 		return sourceCode;
 	}
+
 	public void setSourceCode(String sourceCode) {
 		this.sourceCode = sourceCode;
 	}
+
 	public String getScreenOutput() {
 		return screenOutput;
 	}
+
 	public void setScreenOutput(String screenOutput) {
 		this.screenOutput = screenOutput;
 	}
+
 	public String getStateDetail() {
 		return stateDetail;
 	}
+
 	public void setStateDetail(String stateDetail) {
 		this.stateDetail = stateDetail;
 	}
-	
+
 	public UUID getSessionId() {
 		if (jobIdPair == null) {
 			return null;
 		}
 		return jobIdPair.getSessionId();
 	}
-	
+
 	public String getCreatedBy() {
 		return createdBy;
 	}
+
 	public void setCreatedBy(String createdBy) {
 		this.createdBy = createdBy;
 	}
+
 	public Long getMemoryUsage() {
 		return memoryUsage;
 	}
+
 	public void setMemoryUsage(Long memoryUsage) {
 		this.memoryUsage = memoryUsage;
 	}
@@ -180,8 +209,16 @@ public class Job {
 	public void setJobIdPair(JobIdPair jobIdPair) {
 		this.jobIdPair = jobIdPair;
 	}
-	
+
 	public void setJobIdPair(UUID sessionId, UUID jobId) {
 		setJobIdPair(new JobIdPair(sessionId, jobId));
+	}
+
+	public List<MetadataFile> getMetadataFiles() {
+		return metadataFiles;
+	}
+
+	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
+		this.metadataFiles = metadataFiles;
 	}
 }

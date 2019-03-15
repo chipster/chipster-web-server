@@ -21,34 +21,34 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 @Entity // db
 @XmlRootElement // rest
-@Table(indexes = {
-        @Index(columnList = "fileId", name = "dataset_fileid_index"),
-        @Index(columnList = "sessionId", name = "dataset_sessionid_index"),
-})
+@Table(indexes = { @Index(columnList = "fileId", name = "dataset_fileid_index"),
+		@Index(columnList = "sessionId", name = "dataset_sessionid_index"), })
 public class Dataset {
-	
+
 	@EmbeddedId // db
 	@JsonUnwrapped
 	private DatasetIdPair datasetIdPair;
 	private String name;
 	@Lob
 	private String notes;
+
+	@Column
+	@Type(type = MetadataFile.METADATA_FILE_LIST_JSON_TYPE)
+	private List<MetadataFile> metadataFiles = new ArrayList<>();
+
 	private Integer x;
 	private Integer y;
 	private UUID sourceJob;
 	private Instant created;
-	
+
 	@ManyToOne
-	@JoinColumn(name="fileId")
-	// embed fields of the File object directly 
+	@JoinColumn(name = "fileId")
+	// embed fields of the File object directly
 	@JsonUnwrapped // rest
 	private File file;
-	
-	@Column
-	@Type(type = MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE)
-	private List<MetadataEntry> metadata = new ArrayList<>();
-	
-	public Dataset() {} // JAXB needs this
+
+	public Dataset() {
+	} // JAXB needs this
 
 	public UUID getDatasetId() {
 		if (datasetIdPair == null) {
@@ -110,14 +110,6 @@ public class Dataset {
 		this.notes = notes;
 	}
 
-	public List<MetadataEntry> getMetadata() {
-		return metadata;
-	}
-
-	public void setMetadata(List<MetadataEntry> metadata) {
-		this.metadata = metadata;
-	}
-
 	public UUID getSessionId() {
 		if (datasetIdPair == null) {
 			return null;
@@ -144,4 +136,13 @@ public class Dataset {
 	public DatasetIdPair getDatasetIdPair() {
 		return datasetIdPair;
 	}
+
+	public List<MetadataFile> getMetadataFiles() {
+		return metadataFiles;
+	}
+
+	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
+		this.metadataFiles = metadataFiles;
+	}
+
 }

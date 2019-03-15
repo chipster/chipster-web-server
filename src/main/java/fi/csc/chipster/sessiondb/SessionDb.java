@@ -25,10 +25,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
-import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.MetadataEntry;
-import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.DatasetTokenResource;
@@ -98,11 +95,10 @@ public class SessionDb {
 		String password = config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username,
-				password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
 
-		List<Class<?>> hibernateClasses = Arrays.asList(DatasetToken.class,
-				Rule.class, Session.class, Dataset.class, Job.class, File.class);
+		List<Class<?>> hibernateClasses = Arrays.asList(DatasetToken.class, Rule.class, Session.class, Dataset.class,
+				Job.class, File.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
@@ -112,40 +108,32 @@ public class SessionDb {
 		this.tokenRequestFilter.authenticationRequired(false, true);
 
 		DatasetTokenTable datasetTokenTable = new DatasetTokenTable(hibernate);
-		
+
 		this.ruleTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
 		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, ruleTable);
 		this.sessionResource = new SessionResource(hibernate, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
-				
+
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
-		SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(
-				authService, hibernate, sessionResource);
-		this.pubSubServer = new PubSubServer(pubSubUri, path, null,
-				topicConfig, "session-db-events");
-		this.pubSubServer.setIdleTimeout(config
-				.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
+		SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(authService, hibernate, sessionResource);
+		this.pubSubServer = new PubSubServer(pubSubUri, path, null, topicConfig, "session-db-events");
+		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
 		this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
 		this.pubSubServer.start();
 
 		sessionResource.setPubSubServer(pubSubServer);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
-				.register(datasetTokenResource).register(ruleTable)
-				.register(sessionResource).register(globalJobResource)
-				.register(userResource)
-				.register(new HibernateRequestFilter(hibernate))
-				.register(new HibernateResponseFilter(hibernate))
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(datasetTokenResource)
+				.register(ruleTable).register(sessionResource).register(globalJobResource).register(userResource)
+				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
 				// .register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 
-		JerseyStatisticsSource jerseyStatisticsSource = RestUtils
-				.createJerseyStatisticsSource(rc);
-		this.adminResource = new SessionDbAdminResource(hibernate,
-				jerseyStatisticsSource, pubSubServer);
+		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -157,8 +145,7 @@ public class SessionDb {
 
 		httpServer.start();
 
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate,
-				Role.SESSION_DB, config, authService);
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService);
 		System.out.println("Admin server started");
 	}
 
@@ -177,8 +164,7 @@ public class SessionDb {
 		final SessionDb service = new SessionDb(new Config());
 		service.startServer();
 
-		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(),
-				Role.SESSION_DB);
+		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.SESSION_DB);
 
 		RestUtils.waitForShutdown("session-db", service.getHttpServer());
 

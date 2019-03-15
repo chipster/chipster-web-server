@@ -26,17 +26,17 @@ import org.postgresql.util.PSQLException;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Input;
-import fi.csc.chipster.sessiondb.model.MetadataEntry;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class HibernateUtil {
-	
+
 	public static class DatabaseNotFoundException extends RuntimeException {
 		public DatabaseNotFoundException(PSQLException e) {
 			super(e);
 		}
 	}
-	
+
 	public static class DatabaseConnectionRefused extends RuntimeException {
 		public DatabaseConnectionRefused(PSQLException e) {
 			super(e);
@@ -55,8 +55,8 @@ public class HibernateUtil {
 	public static final String CONF_DB_EXPORT_SCHEMA = "db-export-schema";
 
 	private static Logger logger = LogManager.getLogger();
-	
-    private SessionFactory sessionFactory;
+
+	private SessionFactory sessionFactory;
 
 	private Config config;
 
@@ -64,105 +64,98 @@ public class HibernateUtil {
 
 	private DbSchema dbSchema;
 
-    public HibernateUtil(Config config, String role, List<Class<?>> hibernateClasses) throws InterruptedException {
+	public HibernateUtil(Config config, String role, List<Class<?>> hibernateClasses) throws InterruptedException {
 		this.config = config;
 		this.role = role;
-	
+
 		this.init(hibernateClasses);
 	}
-    
-    public void init(List<Class<?>> hibernateClasses) throws InterruptedException {
-    	
-    	// The restore configuration is really used in the Backups service, but configuring it also for the actual service 
-    	// might be a handy way to prevent it from creating the schema
-    	String restoreKey = DbBackup.getRestoryKey(config, role);
-    	if (!restoreKey.isEmpty()) {
-    		throw new RuntimeException("Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
-    	}
-    	    	    	
-    	String url = config. getString(CONF_DB_URL, role);
-    	String user = config.getString(CONF_DB_USER, role);
-    	String password = config.getString(CONF_DB_PASS, role);
-    	
-    	// make sure the Flyway migrations match with the current Hibernate classes  
-    	String hbm2ddlAuto = "validate";
-    	Configuration hibernateConf = getHibernateConf(hibernateClasses, url, hbm2ddlAuto, user, password, config, role);
-    	
-    	try {
-    		// test connection first to make errors easier to catch
-    		testConnection(url, user, password);
-    		
-    		
-    		// the db is there    		
-    		this.dbSchema = new DbSchema(role);
-    		
-    		if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
-    			this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
-    		}
-    		
-	    	this.dbSchema.migrate(url, user, password);    	
-	
+
+	public void init(List<Class<?>> hibernateClasses) throws InterruptedException {
+
+		// The restore configuration is really used in the Backups service, but
+		// configuring it also for the actual service
+		// might be a handy way to prevent it from creating the schema
+		String restoreKey = DbBackup.getRestoryKey(config, role);
+		if (!restoreKey.isEmpty()) {
+			throw new RuntimeException(
+					"Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
+		}
+
+		String url = config.getString(CONF_DB_URL, role);
+		String user = config.getString(CONF_DB_USER, role);
+		String password = config.getString(CONF_DB_PASS, role);
+
+		// make sure the Flyway migrations match with the current Hibernate classes
+		String hbm2ddlAuto = "validate";
+		Configuration hibernateConf = getHibernateConf(hibernateClasses, url, hbm2ddlAuto, user, password, config,
+				role);
+
+		try {
+			// test connection first to make errors easier to catch
+			testConnection(url, user, password);
+
+			// the db is there
+			this.dbSchema = new DbSchema(role);
+
+			if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
+				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+			}
+
+			this.dbSchema.migrate(url, user, password);
+
 			if (password.length() < 8) {
 				logger.warn("weak db passowrd for " + role + ", length " + password.length());
 			}
-	        						
+
 			logger.info("connect to db " + url);
 			this.sessionFactory = buildSessionFactory(hibernateConf);
 			logger.info("connected");
-		
-		} catch (DatabaseConnectionRefused e) {
-			
-			if (config.getBoolean(Config.KEY_DB_FALLBACK, role)) {    		
-			
-    	    	logger.warn(role + " db not available, starting an in-memory DB "
-    	    			+ "after " + DB_WARNING_DELAY + " seconds. "
-    					+ "All data is lost in service restart. "
-    					+ "Disable this fallback in production! (" + e.getMessage() + ")\n"
-						+ "\n"
-    					+ "Install postgres: \n"
-    					+ "  brew install postgres\n"
-    					+ "  pg_ctl -D /usr/local/var/postgres start\n"
-    					+ "  createuser user\n"
-    					+ "  createdb auth_db\n"
-						+ "  createdb session_db_db\n"
-						+ "  createdb job_history_db\n"
-    	    			+ "\n");    	    			
-    	    	
-    			// wait little bit to make the log message above more visible
-				Thread.sleep(DB_WARNING_DELAY * 1000);
-    	    	
-    			this.sessionFactory = buildSessionFactoryFallback(hibernateConf, role);	    			
-    		} else {
-    			throw e;
-    		}			
-    	} catch (SchemaManagementException e) {
-    		
-    		this.dbSchema.printSchemaError(e);
-    		this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role));
-    		throw e;    	
-    	}
-    }
-    
-	public static void testConnection(String url, String user, String password) {
-		
-		try {
-		    logger.info("test connection to " + url);
-		    Properties connectionProps = new Properties();
-		    connectionProps.put("user", user);
-		    connectionProps.put("password", password);
 
-		    Connection connection = DriverManager.getConnection(url, connectionProps);
-		    logger.info("test connection to " + url + ": OK");
-		    connection.close();
-		    
-		} catch (PSQLException e) { 
-			if (e.getMessage().contains("database")
-				&& e.getMessage().contains("does not exist")) {
-				
+		} catch (DatabaseConnectionRefused e) {
+
+			if (config.getBoolean(Config.KEY_DB_FALLBACK, role)) {
+
+				logger.warn(role + " db not available, starting an in-memory DB " + "after " + DB_WARNING_DELAY
+						+ " seconds. " + "All data is lost in service restart. "
+						+ "Disable this fallback in production! (" + e.getMessage() + ")\n" + "\n"
+						+ "Install postgres: \n" + "  brew install postgres\n"
+						+ "  pg_ctl -D /usr/local/var/postgres start\n" + "  createuser user\n" + "  createdb auth_db\n"
+						+ "  createdb session_db_db\n" + "  createdb job_history_db\n" + "\n");
+
+				// wait little bit to make the log message above more visible
+				Thread.sleep(DB_WARNING_DELAY * 1000);
+
+				this.sessionFactory = buildSessionFactoryFallback(hibernateConf, role);
+			} else {
+				throw e;
+			}
+		} catch (SchemaManagementException e) {
+
+			this.dbSchema.printSchemaError(e);
+			this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role));
+			throw e;
+		}
+	}
+
+	public static void testConnection(String url, String user, String password) {
+
+		try {
+			logger.info("test connection to " + url);
+			Properties connectionProps = new Properties();
+			connectionProps.put("user", user);
+			connectionProps.put("password", password);
+
+			Connection connection = DriverManager.getConnection(url, connectionProps);
+			logger.info("test connection to " + url + ": OK");
+			connection.close();
+
+		} catch (PSQLException e) {
+			if (e.getMessage().contains("database") && e.getMessage().contains("does not exist")) {
+
 				throw new DatabaseNotFoundException(e);
-				
-			} else if (e.getMessage().toLowerCase().contains("connection")
-					&& e.getMessage().contains("refused")) {
+
+			} else if (e.getMessage().toLowerCase().contains("connection") && e.getMessage().contains("refused")) {
 				throw new DatabaseConnectionRefused(e);
 			}
 			throw new RuntimeException("failed to connect to " + url, e);
@@ -171,10 +164,11 @@ public class HibernateUtil {
 		}
 	}
 
-	public static Configuration getHibernateConf(List<Class<?>> hibernateClasses, String url, String hbm2ddlAuto, String user, String password, Config config, String role) {    	
-    	    		
+	public static Configuration getHibernateConf(List<Class<?>> hibernateClasses, String url, String hbm2ddlAuto,
+			String user, String password, Config config, String role) {
+
 		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
-				
+
 		hibernateConf.setProperty(Environment.DRIVER, config.getString(CONF_DB_DRIVER, role));
 		hibernateConf.setProperty(Environment.URL, url);
 		hibernateConf.setProperty(Environment.USER, user);
@@ -183,83 +177,90 @@ public class HibernateUtil {
 		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(CONF_DB_SHOW_SQL, role));
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
-		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately in startup
+		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately
+																				// in startup
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		// following two for debugging connection leaks
-//		hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces", "true");
-//		hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout", "30");
-		
+		// hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces",
+		// "true");
+		// hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout",
+		// "30");
+
 		for (Class<?> c : hibernateClasses) {
 			hibernateConf.addAnnotatedClass(c);
 		}
-		
+
 		boolean isPostgres = isPostgres(config, role);
-		
+
 		if (isPostgres) {
 			hibernateConf.setProperty(Environment.DIALECT, ChipsterPostgreSQL95Dialect.class.getName());
-//			hibernateConf.setProperty(Environment.URL, url + "?reWriteBatchedInserts=true");				
+			// hibernateConf.setProperty(Environment.URL, url +
+			// "?reWriteBatchedInserts=true");
 		}
-		
+
 		registerTypeOverrides(hibernateConf, isPostgres);
-		
-		/* Allow hibernate to make inserts and updates in batches to overcome the network latency.
-		 * It's crucial when e.g. a dataset may have 600 MetadataEntries. However, this doesn't
-		 * help if there are other queries/updates for each row, like for getting the next sequence id 
-		 * for the object or updating the object references.
+
+		/*
+		 * Allow hibernate to make inserts and updates in batches to overcome the
+		 * network latency. It's crucial when e.g. a dataset may have 600
+		 * MetadataEntries. However, this doesn't help if there are other
+		 * queries/updates for each row, like for getting the next sequence id for the
+		 * object or updating the object references.
 		 */
-//		hibernateConf.setProperty("hibernate.jdbc.batch_size", "1000");
-//		hibernateConf.setProperty("hibernate.order_inserts", "true");
-//		hibernateConf.setProperty("hibernate.order_updates", "true");
-//		hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
-		
-//		hibernateConf.setProperty("hibernate.default_batch_fetch_size", "100");
-		
-	
+		// hibernateConf.setProperty("hibernate.jdbc.batch_size", "1000");
+		// hibernateConf.setProperty("hibernate.order_inserts", "true");
+		// hibernateConf.setProperty("hibernate.order_updates", "true");
+		// hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
+
+		// hibernateConf.setProperty("hibernate.default_batch_fetch_size", "100");
+
 		return hibernateConf;
 	}
-	
-    private static SessionFactory buildSessionFactoryFallback(Configuration hibernateConf, String role) {
+
+	private static SessionFactory buildSessionFactoryFallback(Configuration hibernateConf, String role) {
 
 		String url = "jdbc:h2:mem:" + role + "-db";
-		
+
 		hibernateConf.setProperty(Environment.DRIVER, "org.h2.Driver");
 		hibernateConf.setProperty(Environment.URL, url);
 		hibernateConf.setProperty(Environment.USER, "user");
 		hibernateConf.setProperty(Environment.PASS, "");
 		hibernateConf.setProperty(Environment.DIALECT, ChipsterH2Dialect.class.getName());
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
-		
+
 		registerTypeOverrides(hibernateConf, false);
-		
+
 		logger.info("connect to db " + url);
 		SessionFactory sessionFactory = buildSessionFactory(hibernateConf);
 		logger.info("connected");
-		return sessionFactory;		
+		return sessionFactory;
 	}
-    
+
 	public static void registerTypeOverrides(Configuration hibernateConf, boolean isPostgres) {
 
-		HashMap<String, UserType> types = getUserTypes(isPostgres); 
-		
+		HashMap<String, UserType> types = getUserTypes(isPostgres);
+
 		for (String name : types.keySet()) {
 			hibernateConf.registerTypeOverride(types.get(name), new String[] { name });
-		}			
+		}
 	}
-	
+
 	public static HashMap<String, UserType> getUserTypes(boolean isPostgres) {
 
 		// store these child objects as json
-		return new HashMap<String, UserType>() {{
-	        put(MetadataEntry.METADATA_ENTRY_LIST_JSON_TYPE, new ListJsonType<MetadataEntry>(!isPostgres, MetadataEntry.class));
-	        put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(!isPostgres, Parameter.class));
-	        put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
-		}};
+		return new HashMap<String, UserType>() {
+			{
+				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(!isPostgres, Parameter.class));
+				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
+				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
+						new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
+			}
+		};
 	}
 
 	public static SessionFactory buildSessionFactory(Configuration hibernateConf) {
 		StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-				.applySettings(hibernateConf.getProperties())
-				.build();
+				.applySettings(hibernateConf.getProperties()).build();
 
 		return hibernateConf.buildSessionFactory(registry);
 	}
@@ -269,11 +270,12 @@ public class HibernateUtil {
 	}
 
 	public SessionFactory getSessionFactory() {
-        return sessionFactory;
-    }
-	
+		return sessionFactory;
+	}
+
 	/**
-	 * Use only in HibernateRequestFilter or through runInTransaction() to avoid connection leaks
+	 * Use only in HibernateRequestFilter or through runInTransaction() to avoid
+	 * connection leaks
 	 * 
 	 * @return
 	 */
@@ -283,29 +285,26 @@ public class HibernateUtil {
 		return session;
 	}
 
-	
-	private static org.hibernate.Session beginTransaction(SessionFactory sessionFactory2) {			
-		
-		Session session = sessionFactory2
-				.withOptions()
-//				.interceptor(new LoggingInterceptor())
-				.openSession();		
-		
+	private static org.hibernate.Session beginTransaction(SessionFactory sessionFactory2) {
+
+		Session session = sessionFactory2.withOptions()
+				// .interceptor(new LoggingInterceptor())
+				.openSession();
+
 		// update db only explicitly
-		session.setDefaultReadOnly(true);		
-		
-//		org.hibernate.Session session = getSessionFactory().getCurrentSession();
+		session.setDefaultReadOnly(true);
+
+		// org.hibernate.Session session = getSessionFactory().getCurrentSession();
 		session.beginTransaction();
-		
-//		if (isPostgres(config, role)) {
-//			session.createNativeQuery("SET LOCAL synchronous_commit TO OFF").executeUpdate();
-//		}
-		
-		
+
+		// if (isPostgres(config, role)) {
+		// session.createNativeQuery("SET LOCAL synchronous_commit TO
+		// OFF").executeUpdate();
+		// }
+
 		return session;
 	}
-	
-	
+
 	/**
 	 * Use only in HibernateResponseFilter or through runInTransaction()
 	 */
@@ -317,21 +316,20 @@ public class HibernateUtil {
 		Session session = ManagedSessionContext.unbind(sessionFactory);
 		commit(session);
 	}
-	
+
 	private static void commit(Session session) {
 		session.getTransaction().commit();
 		session.close();
 	}
-	
+
 	/**
 	 * Use only in HibernateResponseFilter
 	 */
 	void rollbackAndUnbind() {
 		Session session = ManagedSessionContext.unbind(sessionFactory);
-		rollback(session);		
+		rollback(session);
 	}
-	
-	
+
 	/**
 	 * Use only through runInTransaction()
 	 * 
@@ -341,8 +339,6 @@ public class HibernateUtil {
 		session.getTransaction().rollback();
 		session.close();
 	}
-	
-	
 
 	public org.hibernate.Session session() {
 		return getSessionFactory().getCurrentSession();
@@ -351,15 +347,15 @@ public class HibernateUtil {
 	public <T> T runInTransaction(HibernateRunnable<T> runnable) {
 		return runInTransaction(runnable, getSessionFactory());
 	}
-	
+
 	public static <T> T runInTransaction(HibernateRunnable<T> runnable, SessionFactory sessionFactory) {
 		return runInTransaction(runnable, sessionFactory, true);
 	}
-	
+
 	public static <T> T runInTransaction(HibernateRunnable<T> runnable, SessionFactory sessionFactory, boolean bind) {
-		
+
 		T returnObj = null;
-		
+
 		Session session = beginTransaction(sessionFactory);
 		if (bind) {
 			ManagedSessionContext.bind(session);
@@ -379,7 +375,7 @@ public class HibernateUtil {
 		}
 		return returnObj;
 	}
-	
+
 	public interface HibernateRunnable<T> {
 		public T run(Session hibernateSession);
 	}
@@ -387,7 +383,7 @@ public class HibernateUtil {
 	public static EntityManager getEntityManager(org.hibernate.Session hibernateSession) {
 		return hibernateSession.unwrap(EntityManager.class);
 	}
-	
+
 	public EntityManager getEntityManager() {
 		return this.session().unwrap(EntityManager.class);
 	}
@@ -398,14 +394,15 @@ public class HibernateUtil {
 	 * @param class1
 	 * @param value
 	 * @param id
-	 * @param session 
+	 * @param session
 	 */
 	public <T> void update(T value, UUID id) {
-		// Hibernate won't notice the changes in managed objects (those that have been loaded from the db in this session)
+		// Hibernate won't notice the changes in managed objects (those that have been
+		// loaded from the db in this session)
 		this.session().detach(value);
 		HibernateUtil.update(value, id, session());
 	}
-	
+
 	/**
 	 * Update an db object in a read-only Hibernate session
 	 * 
@@ -414,7 +411,7 @@ public class HibernateUtil {
 	 * @param id
 	 */
 	public static <T> void update(T value, Serializable id, Session session) {
-		
+
 		@SuppressWarnings("unchecked")
 		T dbObject = (T) session.load(value.getClass(), id);
 		session.setReadOnly(dbObject, false);
@@ -422,7 +419,7 @@ public class HibernateUtil {
 		session.flush();
 		session.setReadOnly(dbObject, true);
 	}
-	
+
 	/**
 	 * Delete an db object in a read-only Hibernate session
 	 * 
@@ -431,14 +428,14 @@ public class HibernateUtil {
 	 * @param id
 	 */
 	public static <T> void delete(T value, Serializable id, Session session) {
-		
+
 		@SuppressWarnings("unchecked")
 		T dbObject = (T) session.load(value.getClass(), id);
 		session.setReadOnly(dbObject, false);
 		session.delete(dbObject);
 		session.flush();
 	}
-	
+
 	/**
 	 * Persist an db object in a read-only Hibernate session
 	 * 
@@ -446,7 +443,7 @@ public class HibernateUtil {
 	 * @param value
 	 * @param id
 	 */
-	public static void persist(Object value, Session session) {		
+	public static void persist(Object value, Session session) {
 		session.persist(value);
 		session.setReadOnly(value, true);
 	}
