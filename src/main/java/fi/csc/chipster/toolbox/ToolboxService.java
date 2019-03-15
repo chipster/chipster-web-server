@@ -162,6 +162,9 @@ public class ToolboxService {
 			}
 
 		} catch (Exception e) {
+			// print the exception first, because...
+			logger.warn("reload failed", e);
+			// deploy script stops following the log when it sees this
 			logger.warn("failed to reload tools");
 			return;
 		}
