@@ -76,7 +76,6 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
 	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file,
 			CopyProgressListener progressListener, String datsetName, boolean isMetaOutput, File phenodataFile)
 			throws FileBrokerException, IOException {
