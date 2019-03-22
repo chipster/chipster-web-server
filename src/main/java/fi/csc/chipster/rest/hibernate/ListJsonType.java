@@ -85,14 +85,16 @@ public class ListJsonType<T extends DeepCopyable> implements UserType {
 	@Override
 	public void nullSafeSet(PreparedStatement ps, Object value, int idx, SharedSessionContractImplementor session)
 			throws HibernateException, SQLException {
-		if (value == null) {
-            return;
-        }
 		
-    	String json = RestUtils.asJson(value);
-    	
-    	int type = fallbackToClob ? Types.CLOB : Types.OTHER; 
-        ps.setObject(idx, json, type);
+		int type = fallbackToClob ? Types.CLOB : Types.OTHER;
+		
+		if (value == null) {
+            ps.setObject(idx, null, type);
+        } else {
+		
+	    	String json = RestUtils.asJson(value);	    	
+	        ps.setObject(idx, json, type);
+        }
 	}
 
     @SuppressWarnings("unchecked")

@@ -27,22 +27,29 @@ import fi.csc.chipster.sessiondb.model.Session;
 
 public class JsonSession {
 	
-	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 	
-	private static final String DIR_FILE_FORMAT = "chipster-session-file-format-v1";
+	// original prefix in v1
+	private static final String FILE_FORMAT_PREFIX_A="chipster-session-file-format-v";
+	// shorter prefix since V5
+	private static final String FILE_FORMAT_PREFIX_B="chipster-session-file-V";
+	
+	// let's try to keep this in line with the session-db flyway migration versions
+	// implement equivalent migrations in migrate() for old session files
+	private static final String DIR_FILE_FORMAT_LATEST = FILE_FORMAT_PREFIX_B + "5";
+	
 	private static final String SESSION_JSON = "session.json";
 	private static final String DATASETS_JSON = "datasets.json";
 	private static final String JOBS_JSON = "jobs.json";
 	
 	protected static final List<String> compressedExtensions = Arrays.asList(new String[] {".gz", ".zip", ".bam", ".Robj"});
 	
-	@SuppressWarnings("unchecked")
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {	
 		
-		Session session = null;
-		List<Dataset> datasets = null;
-		List<Job> jobs = null;
+		String jsonSession = null;
+		String jsonDatasets = null;
+		String jsonJobs = null;
+		Integer version = null;
 		
 		// read zip stream from the file-broker, upload extracted files back to file-broker and store 
 		// metadata json files in memory
@@ -60,7 +67,7 @@ public class JsonSession {
 					continue;
 				}
 				
-				if (!entry.getName().contains("/" + DIR_FILE_FORMAT + "/")) {
+				if (!isCompatible(entry.getName())) {
 					// we will close the connection without reading the whole input stream
 					// to fix this we would need create a limited InputStream with a HTTP range
 					
@@ -68,18 +75,23 @@ public class JsonSession {
 					return null;
 				}
 				
-				String entryName = entry.getName().substring(entry.getName().indexOf(DIR_FILE_FORMAT) + DIR_FILE_FORMAT.length() + 1);
+				String entryName = getFilename(entry.getName());
+				if (version == null) {
+					version = getVersion(entry.getName());
+				} else if (version != getVersion(entry.getName())){
+					throw new IllegalArgumentException("entry " + entry.getName() + " version differs from previous: " + version);
+				}				
 				
 				if (entryName.equals(SESSION_JSON)) {
-					session = RestUtils.parseJson(Session.class, RestUtils.toString(zipInputStream));
+					jsonSession = RestUtils.toString(zipInputStream);
 					zipInputStream.closeEntry();
 					
 				} else if (entryName.equals(DATASETS_JSON)) {
-					datasets = RestUtils.parseJson(List.class, Dataset.class, RestUtils.toString(zipInputStream));
+					jsonDatasets = RestUtils.toString(zipInputStream);
 					zipInputStream.closeEntry();
 					
 				} else if (entryName.equals(JOBS_JSON)) {
-					jobs = RestUtils.parseJson(List.class, Job.class, RestUtils.toString(zipInputStream));
+					jsonJobs = RestUtils.toString(zipInputStream);
 					zipInputStream.closeEntry();
 					
 				} else {
@@ -96,13 +108,79 @@ public class JsonSession {
 				}
 			}
 		}
+				
+		return migrate(version, jsonSession, jsonDatasets, jsonJobs);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static ExtractedSession migrate(Integer version, String jsonSession, String jsonDatasets, String jsonJobs) {
+
+		Session session;
+		List<Dataset> datasets;
+		List<Job> jobs;
+		
+		// so far we have been able to use the latest classes to parse all object versions
+		session = RestUtils.parseJson(Session.class, jsonSession);
+		datasets = RestUtils.parseJson(List.class, Dataset.class, jsonDatasets);
+		jobs = RestUtils.parseJson(List.class, Job.class, jsonJobs);
+		
+		if (version < 5) {
+			// since V5 dataset.metadataFiles has been an empty array instead of null
+			for (Dataset d : datasets) {
+				if (d.getMetadataFiles() == null) {
+					d.setMetadataFiles(new ArrayList<>());
+				} else {
+					logger.warn("dataset " + d.getName() + " has metadataFiles is not null despite the session version " + version + ", keeping it");
+				}
+			}
+		} else if (version >= 5) {
+			// since V5 flyway migration should have created the metadataFiles array
+			for (Dataset d : datasets) {
+				if (d.getMetadataFiles() == null) {
+					throw new IllegalStateException("dataset " + d.getName() + " metadataFiles is null despite the session version " + version);
+				}					
+			}
+		}
 		
 		Map<UUID, Dataset> datasetMap = datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d));
 		Map<UUID, Job> jobMap = jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j));
 		
 		return new ExtractedSession(session, datasetMap, jobMap);
 	}
+
+	private static boolean isCompatible(String entryName) {
+		return entryName.contains("/" + FILE_FORMAT_PREFIX_A) 
+				|| entryName.contains("/" + FILE_FORMAT_PREFIX_B);
+	}
 	
+	private static int getVersion(String entryName) {
+		String name = removeFormatPrefix(entryName);
+		
+		String versionString = name.substring(0, name.indexOf("/"));
+		
+		return Integer.parseInt(versionString);
+	}
+	
+	private static String removeFormatPrefix(String entryName) {
+		String name = null;
+		if (entryName.contains("/" + FILE_FORMAT_PREFIX_A)) {
+			name = entryName.substring(entryName.indexOf(FILE_FORMAT_PREFIX_A) + FILE_FORMAT_PREFIX_A.length());
+		} else if(entryName.contains("/" + FILE_FORMAT_PREFIX_B)) {
+			name = entryName.substring(entryName.indexOf(FILE_FORMAT_PREFIX_B) + FILE_FORMAT_PREFIX_B.length());
+		} else {
+			throw new IllegalArgumentException("illegal entry name, '" + FILE_FORMAT_PREFIX_A + "' or '" + FILE_FORMAT_PREFIX_B + "' not found");
+		}
+		return name;
+	}
+	
+	private static String getFilename(String entryName) {
+		String name = removeFormatPrefix(entryName);
+		int version = getVersion(entryName);
+		String versionString = "" + version + "/";
+		
+		return name.substring(versionString.length());
+	}
+
 	public static void packageSession(SessionDbClient sessionDb, RestFileBrokerClient fileBroker, Session session, UUID sessionId, ArrayList<InputStreamEntry> entries) throws RestException {
 		
 		Collection<Dataset> datasets = sessionDb.getDatasets(sessionId).values();
@@ -129,12 +207,12 @@ public class JsonSession {
 		 * Seems to tolerate at least extraction and packaging with OSX Archive Utility. 
 		 * 
 		 */
-		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + SESSION_JSON, sessionJson));
-		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + DATASETS_JSON, datasetsJson));
-		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + JOBS_JSON, jobsJson));
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + SESSION_JSON, sessionJson));
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + DATASETS_JSON, datasetsJson));
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + JOBS_JSON, jobsJson));
 		
 		for (Dataset dataset : datasets) {
-			entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT + "/" + dataset.getDatasetId().toString(), new Callable<InputStream>() {
+			entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + dataset.getDatasetId().toString(), new Callable<InputStream>() {
 				@Override
 				public InputStream call() throws Exception {					
 					return fileBroker.download(sessionId, dataset.getDatasetId());
