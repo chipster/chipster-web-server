@@ -1,0 +1,5 @@
+sample	original_name	chiptype	group
+microarray000.cel	should remain here.tsv	hgu133a.db	
+microarray001.cel	should remain here	hgu133a.db	
+microarray002.cel	should remain here.tsv	hgu133a.db	
+microarray003.cel	should remain here	hgu133a.db	

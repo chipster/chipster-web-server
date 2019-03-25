@@ -1,6 +1,10 @@
 package fi.csc.chipster.comp;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -43,11 +47,19 @@ public class PhenodataUtils {
 		return stringWriter.toString();
 	}
 
-	private static List<List<String>> parse(Path phenodataFile) throws IOException {
+	public static List<List<String>> parse(String phenodataString) throws IOException {
+		return parse(new StringReader(phenodataString));
+	}
+
+	public static List<List<String>> parse(Reader reader) throws IOException {
 
 		// use ArrayLists to make list modifications easier
-		return new TsvParser(new TsvParserSettings()).parseAll(phenodataFile.toFile()).stream()
+		return new TsvParser(new TsvParserSettings()).parseAll(reader).stream()
 				.map(row -> new ArrayList<String>(Arrays.asList(row))).collect(Collectors.toList());
+	}
+
+	public static List<List<String>> parse(Path phenodataFile) throws IOException {
+		return parse(new BufferedReader(new FileReader(phenodataFile.toFile())));
 	}
 
 	private static void validatePhenodata(List<List<String>> phenodata) {
