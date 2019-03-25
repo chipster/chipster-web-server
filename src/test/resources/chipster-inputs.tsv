@@ -1,0 +1,11 @@
+# Chipster dataset description file
+#
+# Additional columns may be added later, so don't assume that there will be only two of them.
+# Comment lines are allowed only in the beginning of file, but the number of them may vary.
+# Avoid using dataset names as file names on the server side, although those go through a cursory sanitization.
+#
+# INPUT_NAME	DATASET_NAME
+microarray000.cel	cancerGSM11814.cel
+microarray001.cel	normalGSM12283.cel
+microarray002.cel	cancerGSM11830.cel
+microarray003.cel	normalGSM12300.cel
