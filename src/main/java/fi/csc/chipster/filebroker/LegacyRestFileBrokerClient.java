@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -27,6 +26,7 @@ import org.glassfish.jersey.client.ClientProperties;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.PhenodataUtils;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -98,7 +98,8 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 						+ FileUtils.byteCountToDisplaySize(phenodataFile.length()) + " bytes, limit is "
 						+ FileUtils.byteCountToDisplaySize(PHENODATA_FILE_MAX_SIZE) + " bytes");
 			}
-			String phenodata = new String(Files.readAllBytes(phenodataFile.toPath()));
+
+			String phenodata = PhenodataUtils.processPhenodata(phenodataFile.toPath());
 			metadataFiles.add(new MetadataFile("phenodata.tsv", phenodata));
 		}
 

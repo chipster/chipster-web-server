@@ -148,6 +148,8 @@ dependencies {
     
     compile "com.sun.mail:javax.mail:+"
     
+    // tsv parser
+    compile "com.univocity:univocity-parsers:2.8.1"
     
     // old codebase
     compile ":chipster:+"
