@@ -36,7 +36,7 @@ public class JsonSession {
 	
 	// let's try to keep this in line with the session-db flyway migration versions
 	// implement equivalent migrations in migrate() for old session files
-	private static final String DIR_FILE_FORMAT_LATEST = FILE_FORMAT_PREFIX_B + "5";
+	private static final String DIR_FILE_FORMAT_LATEST = FILE_FORMAT_PREFIX_B + "6";
 	
 	private static final String SESSION_JSON = "session.json";
 	private static final String DATASETS_JSON = "datasets.json";

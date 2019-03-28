@@ -7,7 +7,7 @@
         compName varchar(255),
         endTime timestamp,
         jobStatus varchar(255),
-        output text,
+        output oid,
         startTime timestamp,
         timeDuration varchar(255),
         toolId varchar(255),
