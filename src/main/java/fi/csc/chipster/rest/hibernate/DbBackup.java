@@ -152,13 +152,17 @@ public class DbBackup {
 		backupTimer = new Timer();
 		backupTimer.scheduleAtFixedRate(new TimerTask() {			
 			@Override
-			public void run() {		    					
+			public void run() {
+				try {
+					dbCleanUp();
+				} catch (InterruptedException | IOException e) {
+					logger.error(role + " db clean up failed", e);
+				}				
 				try {
 					backup();
 				} catch (IOException | AmazonClientException | InterruptedException e) {
 					logger.error(role + " db backup failed", e);
-				}				
-				
+				}								
 			}
 		}, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
 //    	}, new Date(), backupInterval * 60 * 60 * 1000);
@@ -185,7 +189,7 @@ public class DbBackup {
 			
 			logger.info("restore  " + role + " db backup from " + restoreFileExtracted);
 				
-			runPostgres(restoreFileExtracted, null, "psql");
+			runPostgres(restoreFileExtracted, null, false, "psql");
 						
 			logger.info("backup restored");
 			
@@ -197,6 +201,18 @@ public class DbBackup {
 			restoreFile.delete();
 			restoreFileExtracted.delete();
 		}
+    }
+    
+    private void dbCleanUp() throws IOException, InterruptedException {
+    	
+    	// can't use runPostgres() because unfortunately vacuumlo has little bit different parameters
+    	final Map<String, String> env = new HashMap<>();
+	    env.put("PGPASSWORD", this.password);
+		
+	    String dbUrl = url.replace("jdbc:", "");
+	    
+	    logger.info(role + " db vacuumlo");
+		ProcessUtils.run(null, null, env, true, new String[] { "vacuumlo", "-v", "-U", this.user, dbUrl});
     }
     
 	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
@@ -217,7 +233,7 @@ public class DbBackup {
 		logger.info("save     " + role + " db backup to " + backupFileUncompressed.getAbsolutePath());
 		
 		// Stream the script to a local file
-		runPostgres(null, backupFileUncompressed, "pg_dump");
+		runPostgres(null, backupFileUncompressed, false, "pg_dump");
 		logger.info("compress " + role + " db backup (" + FileUtils.byteCountToDisplaySize(backupFileUncompressed.length()) + ")");
 		ProcessUtils.run(backupFileUncompressed, backupFile, "lz4");
 		backupFileUncompressed.delete();
@@ -232,12 +248,12 @@ public class DbBackup {
 		removeOldS3Backups(transferManager, bucket, backupPrefix, backupPostfix);
 	}
 	
-	private void runPostgres(File stdinFile, File stdoutFile, String... command) throws IOException, InterruptedException {
+	private void runPostgres(File stdinFile, File stdoutFile, boolean showStdout, String... command) throws IOException, InterruptedException {
 		
-		runPostgres(stdinFile, stdoutFile, this.url, this.user, this.password, command);
+		runPostgres(stdinFile, stdoutFile, this.url, this.user, this.password, showStdout, command);
 	}
 	
-	public static void runPostgres(File stdinFile, File stdoutFile, String url, String user, String password, String... command) throws IOException, InterruptedException {
+	public static void runPostgres(File stdinFile, File stdoutFile, String url, String user, String password, boolean showStdout, String... command) throws IOException, InterruptedException {
 		
 		List<String> cmd = new ArrayList<String>(Arrays.asList(command));
 		cmd.add("--dbname=" + url.replace("jdbc:", ""));
@@ -246,7 +262,7 @@ public class DbBackup {
 		final Map<String, String> env = new HashMap<>();
 	    env.put("PGPASSWORD", password);
 		
-		ProcessUtils.run(stdinFile, stdoutFile, env, cmd.toArray(new String[0]));
+		ProcessUtils.run(stdinFile, stdoutFile, env, showStdout, cmd.toArray(new String[0]));
 	}
 	
 	private Map<String, Long> getTableStats() {

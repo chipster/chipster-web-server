@@ -44,10 +44,10 @@ public class ProcessUtils {
 	}
 
 	public static void run(File stdinFile, File stdoutFile, String... cmdArray) throws IOException, InterruptedException {
-		run(stdinFile, stdoutFile, null, cmdArray);
+		run(stdinFile, stdoutFile, null, false, cmdArray);
 	}
 	
-	public static void run(File stdinFile, File stdoutFile, Map<String, String> env, String... cmdArray) throws IOException, InterruptedException {
+	public static void run(File stdinFile, File stdoutFile, Map<String, String> env, boolean printStdout, String... cmdArray) throws IOException, InterruptedException {
 		
 		List<String> cmd = Arrays.asList(cmdArray);
 		
@@ -67,13 +67,19 @@ public class ProcessUtils {
         	// stdout to file
         	pb.redirectOutput(stdoutFile);        	
         } else {
-        	// stdout has to but somewhere, otherwise the  process stops when the buffer is full
-        	pb.redirectOutput(new File("/dev/null"));
+        	if (!printStdout) {
+	        	// stdout has to but somewhere, otherwise the  process stops when the buffer is full
+	        	pb.redirectOutput(new File("/dev/null"));
+        	}
         }
 				
-        // stderr to logger.error
 		Process process = pb.start();
 		
+		if (printStdout) {
+			readLines(process.getInputStream(), line -> logger.info(command + " stdout: " + line));	
+		}
+		
+		// stderr to logger.error
 		readLines(process.getErrorStream(), line -> logger.error(command + " stderr: " + line));
 		
 		if (stdinFile != null) {
