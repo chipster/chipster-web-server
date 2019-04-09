@@ -3,6 +3,11 @@ package fi.csc.chipster.filebroker;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -68,6 +73,8 @@ public class FileBroker {
     	
 		File storage = new File("storage");
 		storage.mkdir();
+		
+		convertStorage(storage);
 
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
                 
@@ -100,6 +107,53 @@ public class FileBroker {
     }
 
     /**
+     * Original file-broker stored all files directly in the storage directory.
+     * Now first characters of the UUID form so called partition, each of them
+     * having its own subfolder. Move files to correct partition subfolders.
+     * 
+     * UUID is presented in hex, so each character is 4 bits. Two characters
+     * is 8 bits i.e. 256 partitions.
+     * 
+     * @param storageFile
+     * @throws IOException
+     */
+    private void convertStorage(File storageFile) throws IOException {    	
+    	Path storage = storageFile.toPath();    	
+    	
+    	// a supplier is needed to use the same stream twice
+    	Supplier<Stream<UUID>> streamSupplier = () -> {
+			try {
+				return Files.list(storage)
+					.filter(path -> Files.isRegularFile(path))
+					.map(path -> path.getFileName().toString())
+					.map(fileName -> {
+						try {
+							return UUID.fromString(fileName);
+						} catch (IllegalArgumentException e) {
+							logger.error("non-UUID file in storage: " + fileName);
+							return null;
+						}
+					})
+					.filter(fileId -> fileId != null);
+			} catch (IOException e) {
+				throw new RuntimeException("failed to list the storage files", e);
+			}
+		};
+		
+    	streamSupplier.get().findAny().ifPresent(fileId -> logger.info("converting storage layout"));
+		
+    	streamSupplier.get().forEach(fileId -> {
+				Path src = storage.resolve(fileId.toString());
+				Path dest = FileServlet.getStoragePath(storage, fileId);				
+				try {
+					Files.move(src, dest);
+				} catch (IOException e) {
+					logger.error("failed to move file from " + src + " to " + dest, e);
+				}
+			});			
+	}
+
+	/**
      * Main method.
      * @param args
      * @throws Exception 

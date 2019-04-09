@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -135,13 +136,16 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	
 		// get the file
 		
-		File f = getStorageFile(fileId);
+		java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
 		
-	    if (!f.exists()) {
+	    if (!Files.exists(f)) {
 	    	throw new NotFoundException("no such file");
 	    } 
+	    
+	    // remove "storage/" from the beginning
+	    java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
     
-	    RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + fileId.toString());
+	    RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
 	    
 	    if (download) {
     		// hint filename for dataset export
@@ -160,7 +164,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		
 		// log performance
 		if (logRest) {
-			logAsyncGet(request, response, f, before);			
+			logAsyncGet(request, response, f.toFile(), before);			
 		}
 	}
 		
@@ -306,10 +310,31 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	}
 
 	private File getStorageFile(UUID fileId) {
-		// having a fileId as UUID makes sure that it doesn't point to other dirs
-	    return new File(storageRoot, fileId.toString());	    
+		return getStoragePath(storageRoot.toPath(), fileId).toFile();    
 	}
-
+	
+	
+	public static java.nio.file.Path getStoragePath(java.nio.file.Path storage, UUID fileId) {
+		
+		int partitionLength = 2;
+		
+		// having a fileId as UUID makes sure that it doesn't point to other dirs
+		String fileName = fileId.toString();
+		
+		String partitionDirName = fileName.substring(0, partitionLength);
+		java.nio.file.Path partitionDir = storage.resolve(partitionDirName);
+		if (!Files.exists(partitionDir)) {
+			try {
+				Files.createDirectory(partitionDir);
+			} catch (IOException e) {
+				// there is a race condition between the exists() and createDirectory() if this is used from several threads
+				// log the error, but try to use the dir anyway
+				logger.error("failed to create dir " + partitionDir, e);
+			}
+		}		
+		return partitionDir.resolve(fileName);	
+	}
+	
 	private static Long getParameterLong(HttpServletRequest req, String key) {
 		String stringValue = req.getParameter(key);
 		if (stringValue != null) {
