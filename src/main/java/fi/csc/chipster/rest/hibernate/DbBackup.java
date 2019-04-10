@@ -52,8 +52,7 @@ public class DbBackup {
 	private static final String CONF_DB_BACKUP_MONTHLY_COUNT_S3 = "db-backup-monthly-count-s3";
 	private static final String CONF_DB_BACKUP_DAILY_COUNT_S3 = "db-backup-daily-count-s3";
 
-	
-	private final Logger logger = LogManager.getLogger();
+	private final static Logger logger = LogManager.getLogger();
 	
 	private static final String BACKUP_NAME_POSTFIX = ".sql.lz4";
 	private static final String BACKUP_NAME_POSTFIX_UNCOMPRESSED = ".sql";
@@ -180,7 +179,7 @@ public class DbBackup {
     	try {	
 			logger.info("download " + role + " db backup to " + restoreFile);
 			
-			TransferManager transferManager = getTransferManager();
+			TransferManager transferManager = getTransferManager(config, role);
 			Download download = transferManager.download(getBackupBucket(), key, restoreFile);
 			download.waitForCompletion();
 			
@@ -212,7 +211,7 @@ public class DbBackup {
 	    String dbUrl = url.replace("jdbc:", "");
 	    
 	    logger.info(role + " db vacuumlo");
-		ProcessUtils.run(null, null, env, true, new String[] { "vacuumlo", "-v", "-U", this.user, dbUrl});
+		ProcessUtils.run(null, null, env, true, new String[] { "vacuumlo", "-U", this.user, dbUrl});
     }
     
 	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
@@ -240,7 +239,7 @@ public class DbBackup {
 		
 		logger.info("upload   " + role + " db backup (" + FileUtils.byteCountToDisplaySize(backupFile.length()) + ")");
 				
-		TransferManager transferManager = getTransferManager();
+		TransferManager transferManager = getTransferManager(config, role);
 		Upload upload = transferManager.upload(bucket, backupFile.getName(), backupFile);
 		upload.waitForCompletion();		
 		
@@ -292,7 +291,7 @@ public class DbBackup {
 		logger.info(logLine);
 	}
 
-	private TransferManager getTransferManager() {
+	public static TransferManager getTransferManager(Config config, String role) {
 		String endpoint = config.getString(CONF_DB_BACKUP_S3_ENDPOINT, role);
 		String region = config.getString(CONF_DB_BACKUP_S3_REGION, role);
 		String access = config.getString(CONF_DB_BACKUP_S3_ACCESS_KEY, role);
