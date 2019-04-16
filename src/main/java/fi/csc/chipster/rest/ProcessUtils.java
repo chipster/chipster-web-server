@@ -115,7 +115,38 @@ public class ProcessUtils {
 			timer.cancel();
 		}
 	}
-
+	
+public static String runStdoutToString(File stdinFile, String... cmdArray) throws IOException, InterruptedException {
+		
+		List<String> cmd = Arrays.asList(cmdArray);
+		
+		String command = cmd.get(0);
+		
+		// find the absolute path to the binary
+		cmd.set(0, getPath(cmd.get(0)));
+		
+		ProcessBuilder pb = new ProcessBuilder(cmd);
+				
+		Process process = pb.start();
+		
+		ArrayList<String> stdoutLines = new ArrayList<>(); 
+		readLines(process.getInputStream(), stdoutLines::add);			
+		
+		// stderr to logger.error
+		readLines(process.getErrorStream(), line -> logger.error(command + " stderr: " + line));
+		
+		if (stdinFile != null) {
+			try (OutputStream processStdin = process.getOutputStream()) {
+				IOUtils.copy(new FileInputStream(stdinFile), processStdin);
+			}
+		}
+		
+		int exitCode = process.waitFor();
+		if (exitCode != 0) {
+			throw new RuntimeException(command + " failed with exit code " + exitCode);
+		}
+		return String.join("\n", stdoutLines);
+	}
 
 	private static void readLines(InputStream inputStream, Consumer<String> f) {
 		new Thread(new Runnable() {

@@ -75,6 +75,8 @@ public class FileBroker {
 		storage.mkdir();
 		
 		convertStorage(storage);
+		
+		StorageBackup backup = new StorageBackup(storage.toPath(), true);
 
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
                 
