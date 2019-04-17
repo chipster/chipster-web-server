@@ -51,6 +51,8 @@ public class AuthenticationService {
 
 	private HttpServer ssoHttpServer;
 	
+	private OauthClient oauthClient;
+	
 	public AuthenticationService(Config config) {
 		this.config = config;
 	}
@@ -90,6 +92,9 @@ public class AuthenticationService {
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		AdminResource adminResource = new AdminResource(hibernate, Token.class, jerseyStatisticsSource);
+		
+		// Testing the google client
+		
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -121,6 +126,10 @@ public class AuthenticationService {
 		if (ssoBindUrlString != null && !ssoBindUrlString.isEmpty()) {
 			this.ssoHttpServer = enableSsoLogins(tokenTable, userTable, authClient, ssoBindUrlString);
 		}
+		
+		// test the google auth
+		this.oauthClient = new OauthClient();
+		this.oauthClient.createRequest();
     }
 
 	private HttpServer enableSsoLogins(TokenTable tokenTable, UserTable userTable, AuthenticationClient authClient,
