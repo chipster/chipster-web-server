@@ -73,15 +73,6 @@ public class HibernateUtil {
 
 	public void init(List<Class<?>> hibernateClasses) throws InterruptedException {
 
-		// The restore configuration is really used in the Backups service, but
-		// configuring it also for the actual service
-		// might be a handy way to prevent it from creating the schema
-		String restoreKey = DbBackup.getRestoryKey(config, role);
-		if (!restoreKey.isEmpty()) {
-			throw new RuntimeException(
-					"Configuration " + restoreKey + " is set. Refusing to start while the DB is being restored.");
-		}
-
 		String url = config.getString(CONF_DB_URL, role);
 		String user = config.getString(CONF_DB_USER, role);
 		String password = config.getString(CONF_DB_PASS, role);

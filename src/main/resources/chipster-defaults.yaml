@@ -113,18 +113,23 @@ db-fallback: true
 
 # db backups
 
-db-backup-s3-endpoint: object.pouta.csc.fi
-db-backup-s3-region: regionOne
-db-backup-s3-access-key: ""
-db-backup-s3-secret-key: ""
-db-backup-s3-signer-override: S3SignerType
-db-backup-bucket: ""
-db-backup-time: 05:10
-# hours
-db-backup-interval: 24
-db-backup-daily-count-s3: 90
-db-backup-monthly-count-s3: 24
-db-backup-daily-count-file: 7
+backup-s3-endpoint: object.pouta.csc.fi
+backup-s3-region: regionOne
+backup-s3-access-key: ""
+backup-s3-secret-key: ""
+backup-s3-signer-override: S3SignerType
+backup-bucket: ""
+backup-time: 05:10
+
+# hours, append a dash and role tune services one by one
+backup-interval: 24
+backup-daily-count: 90
+backup-monthly-count: 24
+
+# encrypt backups with the public key of the recipient (key must be imported in gpg)
+backup-gpg-recipient: ""
+# use symmetric encryption for the backups
+backup-gpg-passphrase: ""
 
 # auth
 

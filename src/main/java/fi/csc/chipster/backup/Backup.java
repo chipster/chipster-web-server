@@ -55,8 +55,7 @@ public class Backup {
 	}
 
 	public void start() {
-		dbBackups.stream().forEach(b -> {
-			b.checkRestore();		
+		dbBackups.stream().forEach(b -> {	
 			b.scheduleBackups();
 		});			
 	}

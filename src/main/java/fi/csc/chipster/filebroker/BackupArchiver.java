@@ -6,14 +6,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,64 +28,84 @@ import com.amazonaws.services.s3.transfer.Upload;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
+import fi.csc.chipster.rest.hibernate.BackupRotation2;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
-public class StorageBackupArchiver {
+public class BackupArchiver {
 	
-	public static final String ARCHIVE_INFO = "archive-info";	
+	public static final String BACKUP_INFO = "backup-info";
+	public static final String ARCHIVE_INFO = "archive-info";
+	
+	private static final String CONF_BACKUP_MONTHLY_COUNT = "backup-monthly-count";
+	private static final String CONF_BACKUP_DAILY_COUNT = "backup-daily-count";
+	
+	private enum BackupType {
+		INCREMENTAL,
+		FULL;
+	}
 
 	private Logger logger = LogManager.getLogger();
 	
 	private Config config;
-	private String role;
-	private String bucket;
 
-	private Timer timer;
-
-	public StorageBackupArchiver(boolean scheduleTimer) {	
+	public BackupArchiver(boolean scheduleTimer) {	
 				
-		this.role = Role.FILE_BROKER;
-		this.bucket = "petri-backup-test";
-		this.config = new Config();
+		this.config = new Config();		
 				
-		if (scheduleTimer) {			
-			timer = new Timer();
-			timer.scheduleAtFixedRate(new TimerTask() {			
-				@Override
-				public void run() {
-					runNow();
-				}
-			}, new Date(), 24 * 60 * 60 * 1000);
-		} else {
-			runNow();
-		}
+		archiveAndCleanUp();
 	}
 	
-	private void runNow() {
-		TransferManager transferManager = DbBackup.getTransferManager(config, role);
+	private void archiveAndCleanUp() {
+		
+		for (String role : config.getDbBackupRoles()) {
+			String backupPrefix = role + DbBackup.BACKUP_OBJECT_NAME_PART;
+			archiveAndCleanUp(role, BackupType.FULL, backupPrefix);
+		}
+		
+		archiveAndCleanUp(Role.FILE_BROKER, BackupType.INCREMENTAL, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX);		
+	}
+	
+	private void archiveAndCleanUp(String role, BackupType type, String backupPrefix) {
+				
+		int dailyCount = Math.max(3, Integer.parseInt(config.getString(CONF_BACKUP_DAILY_COUNT, role)));
+		int monthlyCount = Integer.parseInt(config.getString(CONF_BACKUP_MONTHLY_COUNT, role));
+		
+		String backupNamePrefix = role + DbBackup.BACKUP_OBJECT_NAME_PART;
+		
+		Path archiveRootPath = Paths.get("backup-archive");
+		
+		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
 		try {
-			archive(transferManager);
+			archive(transferManager, backupNamePrefix, archiveRootPath, role);				
+			cleanUpS3(transferManager, backupNamePrefix, role);
 			
-			cleanUpS3(transferManager);
+			if (type == BackupType.FULL) {
+				removeOldFullArchives(archiveRootPath, backupNamePrefix, dailyCount, monthlyCount);
+			} else {
+				removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
+			}
+			
 		} catch (IOException | InterruptedException e) {
-			logger.error("backup error", e);
+			logger.error("backup archiving error", e);
+			
 		} finally {			
 			transferManager.shutdownNow();
-		}
+		}	
 	}
 	
-	private void cleanUpS3(TransferManager transferManager) {
+	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role) {
 		
-		logger.info("clean up archived backups in S3");
+		logger.info("clean up archived S3 backups of " + backupNamePrefix);
 		
+		String bucket = BackupUtils.getBackupBucket(config, role);
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
 		List<String> archivedBackups = objects.stream()
 				.map(o -> o.getKey())
-				.filter(name -> name.startsWith(StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX))
+				.filter(name -> name.startsWith(backupNamePrefix))
 				// only archived backups (the archive info is uploaded in the end)
-				.filter(name -> name.endsWith("/" + StorageBackupArchiver.ARCHIVE_INFO))
+				.filter(name -> name.endsWith("/" + BackupArchiver.ARCHIVE_INFO))
 				.map(key -> key.substring(0, key.indexOf("/")))
 				// this compares strings, but luckily it works with this timestamp format from Instant.toString()
 				.sorted()
@@ -105,19 +126,19 @@ public class StorageBackupArchiver {
 		logger.info("clean up done");
 	}
 
-	private void archive(TransferManager transferManager) throws IOException, InterruptedException {
+	private void archive(TransferManager transferManager, String backupNamePrefix, Path archiveRootPath, String role) throws IOException, InterruptedException {
+						
+		logger.info("find latest " + backupNamePrefix + " from S3");
 				
-		logger.info("find latest backup");
-				
+		String bucket = BackupUtils.getBackupBucket(config, role);
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
-		String fileInfoKey = findLatest(objects, StorageBackup.BACKUP_INFO);
+		String fileInfoKey = findLatest(objects, backupNamePrefix, BACKUP_INFO);
 		
 		if (fileInfoKey == null) {
 			logger.error("no backups found");
 			return;
 		}
 		
-
 		// parse the object storage folder
 		String backupName = fileInfoKey.substring(0, fileInfoKey.indexOf("/"));
 		
@@ -132,14 +153,13 @@ public class StorageBackupArchiver {
 		}
 		
 		logger.info("latest backup is " + backupName);
-		
-		Path archiveRootPath = Paths.get("storage-archive");
+				
 		Path currentBackupPath = archiveRootPath.resolve(backupName);
-		Path downloadPath = currentBackupPath.resolve("download");		
+		Path downloadPath = currentBackupPath.resolve("download");
 		
-		String key = backupName + "/" + StorageBackup.BACKUP_INFO;
+		String key = backupName + "/" + BACKUP_INFO;
 		Map<Path, InfoLine> backupInfoMap = BackupUtils.infoFileToMap(transferManager, bucket, key, currentBackupPath);
-							
+								
 		List<String> backupObjects = objects.stream()
 		.map(o -> o.getKey())
 		.filter(name -> name.startsWith(backupName + "/"))
@@ -155,8 +175,16 @@ public class StorageBackupArchiver {
 				.distinct()
 				.collect(Collectors.toList());
 				
-		logger.info("the backup has " + newFileInfos.size() + " new files in " + backupObjects.size() + " packages");
-		logger.info((backupInfoMap.size() - newFileInfos.size()) + " files will be moved from the archive " + archiveNames);
+		logger.info("the backup has " + newFileInfos.size() + " new files in " + (backupObjects.size() - 1) + " packages");
+		if (archiveNames.size() == 0) {
+			logger.info("no files will moved from the old archives");
+		}
+		if (archiveNames.size() == 1) {			
+			logger.info((backupInfoMap.size() - newFileInfos.size()) + " files will be moved from the archive " + archiveNames.get(0));
+		} else {
+			// this isn't used at the moment
+			logger.warn("the backup is using files from several archive versions");
+		}
 		
 		downloadPath.toFile().mkdirs();
 		
@@ -164,7 +192,7 @@ public class StorageBackupArchiver {
 		
 		collectFiles(archiveRootPath, currentBackupPath, downloadPath, backupInfoMap, backupName);
 		
-//		FileUtils.deleteDirectory(downloadPath.toFile());
+		FileUtils.deleteDirectory(downloadPath.toFile());
 		
 		logger.info("upload archive info to " + bucket + "/" + backupName + "/" + ARCHIVE_INFO + " for next incremental backup");
 		Path archiveInfoPath = writeArchiveInfo(currentBackupPath, backupInfoMap);
@@ -174,10 +202,10 @@ public class StorageBackupArchiver {
 		logger.info("backup archiving done");		
 	}
 	
-	public static String findLatest(List<S3ObjectSummary> objects, String fileName) {
+	public static String findLatest(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
 		List<String> fileBrokerBackups = objects.stream()
 			.map(o -> o.getKey())
-			.filter(name -> name.startsWith(StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX))
+			.filter(name -> name.startsWith(backupNamePrefix))
 			// only completed backups (the file info list uploaded in the end)
 			.filter(name -> name.endsWith("/" + fileName))
 			// this compares strings, but luckily it works with this timestamp format from Instant.toString()
@@ -294,18 +322,131 @@ public class StorageBackupArchiver {
 			Download download = transferManager.download(bucket, key, downloadFilePath.toFile());
 			download.waitForCompletion();
 			
-			extract(downloadFilePath, downloadDirPath);
+			if (key.endsWith(".tar")) {
+				extract(downloadFilePath, downloadDirPath);
+			}
 		}
 	}
-
 		
 	private void extract(Path tarPath, Path downloadDirPath) throws IOException, InterruptedException {
 		logger.info("extract " + tarPath.getFileName());		
 		ProcessUtils.run(null, null, "tar", "-xf", tarPath.toString(), "--directory", downloadDirPath.toString());
 		Files.delete(tarPath);
 	}
+		
+	/**
+	 * Remove old archives
+	 * 
+	 * Suitable only for full backups, where each archive is a useful alone.
+	 * 
+	 * Keep x daily backups and y monthly backups. This is relatively safe even if the 
+	 * server time was incorrect or the backups were created more often. Files
+	 * created during the clean-up are kept.
+	 * 
+	 * @param archiveRootPath
+	 * @param backupPrefix
+	 * @param dailyCount
+	 * @param monthlyCount
+	 * @throws IOException
+	 */
+	private void removeOldFullArchives(Path archiveRootPath, String backupPrefix, int dailyCount, int monthlyCount) throws IOException {
+		logger.info("list " + backupPrefix + " archives");
+		
+		TreeMap<Instant, Path> backupsToDelete = getArchives(archiveRootPath, backupPrefix);
+		
+		logger.info(backupsToDelete.size() + " archives found");
+		
+		checkClock(backupsToDelete);
+				
+		TreeMap<Instant, Path> daily = BackupRotation2.getFirstOfEachDay(backupsToDelete);
+		TreeMap<Instant, Path> monthly = BackupRotation2.getFirstOfEachMonth(backupsToDelete);
+		
+		// keep these
+		TreeMap<Instant, Path> latestDaily = BackupRotation2.getLast(daily, dailyCount);
+		TreeMap<Instant, Path> latestMonthly = BackupRotation2.getLast(monthly, monthlyCount);
+		
+		logger.info(latestDaily.size() + " daily backups kept");
+		logger.info(latestMonthly.size() + " monthly backups kept");
+		
+		// remove the backups to keep from the list of all backups to get those that we want to remove 
+		backupsToDelete = BackupRotation2.removeAll(backupsToDelete, latestDaily.keySet());
+		backupsToDelete = BackupRotation2.removeAll(backupsToDelete, latestMonthly.keySet());
+				
+		for (Path obj : backupsToDelete.values()) {
+			logger.info("delete backup " + obj);
+			FileUtils.deleteDirectory(obj.toFile());
+		}	
+			
+		logger.info(backupsToDelete.size() + " backups deleted");
+	}
+	
+	private TreeMap<Instant, Path> getArchives(Path archiveRootPath, String backupPrefix) throws IOException {
+		List<Path> allFiles = Files.list(archiveRootPath)
+				.filter(path -> path.getFileName().toString().startsWith(backupPrefix))	
+				.collect(Collectors.toList());	
+			
+			// all backups
+			TreeMap<Instant, Path> archives = BackupRotation2.parse(allFiles, backupPrefix, path -> path.getFileName().toString());
+			
+			return archives;
+	}
+
+	/**
+	 * Clean up incremental archives
+	 * 
+	 * Individual incremental archives are not useful without having all newer archives.
+	 * 
+	 * @param archiveRootPath
+	 * @param backupPrefix
+	 * @param dayCount
+	 * @throws IOException
+	 */
+	private void removeOldIncrementalArchives(Path archiveRootPath, String backupPrefix, int dayCount) throws IOException {
+		logger.info("list " + backupPrefix + " archives");
+		
+		TreeMap<Instant, Path> backupsToDelete = getArchives(archiveRootPath, backupPrefix);
+		
+		logger.info(backupsToDelete.size() + " archives found");
+		
+		checkClock(backupsToDelete);		
+		
+		// keep these
+		TreeMap<Instant, Path> latestByCount = BackupRotation2.getLast(backupsToDelete, dayCount);
+		TreeMap<Instant, Path> latestByTime = BackupRotation2.getNewerThan(backupsToDelete, Instant.now().minus(dayCount, ChronoUnit.DAYS));
+		
+		// if backups are made daily, this should be more or less equal
+		logger.info(latestByCount.size() + " last backups kept");
+		logger.info(latestByTime.size() + " backups of last " + dayCount + " days kept");
+		
+		// remove the backups to keep from the list of all backups to get those that we want to remove 
+		backupsToDelete = BackupRotation2.removeAll(backupsToDelete, latestByCount.keySet());
+		backupsToDelete = BackupRotation2.removeAll(backupsToDelete, latestByTime.keySet());
+				
+		for (Path obj : backupsToDelete.values()) {
+			logger.info("delete backup " + obj);
+			FileUtils.deleteDirectory(obj.toFile());
+		}	
+			
+		logger.info(backupsToDelete.size() + " backups deleted");
+	}
+
+
+	private void checkClock(TreeMap<Instant, Path> backupsToDelete) {
+		
+		// don't clean up if the clock might be wrong
+		if (!backupsToDelete.isEmpty()) {
+			if (backupsToDelete.lastKey().isAfter(Instant.now())) {
+				throw new IllegalStateException("the last archive is newer than the current time. Refusing to clean up anything");
+			}
+			
+			int maxAge = 7;
+			if (backupsToDelete.lastKey().isBefore(Instant.now().minus(maxAge, ChronoUnit.DAYS))) {
+				throw new IllegalStateException("the last archive is older " + maxAge + " days. Refusing to clean up anything");
+			}
+		}
+	}
 
 	public static void main(String[] args) {
-		new StorageBackupArchiver(false);
+		new BackupArchiver(false);
 	}
 }

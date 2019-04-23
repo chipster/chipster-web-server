@@ -4,13 +4,11 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,17 +24,13 @@ import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.s3.transfer.Upload;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.ProcessUtils;
-import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
 public class StorageBackup {
-	
-	
+		
 	public static final String FILE_BROKER_BACKUP_NAME_PREFIX = "file-broker-backup_";
 
 	private Logger logger = LogManager.getLogger();
@@ -47,44 +41,50 @@ public class StorageBackup {
 	private String bucket;
 	private String recipient;
 
+	@SuppressWarnings("unused")
 	private Timer timer;
-	
-	public static final String BACKUP_INFO = "backup-info";
 
-	public StorageBackup(Path storage, boolean schedule) {	
+	private String gpgPassphrase;
+
+	public StorageBackup(Path storage, boolean scheduleTimer, Config config) {	
 		
 		this.storage = storage; 		
 		this.role = Role.FILE_BROKER;
-		this.bucket = "petri-backup-test";
-		this.recipient = "chipster@csc.fi";
-		this.config = new Config();
+		this.recipient = config.getString(BackupUtils.CONF_BACKUP_GPG_RECIPIENT, role);
+		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
 		
+		this.config = config;		
+		this.bucket = BackupUtils.getBackupBucket(config, role);
 		
-		if (schedule) {
-			timer = new Timer();
-			
-			timer.scheduleAtFixedRate(new TimerTask() {			
+		if (scheduleTimer) {
+			timer = BackupUtils.startBackupTimer(new TimerTask() {			
 				@Override
 				public void run() {
-					try {
-						backup();
-					} catch (IOException | InterruptedException e) {
-						logger.error("backup error", e);
-					}
+					backupNow();
 				}
-			}, new Date(), 24 * 60 * 60 * 1000);
+			}, role, config);
 		} else {
-			try {
-				backup();
-			} catch (IOException | InterruptedException e) {
-				logger.error("backup error", e);
-			}
+			backupNow();
+		}
+	}
+	
+	private void backupNow() {
+		try {
+			backup();
+		} catch (IOException | InterruptedException e) {
+			logger.error("backup error", e);
 		}
 	}
 	
 	private void backup() throws IOException, InterruptedException {
 		
-		TransferManager transferManager = DbBackup.getTransferManager(config, role);
+		String bucket = BackupUtils.getBackupBucket(config, role);
+		if (bucket.isEmpty()) {
+			logger.warn("no backup configuration for " + role);
+			return;
+		}
+		
+		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
 		
 		Path backupDir = storage.resolve("backup");
 		
@@ -97,7 +97,7 @@ public class StorageBackup {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = StorageBackupArchiver.findLatest(objects, StorageBackupArchiver.ARCHIVE_INFO);
+		String archiveInfoKey = BackupArchiver.findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchiver.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		
@@ -113,7 +113,7 @@ public class StorageBackup {
 		Instant now = Instant.now();
 		String backupName = FILE_BROKER_BACKUP_NAME_PREFIX + now;
 			
-		Path backupInfoPath = backupDir.resolve(BACKUP_INFO);				
+		Path backupInfoPath = backupDir.resolve(BackupArchiver.BACKUP_INFO);				
 		FileUtils.touch(backupInfoPath.toFile());
 				
 		// collect a list of all files in storage (except the backup dir)
@@ -196,9 +196,8 @@ public class StorageBackup {
 		long infoCount = Files.lines(backupInfoPath).count();
 		logger.info(infoCount + " files backed up. " + (fileCount - infoCount) + " files disappeared during the backup (probably deleted)");
 		
-		// finally upload the backup info to signal that the backup is complete 
-		Upload upload = transferManager.upload(bucket, backupName + "/" + BACKUP_INFO, backupInfoPath.toFile());
-		upload.waitForCompletion();
+		// finally upload the backup info to signal that the backup is complete
+		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		
 		FileUtils.deleteDirectory(backupDir.toFile());
 		
@@ -242,7 +241,7 @@ public class StorageBackup {
 				// file not found from the archive
 				filesToBackup.put(filePath, currentFileInfo);
 				
-			} else if (!getPackageGpgPath(filePath).equals(archiveFileInfo.getGpgPath())) {
+			} else if (!BackupUtils.getPackageGpgPath(filePath).equals(archiveFileInfo.getGpgPath())) {
 					logger.warn("package paths have changed");
 					filesToBackup.put(filePath, currentFileInfo);
 					
@@ -342,103 +341,20 @@ public class StorageBackup {
 				
 		// small files to be transferred in a tar package, extraction may take some time, but it's easy to create temporary copies
 		logger.info(groupInfo + ", " + smallFiles.size() + " small files (" + FileUtils.byteCountToDisplaySize(smallFilesTotal) + ")");
-		backupFilesAsTar(prefix + "_small_files", storage, smallFiles, backupDir, transferManager, bucket, backupName, backupInfoPath);
+		BackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
 		
 		// medium files to be transferred in a tar package, should be relatively easy to extract from stream
 		logger.info(groupInfo + ", " + mediumFiles.size() + " medium files (" + FileUtils.byteCountToDisplaySize(mediumFilesTotal) + ")");
-		backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles, backupDir, transferManager, bucket, backupName, backupInfoPath);
+		BackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
 		
 		// large files to be transferred one by one
 		logger.info(groupInfo + ", " + largeFiles.size() + " large files (" + FileUtils.byteCountToDisplaySize(largeFilesTotal) + ")");
 		for (Path file : largeFiles.keySet()) {			
-			backupFilesAsTar(file.getFileName().toString(), storage, Collections.singletonMap(file,  largeFiles.get(file)), backupDir, transferManager, bucket, backupName, backupInfoPath);
+			BackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
 		}		
 	}
 	
-	private String parseChecksumLine(String line) throws IOException {
-		String[] parts = line.split(" ");
-		if (parts.length == 0) {
-			throw new IllegalArgumentException("cannot parse checksum " + line + ", delimiter ' ' not found");
-		}
-		return parts[0];
-	}
-
-	private void backupFilesAsTar(String name, Path storage, Map<Path, Long> files, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath) throws IOException, InterruptedException {
-			
-		Path tarPath = backupDir.resolve(name + ".tar");
-		
-		// make sure there is no old tar file, because we would append to it
-		if (Files.exists(tarPath)) {
-			logger.warn(tarPath + " exists already");
-			Files.delete(tarPath);
-		}
-		
-		for (Path packageFilePath : files.keySet()) {
-			
-			Path packageGpgPath = getPackageGpgPath(packageFilePath);
-			
-			Path localFilePath = storage.resolve(packageFilePath);		
-			Path localGpgPath = backupDir.resolve(packageGpgPath);
-
-			long fileSize;
-			String sha512;
-						
-			try {			
-				// checksum of the original file to be checked after restore
-				// file read once, cpu bound
-				sha512 = parseChecksumLine(ProcessUtils.runStdoutToString(null, "shasum", "-a", "512", localFilePath.toString()));
-				fileSize = Files.size(localFilePath);
-			} catch (NoSuchFileException e) {
-				logger.error("file disappeared during the backup process: " + e.getMessage() + " (probably deleted by some user)");
-				continue;
-			}
-							
-			// compress and encrypt
-			// file read and written once, cpu bound (shell pipe saves one write and read)
-			String cmd = "";
-			cmd += ProcessUtils.getPath("lz4") + " -q " + localFilePath.toString();
-			cmd += " | " + ProcessUtils.getPath("gpg") + " --output - --compress-algo none --recipient " + recipient + " --encrypt -";
-			
-			Files.createDirectories(localGpgPath.getParent());
-			ProcessUtils.run(null, localGpgPath.toFile(), "bash", "-c", cmd);
-					
-			long gpgFileSize = Files.size(localGpgPath);			
-			
-			// checksum of the compressed and encrypted file to monitor bit rot on the backup server
-			// file read and written once, cpu bound 
-			String gpgSha512 = parseChecksumLine(ProcessUtils.runStdoutToString(null, "shasum", "-a", "512", localGpgPath.toString()));
-			
-			// use --directory to "relativize" paths
-			// file read and written once, io bound. Unfortunately tar can't read the file data from stdin
-			ProcessUtils.run(null, null, "tar", "-f", tarPath.toString(), "--directory", backupDir.toString(), "--append", getPackageGpgPath(packageFilePath).toString());
-			
-			Files.delete(localGpgPath);
-			
-			String line = new InfoLine(packageFilePath, fileSize, sha512, packageGpgPath, gpgFileSize, gpgSha512, backupName).toLine();
-			Files.write(backupInfoPath, Collections.singleton(line), Charset.defaultCharset(), 
-					StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-		}
-		
-		Upload upload = startUpload(transferManager, bucket, backupName, tarPath, true);
-		upload.waitForCompletion();
-		
-		Files.delete(tarPath);
-	}
-	
-	
-
-	private Upload startUpload(TransferManager transferManager, String bucket, String bucketDir, Path filePath, boolean verbose) throws IOException {
-		if (verbose) {
-			logger.info("upload " + filePath.getFileName() + " to " + bucket + "/" + bucketDir + " (" + FileUtils.byteCountToDisplaySize(Files.size(filePath)) + ")");		
-		}
-		return transferManager.upload(bucket, bucketDir + "/" + filePath.getFileName(), filePath.toFile());
-	}
-	
-	private Path getPackageGpgPath(Path packageFilePath) {
-		return Paths.get(packageFilePath.toString() + ".lz4.gpg");
-	}
-
 	public static void main(String[] args) {
-		new StorageBackup(Paths.get("storage"), false);
+		new StorageBackup(Paths.get("storage"), false, new Config());
 	}
 }
