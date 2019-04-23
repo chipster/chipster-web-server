@@ -16,4 +16,4 @@
 js/cli-client/chipster-cli-env.json
 js/rest-client/node_modules
 /db-backups
-/storage-archive/
+/backup-archive/
