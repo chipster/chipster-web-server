@@ -1,6 +1,5 @@
 package fi.csc.chipster.rest.hibernate;
 
-import java.io.File;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -13,8 +12,6 @@ import java.util.TreeMap;
 import java.util.function.Function;
 
 import org.apache.log4j.Logger;
-
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
  * Deletion logic for backup files
@@ -85,13 +82,25 @@ public class BackupRotation2 {
 		}
 		return last;
 	}
+	
+	public static <T> TreeMap<Instant, T> getNewerThan(TreeMap<Instant, T> files, Instant reference) {
+		
+		TreeMap<Instant, T> newer = new TreeMap<>();
+	
+		for (Entry<Instant, T> entry : files.descendingMap().entrySet()) {
+			if (entry.getKey().isAfter(reference)) {
+				newer.put(entry.getKey(), entry.getValue());
+			}
+		}
+		return newer;
+	}
 
-	public static <T> TreeMap<Instant, T> parse(List<T> summaries, String backupPrefix, String backupPostfix, Function<T, String> nameFunction) {
+	public static <T> TreeMap<Instant, T> parse(List<T> summaries, String backupPrefix, Function<T, String> nameFunction) {
 		TreeMap<Instant, T> files = new TreeMap<>();		
 		for (T s3Obj : summaries) {
 			String key = nameFunction.apply(s3Obj);
-			if (key.startsWith(backupPrefix) && key.endsWith(backupPostfix)) {
-				String timestamp = key.replace(backupPrefix, "").replace(backupPostfix, "");
+			if (key.startsWith(backupPrefix)) {				
+				String timestamp = key.substring(backupPrefix.length());
 				try {
 					Instant instant = Instant.parse(timestamp);
 					files.put(instant, s3Obj);
@@ -111,19 +120,5 @@ public class BackupRotation2 {
 			filtered.remove(key);
 		}
 		return filtered;
-	}
-
-	public static <T> long getTotalSize(Collection<T> summaries, Function<T, Long> sizeFunction) {
-		return summaries.stream()
-				.map(s -> sizeFunction.apply(s))
-				.reduce(0l, Long::sum);
-	}
-	
-	public static long getTotalSizeS3(Collection<S3ObjectSummary> summaries) {
-		return getTotalSize(summaries, s -> s.getSize());
-	}
-	
-	public static long getTotalSizeFiles(Collection<File> summaries) {
-		return getTotalSize(summaries, f -> f.length());
 	}
 }

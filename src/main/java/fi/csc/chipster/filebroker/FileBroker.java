@@ -50,6 +50,9 @@ public class FileBroker {
 
 	private StatusSource stats;
 
+	@SuppressWarnings("unused")
+	private StorageBackup backup;
+
 	public FileBroker(Config config) {
 		this.config = config;
 	}
@@ -75,6 +78,8 @@ public class FileBroker {
 		storage.mkdir();
 		
 		convertStorage(storage);
+		
+		backup = new StorageBackup(storage.toPath(), true, config);
 
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
                 

@@ -62,6 +62,8 @@ import fi.csc.microarray.util.IOUtils;
 public class FileServlet extends DefaultServlet implements SessionEventListener {
 
 	private static final Logger logger = LogManager.getLogger();
+
+	public static final int partitionLength = 2;
 	
 	// specify whether get and put requests are logged
 	// using jetty debug logging is not very useful as it is so verbose
@@ -316,12 +318,10 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	
 	public static java.nio.file.Path getStoragePath(java.nio.file.Path storage, UUID fileId) {
 		
-		int partitionLength = 2;
-		
 		// having a fileId as UUID makes sure that it doesn't point to other dirs
 		String fileName = fileId.toString();
 		
-		String partitionDirName = fileName.substring(0, partitionLength);
+		String partitionDirName = fileName.substring(0, partitionLength );
 		java.nio.file.Path partitionDir = storage.resolve(partitionDirName);
 		if (!Files.exists(partitionDir)) {
 			try {
