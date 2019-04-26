@@ -65,7 +65,7 @@ public class Backup {
 		
 		
 		logger.info("starting the admin rest server");		
-		BackupAdminResource adminResource = new BackupAdminResource(null, dbBackups);
+		BackupAdminResource adminResource = new BackupAdminResource(dbBackups);
     	adminResource.addFileSystem("db-backup", backupRoot.toFile());
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.BACKUP, config, authService);
 	}
