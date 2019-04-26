@@ -62,7 +62,9 @@ public class DbBackup {
 
 	private Path backupRoot;
 
-	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) {
+	private String gpgVersion;
+
+	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) throws IOException, InterruptedException {
 		this.config = config;
 		this.role = role;
 		this.url = url;
@@ -75,6 +77,8 @@ public class DbBackup {
 		
 		this.recipient = config.getString(BackupUtils.CONF_BACKUP_GPG_RECIPIENT, role);
 		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
+		
+		this.gpgVersion = BackupUtils.getGpgVersion();
 		
 		Configuration hibernateConf = HibernateUtil.getHibernateConf(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
 		try {
@@ -146,7 +150,7 @@ public class DbBackup {
 		runPostgres(null, backupFileUncompressed.toFile(), false, "pg_dump");
 		
 		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
-		BackupUtils.backupFileAsTar(backupFileBasename, backupRoot, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
+		BackupUtils.backupFileAsTar(backupFileBasename, backupRoot, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, gpgVersion);
 		// the backupInfo is not really necessary because there is only one file, but the BackupArchiver expects it
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		

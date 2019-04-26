@@ -59,7 +59,12 @@ public class Backup {
 			String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);	    	
 			
 			logger.info("backup " + role + " db in " + url);
-			return new DbBackup(config, role, url, user, dbPassword, backupRoot);
+			try {
+				return new DbBackup(config, role, url, user, dbPassword, backupRoot);
+			} catch (IOException | InterruptedException e) {
+				logger.error("backup error", e);
+				return null;
+			}
 			
 		}).collect(Collectors.toList());
 		

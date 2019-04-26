@@ -63,11 +63,11 @@ public class BackupUtils {
 		return map;
 	}
 	
-	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase) throws IOException, InterruptedException {
-		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
+	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, String gpgVersion) throws IOException, InterruptedException {
+		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, gpgVersion);
 	}
 	
-	public static void backupFilesAsTar(String name, Path storage, Set<Path> files, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase) throws IOException, InterruptedException {
+	public static void backupFilesAsTar(String name, Path storage, Set<Path> files, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, String gpgVersion) throws IOException, InterruptedException {
 		
 		Path tarPath = backupDir.resolve(name + ".tar");
 		
@@ -119,7 +119,12 @@ public class BackupUtils {
 				 * - echo is not visible in the process list because it's a builtin
 				 * - process substitution <() creates a anonymous pipe, where the content is not visible in the process list
 				*/
-				cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") --pinentry-mode loopback --symmetric -";
+				cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") ";
+				if (gpgVersion.startsWith("2.")) {
+					cmd += "--pinentry-mode ";
+				}
+				
+				cmd += "loopback --symmetric -";
 			} else {
 				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_RECIPIENT + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
 			}
@@ -148,6 +153,21 @@ public class BackupUtils {
 		upload(transferManager, bucket, backupName, tarPath, true);
 				
 		Files.delete(tarPath);
+	}
+	
+	public static String getGpgVersion() throws IOException, InterruptedException {
+		String output = ProcessUtils.runStdoutToString(null, "gpg", "--version");
+		String[] rows = output.split("\n");
+		if (rows.length == 0) {
+			throw new IllegalArgumentException("gpg version parsing failed: " + output);
+		}
+		String[] cols = rows[0].split(" ");
+		if (cols.length != 3) {
+			throw new IllegalArgumentException("gpg version parsing failed, " + cols.length + " columns (" + rows[0] + ")");
+		}
+		String version = cols[2];
+		logger.info("gpg version " + version);
+		return version;
 	}
 	
 	private static void upload(TransferManager transferManager, String bucket, String bucketDir, Path filePath, boolean verbose) throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
