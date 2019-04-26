@@ -1,6 +1,8 @@
 package fi.csc.chipster.backup;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -9,12 +11,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.UnauthenticatedAdminResource;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 /**
  * Backup service for all Chipster databases
@@ -25,14 +28,27 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
  * @author klemela
  *
  */
-public class Backup {
-	
+public class Backup {	
+
 	private Logger logger = LogManager.getLogger();
 		
 	private List<DbBackup> dbBackups;
 	private HttpServer adminServer;
 
-	public Backup(Config config) throws IOException {		     
+	private ServiceLocatorClient serviceLocator;
+
+	private AuthenticationClient authService;
+
+	public Backup(Config config) throws IOException {
+		
+		String username = Role.BACKUP;
+    	String password = config.getPassword(username);    	
+    	
+    	this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.serviceLocator.setCredentials(authService.getCredentials());
+		
+		Path backupRoot = Paths.get(DbBackup.DB_BACKUPS);
     	
 		Set<String> roles = config.getDbBackupRoles();			
 		
@@ -43,15 +59,15 @@ public class Backup {
 			String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);	    	
 			
 			logger.info("backup " + role + " db in " + url);
-			return new DbBackup(config, role, url, user, dbPassword);
+			return new DbBackup(config, role, url, user, dbPassword, backupRoot);
 			
 		}).collect(Collectors.toList());
 		
 		
-		logger.info("starting the admin rest server");
-		// this is unauthenticated, because we don't wan't the auth to run when we restore its DB
-		this.adminServer = RestUtils.startUnauthenticatedAdminServer(
-				new UnauthenticatedAdminResource(), Role.BACKUP, config);
+		logger.info("starting the admin rest server");		
+		BackupAdminResource adminResource = new BackupAdminResource(null, dbBackups);
+    	adminResource.addFileSystem("db-backup", backupRoot.toFile());
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.BACKUP, config, authService);
 	}
 
 	public void start() {

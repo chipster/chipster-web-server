@@ -41,6 +41,8 @@ public class DbBackup {
 	
 	private static final String BACKUP_NAME_POSTFIX_UNCOMPRESSED = ".sql";
 	public static final String BACKUP_OBJECT_NAME_PART = "-db-backup_";
+	
+	public static final String DB_BACKUPS = "db-backups";
 
 	private Config config;
 	private String role;	
@@ -58,12 +60,15 @@ public class DbBackup {
 
 	private String gpgPassphrase;
 
-	public DbBackup(Config config, String role, String url, String user, String password) {
+	private Path backupRoot;
+
+	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) {
 		this.config = config;
 		this.role = role;
 		this.url = url;
 		this.user = user;
 		this.password = password;
+		this.backupRoot = backupRoot;
 		
 		backupPrefix = role + BACKUP_OBJECT_NAME_PART;
 		backupPostfixUncompressed = BACKUP_NAME_POSTFIX_UNCOMPRESSED;
@@ -85,18 +90,22 @@ public class DbBackup {
 		this.backupTimer = BackupUtils.startBackupTimer(new TimerTask() {			
 			@Override
 			public void run() {
-				try {
-					dbCleanUp();
-				} catch (InterruptedException | IOException e) {
-					logger.error(role + " db clean up failed", e);
-				}				
-				try {
-					backup();
-				} catch (IOException | AmazonClientException | InterruptedException e) {
-					logger.error(role + " db backup failed", e);
-				}								
+				cleanUpAndBackup();
 			}
 		}, role, config);		
+	}
+	
+	public void cleanUpAndBackup() {
+		try {
+			dbCleanUp();
+		} catch (InterruptedException | IOException e) {
+			logger.error(role + " db clean up failed", e);
+		}				
+		try {
+			backup();
+		} catch (IOException | AmazonClientException | InterruptedException e) {
+			logger.error(role + " db backup failed", e);
+		}
 	}
     
     private void dbCleanUp() throws IOException, InterruptedException {
@@ -126,7 +135,7 @@ public class DbBackup {
 		String backupName = backupPrefix + now;		
 		String backupFileBasename = backupPrefix + now;
 		
-		Path backupRoot = Paths.get("db-backups");
+		
 		Path backupDir = backupRoot.resolve(backupName);
 		Path backupFileUncompressed = backupRoot.resolve(backupPrefix + now + backupPostfixUncompressed);
 		Path backupInfoPath = backupRoot.resolve(BackupArchiver.BACKUP_INFO);
@@ -199,9 +208,13 @@ public class DbBackup {
 		String url = config.getString(HibernateUtil.CONF_DB_URL, role);
 		String user = config.getString(HibernateUtil.CONF_DB_USER, role);
 		String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);
-		DbBackup dbBackup = new DbBackup(config, role, url, user, dbPassword);
+		DbBackup dbBackup = new DbBackup(config, role, url, user, dbPassword, Paths.get(DB_BACKUPS));
 		
 		dbBackup.dbCleanUp();
 		dbBackup.backup();
+	}
+
+	public String getRole() {
+		return role;
 	}
 }

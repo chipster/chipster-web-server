@@ -21,7 +21,6 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -50,7 +49,6 @@ public class FileBroker {
 
 	private StatusSource stats;
 
-	@SuppressWarnings("unused")
 	private StorageBackup backup;
 
 	public FileBroker(Config config) {
@@ -105,7 +103,7 @@ public class FileBroker {
 		
         server.start();                      
                
-        AdminResource adminResource = new AdminResource(stats);
+        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, backup);
     	adminResource.addFileSystem("storage", storage);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService);
         

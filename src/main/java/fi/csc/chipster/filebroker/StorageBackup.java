@@ -68,7 +68,7 @@ public class StorageBackup {
 		}
 	}
 	
-	private void backupNow() {
+	public void backupNow() {
 		try {
 			backup();
 		} catch (IOException | InterruptedException e) {
