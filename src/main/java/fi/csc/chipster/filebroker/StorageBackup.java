@@ -58,7 +58,7 @@ public class StorageBackup {
 		this.config = config;		
 		this.bucket = BackupUtils.getBackupBucket(config, role);
 		
-		this.gpgVersion = BackupUtils.getGpgVersion();
+		//this.gpgVersion = BackupUtils.getGpgVersion();
 		
 		if (scheduleTimer) {
 			timer = BackupUtils.startBackupTimer(new TimerTask() {			
