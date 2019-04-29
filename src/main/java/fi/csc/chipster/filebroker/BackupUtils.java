@@ -124,7 +124,7 @@ public class BackupUtils {
 					cmd += "--pinentry-mode loopback ";
 				}
 				
-				cmd += "--symmetric -";
+				cmd += "--no-use-agent --symmetric -";
 			} else {
 				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_RECIPIENT + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
 			}
