@@ -157,10 +157,12 @@ public class BackupUtils {
 	
 	public static String getGpgVersion() throws IOException, InterruptedException {
 		String output = ProcessUtils.runStdoutToString(null, "gpg", "--version");
+		
 		String[] rows = output.split("\n");
 		if (rows.length == 0) {
 			throw new IllegalArgumentException("gpg version parsing failed: " + output);
 		}
+		
 		String[] cols = rows[0].split(" ");
 		if (cols.length != 3) {
 			throw new IllegalArgumentException("gpg version parsing failed, " + cols.length + " columns (" + rows[0] + ")");
