@@ -101,7 +101,7 @@ public class BackupUtils {
 			// file read and written once, cpu bound (shell pipe saves one write and read)
 			String cmd = "";
 			cmd += ProcessUtils.getPath("lz4") + " -q " + localFilePath.toString();			
-			cmd += " | " + ProcessUtils.getPath("gpg") + " --output - --compress-algo none ";
+			cmd += " | " + ProcessUtils.getPath("gpg") + " --output - --compress-algo none --no-tty ";
 			
 			Map<String, String> env = new HashMap<String, String>() {{
 				put(ENV_GPG_PASSPHRASE, gpgPassphrase);
@@ -121,10 +121,10 @@ public class BackupUtils {
 				*/
 				cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") ";
 				if (gpgVersion.startsWith("2.")) {
-					cmd += "--pinentry-mode ";
+					cmd += "--pinentry-mode loopback ";
 				}
 				
-				cmd += "loopback --symmetric -";
+				cmd += "--symmetric -";
 			} else {
 				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_RECIPIENT + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
 			}
