@@ -3,7 +3,6 @@ package fi.csc.chipster.filebroker;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -92,9 +91,13 @@ public class BackupUtils {
 				// file read once, cpu bound
 				sha512 = parseChecksumLine(ProcessUtils.runStdoutToString(null, "shasum", "-a", "512", localFilePath.toString()));
 				fileSize = Files.size(localFilePath);
-			} catch (NoSuchFileException e) {
-				logger.error("file disappeared during the backup process: " + e.getMessage() + " (probably deleted by some user)");
-				continue;
+			} catch (RuntimeException e) {
+				if (!Files.exists(localFilePath)) {
+					logger.error("file disappeared during the backup process: " + e.getMessage() + " (probably deleted by some user)");
+					continue;					
+				} else {
+					throw e;
+				}
 			}
 							
 			// compress and encrypt
