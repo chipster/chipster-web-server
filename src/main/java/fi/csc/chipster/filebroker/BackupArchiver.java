@@ -71,17 +71,15 @@ public class BackupArchiver {
 		int dailyCount = Math.max(3, Integer.parseInt(config.getString(CONF_BACKUP_DAILY_COUNT, role)));
 		int monthlyCount = Integer.parseInt(config.getString(CONF_BACKUP_MONTHLY_COUNT, role));
 		
-		String backupNamePrefix = role + DbBackup.BACKUP_OBJECT_NAME_PART;
-		
 		Path archiveRootPath = Paths.get("backup-archive");
 		
 		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
 		try {
-			archive(transferManager, backupNamePrefix, archiveRootPath, role);				
-			cleanUpS3(transferManager, backupNamePrefix, role);
+			archive(transferManager, backupPrefix, archiveRootPath, role);				
+			cleanUpS3(transferManager, backupPrefix, role);
 			
 			if (type == BackupType.FULL) {
-				removeOldFullArchives(archiveRootPath, backupNamePrefix, dailyCount, monthlyCount);
+				removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
 			} else {
 				removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
 			}
