@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.archive;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -199,7 +199,7 @@ public class BackupUtils {
 
 	public static void uploadBackupInfo(TransferManager transferManager, String bucket, String backupName,
 			Path backupInfoPath) throws AmazonServiceException, AmazonClientException, InterruptedException {
-		Upload upload = transferManager.upload(bucket, backupName + "/" + BackupArchiver.BACKUP_INFO, backupInfoPath.toFile());
+		Upload upload = transferManager.upload(bucket, backupName + "/" + BackupArchive.BACKUP_INFO, backupInfoPath.toFile());
 		upload.waitForCompletion();
 	}
 	

@@ -27,9 +27,9 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
+import fi.csc.chipster.archive.BackupArchive;
+import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.BackupArchiver;
-import fi.csc.chipster.filebroker.BackupUtils;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.DatabaseConnectionRefused;
@@ -142,7 +142,7 @@ public class DbBackup {
 		
 		Path backupDir = backupRoot.resolve(backupName);
 		Path backupFileUncompressed = backupRoot.resolve(backupPrefix + now + backupPostfixUncompressed);
-		Path backupInfoPath = backupRoot.resolve(BackupArchiver.BACKUP_INFO);
+		Path backupInfoPath = backupRoot.resolve(BackupArchive.BACKUP_INFO);
 		
 		logger.info("save     " + role + " db backup to " + backupFileUncompressed.toFile().getAbsolutePath());
 		

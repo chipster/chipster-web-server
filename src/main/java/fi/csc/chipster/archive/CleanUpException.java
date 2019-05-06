@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.archive;
 
 public class CleanUpException extends Exception {
 

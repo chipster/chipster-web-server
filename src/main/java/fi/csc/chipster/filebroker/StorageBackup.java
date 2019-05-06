@@ -25,6 +25,9 @@ import org.apache.logging.log4j.Logger;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
+import fi.csc.chipster.archive.BackupArchive;
+import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.InfoLine;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
@@ -119,7 +122,7 @@ public class StorageBackup {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchiver.ARCHIVE_INFO);
+		String archiveInfoKey = findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		
@@ -135,7 +138,7 @@ public class StorageBackup {
 		Instant now = Instant.now();
 		String backupName = FILE_BROKER_BACKUP_NAME_PREFIX + now;
 			
-		Path backupInfoPath = backupDir.resolve(BackupArchiver.BACKUP_INFO);				
+		Path backupInfoPath = backupDir.resolve(BackupArchive.BACKUP_INFO);				
 		FileUtils.touch(backupInfoPath.toFile());
 				
 		// collect a list of all files in storage (except the backup dir)

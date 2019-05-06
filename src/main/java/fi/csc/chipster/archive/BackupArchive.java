@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.archive;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -27,13 +27,14 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.StorageBackup;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.BackupRotation2;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
-public class BackupArchiver {
+public class BackupArchive {
 	
 	public static final String BACKUP_INFO = "backup-info";
 	public static final String ARCHIVE_INFO = "archive-info";
@@ -50,7 +51,7 @@ public class BackupArchiver {
 	
 	private Config config;
 
-	public BackupArchiver() {	
+	public BackupArchive() {	
 				
 		this.config = new Config();		
 				
@@ -84,29 +85,37 @@ public class BackupArchiver {
 		List<String> backups = findBackups(objects, backupPrefix, BACKUP_INFO);
 		List<String> archivedBackups = findBackups(objects, backupPrefix, ARCHIVE_INFO);
 		
+		// skip backups that are already archived
 		backups.removeAll(archivedBackups);
 		
 		logger.info("found " + backups.size() + " unarchived backups");
 		
-		for (String backupName : backups) {					
-			
-			logger.info("archive backup " + backupName);
-			
-			try {
-				archive(transferManager, backupPrefix, archiveRootPath, role, backupName, bucket, objects);				
+		try {
+			for (String backupName : backups) {					
 				
-				if (type == BackupType.FULL) {
-					removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
-				} else {
-					removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
+				logger.info("archive backup " + backupName);
+				
+				try {
+					archive(transferManager, backupPrefix, archiveRootPath, role, backupName, bucket, objects);				
+					
+					if (type == BackupType.FULL) {
+						removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
+					} else {
+						removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
+					}
+					
+				} catch (IOException | InterruptedException | CleanUpException e) {
+					logger.error("archive backup error", e);				
 				}
-				
-			} catch (IOException | InterruptedException | CleanUpException e) {
-				logger.error("archive backup error", e);				
 			}
+			cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket, objects);
+		} catch (ArchiveException e) {
+			// hopefully this is enough if the archiving takes longer than 24 hours to protect aagins multiple processes moving the files
+			// at the same time
+			logger.error("archive error, skip all " + backupPrefix, e);
+		} finally {
+			transferManager.shutdownNow();
 		}
-		cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket, objects);
-		transferManager.shutdownNow();
 	}
 	
 	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, List<String> archivedBackups, String bucket, List<S3ObjectSummary> objects) {
@@ -128,10 +137,14 @@ public class BackupArchiver {
 		logger.info("clean up done");
 	}
 
-	private void archive(TransferManager transferManager, String backupNamePrefix, Path archiveRootPath, String role, String backupName, String bucket, List<S3ObjectSummary> objects) throws IOException, InterruptedException {		
+	private void archive(TransferManager transferManager, String backupNamePrefix, Path archiveRootPath, String role, String backupName, String bucket, List<S3ObjectSummary> objects) throws IOException, InterruptedException, ArchiveException {		
 				
 		Path currentBackupPath = archiveRootPath.resolve(backupName);
 		Path downloadPath = currentBackupPath.resolve("download");
+		
+		if (Files.exists(currentBackupPath)) {
+			throw new ArchiveException("archive path " + currentBackupPath + " exists already. Is other process running?");
+		}
 		
 		String key = backupName + "/" + BACKUP_INFO;
 		Map<Path, InfoLine> backupInfoMap = BackupUtils.infoFileToMap(transferManager, bucket, key, currentBackupPath);
@@ -439,6 +452,6 @@ public class BackupArchiver {
 	}
 
 	public static void main(String[] args) {
-		new BackupArchiver();
+		new BackupArchive();
 	}
 }
