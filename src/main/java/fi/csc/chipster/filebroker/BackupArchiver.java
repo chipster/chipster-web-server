@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -74,49 +75,50 @@ public class BackupArchiver {
 		Path archiveRootPath = Paths.get("backup-archive");
 		
 		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
-		try {
-			archive(transferManager, backupPrefix, archiveRootPath, role);				
-			cleanUpS3(transferManager, backupPrefix, role);
-			
-			if (type == BackupType.FULL) {
-				removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
-			} else {
-				removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
-			}
-			
-		} catch (IOException | InterruptedException | CleanUpException e) {
-			logger.error("backup archiving error", e);
-			
-		} finally {			
-			transferManager.shutdownNow();
-		}	
-	}
-	
-	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role) {
-		
-		logger.info("clean up archived S3 backups of " + backupNamePrefix);
+		logger.info("find " + backupPrefix + " from S3");
 		
 		String bucket = BackupUtils.getBackupBucket(config, role);
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		List<String> archivedBackups = objects.stream()
-				.map(o -> o.getKey())
-				.filter(name -> name.startsWith(backupNamePrefix))
-				// only archived backups (the archive info is uploaded in the end)
-				.filter(name -> name.endsWith("/" + BackupArchiver.ARCHIVE_INFO))
-				.map(key -> key.substring(0, key.indexOf("/")))
-				// this compares strings, but luckily it works with this timestamp format from Instant.toString()
-				.sorted()
-				.collect(Collectors.toList());				
+		// archive all starting from the oldest
+		List<String> backups = findBackups(objects, backupPrefix, BACKUP_INFO);
+		List<String> archivedBackups = findBackups(objects, backupPrefix, ARCHIVE_INFO);
+		
+		backups.removeAll(archivedBackups);
+		
+		logger.info("found " + backups.size() + " unarchived backups");
+		
+		for (String backupName : backups) {					
+			
+			logger.info("archive backup " + backupName);
+			
+			try {
+				archive(transferManager, backupPrefix, archiveRootPath, role, backupName, bucket, objects);				
+				
+				if (type == BackupType.FULL) {
+					removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
+				} else {
+					removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
+				}
+				
+			} catch (IOException | InterruptedException | CleanUpException e) {
+				logger.error("archive backup error", e);				
+			}
+		}
+		cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket);
+		transferManager.shutdownNow();
+	}
+	
+	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, List<String> archivedBackups, String bucket) {
+		
+		logger.info("clean up archived S3 backups of " + backupNamePrefix);		
 		
 		// delete all but the latest
 		
 		if (archivedBackups.size() > 1) {
 			for (String backupName : archivedBackups.subList(0, archivedBackups.size() - 1)) {
 				logger.info("delete backup " + backupName + " from S3");
-				objects.stream()
-				.map(o -> o.getKey())
-				.filter(key -> key.startsWith(backupName + "/"))
+				archivedBackups.stream()
 				.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));			
 			}
 		}
@@ -124,33 +126,7 @@ public class BackupArchiver {
 		logger.info("clean up done");
 	}
 
-	private void archive(TransferManager transferManager, String backupNamePrefix, Path archiveRootPath, String role) throws IOException, InterruptedException {
-						
-		logger.info("find latest " + backupNamePrefix + " from S3");
-				
-		String bucket = BackupUtils.getBackupBucket(config, role);
-		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
-		String fileInfoKey = findLatest(objects, backupNamePrefix, BACKUP_INFO);
-		
-		if (fileInfoKey == null) {
-			logger.error("no backups found");
-			return;
-		}
-		
-		// parse the object storage folder
-		String backupName = fileInfoKey.substring(0, fileInfoKey.indexOf("/"));
-		
-		boolean isArchived = objects.stream()
-		.map(obj -> obj.getKey())
-		.filter(key -> (backupName + "/" + ARCHIVE_INFO).equals(key))
-		.findAny().isPresent();
-		
-		if (isArchived) {
-			logger.info("latest backup " + backupName + " is already archived");
-			return;
-		}
-		
-		logger.info("latest backup is " + backupName);
+	private void archive(TransferManager transferManager, String backupNamePrefix, Path archiveRootPath, String role, String backupName, String bucket, List<S3ObjectSummary> objects) throws IOException, InterruptedException {		
 				
 		Path currentBackupPath = archiveRootPath.resolve(backupName);
 		Path downloadPath = currentBackupPath.resolve("download");
@@ -176,8 +152,7 @@ public class BackupArchiver {
 		logger.info("the backup has " + newFileInfos.size() + " new files in " + (backupObjects.size() - 1) + " packages");
 		if (archiveNames.size() == 0) {
 			logger.info("no files will moved from the old archives");
-		}
-		if (archiveNames.size() == 1) {			
+		} else if (archiveNames.size() == 1) {			
 			logger.info((backupInfoMap.size() - newFileInfos.size()) + " files will be moved from the archive " + archiveNames.get(0));
 		} else {
 			// this isn't used at the moment
@@ -200,22 +175,18 @@ public class BackupArchiver {
 		logger.info("backup archiving done");		
 	}
 	
-	public static String findLatest(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
-		List<String> fileBrokerBackups = objects.stream()
+	private List<String> findBackups(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {			
+		
+		return objects.stream()
 			.map(o -> o.getKey())
 			.filter(name -> name.startsWith(backupNamePrefix))
 			// only completed backups (the file info list uploaded in the end)
 			.filter(name -> name.endsWith("/" + fileName))
+			// take only the backupName part
+			.map(fileInfoKey -> fileInfoKey.substring(0, fileInfoKey.indexOf("/")))
 			// this compares strings, but luckily it works with this timestamp format from Instant.toString()
 			.sorted()
-			.collect(Collectors.toList());
-				
-		if (fileBrokerBackups.isEmpty()) {
-			return null;
-		}
-		
-		// return latest
-		return fileBrokerBackups.get(fileBrokerBackups.size() - 1);
+			.collect(Collectors.toList());		
 	}
 
 	private Path writeArchiveInfo(Path currentBackupPath, Map<Path, InfoLine> backupInfoMap) throws IOException {
@@ -226,6 +197,9 @@ public class BackupArchiver {
 			logger.warn("this shouldn't run when the archive info exists already");
 			Files.delete(archiveInfoPath);
 		}
+		
+		// make sure the archiveInfo is created even if there are no changes
+		FileUtils.touch(archiveInfoPath.toFile());
 		
 		backupInfoMap.values().stream().forEach(backupInfo -> {
 			try {				
@@ -276,7 +250,23 @@ public class BackupArchiver {
 				if (isValid(candidate, info.getGpgSize())) {
 					archiveFile(candidate, currentBackupPath, info.getGpgPath());
 				} else {
-					logger.error("file " + candidate + " not found");
+					// search from other archives
+					Optional<Path> candidateOptional = Files.list(archiveRootPath)
+					.map(archive -> archive.resolve(info.getGpgPath()))
+					.filter(file -> {
+						try {
+							return isValid(file, info.getGpgSize());
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
+					})
+					.findAny();
+					if (candidateOptional.isPresent()) {
+						logger.warn("file " + candidate + " was found from other arhive (maybe several backups were created before running archive?");
+						archiveFile(candidateOptional.get(), currentBackupPath, info.getGpgPath());
+					} else {
+						logger.error("file " + candidate + " not found");	
+					}
 				}								
 			} catch (IOException e) {
 				logger.error("archive error", e);

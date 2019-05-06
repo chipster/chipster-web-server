@@ -80,6 +80,24 @@ public class StorageBackup {
 		}
 	}
 	
+	private String findLatest(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
+		List<String> fileBrokerBackups = objects.stream()
+			.map(o -> o.getKey())
+			.filter(name -> name.startsWith(backupNamePrefix))
+			// only completed backups (the file info list uploaded in the end)
+			.filter(name -> name.endsWith("/" + fileName))
+			// this compares strings, but luckily it works with this timestamp format from Instant.toString()
+			.sorted()
+			.collect(Collectors.toList());
+				
+		if (fileBrokerBackups.isEmpty()) {
+			return null;
+		}
+		
+		// return latest
+		return fileBrokerBackups.get(fileBrokerBackups.size() - 1);
+	}
+	
 	private void backup() throws IOException, InterruptedException {
 		
 		String bucket = BackupUtils.getBackupBucket(config, role);
@@ -101,7 +119,7 @@ public class StorageBackup {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = BackupArchiver.findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchiver.ARCHIVE_INFO);
+		String archiveInfoKey = findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchiver.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		

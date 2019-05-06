@@ -125,9 +125,11 @@ public class BackupUtils {
 				cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") ";
 				if (gpgVersion.startsWith("2.")) {
 					cmd += "--pinentry-mode loopback ";
+				} else {
+					cmd += "--no-use-agent ";
 				}
 				
-				cmd += "--no-use-agent --symmetric -";
+				cmd += "--symmetric -";
 			} else {
 				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_RECIPIENT + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
 			}
