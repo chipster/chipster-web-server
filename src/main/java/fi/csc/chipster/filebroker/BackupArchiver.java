@@ -49,7 +49,7 @@ public class BackupArchiver {
 	
 	private Config config;
 
-	public BackupArchiver(boolean scheduleTimer) {	
+	public BackupArchiver() {	
 				
 		this.config = new Config();		
 				
@@ -86,7 +86,7 @@ public class BackupArchiver {
 				removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
 			}
 			
-		} catch (IOException | InterruptedException e) {
+		} catch (IOException | InterruptedException | CleanUpException e) {
 			logger.error("backup archiving error", e);
 			
 		} finally {			
@@ -348,8 +348,9 @@ public class BackupArchiver {
 	 * @param dailyCount
 	 * @param monthlyCount
 	 * @throws IOException
+	 * @throws CleanUpException 
 	 */
-	private void removeOldFullArchives(Path archiveRootPath, String backupPrefix, int dailyCount, int monthlyCount) throws IOException {
+	private void removeOldFullArchives(Path archiveRootPath, String backupPrefix, int dailyCount, int monthlyCount) throws IOException, CleanUpException {
 		logger.info("list " + backupPrefix + " archives");
 		
 		TreeMap<Instant, Path> backupsToDelete = getArchives(archiveRootPath, backupPrefix);
@@ -400,8 +401,9 @@ public class BackupArchiver {
 	 * @param backupPrefix
 	 * @param dayCount
 	 * @throws IOException
+	 * @throws CleanUpException 
 	 */
-	private void removeOldIncrementalArchives(Path archiveRootPath, String backupPrefix, int dayCount) throws IOException {
+	private void removeOldIncrementalArchives(Path archiveRootPath, String backupPrefix, int dayCount) throws IOException, CleanUpException {
 		logger.info("list " + backupPrefix + " archives");
 		
 		TreeMap<Instant, Path> backupsToDelete = getArchives(archiveRootPath, backupPrefix);
@@ -431,22 +433,22 @@ public class BackupArchiver {
 	}
 
 
-	private void checkClock(TreeMap<Instant, Path> backupsToDelete) {
+	private void checkClock(TreeMap<Instant, Path> backupsToDelete) throws CleanUpException {
 		
 		// don't clean up if the clock might be wrong
 		if (!backupsToDelete.isEmpty()) {
 			if (backupsToDelete.lastKey().isAfter(Instant.now())) {
-				throw new IllegalStateException("the last archive is newer than the current time. Refusing to clean up anything");
+				throw new CleanUpException("the last archive is newer than the current time. Refusing to clean up anything");
 			}
 			
 			int maxAge = 7;
 			if (backupsToDelete.lastKey().isBefore(Instant.now().minus(maxAge, ChronoUnit.DAYS))) {
-				throw new IllegalStateException("the last archive is older " + maxAge + " days. Refusing to clean up anything");
+				throw new CleanUpException("the last archive is older " + maxAge + " days. Refusing to clean up anything");
 			}
 		}
 	}
 
 	public static void main(String[] args) {
-		new BackupArchiver(false);
+		new BackupArchiver();
 	}
 }
