@@ -105,20 +105,22 @@ public class BackupArchiver {
 				logger.error("archive backup error", e);				
 			}
 		}
-		cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket);
+		cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket, objects);
 		transferManager.shutdownNow();
 	}
 	
-	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, List<String> archivedBackups, String bucket) {
+	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, List<String> archivedBackups, String bucket, List<S3ObjectSummary> objects) {
 		
 		logger.info("clean up archived S3 backups of " + backupNamePrefix);		
 		
 		// delete all but the latest
 		
 		if (archivedBackups.size() > 1) {
-			for (String backupName : archivedBackups.subList(0, archivedBackups.size() - 1)) {
+			for (String backupName : archivedBackups.subList(0, archivedBackups.size() - 1)) {				
 				logger.info("delete backup " + backupName + " from S3");
-				archivedBackups.stream()
+				objects.stream()
+				.map(obj -> obj.getKey())
+				.filter(key -> key.startsWith(backupName + "/"))
 				.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));			
 			}
 		}
