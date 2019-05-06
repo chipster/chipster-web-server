@@ -181,7 +181,7 @@ public class BackupArchiver {
 			logger.info((backupInfoMap.size() - newFileInfos.size()) + " files will be moved from the archive " + archiveNames.get(0));
 		} else {
 			// this isn't used at the moment
-			logger.warn("the backup is using files from several archive versions");
+			logger.warn("the backup is using files from several archive versions (current is " + backupName + "): " + archiveNames);
 		}
 		
 		downloadPath.toFile().mkdirs();
