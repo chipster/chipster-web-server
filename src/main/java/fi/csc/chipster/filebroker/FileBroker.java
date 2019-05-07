@@ -103,7 +103,7 @@ public class FileBroker {
 		
         server.start();                      
                
-        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, backup);
+        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, backup, sessionDbClient, storage);
     	adminResource.addFileSystem("storage", storage);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService);
         

@@ -29,8 +29,10 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
-@Path("users")
+@Path(UserResource.PATH_USERS)
 public class UserResource {
+
+	public static final String PATH_USERS = "users";
 
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
@@ -42,7 +44,7 @@ public class UserResource {
 	}
 
 	@GET
-	@RolesAllowed({ Role.ADMIN })
+	@RolesAllowed({ Role.ADMIN, Role.FILE_BROKER })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {
