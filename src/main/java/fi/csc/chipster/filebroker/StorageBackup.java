@@ -42,26 +42,23 @@ public class StorageBackup {
 	private Config config;
 	private String role;
 	private String bucket;
-	private String recipient;
+	private String gpgRecipient;
 
 	@SuppressWarnings("unused")
 	private Timer timer;
 
 	private String gpgPassphrase;
 
-	private String gpgVersion;
-
 	public StorageBackup(Path storage, boolean scheduleTimer, Config config) throws IOException, InterruptedException {	
 		
 		this.storage = storage; 		
 		this.role = Role.FILE_BROKER;
-		this.recipient = config.getString(BackupUtils.CONF_BACKUP_GPG_RECIPIENT, role);
 		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
 		
 		this.config = config;		
 		this.bucket = BackupUtils.getBackupBucket(config, role);
 		
-		this.gpgVersion = BackupUtils.getGpgVersion();
+		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
 		
 		if (scheduleTimer) {
 			timer = BackupUtils.startBackupTimer(new TimerTask() {			
@@ -366,16 +363,16 @@ public class StorageBackup {
 				
 		// small files to be transferred in a tar package, extraction may take some time, but it's easy to create temporary copies
 		logger.info(groupInfo + ", " + smallFiles.size() + " small files (" + FileUtils.byteCountToDisplaySize(smallFilesTotal) + ")");
-		BackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, gpgVersion);
+		BackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		
 		// medium files to be transferred in a tar package, should be relatively easy to extract from stream
 		logger.info(groupInfo + ", " + mediumFiles.size() + " medium files (" + FileUtils.byteCountToDisplaySize(mediumFilesTotal) + ")");
-		BackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, gpgVersion);
+		BackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		
 		// large files to be transferred one by one
 		logger.info(groupInfo + ", " + largeFiles.size() + " large files (" + FileUtils.byteCountToDisplaySize(largeFilesTotal) + ")");
 		for (Path file : largeFiles.keySet()) {			
-			BackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, gpgVersion);
+			BackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		}		
 	}
 	

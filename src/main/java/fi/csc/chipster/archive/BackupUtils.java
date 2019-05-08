@@ -6,10 +6,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -44,9 +46,10 @@ public class BackupUtils {
 	
 	private static final String CONF_BACKUP_TIME = "backup-time";
 	private static final String CONF_BACKUP_INTERVAL = "backup-interval";
-	
-	public static final String CONF_BACKUP_GPG_RECIPIENT = "backup-gpg-recipient";	
-	public static final String CONF_BACKUP_GPG_PASSPHRASE = "backup-gpg-passphrase";	
+		
+	public static final String CONF_BACKUP_GPG_PASSPHRASE = "backup-gpg-passphrase";
+	public static final String CONF_BACKUP_GPG_PUBLIC_KEY = "backup-gpg-public-key";
+	public static final String CONF_BACKUP_GPG_PROGRAM = "backup-gpg-program";
 
 	public static Map<Path, InfoLine> infoFileToMap(TransferManager transferManager, String bucket, String key, Path tempDir) throws AmazonServiceException, AmazonClientException, InterruptedException, IOException {
 						
@@ -62,11 +65,15 @@ public class BackupUtils {
 		return map;
 	}
 	
-	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, String gpgVersion) throws IOException, InterruptedException {
-		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, gpgVersion);
+	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, Config config) throws IOException, InterruptedException {
+		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase, config);
 	}
 	
-	public static void backupFilesAsTar(String name, Path storage, Set<Path> files, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, String gpgVersion) throws IOException, InterruptedException {
+	private static String getGpgProgram(Config config) {
+		return ProcessUtils.getPath(config.getString(CONF_BACKUP_GPG_PROGRAM));
+	}
+	
+	public static void backupFilesAsTar(String name, Path storage, Set<Path> files, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, Config config) throws IOException, InterruptedException {
 		
 		Path tarPath = backupDir.resolve(name + ".tar");
 		
@@ -104,15 +111,15 @@ public class BackupUtils {
 			// file read and written once, cpu bound (shell pipe saves one write and read)
 			String cmd = "";
 			cmd += ProcessUtils.getPath("lz4") + " -q " + localFilePath.toString();			
-			cmd += " | " + ProcessUtils.getPath("gpg") + " --output - --compress-algo none --no-tty ";
+			cmd += " | " + getGpgProgram(config) + " --output - --compress-algo none --no-tty ";
 			
 			Map<String, String> env = new HashMap<String, String>() {{
 				put(ENV_GPG_PASSPHRASE, gpgPassphrase);
 			}};
 			
 			if (recipient != null && !recipient.isEmpty()) {
-				// asymmetric encryption using the keys installed on the machine
-				cmd += "--recipient " + recipient + " --encrypt -";
+				// asymmetric encryption
+				cmd += "--recipient " + recipient + " --always-trust --encrypt -";
 			} else if (gpgPassphrase != null && !gpgPassphrase.isEmpty()) {
 				/* 
 				 * Symmetric encryption
@@ -123,15 +130,10 @@ public class BackupUtils {
 				 * - process substitution <() creates a anonymous pipe, where the content is not visible in the process list
 				*/
 				cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") ";
-				if (gpgVersion.startsWith("2.")) {
-					cmd += "--pinentry-mode loopback ";
-				} else {
-					cmd += "--no-use-agent ";
-				}
-				
+				cmd += "--pinentry-mode loopback ";				
 				cmd += "--symmetric -";
 			} else {
-				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_RECIPIENT + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
+				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_PUBLIC_KEY + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
 			}
 			
 			
@@ -158,25 +160,8 @@ public class BackupUtils {
 		upload(transferManager, bucket, backupName, tarPath, true);
 				
 		Files.delete(tarPath);
-	}
-	
-	public static String getGpgVersion() throws IOException, InterruptedException {
-		String output = ProcessUtils.runStdoutToString(null, "gpg", "--version");
+	}	
 		
-		String[] rows = output.split("\n");
-		if (rows.length == 0) {
-			throw new IllegalArgumentException("gpg version parsing failed: " + output);
-		}
-		
-		String[] cols = rows[0].split(" ");
-		if (cols.length != 3) {
-			throw new IllegalArgumentException("gpg version parsing failed, " + cols.length + " columns (" + rows[0] + ")");
-		}
-		String version = cols[2];
-		logger.info("gpg version " + version);
-		return version;
-	}
-	
 	private static void upload(TransferManager transferManager, String bucket, String bucketDir, Path filePath, boolean verbose) throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
 		if (verbose) {
 			logger.info("upload " + filePath.getFileName() + " to " + bucket + "/" + bucketDir + " (" + FileUtils.byteCountToDisplaySize(Files.size(filePath)) + ")");		
@@ -245,5 +230,52 @@ public class BackupUtils {
 		Timer backupTimer = new Timer();
 		backupTimer.scheduleAtFixedRate(timerTask, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
 		return backupTimer;
+	}
+
+	public static String importPublicKey(Config config, String role) throws IOException, InterruptedException {
+		
+		String gpgPublicKey = config.getString(BackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY, role);
+		if (gpgPublicKey.isEmpty()) {
+			logger.warn(CONF_BACKUP_GPG_PUBLIC_KEY + " is not configured");
+			return null;
+		}
+		
+		logger.info("import gpg public key");
+		String cmd = "";
+		cmd += "echo -e '" + gpgPublicKey + "' | ";
+		cmd += getGpgProgram(config) + " ";
+		cmd += "--import";
+		
+		ProcessUtils.run(null, null, null, true, "bash", "-c", cmd);		
+		
+		logger.info("get the recipient from the public key");
+		cmd = "";
+		cmd += "echo -e '" + gpgPublicKey + "' | ";
+		cmd += getGpgProgram(config) + " ";
+		cmd += "--list-packets";
+		
+		String output = ProcessUtils.runStdoutToString(null, "bash", "-c", cmd);
+				
+		Optional<String> uidLineOptional = Arrays.asList(output.split("\n")).stream()
+		.filter(line -> line.startsWith(":user ID packet:"))
+		.findAny();
+		
+		if (!uidLineOptional.isPresent()) {
+			throw new IllegalArgumentException("gpg public key user ID packet not found: " + output);
+		}
+		
+		String recipient;
+		try {
+			recipient = uidLineOptional.get().substring(uidLineOptional.get().indexOf("<") + 1, uidLineOptional.get().indexOf(">"));
+		} catch (IndexOutOfBoundsException e) {
+			throw new IllegalArgumentException("gpg public key < or > not found from line: " + uidLineOptional.get());
+		}
+		
+		if (recipient.isEmpty()) {
+			throw new IllegalArgumentException("gpg public key email is empty: " + uidLineOptional);
+		}
+		
+		logger.info("gpg recipient " + recipient);
+		return recipient;
 	}
 }

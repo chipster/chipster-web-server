@@ -128,7 +128,8 @@ backup-daily-count: 90
 backup-monthly-count: 24
 
 # encrypt backups with the public key of the recipient (key must be imported in gpg)
-backup-gpg-recipient: ""
+backup-gpg-public-key: ""
+backup-gpg-program: gpg2
 # use symmetric encryption for the backups
 backup-gpg-passphrase: ""
 
