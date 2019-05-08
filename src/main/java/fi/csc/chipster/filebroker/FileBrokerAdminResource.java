@@ -40,7 +40,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	private java.nio.file.Path orphanRootPath;
 	
 	public FileBrokerAdminResource(StatusSource stats, StorageBackup backup, SessionDbClient sessionDbClient, File storage) {
-		super(stats);
+		super(stats, backup);
 		
 		this.backup = backup;
 		this.sessionDbClient = sessionDbClient;
