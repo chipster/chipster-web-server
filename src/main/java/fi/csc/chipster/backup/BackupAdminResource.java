@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
@@ -28,7 +29,7 @@ public class BackupAdminResource extends AdminResource {
 	private List<DbBackup> dbBackups;
 	
 	public BackupAdminResource(List<DbBackup> dbBackups) {
-		super();
+		super(dbBackups.toArray(new StatusSource[0]));
 		
 		this.dbBackups = dbBackups;
 	}

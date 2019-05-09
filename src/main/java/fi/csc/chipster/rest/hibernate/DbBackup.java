@@ -6,6 +6,7 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -32,10 +34,11 @@ import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.DatabaseConnectionRefused;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 
-public class DbBackup {
+public class DbBackup implements StatusSource {
 
 	private final static Logger logger = LogManager.getLogger();
 	
@@ -61,6 +64,8 @@ public class DbBackup {
 	private String gpgPassphrase;
 	
 	private Path backupRoot;
+	
+	private Map<String, Object> stats = new HashMap<String, Object>();
 
 	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) throws IOException, InterruptedException {
 		this.config = config;
@@ -96,6 +101,7 @@ public class DbBackup {
 	}
 	
 	public void cleanUpAndBackup() {
+		stats.clear();
 		try {
 			dbCleanUp();
 		} catch (InterruptedException | IOException e) {
@@ -145,6 +151,8 @@ public class DbBackup {
 		// Stream the script to a local file
 		runPostgres(null, backupFileUncompressed.toFile(), false, "pg_dump");
 		
+		stats.put("lastBackupUncompressedSize", Files.size(backupFileUncompressed));
+		
 		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
 		BackupUtils.backupFileAsTar(backupFileBasename, backupRoot, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		// the backupInfo is not really necessary because there is only one file, but the BackupArchiver expects it
@@ -152,6 +160,8 @@ public class DbBackup {
 		
 		Files.delete(backupInfoPath);
 		Files.delete(backupFileUncompressed);
+		
+		stats.put("lastBackupDuration", Duration.between(now, Instant.now()).toMillis());
 		
 		logger.info("db backup of " + role + " done");
 	}
@@ -216,5 +226,14 @@ public class DbBackup {
 
 	public String getRole() {
 		return role;
+	}
+	
+	@Override
+	public Map<String, Object> getStatus() {
+		
+		Map<String, Object> statsWithRole = stats.keySet().stream()
+		.collect(Collectors.toMap(key -> key + ",backupOfRole=" + role, key -> stats.get(key)));
+		
+		return statsWithRole;
 	}
 }

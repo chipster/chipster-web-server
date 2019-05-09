@@ -407,8 +407,13 @@ public class StorageBackup implements StatusSource {
 		new StorageBackup(Paths.get("storage"), false, new Config());
 	}
 
+
 	@Override
 	public Map<String, Object> getStatus() {
-		return new HashMap<>(stats);
+		
+		Map<String, Object> statsWithRole = stats.keySet().stream()
+		.collect(Collectors.toMap(key -> key + ",backupOfRole=" + role, key -> stats.get(key)));
+		
+		return statsWithRole;
 	}
 }
