@@ -45,7 +45,7 @@ public class BackupUtils {
 	private static final String CONF_BACKUP_S3_ENDPOINT = "backup-s3-endpoint";
 	
 	private static final String CONF_BACKUP_TIME = "backup-time";
-	private static final String CONF_BACKUP_INTERVAL = "backup-interval";
+	public static final String CONF_BACKUP_INTERVAL = "backup-interval";
 		
 	public static final String CONF_BACKUP_GPG_PASSPHRASE = "backup-gpg-passphrase";
 	public static final String CONF_BACKUP_GPG_PUBLIC_KEY = "backup-gpg-public-key";

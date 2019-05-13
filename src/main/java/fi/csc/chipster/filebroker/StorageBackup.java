@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,7 @@ public class StorageBackup implements StatusSource {
 	private String gpgPassphrase;
 
 	private Map<String, Object> stats = new HashMap<String, Object>();
+	private Instant lastSuccess;
 
 	public StorageBackup(Path storage, boolean scheduleTimer, Config config) throws IOException, InterruptedException {	
 		
@@ -78,6 +80,7 @@ public class StorageBackup implements StatusSource {
 	public void backupNow() {
 		try {
 			backup();
+			lastSuccess = Instant.now();
 		} catch (IOException | InterruptedException e) {
 			logger.error("backup error", e);
 		}
@@ -415,5 +418,12 @@ public class StorageBackup implements StatusSource {
 		.collect(Collectors.toMap(key -> key + ",backupOfRole=" + role, key -> stats.get(key)));
 		
 		return statsWithRole;
+	}
+
+	public boolean monitoringCheck() {
+		
+		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		// false if there is no success during two backupIntervals
+		return lastSuccess != null && lastSuccess.isAfter(Instant.now().minus(backupInterval * 2, ChronoUnit.SECONDS));
 	}
 }

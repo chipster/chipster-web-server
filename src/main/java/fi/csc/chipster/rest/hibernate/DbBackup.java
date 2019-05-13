@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.TimerTask;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.h2.store.fs.FileUtils;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -66,6 +68,7 @@ public class DbBackup implements StatusSource {
 	private Path backupRoot;
 	
 	private Map<String, Object> stats = new HashMap<String, Object>();
+	private Instant lastSuccess;
 
 	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) throws IOException, InterruptedException {
 		this.config = config;
@@ -109,6 +112,7 @@ public class DbBackup implements StatusSource {
 		}				
 		try {
 			backup();
+			lastSuccess = Instant.now();
 		} catch (IOException | AmazonClientException | InterruptedException e) {
 			logger.error(role + " db backup failed", e);
 		}
@@ -143,8 +147,10 @@ public class DbBackup implements StatusSource {
 		
 		
 		Path backupDir = backupRoot.resolve(backupName);
-		Path backupFileUncompressed = backupRoot.resolve(backupPrefix + now + backupPostfixUncompressed);
-		Path backupInfoPath = backupRoot.resolve(BackupArchive.BACKUP_INFO);
+		Path backupFileUncompressed = backupDir.resolve(backupPrefix + now + backupPostfixUncompressed);
+		Path backupInfoPath = backupDir.resolve(BackupArchive.BACKUP_INFO);
+		
+		Files.createDirectory(backupDir);
 		
 		logger.info("save     " + role + " db backup to " + backupFileUncompressed.toFile().getAbsolutePath());
 		
@@ -154,12 +160,11 @@ public class DbBackup implements StatusSource {
 		stats.put("lastBackupUncompressedSize", Files.size(backupFileUncompressed));
 		
 		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
-		BackupUtils.backupFileAsTar(backupFileBasename, backupRoot, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
+		BackupUtils.backupFileAsTar(backupFileBasename, backupDir, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		// the backupInfo is not really necessary because there is only one file, but the BackupArchiver expects it
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		
-		Files.delete(backupInfoPath);
-		Files.delete(backupFileUncompressed);
+		FileUtils.deleteRecursive(backupDir.toString(), true);
 		
 		stats.put("lastBackupDuration", Duration.between(now, Instant.now()).toMillis());
 		
@@ -235,5 +240,12 @@ public class DbBackup implements StatusSource {
 		.collect(Collectors.toMap(key -> key + ",backupOfRole=" + role, key -> stats.get(key)));
 		
 		return statsWithRole;
+	}
+
+	public boolean monitoringCheck() {
+		
+		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		// false if there is no success during two backupIntervals
+		return lastSuccess != null && lastSuccess.isAfter(Instant.now().minus(backupInterval * 2, ChronoUnit.SECONDS));
 	}
 }

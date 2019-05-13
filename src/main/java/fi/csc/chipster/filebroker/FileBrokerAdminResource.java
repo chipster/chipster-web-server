@@ -10,10 +10,14 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.commons.io.FileUtils;
@@ -23,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -47,6 +52,19 @@ public class FileBrokerAdminResource extends AdminResource {
 		this.storage = storage;
 		
 		orphanRootPath = storage.toPath().resolve(PATH_ORPHAN);
+	}
+	
+	// unauthenticated but firewalled monitoring tap
+	@GET
+	@Path("monitoring/backup")
+    @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response backupMonitoring(@Context SecurityContext sc) {
+		
+		if (!backup.monitoringCheck()) {
+			return Response.status(Status.NOT_FOUND.getStatusCode(), "backup of " + Role.FILE_BROKER).build();		
+		}
+		return Response.ok().build();
 	}
 
 	@POST

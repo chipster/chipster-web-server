@@ -4,13 +4,17 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.GET;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
+import javax.ws.rs.core.Response.Status;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,6 +36,20 @@ public class BackupAdminResource extends AdminResource {
 		super(dbBackups.toArray(new StatusSource[0]));
 		
 		this.dbBackups = dbBackups;
+	}
+	
+	// unauthenticated but firewalled monitoring tap
+	@GET
+	@Path("monitoring/backup")
+    @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response backupMonitoring(@Context SecurityContext sc) {
+		for (DbBackup dbBackup : dbBackups) {
+			if (!dbBackup.monitoringCheck()) {
+				return Response.status(Status.NOT_FOUND.getStatusCode(), dbBackup.getRole() + " backup failed").build();				
+			}
+		}
+		return Response.ok().build();
 	}
 
 	@POST
