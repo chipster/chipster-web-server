@@ -6,10 +6,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -23,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.Download;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
@@ -277,5 +280,36 @@ public class BackupUtils {
 		
 		logger.info("gpg recipient " + recipient);
 		return recipient;
+	}
+	
+	public static String findLatest(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
+		List<String> fileBrokerBackups = objects.stream()
+			.map(o -> o.getKey())
+			.filter(name -> name.startsWith(backupNamePrefix))
+			// only completed backups (the file info list uploaded in the end)
+			.filter(name -> name.endsWith("/" + fileName))
+			// this compares strings, but luckily it works with this timestamp format from Instant.toString()
+			.sorted()
+			.collect(Collectors.toList());
+				
+		if (fileBrokerBackups.isEmpty()) {
+			return null;
+		}
+		
+		// return latest
+		return fileBrokerBackups.get(fileBrokerBackups.size() - 1);
+	}
+
+	public static Instant getLatestArchive(TransferManager transferManager, String backupNamePrefix, String bucket) {
+		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);		
+		
+		String archiveInfoKey = findLatest(objects, backupNamePrefix, BackupArchive.ARCHIVE_INFO);
+		
+		if (archiveInfoKey != null) {
+			String archiveName = archiveInfoKey.substring(0, archiveInfoKey.indexOf("/"));
+			String backupTimeString = archiveName.substring(backupNamePrefix.length());
+			return Instant.parse(backupTimeString);
+		}
+		return null;
 	}
 }

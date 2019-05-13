@@ -16,9 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -68,7 +68,10 @@ public class DbBackup implements StatusSource {
 	private Path backupRoot;
 	
 	private Map<String, Object> stats = new HashMap<String, Object>();
-	private Instant lastSuccess;
+
+	private TransferManager transferManager;
+
+	private String bucket;
 
 	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) throws IOException, InterruptedException {
 		this.config = config;
@@ -83,6 +86,14 @@ public class DbBackup implements StatusSource {
 		
 		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
 		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
+		
+		this.bucket = BackupUtils.getBackupBucket(config, role);
+		if (bucket.isEmpty()) {
+			logger.warn("no backup configuration for " + role + " db");
+			return;
+		}
+		
+		this.transferManager = BackupUtils.getTransferManager(config, role);		
 		
 		Configuration hibernateConf = HibernateUtil.getHibernateConf(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
 		try {
@@ -112,7 +123,6 @@ public class DbBackup implements StatusSource {
 		}				
 		try {
 			backup();
-			lastSuccess = Instant.now();
 		} catch (IOException | AmazonClientException | InterruptedException e) {
 			logger.error(role + " db backup failed", e);
 		}
@@ -131,12 +141,6 @@ public class DbBackup implements StatusSource {
     }
     
 	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
-		
-		String bucket = BackupUtils.getBackupBucket(config, role);
-		if (bucket.isEmpty()) {
-			logger.warn("no backup configuration for " + role + " db");
-			return;
-		}
 		
 		printTableStats();
 		
@@ -158,8 +162,7 @@ public class DbBackup implements StatusSource {
 		runPostgres(null, backupFileUncompressed.toFile(), false, "pg_dump");
 		
 		stats.put("lastBackupUncompressedSize", Files.size(backupFileUncompressed));
-		
-		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
+				
 		BackupUtils.backupFileAsTar(backupFileBasename, backupDir, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		// the backupInfo is not really necessary because there is only one file, but the BackupArchiver expects it
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
@@ -245,7 +248,10 @@ public class DbBackup implements StatusSource {
 	public boolean monitoringCheck() {
 		
 		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		
+		Instant backupTime = BackupUtils.getLatestArchive(transferManager, backupPrefix, bucket);
+		
 		// false if there is no success during two backupIntervals
-		return lastSuccess != null && lastSuccess.isAfter(Instant.now().minus(backupInterval * 2, ChronoUnit.SECONDS));
+		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		
 	}
 }

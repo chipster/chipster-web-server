@@ -52,7 +52,8 @@ public class StorageBackup implements StatusSource {
 	private String gpgPassphrase;
 
 	private Map<String, Object> stats = new HashMap<String, Object>();
-	private Instant lastSuccess;
+
+	private TransferManager transferManager;
 
 	public StorageBackup(Path storage, boolean scheduleTimer, Config config) throws IOException, InterruptedException {	
 		
@@ -64,6 +65,13 @@ public class StorageBackup implements StatusSource {
 		this.bucket = BackupUtils.getBackupBucket(config, role);
 		
 		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
+		
+		this.transferManager = BackupUtils.getTransferManager(config, role);
+		
+		if (bucket.isEmpty()) {
+			logger.warn("no backup configuration for " + role);
+			return;
+		}
 		
 		if (scheduleTimer) {
 			timer = BackupUtils.startBackupTimer(new TimerTask() {			
@@ -80,42 +88,15 @@ public class StorageBackup implements StatusSource {
 	public void backupNow() {
 		try {
 			backup();
-			lastSuccess = Instant.now();
 		} catch (IOException | InterruptedException e) {
 			logger.error("backup error", e);
 		}
-	}
+	}	
 	
-	private String findLatest(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
-		List<String> fileBrokerBackups = objects.stream()
-			.map(o -> o.getKey())
-			.filter(name -> name.startsWith(backupNamePrefix))
-			// only completed backups (the file info list uploaded in the end)
-			.filter(name -> name.endsWith("/" + fileName))
-			// this compares strings, but luckily it works with this timestamp format from Instant.toString()
-			.sorted()
-			.collect(Collectors.toList());
-				
-		if (fileBrokerBackups.isEmpty()) {
-			return null;
-		}
-		
-		// return latest
-		return fileBrokerBackups.get(fileBrokerBackups.size() - 1);
-	}
-	
-	private void backup() throws IOException, InterruptedException {
-		
-		String bucket = BackupUtils.getBackupBucket(config, role);
-		if (bucket.isEmpty()) {
-			logger.warn("no backup configuration for " + role);
-			return;
-		}
+	private void backup() throws IOException, InterruptedException {						
 		
 		stats.clear();
-		long startTime = System.currentTimeMillis();
-		
-		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
+		long startTime = System.currentTimeMillis();		
 		
 		Path backupDir = storage.resolve("backup");
 		
@@ -128,7 +109,7 @@ public class StorageBackup implements StatusSource {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
+		String archiveInfoKey = BackupUtils.findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		
@@ -232,7 +213,7 @@ public class StorageBackup implements StatusSource {
 			// paths are relative to the storage dir
 			Map<Path, Long> groupFileSizes = getFileSizes(storage, groupFiles);
 			
-			backupGroup(prefix, storage, groupFileSizes, backupDir, groupIndex, prefixes.size(), backupName, backupInfoPath, transferManager);
+			backupGroup(prefix, storage, groupFileSizes, backupDir, groupIndex, prefixes.size(), backupName, backupInfoPath);
 			groupIndex++;
 		}
 				
@@ -244,8 +225,6 @@ public class StorageBackup implements StatusSource {
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		
 		FileUtils.deleteDirectory(backupDir.toFile());
-		
-		transferManager.shutdownNow();
 		
 		stats.put("lastBackupSuccessFileCount", infoCount);
 		stats.put("lastBackupDisappearedFileCount", disappearedCount);
@@ -360,7 +339,7 @@ public class StorageBackup implements StatusSource {
         return fileMap;
 	}
 
-	private void backupGroup(String prefix, Path storage, Map<Path, Long> groupFileSizes, Path backupDir, int groupIndex, int groupCount, String backupName, Path backupInfoPath, TransferManager transferManager) throws IOException, InterruptedException {		
+	private void backupGroup(String prefix, Path storage, Map<Path, Long> groupFileSizes, Path backupDir, int groupIndex, int groupCount, String backupName, Path backupInfoPath) throws IOException, InterruptedException {		
 		
 		long smallSizeLimit = 1 * 1024 * 1024; // 1 MiB
 		long mediumSizeLimit = 1024 * 1024 * 1024; // 1 GiB
@@ -423,7 +402,10 @@ public class StorageBackup implements StatusSource {
 	public boolean monitoringCheck() {
 		
 		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		
+		Instant backupTime = BackupUtils.getLatestArchive(transferManager, FILE_BROKER_BACKUP_NAME_PREFIX, bucket);
+		
 		// false if there is no success during two backupIntervals
-		return lastSuccess != null && lastSuccess.isAfter(Instant.now().minus(backupInterval * 2, ChronoUnit.SECONDS));
+		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		
 	}
 }
