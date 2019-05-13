@@ -2,6 +2,7 @@ package fi.csc.chipster.filebroker;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -121,7 +122,9 @@ public class FileBrokerAdminResource extends AdminResource {
 		
 		logger.info("storage check started");
 		
-		HashMap<String, Long> dbFiles = new HashMap<>();		
+		HashMap<String, Long> dbFiles = new HashMap<>();
+				
+		Files.createDirectories(orphanRootPath);		
 		
 		// collect storage files first to make sure we don't delete new files
 		HashMap<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
@@ -174,8 +177,11 @@ public class FileBrokerAdminResource extends AdminResource {
 				java.nio.file.Path orphanFilePath = FileServlet.getStoragePath(orphanRootPath, fileId);
 								
 				Files.createDirectories(orphanFilePath.getParent());
-				Files.move(storageFilePath, orphanFilePath);					
-			} catch (IllegalArgumentException | IOException e) {				
+				Files.move(storageFilePath, orphanFilePath);
+			} catch (IllegalArgumentException e) {
+				logger.warn("orpah file " + fileName + " in storage is not valid UUID (" + e.getClass().getName() + " " + e.getMessage() + ")");
+			
+			} catch (IOException e) {				
 				logger.info("couldn't move orphan file " + fileName, e);
 			}
 		}
