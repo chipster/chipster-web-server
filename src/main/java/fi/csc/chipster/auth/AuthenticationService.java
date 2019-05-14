@@ -12,12 +12,16 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.pac4j.jax.rs.features.JaxRsConfigProvider;
+import org.pac4j.jax.rs.features.JaxRsContextFactoryProvider;
+import org.pac4j.oauth.client.Google2Client;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
+import fi.csc.chipster.auth.resource.OpenIDClientResource;
 import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.auth.resource.TokenTable;
@@ -53,6 +57,8 @@ public class AuthenticationService {
 	
 	private OauthClient oauthClient;
 	
+	private OpenIDClientFeature openIDClient; 
+	
 	public AuthenticationService(Config config) {
 		this.config = config;
 	}
@@ -81,6 +87,14 @@ public class AuthenticationService {
     	TokenResource authResource = new TokenResource(tokenTable, userTable);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
+    	
+    	OpenIDClientResource openIDResource = new OpenIDClientResource(config);
+    	
+    
+    	// test the oidc client
+		openIDClient = new OpenIDClientFeature();
+		
+		// openIDClient.setOIDCClientInfo(rc);
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
         	.register(authResource)
@@ -88,7 +102,11 @@ public class AuthenticationService {
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
         	//.register(new LoggingFilter())
-        	.register(authRequestFilter);
+        	.register(authRequestFilter)
+        	.register(new JaxRsConfigProvider(openIDClient.setOIDCClientInfo()))
+        	.register(openIDResource);
+    
+        	
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		AdminResource adminResource = new AdminResource(hibernate, Token.class, jerseyStatisticsSource);
@@ -128,8 +146,13 @@ public class AuthenticationService {
 		}
 		
 		// test the google auth
-		this.oauthClient = new OauthClient();
-		this.oauthClient.createRequest();
+		// this.oauthClient = new OauthClient();
+		// this.oauthClient.createRequest();
+		
+	
+	
+		
+		
     }
 
 	private HttpServer enableSsoLogins(TokenTable tokenTable, UserTable userTable, AuthenticationClient authClient,

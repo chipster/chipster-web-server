@@ -1,0 +1,29 @@
+{
+  "name": "openid-service",
+  "version": "1.0.0",
+  "description": "OpenID relying party client for CSC authentication",
+  "main": "openid-service.js",
+  "scripts": {
+    "start": "node src/openidconnect-service.js",
+    "build": "tsc",
+    "compile": "npm run build ; npm run start",
+    "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "openIDConnect"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chipster-nodejs-core": "0.0.7",
+    "openid-client": "^2.5.0",
+    "restify": "^8.3.2",
+    "restify-errors": "^8.0.0",
+    "restify-plugins": "^1.6.0",
+    "typescript": "^3.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^1.19.0"
+  }
+}
