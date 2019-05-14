@@ -75,12 +75,13 @@ public class ProcessUtils {
 				
 		Process process = pb.start();
 		
+		Thread printStdoutThread = null;
 		if (printStdout) {
-			readLines(process.getInputStream(), line -> logger.info(command + " stdout: " + line));	
+			printStdoutThread = readLines(process.getInputStream(), line -> logger.info(command + " stdout: " + line));	
 		}
 		
 		// stderr to logger.error
-		readLines(process.getErrorStream(), line -> logger.error(command + " stderr: " + line));
+		Thread stderrThread = readLines(process.getErrorStream(), line -> logger.error(command + " stderr: " + line));
 		
 		if (stdinFile != null) {
 			// show progress to know whether the process continues after an error
@@ -88,6 +89,11 @@ public class ProcessUtils {
 				copyWithProgressLogging(new FileInputStream(stdinFile), processStdin, command + " progress: ", stdinFile.length());
 			}
 		}
+		
+		if (printStdoutThread != null) {
+			printStdoutThread.join();
+		}
+		stderrThread.join();
 		
 		int exitCode = process.waitFor();
 		if (exitCode != 0) {
@@ -130,26 +136,30 @@ public static String runStdoutToString(File stdinFile, String... cmdArray) throw
 		Process process = pb.start();
 		
 		ArrayList<String> stdoutLines = new ArrayList<>(); 
-		readLines(process.getInputStream(), stdoutLines::add);			
+		Thread stdoutThread = readLines(process.getInputStream(), stdoutLines::add);		
 		
 		// stderr to logger.error
-		readLines(process.getErrorStream(), line -> logger.error(command + " stderr: " + line));
+		Thread stderrThread = readLines(process.getErrorStream(), line -> logger.error(command + " stderr: " + line));
 		
 		if (stdinFile != null) {
 			try (OutputStream processStdin = process.getOutputStream()) {
 				IOUtils.copy(new FileInputStream(stdinFile), processStdin);
 			}
 		}
-		
+
+		// wait for stdout and stderr to complete
+		stdoutThread.join();
+		stderrThread.join();
 		int exitCode = process.waitFor();
+		
 		if (exitCode != 0) {
 			throw new RuntimeException(command + " failed with exit code " + exitCode);
 		}
 		return String.join("\n", stdoutLines);
 	}
 
-	private static void readLines(InputStream inputStream, Consumer<String> f) {
-		new Thread(new Runnable() {
+	private static Thread readLines(InputStream inputStream, Consumer<String> f) {
+		Thread thread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 		        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -157,6 +167,8 @@ public static String runStdoutToString(File stdinFile, String... cmdArray) throw
         			f.accept(line);
 		        });
 			}			
-		}).start();
+		});
+		thread.start();
+		return thread;
 	}
 }

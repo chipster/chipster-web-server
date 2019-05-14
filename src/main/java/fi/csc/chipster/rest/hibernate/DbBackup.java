@@ -6,7 +6,9 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,9 +18,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.h2.store.fs.FileUtils;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -27,20 +31,23 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
+import fi.csc.chipster.archive.BackupArchive;
+import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.BackupArchiver;
-import fi.csc.chipster.filebroker.BackupUtils;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.DatabaseConnectionRefused;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 
-public class DbBackup {
+public class DbBackup implements StatusSource {
 
 	private final static Logger logger = LogManager.getLogger();
 	
 	private static final String BACKUP_NAME_POSTFIX_UNCOMPRESSED = ".sql";
 	public static final String BACKUP_OBJECT_NAME_PART = "-db-backup_";
+	
+	public static final String DB_BACKUPS = "db-backups";
 
 	private Config config;
 	private String role;	
@@ -54,22 +61,39 @@ public class DbBackup {
 	private final String backupPostfixUncompressed;
 
 	private SessionFactory sessionFactory;
-	private String recipient;
-
+	
+	private String gpgRecipient;
 	private String gpgPassphrase;
+	
+	private Path backupRoot;
+	
+	private Map<String, Object> stats = new HashMap<String, Object>();
 
-	public DbBackup(Config config, String role, String url, String user, String password) {
+	private TransferManager transferManager;
+
+	private String bucket;
+
+	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot) throws IOException, InterruptedException {
 		this.config = config;
 		this.role = role;
 		this.url = url;
 		this.user = user;
 		this.password = password;
+		this.backupRoot = backupRoot;
 		
 		backupPrefix = role + BACKUP_OBJECT_NAME_PART;
 		backupPostfixUncompressed = BACKUP_NAME_POSTFIX_UNCOMPRESSED;
 		
-		this.recipient = config.getString(BackupUtils.CONF_BACKUP_GPG_RECIPIENT, role);
+		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
 		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
+		
+		this.bucket = BackupUtils.getBackupBucket(config, role);
+		if (bucket.isEmpty()) {
+			logger.warn("no backup configuration for " + role + " db");
+			return;
+		}
+		
+		this.transferManager = BackupUtils.getTransferManager(config, role);		
 		
 		Configuration hibernateConf = HibernateUtil.getHibernateConf(new ArrayList<Class<?>>(), url, "none", user, password, config, role);
 		try {
@@ -85,18 +109,23 @@ public class DbBackup {
 		this.backupTimer = BackupUtils.startBackupTimer(new TimerTask() {			
 			@Override
 			public void run() {
-				try {
-					dbCleanUp();
-				} catch (InterruptedException | IOException e) {
-					logger.error(role + " db clean up failed", e);
-				}				
-				try {
-					backup();
-				} catch (IOException | AmazonClientException | InterruptedException e) {
-					logger.error(role + " db backup failed", e);
-				}								
+				cleanUpAndBackup();
 			}
 		}, role, config);		
+	}
+	
+	public void cleanUpAndBackup() {
+		stats.clear();
+		try {
+			dbCleanUp();
+		} catch (InterruptedException | IOException e) {
+			logger.error(role + " db clean up failed", e);
+		}				
+		try {
+			backup();
+		} catch (IOException | AmazonClientException | InterruptedException e) {
+			logger.error(role + " db backup failed", e);
+		}
 	}
     
     private void dbCleanUp() throws IOException, InterruptedException {
@@ -113,12 +142,6 @@ public class DbBackup {
     
 	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
 		
-		String bucket = BackupUtils.getBackupBucket(config, role);
-		if (bucket.isEmpty()) {
-			logger.warn("no backup configuration for " + role + " db");
-			return;
-		}
-		
 		printTableStats();
 		
 		Instant now = Instant.now();
@@ -126,23 +149,27 @@ public class DbBackup {
 		String backupName = backupPrefix + now;		
 		String backupFileBasename = backupPrefix + now;
 		
-		Path backupRoot = Paths.get("db-backups");
+		
 		Path backupDir = backupRoot.resolve(backupName);
-		Path backupFileUncompressed = backupRoot.resolve(backupPrefix + now + backupPostfixUncompressed);
-		Path backupInfoPath = backupRoot.resolve(BackupArchiver.BACKUP_INFO);
+		Path backupFileUncompressed = backupDir.resolve(backupPrefix + now + backupPostfixUncompressed);
+		Path backupInfoPath = backupDir.resolve(BackupArchive.BACKUP_INFO);
+		
+		Files.createDirectory(backupDir);
 		
 		logger.info("save     " + role + " db backup to " + backupFileUncompressed.toFile().getAbsolutePath());
 		
 		// Stream the script to a local file
 		runPostgres(null, backupFileUncompressed.toFile(), false, "pg_dump");
 		
-		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
-		BackupUtils.backupFileAsTar(backupFileBasename, backupRoot, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
+		stats.put("lastBackupUncompressedSize", Files.size(backupFileUncompressed));
+				
+		BackupUtils.backupFileAsTar(backupFileBasename, backupDir, backupFileUncompressed.getFileName(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		// the backupInfo is not really necessary because there is only one file, but the BackupArchiver expects it
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		
-		Files.delete(backupInfoPath);
-		Files.delete(backupFileUncompressed);
+		FileUtils.deleteRecursive(backupDir.toString(), true);
+		
+		stats.put("lastBackupDuration", Duration.between(now, Instant.now()).toMillis());
 		
 		logger.info("db backup of " + role + " done");
 	}
@@ -199,9 +226,32 @@ public class DbBackup {
 		String url = config.getString(HibernateUtil.CONF_DB_URL, role);
 		String user = config.getString(HibernateUtil.CONF_DB_USER, role);
 		String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);
-		DbBackup dbBackup = new DbBackup(config, role, url, user, dbPassword);
+		DbBackup dbBackup = new DbBackup(config, role, url, user, dbPassword, Paths.get(DB_BACKUPS));
 		
 		dbBackup.dbCleanUp();
 		dbBackup.backup();
+	}
+
+	public String getRole() {
+		return role;
+	}
+	
+	@Override
+	public Map<String, Object> getStatus() {
+		
+		Map<String, Object> statsWithRole = stats.keySet().stream()
+		.collect(Collectors.toMap(key -> key + ",backupOfRole=" + role, key -> stats.get(key)));
+		
+		return statsWithRole;
+	}
+
+	public boolean monitoringCheck() {
+		
+		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		
+		Instant backupTime = BackupUtils.getLatestArchive(transferManager, backupPrefix, bucket);
+		
+		// false if there is no success during two backupIntervals
+		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		
 	}
 }

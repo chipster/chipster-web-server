@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -25,11 +26,15 @@ import org.apache.logging.log4j.Logger;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
+import fi.csc.chipster.archive.BackupArchive;
+import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.InfoLine;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
-public class StorageBackup {
+public class StorageBackup implements StatusSource {
 		
 	public static final String FILE_BROKER_BACKUP_NAME_PREFIX = "file-broker-backup_";
 
@@ -39,22 +44,34 @@ public class StorageBackup {
 	private Config config;
 	private String role;
 	private String bucket;
-	private String recipient;
+	private String gpgRecipient;
 
 	@SuppressWarnings("unused")
 	private Timer timer;
 
 	private String gpgPassphrase;
 
-	public StorageBackup(Path storage, boolean scheduleTimer, Config config) {	
+	private Map<String, Object> stats = new HashMap<String, Object>();
+
+	private TransferManager transferManager;
+
+	public StorageBackup(Path storage, boolean scheduleTimer, Config config) throws IOException, InterruptedException {	
 		
 		this.storage = storage; 		
 		this.role = Role.FILE_BROKER;
-		this.recipient = config.getString(BackupUtils.CONF_BACKUP_GPG_RECIPIENT, role);
 		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
 		
 		this.config = config;		
 		this.bucket = BackupUtils.getBackupBucket(config, role);
+		
+		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
+		
+		this.transferManager = BackupUtils.getTransferManager(config, role);
+		
+		if (bucket.isEmpty()) {
+			logger.warn("no backup configuration for " + role);
+			return;
+		}
 		
 		if (scheduleTimer) {
 			timer = BackupUtils.startBackupTimer(new TimerTask() {			
@@ -68,23 +85,18 @@ public class StorageBackup {
 		}
 	}
 	
-	private void backupNow() {
+	public void backupNow() {
 		try {
 			backup();
 		} catch (IOException | InterruptedException e) {
 			logger.error("backup error", e);
 		}
-	}
+	}	
 	
-	private void backup() throws IOException, InterruptedException {
+	private void backup() throws IOException, InterruptedException {						
 		
-		String bucket = BackupUtils.getBackupBucket(config, role);
-		if (bucket.isEmpty()) {
-			logger.warn("no backup configuration for " + role);
-			return;
-		}
-		
-		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
+		stats.clear();
+		long startTime = System.currentTimeMillis();		
 		
 		Path backupDir = storage.resolve("backup");
 		
@@ -97,7 +109,7 @@ public class StorageBackup {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = BackupArchiver.findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchiver.ARCHIVE_INFO);
+		String archiveInfoKey = BackupUtils.findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		
@@ -113,7 +125,7 @@ public class StorageBackup {
 		Instant now = Instant.now();
 		String backupName = FILE_BROKER_BACKUP_NAME_PREFIX + now;
 			
-		Path backupInfoPath = backupDir.resolve(BackupArchiver.BACKUP_INFO);				
+		Path backupInfoPath = backupDir.resolve(BackupArchive.BACKUP_INFO);				
 		FileUtils.touch(backupInfoPath.toFile());
 				
 		// collect a list of all files in storage (except the backup dir)
@@ -131,7 +143,7 @@ public class StorageBackup {
 				.mapToLong(info -> info.getSize())
 				.sum();
 		
-		logger.info("there are " + fileCount + " files (" + FileUtils.byteCountToDisplaySize(fileSizeTotal) + ") in storage");
+		logger.info("there are " + fileCount + " files (" + FileUtils.byteCountToDisplaySize(fileSizeTotal) + ") in storage");		
 		
 		Map<Path, InfoLine> filesToBackup = new HashMap<>();
 		
@@ -150,9 +162,21 @@ public class StorageBackup {
 				.mapToLong(info -> info.getSize())
 				.sum();
 		
+		long obsoleteArchiveFileCount = archiveFileCount - usableArchiveFileCount;
+		long obsoleteArchiveSizeTotal = archiveSizeTotal - usableArchiveSizeTotal;
+		
 		logger.info(usableArchiveFileCount + " files (" + FileUtils.byteCountToDisplaySize(usableArchiveSizeTotal) + ") are already in the archive");
 		logger.info(filesToBackupCount + " files (" + FileUtils.byteCountToDisplaySize(filesToBackupSizeTotal) + ") need to backed up now");		
-		logger.info((archiveFileCount - usableArchiveFileCount) + " files (" + FileUtils.byteCountToDisplaySize(archiveSizeTotal - usableArchiveSizeTotal) + ") in the archive are not needed anymore");
+		logger.info(obsoleteArchiveFileCount + " files (" + FileUtils.byteCountToDisplaySize(obsoleteArchiveSizeTotal) + ") in the archive are not needed anymore");
+		
+		stats.put("lastBackupFileCountTotal", fileCount);
+		stats.put("lastBackupFileSizeTotal", fileSizeTotal);
+		stats.put("lastBackupUsableArchiveFileCount", usableArchiveFileCount);
+		stats.put("lastBackupUsableArchiveSizeTotal", usableArchiveSizeTotal);
+		stats.put("lastBackupFilesToBackupCount", filesToBackupCount);
+		stats.put("lastBackupFilesToBackupSizeTotal", filesToBackupSizeTotal);
+		stats.put("lastBackupObsoleteArchiveFilesCount", obsoleteArchiveFileCount);
+		stats.put("lastBackupObsoleteArchiveSizeTotal", obsoleteArchiveSizeTotal);
 		
 		/* 
 		 * Group files by the filename prefix
@@ -189,19 +213,22 @@ public class StorageBackup {
 			// paths are relative to the storage dir
 			Map<Path, Long> groupFileSizes = getFileSizes(storage, groupFiles);
 			
-			backupGroup(prefix, storage, groupFileSizes, backupDir, groupIndex, prefixes.size(), backupName, backupInfoPath, transferManager);
+			backupGroup(prefix, storage, groupFileSizes, backupDir, groupIndex, prefixes.size(), backupName, backupInfoPath);
 			groupIndex++;
 		}
 				
 		long infoCount = Files.lines(backupInfoPath).count();
-		logger.info(infoCount + " files backed up. " + (fileCount - infoCount) + " files disappeared during the backup (probably deleted)");
+		long disappearedCount = fileCount - infoCount;
+		logger.info(infoCount + " files backed up. " + disappearedCount + " files disappeared during the backup (probably deleted)");
 		
 		// finally upload the backup info to signal that the backup is complete
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		
 		FileUtils.deleteDirectory(backupDir.toFile());
 		
-		transferManager.shutdownNow();
+		stats.put("lastBackupSuccessFileCount", infoCount);
+		stats.put("lastBackupDisappearedFileCount", disappearedCount);
+		stats.put("lastBackupDuration", System.currentTimeMillis() - startTime);
 	}
 	
 	/**
@@ -312,7 +339,7 @@ public class StorageBackup {
         return fileMap;
 	}
 
-	private void backupGroup(String prefix, Path storage, Map<Path, Long> groupFileSizes, Path backupDir, int groupIndex, int groupCount, String backupName, Path backupInfoPath, TransferManager transferManager) throws IOException, InterruptedException {		
+	private void backupGroup(String prefix, Path storage, Map<Path, Long> groupFileSizes, Path backupDir, int groupIndex, int groupCount, String backupName, Path backupInfoPath) throws IOException, InterruptedException {		
 		
 		long smallSizeLimit = 1 * 1024 * 1024; // 1 MiB
 		long mediumSizeLimit = 1024 * 1024 * 1024; // 1 GiB
@@ -341,20 +368,44 @@ public class StorageBackup {
 				
 		// small files to be transferred in a tar package, extraction may take some time, but it's easy to create temporary copies
 		logger.info(groupInfo + ", " + smallFiles.size() + " small files (" + FileUtils.byteCountToDisplaySize(smallFilesTotal) + ")");
-		BackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
+		if (!smallFiles.isEmpty()) {
+			BackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
+		}
 		
 		// medium files to be transferred in a tar package, should be relatively easy to extract from stream
 		logger.info(groupInfo + ", " + mediumFiles.size() + " medium files (" + FileUtils.byteCountToDisplaySize(mediumFilesTotal) + ")");
-		BackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
+		if (!mediumFiles.isEmpty()) {
+			BackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
+		}
 		
 		// large files to be transferred one by one
 		logger.info(groupInfo + ", " + largeFiles.size() + " large files (" + FileUtils.byteCountToDisplaySize(largeFilesTotal) + ")");
 		for (Path file : largeFiles.keySet()) {			
-			BackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager, bucket, backupName, backupInfoPath, recipient, gpgPassphrase);
+			BackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		}		
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException, InterruptedException {
 		new StorageBackup(Paths.get("storage"), false, new Config());
+	}
+
+
+	@Override
+	public Map<String, Object> getStatus() {
+		
+		Map<String, Object> statsWithRole = stats.keySet().stream()
+		.collect(Collectors.toMap(key -> key + ",backupOfRole=" + role, key -> stats.get(key)));
+		
+		return statsWithRole;
+	}
+
+	public boolean monitoringCheck() {
+		
+		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		
+		Instant backupTime = BackupUtils.getLatestArchive(transferManager, FILE_BROKER_BACKUP_NAME_PREFIX, bucket);
+		
+		// false if there is no success during two backupIntervals
+		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		
 	}
 }

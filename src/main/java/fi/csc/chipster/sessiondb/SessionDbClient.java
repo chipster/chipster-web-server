@@ -40,6 +40,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
+import fi.csc.chipster.sessiondb.resource.UserResource;
 import fi.csc.microarray.exception.MicroarrayException;
 import fi.csc.microarray.messaging.JobState;
 
@@ -397,7 +398,11 @@ public class SessionDbClient {
 		return RestMethods.getList(getRulesTarget(sessionId), Rule.class);
 	}
 
-	public List<Session> getShares() throws RestException {		
+	public List<Session> getShares() throws RestException {
 		return RestMethods.getList(getSessionsTarget().path(SessionResource.PATH_SHARES), Session.class);		
+	}
+
+	public List<String> getUsers() throws RestException {
+		return RestMethods.getList(getSessionDbTarget().path(UserResource.PATH_USERS), String.class);		
 	}
 }

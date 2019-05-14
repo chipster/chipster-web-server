@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.archive;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
