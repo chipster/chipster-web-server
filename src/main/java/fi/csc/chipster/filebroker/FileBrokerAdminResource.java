@@ -2,7 +2,6 @@ package fi.csc.chipster.filebroker;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -194,7 +193,7 @@ public class FileBrokerAdminResource extends AdminResource {
 		
 		logger.info(correctSizeFiles.size() + " files (" + FileUtils.byteCountToDisplaySize(correctSizeTotal) + ") are fine");
 		logger.info(wrongSizeFiles.size() + " files (" + FileUtils.byteCountToDisplaySize(wrongSizeTotal) + ") have wrong size");
-		logger.info(missingFiles.size() + " missing files (" + FileUtils.byteCountToDisplaySize(missingFilesTotal) + ")");
+		logger.info(missingFiles.size() + " missing files or created during this check (" + FileUtils.byteCountToDisplaySize(missingFilesTotal) + ")");
 		logger.info(oldOrphanFiles.size() + " old orphan files (" + FileUtils.byteCountToDisplaySize(oldOrphanFilesTotal) + ") in " + orphanRootPath);
 		logger.info(orphanFiles.size() + " orphan files (" + FileUtils.byteCountToDisplaySize(orphanFilesTotal) + ") moved to " + orphanRootPath);
 	}
