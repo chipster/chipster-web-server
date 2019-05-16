@@ -120,7 +120,7 @@ backup-s3-access-key: ""
 backup-s3-secret-key: ""
 backup-s3-signer-override: S3SignerType
 backup-bucket: ""
-backup-time: 05:10
+backup-time: 01:10
 
 # hours, append a dash and role tune services one by one
 backup-interval: 24
