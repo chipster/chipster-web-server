@@ -28,8 +28,8 @@ distTar {
 //}
 
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = 11
+targetCompatibility = 11
 
 //mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
 mainClassName = "fi.csc.chipster.rest.ServerLauncher"
@@ -95,10 +95,13 @@ dependencies {
     	force = true
 	}
     
-    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.26"
-    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.26" // JAX-RS in Jetty
-    compile "org.glassfish.jersey.inject:jersey-hk2:2.26"
+    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.28"
+    compile "org.glassfish.jersey.containers:jersey-container-jetty-http:2.28" // JAX-RS in Jetty
+    compile "org.glassfish.jersey.inject:jersey-hk2:2.28"
     
+    // needed separately with java11
+    compile 'javax.xml.bind:jaxb-api:2.3.1'
+        
     // jackson
 	compile "com.fasterxml.jackson.core:jackson-core:2.9.2"
     compile "com.fasterxml.jackson.core:jackson-databind:2.9.2"
@@ -107,8 +110,8 @@ dependencies {
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
 	
     // hibernate
-    compile "org.hibernate:hibernate-java8:5.2.13.Final"
-    compile "org.hibernate:hibernate-c3p0:5.2.13.Final"
+    compile "org.hibernate:hibernate-core:5.4.0.Final"
+    compile "org.hibernate:hibernate-c3p0:5.4.0.Final"
     compile "com.h2database:h2:1.4.196"    
     compile "org.postgresql:postgresql:+"
     
