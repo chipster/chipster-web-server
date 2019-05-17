@@ -9,9 +9,11 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -124,15 +126,37 @@ public class BackupArchive {
 		
 		// delete all but the latest
 		
+		Set<String> objectsToDelete = new HashSet<String>();
+		
 		if (archivedBackups.size() > 1) {
+			
 			for (String backupName : archivedBackups.subList(0, archivedBackups.size() - 1)) {				
 				logger.info("delete backup " + backupName + " from S3");
-				objects.stream()
+				Set<String> objectsOfBackup = objects.stream()
 				.map(obj -> obj.getKey())
 				.filter(key -> key.startsWith(backupName + "/"))
-				.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));			
+				.collect(Collectors.toSet());
+				
+				objectsToDelete.addAll(objectsOfBackup);			
 			}
 		}
+		
+		for (int i = 0; i < 10 && !objectsToDelete.isEmpty(); i++) {
+			logger.info("delete " + objectsToDelete.size() + " from S3, attempt " + i);
+			objectsToDelete.stream()
+			.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));
+			
+			Set<String> keys = transferManager.getAmazonS3Client().listObjects(bucket).getObjectSummaries().stream()
+			.map(obj -> obj.getKey())
+			.collect(Collectors.toSet());
+			
+			Set<String> remaining = objectsToDelete.stream()
+					.filter(key -> keys.contains(key))
+					.collect(Collectors.toSet());
+			
+			logger.info(remaining.size() + " objects are still present");
+			objectsToDelete = remaining;
+		}		
 		
 		logger.info("clean up done");
 	}
