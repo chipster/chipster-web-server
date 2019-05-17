@@ -142,7 +142,7 @@ public class BackupArchive {
 		}
 		
 		for (int i = 0; i < 10 && !objectsToDelete.isEmpty(); i++) {
-			logger.info("delete " + objectsToDelete.size() + " from S3, attempt " + i);
+			logger.info("delete " + objectsToDelete.size() + " objects from S3, attempt " + i);
 			objectsToDelete.stream()
 			.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));
 			
