@@ -110,7 +110,8 @@ public class BackupArchive {
 					logger.error("archive backup error", e);				
 				}
 			}
-			cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket, objects);
+			
+			cleanUpS3(transferManager, backupPrefix, role, bucket);
 		} catch (ArchiveException e) {
 			// hopefully this is enough if the archiving takes longer than 24 hours to protect aagins multiple processes moving the files
 			// at the same time
@@ -120,9 +121,13 @@ public class BackupArchive {
 		}
 	}
 	
-	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, List<String> archivedBackups, String bucket, List<S3ObjectSummary> objects) {
+	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, String bucket) {
 		
-		logger.info("clean up archived S3 backups of " + backupNamePrefix);		
+		logger.info("clean up archived S3 backups of " + backupNamePrefix);
+		
+		// get objects to find also those that we just archived
+		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		List<String> archivedBackups = findBackups(objects, backupNamePrefix, ARCHIVE_INFO);
 		
 		// delete all but the latest
 		
