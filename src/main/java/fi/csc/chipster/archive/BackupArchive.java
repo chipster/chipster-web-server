@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -295,22 +296,24 @@ public class BackupArchive {
 					archiveFile(candidate, currentBackupPath, info.getGpgPath());
 				} else {
 					// search from other archives
-					Optional<Path> candidateOptional = Files.list(archiveRootPath)
-					.map(archive -> archive.resolve(info.getGpgPath()))
-					.filter(file -> {
-						try {
-							return isValid(file, info.getGpgSize());
-						} catch (IOException e) {
-							throw new RuntimeException(e);
+					try (Stream<Path> archives = Files.list(archiveRootPath)) {
+						Optional<Path> candidateOptional = archives
+						.map(archive -> archive.resolve(info.getGpgPath()))
+						.filter(file -> {
+							try {
+								return isValid(file, info.getGpgSize());
+							} catch (IOException e) {
+								throw new RuntimeException(e);
+							}
+						})
+						.findAny();					
+						if (candidateOptional.isPresent()) {
+							logger.warn("file " + candidate + " was found from other arhive (maybe several backups were created before running archive?");
+							archiveFile(candidateOptional.get(), currentBackupPath, info.getGpgPath());
+						} else {
+							logger.error("file " + candidate + " not found");	
 						}
-					})
-					.findAny();
-					if (candidateOptional.isPresent()) {
-						logger.warn("file " + candidate + " was found from other arhive (maybe several backups were created before running archive?");
-						archiveFile(candidateOptional.get(), currentBackupPath, info.getGpgPath());
-					} else {
-						logger.error("file " + candidate + " not found");	
-					}
+					};
 				}								
 			} catch (IOException e) {
 				logger.error("archive error", e);
@@ -414,14 +417,17 @@ public class BackupArchive {
 	}
 	
 	private TreeMap<Instant, Path> getArchives(Path archiveRootPath, String backupPrefix) throws IOException {
-		List<Path> allFiles = Files.list(archiveRootPath)
-				.filter(path -> path.getFileName().toString().startsWith(backupPrefix))	
-				.collect(Collectors.toList());	
-			
+		
+		try (Stream<Path> files = Files.list(archiveRootPath)) {		
+			List<Path> allFiles = files
+					.filter(path -> path.getFileName().toString().startsWith(backupPrefix))	
+					.collect(Collectors.toList());	
+				
 			// all backups
 			TreeMap<Instant, Path> archives = BackupRotation2.parse(allFiles, backupPrefix, path -> path.getFileName().toString());
 			
 			return archives;
+		}
 	}
 
 	/**
