@@ -9,11 +9,14 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -108,7 +111,8 @@ public class BackupArchive {
 					logger.error("archive backup error", e);				
 				}
 			}
-			cleanUpS3(transferManager, backupPrefix, role, archivedBackups, bucket, objects);
+			
+			cleanUpS3(transferManager, backupPrefix, role, bucket);
 		} catch (ArchiveException e) {
 			// hopefully this is enough if the archiving takes longer than 24 hours to protect aagins multiple processes moving the files
 			// at the same time
@@ -118,21 +122,47 @@ public class BackupArchive {
 		}
 	}
 	
-	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, List<String> archivedBackups, String bucket, List<S3ObjectSummary> objects) {
+	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, String bucket) {
 		
-		logger.info("clean up archived S3 backups of " + backupNamePrefix);		
+		logger.info("clean up archived S3 backups of " + backupNamePrefix);
+		
+		// get objects to find also those that we just archived
+		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		List<String> archivedBackups = findBackups(objects, backupNamePrefix, ARCHIVE_INFO);
 		
 		// delete all but the latest
 		
+		Set<String> objectsToDelete = new HashSet<String>();
+		
 		if (archivedBackups.size() > 1) {
+			
 			for (String backupName : archivedBackups.subList(0, archivedBackups.size() - 1)) {				
 				logger.info("delete backup " + backupName + " from S3");
-				objects.stream()
+				Set<String> objectsOfBackup = objects.stream()
 				.map(obj -> obj.getKey())
 				.filter(key -> key.startsWith(backupName + "/"))
-				.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));			
+				.collect(Collectors.toSet());
+				
+				objectsToDelete.addAll(objectsOfBackup);			
 			}
 		}
+		
+		for (int i = 0; i < 10 && !objectsToDelete.isEmpty(); i++) {
+			logger.info("delete " + objectsToDelete.size() + " objects from S3, attempt " + i);
+			objectsToDelete.stream()
+			.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));
+			
+			Set<String> keys = transferManager.getAmazonS3Client().listObjects(bucket).getObjectSummaries().stream()
+			.map(obj -> obj.getKey())
+			.collect(Collectors.toSet());
+			
+			Set<String> remaining = objectsToDelete.stream()
+					.filter(key -> keys.contains(key))
+					.collect(Collectors.toSet());
+			
+			logger.info(remaining.size() + " objects are still present");
+			objectsToDelete = remaining;
+		}		
 		
 		logger.info("clean up done");
 	}
@@ -266,22 +296,24 @@ public class BackupArchive {
 					archiveFile(candidate, currentBackupPath, info.getGpgPath());
 				} else {
 					// search from other archives
-					Optional<Path> candidateOptional = Files.list(archiveRootPath)
-					.map(archive -> archive.resolve(info.getGpgPath()))
-					.filter(file -> {
-						try {
-							return isValid(file, info.getGpgSize());
-						} catch (IOException e) {
-							throw new RuntimeException(e);
+					try (Stream<Path> archives = Files.list(archiveRootPath)) {
+						Optional<Path> candidateOptional = archives
+						.map(archive -> archive.resolve(info.getGpgPath()))
+						.filter(file -> {
+							try {
+								return isValid(file, info.getGpgSize());
+							} catch (IOException e) {
+								throw new RuntimeException(e);
+							}
+						})
+						.findAny();					
+						if (candidateOptional.isPresent()) {
+							logger.warn("file " + candidate + " was found from other arhive (maybe several backups were created before running archive?");
+							archiveFile(candidateOptional.get(), currentBackupPath, info.getGpgPath());
+						} else {
+							logger.error("file " + candidate + " not found");	
 						}
-					})
-					.findAny();
-					if (candidateOptional.isPresent()) {
-						logger.warn("file " + candidate + " was found from other arhive (maybe several backups were created before running archive?");
-						archiveFile(candidateOptional.get(), currentBackupPath, info.getGpgPath());
-					} else {
-						logger.error("file " + candidate + " not found");	
-					}
+					};
 				}								
 			} catch (IOException e) {
 				logger.error("archive error", e);
@@ -385,14 +417,17 @@ public class BackupArchive {
 	}
 	
 	private TreeMap<Instant, Path> getArchives(Path archiveRootPath, String backupPrefix) throws IOException {
-		List<Path> allFiles = Files.list(archiveRootPath)
-				.filter(path -> path.getFileName().toString().startsWith(backupPrefix))	
-				.collect(Collectors.toList());	
-			
+		
+		try (Stream<Path> files = Files.list(archiveRootPath)) {		
+			List<Path> allFiles = files
+					.filter(path -> path.getFileName().toString().startsWith(backupPrefix))	
+					.collect(Collectors.toList());	
+				
 			// all backups
 			TreeMap<Instant, Path> archives = BackupRotation2.parse(allFiles, backupPrefix, path -> path.getFileName().toString());
 			
 			return archives;
+		}
 	}
 
 	/**
