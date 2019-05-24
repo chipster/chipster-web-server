@@ -73,21 +73,30 @@ export default class TypeService {
 		var server = restify.createServer();
 		server.use(restify.plugins.authorizationParser());
 
-		// restify cors middleware does not allow to set credentials true, if origins contain wildcard
-		const cors = corsMiddleware({
-			origins: ['http://localhost:4200'],
-			allowHeaders: ['Authorization'],
-			credentials: true
+		// getting the allowed origin from rest-client
+		let originUri, originList = [], cors;
+		logger.info("testing rest client");
+		new RestClient().getServiceUri("web-server").subscribe(response => {
+			originUri = response;
+			originList.push(originUri);
+			cors = corsMiddleware({
+				origins: originList,
+				allowHeaders: ['Authorization'],
+				credentials: true
 
+			});
+			server.pre(cors.preflight);
+			server.use(cors.actual);
 		});
-		server.pre(cors.preflight);
-		server.use(cors.actual);
 
 		// add bodyParser to access the body, but disable the automatic parsing
 		server.use(restify.plugins.bodyParser({ mapParams: false }));
 
 		return server;
 	}
+
+
+
 
 	respond(req, res, next) {
 
@@ -110,6 +119,9 @@ export default class TypeService {
 		}
 
 		let datasets$;
+
+		// Testing rest client
+
 
 		// check access permission by getting dataset objects
 		if (datasetId) {
@@ -139,8 +151,8 @@ export default class TypeService {
 			res.send(types);
 			next();
 
-			logger.info('response', JSON.stringify(types));
-			logger.info('type tagging ' + typesArray.length + ' datasets took ' + (Date.now() - t0) + 'ms');
+			// logger.info('response', JSON.stringify(types));
+			// logger.info('type tagging ' + typesArray.length + ' datasets took ' + (Date.now() - t0) + 'ms');
 		}, err => {
 			this.respondError(next, err);
 		});
@@ -198,17 +210,17 @@ export default class TypeService {
 		);
 	}
 
-  /**
-   * Slow tags depend on the fast tags, but we can't know if the fast tags have
-   * changed and therefore can't update the slow tags. To update the slow tags, admin can restart
-   * this service, or user has to export and import the file.
-   *
-   * @param sessionId
-   * @param datasetId
-   * @param token
-   * @param fastTags
-   * @returns {any}
-   */
+	/**
+	 * Slow tags depend on the fast tags, but we can't know if the fast tags have
+	 * changed and therefore can't update the slow tags. To update the slow tags, admin can restart
+	 * this service, or user has to export and import the file.
+	 *
+	 * @param sessionId
+	 * @param datasetId
+	 * @param token
+	 * @param fastTags
+	 * @returns {any}
+	 */
 	getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags) {
 		let idPair = new IdPair(sessionId, dataset.datasetId);
 		let cacheItem = this.getFromCache(idPair);
@@ -218,7 +230,7 @@ export default class TypeService {
 			return observableOf(cacheItem);
 
 		} else {
-			logger.info('cache miss', sessionId + ' ' + dataset.datasetId);
+			// logger.info('cache miss', sessionId + ' ' + dataset.datasetId);
 			return this.getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags).pipe(
 				map(slowTags => {
 					this.addToCache(idPair, slowTags);
