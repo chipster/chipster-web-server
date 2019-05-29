@@ -1,9 +1,9 @@
 
-import {of as observableOf,  Observable, forkJoin } from 'rxjs';
+import { Config, Logger, RestClient } from "chipster-nodejs-core";
+import { forkJoin, of as observableOf } from 'rxjs';
+import { map, mergeMap } from 'rxjs/operators';
+import { Tag, Tags, TypeTags } from "./type-tags";
 
-import {map, mergeMap} from 'rxjs/operators';
-import {RestClient, Logger, Config} from "chipster-nodejs-core";
-import {Tag, Tags, TypeTags} from "./type-tags";
 const os = require('os');
 const url = require('url');
 const restify = require('restify');
@@ -15,7 +15,7 @@ const logger = Logger.getLogger(__filename);
 class IdPair {
 	constructor(
 		public sessionId: string,
-		public datasetId: string) {}
+		public datasetId: string) { }
 }
 
 const MAX_CACHE_SIZE = 100 * 1000;
@@ -30,7 +30,7 @@ export default class TypeService {
 
 	constructor() {
 		this.init();
-    this.initAdmin();
+		this.initAdmin();
 
 		// the Tags object above is just for the code completion. For any real use
 		// we wan't a real ES6 map
@@ -41,13 +41,14 @@ export default class TypeService {
 	}
 
 	init() {
-    let server = this.createServer();
+		let server = this.createServer();
 
 		server.get('/sessions/:sessionId', this.respond.bind(this));
 		server.get('/sessions/:sessionId/datasets/:datasetId', this.respond.bind(this));
-    server.get('/admin/status', this.respondStatus.bind(this));
+		server.get('/admin/status', this.respondStatus.bind(this));
 
 		let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
+		console.log(bindUrlString);
 		let bindUrl = url.parse(bindUrlString);
 
 		server.listen(bindUrl.port, bindUrl.hostname, () => {
@@ -55,52 +56,62 @@ export default class TypeService {
 		});
 	}
 
-  initAdmin() {
-    let server = this.createServer();
+	initAdmin() {
+		let server = this.createServer();
 
-    server.get('/admin/alive', this.respondAlive.bind(this));
-    server.get('/admin/status', this.respondStatus.bind(this));
+		server.get('/admin/alive', this.respondAlive.bind(this));
+		server.get('/admin/status', this.respondStatus.bind(this));
 
-    let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
-    let bindUrl = url.parse(bindUrlString);
+		let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
+		let bindUrl = url.parse(bindUrlString);
 
-    server.listen(bindUrl.port, bindUrl.hostname, () => {
-      logger.info('type-service listening at ' + bindUrlString);
-    });
-  }
+		server.listen(bindUrl.port, bindUrl.hostname, () => {
+			logger.info('type-service listening at ' + bindUrlString);
+		});
+	}
 
-  createServer() {
-    var server = restify.createServer();
-    server.use(restify.plugins.authorizationParser());
+	createServer() {
+		var server = restify.createServer();
+		server.use(restify.plugins.authorizationParser());
 
-    const cors = corsMiddleware({
-      origins: ['*'],
-      allowHeaders: ['Authorization']
-    });
-    server.pre(cors.preflight);
-    server.use(cors.actual);
+		// getting the allowed origin from rest-client
+		let originUri, originList = [], cors;
+		new RestClient().getServiceUri("web-server").subscribe(response => {
+			originUri = response;
+			console.log(originUri);
+			originList.push(originUri);
+			cors = corsMiddleware({
+				origins: originList,
+				allowHeaders: ['Authorization'],
+				credentials: true
 
-    // add bodyParser to access the body, but disable the automatic parsing
-    server.use(restify.plugins.bodyParser({ mapParams: false }));
+			});
+			server.pre(cors.preflight);
+			server.use(cors.actual);
+		});
 
-    return server;
-  }
+
+		// add bodyParser to access the body, but disable the automatic parsing
+		server.use(restify.plugins.bodyParser({ mapParams: false }));
+
+		return server;
+	}
 
 	respond(req, res, next) {
 
-	  let token;
+		let token;
 
-	  try {
-      token = this.getToken(req, next);
-    } catch (e) {
-      this.respondError(next, e);
-      return;
-    }
+		try {
+			token = this.getToken(req, next);
+		} catch (e) {
+			this.respondError(next, e);
+			return;
+		}
 
 		let sessionId = req.params.sessionId;
 		let datasetId = req.params.datasetId;
 
-		logger.debug('type tag ' + sessionId + ' ' +  datasetId);
+		logger.debug('type tag ' + sessionId + ' ' + datasetId);
 
 		if (!sessionId) {
 			return next(new restify.BadRequest('sessionId missing'));
@@ -122,11 +133,11 @@ export default class TypeService {
 		datasets$.pipe(
 			mergeMap((datasets: any[]) => {
 
-			// array of observables that will resolve to [datasetId, typeTags] tuples
-			let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
+				// array of observables that will resolve to [datasetId, typeTags] tuples
+				let types$ = datasets.map(dataset => this.getTypeTags(sessionId, dataset, token));
 
-			// wait for all observables to complete and return an array of tuples
-			return types$.length ? forkJoin(types$) : observableOf([]);
+				// wait for all observables to complete and return an array of tuples
+				return types$.length ? forkJoin(types$) : observableOf([]);
 
 			}),
 		).subscribe(typesArray => {
@@ -139,35 +150,35 @@ export default class TypeService {
 			logger.info('response', JSON.stringify(types));
 			logger.info('type tagging ' + typesArray.length + ' datasets took ' + (Date.now() - t0) + 'ms');
 		}, err => {
-		  this.respondError(next, err);
+			this.respondError(next, err);
 		});
 	}
 
 
-  respondAlive(req, res, next) {
-    res.send();
-    next();
-  }
+	respondAlive(req, res, next) {
+		res.send();
+		next();
+	}
 
-  respondStatus(req, res, next) {
+	respondStatus(req, res, next) {
 
-    //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
-      res.contentType = 'json';
-      let status = {
-        load: os.loadavg()[0] // 1 min load average
-      };
-      res.send(status);
-      next();
-  }
+		//TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
+		res.contentType = 'json';
+		let status = {
+			load: os.loadavg()[0] // 1 min load average
+		};
+		res.send(status);
+		next();
+	}
 
 	respondError(next, err) {
-    if (err.statusCode >= 400 && err.statusCode <= 499) {
-      next(err);
-    } else {
-      logger.error('type tagging failed', err);
-      next(new errors.InternalServerError('type tagging failed'));
-    }
-  }
+		if (err.statusCode >= 400 && err.statusCode <= 499) {
+			next(err);
+		} else {
+			logger.error('type tagging failed', err);
+			next(new errors.InternalServerError('type tagging failed'));
+		}
+	}
 
 	/**
 	 * Takes an array of [key, value] tuples and converts it to a js object
@@ -194,17 +205,17 @@ export default class TypeService {
 		);
 	}
 
-  /**
-   * Slow tags depend on the fast tags, but we can't know if the fast tags have
-   * changed and therefore can't update the slow tags. To update the slow tags, admin can restart
-   * this service, or user has to export and import the file.
-   *
-   * @param sessionId
-   * @param datasetId
-   * @param token
-   * @param fastTags
-   * @returns {any}
-   */
+	/**
+	 * Slow tags depend on the fast tags, but we can't know if the fast tags have
+	 * changed and therefore can't update the slow tags. To update the slow tags, admin can restart
+	 * this service, or user has to export and import the file.
+	 *
+	 * @param sessionId
+	 * @param datasetId
+	 * @param token
+	 * @param fastTags
+	 * @returns {any}
+	 */
 	getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags) {
 		let idPair = new IdPair(sessionId, dataset.datasetId);
 		let cacheItem = this.getFromCache(idPair);
@@ -220,7 +231,7 @@ export default class TypeService {
 					this.addToCache(idPair, slowTags);
 					return slowTags;
 				}),
-			);	
+			);
 		}
 	}
 
@@ -243,20 +254,20 @@ export default class TypeService {
 	}
 
 	getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
-    let observable;
-    if (Tags.TSV.id in fastTags) {
-      observable = this.getParsedTsv(sessionId, dataset, token).pipe(map((table: any[][]) => {
-        return TypeTags.getSlowTypeTags(table);
-      }));
-    } else {
-      observable = observableOf({});
-    }
+		let observable;
+		if (Tags.TSV.id in fastTags) {
+			observable = this.getParsedTsv(sessionId, dataset, token).pipe(map((table: any[][]) => {
+				return TypeTags.getSlowTypeTags(table);
+			}));
+		} else {
+			observable = observableOf({});
+		}
 
-    return observable;
-  }
+		return observable;
+	}
 
 	getParsedTsv(sessionId, dataset, token) {
-	  let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
+		let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
 		return new RestClient(false, token).getFile(sessionId, dataset.datasetId, requestSize).pipe(map((data: string) => {
 			return TypeTags.parseTsv(data);

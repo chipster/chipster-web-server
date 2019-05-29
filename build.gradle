@@ -31,6 +31,9 @@ distTar {
 sourceCompatibility = 11
 targetCompatibility = 11
 
+compileJava.options.fork = true
+compileJava.options.forkOptions.executable = '/Users/rquazi/.sdkman/candidates/java/current'
+
 //mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
 mainClassName = "fi.csc.chipster.rest.ServerLauncher"
 
