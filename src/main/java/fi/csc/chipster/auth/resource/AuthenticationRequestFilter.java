@@ -22,7 +22,6 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.BasicAuthParser;
@@ -90,24 +89,31 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		String authHeader = requestContext.getHeaderString("authorization");
 
 		if (authHeader == null) {
-			throw new NotAuthorizedException("no authorization header found");
+			
+			requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
+			return;
+//			throw new NotAuthorizedException("no authorization header found");
 		}
 
-		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
-
-		AuthPrincipal principal = null;
-
-		if (TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
-			// throws an exception if fails
-			principal = tokenAuthentication(parser.getPassword());
+		if (authHeader.startsWith("Basic ") || authHeader.startsWith("basic ")) {
+			BasicAuthParser parser = new BasicAuthParser(authHeader);
+	
+			AuthPrincipal principal = null;
+	
+			if (TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
+				// throws an exception if fails
+				principal = tokenAuthentication(parser.getPassword());
+			} else {
+				// throws an exception if fails
+				principal = passwordAuthentication(parser.getUsername(), parser.getPassword());
+			}
+	
+			// login ok
+			AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
+			requestContext.setSecurityContext(sc);
 		} else {
-			// throws an exception if fails
-			principal = passwordAuthentication(parser.getUsername(), parser.getPassword());
+			throw new ForbiddenException("unknown authorization header type");
 		}
-
-		// login ok
-		AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
-		requestContext.setSecurityContext(sc);		
 	}
 
 	public AuthPrincipal tokenAuthentication(String tokenKey) {

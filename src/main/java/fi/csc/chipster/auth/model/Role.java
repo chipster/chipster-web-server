@@ -28,4 +28,5 @@ public class Role {
 	public static final String JOB_HISTORY="job-history";
 	public static final String BACKUP="backup";
 	public static final String SSO = "sso";
+	public static final String OIDC = "oidc";
 }	

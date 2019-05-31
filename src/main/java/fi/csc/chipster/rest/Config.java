@@ -402,7 +402,7 @@ public class Config {
 	 * @param prefix
 	 * @return Map of entries. Keys without the prefix.
 	 */
-	private Map<String, String> getConfigEntries(String prefix) {
+	public Map<String, String> getConfigEntries(String prefix) {
 		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
 		// new sso services can be added in configuration
 		conf.putAll(readFile(confFilePath));

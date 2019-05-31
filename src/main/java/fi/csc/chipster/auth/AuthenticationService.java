@@ -2,6 +2,7 @@ package fi.csc.chipster.auth;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -18,6 +19,7 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
+import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.auth.resource.TokenTable;
@@ -61,9 +63,10 @@ public class AuthenticationService {
      * @throws IOException 
      * @throws IllegalConfigurationException 
      * @throws InterruptedException 
+     * @throws URISyntaxException 
      * @throws SQLException 
      */
-    public void startServer() throws IOException, IllegalConfigurationException, InterruptedException {    	    	
+    public void startServer() throws IOException, IllegalConfigurationException, InterruptedException, URISyntaxException {    	    	
     	
     	// init Hibernate
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
@@ -76,12 +79,14 @@ public class AuthenticationService {
     	TokenTable tokenTable = new TokenTable(hibernate);
     	UserTable userTable = new UserTable(hibernate);
     	
-    	TokenResource authResource = new TokenResource(tokenTable, userTable);
+    	TokenResource tokenResource = new TokenResource(tokenTable, userTable);
+    	OidcResource oidcResource = new OidcResource(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
 
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
-        	.register(authResource)
+        	.register(tokenResource)
+        	.register(oidcResource)
         	.register(userResource)
         	.register(new HibernateRequestFilter(hibernate))
         	.register(new HibernateResponseFilter(hibernate))
@@ -146,8 +151,9 @@ public class AuthenticationService {
      * @throws IllegalConfigurationException 
      * @throws InterruptedException 
      * @throws SQLException 
+     * @throws URISyntaxException 
      */
-    public static void main(String[] args) throws IOException, IllegalConfigurationException, InterruptedException, SQLException {
+    public static void main(String[] args) throws IOException, IllegalConfigurationException, InterruptedException, SQLException, URISyntaxException {
     	
         final AuthenticationService service = new AuthenticationService(new Config());
         service.startServer();
