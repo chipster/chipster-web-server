@@ -48,7 +48,6 @@ export default class TypeService {
 		server.get('/admin/status', this.respondStatus.bind(this));
 
 		let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
-		console.log(bindUrlString);
 		let bindUrl = url.parse(bindUrlString);
 
 		server.listen(bindUrl.port, bindUrl.hostname, () => {
