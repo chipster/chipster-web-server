@@ -4,26 +4,28 @@ public class OidcConfig {
 
 	private String issuer;
 	private String clientId;
-	private String clientSecret;
 	private String redirectUri;
 	private String responseType;
 	private String logo;
 	private Integer priority;
 	private Boolean verifiedEmailOnly;
 	private String oidcName;
+	private String claimOrganization;
+	private String claimPreviousUserId;
 
-	public OidcConfig(String issuer, String clientId, String clientSecret, String redirectUri, String responseType,
-			String logo, Integer priority, Boolean verifiedEmailOnly, String oidcName) {
+	public OidcConfig(String issuer, String clientId, String redirectUri, String responseType,
+			String logo, Integer priority, Boolean verifiedEmailOnly, String oidcName, String claimOrganization, String claimPreviousUserId) {
 		
 		this.setIssuer(issuer);
 		this.setClientId(clientId);
-		this.setClientSecret(clientSecret);
 		this.setRedirectUri(redirectUri);
 		this.setResponseType(responseType);
 		this.setLogo(logo);
 		this.setPriority(priority);
 		this.setVerifiedEmailOnly(verifiedEmailOnly);
 		this.setOidcName(oidcName);
+		this.setClaimOrganization(claimOrganization);
+		this.setClaimPreviousUserId(claimPreviousUserId);
 	}
 
 	public String getIssuer() {
@@ -40,14 +42,6 @@ public class OidcConfig {
 
 	public void setClientId(String clientId) {
 		this.clientId = clientId;
-	}
-
-	public String getClientSecret() {
-		return clientSecret;
-	}
-
-	public void setClientSecret(String clientSecret) {
-		this.clientSecret = clientSecret;
 	}
 
 	public String getRedirectUri() {
@@ -96,6 +90,22 @@ public class OidcConfig {
 
 	public void setOidcName(String oidcName) {
 		this.oidcName = oidcName;
+	}
+
+	public String getClaimOrganization() {
+		return claimOrganization;
+	}
+
+	public void setClaimOrganization(String claimOrganization) {
+		this.claimOrganization = claimOrganization;
+	}
+
+	public String getClaimPreviousUserId() {
+		return claimPreviousUserId;
+	}
+
+	public void setClaimPreviousUserId(String claimPreviousUserId) {
+		this.claimPreviousUserId = claimPreviousUserId;
 	}
 
 }

@@ -154,6 +154,10 @@ dependencies {
     // tsv parser
     compile "com.univocity:univocity-parsers:2.8.1"
     
+    // OpenID Connect
+    //compile "com.google.api-client:google-api-client:1.+"
+    compile "com.nimbusds:oauth2-oidc-sdk:+"
+    
     // old codebase
     compile ":chipster:+"
  

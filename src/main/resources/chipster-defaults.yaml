@@ -140,6 +140,30 @@ auth-jaas-prefix: jaas
 
 db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
+
+# auth OpenID Connect
+# register multiple oidc providers by inventing an name for each provider and appending 
+# a dash and the name to each config (e.g. "-google") 
+
+# server which hosts the discovery document in path /.well-known/openid-configuration, e.g. https://accounts.google.com
+auth-oidc-issuer: ""
+# client_id which you get from to oidc provider when you register your application
+auth-oidc-client-id: ""
+# Chipster callback url
+auth-oidc-redirect-uri: http://{{public-ip}}:8000/auth/oidc/haka/callback
+# "id_token" for implicit flow, "code" for authorization code flow
+auth-oidc-response-type: id_token
+# url or client path to the logo to show on the login page 
+auth-oidc-logo: ""
+# order of the logos on the login page, ascending
+auth-oidc-priority: 1
+# store the email only if the claim "verified_email" is true
+auth-oidc-verified-email-only: true
+# claim name for the organization
+auth-oidc-claim-organization: ""
+# claim name of the previous user ID, whose sessions should be moved to the current user
+auth-oidc-claim-previous-user-id: ""
+
  
 # comp
 
