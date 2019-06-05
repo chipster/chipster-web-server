@@ -56,13 +56,16 @@ public class OidcResource {
 	public static final String CONF_ISSUER = "auth-oidc-issuer";
 	public static final String CONF_CLIENT_ID = "auth-oidc-client-id";
 	public static final String CONF_CLIENT_SECRET = "auth-oidc-client-secret";
-	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-uri";
+	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-path";
 	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";	
 	public static final String CONF_LOGO = "auth-oidc-logo";
+	public static final String CONF_TEXT = "auth-oidc-text";
 	public static final String CONF_PRIORITY = "auth-oidc-priority";
 	public static final String CONF_VERIFIED_EMAIL_ONLY = "auth-oidc-verified-email-only";
 	public static final String CONF_CLAIM_ORGANIZATION = "auth-oidc-claim-organization";
-	public static final String CONF_CLAIM_PREVIOUS_USER_ID = "auth-oidc-claim-previous-user-id";
+	public static final String CONF_CLAIM_PRIMARY_USER_ID = "auth-oidc-claim-primary-user-id";
+	public static final String CONF_CLAIM_SECONDARY_USER_ID = "auth-oidc-claim-secondary-user-id";
+	public static final String CONF_SECONDARY_AUTH = "auth-oidc-secondary-auth";
 		
 	private TokenTable tokenTable;
 	private UserTable userTable;
@@ -78,17 +81,22 @@ public class OidcResource {
 		for (String oidcName : config.getConfigEntries(OidcResource.CONF_ISSUER + "-").keySet()) {
 			String issuer = config.getString(CONF_ISSUER, oidcName);
 			String clientId = config.getString(CONF_CLIENT_ID, oidcName);
-			String redirectUri = config.getString(CONF_REDIRECT_URI, oidcName);
-			String responseType = config.getString(CONF_RESPONSE_TYPE, oidcName);
-			String logo = config.getString(CONF_LOGO, oidcName);
-			Integer priority = Integer.parseInt(config.getString(CONF_PRIORITY, oidcName));
-			Boolean verifiedEmailOnly = config.getBoolean(CONF_VERIFIED_EMAIL_ONLY, oidcName);
-			String claimOrganization = config.getString(CONF_CLAIM_ORGANIZATION, oidcName);
-			String claimPreviousUserId = config.getString(CONF_CLAIM_PREVIOUS_USER_ID, oidcName);
+
+			OidcConfig oidc = new OidcConfig();
 			
-			OidcConfig oidc = new OidcConfig(
-					issuer, clientId, redirectUri, responseType, logo, priority, verifiedEmailOnly, 
-					oidcName, claimOrganization, claimPreviousUserId);
+			oidc.setIssuer(issuer);
+			oidc.setClientId(clientId);
+			oidc.setRedirectPath(config.getString(CONF_REDIRECT_URI, oidcName));
+			oidc.setResponseType(config.getString(CONF_RESPONSE_TYPE, oidcName));
+			oidc.setLogo(config.getString(CONF_LOGO, oidcName));
+			oidc.setText(config.getString(CONF_TEXT, oidcName));
+			oidc.setPriority(Integer.parseInt(config.getString(CONF_PRIORITY, oidcName)));
+			oidc.setVerifiedEmailOnly(config.getBoolean(CONF_VERIFIED_EMAIL_ONLY, oidcName));
+			oidc.setOidcName(oidcName);
+			oidc.setClaimOrganization(config.getString(CONF_CLAIM_ORGANIZATION, oidcName));
+			oidc.setClaimPrimaryUserId(config.getString(CONF_CLAIM_PRIMARY_USER_ID, oidcName));
+			oidc.setClaimSecondaryUserId(config.getString(CONF_CLAIM_SECONDARY_USER_ID, oidcName));
+			oidc.setSecondaryAuth(config.getString(CONF_SECONDARY_AUTH, oidcName));
 			
 			oidcConfigs.put(issuer, oidc);
 			
@@ -173,7 +181,7 @@ public class OidcResource {
 
 		// token is valid, we can trust that it came from the issuer
 				
-		String sub = claims.getSubject().getValue();
+		String sub = claims.getSubject().getValue();	
 		String name = claims.getStringClaim("name");
 		String email = claims.getStringClaim("email");
 		Boolean emailVerified = claims.getBooleanClaim("email_verified");
@@ -181,21 +189,35 @@ public class OidcResource {
 		for (String claim : idToken.getJWTClaimsSet().getClaims().keySet()) {
 			System.out.println(claim + ": " + claims.getStringClaim(claim));
 		}
-					
-		
+							
 		OidcConfig oidcConfig = oidcConfigs.get(issuer);
+		
+		// use different auth names in Chipster based on the claims that we get
+		String primaryUsername = getClaim(oidcConfig.getClaimPrimaryUserId(), claims);
+		String secondaryUsername = getClaim(oidcConfig.getClaimSecondaryUserId(), claims);
+		String primaryAuth = oidcConfig.getOidcName();
+		String secondaryAuth = oidcConfig.getSecondaryAuth();
+		
+		UserId userId = null;
+		if (oidcConfig.getClaimPrimaryUserId().equals("sub")) {
+			userId = new UserId(primaryAuth, sub);
+			
+		} else if (primaryUsername != null) {
+			userId = new UserId(primaryAuth, primaryUsername);
+			
+		} else if (secondaryUsername != null) {
+			userId = new UserId(secondaryAuth, secondaryUsername);
+			
+		} else {
+			throw new ForbiddenException("username not found from claims" + oidcConfig.getClaimPrimaryUserId() + " or " + oidcConfig.getClaimSecondaryUserId());
+		}
 		
 		// store only verified emails
 		if (oidcConfig.getVerifiedEmailOnly() && (emailVerified == null || emailVerified == false)) {
 			email = null;
 		}
 		
-		String organization = getClaim(oidcConfig.getClaimOrganization(), claims);
-		String previousUserId = getClaim(oidcConfig.getClaimPreviousUserId(), claims);				
-		
-		// prefix for the Chipster userId to separate different issuers
-		String oidcName = oidcConfig.getOidcName();
-		UserId userId = new UserId(oidcName, sub);
+		String organization = getClaim(oidcConfig.getClaimOrganization(), claims);				
 		User user = new User(userId.getAuth(), userId.getUsername(), email, organization, name);
 				
 		userTable.addOrUpdate(user);

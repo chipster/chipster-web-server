@@ -4,7 +4,7 @@ public class OidcConfig {
 
 	private String issuer;
 	private String clientId;
-	private String redirectUri;
+	private String redirectPath;
 	private String responseType;
 	private String logo;
 	private Integer priority;
@@ -12,20 +12,12 @@ public class OidcConfig {
 	private String oidcName;
 	private String claimOrganization;
 	private String claimPreviousUserId;
+	private String text;
+	private String claimPrimaryUserId;
+	private String claimSecondaryUserId;
+	private String secondaryAuth;
 
-	public OidcConfig(String issuer, String clientId, String redirectUri, String responseType,
-			String logo, Integer priority, Boolean verifiedEmailOnly, String oidcName, String claimOrganization, String claimPreviousUserId) {
-		
-		this.setIssuer(issuer);
-		this.setClientId(clientId);
-		this.setRedirectUri(redirectUri);
-		this.setResponseType(responseType);
-		this.setLogo(logo);
-		this.setPriority(priority);
-		this.setVerifiedEmailOnly(verifiedEmailOnly);
-		this.setOidcName(oidcName);
-		this.setClaimOrganization(claimOrganization);
-		this.setClaimPreviousUserId(claimPreviousUserId);
+	public OidcConfig() {
 	}
 
 	public String getIssuer() {
@@ -44,12 +36,12 @@ public class OidcConfig {
 		this.clientId = clientId;
 	}
 
-	public String getRedirectUri() {
-		return redirectUri;
+	public String getRedirectPath() {
+		return redirectPath;
 	}
 
-	public void setRedirectUri(String redirectUri) {
-		this.redirectUri = redirectUri;
+	public void setRedirectPath(String redirectUri) {
+		this.redirectPath = redirectUri;
 	}
 
 	public String getResponseType() {
@@ -108,4 +100,35 @@ public class OidcConfig {
 		this.claimPreviousUserId = claimPreviousUserId;
 	}
 
+	public String getText() {
+		return text;
+	}
+
+	public void setText(String text) {
+		this.text = text;
+	}
+
+	public String getClaimPrimaryUserId() {
+		return claimPrimaryUserId;
+	}
+
+	public void setClaimPrimaryUserId(String claimPrimaryUserId) {
+		this.claimPrimaryUserId = claimPrimaryUserId;
+	}
+
+	public String getClaimSecondaryUserId() {
+		return claimSecondaryUserId;
+	}
+
+	public void setClaimSecondaryUserId(String claimSecondaryUserId) {
+		this.claimSecondaryUserId = claimSecondaryUserId;
+	}
+
+	public String getSecondaryAuth() {
+		return secondaryAuth;
+	}
+
+	public void setSecondaryAuth(String secondaryAuth) {
+		this.secondaryAuth = secondaryAuth;
+	}
 }
