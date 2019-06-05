@@ -11,11 +11,12 @@ public class OidcConfig {
 	private Boolean verifiedEmailOnly;
 	private String oidcName;
 	private String claimOrganization;
-	private String claimPreviousUserId;
 	private String text;
 	private String claimPrimaryUserId;
 	private String claimSecondaryUserId;
 	private String secondaryAuth;
+	private String parameter;
+	private String logoWidth;
 
 	public OidcConfig() {
 	}
@@ -92,14 +93,6 @@ public class OidcConfig {
 		this.claimOrganization = claimOrganization;
 	}
 
-	public String getClaimPreviousUserId() {
-		return claimPreviousUserId;
-	}
-
-	public void setClaimPreviousUserId(String claimPreviousUserId) {
-		this.claimPreviousUserId = claimPreviousUserId;
-	}
-
 	public String getText() {
 		return text;
 	}
@@ -130,5 +123,21 @@ public class OidcConfig {
 
 	public void setSecondaryAuth(String secondaryAuth) {
 		this.secondaryAuth = secondaryAuth;
+	}
+
+	public String getParameter() {
+		return parameter;
+	}
+
+	public void setParameter(String parameter) {
+		this.parameter = parameter;
+	}
+
+	public String getLogoWidth() {
+		return logoWidth;
+	}
+
+	public void setLogoWidth(String logoWidth) {
+		this.logoWidth = logoWidth;
 	}
 }

@@ -155,6 +155,7 @@ auth-oidc-redirect-path: /auth/oidc/haka/callback
 auth-oidc-response-type: id_token
 # url or client path to the logo to show on the login page 
 auth-oidc-logo: ""
+auth-oidc-logo-width: ""
 # login button text, if logo is not set
 auth-oidc-text: "Login"
 # order of the logos on the login page, ascending
@@ -165,10 +166,8 @@ auth-oidc-verified-email-only: true
 auth-oidc-claim-organization: ""
 # claim name for the user ID
 auth-oidc-claim-primary-user-id: "sub"
-# claim name for the user ID when the primary user ID claims isn't available
-auth-oidc-claim-secondary-user-id: ""
-# authentication provider name when the primary user ID claims isn't available
-auth-oidc-secondary-auth: ""
+# append this parameter the the authorization URL, in format KEY=VALUE
+auth-oidc-parameter: ""
 
  
 # comp

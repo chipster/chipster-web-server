@@ -59,13 +59,13 @@ public class OidcResource {
 	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-path";
 	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";	
 	public static final String CONF_LOGO = "auth-oidc-logo";
+	public static final String CONF_LOGO_WIDTH = "auth-oidc-logo-width";
 	public static final String CONF_TEXT = "auth-oidc-text";
 	public static final String CONF_PRIORITY = "auth-oidc-priority";
 	public static final String CONF_VERIFIED_EMAIL_ONLY = "auth-oidc-verified-email-only";
 	public static final String CONF_CLAIM_ORGANIZATION = "auth-oidc-claim-organization";
 	public static final String CONF_CLAIM_PRIMARY_USER_ID = "auth-oidc-claim-primary-user-id";
-	public static final String CONF_CLAIM_SECONDARY_USER_ID = "auth-oidc-claim-secondary-user-id";
-	public static final String CONF_SECONDARY_AUTH = "auth-oidc-secondary-auth";
+	public static final String CONF_PARAMETER = "auth-oidc-parameter";
 		
 	private TokenTable tokenTable;
 	private UserTable userTable;
@@ -89,17 +89,20 @@ public class OidcResource {
 			oidc.setRedirectPath(config.getString(CONF_REDIRECT_URI, oidcName));
 			oidc.setResponseType(config.getString(CONF_RESPONSE_TYPE, oidcName));
 			oidc.setLogo(config.getString(CONF_LOGO, oidcName));
+			oidc.setLogoWidth(config.getString(CONF_LOGO_WIDTH, oidcName));
 			oidc.setText(config.getString(CONF_TEXT, oidcName));
 			oidc.setPriority(Integer.parseInt(config.getString(CONF_PRIORITY, oidcName)));
 			oidc.setVerifiedEmailOnly(config.getBoolean(CONF_VERIFIED_EMAIL_ONLY, oidcName));
 			oidc.setOidcName(oidcName);
 			oidc.setClaimOrganization(config.getString(CONF_CLAIM_ORGANIZATION, oidcName));
 			oidc.setClaimPrimaryUserId(config.getString(CONF_CLAIM_PRIMARY_USER_ID, oidcName));
-			oidc.setClaimSecondaryUserId(config.getString(CONF_CLAIM_SECONDARY_USER_ID, oidcName));
-			oidc.setSecondaryAuth(config.getString(CONF_SECONDARY_AUTH, oidcName));
+			oidc.setParameter(config.getString(CONF_PARAMETER, oidcName));
+			 
+			// multiple oidcConfigs may have the same issuer
+			oidcConfigs.put(oidcName, oidc);
 			
-			oidcConfigs.put(issuer, oidc);
-			
+			// if multiple oidConfigs have the same issuer, thay must have the same clientId
+			// because before validation we know only the issuer
 			this.validators.put(issuer, getValidator(issuer, clientId));			
 		}
 		
@@ -189,14 +192,13 @@ public class OidcResource {
 		for (String claim : idToken.getJWTClaimsSet().getClaims().keySet()) {
 			System.out.println(claim + ": " + claims.getStringClaim(claim));
 		}
-							
-		OidcConfig oidcConfig = oidcConfigs.get(issuer);
+		
+		// try to get the correct oidc config based on issuer and returned claims
+		OidcConfig oidcConfig = getOidcConfig(issuer, claims);
 		
 		// use different auth names in Chipster based on the claims that we get
 		String primaryUsername = getClaim(oidcConfig.getClaimPrimaryUserId(), claims);
-		String secondaryUsername = getClaim(oidcConfig.getClaimSecondaryUserId(), claims);
 		String primaryAuth = oidcConfig.getOidcName();
-		String secondaryAuth = oidcConfig.getSecondaryAuth();
 		
 		UserId userId = null;
 		if (oidcConfig.getClaimPrimaryUserId().equals("sub")) {
@@ -204,12 +206,9 @@ public class OidcResource {
 			
 		} else if (primaryUsername != null) {
 			userId = new UserId(primaryAuth, primaryUsername);
-			
-		} else if (secondaryUsername != null) {
-			userId = new UserId(secondaryAuth, secondaryUsername);
-			
+						
 		} else {
-			throw new ForbiddenException("username not found from claims" + oidcConfig.getClaimPrimaryUserId() + " or " + oidcConfig.getClaimSecondaryUserId());
+			throw new ForbiddenException("username not found from claim" + oidcConfig.getClaimPrimaryUserId());
 		}
 		
 		// store only verified emails
@@ -230,6 +229,25 @@ public class OidcResource {
 		return Response.ok(token).build();	
 	}
 	
+	/**
+	 * Get the oidc config
+	 * 
+	 * If the same issuer has multiple configs, iterate in priority order until we find one which has 
+	 * the configured user ID claim.
+	 * 
+	 * @param issuer
+	 * @param claims
+	 * @return
+	 */
+	private OidcConfig getOidcConfig(String issuer, IDTokenClaimsSet claims) {
+		for (OidcConfig oidc : sortedOidcConfigs) {
+			if (oidc.getIssuer().equals(issuer) && getClaim(oidc.getClaimPrimaryUserId(), claims) != null) {
+				return oidc;
+			}
+		}
+		throw new ForbiddenException("oidc config not found for issuer " + issuer);
+	}
+
 	/**
 	 * Get claim value
 	 * 
