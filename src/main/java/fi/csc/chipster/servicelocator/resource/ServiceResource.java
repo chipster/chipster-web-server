@@ -43,7 +43,7 @@ public class ServiceResource {
 	@GET
 	@Path(PATH_INTERNAL)
     @Produces(MediaType.APPLICATION_JSON)
-	@RolesAllowed({Role.ADMIN, Role.SERVER, Role.SSO})
+	@RolesAllowed({Role.ADMIN, Role.SERVER})
     public Response getAll(@Context SecurityContext sc) {
 		return Response.ok(allServices).build();
 	}

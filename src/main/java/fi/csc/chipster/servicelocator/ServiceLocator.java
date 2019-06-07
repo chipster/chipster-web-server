@@ -62,7 +62,6 @@ public class ServiceLocator {
     	Map<String, String> intServices = config.getInternalServiceUrls();
     	Map<String, String> extServices = config.getExternalServiceUrls();
     	Map<String, String> adminServices = config.getAdminServiceUrls();
-    	Map<String, String> m2mServices = config.getM2mServiceUrls();
     	
     	// all services having internal, external or admin address
     	HashSet<String> services = new HashSet<>();
@@ -75,15 +74,14 @@ public class ServiceLocator {
     	
     	for (String service : services) {
     		
-    		publicServices.add(new Service(service, null, extServices.get(service), null, null));
+    		publicServices.add(new Service(service, null, extServices.get(service), null));
     		
     		// map returns null for missing addresses
     		allServices.add(new Service(
     			service, 
     			intServices.get(service), 
     			extServices.get(service), 
-    			adminServices.get(service), 
-    			m2mServices.get(service)));    		    		
+    			adminServices.get(service)));    		    		
     	}    
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);

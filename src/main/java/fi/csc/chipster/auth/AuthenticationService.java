@@ -20,7 +20,6 @@ import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.OidcResource;
-import fi.csc.chipster.auth.resource.SsoTokenResource;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.auth.resource.TokenTable;
 import fi.csc.chipster.auth.resource.UserTable;
@@ -31,7 +30,6 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
@@ -50,8 +48,6 @@ public class AuthenticationService {
 	private HttpServer httpServer;
 
 	private HttpServer adminServer;
-
-	private HttpServer ssoHttpServer;
 	
 	public AuthenticationService(Config config) {
 		this.config = config;
@@ -118,31 +114,7 @@ public class AuthenticationService {
 		this.adminServer = RestUtils.startAdminServer(
         		adminResource, hibernate, 
         		Role.AUTH, config, authClient);
-		
-		// separate port for the sso tokens, but only if configured explicitly
-		
-		String ssoBindUrlString = config.getM2mBindUrl(Role.AUTH);
-		
-		if (ssoBindUrlString != null && !ssoBindUrlString.isEmpty()) {
-			this.ssoHttpServer = enableSsoLogins(tokenTable, userTable, authClient, ssoBindUrlString);
-		}
     }
-
-	private HttpServer enableSsoLogins(TokenTable tokenTable, UserTable userTable, AuthenticationClient authClient,
-			String ssoBindUrlString) throws IOException {
-		
-        final ResourceConfig ssoRc = RestUtils.getDefaultResourceConfig()        	
-            	.register(new TokenRequestFilter(authClient))
-            	.register(new SsoTokenResource(config, tokenTable, userTable));
-        
-    	ssoRc.register(new HibernateRequestFilter(hibernate))
-    		.register(new HibernateResponseFilter(hibernate));
-
-        HttpServer ssoHttpServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(ssoBindUrlString), ssoRc);
-        ssoHttpServer.start();
-        
-        return ssoHttpServer;
-	}
 
     /**
      * Main method.
@@ -175,7 +147,6 @@ public class AuthenticationService {
 	
 	public void close() {
 		RestUtils.shutdown("auth-admin", adminServer);
-		RestUtils.shutdown("auth-sso", ssoHttpServer);
 		RestUtils.shutdown("auth", httpServer);
 		hibernate.getSessionFactory().close();
 	}

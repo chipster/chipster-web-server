@@ -15,10 +15,6 @@ service-password-toolbox: toolbox
 service-password-job-history: job-history
 service-password-backup: backup
 
-# SSO accounts
-# all config items starting with "sso-service-password-" will be automatically authenticated as Role.SSO, none by default
-# sso-service-password-shibboleth: shibboleth
-
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
 admin-username-1: admin
@@ -59,7 +55,6 @@ url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
 
-url-m2m-int-auth: http://{{public-ip}}:8013    
 
 # Address for the server to bind
 

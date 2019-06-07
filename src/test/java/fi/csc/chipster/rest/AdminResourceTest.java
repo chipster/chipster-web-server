@@ -38,9 +38,6 @@ public class AdminResourceTest {
     }
     
     public Set<String> getRolesWithAdminUrl() {
-    	if (config.getAdminServiceUrls().get(Role.SSO) != null) {
-    		throw new IllegalStateException("test assumes that the shibboleth service doesn't have an admin url");
-    	}
     	return config.getAdminServiceUrls().keySet();
     }
     

@@ -48,7 +48,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private Map<String, String> serviceAccounts;
 	private Set<String> adminAccounts;
-	private Map<String, String> ssoAccounts;
 
 	private final String jaasPrefix;
 
@@ -63,12 +62,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
-		ssoAccounts = config.getSsoServicePasswords();
 		jaasPrefix = config.getString(Config.KEY_AUTH_JAAS_PREFIX);
-		
-		// give Role.SERVER also for SSO accounts
-		serviceAccounts.putAll(ssoAccounts);
-		
+				
 		String monitoringPassword = config.getString(Config.KEY_MONITORING_PASSWORD);
 		if (config.getDefault(Config.KEY_MONITORING_PASSWORD).equals(monitoringPassword)) {
 			logger.warn("default password for username " + Role.MONITORING);
@@ -227,10 +222,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			if (adminAccounts.contains(username)) {
 				roles.add(Role.ADMIN);
 			}
-		}
-		
-		if (ssoAccounts.keySet().contains(username)) {
-			roles.add(Role.SSO);
 		}
 
 		return roles;
