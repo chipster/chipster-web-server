@@ -12,9 +12,7 @@ public class OidcConfig {
 	private String oidcName;
 	private String claimOrganization;
 	private String text;
-	private String claimPrimaryUserId;
-	private String claimSecondaryUserId;
-	private String secondaryAuth;
+	private String claimUserId;
 	private String parameter;
 	private String logoWidth;
 
@@ -101,29 +99,13 @@ public class OidcConfig {
 		this.text = text;
 	}
 
-	public String getClaimPrimaryUserId() {
-		return claimPrimaryUserId;
+	public String getClaimUserId() {
+		return claimUserId;
 	}
 
-	public void setClaimPrimaryUserId(String claimPrimaryUserId) {
-		this.claimPrimaryUserId = claimPrimaryUserId;
-	}
-
-	public String getClaimSecondaryUserId() {
-		return claimSecondaryUserId;
-	}
-
-	public void setClaimSecondaryUserId(String claimSecondaryUserId) {
-		this.claimSecondaryUserId = claimSecondaryUserId;
-	}
-
-	public String getSecondaryAuth() {
-		return secondaryAuth;
-	}
-
-	public void setSecondaryAuth(String secondaryAuth) {
-		this.secondaryAuth = secondaryAuth;
-	}
+	public void setClaimUserId(String claimUserId) {
+		this.claimUserId = claimUserId;
+	}	
 
 	public String getParameter() {
 		return parameter;

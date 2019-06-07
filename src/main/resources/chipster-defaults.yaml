@@ -165,7 +165,7 @@ auth-oidc-verified-email-only: true
 # claim name for the organization
 auth-oidc-claim-organization: ""
 # claim name for the user ID
-auth-oidc-claim-primary-user-id: "sub"
+auth-oidc-claim-user-id: "sub"
 # append this parameter the the authorization URL, in format KEY=VALUE
 auth-oidc-parameter: ""
 
