@@ -64,8 +64,8 @@ public class AdminResourceTest {
     @Test
     public void noAuth() throws IOException {
     	for (String role : getRolesWithAdminUrl()) {
-    		if (Role.BACKUP.equals(role)) {
-    			// the backup service doesn't offer status information
+    		if (Role.TYPE_SERVICE.equals(role)) {
+    			//FXIME type service doesn't authenticate 
     			continue;
     		}
     		

@@ -262,7 +262,8 @@ public class FileResourceTest {
 		assertEquals(true, file.getFileId() != null);
 		
 		// check that we can find the file
-		File storageFile = new File("storage", file.getFileId().toString());
+		String partition = file.getFileId().toString().substring(0, 2);
+		File storageFile = new File("storage" + File.separator + partition + File.separator + file.getFileId().toString());
 		assertEquals(true, storageFile.exists());
 		
 		// remove the dataset

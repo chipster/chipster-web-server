@@ -52,7 +52,7 @@ public class AuthUserResourceTest {
 		// auth tests
 		testGetUser(403, userId, launcher.getUnparseableTokenClient());
 		testGetUser(403, userId, launcher.getTokenFailClient());		
-		testGetUser(401, userId, launcher.getNoAuthClient());
+		testGetUser(403, userId, launcher.getNoAuthClient());
 		// launcher.getAuthFailClient() would pass, because AuthenticationService allows password logins
     }
 	
@@ -89,6 +89,6 @@ public class AuthUserResourceTest {
 		testGetUsers(403, launcher.getUnparseableTokenClient());
 		testGetUsers(403, launcher.getTokenFailClient());
 		testGetUsers(403, launcher.getAuthFailClient());
-		testGetUsers(401, launcher.getNoAuthClient());
+		testGetUsers(403, launcher.getNoAuthClient());
     }
 }
