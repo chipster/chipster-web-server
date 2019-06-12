@@ -84,13 +84,6 @@ url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 
-# Single sing-on usernames (defined above with config key "sso-service-passowrd-") can login anyone 
-# in this service (port 8013 by default)
-# This must be disabled by default. If you configure this, make sure you have
-# 1) set a proper password for the SSO username
-# 2) firewall this port, only the SSO service needs to access it 
-url-m2m-bind-auth: ""
-
 
 # DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
 
@@ -145,7 +138,7 @@ auth-oidc-issuer: ""
 # client_id which you get from to oidc provider when you register your application
 auth-oidc-client-id: ""
 # Chipster callback path
-auth-oidc-redirect-path: /auth/oidc/haka/callback
+auth-oidc-redirect-path: /oidc/callback
 # "id_token" for implicit flow, "code" for authorization code flow
 auth-oidc-response-type: id_token
 # url or client path to the logo to show on the login page 
