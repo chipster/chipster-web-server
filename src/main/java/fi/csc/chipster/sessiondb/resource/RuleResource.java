@@ -49,7 +49,6 @@ public class RuleResource {
 	private HibernateUtil hibernate;
 	private SessionResource sessionResource;
 	private int maxShareCount;
-	private String restrictSharingToEveryone;
 
 	public RuleResource(SessionResource sessionResource, UUID id, RuleTable authorizationTable, Config config) {
 		this.sessionId = id;
@@ -57,7 +56,7 @@ public class RuleResource {
 		this.sessionResource = sessionResource;
 		this.hibernate = sessionResource.getHibernate();
 		this.maxShareCount = config.getInt(Config.KEY_SESSION_DB_MAX_SHARE_COUNT);
-		this.restrictSharingToEveryone = config.getString(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE);
+		
 	}
 
 	@GET
@@ -100,7 +99,7 @@ public class RuleResource {
 		}
 		
 		if (RuleTable.EVERYONE.equals(newRule.getUsername())) {
-			if (!restrictSharingToEveryone.isEmpty() && !restrictSharingToEveryone.equals(sc.getUserPrincipal().getName())) {
+			if (!ruleTable.isAllowedToShareToEveryone(sc.getUserPrincipal().getName())) {
 				throw new ForbiddenException("sharing to everyone is not allowed for this user");
 			}
 		}

@@ -204,7 +204,7 @@ scheduler-wait-new-slots-per-user-timeout: 604800 # a week
 # session-db 
     
 # allow sharing to everyone only for one username, empty allows for everybody
-session-db-restrict-sharing-to-everyone: jaas/example_session_owner
+session-db-restrict-sharing-to-everyone-chipster: jaas/example_session_owner
 db-url-session-db: jdbc:postgresql://localhost:5432/session_db_db
 db-pass-session-db: ""
 
