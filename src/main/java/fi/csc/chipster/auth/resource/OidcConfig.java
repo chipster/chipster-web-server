@@ -15,6 +15,9 @@ public class OidcConfig {
 	private String claimUserId;
 	private String parameter;
 	private String logoWidth;
+	private String userIdPrefix;
+	private String appId;
+	private String requireClaim;
 
 	public OidcConfig() {
 	}
@@ -121,5 +124,29 @@ public class OidcConfig {
 
 	public void setLogoWidth(String logoWidth) {
 		this.logoWidth = logoWidth;
+	}
+
+	public String getUserIdPrefix() {
+		return userIdPrefix;
+	}
+
+	public void setUserIdPrefix(String userIdPrefix) {
+		this.userIdPrefix = userIdPrefix;
+	}
+
+	public String getAppId() {
+		return appId;
+	}
+
+	public void setAppId(String appId) {
+		this.appId = appId;
+	}
+
+	public String getRequireClaim() {
+		return requireClaim;
+	}
+
+	public void setRequireClaim(String requireClaim) {
+		this.requireClaim = requireClaim;
 	}
 }

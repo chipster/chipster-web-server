@@ -34,6 +34,7 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
@@ -66,13 +67,16 @@ public class OidcResource {
 	public static final String CONF_CLAIM_ORGANIZATION = "auth-oidc-claim-organization";
 	public static final String CONF_CLAIM_USER_ID = "auth-oidc-claim-user-id";
 	public static final String CONF_PARAMETER = "auth-oidc-parameter";
+	public static final String CONF_USER_ID_PREFIX = "auth-oidc-user-id-prefix";
+	public static final String CONF_APP_ID = "auth-oidc-app-id";
+	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
 		
 	private TokenTable tokenTable;
 	private UserTable userTable;
 
 	ArrayList<OidcConfig> sortedOidcConfigs = new ArrayList<>();	
-	HashMap<String, IDTokenValidator> validators = new HashMap<>();
-	HashMap<String, OidcConfig> oidcConfigs = new HashMap<>();
+	HashMap<OidcConfig, IDTokenValidator> validators = new HashMap<>();
+	ArrayList<OidcConfig> oidcConfigs = new ArrayList<>();
 
 	public OidcResource(TokenTable tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
 		this.tokenTable = tokenTable;
@@ -97,16 +101,19 @@ public class OidcResource {
 			oidc.setClaimOrganization(config.getString(CONF_CLAIM_ORGANIZATION, oidcName));
 			oidc.setClaimUserId(config.getString(CONF_CLAIM_USER_ID, oidcName));
 			oidc.setParameter(config.getString(CONF_PARAMETER, oidcName));
+			oidc.setUserIdPrefix(config.getString(CONF_USER_ID_PREFIX, oidcName));
+			oidc.setAppId(config.getString(CONF_APP_ID, oidcName));
+			oidc.setRequireClaim(config.getString(CONF_REQUIRE_CLAIM, oidcName));
 			 
 			// multiple oidcConfigs may have the same issuer
-			oidcConfigs.put(oidcName, oidc);
+			oidcConfigs.add(oidc);
 			
 			// if multiple oidConfigs have the same issuer, thay must have the same clientId
 			// because before validation we know only the issuer
-			this.validators.put(issuer, getValidator(issuer, clientId));			
+			this.validators.put(oidc, getValidator(issuer, clientId));			
 		}
 		
-		sortedOidcConfigs = new ArrayList<OidcConfig>(oidcConfigs.values());
+		sortedOidcConfigs = new ArrayList<OidcConfig>(oidcConfigs);
 		sortedOidcConfigs.sort((a, b) -> a.getPriority().compareTo(b.getPriority()));
 		
 		for (OidcConfig oidc : sortedOidcConfigs) {			
@@ -161,11 +168,14 @@ public class OidcResource {
 			throw new ForbiddenException("ID token parsing failed");
 		}
 
-		// what token says about its issuer?
-		String issuer = idToken.getJWTClaimsSet().getIssuer();
 		
-		// get the validator of that issuer
-		IDTokenValidator validator = validators.get(issuer);
+		// the OidcConfig is selected based on token data before it's validated
+		// to find out which validator should to use
+		String issuer = idToken.getJWTClaimsSet().getIssuer();
+		String clientId = idToken.getJWTClaimsSet().getAudience().get(0);
+		OidcConfig oidcConfig = getOidcConfig(issuer, clientId, idToken.getJWTClaimsSet());
+		
+		IDTokenValidator validator = validators.get(oidcConfig);
 			
 		IDTokenClaimsSet claims;
 		try {
@@ -192,20 +202,17 @@ public class OidcResource {
 		for (String claim : idToken.getJWTClaimsSet().getClaims().keySet()) {
 			System.out.println(claim + ": " + claims.getStringClaim(claim));
 		}
-		
-		// try to get the correct oidc config based on issuer and returned claims
-		OidcConfig oidcConfig = getOidcConfig(issuer, claims);
-		
+				
 		// use different auth names in Chipster based on the claims that we get
-		String primaryUsername = getClaim(oidcConfig.getClaimUserId(), claims);
-		String primaryAuth = oidcConfig.getOidcName();
+		String username = getClaim(oidcConfig.getClaimUserId(), claims);
+		String userIdPrefix = oidcConfig.getUserIdPrefix();
 		
 		UserId userId = null;
 		if (oidcConfig.getClaimUserId().equals("sub")) {
-			userId = new UserId(primaryAuth, sub);
+			userId = new UserId(userIdPrefix, sub);
 			
-		} else if (primaryUsername != null) {
-			userId = new UserId(primaryAuth, primaryUsername);
+		} else if (username != null) {
+			userId = new UserId(userIdPrefix, username);
 						
 		} else {
 			throw new ForbiddenException("username not found from claim" + oidcConfig.getClaimUserId());
@@ -229,21 +236,46 @@ public class OidcResource {
 		return Response.ok(token).build();	
 	}
 	
+
 	/**
 	 * Get the oidc config
 	 * 
-	 * If the same issuer has multiple configs, iterate in priority order until we find one which has 
-	 * the configured user ID claim.
+	 * If the same issuer has multiple configs, iterate in priority order.
 	 * 
 	 * @param issuer
 	 * @param claims
 	 * @return
 	 */
-	private OidcConfig getOidcConfig(String issuer, IDTokenClaimsSet claims) {
+	private OidcConfig getOidcConfig(String issuer,  String clientId, JWTClaimsSet claims) {
 		for (OidcConfig oidc : sortedOidcConfigs) {
-			if (oidc.getIssuer().equals(issuer) && getClaim(oidc.getClaimUserId(), claims) != null) {
-				return oidc;
+			if (!oidc.getIssuer().equals(issuer)) {
+				continue;
 			}
+			
+			if (!oidc.getClientId().equals(clientId)) {
+				continue;
+			}
+			
+			if (claims.getClaim(oidc.getClaimUserId()) == null) {
+				continue;
+			}
+			
+			if (!oidc.getRequireClaim().isEmpty()) {
+				String[] keyValue = oidc.getRequireClaim().split("=");
+				String key = keyValue[0];
+				String value = keyValue[1];
+				String claimValue = claims.getClaim(key).toString();
+				if (claimValue == null) {					
+					continue;
+				}
+				
+				if (!claimValue.equals(value)) {
+					continue;
+				}
+			}
+			
+			// this is fine
+			return oidc;
 		}
 		throw new ForbiddenException("oidc config not found for issuer " + issuer);
 	}
