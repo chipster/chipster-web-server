@@ -14,6 +14,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.auth.model.Role;
+
 public class CORSServletFilter implements Filter {
 	
 	@SuppressWarnings("unused")
@@ -29,9 +31,13 @@ public class CORSServletFilter implements Filter {
 		
 		HttpServletRequest request = (HttpServletRequest)req;
 		HttpServletResponse response = (HttpServletResponse)resp;
+	
 		
-		//response.addHeader("Access-Control-Allow-Origin", "*");
-		response.addHeader("Access-Control-Allow-Origin", request.getHeader("origin"));		
+		//dont take this from the req as it is a security threat, get the address from the config file
+		
+		Config config = new Config();
+	
+		response.addHeader("Access-Control-Allow-Origin", config.getExternalServiceUrls().get(Role.WEB_SERVER));		
 		response.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
 		response.addHeader("Access-Control-Allow-Headers", "authorization, content-type, range"); // request
 		response.addHeader("Access-Control-Expose-Headers", "location, Accept-Ranges, Content-Encoding, Content-Length, Accept-Ranges, Content-Range"); // response
