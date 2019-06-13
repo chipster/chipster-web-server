@@ -1,5 +1,7 @@
 package fi.csc.chipster.auth.resource;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.UUID;
@@ -18,6 +20,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.UserId;
@@ -27,14 +32,16 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 @Path("tokens")
 public class TokenResource {
 
+	@SuppressWarnings("unused")
+	private static final Logger logger = LogManager.getLogger();
+	
 	public static final String TOKENS = "tokens";
-
 	private static final String TOKEN_HEADER = "chipster-token";
 
 	private TokenTable tokenTable;
 	private UserTable userTable;
 
-	public TokenResource(TokenTable tokenTable, UserTable userTable) {
+	public TokenResource(TokenTable tokenTable, UserTable userTable) throws URISyntaxException, IOException {
 		this.tokenTable = tokenTable;
 		this.userTable = userTable;
 	}
@@ -60,7 +67,7 @@ public class TokenResource {
 		
 		return Response.ok(token).build();
 	}
-
+	
 	@GET
 	@RolesAllowed(Role.SERVER)
 	@Produces(MediaType.APPLICATION_JSON)

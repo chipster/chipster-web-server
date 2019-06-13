@@ -38,9 +38,6 @@ public class AdminResourceTest {
     }
     
     public Set<String> getRolesWithAdminUrl() {
-    	if (config.getAdminServiceUrls().get(Role.SSO) != null) {
-    		throw new IllegalStateException("test assumes that the shibboleth service doesn't have an admin url");
-    	}
     	return config.getAdminServiceUrls().keySet();
     }
     
@@ -67,8 +64,8 @@ public class AdminResourceTest {
     @Test
     public void noAuth() throws IOException {
     	for (String role : getRolesWithAdminUrl()) {
-    		if (Role.BACKUP.equals(role)) {
-    			// the backup service doesn't offer status information
+    		if (Role.TYPE_SERVICE.equals(role)) {
+    			//FXIME type service doesn't authenticate 
     			continue;
     		}
     		

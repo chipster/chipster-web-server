@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -55,6 +56,9 @@ public class RuleTable {
 	private DatasetTokenTable datasetTokenTable;
 
 	private TokenRequestFilter tokenRequestFilter;
+	
+	// map appId (chipster/mylly) to example session owner account for that app
+	private Map<String, String> restrictSharingToEveryone;
 
 	public RuleTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
 		this.hibernate = hibernate;
@@ -62,6 +66,7 @@ public class RuleTable {
 		this.servicesAccounts = config.getServicePasswords().keySet();
 		this.datasetTokenTable = datasetTokenTable;
 		this.tokenRequestFilter = tokenRequestFilter;
+		this.restrictSharingToEveryone = config.getConfigEntries(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE + "-");
 	}
 	
 	public Rule getRule(UUID ruleId, org.hibernate.Session hibernateSession) {
@@ -180,6 +185,12 @@ public class RuleTable {
 	
 	List<Rule> getRulesOfEveryone() {
 		return getRulesOwn(EVERYONE);
+	}
+	
+	List<Rule> getRulesOfEveryone(String exampleSessionOwner) {
+		return getRulesOfEveryone().stream()
+				.filter(r -> exampleSessionOwner.equals(r.getSharedBy()))
+				.collect(Collectors.toList());
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -352,5 +363,13 @@ public class RuleTable {
 	
 	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
 		return checkAuthorization((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, false);
+	}
+
+	public boolean isAllowedToShareToEveryone(String userId) {
+		return restrictSharingToEveryone.values().contains(userId);
+	}
+	
+	public String getExampleSessionOwner(String appId) {
+		return restrictSharingToEveryone.get(appId);
 	}
 }

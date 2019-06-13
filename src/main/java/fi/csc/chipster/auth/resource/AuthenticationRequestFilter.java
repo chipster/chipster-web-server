@@ -22,7 +22,6 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.BasicAuthParser;
@@ -49,7 +48,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private Map<String, String> serviceAccounts;
 	private Set<String> adminAccounts;
-	private Map<String, String> ssoAccounts;
 
 	private final String jaasPrefix;
 
@@ -64,12 +62,8 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
-		ssoAccounts = config.getSsoServicePasswords();
 		jaasPrefix = config.getString(Config.KEY_AUTH_JAAS_PREFIX);
-		
-		// give Role.SERVER also for SSO accounts
-		serviceAccounts.putAll(ssoAccounts);
-		
+				
 		String monitoringPassword = config.getString(Config.KEY_MONITORING_PASSWORD);
 		if (config.getDefault(Config.KEY_MONITORING_PASSWORD).equals(monitoringPassword)) {
 			logger.warn("default password for username " + Role.MONITORING);
@@ -90,24 +84,30 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		String authHeader = requestContext.getHeaderString("authorization");
 
 		if (authHeader == null) {
-			throw new NotAuthorizedException("no authorization header found");
+			// OidcResource needs unauthentiated access
+			requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
+			return;
 		}
 
-		BasicAuthParser parser = new BasicAuthParser(requestContext.getHeaderString("authorization"));
-
-		AuthPrincipal principal = null;
-
-		if (TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
-			// throws an exception if fails
-			principal = tokenAuthentication(parser.getPassword());
+		if (authHeader.startsWith("Basic ") || authHeader.startsWith("basic ")) {
+			BasicAuthParser parser = new BasicAuthParser(authHeader);
+	
+			AuthPrincipal principal = null;
+	
+			if (TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
+				// throws an exception if fails
+				principal = tokenAuthentication(parser.getPassword());
+			} else {
+				// throws an exception if fails
+				principal = passwordAuthentication(parser.getUsername(), parser.getPassword());
+			}
+	
+			// login ok
+			AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
+			requestContext.setSecurityContext(sc);
 		} else {
-			// throws an exception if fails
-			principal = passwordAuthentication(parser.getUsername(), parser.getPassword());
+			throw new ForbiddenException("unknown authorization header type");
 		}
-
-		// login ok
-		AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
-		requestContext.setSecurityContext(sc);		
 	}
 
 	public AuthPrincipal tokenAuthentication(String tokenKey) {
@@ -221,10 +221,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			if (adminAccounts.contains(username)) {
 				roles.add(Role.ADMIN);
 			}
-		}
-		
-		if (ssoAccounts.keySet().contains(username)) {
-			roles.add(Role.SSO);
 		}
 
 		return roles;

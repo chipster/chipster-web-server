@@ -15,10 +15,6 @@ service-password-toolbox: toolbox
 service-password-job-history: job-history
 service-password-backup: backup
 
-# SSO accounts
-# all config items starting with "sso-service-password-" will be automatically authenticated as Role.SSO, none by default
-# sso-service-password-shibboleth: shibboleth
-
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
 admin-username-1: admin
@@ -59,7 +55,6 @@ url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
 
-url-m2m-int-auth: http://{{public-ip}}:8013    
 
 # Address for the server to bind
 
@@ -88,13 +83,6 @@ url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
-
-# Single sing-on usernames (defined above with config key "sso-service-passowrd-") can login anyone 
-# in this service (port 8013 by default)
-# This must be disabled by default. If you configure this, make sure you have
-# 1) set a proper password for the SSO username
-# 2) firewall this port, only the SSO service needs to access it 
-url-m2m-bind-auth: ""
 
 
 # DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
@@ -140,6 +128,41 @@ auth-jaas-prefix: jaas
 
 db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
+
+# auth OpenID Connect
+# register multiple oidc providers by inventing an name for each provider and appending 
+# a dash and the name to each config (e.g. "-google") 
+
+# server which hosts the discovery document in path /.well-known/openid-configuration, e.g. https://accounts.google.com
+auth-oidc-issuer: ""
+# client_id which you get from to oidc provider when you register your application
+auth-oidc-client-id: ""
+# Chipster callback path
+auth-oidc-redirect-path: /oidc/callback
+# "id_token" for implicit flow, "code" for authorization code flow
+auth-oidc-response-type: id_token
+# url or client path to the logo to show on the login page 
+auth-oidc-logo: ""
+auth-oidc-logo-width: ""
+# login button text, if logo is not set
+auth-oidc-text: "Login"
+# order of the logos on the login page, ascending
+auth-oidc-priority: 1
+# store the email only if the claim "verified_email" is true
+auth-oidc-verified-email-only: true
+# claim name for the organization
+auth-oidc-claim-organization: ""
+# claim name for the user ID
+auth-oidc-claim-user-id: "sub"
+# append this extra parameter the the authorization URL, in format KEY=VALUE
+auth-oidc-parameter: ""
+# accept authentication only if the token contains this claim, in format KEY=VALUE
+auth-oidc-require-claim: ""
+# prefix for the userId, set different for each authentication provider the prevent clashes
+auth-oidc-user-id-prefix: "oidc"
+# appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs 
+auth-oidc-app-id: "chipster"
+
  
 # comp
 
@@ -187,7 +210,7 @@ scheduler-wait-new-slots-per-user-timeout: 604800 # a week
 # session-db 
     
 # allow sharing to everyone only for one username, empty allows for everybody
-session-db-restrict-sharing-to-everyone: jaas/example_session_owner
+session-db-restrict-sharing-to-everyone-chipster: jaas/example_session_owner
 db-url-session-db: jdbc:postgresql://localhost:5432/session_db_db
 db-pass-session-db: ""
 

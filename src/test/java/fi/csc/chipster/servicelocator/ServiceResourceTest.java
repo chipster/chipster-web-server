@@ -61,7 +61,6 @@ public class ServiceResourceTest {
 		// everything else than publicUri must be null
 		for (Service s : client.getPublicServices()) {			
 			assertEquals(null, s.getAdminUri());
-			assertEquals(null, s.getM2mUri());
 			assertEquals(null, s.getUri());
 		}
 		

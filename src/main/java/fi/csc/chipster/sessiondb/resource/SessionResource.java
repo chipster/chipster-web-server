@@ -62,6 +62,7 @@ public class SessionResource {
 	public static final String PATH_SHARES = "shares";
 	private static final String QUERY_PARAM_PREVIEW = "preview";
 	public static final String QUERY_PARAM_USER_ID = "userId";
+	public static final String QUERY_PARAM_APP_ID = "appId";
 
 	private static Logger logger = LogManager.getLogger();
 	
@@ -121,7 +122,7 @@ public class SessionResource {
 	@GET
     @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
-    public Response getAll(@QueryParam(QUERY_PARAM_USER_ID) String userIdString, @Context SecurityContext sc) {
+    public Response getAll(@QueryParam(QUERY_PARAM_USER_ID) String userIdString, @QueryParam(QUERY_PARAM_APP_ID) String appId, @Context SecurityContext sc) {
 
 		String authenticatedUserId = sc.getUserPrincipal().getName();
 		List<Session> sessions;
@@ -132,23 +133,32 @@ public class SessionResource {
 			}
 			// session-worker needs access to support_session_owner's sessions
 			// file broker needs access to sessions to do the storage check
-			sessions = this.getSessions(userIdString);
+			sessions = this.getSessions(ruleTable.getRulesOwn(userIdString));
 		} else {
 			if (userIdString != null) {
 				throw new ForbiddenException("query parameter " + QUERY_PARAM_USER_ID + " not allowed for the user " + authenticatedUserId);
 			}
-			sessions = this.getSessions(authenticatedUserId);
+			
+			if (appId != null) {
+				// example sessions
+				String exampleSessionOwner = this.ruleTable.getExampleSessionOwner(appId);
+				
+				sessions = this.getSessions(ruleTable.getRulesOfEveryone(exampleSessionOwner));
+				
+			} else {
+				// user's own sessions
+				sessions = this.getSessions(ruleTable.getRulesOwn(authenticatedUserId));				
+			}
 		}
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(sessions)).build();
     }
 		
-	private List<Session> getSessions(String username) {
-		List<Rule> result = ruleTable.getRules(username);
+	private List<Session> getSessions(List<Rule> rules) {
 		
 		List<Session> sessions = new ArrayList<>();
-		for (Rule rule : result) {
+		for (Rule rule : rules) {
 			Session session = rule.getSession();
 			// user's own rule should be enough in the session list
 			// otherwise we would be selectin rules of sessions of rules of username

@@ -29,12 +29,9 @@ public class Config {
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
 	private static final String URL_ADMIN_EXT_PREFIX = "url-admin-ext-";
-	private static final String URL_M2M_INT_PREFIX = "url-m2m-int-";
 	private static final String URL_BIND_PREFIX = "url-bind-";
 	private static final String URL_ADMIN_BIND_PREFIX = "url-admin-bind-";
-	private static final String URL_M2M_BIND_PREFIX = "url-m2m-bind-";
 	private static final String SERVICE_PASSWORD_PREFIX = "service-password-";
-	private static final String SSO_SERVICE_PASSWORD_PREFIX = "sso-service-password-";
 	private static final String ADMIN_USERNAME_PREFIX = "admin-username-";
 	private static final String VARIABLE_PREFIX = "variable-";
 	
@@ -284,20 +281,7 @@ public class Config {
 	public String getPasswordConfigKey(String username) {
 		return SERVICE_PASSWORD_PREFIX + username;
 	}
-	
-	public String getSsoPassword(String username) {
-		String key = getSsoPasswordConfigKey(username);
-		// there are no sso accounts in the default config
-		if (hasDefault(key)) {
-			logger.warn("default password for username " + username);
-		}		
-		return getString(key);
-	}
-	
-	public String getSsoPasswordConfigKey(String username) {
-		return SSO_SERVICE_PASSWORD_PREFIX + username;
-	}
-	
+		
 	/**
 	 * Collect all services that have a service password entry and their configured passwords
 	 * 
@@ -329,20 +313,6 @@ public class Config {
 			.collect(Collectors.toSet());
 	}
 	
-	public Map<String, String> getSsoServicePasswords() {
-		
-		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
-		// new sso services can be added in configuration
-		conf.putAll(readFile(confFilePath));
-		List<String> services = conf.keySet().stream()
-				.filter(confKey -> confKey.startsWith(SSO_SERVICE_PASSWORD_PREFIX))
-				.map(confKey -> confKey.replace(SSO_SERVICE_PASSWORD_PREFIX, ""))
-				.collect(Collectors.toList());
-		
-		return services.stream()
-				.collect(Collectors.toMap(service -> service, service -> getSsoPassword(service)));
-	}
-	
 	/**
 	 * Services having an internal address
 	 * 
@@ -371,15 +341,6 @@ public class Config {
 	}
 	
 	/**
-	 * Services having a machine-to-machine address
-	 * 
-	 * @return a map where keys are the service names and values are their m2m addresses 
-	 */
-	public Map<String, String> getM2mServiceUrls() {
-		return getConfigEntriesFixed(URL_M2M_INT_PREFIX);		
-	} 
-	
-	/**
 	 * Get all config entries starting with the prefix
 	 * 
 	 * The config keys are searched only from the default configuration, so the configuration file
@@ -402,9 +363,9 @@ public class Config {
 	 * @param prefix
 	 * @return Map of entries. Keys without the prefix.
 	 */
-	private Map<String, String> getConfigEntries(String prefix) {
+	public Map<String, String> getConfigEntries(String prefix) {
 		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
-		// new sso services can be added in configuration
+		// new oidc services can be added in configuration
 		conf.putAll(readFile(confFilePath));
 		return conf.entrySet().stream()
 			.filter(entry -> entry.getKey().startsWith(prefix))
@@ -418,11 +379,7 @@ public class Config {
 	public String getAdminBindUrl(String service) {
 		return getString(URL_ADMIN_BIND_PREFIX + service);
 	}
-	
-	public String getM2mBindUrl(String service) {
-		return getString(URL_M2M_BIND_PREFIX + service);
-	}
-	
+		
 	public String getDefault(String key) {
 		String template = getFromFile(DEFAULT_CONF_PATH, key);
 		if (template == null) {

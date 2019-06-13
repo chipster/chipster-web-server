@@ -10,14 +10,12 @@ public class Service {
 	private String uri;
 	private String publicUri;
 	private String adminUri;
-	private String m2mUri;
 	
-	public Service(String role, String uri, String publicUri, String adminUri, String m2mUri) {
+	public Service(String role, String uri, String publicUri, String adminUri) {
 		this.role = role;
 		this.uri = uri;
 		this.publicUri = publicUri;
 		this.adminUri = adminUri;
-		this.m2mUri = m2mUri;
 	}
 	
 	public Service() {
@@ -65,13 +63,5 @@ public class Service {
 
 	public void setAdminUri(String adminUri) {
 		this.adminUri = adminUri;
-	}
-
-	public String getM2mUri() {
-		return m2mUri;
-	}
-
-	public void setM2mUri(String m2mUri) {
-		this.m2mUri = m2mUri;
 	}
 }
