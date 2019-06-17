@@ -77,7 +77,11 @@ public class StorageBackup implements StatusSource {
 			timer = BackupUtils.startBackupTimer(new TimerTask() {			
 				@Override
 				public void run() {
-					backupNow();
+					try {
+						backupNow();
+					} catch (Exception e) {
+						logger.error("backup error", e);
+					}
 				}
 			}, role, config);
 		} else {
@@ -85,12 +89,8 @@ public class StorageBackup implements StatusSource {
 		}
 	}
 	
-	public void backupNow() {
-		try {
-			backup();
-		} catch (IOException | InterruptedException e) {
-			logger.error("backup error", e);
-		}
+	public void backupNow() throws IOException, InterruptedException {
+		backup();
 	}	
 	
 	private void backup() throws IOException, InterruptedException {						

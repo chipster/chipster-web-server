@@ -109,7 +109,11 @@ public class DbBackup implements StatusSource {
 		this.backupTimer = BackupUtils.startBackupTimer(new TimerTask() {			
 			@Override
 			public void run() {
-				cleanUpAndBackup();
+				try {
+					cleanUpAndBackup();
+				} catch (Exception e) {
+					logger.error("backup error", e);
+				}
 			}
 		}, role, config);		
 	}
