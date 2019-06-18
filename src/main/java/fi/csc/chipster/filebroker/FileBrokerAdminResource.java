@@ -74,7 +74,11 @@ public class FileBrokerAdminResource extends AdminResource {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				backup.backupNow();
+				try {
+					backup.backupNow();
+				} catch (IOException | InterruptedException e) {
+					logger.error("backup error", e);
+				}
 			}			
 		}).start();
 		

@@ -129,6 +129,9 @@ auth-jaas-prefix: jaas
 db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
 
+# path to JAAS config file, set to empty to use the default (which authenticates against the file security/users)
+auth-jaas-conf-path: ""
+
 # auth OpenID Connect
 # register multiple oidc providers by inventing an name for each provider and appending 
 # a dash and the name to each config (e.g. "-google") 
