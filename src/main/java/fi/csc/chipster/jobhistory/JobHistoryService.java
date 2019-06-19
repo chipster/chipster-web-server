@@ -82,7 +82,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(new HibernateRequestFilter(hibernate))
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config).register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate)).register(tokenRequestFilter);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));

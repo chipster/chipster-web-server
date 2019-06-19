@@ -80,7 +80,7 @@ public class AuthenticationService {
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
 
-    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)        	
         	.register(tokenResource)
         	.register(oidcResource)
         	.register(userResource)

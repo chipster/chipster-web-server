@@ -116,7 +116,8 @@ public class AdminResource {
 
 		for (String name : fileSystems.keySet()) {
 			collectDiskStats(status, fileSystems.get(name), name);			
-		}		
+		}	
+		
 		
 		return status;
 	}

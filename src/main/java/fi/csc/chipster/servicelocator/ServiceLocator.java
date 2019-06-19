@@ -87,7 +87,7 @@ public class ServiceLocator {
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	tokenRequestFilter.authenticationRequired(false, false);
     	        
-    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)
         	.register(new ServiceResource(publicServices, allServices))
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())

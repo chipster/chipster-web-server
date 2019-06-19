@@ -126,7 +126,7 @@ public class SessionDb {
 
 		sessionResource.setPubSubServer(pubSubServer);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig().register(datasetTokenResource)
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config).register(datasetTokenResource)
 				.register(ruleTable).register(sessionResource).register(globalJobResource).register(userResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
 				// .register(RestUtils.getLoggingFeature("session-db"))

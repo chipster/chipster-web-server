@@ -82,7 +82,7 @@ public class SessionWorker {
 		this.sessionWorkerResource = new SessionWorkerResource(serviceLocator);
 		this.supportResource = new SupportResource(config, authService, sessionDb);
 		
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)
 				.register(sessionWorkerResource)
 				.register(supportResource)
 				.register(tokenRequestFilter);

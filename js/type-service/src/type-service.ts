@@ -77,7 +77,6 @@ export default class TypeService {
 		let originUri, originList = [], cors;
 		new RestClient().getServiceUri("web-server").subscribe(response => {
 			originUri = response;
-			console.log(originUri);
 			originList.push(originUri);
 			cors = corsMiddleware({
 				origins: originList,

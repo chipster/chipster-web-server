@@ -17,6 +17,13 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 
 public class CORSServletFilter implements Filter {
+
+	private Config config;
+	
+	
+	public CORSServletFilter(Config config) {
+		this.config= config;
+	}
 	
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
@@ -34,10 +41,9 @@ public class CORSServletFilter implements Filter {
 	
 		
 		//dont take this from the req as it is a security threat, get the address from the config file
-		
-		Config config = new Config();
-	
-		response.addHeader("Access-Control-Allow-Origin", config.getExternalServiceUrls().get(Role.WEB_SERVER));		
+
+
+		response.addHeader("Access-Control-Allow-Origin", this.config.getExternalServiceUrls().get(Role.WEB_SERVER));		
 		response.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
 		response.addHeader("Access-Control-Allow-Headers", "authorization, content-type, range"); // request
 		response.addHeader("Access-Control-Expose-Headers", "location, Accept-Ranges, Content-Encoding, Content-Length, Accept-Ranges, Content-Range"); // response

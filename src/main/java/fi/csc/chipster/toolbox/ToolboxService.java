@@ -200,7 +200,7 @@ public class ToolboxService {
 	private void startServer(boolean enableStatsAndAdminServer) throws IOException, URISyntaxException {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig()
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)
 				.register(this.toolResource)
 				.register(moduleResource);
 		// .register(new LoggingFilter())

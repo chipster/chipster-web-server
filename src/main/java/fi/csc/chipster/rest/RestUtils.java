@@ -270,7 +270,10 @@ public class RestUtils {
 		}
 	}
 
-	public static ResourceConfig getDefaultResourceConfig() {
+	public static ResourceConfig getDefaultResourceConfig(Config config) {
+		
+		CORSResponseFilter cr = new CORSResponseFilter(config);
+		
 		return new ResourceConfig()
 				/*
 				 * Disable auto discovery so that we can decide what we want to register
@@ -286,7 +289,7 @@ public class RestUtils {
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
 				// add CORS headers
-				.register(CORSResponseFilter.class)
+				.register(cr)
 				// enable the RolesAllowed annotation
 				.register(RolesAllowedDynamicFeature.class)
 				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class); 
@@ -353,7 +356,7 @@ public class RestUtils {
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
 			String role, Config config, Object authResource) {
 		
-        final ResourceConfig rc = RestUtils.getDefaultResourceConfig()        	
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig(config)        	
             	.register(authResource)
             	.register(adminResource);
         
