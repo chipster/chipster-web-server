@@ -86,8 +86,10 @@ public class ServiceLocator {
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	tokenRequestFilter.authenticationRequired(false, false);
+    	
+    	ServiceLocatorClient client = new LocalServiceLocatorClient(publicServices, allServices, config);
     	        
-    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(client)
         	.register(new ServiceResource(publicServices, allServices))
         	.register(tokenRequestFilter);
 			//.register(new LoggingFilter())
@@ -103,7 +105,7 @@ public class ServiceLocator {
         
         this.httpServer.start();
                 
-        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, jerseyStatisticsSource);
+        this.adminServer = RestUtils.startAdminServer(Role.SERVICE_LOCATOR, config, authService, client, jerseyStatisticsSource);
     }
 
     /**

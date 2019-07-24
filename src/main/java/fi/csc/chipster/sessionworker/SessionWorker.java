@@ -82,7 +82,7 @@ public class SessionWorker {
 		this.sessionWorkerResource = new SessionWorkerResource(serviceLocator);
 		this.supportResource = new SupportResource(config, authService, sessionDb);
 		
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(sessionWorkerResource)
 				.register(supportResource)
 				.register(tokenRequestFilter);
@@ -98,7 +98,7 @@ public class SessionWorker {
 		
 		httpServer.start();
 		
-		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, jerseyStatisticsSource);
+		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, this.serviceLocator, jerseyStatisticsSource);
 		
 		// clean up daily
 		long cleanUpInterval = 24l * 60 * 60 * 1000;

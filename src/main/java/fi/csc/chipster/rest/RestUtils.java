@@ -62,6 +62,7 @@ import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
@@ -270,9 +271,9 @@ public class RestUtils {
 		}
 	}
 
-	public static ResourceConfig getDefaultResourceConfig(Config config) {
+	public static ResourceConfig getDefaultResourceConfig(ServiceLocatorClient serviceLocator) {
 		
-		CORSResponseFilter cr = new CORSResponseFilter(config);
+		CORSResponseFilter cr = new CORSResponseFilter(serviceLocator);
 		
 		return new ResourceConfig()
 				/*
@@ -341,22 +342,22 @@ public class RestUtils {
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 	
-	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, StatusSource... stats) {
-		return startAdminServer(new AdminResource(stats), null, role, config, authService);
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocator, StatusSource... stats) {
+		return startAdminServer(new AdminResource(stats), null, role, config, authService, serviceLocator);
 	}
 	
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
-			String role, Config config, AuthenticationClient authService) {
+			String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocatorClient) {
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		// allow unauthenticated health checks
 		tokenRequestFilter.authenticationRequired(false, false);
-		return startAdminServer(adminResource, hibernate, role, config, tokenRequestFilter);
+		return startAdminServer(adminResource, hibernate, role, config, tokenRequestFilter, serviceLocatorClient);
 	}
 
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
-			String role, Config config, Object authResource) {
+			String role, Config config, Object authResource, ServiceLocatorClient serviceLocator) {
 		
-        final ResourceConfig rc = RestUtils.getDefaultResourceConfig(config)        	
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)        	
             	.register(authResource)
             	.register(adminResource);
         

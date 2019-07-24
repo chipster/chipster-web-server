@@ -126,7 +126,7 @@ public class SessionDb {
 
 		sessionResource.setPubSubServer(pubSubServer);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config).register(datasetTokenResource)
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(datasetTokenResource)
 				.register(ruleTable).register(sessionResource).register(globalJobResource).register(userResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
 				// .register(RestUtils.getLoggingFeature("session-db"))
@@ -145,7 +145,7 @@ public class SessionDb {
 
 		httpServer.start();
 
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService);
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService, this.serviceLocator);
 		System.out.println("Admin server started");
 	}
 
