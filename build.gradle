@@ -135,9 +135,6 @@ dependencies {
     compile "net.sourceforge.argparse4j:argparse4j:+"
 
 	// other
-	// jetty version set to latest stable release
-	compile "org.eclipse.jetty:jetty-jmx:9.4.+"
-    compile "org.eclipse.jetty:jetty-proxy:9.4.+"
     compile "commons-io:commons-io:+"
     compile "org.springframework:spring:+" // TsvSorter.java using StringUtils
     compile "org.apache.commons:commons-text:+"
