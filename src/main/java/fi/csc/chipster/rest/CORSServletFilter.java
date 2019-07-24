@@ -41,8 +41,9 @@ public class CORSServletFilter implements Filter {
 	
 		
 		//dont take this from the req as it is a security threat, get the address from the config file
-		//response.addHeader("Access-Control-Allow-Origin", this.config.getExternalServiceUrls().get(Role.WEB_SERVER));	
-		response.addHeader("Access-Control-Allow-Origin", request.getHeader("origin"));
+
+
+		response.addHeader("Access-Control-Allow-Origin", this.config.getExternalServiceUrls().get(Role.WEB_SERVER));		
 		response.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
 		response.addHeader("Access-Control-Allow-Headers", "authorization, content-type, range"); // request
 		response.addHeader("Access-Control-Expose-Headers", "location, Accept-Ranges, Content-Encoding, Content-Length, Accept-Ranges, Content-Range"); // response

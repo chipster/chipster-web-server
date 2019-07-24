@@ -31,8 +31,7 @@ public class CORSResponseFilter implements ContainerResponseFilter {
 		
 		MultivaluedMap<String, Object> headers = responseContext.getHeaders();
 		//headers.add("Access-Control-Allow-Origin", "*");
-		//headers.add("Access-Control-Allow-Origin", this.config.getExternalServiceUrls().get(Role.WEB_SERVER));		
-		headers.add("Access-Control-Allow-Origin", requestContext.getHeaderString("origin"));	
+		headers.add("Access-Control-Allow-Origin", this.config.getExternalServiceUrls().get(Role.WEB_SERVER));		
 		headers.add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
 		headers.add("Access-Control-Allow-Headers", "authorization, content-type"); // request
 		headers.add("Access-Control-Expose-Headers", "location, Accept-Ranges, Retry-After"); // response
