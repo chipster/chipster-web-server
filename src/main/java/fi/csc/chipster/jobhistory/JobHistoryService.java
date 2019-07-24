@@ -82,7 +82,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config).register(new HibernateRequestFilter(hibernate))
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate)).register(tokenRequestFilter);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
@@ -91,7 +91,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		// Starting the Job History Admin Server
 		this.jobHistoryAdminServer = RestUtils.startAdminServer(jobHistoryResource, hibernate, Role.JOB_HISTORY, config,
-				authService);
+				authService, this.serviceLocator);
 		System.out.println("Admin server started");
 		this.jobHistoryAdminServer.start();
 

@@ -118,7 +118,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	logger.info("starting the admin rest server");
     	
     	this.adminServer = RestUtils.startAdminServer(
-    			new AdminResource(this, pubSubServer), null, Role.SCHEDULER, config, authService);
+    			new AdminResource(this, pubSubServer), null, Role.SCHEDULER, config, authService, this.serviceLocator);
     	    	
     	logger.info("scheduler is up and running");    		
     }

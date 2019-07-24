@@ -30,6 +30,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
@@ -79,8 +80,10 @@ public class AuthenticationService {
     	OidcResource oidcResource = new OidcResource(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
+    	
+    	ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
-    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)        	
+    	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)        	
         	.register(tokenResource)
         	.register(oidcResource)
         	.register(userResource)
@@ -113,7 +116,7 @@ public class AuthenticationService {
         AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH, config.getPassword(Role.AUTH));
 		this.adminServer = RestUtils.startAdminServer(
         		adminResource, hibernate, 
-        		Role.AUTH, config, authClient);
+        		Role.AUTH, config, authClient, serviceLocator);
     }
 
     /**

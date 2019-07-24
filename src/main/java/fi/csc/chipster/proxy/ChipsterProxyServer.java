@@ -87,7 +87,7 @@ public class ChipsterProxyServer {
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 		
 		// separate port for the proxy admin api		
-		adminServer = RestUtils.startAdminServer(new ChipsterProxyAdminResource(proxy), null, Role.PROXY, config, authService);
+		adminServer = RestUtils.startAdminServer(new ChipsterProxyAdminResource(proxy), null, Role.PROXY, config, authService, this.serviceLocator);
 	}
 
 	

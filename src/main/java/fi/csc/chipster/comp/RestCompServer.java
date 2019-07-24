@@ -219,7 +219,7 @@ public class RestCompServer
 
 		AdminResource adminResource = new AdminResource(this);
 		adminResource.addFileSystem("work", workDir);
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient);
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient, serviceLocator);
 
 		sendCompAvailable();
 

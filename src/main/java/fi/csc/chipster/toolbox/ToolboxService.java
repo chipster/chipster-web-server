@@ -200,23 +200,27 @@ public class ToolboxService {
 	private void startServer(boolean enableStatsAndAdminServer) throws IOException, URISyntaxException {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.config)
+		
+		JerseyStatisticsSource jerseyStatisticsSource = null;
+		
+		String username = Role.TOOLBOX;
+		String password = config.getPassword(username);
+		
+		this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(this.toolResource)
 				.register(moduleResource);
 		// .register(new LoggingFilter())
 		
-		JerseyStatisticsSource jerseyStatisticsSource = null;
-		
 		if (enableStatsAndAdminServer) {
-			String username = Role.TOOLBOX;
-			String password = config.getPassword(username);
-
-			this.serviceLocator = new ServiceLocatorClient(config);
-			this.authService = new AuthenticationClient(serviceLocator, username, password);
-
+			
 			// this must be called before the server is started, otherwise throws an IllegalStateException
 			jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		}
+		
+
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -225,7 +229,7 @@ public class ToolboxService {
 
 		if (enableStatsAndAdminServer) {
 			jerseyStatisticsSource.collectConnectionStatistics(httpServer);
-			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, jerseyStatisticsSource);
+			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, this.serviceLocator, jerseyStatisticsSource);
 		}
 
 		this.httpServer.start();
