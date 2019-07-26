@@ -23,7 +23,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
@@ -49,10 +48,6 @@ public class AdminResource {
 			this.statusSources = Arrays.asList(stats);
 		}
 		this.fileSystems.put("root", new File("."));
-	}
-
-	public AdminResource(HibernateUtil hibernate, Class<Token> dbTable, JerseyStatisticsSource statisticsListener) {
-		this(hibernate, Arrays.asList(new Class<?>[] {dbTable}), statisticsListener); 
 	}
 
 	public AdminResource(StatusSource... stats) {

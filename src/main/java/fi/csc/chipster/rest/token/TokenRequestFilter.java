@@ -1,18 +1,10 @@
 package fi.csc.chipster.rest.token;
 import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
+import java.security.PublicKey;
 import java.util.HashSet;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.UUID;
 
 import javax.annotation.Priority;
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
@@ -20,35 +12,39 @@ import javax.ws.rs.ext.Provider;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.openssl.PEMException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
+import fi.csc.chipster.auth.resource.Tokens;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class TokenRequestFilter implements ContainerRequestFilter {
 
+	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	public static final String QUERY_PARAMETER_TOKEN = "token";
 	public static final String HEADER_AUTHORIZATION = "authorization";
 	public static final String TOKEN_USER = "token";
-	private static final Duration TOKEN_CACHE_LIFETIME = Duration.of(10, ChronoUnit.SECONDS);
 
-	private Map<String, Token> tokenCache = new HashMap<>();
 	private boolean authenticationRequired = true;
 
-	private AuthenticationClient authService;
 	private boolean passwordRequired = true;
 
-	private Timer tokenCacheTimer = new Timer("token cache cleanup", true);
+	private PublicKey jwtPublicKey;
 
 	public TokenRequestFilter(AuthenticationClient authService) {
-		this.authService = authService;
+		try {
+			this.jwtPublicKey = authService.getJwtPublicKey();
+		} catch (PEMException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
@@ -84,17 +80,23 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			// login ok
 			requestContext.setSecurityContext(
 					new AuthSecurityContext(principal, requestContext.getSecurityContext()));
-		} catch (ForbiddenException e) {
-			// unable to check the user's token because auth didn't accept our own token
-			throw new InternalServerErrorException("failed to check the token", e);
-		} catch (NotFoundException e) {
+
+		} catch (NotAuthorizedException e) {
+			
 			if (authenticationRequired) {
-				throw new ForbiddenException(e);
-			} else {
-				// DatasetTokens have to be passed through
+				throw new NotAuthorizedException(e.getMessage());
+			}
+			try {
+				// DatasetTokens have to be passed through, but let's check that it's at least a valid UUID 
+				UUID datasetToken = UUID.fromString(password);
+			
 				requestContext.setSecurityContext(new AuthSecurityContext(
-						new AuthPrincipal(null, password, new HashSet<String>()), requestContext.getSecurityContext()));
+						new AuthPrincipal(null, datasetToken.toString(), new HashSet<String>()), requestContext.getSecurityContext()));
 				return;				
+		
+			} catch (IllegalArgumentException ex) {
+				// probably this wasn't supposed to be a DatasetToken, send the original message
+				throw new NotAuthorizedException(e.getMessage());
 			}
 		}
 	}
@@ -113,44 +115,9 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 
 	public AuthPrincipal tokenAuthentication(String clientTokenKey) {
 
-		if (clientTokenKey == null) {
-			throw new NotAuthorizedException("no authorization header");
-		}
-
-		Token dbClientToken = null;
-
-		synchronized (tokenCache) { // optimize reads to non-blocking
-			if (tokenCache.containsKey(clientTokenKey)) {
-				dbClientToken = tokenCache.get(clientTokenKey);
-			} else {
-				dbClientToken = authService.getDbToken(clientTokenKey);
-				if (dbClientToken == null) {
-					// auth responds with NotFoundException
-					throw new NotFoundException("token not found");	
-				}
-				tokenCache.put(clientTokenKey, dbClientToken);
-				tokenCacheTimer.schedule(new TimerTask() {
-
-					@Override
-					public void run() {
-						try {
-							synchronized (tokenCache) {
-								tokenCache.remove(clientTokenKey); // clientTokeyKey is effectively final
-							}
-						} catch (Exception e) {
-							logger.warn("remove token from cache failed", e);
-						}
-					}			
-				}, TOKEN_CACHE_LIFETIME.toMillis());
-			}
-		}
-
-		if (dbClientToken.getValidUntil().isBefore(Instant.now())) {
-			// auth responses with NotFoundException
-			throw new NotFoundException("token expired");
-		}
-
-		return new AuthPrincipal(dbClientToken.getUsername(), clientTokenKey, dbClientToken.getRoles());
+		Token validToken = Tokens.validate(clientTokenKey, this.jwtPublicKey);		
+		
+		return new AuthPrincipal(validToken.getUsername(), clientTokenKey, validToken.getRoles());
 	}
 
 	public void authenticationRequired(boolean authenticationRequired, boolean passwordRequired) {

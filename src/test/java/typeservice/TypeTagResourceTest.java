@@ -168,7 +168,7 @@ public class TypeTagResourceTest {
 	@Test
     public void getTokenFail() throws FileNotFoundException, RestException {
 		
-		Response resp = launcher.getTokenFailTarget(Role.TYPE_SERVICE)
+		Response resp = launcher.getWrongTokenTarget(Role.TYPE_SERVICE)
 				.path("sessions").path(sessionId.toString())
 				.path("datasets").path(pngDatasetId.toString())
 				.request().get();

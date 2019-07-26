@@ -133,7 +133,7 @@ public class FileResourceTest {
 	@Test
     public void putTokenFail() throws FileNotFoundException, RestException {
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());  
-		assertEquals(403, uploadFile(launcher.getTokenFailTarget(Role.FILE_BROKER), sessionId1, datasetId).getStatus());		
+		assertEquals(403, uploadFile(launcher.getWrongTokenTarget(Role.FILE_BROKER), sessionId1, datasetId).getStatus());		
     }
 	
 	@Test
@@ -299,7 +299,7 @@ public class FileResourceTest {
     public void getTokenFail() throws IOException, RestException {        
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());				
 		assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());		
-		assertEquals(403, launcher.getTokenFailTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId1, datasetId)).request().get(Response.class).getStatus());
+		assertEquals(403, launcher.getWrongTokenTarget(Role.FILE_BROKER).path(getDatasetPath(sessionId1, datasetId)).request().get(Response.class).getStatus());
     }
 	
 	@Test

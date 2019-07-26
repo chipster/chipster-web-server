@@ -5,11 +5,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class AuthPrincipal implements Principal {
 	
 	String username;
-	private HashSet<String> roles;
+	private Set<String> roles;
 	private String tokenKey;
 	private String remoteAddress;
 	private Map<String, String> details = new HashMap<>();
@@ -18,11 +19,11 @@ public class AuthPrincipal implements Principal {
 		this(username, null, new HashSet<String>(Arrays.asList(role)));
 	}
 	
-	public AuthPrincipal(String username, HashSet<String> roles) {
+	public AuthPrincipal(String username, Set<String> roles) {
 		this(username, null, roles);
 	}
 
-	public AuthPrincipal(String username, String tokenKey, HashSet<String> roles) {
+	public AuthPrincipal(String username, String tokenKey, Set<String> roles) {
 		this.username = username;
 		this.roles = roles;
 		this.tokenKey = tokenKey;
@@ -33,7 +34,7 @@ public class AuthPrincipal implements Principal {
 		return username;
 	}
 
-	public HashSet<String> getRoles() {
+	public Set<String> getRoles() {
 		return roles;
 	}
 

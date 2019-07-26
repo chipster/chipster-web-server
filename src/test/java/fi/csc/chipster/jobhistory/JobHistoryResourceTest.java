@@ -27,7 +27,7 @@ public class JobHistoryResourceTest {
 	// Users with admin right
 	private static JobHistoryClient jobHistoryClient2;
 
-	private static int MAX_NUM = 1000;
+	private static int MAX_NUM = 100;
 
 	@BeforeClass
 	public static void setUp() throws Exception {

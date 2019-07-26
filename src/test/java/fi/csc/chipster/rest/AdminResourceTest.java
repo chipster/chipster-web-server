@@ -71,7 +71,7 @@ public class AdminResourceTest {
     		
      		assertEquals(403, getStatusResponse(launcher.getUser1Client(), role).getStatus());
      		assertEquals(403, getStatusResponse(launcher.getNoAuthClient(), role).getStatus());
-     		assertEquals(403, getStatusResponse(launcher.getTokenFailClient(), role).getStatus());
+     		assertEquals(403, getStatusResponse(launcher.getWrongTokenClient(), role).getStatus());
      		assertEquals(401, getStatusResponse(launcher.getUnparseableTokenClient(), role).getStatus());
     	}
     }
@@ -80,7 +80,7 @@ public class AdminResourceTest {
     public void sessionDbTopics() throws IOException {
     	assertEquals(403, getAdminResponse(launcher.getUser1Client(), Role.SESSION_DB, "topics").getStatus());
     	assertEquals(403, getAdminResponse(launcher.getNoAuthClient(), Role.SESSION_DB, "topics").getStatus());
- 		assertEquals(403, getAdminResponse(launcher.getTokenFailClient(), Role.SESSION_DB, "topics").getStatus());
+ 		assertEquals(403, getAdminResponse(launcher.getWrongTokenClient(), Role.SESSION_DB, "topics").getStatus());
  		assertEquals(401, getAdminResponse(launcher.getUnparseableTokenClient(), Role.SESSION_DB, "topics").getStatus());
     }
     

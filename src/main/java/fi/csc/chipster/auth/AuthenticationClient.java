@@ -3,13 +3,13 @@ package fi.csc.chipster.auth;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.InternalServerErrorException;
@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.openssl.PEMException;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.hibernate.service.spi.ServiceException;
 
@@ -32,6 +33,7 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.auth.resource.AuthUserResource;
+import fi.csc.chipster.auth.resource.JwsUtils;
 import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.DynamicCredentials;
@@ -162,7 +164,7 @@ public class AuthenticationClient {
 		try {
 			Token dbToken = getAuthenticatedClient()
 					.target(authUri)
-					.path(TokenResource.TOKENS)
+					.path(TokenResource.PATH_TOKENS)
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.header("chipster-token", tokenKey)
 					.get(Token.class);
@@ -178,7 +180,7 @@ public class AuthenticationClient {
 		return null;
 	}
 
-	public UUID getTokenKey() {
+	public String getTokenKey() {
 		return token.getTokenKey();
 	}
 	
@@ -188,7 +190,7 @@ public class AuthenticationClient {
 		try {
 			Token serverToken = getAuthenticatedClient()
 					.target(authUri)
-					.path(TokenResource.TOKENS)
+					.path(TokenResource.PATH_TOKENS)
 					.path("refresh")
 					.request(MediaType.APPLICATION_JSON_TYPE)
 					.post(Entity.json(""), Token.class);
@@ -284,6 +286,19 @@ public class AuthenticationClient {
 		return RestMethods.getList(client
 			.target(serviceLocator.getPublicUri(Role.AUTH))
 			.path(AuthUserResource.USERS), User.class);
+	}
+
+	public PublicKey getJwtPublicKey() throws PEMException {
+		String authUri = getAuth();
+
+		String pem = getAuthenticatedClient()
+				.target(authUri)
+				.path(TokenResource.PATH_TOKENS)
+				.path(TokenResource.PATH_PUBLIC_KEY)
+				.request(MediaType.TEXT_PLAIN_TYPE)
+				.get(String.class);
+		
+		return JwsUtils.pemToPublicKey(pem);
 	}
 }
 

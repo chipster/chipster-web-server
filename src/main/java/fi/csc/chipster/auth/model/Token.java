@@ -1,44 +1,30 @@
 package fi.csc.chipster.auth.model;
 
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.UUID;
+import java.util.Set;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Transient;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import fi.csc.chipster.rest.RestUtils;
-
-@Entity // db
 @XmlRootElement // json
 public class Token {
 		
-	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
-	private UUID tokenKey;
+	private String tokenKey;
 	private String username;
 	private Instant	validUntil, created;
-	private String rolesJson;
-	
-	@Transient
+	private Set<String> roles;
 	private String name;
 
 	public Token() {
 		// JAX-B needs this
 	}
 	
-	public Token(String username, UUID token,
-			Instant validUntil, Instant created, String rolesJson) {
+	public Token(String username, String token,
+			Instant validUntil, Instant created, Set<String> roles) {
 		this.username = username;
 		this.tokenKey = token;
 		this.validUntil = validUntil;
 		this.created = created;
-		this.setRolesJson(rolesJson);
+		this.roles = roles;
 	}
 	
 	public String getUsername() {
@@ -49,20 +35,12 @@ public class Token {
 		this.username = username;
 	}
 	
-	public UUID getTokenKey() {
+	public String getTokenKey() {
 		return tokenKey;
 	}
 	
-	public void setTokenKey(UUID token) {
+	public void setTokenKey(String token) {
 		this.tokenKey = token;
-	}
-
-	public String getRolesJson() {
-		return rolesJson;
-	}
-
-	public void setRolesJson(String rolesJson) {
-		this.rolesJson = rolesJson;
 	}
 
 	public Instant getValidUntil() {
@@ -88,10 +66,12 @@ public class Token {
 	public void setName(String name) {
 		this.name = name;
 	}
-	
-	@JsonIgnore
-	@SuppressWarnings("unchecked")
-	public HashSet<String> getRoles() {
-		return RestUtils.parseJson(HashSet.class, rolesJson);
+
+	public Set<String> getRoles() {
+		return roles;
+	}
+
+	public void setRoles(Set<String> roles) {
+		this.roles = roles;
 	}
 }

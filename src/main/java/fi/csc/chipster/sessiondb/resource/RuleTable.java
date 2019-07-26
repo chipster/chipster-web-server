@@ -34,6 +34,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
@@ -317,7 +318,7 @@ public class RuleTable {
 			String username = tokenRequestFilter.tokenAuthentication(userToken).getName();
 
 			checkAuthorization(username, sessionId, datasetId, requireReadWrite);
-		} catch (NotFoundException e) {
+		} catch (NotAuthorizedException e) {
 			if (requireReadWrite) {
 				// write access is allowed only with the first method
 				throw new ForbiddenException(e);

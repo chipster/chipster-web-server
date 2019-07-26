@@ -2,12 +2,9 @@ package fi.csc.chipster.auth.resource;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.UUID;
+import java.util.Set;
 
 import javax.annotation.security.RolesAllowed;
-import javax.ws.rs.DELETE;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -35,21 +32,23 @@ public class TokenResource {
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 	
-	public static final String TOKENS = "tokens";
 	private static final String TOKEN_HEADER = "chipster-token";
 
-	private TokenTable tokenTable;
+	public static final String PATH_TOKENS = "tokens";
+	public static final String PATH_PUBLIC_KEY = "publicKey";
+
+	private Tokens tokens;
 	private UserTable userTable;
 
-	public TokenResource(TokenTable tokenTable, UserTable userTable) throws URISyntaxException, IOException {
-		this.tokenTable = tokenTable;
+	public TokenResource(Tokens tokenTable, UserTable userTable) throws URISyntaxException, IOException {
+		this.tokens = tokenTable;
 		this.userTable = userTable;
 	}
 
 	@POST
 	@RolesAllowed(Role.PASSWORD)
 	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
+	@Transaction // getName() uses the db
 	public Response createToken(@Context SecurityContext sc) {
 
 		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
@@ -62,40 +61,64 @@ public class TokenResource {
 			throw new NotAuthorizedException("username is null");
 		}
 		
-		Token token = tokenTable.createAndSaveToken(username, principal.getRoles());
+		Token token = tokens.createNewToken(username, principal.getRoles());
 		token.setName(this.getName(token, principal.getRoles() ));
 		
 		return Response.ok(token).build();
 	}
 	
+	/**
+	 * Check the token validity on the server
+	 * 
+	 * Most services shouldn't use this, but get the public key and check the token themselves 
+	 * for performance reasons.
+	 * If that is impractical for some service, it can also use this endpoint to do the validation.
+	 * 
+	 * TODO find a way to pass the client's error (NotAuthorized or Forbidden), to make it
+	 * easier to switch between these two ways of validation.  
+	 * 
+	 * @param requestToken
+	 * @param sc
+	 * @return
+	 */
 	@GET
 	@RolesAllowed(Role.SERVER)
 	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
+	@Transaction // getName() uses the db
 	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken, @Context SecurityContext sc) {
 
-		Token dbToken = tokenTable.getToken(requestToken);
+		Token dbToken;
+		try {
+			dbToken = tokens.validateToken(requestToken);
+		} catch (NotAuthorizedException | ForbiddenException e) {
+			// NotAuthorized and Forbidden are not suitable here, because the server authenticated correctly in the TokenRequestFilter			
+			throw new NotFoundException(e);
+		}
 
-		if (dbToken.getValidUntil().isAfter(Instant.now())) {
-			dbToken.setName(this.getName(dbToken, ((AuthPrincipal)sc.getUserPrincipal()).getRoles()));
-			return Response.ok(dbToken).build();
-		} else {
-			// not a ForbiddenException because the server's token was authenticated correctly in the TokenRequestFilter 
-			throw new NotFoundException("token expired");
-		}				
+		dbToken.setName(this.getName(dbToken, ((AuthPrincipal)sc.getUserPrincipal()).getRoles()));
+		return Response.ok(dbToken).build();					
+	}
+	
+	@GET
+	@Path(PATH_PUBLIC_KEY)
+	// this could be also unauthenticated, but client hasn't needed it so far
+	@RolesAllowed(Role.SERVER)
+	public Response getPublicKey(@Context SecurityContext sc) {
+
+		return Response.ok(this.tokens.getPublicKey()).build();					
 	}	
 
 	@POST
 	@Path("{refresh}")
 	@RolesAllowed({Role.CLIENT, Role.SERVER})
 	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
+	@Transaction // getName() uses the db
 	public Response refreshToken(@Context SecurityContext sc) {
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
 		String token = principal.getTokenKey();
 
-		Token dbToken = tokenTable.refreshToken(token);
+		Token dbToken = tokens.refreshToken(token);
 		dbToken.setName(this.getName(dbToken, principal.getRoles()));
 		
 		return Response.ok(dbToken).build();
@@ -105,42 +128,21 @@ public class TokenResource {
 	@Path("{check}")
 	@RolesAllowed({Role.CLIENT, Role.SERVER})
 	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
+	@Transaction // getName() uses the db
 	public Response checkClientToken(@Context SecurityContext sc) {
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
 		String token = principal.getTokenKey();
 
-		Token dbToken;
-		try {
-			dbToken = tokenTable.getToken(token);
-		} catch (NotFoundException nfe) {
-			throw new ForbiddenException("token not found");
-		}
+		// throws if fails
+		Token validToken = tokens.validateToken(token);
 		
-		// throws forbidden
-		tokenTable.failIfTokenExpired(dbToken);
+		validToken.setName(this.getName(validToken, principal.getRoles()));
 		
-		dbToken.setName(this.getName(dbToken, principal.getRoles()));
-		
-		return Response.ok(dbToken).build();
+		return Response.ok(validToken).build();
 	}
 
-	@DELETE
-	@RolesAllowed(Role.CLIENT)
-	@Transaction
-	public Response delete(@Context SecurityContext sc) {
-
-		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
-
-		UUID uuid = tokenTable.parseUUID(principal.getTokenKey());
-
-		tokenTable.delete(uuid);
-
-		return Response.noContent().build();
-	}
-
-	private String getName(Token token, HashSet<String> roles ) {
+	private String getName(Token token, Set<String> roles ) {
 		// service accounts are not in the userTable
 		if (roles.contains(Role.CLIENT)) {
 			return this.userTable.get(new UserId(token.getUsername())).getName();

@@ -15,13 +15,12 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.TokenResource;
-import fi.csc.chipster.auth.resource.TokenTable;
+import fi.csc.chipster.auth.resource.Tokens;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
@@ -67,19 +66,18 @@ public class AuthenticationService {
     	
     	// init Hibernate
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
-    		Token.class,
     		User.class,
     	});
     	
     	hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);    	
     	
-    	TokenTable tokenTable = new TokenTable(hibernate);
+    	Tokens tokenTable = new Tokens(config);
     	UserTable userTable = new UserTable(hibernate);
     	
     	TokenResource tokenResource = new TokenResource(tokenTable, userTable);
     	OidcResource oidcResource = new OidcResource(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
-    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable);
+    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable);
     	
     	ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
@@ -93,7 +91,7 @@ public class AuthenticationService {
         	.register(authRequestFilter);
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		AdminResource adminResource = new AdminResource(hibernate, Token.class, jerseyStatisticsSource);
+		AdminResource adminResource = new AdminResource(hibernate, hibernateClasses, jerseyStatisticsSource);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI

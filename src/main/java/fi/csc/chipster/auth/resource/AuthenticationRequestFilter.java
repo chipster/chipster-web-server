@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 import javax.annotation.Priority;
 import javax.ws.rs.ForbiddenException;
@@ -22,6 +21,7 @@ import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.BasicAuthParser;
@@ -57,10 +57,13 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private HashMap<String, String> monitoringAccounts;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable) throws IOException, IllegalConfigurationException {
+	private Tokens tokenTable;
+
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, Tokens tokenTable) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
 		this.config = config;
 		this.userTable = userTable;
+		this.tokenTable = tokenTable;
 
 		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
@@ -114,31 +117,16 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 			AuthSecurityContext sc = new AuthSecurityContext(principal, requestContext.getSecurityContext());
 			requestContext.setSecurityContext(sc);
 		} else {
-			throw new ForbiddenException("unknown authorization header type");
+			throw new NotAuthorizedException("unknown authorization header type");
 		}
 	}
 
-	public AuthPrincipal tokenAuthentication(String tokenKey) {
-		// FIXME fail if token expired??		
-		UUID uuid;
-		try {
-			uuid = UUID.fromString(tokenKey);
-		} catch (IllegalArgumentException e) {
-			throw new ForbiddenException("tokenKey is not a valid UUID");
-		}
+	public AuthPrincipal tokenAuthentication(String jwsString) {
 		
-		Token token = getHibernate().runInTransaction(new HibernateRunnable<Token>() {
-			@Override
-			public Token run(Session hibernateSession) {
-				return getHibernate().session().get(Token.class, uuid);
-			}			
-		});
-		
-		if (token == null) {
-			throw new ForbiddenException();
-		}
+		// throws if fails
+		Token token = tokenTable.validateToken(jwsString);				
 
-		return new AuthPrincipal(token.getUsername(), tokenKey, token.getRoles());
+		return new AuthPrincipal(token.getUsername(), token.getTokenKey(), token.getRoles());
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {
@@ -232,9 +220,5 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		}
 
 		return roles;
-	}
-
-	private HibernateUtil getHibernate() {
-		return hibernate;
 	}
 }

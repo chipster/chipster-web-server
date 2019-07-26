@@ -1,7 +1,14 @@
 package fi.csc.chipster.rest;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.UUID;
 
+import javax.crypto.spec.SecretKeySpec;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
@@ -11,8 +18,13 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.resource.Tokens;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
 public class TestServerLauncher {
 	
@@ -105,12 +117,12 @@ public class TestServerLauncher {
 		return getUnparseableTokenClient().target(getTargetUri(role));
 	}
 	
-	public Client getTokenFailClient() {
-		return AuthenticationClient.getClient("token", RestUtils.createId(), true);
+	public Client getWrongTokenClient() {
+		return AuthenticationClient.getClient("token", getWrongKeyToken().getPassword(), true);
 	}
 	
-	public WebTarget getTokenFailTarget(String role) {
-		return getTokenFailClient().target(getTargetUri(role));
+	public WebTarget getWrongTokenTarget(String role) {
+		return getWrongTokenClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getAuthFailTarget(String role) {
@@ -166,9 +178,76 @@ public class TestServerLauncher {
 		return new StaticCredentials("token", "unparseableToken");
 	}
 		
-	public CredentialsProvider getWrongToken() {
-		return new StaticCredentials("token", RestUtils.createId());
+	public static CredentialsProvider getWrongKeyToken() {
+		
+		Token token = Tokens.createToken(
+				"client", 
+				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
+				Instant.now(), 
+				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512);
+		
+		return new StaticCredentials("token", token.getTokenKey());
 	}
+	
+	public CredentialsProvider getExpiredToken() {
+		
+		Token token = Tokens.createToken(
+				"client", 
+				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
+				Instant.now().minus(60, ChronoUnit.DAYS), 
+				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512);
+		
+		return new StaticCredentials("token", token.getTokenKey());
+	}
+	
+	/**
+	 * The algorithm is send in the JWT header
+	 * 
+	 * Make sure the server doesn't accept NONE signatures
+	 * https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
+	 * 
+	 * @return
+	 */
+	public CredentialsProvider getNoneToken() {
+		
+		String jws = Jwts.builder()
+			    .setIssuer("chipster")
+			    .setSubject("client")
+			    .setAudience("chipster")
+			    .setExpiration(Date.from(Instant.now().plus(1, ChronoUnit.HOURS)))
+			    .setNotBefore(Date.from(Instant.now())) 
+			    .setIssuedAt(Date.from(Instant.now()))
+			    .setId(UUID.randomUUID().toString())
+			    .claim(Tokens.CLAIM_KEY_ROLES, Role.CLIENT + " " + Role.SERVER + " " + Role.ADMIN)
+			    .claim(Tokens.CLAIM_KEY_LOGIN_TIME, Instant.now().getEpochSecond())			  
+			    .compact();
+		
+		return new StaticCredentials("token", jws);
+	}
+	
+	/**
+	 * The algorithm is send in the JWT header
+	 * 
+	 * Make sure the server doesn't accept tokens that are signed with the public key (as a symmetric key)
+	 * https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
+	 * 
+	 * @return
+	 * @throws IOException 
+	 */
+	public CredentialsProvider getSymmetricToken() throws IOException {
+		
+		byte[] publicKey = new AuthenticationClient(new ServiceLocatorClient(config), "session-db", "session-db").getJwtPublicKey().getEncoded();
+		
+		SecretKeySpec symmetricKey = new SecretKeySpec(publicKey, SignatureAlgorithm.HS512.getJcaName());
+		
+		Token token = Tokens.createToken(
+				"client", 
+				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
+				Instant.now(), 
+				symmetricKey, SignatureAlgorithm.HS512);
+		
+		return new StaticCredentials("token", token.getTokenKey());
+	}	
 	
 	public CredentialsProvider getUser1Credentials() {
 		return new StaticCredentials("jaas/client", "clientPassword");

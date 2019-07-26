@@ -40,7 +40,7 @@ public class ServiceResourceTest {
         user1Target = launcher.getUser1Target(Role.SERVICE_LOCATOR);        
         
         unparseableTokenTarget = launcher.getUnparseableTokenTarget(Role.SERVICE_LOCATOR);
-        tokenFailTarget = launcher.getTokenFailTarget(Role.SERVICE_LOCATOR);
+        tokenFailTarget = launcher.getWrongTokenTarget(Role.SERVICE_LOCATOR);
         authFailTarget = launcher.getAuthFailTarget(Role.SERVICE_LOCATOR);
     }
 

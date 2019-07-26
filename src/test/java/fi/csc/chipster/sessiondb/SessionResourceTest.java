@@ -25,6 +25,9 @@ public class SessionResourceTest {
 	private static SessionDbClient compClient;
 	private static SessionDbClient unparseableTokenClient;
 	private static SessionDbClient tokenFailClient;
+	private static SessionDbClient expiredTokenClient;
+	private static SessionDbClient noneTokenClient;
+	private static SessionDbClient symmetricTokenClient;
 	private static SessionDbClient authFailClient;
 	private static SessionDbClient noAuthClient;
 	private static SessionDbClient sessionWorkerClient;
@@ -40,7 +43,10 @@ public class SessionResourceTest {
 		schedulerClient 		= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getSchedulerToken(), Role.SERVER);
 		compClient 				= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getCompToken(), Role.SERVER);
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
-		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getWrongToken(), Role.CLIENT);
+		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), TestServerLauncher.getWrongKeyToken(), Role.CLIENT);
+		expiredTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getExpiredToken(), Role.CLIENT);
+		noneTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getNoneToken(), Role.CLIENT);
+		symmetricTokenClient	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSymmetricToken(), Role.CLIENT);
 		authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
 		noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
 		sessionWorkerClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(), Role.CLIENT);
@@ -97,6 +103,9 @@ public class SessionResourceTest {
 		// auth tests
 		testGetSession(401, sessionId1, unparseableTokenClient);
 		testGetSession(403, sessionId1, tokenFailClient);
+		testGetSession(403, sessionId1, expiredTokenClient);
+		testGetSession(401, sessionId1, noneTokenClient);
+		testGetSession(401, sessionId1, symmetricTokenClient);
 		testGetSession(401, sessionId1, authFailClient);
 		testGetSession(401, sessionId1, noAuthClient);
     }

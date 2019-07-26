@@ -71,14 +71,14 @@ public class OidcResource {
 	public static final String CONF_APP_ID = "auth-oidc-app-id";
 	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
 		
-	private TokenTable tokenTable;
+	private Tokens tokenTable;
 	private UserTable userTable;
 
 	ArrayList<OidcConfig> sortedOidcConfigs = new ArrayList<>();	
 	HashMap<OidcConfig, IDTokenValidator> validators = new HashMap<>();
 	ArrayList<OidcConfig> oidcConfigs = new ArrayList<>();
 
-	public OidcResource(TokenTable tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
+	public OidcResource(Tokens tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
 		this.tokenTable = tokenTable;
 		this.userTable = userTable;
 				
@@ -229,7 +229,7 @@ public class OidcResource {
 		userTable.addOrUpdate(user);
 
 		HashSet<String> roles = Stream.of(Role.CLIENT, Role.OIDC).collect(Collectors.toCollection(HashSet::new));
-		Token token = tokenTable.createAndSaveToken(userId.toUserIdString(), roles);
+		Token token = tokenTable.createNewToken(userId.toUserIdString(), roles);
 		// name for the navbar
 		token.setName(user.getName());
 
