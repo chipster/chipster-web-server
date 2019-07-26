@@ -38,7 +38,7 @@ public class Topic {
 					s.getRemote().sendText(msg);
 				} catch (IOException e) {
 					// nothing to worry about if the client just unsubscribed 
-					logger.warn("failed to publish a message to: " + subscribers.get(s.getRemoteAddress()), e);
+					logger.warn("failed to publish a message to " + s.getRemoteAddress(), e);
 				}
 			}
 		}
@@ -53,7 +53,7 @@ public class Topic {
 					s.getRemote().sendPing(null);
 				} catch (IOException e) {
 					// nothing to worry about if the client just unsubscribed 
-					logger.warn("failed to ping " + subscribers.get(s.getRemoteAddress()), e);
+					logger.warn("failed to ping " + s.getRemoteAddress(), e);
 				}
 			}
 		}

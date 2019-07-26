@@ -17,7 +17,6 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -33,7 +32,10 @@ public class WebServerTest {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
 
-        webServerTarget = launcher.getNoAuthTarget(Role.WEB_SERVER);
+    	// this would return the angular-cli test server now in the dev setup
+        //webServerTarget = launcher.getNoAuthTarget(Role.WEB_SERVER);
+    	// but we want to test the Java server
+        webServerTarget = launcher.getNoAuthClient().target("http://localhost:8000");
     }
 
     @AfterClass

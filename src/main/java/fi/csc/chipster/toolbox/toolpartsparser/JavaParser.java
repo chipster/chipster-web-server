@@ -1,5 +1,6 @@
 package fi.csc.chipster.toolbox.toolpartsparser;
 
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 
 import org.apache.log4j.Logger;
@@ -13,7 +14,7 @@ public class JavaParser implements ToolPartsParser {
 
 
 	@Override
-	public ParsedScript parse(Path moduleDir, String toolId) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+	public ParsedScript parse(Path moduleDir, String toolId) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
 		String sourceResourceName = toolId.substring(0, toolId.lastIndexOf(".java")); 
 
@@ -24,7 +25,7 @@ public class JavaParser implements ToolPartsParser {
 		
 		assert(JavaCompJobBase.class.isAssignableFrom(jobClass));
 		JavaCompJobBase jobInstance; 
-		jobInstance = (JavaCompJobBase)jobClass.newInstance();
+		jobInstance = (JavaCompJobBase)jobClass.getDeclaredConstructor().newInstance();
 		
 		// TODO what to do with other parts
 		ParsedScript ps = new ParsedScript();

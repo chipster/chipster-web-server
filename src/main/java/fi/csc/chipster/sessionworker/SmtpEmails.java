@@ -40,8 +40,8 @@ public class SmtpEmails {
     	Properties props = System.getProperties();
     	props.put("mail.transport.protocol", "smtp");
     	props.put("mail.smtp.port", this.port); 
-    	props.put("mail.smtp.starttls.enable", new Boolean(this.tls).toString());
-    	props.put("mail.smtp.auth", new Boolean(this.auth).toString());
+    	props.put("mail.smtp.starttls.enable", Boolean.toString(this.tls));
+    	props.put("mail.smtp.auth", Boolean.toString(this.auth));
  
     	Session session = Session.getDefaultInstance(props);
  
