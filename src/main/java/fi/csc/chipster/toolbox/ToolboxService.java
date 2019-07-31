@@ -86,6 +86,7 @@ public class ToolboxService {
 	 * @throws URISyntaxException
 	 */
 	public ToolboxService(String url, String toolsBinPath) throws IOException, URISyntaxException {
+		this.config = new Config();
 		this.url = url;
 		this.toolsBin = new File(toolsBinPath);
 		initialise();
