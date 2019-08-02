@@ -34,13 +34,12 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionDbToken;
 
 public class RuleTable {	
 	
@@ -54,19 +53,16 @@ public class RuleTable {
 
 	private Set<String> servicesAccounts;
 
-	private DatasetTokenTable datasetTokenTable;
+	private SessionDbTokens datasetTokenTable;
 
-	private TokenRequestFilter tokenRequestFilter;
-	
 	// map appId (chipster/mylly) to example session owner account for that app
 	private Map<String, String> restrictSharingToEveryone;
 
-	public RuleTable(HibernateUtil hibernate, DatasetTokenTable datasetTokenTable, TokenRequestFilter tokenRequestFilter) {
+	public RuleTable(HibernateUtil hibernate, SessionDbTokens datasetTokenTable) {
 		this.hibernate = hibernate;
 		this.config = new Config();
 		this.servicesAccounts = config.getServicePasswords().keySet();
 		this.datasetTokenTable = datasetTokenTable;
-		this.tokenRequestFilter = tokenRequestFilter;
 		this.restrictSharingToEveryone = config.getConfigEntries(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE + "-");
 	}
 	
@@ -89,7 +85,7 @@ public class RuleTable {
     	HibernateUtil.delete(rule, rule.getRuleId(), hibernateSession);    	
     }
     
-    public Session checkAuthorization(AuthPrincipal principal, UUID sessionId, boolean requireReadWrite, boolean allowAdmin) {
+    public Session checkAuthorizationForSession(AuthPrincipal principal, UUID sessionId, boolean requireReadWrite, boolean allowAdmin) {
     	return checkAuthorization(principal, sessionId, requireReadWrite, hibernate.session(), allowAdmin);
     }
     
@@ -105,7 +101,7 @@ public class RuleTable {
      * @return
      */
     public Session checkAuthorization(String username, UUID sessionId, boolean requireReadWrite) {
-    	return checkAuthorization(new AuthPrincipal(username, new HashSet<>()), sessionId, requireReadWrite, false);
+    	return checkAuthorizationForSession(new AuthPrincipal(username, new HashSet<>()), sessionId, requireReadWrite, false);
     }
     
 	/**
@@ -298,51 +294,39 @@ public class RuleTable {
 		logger.debug("save rule " + auth.getUsername());
 		HibernateUtil.persist(auth, hibernateSession);
 	}
-
+	
+	public Dataset checkAuthorizationForDatasetRead(SecurityContext sc, UUID sessionId, UUID datasetId) {
+		return checkAuthorizationForDataset(sc, sessionId, datasetId, false);
+	}
+	
 	/**
 	 * Check the token is allowed to access a specific dataset
 	 * 
 	 * Access is allowed if either
-	 * 1. auth-service accepts the token and the corresponding username has an Authorization to access the session
-	 * 2. the token is a DatasetToken for the requested Dataset
+	 * 1. the user was authenticated with a AuthToken in TokenRequestFilter creating a AuthPrincipal 
+	 *    and there is a Rule which allows the authenticated username to access this session
+	 * 2. the token is a SessionDbToken for the requested Dataset
 	 * 
-	 * @param userToken
+	 * @param token
+	 * @param token 
 	 * @param sessionId
 	 * @param datasetId
 	 * @param requireReadWrite
 	 * @return
 	 */
-	public void checkAuthorizationWithToken(String userToken, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
-		try {
-			// check that the token is valid and get the username
-			String username = tokenRequestFilter.tokenAuthentication(userToken).getName();
-
-			checkAuthorization(username, sessionId, datasetId, requireReadWrite);
-		} catch (NotAuthorizedException e) {
-			if (requireReadWrite) {
-				// write access is allowed only with the first method
-				throw new ForbiddenException(e);
-			} else {
-				// read access to a specific dataset is possible with a DatasetToken 
-				datasetTokenTable.checkAuthorization(UUID.fromString(userToken), sessionId, datasetId);
-			}
-		}
-	}
-	
-	/**
-	 * Check that the username is authorized to access a specific dataset
-	 * 
-	 * There must be an Authorization for the user to the session and the dataset must be in that session.
-	 * 
-	 * @param username
-	 * @param sessionId
-	 * @param datasetId
-	 * @param requireReadWrite
-	 * @return
-	 */
-	public Dataset checkAuthorization(String username, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
-		// check that the user has an Authorization to access the session		
-		Session session = checkAuthorization(username, sessionId, requireReadWrite);
+	public Dataset checkAuthorizationForDataset(SecurityContext sc, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
+		
+		Set<String> roles = ((AuthPrincipal)sc.getUserPrincipal()).getRoles();
+		
+		if (!requireReadWrite && roles.contains(Role.SESSION_DB_TOKEN)) {
+			String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
+			SessionDbToken datasetToken = datasetTokenTable.checkAuthorization(token, sessionId, datasetId);
+			
+			return datasetToken.getDataset();
+		} 
+		
+		// check that the user has an Rule which allows access to the session		
+		Session session = checkAuthorization(sc.getUserPrincipal().getName(), sessionId, requireReadWrite);
 		Dataset dataset = SessionDatasetResource.getDataset(sessionId, datasetId, this.hibernate.session());
 				
 		// check that the requested dataset is in the session
@@ -354,16 +338,41 @@ public class RuleTable {
 		return dataset;
 	}
 
-	public Session getSessionForReading(SecurityContext sc, UUID sessionId) {
-		return getSessionForReading(sc, sessionId, false);
+	/**
+	 * Check the user is allowed to access a specific session
+	 * 
+	 * Access is allowed if either
+	 * 1. the user was authenticated with a AuthToken in TokenRequestFilter creating a AuthPrincipal 
+	 *    and there is a Rule which allows the authenticated username to access this session
+	 * 2. the token is a SessionDbToken for the requested Session
+	 * 
+	 * @param token
+	 * @param token 
+	 * @param sessionId
+	 * @param datasetId
+	 * @param requireReadWrite
+	 * @return 
+	 * @return
+	 */
+	public Session checkAuthorizationForSessionRead(SecurityContext sc, UUID sessionId, boolean allowAdmin) {
+		
+		Set<String> roles = ((AuthPrincipal)sc.getUserPrincipal()).getRoles();
+		
+		if (roles.contains(Role.SESSION_DB_TOKEN)) {
+			String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();		
+			// read access to a specific session is possible with a DatasetToken
+			return datasetTokenTable.checkSessionAuthorization(token, sessionId).getSession();
+		}
+			// authenticated with an auth token
+		return checkAuthorizationForSession((AuthPrincipal)sc.getUserPrincipal(), sessionId, false, allowAdmin);		
 	}
 	
-	public Session getSessionForReading(SecurityContext sc, UUID sessionId, boolean allowAdmin) {
-		return checkAuthorization((AuthPrincipal)sc.getUserPrincipal(), sessionId, false, allowAdmin);
+	public Session checkAuthorizationForSessionRead(SecurityContext sc, UUID sessionId) {
+		return checkAuthorizationForSessionRead(sc, sessionId, false);
 	}
 	
-	public Session getSessionForWriting(SecurityContext sc, UUID sessionId) {
-		return checkAuthorization((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, false);
+	public Session checkAuthorizationForSessionReadWrite(SecurityContext sc, UUID sessionId) {
+		return checkAuthorizationForSession((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, false);
 	}
 
 	public boolean isAllowedToShareToEveryone(String userId) {

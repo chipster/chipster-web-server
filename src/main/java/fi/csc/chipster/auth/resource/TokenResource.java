@@ -37,10 +37,10 @@ public class TokenResource {
 	public static final String PATH_TOKENS = "tokens";
 	public static final String PATH_PUBLIC_KEY = "publicKey";
 
-	private Tokens tokens;
+	private AuthTokens tokens;
 	private UserTable userTable;
 
-	public TokenResource(Tokens tokenTable, UserTable userTable) throws URISyntaxException, IOException {
+	public TokenResource(AuthTokens tokenTable, UserTable userTable) throws URISyntaxException, IOException {
 		this.tokens = tokenTable;
 		this.userTable = userTable;
 	}

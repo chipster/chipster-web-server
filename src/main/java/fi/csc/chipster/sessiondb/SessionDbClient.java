@@ -32,7 +32,7 @@ import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.DatasetToken;
+import fi.csc.chipster.sessiondb.model.SessionDbToken;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -162,7 +162,7 @@ public class SessionDbClient {
 	}
 	
 	private WebTarget getDatasetTokenTarget() {
-		return getSessionDbTarget().path("datasettokens");
+		return getSessionDbTarget().path("tokens");
 	}	
 	
 	private WebTarget getRuleTarget(UUID sessionId, UUID authorizationId) {
@@ -316,7 +316,20 @@ public class SessionDbClient {
 		return RestMethods.getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
-	public UUID createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {
+	public String createSessionToken(UUID sessionId, Integer validSeconds) throws RestException {
+		WebTarget target = getDatasetTokenTarget()
+		.path("sessions").path(sessionId.toString());
+		
+		if (validSeconds != null) {
+			target = target.queryParam("valid", Instant.now().plus(Duration.ofSeconds(validSeconds)).toString());
+		}
+		
+		SessionDbToken datasetToken = RestMethods.postWithObjectResponse(target, null, SessionDbToken.class);
+		
+		return datasetToken.getTokenKey();
+	}
+	
+	public String createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {
 		WebTarget target = getDatasetTokenTarget()
 		.path("sessions").path(sessionId.toString())
 		.path("datasets").path(datasetId.toString());
@@ -325,7 +338,7 @@ public class SessionDbClient {
 			target = target.queryParam("valid", Instant.now().plus(Duration.ofSeconds(validSeconds)).toString());
 		}
 		
-		DatasetToken datasetToken = RestMethods.postWithObjectResponse(target, null, DatasetToken.class);
+		SessionDbToken datasetToken = RestMethods.postWithObjectResponse(target, null, SessionDbToken.class);
 		
 		return datasetToken.getTokenKey();
 	}

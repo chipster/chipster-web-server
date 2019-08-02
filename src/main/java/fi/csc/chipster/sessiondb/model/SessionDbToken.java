@@ -1,33 +1,21 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
-import java.util.UUID;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
 import javax.xml.bind.annotation.XmlRootElement;
 
-@Entity //db
 @XmlRootElement // json
-public class DatasetToken {
+public class SessionDbToken {
 	
-	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
-	private UUID tokenKey;
-	private Instant valid;
-	
+	private String tokenKey;
+	private Instant valid;	
 	private String username;
-	@OneToOne(cascade=CascadeType.ALL)
 	private Session session;
-	@OneToOne(cascade=CascadeType.ALL)
-	private Dataset dataset;
+	private Dataset dataset;			
 	
-	public DatasetToken() { } // hibernate needs this			
+	public SessionDbToken() { /* for JSON */ }
 	
-	public DatasetToken(UUID tokenKey, String username, Session session, Dataset dataset, Instant valid) {
+	public SessionDbToken(String tokenKey, String username, Session session, Dataset dataset, Instant valid) {
 		this.tokenKey = tokenKey;
 		this.username = username;
 		this.session = session;
@@ -67,11 +55,11 @@ public class DatasetToken {
 		this.valid = valid;
 	}
 
-	public UUID getTokenKey() {
+	public String getTokenKey() {
 		return tokenKey;
 	}
 
-	public void setTokenKey(UUID tokenKey) {
+	public void setTokenKey(String tokenKey) {
 		this.tokenKey = tokenKey;
 	}	
 }

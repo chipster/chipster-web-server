@@ -49,7 +49,6 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
-@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
 public class SessionJobResource {
 	
 	@SuppressWarnings("unused")
@@ -70,13 +69,14 @@ public class SessionJobResource {
 	
     // CRUD
     @GET
-    @Path("{id}")
+    @Path("{id}")    
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
     	
     	// checks authorization
-    	Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId, true);    	
+    	Session session = sessionResource.getRuleTable().checkAuthorizationForSessionRead(sc, sessionId, true);    	
     	
     	Job result = getJob(sessionId, jobId, getHibernate().session());
     	    	
@@ -93,11 +93,14 @@ public class SessionJobResource {
     }
     
 	@GET
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 		
-		Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
+		// checks authorization
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionRead(sc, sessionId);
+		
 		List<Job> result = getJobs(getHibernate().session(), session);
 
 		// if nothing is found, just return 200 (OK) and an empty list
@@ -118,6 +121,7 @@ public class SessionJobResource {
 	
 	@POST
 	@Path(RestUtils.PATH_ARRAY)
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -130,6 +134,7 @@ public class SessionJobResource {
 	}
 
 	@POST
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -163,7 +168,7 @@ public class SessionJobResource {
 			job.setCreated(Instant.now());
 		}		
 		
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
 		
 		for (Job job : jobs) {
 			
@@ -221,6 +226,7 @@ public class SessionJobResource {
 
 	@PUT
 	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Job requestJob, @PathParam("id") UUID jobId, @Context SecurityContext sc) {
@@ -234,7 +240,7 @@ public class SessionJobResource {
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
 		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job doesn't exist");
@@ -259,11 +265,12 @@ public class SessionJobResource {
 
 	@DELETE
     @Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
 	@Transaction
     public Response delete(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
 		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {

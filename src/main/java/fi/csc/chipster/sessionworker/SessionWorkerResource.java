@@ -18,6 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipOutputStream;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
@@ -137,6 +138,7 @@ public class SessionWorkerResource {
 	}   
 
 	@POST
+	@RolesAllowed({Role.CLIENT, Role.SERVER}) // don't allow SessionDbTokens
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("{sessionId}/datasets/{datasetId}")
 	@Transaction

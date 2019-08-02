@@ -40,14 +40,12 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetIdPair;
-import fi.csc.chipster.sessiondb.model.DatasetToken;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -58,6 +56,7 @@ public class SessionDatasetResource {
 
 	public static final String QUERY_PARAM_READ_WRITE = "read-write";
 
+	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
 	final private UUID sessionId;
@@ -76,14 +75,17 @@ public class SessionDatasetResource {
 	// CRUD
 	@GET
 	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response get(@PathParam("id") UUID datasetId, @QueryParam(QUERY_PARAM_READ_WRITE) boolean requireReadWrite,
 			@Context SecurityContext sc) {
 
 		// checks authorization
-		String userToken = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
-		sessionResource.getRuleTable().checkAuthorizationWithToken(userToken, sessionId, datasetId, requireReadWrite);
+		/* Client can't require write permissions if it wants to make sure a modification is allowed later.
+		 * This assumes that there are no Rules that would allow only write but not read access. 
+		 */
+		sessionResource.getRuleTable().checkAuthorizationForDatasetRead(sc, sessionId, datasetId);
 
 		Dataset result = getDataset(sessionId, datasetId, getHibernate().session());
 
@@ -100,12 +102,14 @@ public class SessionDatasetResource {
 	}
 
 	@GET
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {
 
-		Session session = sessionResource.getRuleTable().getSessionForReading(sc, sessionId);
+		// checks authorization
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionRead(sc, sessionId);
+		
 		List<Dataset> result = getDatasets(getHibernate().session(), session);
 
 		// if nothing is found, just return 200 (OK) and an empty list
@@ -173,7 +177,7 @@ public class SessionDatasetResource {
 		}
 
 		// check authorization
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
 
 		for (Dataset dataset : datasets) {
 			if (dataset.getCreated() == null) {
@@ -245,10 +249,11 @@ public class SessionDatasetResource {
 	public void putList(List<Dataset> requestDatasets, @Context SecurityContext sc) {
 
 		/*
-		 * Checks that - user has write authorization for the session - the session
-		 * contains this dataset
+		 * Checks that 
+		 * - user has write authorization for the session 
+		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
 
 		HashMap<UUID, Dataset> dbDatasets = new HashMap<>();
 
@@ -310,7 +315,7 @@ public class SessionDatasetResource {
 	public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getRuleTable().getSessionForWriting(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
 		Dataset dataset = getDataset(sessionId, datasetId, sessionResource.getHibernate().session());
 
 		if (dataset == null || !dataset.getSessionId().equals(session.getSessionId())) {
@@ -325,13 +330,6 @@ public class SessionDatasetResource {
 	}
 
 	public void deleteDataset(Dataset dataset, org.hibernate.Session hibernateSession) {
-
-		// clean up Dataset
-		int rows = getHibernate().session()
-				.createQuery("delete from " + DatasetToken.class.getSimpleName() + " where dataset=:dataset")
-				.setParameter("dataset", dataset).executeUpdate();
-
-		logger.debug("deleted " + rows + " dataset tokens");
 
 		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), getHibernate().session());
 

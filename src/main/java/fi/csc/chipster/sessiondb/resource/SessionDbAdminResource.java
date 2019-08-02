@@ -1,6 +1,5 @@
 package fi.csc.chipster.sessiondb.resource;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -22,12 +21,6 @@ import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.DatasetToken;
-import fi.csc.chipster.sessiondb.model.File;
-import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.Rule;
-import fi.csc.chipster.sessiondb.model.Session;
 
 public class SessionDbAdminResource extends AdminResource {
 	
@@ -38,10 +31,13 @@ public class SessionDbAdminResource extends AdminResource {
 
 	private PubSubServer pubSubServer;
 
-	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer) {
+	private List<Class<?>> hibernateClasses;
+
+	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer, List<Class<?>> hibernateClasses) {
 		super(jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
+		this.hibernateClasses = hibernateClasses;
 	}
 	
 	@GET
@@ -51,12 +47,9 @@ public class SessionDbAdminResource extends AdminResource {
 	@Transaction
 	public HashMap<String, Object> getStatus(@Context SecurityContext sc) {
 		
-		HashMap<String, Object> status = super.getStatus(sc);
-		
-		List<Class<?>> dbTables = Arrays.asList(new Class<?>[] { 
-			Session.class, Dataset.class, Job.class, DatasetToken.class, File.class, Rule.class });
+		HashMap<String, Object> status = super.getStatus(sc);		
 			
-		for (Class<?> table : dbTables) {				
+		for (Class<?> table : hibernateClasses) {				
 			
 			long rowCount = getRowCount(table, hibernate);
 					

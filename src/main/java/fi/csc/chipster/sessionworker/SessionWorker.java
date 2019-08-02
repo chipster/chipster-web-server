@@ -78,6 +78,8 @@ public class SessionWorker {
 		this.sessionDb = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
+		// allow access with SessionDbTokens
+		tokenRequestFilter.authenticationRequired(false, true);
 		
 		this.sessionWorkerResource = new SessionWorkerResource(serviceLocator);
 		this.supportResource = new SupportResource(config, authService, sessionDb);

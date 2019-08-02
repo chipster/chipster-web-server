@@ -23,13 +23,13 @@ import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.DatasetToken;
+import fi.csc.chipster.sessiondb.model.SessionDbToken;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.resource.DatasetTokenResource;
-import fi.csc.chipster.sessiondb.resource.DatasetTokenTable;
+import fi.csc.chipster.sessiondb.resource.SessionDbTokenResource;
+import fi.csc.chipster.sessiondb.resource.SessionDbTokens;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
@@ -70,7 +70,7 @@ public class SessionDb {
 
 	private GlobalJobResource globalJobResource;
 
-	private DatasetTokenResource datasetTokenResource;
+	private SessionDbTokenResource datasetTokenResource;
 
 	private TokenRequestFilter tokenRequestFilter;
 
@@ -97,20 +97,20 @@ public class SessionDb {
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password);
 
-		List<Class<?>> hibernateClasses = Arrays.asList(DatasetToken.class, Rule.class, Session.class, Dataset.class,
+		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
 				Job.class, File.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
 
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
-		// access with DatasetTokens is anonymous
+		// allow access with SessionDbTokens
 		this.tokenRequestFilter.authenticationRequired(false, true);
 
-		DatasetTokenTable datasetTokenTable = new DatasetTokenTable(hibernate);
+		SessionDbTokens datasetTokenTable = new SessionDbTokens(hibernate, config);
 
-		this.ruleTable = new RuleTable(hibernate, datasetTokenTable, tokenRequestFilter);
-		this.datasetTokenResource = new DatasetTokenResource(datasetTokenTable, ruleTable);
+		this.ruleTable = new RuleTable(hibernate, datasetTokenTable);
+		this.datasetTokenResource = new SessionDbTokenResource(datasetTokenTable, ruleTable);
 		this.sessionResource = new SessionResource(hibernate, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
@@ -133,7 +133,7 @@ public class SessionDb {
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer);
+		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer, hibernateClasses);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

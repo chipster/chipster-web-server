@@ -2,9 +2,9 @@ package fi.csc.chipster.rest.token;
 import java.io.IOException;
 import java.security.PublicKey;
 import java.util.HashSet;
-import java.util.UUID;
 
 import javax.annotation.Priority;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
@@ -19,7 +19,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
-import fi.csc.chipster.auth.resource.Tokens;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 
 @Provider
@@ -81,23 +81,19 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			requestContext.setSecurityContext(
 					new AuthSecurityContext(principal, requestContext.getSecurityContext()));
 
-		} catch (NotAuthorizedException e) {
+		} catch (ForbiddenException e) {
 			
 			if (authenticationRequired) {
-				throw new NotAuthorizedException(e.getMessage());
+				throw new ForbiddenException(e);
 			}
-			try {
-				// DatasetTokens have to be passed through, but let's check that it's at least a valid UUID 
-				UUID datasetToken = UUID.fromString(password);
 			
-				requestContext.setSecurityContext(new AuthSecurityContext(
-						new AuthPrincipal(null, datasetToken.toString(), new HashSet<String>()), requestContext.getSecurityContext()));
-				return;				
-		
-			} catch (IllegalArgumentException ex) {
-				// probably this wasn't supposed to be a DatasetToken, send the original message
-				throw new NotAuthorizedException(e.getMessage());
-			}
+			HashSet<String> roles = new HashSet<String>() {{
+				add(Role.SESSION_DB_TOKEN);
+			}};
+			// DatasetTokens have to be passed through
+			requestContext.setSecurityContext(new AuthSecurityContext(
+					new AuthPrincipal(null, password, roles), requestContext.getSecurityContext()));
+			return;				
 		}
 	}
 
@@ -115,7 +111,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 
 	public AuthPrincipal tokenAuthentication(String clientTokenKey) {
 
-		Token validToken = Tokens.validate(clientTokenKey, this.jwtPublicKey);		
+		Token validToken = AuthTokens.validate(clientTokenKey, this.jwtPublicKey);		
 		
 		return new AuthPrincipal(validToken.getUsername(), clientTokenKey, validToken.getRoles());
 	}

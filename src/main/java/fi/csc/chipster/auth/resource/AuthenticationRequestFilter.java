@@ -57,9 +57,9 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private HashMap<String, String> monitoringAccounts;
 
-	private Tokens tokenTable;
+	private AuthTokens tokenTable;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, Tokens tokenTable) throws IOException, IllegalConfigurationException {
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, AuthTokens tokenTable) throws IOException, IllegalConfigurationException {
 		this.hibernate = hibernate;
 		this.config = config;
 		this.userTable = userTable;

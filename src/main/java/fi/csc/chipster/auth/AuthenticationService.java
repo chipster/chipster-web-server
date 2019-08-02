@@ -20,7 +20,7 @@ import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.TokenResource;
-import fi.csc.chipster.auth.resource.Tokens;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
@@ -71,7 +71,7 @@ public class AuthenticationService {
     	
     	hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);    	
     	
-    	Tokens tokenTable = new Tokens(config);
+    	AuthTokens tokenTable = new AuthTokens(config);
     	UserTable userTable = new UserTable(hibernate);
     	
     	TokenResource tokenResource = new TokenResource(tokenTable, userTable);

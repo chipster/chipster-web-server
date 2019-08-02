@@ -71,14 +71,14 @@ public class OidcResource {
 	public static final String CONF_APP_ID = "auth-oidc-app-id";
 	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
 		
-	private Tokens tokenTable;
+	private AuthTokens tokenTable;
 	private UserTable userTable;
 
 	ArrayList<OidcConfig> sortedOidcConfigs = new ArrayList<>();	
 	HashMap<OidcConfig, IDTokenValidator> validators = new HashMap<>();
 	ArrayList<OidcConfig> oidcConfigs = new ArrayList<>();
 
-	public OidcResource(Tokens tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
+	public OidcResource(AuthTokens tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
 		this.tokenTable = tokenTable;
 		this.userTable = userTable;
 				

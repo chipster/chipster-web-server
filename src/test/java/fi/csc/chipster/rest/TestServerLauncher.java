@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.Token;
-import fi.csc.chipster.auth.resource.Tokens;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import io.jsonwebtoken.Jwts;
@@ -180,7 +180,7 @@ public class TestServerLauncher {
 		
 	public static CredentialsProvider getWrongKeyToken() {
 		
-		Token token = Tokens.createToken(
+		Token token = AuthTokens.createToken(
 				"client", 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 
@@ -191,7 +191,7 @@ public class TestServerLauncher {
 	
 	public CredentialsProvider getExpiredToken() {
 		
-		Token token = Tokens.createToken(
+		Token token = AuthTokens.createToken(
 				"client", 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now().minus(60, ChronoUnit.DAYS), 
@@ -218,8 +218,8 @@ public class TestServerLauncher {
 			    .setNotBefore(Date.from(Instant.now())) 
 			    .setIssuedAt(Date.from(Instant.now()))
 			    .setId(UUID.randomUUID().toString())
-			    .claim(Tokens.CLAIM_KEY_ROLES, Role.CLIENT + " " + Role.SERVER + " " + Role.ADMIN)
-			    .claim(Tokens.CLAIM_KEY_LOGIN_TIME, Instant.now().getEpochSecond())			  
+			    .claim(AuthTokens.CLAIM_KEY_ROLES, Role.CLIENT + " " + Role.SERVER + " " + Role.ADMIN)
+			    .claim(AuthTokens.CLAIM_KEY_LOGIN_TIME, Instant.now().getEpochSecond())			  
 			    .compact();
 		
 		return new StaticCredentials("token", jws);
@@ -240,7 +240,7 @@ public class TestServerLauncher {
 		
 		SecretKeySpec symmetricKey = new SecretKeySpec(publicKey, SignatureAlgorithm.HS512.getJcaName());
 		
-		Token token = Tokens.createToken(
+		Token token = AuthTokens.createToken(
 				"client", 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 

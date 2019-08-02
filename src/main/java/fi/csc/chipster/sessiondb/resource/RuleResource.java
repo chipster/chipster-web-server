@@ -104,7 +104,7 @@ public class RuleResource {
 			}
 		}
     	
-		Session session = ruleTable.getSessionForWriting(sc, sessionId);
+		Session session = ruleTable.checkAuthorizationForSessionReadWrite(sc, sessionId);
 
 		// don't allow client to set this
 		newRule.setSharedBy(sc.getUserPrincipal().getName());

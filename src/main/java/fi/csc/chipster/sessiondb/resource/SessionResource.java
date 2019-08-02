@@ -56,7 +56,6 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
 
 @Path("sessions")
-@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED (except sub-resource locators)
 public class SessionResource {
 	
 	public static final String PATH_SHARES = "shares";
@@ -98,16 +97,21 @@ public class SessionResource {
     // CRUD
     @GET
     @Path("{id}")
+    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc, @QueryParam(QUERY_PARAM_PREVIEW) String preview) throws IOException {    
     	    
-    	// checks authorization
-    	Session dbSession = ruleTable.getSessionForReading(sc, sessionId);    	
+		// checks authorization
+		Session dbSession = ruleTable.checkAuthorizationForSessionRead(sc, sessionId);
+		
     	
     	if (dbSession == null) {
     		throw new NotFoundException();
-    	}	
+    	}
+    	
+    	//FIXME what should initialize this?
+    	dbSession.getRules().size();
     	
     	// client can suggest not updating the access date by adding the query parameter "preview"
     	// empty string when set, otherwise null (boolean without value would have been false)
@@ -120,6 +124,7 @@ public class SessionResource {
     }
     
 	@GET
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
     public Response getAll(@QueryParam(QUERY_PARAM_USER_ID) String userIdString, @QueryParam(QUERY_PARAM_APP_ID) String appId, @Context SecurityContext sc) {
@@ -171,6 +176,7 @@ public class SessionResource {
 
 	@GET
 	@Path(PATH_SHARES)
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
     public Response getShares(@Context SecurityContext sc) {
@@ -191,6 +197,7 @@ public class SessionResource {
     }
 
 	@POST
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -246,6 +253,7 @@ public class SessionResource {
 
 	@PUT
 	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Session requestSession, @PathParam("id") UUID sessionId, @Context SecurityContext sc) {
@@ -256,7 +264,7 @@ public class SessionResource {
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		Session dbSession = ruleTable.getSessionForWriting(sc, sessionId);
+		Session dbSession = ruleTable.checkAuthorizationForSessionReadWrite(sc, sessionId);
 		
 		// get the state before this object is updated
 		SessionState dbSessionState = dbSession.getState();
@@ -298,11 +306,12 @@ public class SessionResource {
 
 	@DELETE
     @Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER}) // don't allow Role.UNAUTHENTICATED
 	@Transaction
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		// check authorization
-		Session session = ruleTable.getSessionForWriting(sc, id);
+		Session session = ruleTable.checkAuthorizationForSessionReadWrite(sc, id);
 		
 		this.deleteSession(session, getHibernate().session());
 

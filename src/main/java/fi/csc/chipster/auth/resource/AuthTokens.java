@@ -29,13 +29,15 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 
-public class Tokens {
+public class AuthTokens {
 	
+	public static final String CLAIM_KEY_CLASS = "class";
 	public static final String CLAIM_KEY_ROLES = "roles";
 	public static final String CLAIM_KEY_LOGIN_TIME = "loginTime";
+	
+	public static final String CLAIM_VALUE_CLASS = AuthTokens.class.getName();
 	
 	private static final Duration CLIENT_TOKEN_LIFETIME = Duration.of(3, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
 	private static final Duration CLIENT_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK
@@ -44,42 +46,15 @@ public class Tokens {
 	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 	private static final String ROLES_DELIMITER = " ";
 		
-	public SignatureAlgorithm signatureAlgorithm;
-	
-	private static final String KEY_AUTH_JWS_PRIVATE_KEY = "auth-jws-private-key";
-	private static final String KEY_AUTH_JWS_ALGORITHM = "auth-jws-algorithm";
-
 	private static Logger logger = LogManager.getLogger();
 	
+	public SignatureAlgorithm signatureAlgorithm;	
 	private KeyPair jwsKeyPair;
 
-	public Tokens(Config config) throws IOException {
+	public AuthTokens(Config config) throws IOException {
 				
-		String privateKeyString = config.getString(KEY_AUTH_JWS_PRIVATE_KEY);
-		this.signatureAlgorithm = SignatureAlgorithm.forName(config.getString(KEY_AUTH_JWS_ALGORITHM));
-		
-		if (!privateKeyString.isBlank()) {
-			
-			logger.info("use configured jws private key");
-			// the library generates the public key automatically from the private key
-			this.jwsKeyPair = JwsUtils.pemToKeyPair(privateKeyString);			
-	
-		} else {
-		
-			logger.warn("jws private key not configured, generate new");
-			/*
-			 *  Generating a new key is secure, but may cause authentication errors, 
-			 *  when the auth is restarted.
-			 *  
-			 *  Command for generating a fixed key (https://connect2id.com/products/nimbus-jose-jwt/openssl-key-generation):
-			 *  openssl ecparam -genkey -name secp521r1 -noout -out ec512-key-pair.pem
-			 *  
-			 */			
-			jwsKeyPair = Keys.keyPairFor(signatureAlgorithm);
-		}
-		
-		logger.info("jws private key:" + jwsKeyPair.getPrivate().getAlgorithm() + " " + jwsKeyPair.getPrivate().getFormat());
-		logger.info("jws public key:" + jwsKeyPair.getPublic().getAlgorithm() + " " + jwsKeyPair.getPublic().getFormat());
+		this.signatureAlgorithm = JwsUtils.getSignatureAlgorithm(config, Role.AUTH);
+		this.jwsKeyPair = JwsUtils.getOrGenerateKeyPair(config, Role.AUTH, signatureAlgorithm);
 	}
 	
 	public String getPublicKey() {
@@ -116,6 +91,7 @@ public class Tokens {
 			    .setNotBefore(Date.from(now)) 
 			    .setIssuedAt(Date.from(now))
 			    .setId(UUID.randomUUID().toString())
+			    .claim(CLAIM_KEY_CLASS, CLAIM_VALUE_CLASS)
 			    .claim(CLAIM_KEY_ROLES, rolesString)
 			    .claim(CLAIM_KEY_LOGIN_TIME, loginTime.getEpochSecond())
 			    .signWith(privateKey, signatureAlgorithm)			  
@@ -166,7 +142,7 @@ public class Tokens {
 
 	public Token validateToken(String jwsString) {
 		
-		return Tokens.validate(jwsString, jwsKeyPair.getPublic());
+		return AuthTokens.validate(jwsString, jwsKeyPair.getPublic());
 	}
 	
 	public static Token validate(String jwsString, PublicKey publicKey) {
@@ -177,8 +153,11 @@ public class Tokens {
 					.parseClaimsJws(jwsString);
 
 			// now we can safely trust the JWT
+			if (jws.getBody().get(CLAIM_KEY_CLASS) == null || !jws.getBody().get(CLAIM_KEY_CLASS).toString().equals(CLAIM_VALUE_CLASS)) {
+				throw new IllegalStateException("token passed validation, but isn't an AuthToken. Are SessionDbTokens using the same keys?");
+			}
 
-		    Set<String> roles = new HashSet<String>(Arrays.asList(jws.getBody().get(CLAIM_KEY_ROLES).toString().split(ROLES_DELIMITER)));
+			Set<String> roles = new HashSet<String>(Arrays.asList(jws.getBody().get(CLAIM_KEY_ROLES).toString().split(ROLES_DELIMITER)));
 		    Instant loginTime = Instant.ofEpochSecond(Long.parseLong(jws.getBody().get(CLAIM_KEY_LOGIN_TIME).toString()));
 		     
 		    Token token = new Token();
