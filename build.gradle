@@ -27,10 +27,9 @@ distTar {
 //    testLogging.showStandardStreams = true
 //}
 
-ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '11'
 
-sourceCompatibility = javaVersion
-targetCompatibility = javaVersion
+sourceCompatibility = 11
+targetCompatibility = 11
 
 //mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
 mainClassName = "fi.csc.chipster.rest.ServerLauncher"
