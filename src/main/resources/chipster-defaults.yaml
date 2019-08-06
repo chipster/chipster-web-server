@@ -124,7 +124,7 @@ backup-gpg-passphrase: ""
 # JWS keys
 
 # jws signing key, can be generated with the following command (https://connect2id.com/products/nimbus-jose-jwt/openssl-key-generation):
-# openssl ecparam -genkey -name secp521r1 -noout -out ec512-key-pair.pem
+# openssl ecparam -genkey -name secp521r1 -noout
 # If not configured, a new key will be generated on every restart, which will invalidate all old tokens.
 jws-private-key-auth: ""
 jws-private-key-session-db: ""
