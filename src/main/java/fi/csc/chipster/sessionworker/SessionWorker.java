@@ -73,7 +73,7 @@ public class SessionWorker {
 		String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
 		this.sessionDb = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		

@@ -20,14 +20,14 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 @Path("tokens")
-public class TokenResource {
+public class AuthTokenResource {
 
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
@@ -40,14 +40,14 @@ public class TokenResource {
 	private AuthTokens tokens;
 	private UserTable userTable;
 
-	public TokenResource(AuthTokens tokenTable, UserTable userTable) throws URISyntaxException, IOException {
+	public AuthTokenResource(AuthTokens tokenTable, UserTable userTable) throws URISyntaxException, IOException {
 		this.tokens = tokenTable;
 		this.userTable = userTable;
 	}
 
 	@POST
 	@RolesAllowed(Role.PASSWORD)
-	@Produces(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction // getName() uses the db
 	public Response createToken(@Context SecurityContext sc) {
 
@@ -61,8 +61,7 @@ public class TokenResource {
 			throw new NotAuthorizedException("username is null");
 		}
 		
-		Token token = tokens.createNewToken(username, principal.getRoles());
-		token.setName(this.getName(token, principal.getRoles() ));
+		String token = tokens.createNewToken(username, principal.getRoles(), this.getName(username, principal.getRoles()));
 		
 		return Response.ok(token).build();
 	}
@@ -87,16 +86,15 @@ public class TokenResource {
 	@Transaction // getName() uses the db
 	public Response checkToken(@HeaderParam(TOKEN_HEADER) String requestToken, @Context SecurityContext sc) {
 
-		Token dbToken;
+		ParsedToken validToken;
 		try {
-			dbToken = tokens.validateToken(requestToken);
+			validToken = tokens.validateToken(requestToken);
 		} catch (NotAuthorizedException | ForbiddenException e) {
 			// NotAuthorized and Forbidden are not suitable here, because the server authenticated correctly in the TokenRequestFilter			
 			throw new NotFoundException(e);
 		}
 
-		dbToken.setName(this.getName(dbToken, ((AuthPrincipal)sc.getUserPrincipal()).getRoles()));
-		return Response.ok(dbToken).build();					
+		return Response.ok(validToken).build();					
 	}
 	
 	@GET
@@ -109,23 +107,22 @@ public class TokenResource {
 	}	
 
 	@POST
-	@Path("{refresh}")
+	@Path("refresh")
 	@RolesAllowed({Role.CLIENT, Role.SERVER})
-	@Produces(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction // getName() uses the db
 	public Response refreshToken(@Context SecurityContext sc) {
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
-		String token = principal.getTokenKey();
+		String oldToken = principal.getTokenKey();
 
-		Token dbToken = tokens.refreshToken(token);
-		dbToken.setName(this.getName(dbToken, principal.getRoles()));
+		String newToken = tokens.refreshToken(oldToken, this.getName(principal.getName(), principal.getRoles()));
 		
-		return Response.ok(dbToken).build();
+		return Response.ok(newToken).build();
 	}
 
 	@GET
-	@Path("{check}")
+	@Path("check")
 	@RolesAllowed({Role.CLIENT, Role.SERVER})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction // getName() uses the db
@@ -135,17 +132,15 @@ public class TokenResource {
 		String token = principal.getTokenKey();
 
 		// throws if fails
-		Token validToken = tokens.validateToken(token);
-		
-		validToken.setName(this.getName(validToken, principal.getRoles()));
+		ParsedToken validToken = tokens.validateToken(token);
 		
 		return Response.ok(validToken).build();
 	}
 
-	private String getName(Token token, Set<String> roles ) {
+	private String getName(String username, Set<String> roles ) {
 		// service accounts are not in the userTable
 		if (roles.contains(Role.CLIENT)) {
-			return this.userTable.get(new UserId(token.getUsername())).getName();
+			return this.userTable.get(new UserId(username)).getName();
 		} else {
 			return null;
 		}

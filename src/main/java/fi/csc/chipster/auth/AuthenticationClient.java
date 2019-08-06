@@ -28,13 +28,14 @@ import org.hibernate.service.spi.ServiceException;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.resource.AuthTokenResource;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.JwsUtils;
-import fi.csc.chipster.auth.resource.TokenResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.DynamicCredentials;
 import fi.csc.chipster.rest.JavaTimeObjectMapperProvider;
@@ -50,7 +51,7 @@ public class AuthenticationClient {
 
 	private ServiceLocatorClient serviceLocator;
 
-	private Token token;
+	private String token;
 	private String username;
 	private String password;
 
@@ -61,13 +62,25 @@ public class AuthenticationClient {
 	
 	private DynamicCredentials dynamicCredentials = new DynamicCredentials();
 
-	public AuthenticationClient(ServiceLocatorClient serviceLocator, String username, String password) {
+	private volatile PublicKey jwtPublicKey;
+
+	private String role;
+
+	/**
+	 * @param serviceLocator
+	 * @param username
+	 * @param password
+	 * @param role Role.CLIENT or Role.SERVER. Only servers validate the token
+	 */
+	public AuthenticationClient(ServiceLocatorClient serviceLocator, String username, String password, String role) {
 		this.serviceLocator = serviceLocator;
+		this.role = role;
 		construct(username, password);
 	}
 
-	public AuthenticationClient(String authUri, String username, String password) {
+	public AuthenticationClient(String authUri, String username, String password, String role) {		
 		this.authenticationServiceUri = authUri;
+		this.role = role;
 		construct(username, password);
 	}
 
@@ -98,7 +111,7 @@ public class AuthenticationClient {
 	 * 
 	 * @return
 	 */
-	private Token getTokenFromAuth() {
+	private String getTokenFromAuth() {
 		String authUri = getAuth();
 
 		if (authUri == null) {
@@ -110,10 +123,10 @@ public class AuthenticationClient {
 		
 		logger.info("get token from " + authUri);
 
-		Token serverToken = authTarget
+		String serverToken = authTarget
 				.path("tokens")
-				.request(MediaType.APPLICATION_JSON_TYPE)
-				.post(Entity.json(""), Token.class);		
+				.request(MediaType.TEXT_PLAIN)
+				.post(Entity.json(""), String.class);		
 
 		return serverToken;
 	}
@@ -154,20 +167,20 @@ public class AuthenticationClient {
 	}
 
 	public Client getAuthenticatedClient() {
-		return getClient(TokenRequestFilter.TOKEN_USER, token.getTokenKey().toString(), true);
+		return getClient(TokenRequestFilter.TOKEN_USER, token, true);
 	}
 
-	public Token getDbToken(String tokenKey) {
+	public String getDbToken(String tokenKey) {
 		
 		String authUri = getAuth();
 
 		try {
-			Token dbToken = getAuthenticatedClient()
+			String dbToken = getAuthenticatedClient()
 					.target(authUri)
-					.path(TokenResource.PATH_TOKENS)
-					.request(MediaType.APPLICATION_JSON_TYPE)
+					.path(AuthTokenResource.PATH_TOKENS)
+					.request(MediaType.TEXT_PLAIN)
 					.header("chipster-token", tokenKey)
-					.get(Token.class);
+					.get(String.class);
 
 			if (dbToken != null) {
 				return dbToken;
@@ -180,30 +193,30 @@ public class AuthenticationClient {
 		return null;
 	}
 
-	public String getTokenKey() {
-		return token.getTokenKey();
+	public String getToken() {
+		return token;
 	}
 	
 	private void refreshToken() {
 		String authUri = getAuth();
 				
 		try {
-			Token serverToken = getAuthenticatedClient()
+			String serverToken = getAuthenticatedClient()
 					.target(authUri)
-					.path(TokenResource.PATH_TOKENS)
+					.path(AuthTokenResource.PATH_TOKENS)
 					.path("refresh")
-					.request(MediaType.APPLICATION_JSON_TYPE)
-					.post(Entity.json(""), Token.class);
+					.request(MediaType.TEXT_PLAIN)
+					.post(Entity.json(""), String.class);
 
 			if (serverToken != null) {
-				setToken(serverToken); 
+				ParsedToken parsedToken = setToken(serverToken); 
 				
 				// if token is expiring before refresh interval * 2, get a new token
-				if (serverToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
+				if (parsedToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
 					logger.info("refreshed token expiring soon, getting a new one (" + this.username + ")");
 					try {
-						setToken(getTokenFromAuth());
-						logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
+						parsedToken = setToken(getTokenFromAuth());
+						logger.info("new token valid until " + parsedToken.getValidUntil() + " (" + this.username + ")");
 					} catch (Exception e) {
 						logger.warn("getting new token to replace soon expiring token failed (" + this.username + ")", e);
 					}
@@ -218,8 +231,8 @@ public class AuthenticationClient {
 		} catch (ForbiddenException fe) {
 			logger.info("got forbidden when refreshing token, getting new one (" + this.username + ")");
 			try {
-				setToken(getTokenFromAuth());
-				logger.info("new token valid until " + token.getValidUntil() + " (" + this.username + ")");
+				ParsedToken parsedToken = setToken(getTokenFromAuth());
+				logger.info("new token valid until " + parsedToken.getValidUntil() + " (" + this.username + ")");
 				return;
 			} catch (Exception e) {
 				logger.warn("getting new token after forbidden failed (" + this.username + ")", e);
@@ -233,9 +246,16 @@ public class AuthenticationClient {
 		logger.warn("refresh token failing (" + this.username + ")");
 	}
 
-	private void setToken(Token token) {
+	private ParsedToken setToken(String token) {
 		this.token = token;
-		this.dynamicCredentials.setCredentials(TokenRequestFilter.TOKEN_USER, this.token.getTokenKey().toString());		
+		this.dynamicCredentials.setCredentials(TokenRequestFilter.TOKEN_USER, this.token);
+		
+		if (Role.SERVER.equals(this.role)) {
+			// public key is visible only for the servers for now 
+			return validate(token);
+		} else {
+			return AuthTokens.decode(token);
+		}
 	}
 
 	/**
@@ -251,8 +271,16 @@ public class AuthenticationClient {
 			@Override
 			public String getPassword() {
 				
+				ParsedToken parsedToken = null;
+				
+				if (Role.SERVER.equals(role)) {
+					parsedToken = validate(token);
+				} else {
+					parsedToken = AuthTokens.decode(token);
+				}
+				
 				// refresh token if the laptop has been sleeping or something
-				if (token.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL))) {
+				if (parsedToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL))) {
 					logger.warn("timer hasn't refreshed the token in time, trying now");
 					refreshToken();
 				}
@@ -287,14 +315,39 @@ public class AuthenticationClient {
 			.target(serviceLocator.getPublicUri(Role.AUTH))
 			.path(AuthUserResource.USERS), User.class);
 	}
+	
+	public ParsedToken validate(String token) {
+		
+		// validation is possible only for servers
+		if (!Role.SERVER.equals(this.role)) {
+			// public key is visible only for the servers for now 
+			throw new IllegalStateException("only servers can validate tokens");
+		}
+		
+		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
+		// to make this safe and relatively fast for multi-thread usage
+		if (this.jwtPublicKey == null) {
+			synchronized (AuthenticationClient.class) {
+				if (this.jwtPublicKey == null) {
+					try {
+						this.jwtPublicKey = this.getJwtPublicKey();
+					} catch (PEMException e) {
+						throw new RuntimeException("unable to get the public key", e);
+					}
+				}
+			}
+		}
+		
+		return AuthTokens.validate(token, this.jwtPublicKey);
+	}
 
 	public PublicKey getJwtPublicKey() throws PEMException {
 		String authUri = getAuth();
 
 		String pem = getAuthenticatedClient()
 				.target(authUri)
-				.path(TokenResource.PATH_TOKENS)
-				.path(TokenResource.PATH_PUBLIC_KEY)
+				.path(AuthTokenResource.PATH_TOKENS)
+				.path(AuthTokenResource.PATH_PUBLIC_KEY)
 				.request(MediaType.TEXT_PLAIN_TYPE)
 				.get(String.class);
 		

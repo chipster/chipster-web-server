@@ -6,7 +6,7 @@ import java.util.Set;
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement // json
-public class Token {
+public class ParsedToken {
 		
 	private String tokenKey;
 	private String username;
@@ -14,11 +14,11 @@ public class Token {
 	private Set<String> roles;
 	private String name;
 
-	public Token() {
+	public ParsedToken() {
 		// JAX-B needs this
 	}
 	
-	public Token(String username, String token,
+	public ParsedToken(String username, String token,
 			Instant validUntil, Instant created, Set<String> roles) {
 		this.username = username;
 		this.tokenKey = token;

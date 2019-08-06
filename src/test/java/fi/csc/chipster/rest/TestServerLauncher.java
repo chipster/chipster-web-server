@@ -18,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -78,15 +77,15 @@ public class TestServerLauncher {
 	}
 	
 	public Client getUser1Client() {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getAuthenticatedClient();
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword", Role.CLIENT).getAuthenticatedClient();
 	}
 
 	public Client getUser2Client() {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getAuthenticatedClient();
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password", Role.CLIENT).getAuthenticatedClient();
 	}
 	
 	public Client getMonitoringClient() {
-		return new AuthenticationClient(serviceLocatorClient, Role.MONITORING, Role.MONITORING).getAuthenticatedClient();
+		return new AuthenticationClient(serviceLocatorClient, Role.MONITORING, Role.MONITORING, Role.CLIENT).getAuthenticatedClient();
 	}
 	
 	public WebTarget getUser1Target(String role) {
@@ -98,15 +97,15 @@ public class TestServerLauncher {
 	}
 	
 	public WebTarget getSchedulerTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER).getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER, Role.SERVER).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getCompTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP).getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP, Role.SERVER).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public WebTarget getSessionStorageUserTarget(String role) {
-		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getAuthenticatedClient().target(getTargetUri(role));
+		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB, Role.SERVER).getAuthenticatedClient().target(getTargetUri(role));
 	}
 	
 	public Client getUnparseableTokenClient() {
@@ -143,35 +142,35 @@ public class TestServerLauncher {
 	}
 	
 	public CredentialsProvider getUser1Token() {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword").getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword", Role.CLIENT).getCredentials();
 	}
 
 	public CredentialsProvider getUser2Token() {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password").getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password", Role.CLIENT).getCredentials();
 	}
 	
 	public CredentialsProvider getSchedulerToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER, Role.SERVER).getCredentials();
 	}
 	
 	public CredentialsProvider getCompToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP, Role.SERVER).getCredentials();
 	}
 	
 	public CredentialsProvider getSessionWorkerToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_WORKER, Role.SESSION_WORKER).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_WORKER, Role.SESSION_WORKER, Role.SERVER).getCredentials();
 	}
 	
 	public CredentialsProvider getFileBrokerToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.FILE_BROKER, Role.FILE_BROKER).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.FILE_BROKER, Role.FILE_BROKER, Role.SERVER).getCredentials();
 	}
 	
 	public CredentialsProvider getSessionDbToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB, Role.SERVER).getCredentials();
 	}
 	
 	public CredentialsProvider getAdminToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.ADMIN, Role.ADMIN).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, Role.ADMIN, Role.ADMIN, Role.CLIENT).getCredentials();
 	}
 	
 	public CredentialsProvider getUnparseableToken() {
@@ -180,24 +179,24 @@ public class TestServerLauncher {
 		
 	public static CredentialsProvider getWrongKeyToken() {
 		
-		Token token = AuthTokens.createToken(
+		String token = AuthTokens.createToken(
 				"client", 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 
-				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512);
+				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512, "John Doe");
 		
-		return new StaticCredentials("token", token.getTokenKey());
+		return new StaticCredentials("token", token);
 	}
 	
 	public CredentialsProvider getExpiredToken() {
 		
-		Token token = AuthTokens.createToken(
+		String token = AuthTokens.createToken(
 				"client", 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now().minus(60, ChronoUnit.DAYS), 
-				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512);
+				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512, "John Doe");
 		
-		return new StaticCredentials("token", token.getTokenKey());
+		return new StaticCredentials("token", token);
 	}
 	
 	/**
@@ -236,17 +235,17 @@ public class TestServerLauncher {
 	 */
 	public CredentialsProvider getSymmetricToken() throws IOException {
 		
-		byte[] publicKey = new AuthenticationClient(new ServiceLocatorClient(config), "session-db", "session-db").getJwtPublicKey().getEncoded();
+		byte[] publicKey = new AuthenticationClient(new ServiceLocatorClient(config), "session-db", "session-db", Role.SERVER).getJwtPublicKey().getEncoded();
 		
 		SecretKeySpec symmetricKey = new SecretKeySpec(publicKey, SignatureAlgorithm.HS512.getJcaName());
 		
-		Token token = AuthTokens.createToken(
+		String token = AuthTokens.createToken(
 				"client", 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 
-				symmetricKey, SignatureAlgorithm.HS512);
+				symmetricKey, SignatureAlgorithm.HS512, "John Doe");
 		
-		return new StaticCredentials("token", token.getTokenKey());
+		return new StaticCredentials("token", token);
 	}	
 	
 	public CredentialsProvider getUser1Credentials() {

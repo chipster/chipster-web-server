@@ -187,7 +187,7 @@ public class RestCompServer
 		String password = config.getPassword(username);
 
 		serviceLocator = new ServiceLocatorClient(config);
-		authClient = new AuthenticationClient(serviceLocator, username, password);
+		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		serviceLocator.setCredentials(authClient.getCredentials());
 
 		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();

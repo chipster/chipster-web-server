@@ -42,7 +42,6 @@ import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
@@ -146,7 +145,7 @@ public class OidcResource {
 	@POST
 	@RolesAllowed(Role.UNAUTHENTICATED)
 	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction
 	public Response createTokenFromOidc(HashMap<String, String> json, @Context SecurityContext sc) throws GeneralSecurityException, IOException, ParseException {
 
@@ -229,9 +228,7 @@ public class OidcResource {
 		userTable.addOrUpdate(user);
 
 		HashSet<String> roles = Stream.of(Role.CLIENT, Role.OIDC).collect(Collectors.toCollection(HashSet::new));
-		Token token = tokenTable.createNewToken(userId.toUserIdString(), roles);
-		// name for the navbar
-		token.setName(user.getName());
+		String token = tokenTable.createNewToken(userId.toUserIdString(), roles, user.getName());
 
 		return Response.ok(token).build();	
 	}

@@ -51,7 +51,7 @@ public class RuleResourceTest {
 		
 		exampleSessionOwnerClient = new SessionDbClient(
 				launcher.getServiceLocator(), 
-				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner").getCredentials(),
+				new AuthenticationClient(launcher.getServiceLocator(), "jaas/example_session_owner", "example_session_owner", Role.CLIENT).getCredentials(),
 				Role.CLIENT);
     }
 

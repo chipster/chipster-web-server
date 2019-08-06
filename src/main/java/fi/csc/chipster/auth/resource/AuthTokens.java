@@ -11,20 +11,21 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 
 import javax.ws.rs.ForbiddenException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Header;
 import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -35,6 +36,7 @@ public class AuthTokens {
 	
 	public static final String CLAIM_KEY_CLASS = "class";
 	public static final String CLAIM_KEY_ROLES = "roles";
+	public static final String CLAIM_KEY_NAME = "name";
 	public static final String CLAIM_KEY_LOGIN_TIME = "loginTime";
 	
 	public static final String CLAIM_VALUE_CLASS = AuthTokens.class.getName();
@@ -63,20 +65,18 @@ public class AuthTokens {
 	}
 	
 	
-	public Token createNewToken(String username, Set<String> roles) {
+	public String createNewToken(String username, Set<String> roles, String name) {
 
 		Instant now = Instant.now();
 		
-		Token token = createToken(username, roles, now);
-		
-		return token;
+		return createToken(username, roles, now, name);		
 	}
 
-	private Token createToken(String username, Set<String> roles, Instant loginTime) {
-		return createToken(username, roles, loginTime, jwsKeyPair.getPrivate(), signatureAlgorithm);
+	private String createToken(String username, Set<String> roles, Instant loginTime, String name) {
+		return createToken(username, roles, loginTime, jwsKeyPair.getPrivate(), signatureAlgorithm, name);
 	}
 	
-	public static Token createToken(String username, Set<String> roles, Instant loginTime, Key privateKey, SignatureAlgorithm signatureAlgorithm) {
+	public static String createToken(String username, Set<String> roles, Instant loginTime, Key privateKey, SignatureAlgorithm signatureAlgorithm, String name) {
 				
 		String rolesString = String.join(ROLES_DELIMITER, roles);
 		
@@ -90,34 +90,27 @@ public class AuthTokens {
 			    .setExpiration(Date.from(expiration))
 			    .setNotBefore(Date.from(now)) 
 			    .setIssuedAt(Date.from(now))
-			    .setId(UUID.randomUUID().toString())
 			    .claim(CLAIM_KEY_CLASS, CLAIM_VALUE_CLASS)
+			    .claim(CLAIM_KEY_NAME, name)
 			    .claim(CLAIM_KEY_ROLES, rolesString)
 			    .claim(CLAIM_KEY_LOGIN_TIME, loginTime.getEpochSecond())
 			    .signWith(privateKey, signatureAlgorithm)			  
-			    .compact();
-		
-		Token token = new Token();
-		token.setUsername(username); 
-	    token.setTokenKey(jws); 
-	    token.setValidUntil(expiration); 
-	    token.setCreated(loginTime); 
-	    token.setRoles(roles);		     
+			    .compact();		     
 	    
-	    return token;
+	    return jws;
 	}
 
-	public Token refreshToken(String token) {
+	public String refreshToken(String token, String name) {
 
 		// throws if fails
-		Token validToken = validateToken(token);
+		ParsedToken validToken = validateToken(token);
 		
 		// debug logging?
 		if (validToken.getUsername().equals("comp")) {
 			logger.info("REFRESH " + validToken.getValidUntil() + " " + getTokenNextExpiration(validToken.getCreated(), validToken.getRoles()));
 		}
 		
-		return createToken(validToken.getUsername(), validToken.getRoles(), validToken.getCreated());
+		return createToken(validToken.getUsername(), validToken.getRoles(), validToken.getCreated(), name);
 	}
 	
 	private static Instant getTokenNextExpiration(Instant created, Set<String> roles) {
@@ -140,12 +133,12 @@ public class AuthTokens {
 					created.plus(CLIENT_TOKEN_MAX_LIFETIME);
 	}
 
-	public Token validateToken(String jwsString) {
+	public ParsedToken validateToken(String jwsString) {
 		
 		return AuthTokens.validate(jwsString, jwsKeyPair.getPublic());
 	}
 	
-	public static Token validate(String jwsString, PublicKey publicKey) {
+	public static ParsedToken validate(String jwsString, PublicKey publicKey) {
 		
 		try {
 			Jws<Claims> jws = Jwts.parser()
@@ -154,20 +147,10 @@ public class AuthTokens {
 
 			// now we can safely trust the JWT
 			if (jws.getBody().get(CLAIM_KEY_CLASS) == null || !jws.getBody().get(CLAIM_KEY_CLASS).toString().equals(CLAIM_VALUE_CLASS)) {
-				throw new IllegalStateException("token passed validation, but isn't an AuthToken. Are SessionDbTokens using the same keys?");
+				throw new IllegalStateException("token passed validation, but isn't an "  + CLAIM_VALUE_CLASS + ". Are SessionDbTokens using the same keys?");
 			}
 
-			Set<String> roles = new HashSet<String>(Arrays.asList(jws.getBody().get(CLAIM_KEY_ROLES).toString().split(ROLES_DELIMITER)));
-		    Instant loginTime = Instant.ofEpochSecond(Long.parseLong(jws.getBody().get(CLAIM_KEY_LOGIN_TIME).toString()));
-		     
-		    Token token = new Token();
-    		token.setUsername(jws.getBody().getSubject()); 
-		    token.setTokenKey(jwsString); 
-		    token.setValidUntil(jws.getBody().getExpiration().toInstant()); 
-		    token.setCreated(loginTime); 
-		    token.setRoles(roles);		     
-		    
-		    return token;
+			return claimsToParsedToken(jws.getBody(), jwsString);		     
 		   		    
 		    
 		} catch (ExpiredJwtException e) {
@@ -187,5 +170,67 @@ public class AuthTokens {
 		    logger.warn("jws validation failed", e.getMessage());
 		    throw new NotAuthorizedException("token not valid");
 		}		
+	}
+	
+	/**
+	 * Decode jwt token without checking its signature
+	 * 
+	 * Client can trust the token it got from the server. Servers should always validate them.
+	 * 
+	 * @param jwsString
+	 * @return
+	 */
+	public static ParsedToken decode(String jwsString) {
+		
+		// signature must be removed, jjwt refuses to decode signed tokens without validating them 
+		String jwtString = jwsToJwt(jwsString);
+		
+		try {
+			@SuppressWarnings("rawtypes")
+			Jwt<Header, Claims> jwt = Jwts.parser()
+					.parseClaimsJwt(jwtString);
+
+			// now we can safely trust the JWT
+			if (jwt.getBody().get(CLAIM_KEY_CLASS) == null || !jwt.getBody().get(CLAIM_KEY_CLASS).toString().equals(CLAIM_VALUE_CLASS)) {
+				throw new IllegalStateException("token isn't an " + CLAIM_VALUE_CLASS);
+			}
+
+			return claimsToParsedToken(jwt.getBody(), jwsString);		     
+		   		    
+		    
+		} catch (ExpiredJwtException e) {
+			// 401 https://stackoverflow.com/questions/45153773/correct-http-code-for-authentication-token-expiry-401-or-403
+			throw new NotAuthorizedException("token expired");
+			
+		} catch (IllegalArgumentException e) {
+			throw new NotAuthorizedException("token is null, empty or only whitespace");
+			
+		} catch (MalformedJwtException e) {
+			throw new NotAuthorizedException("invalid token: " + e.getMessage());		    		    
+		    
+		} catch (JwtException e) {
+		    logger.warn("jws validation failed", e.getMessage());
+		    throw new NotAuthorizedException("token not valid");
+		}		
+	}
+
+	private static String jwsToJwt(String jws) {
+		// https://github.com/jwtk/jjwt/issues/135
+		String withoutSignature = jws.substring(0, jws.lastIndexOf(".") + 1);
+		return withoutSignature;
+	}
+
+	private static ParsedToken claimsToParsedToken(Claims body, String jwsString) {
+		Set<String> roles = new HashSet<String>(Arrays.asList(body.get(CLAIM_KEY_ROLES).toString().split(ROLES_DELIMITER)));
+	    Instant loginTime = Instant.ofEpochSecond(Long.parseLong(body.get(CLAIM_KEY_LOGIN_TIME).toString()));
+	     
+	    ParsedToken token = new ParsedToken();
+		token.setUsername(body.getSubject()); 
+	    token.setTokenKey(jwsString); 
+	    token.setValidUntil(body.getExpiration().toInstant()); 
+	    token.setCreated(loginTime); 
+	    token.setRoles(roles);
+	    
+	    return token;
 	}
 }

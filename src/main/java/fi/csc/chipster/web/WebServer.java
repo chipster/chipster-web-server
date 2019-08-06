@@ -45,7 +45,7 @@ public class WebServer {
     	String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		
         URI baseUri = URI.create(config.getBindUrl(Role.WEB_SERVER));
         

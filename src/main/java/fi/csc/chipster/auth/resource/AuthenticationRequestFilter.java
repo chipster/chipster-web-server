@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
@@ -124,9 +124,9 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	public AuthPrincipal tokenAuthentication(String jwsString) {
 		
 		// throws if fails
-		Token token = tokenTable.validateToken(jwsString);				
+		ParsedToken token = tokenTable.validateToken(jwsString);				
 
-		return new AuthPrincipal(token.getUsername(), token.getTokenKey(), token.getRoles());
+		return new AuthPrincipal(token.getUsername(), jwsString, token.getRoles());
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {

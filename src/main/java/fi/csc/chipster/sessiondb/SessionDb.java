@@ -95,7 +95,7 @@ public class SessionDb {
 		String password = config.getPassword(username);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 
 		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
 				Job.class, File.class);

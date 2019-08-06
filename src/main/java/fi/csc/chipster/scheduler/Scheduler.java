@@ -85,7 +85,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
     	this.waitNewSlotsPerUserTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_NEW_SLOTS_PER_USER_TIMEOUT);
     	
 		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
 		String toolboxUrl = this.serviceLocator.getInternalService(Role.TOOLBOX).getUri();
 		this.toolbox = new ToolboxClientComp(toolboxUrl);

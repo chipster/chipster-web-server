@@ -19,7 +19,7 @@ import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.OidcResource;
-import fi.csc.chipster.auth.resource.TokenResource;
+import fi.csc.chipster.auth.resource.AuthTokenResource;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
@@ -74,7 +74,7 @@ public class AuthenticationService {
     	AuthTokens tokenTable = new AuthTokens(config);
     	UserTable userTable = new UserTable(hibernate);
     	
-    	TokenResource tokenResource = new TokenResource(tokenTable, userTable);
+    	AuthTokenResource tokenResource = new AuthTokenResource(tokenTable, userTable);
     	OidcResource oidcResource = new OidcResource(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable);
@@ -111,7 +111,7 @@ public class AuthenticationService {
         URL bindUrl = URI.create(config.getBindUrl(Role.AUTH)).toURL();
         String localhostUrl = new URL(bindUrl.getProtocol(), "localhost", bindUrl.getPort(), bindUrl.getFile()).toString();
 
-        AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH, config.getPassword(Role.AUTH));
+        AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH, config.getPassword(Role.AUTH), Role.SERVER);
 		this.adminServer = RestUtils.startAdminServer(
         		adminResource, hibernate, 
         		Role.AUTH, config, authClient, serviceLocator);

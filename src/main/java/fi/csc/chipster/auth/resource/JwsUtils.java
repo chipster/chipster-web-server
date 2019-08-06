@@ -108,5 +108,4 @@ private static Logger logger = LogManager.getLogger();
 		JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
 		return converter.getPublicKey(publicKeyInfo);
 	}
-
 }

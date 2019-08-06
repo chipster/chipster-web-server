@@ -1,6 +1,5 @@
 package fi.csc.chipster.rest.token;
 import java.io.IOException;
-import java.security.PublicKey;
 import java.util.HashSet;
 
 import javax.annotation.Priority;
@@ -12,14 +11,12 @@ import javax.ws.rs.ext.Provider;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bouncycastle.openssl.PEMException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
-import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 
 @Provider
@@ -37,14 +34,10 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 
 	private boolean passwordRequired = true;
 
-	private PublicKey jwtPublicKey;
+	private AuthenticationClient authService;
 
 	public TokenRequestFilter(AuthenticationClient authService) {
-		try {
-			this.jwtPublicKey = authService.getJwtPublicKey();
-		} catch (PEMException e) {
-			throw new RuntimeException(e);
-		}
+		this.authService = authService;
 	}
 
 	@Override
@@ -111,7 +104,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 
 	public AuthPrincipal tokenAuthentication(String clientTokenKey) {
 
-		Token validToken = AuthTokens.validate(clientTokenKey, this.jwtPublicKey);		
+		ParsedToken validToken = authService.validate(clientTokenKey);		
 		
 		return new AuthPrincipal(validToken.getUsername(), clientTokenKey, validToken.getRoles());
 	}

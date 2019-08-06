@@ -208,7 +208,7 @@ public class ToolboxService {
 		String password = config.getPassword(username);
 		
 		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(this.toolResource)

@@ -66,7 +66,7 @@ public class FileBroker {
     	String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
 		
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);

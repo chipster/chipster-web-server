@@ -13,8 +13,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.Token;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.TestServerLauncher;
 
@@ -84,18 +84,18 @@ public class AuthenticationResourceTest {
     	return postToken(target, Role.SESSION_DB, Role.SESSION_DB);
 	}
 
-    public static String getToken(WebTarget target, String username, String password, String clientToken) {
-    	Token token = target
+    public static ParsedToken getToken(WebTarget target, String username, String password, String clientToken) {
+    	ParsedToken token = target
     			.path(path)
-    			.request(JSON)
+    			.request(MediaType.APPLICATION_JSON)
     			.property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_USERNAME, username)
     		    .property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_PASSWORD, password)
     		    .header("chipster-token", clientToken)
-    		    .get(Token.class);
+    		    .get(ParsedToken.class);
     	
         assertEquals(false, token == null);
         
-        return token.getTokenKey();
+        return token;
 	}
     
     public static Response deleteTokenResponse(WebTarget target, String username, String password) {
@@ -112,7 +112,7 @@ public class AuthenticationResourceTest {
     public static Response getTokenResponse(WebTarget target, String username, String password, String clientToken) {
     	Response response = target
     			.path(path)
-    			.request(JSON)
+    			.request(MediaType.APPLICATION_JSON)
     			.property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_USERNAME, username)
     		    .property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_PASSWORD, password)
     		    .header("chipster-token", clientToken)
@@ -122,22 +122,22 @@ public class AuthenticationResourceTest {
 	}
     
     public static String postToken(WebTarget target, String username, String password) {
-    	Token token = target
+    	String token = target
     			.path(path)
-    			.request(JSON)
+    			.request(MediaType.TEXT_PLAIN)
     			.property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_USERNAME, username)
     		    .property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_PASSWORD, password)
-    		    .post(null, Token.class);
+    		    .post(null, String.class);
     	
         assertEquals(false, token == null);
         
-        return token.getTokenKey().toString();
+        return token;
 	}
     
     public static Response postTokenResponse(WebTarget target, String username, String password) {
     	Response response = target
     			.path(path)
-    			.request(JSON)
+    			.request(MediaType.TEXT_PLAIN)
     			.property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_USERNAME, username)
     		    .property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_PASSWORD, password)
     		    .post(null, Response.class);

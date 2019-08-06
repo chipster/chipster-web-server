@@ -45,7 +45,7 @@ public class Backup {
     	String password = config.getPassword(username);    	
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
 		
 		Path backupRoot = Paths.get(DbBackup.DB_BACKUPS);
