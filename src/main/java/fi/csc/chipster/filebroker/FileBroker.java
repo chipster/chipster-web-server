@@ -95,7 +95,7 @@ public class FileBroker {
 		FileServlet fileServlet = new FileServlet(storage, sessionDbClient, serviceLocator, authService);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
-		contextHandler.addFilter(new FilterHolder(new CORSServletFilter(this.config)), "/*", null);
+		contextHandler.addFilter(new FilterHolder(new CORSServletFilter(this.serviceLocator)), "/*", null);
         
         stats = RestUtils.createStatisticsListener(server);
 		

@@ -46,13 +46,12 @@ public class CORSResponseFilter implements ContainerResponseFilter {
 		
 		if (webServerUri != null) {
 			MultivaluedMap<String, Object> headers = responseContext.getHeaders();
-			//headers.add("Access-Control-Allow-Origin", "*");
 			headers.add("Access-Control-Allow-Origin", webServerUri);		
 			headers.add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
 			headers.add("Access-Control-Allow-Headers", "authorization, content-type"); // request
 			headers.add("Access-Control-Expose-Headers", "location, Accept-Ranges, Retry-After"); // response
 			headers.add("Access-Control-Allow-Credentials", "true");
-			headers.add("Access-Control-Max-Age", "1728000"); // in seconds, 20 days
+			headers.add("Access-Control-Max-Age", "" + (60 * 60 * 24)); // in seconds, 1 day
 			//headers.add("Access-Control-Max-Age", "1"); // makes debugging easier
 		}
 				
