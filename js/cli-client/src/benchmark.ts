@@ -1,5 +1,5 @@
 import { RxHttpRequestResponse } from "@akanass/rx-http-request";
-import { Dataset, Job, Session, Token } from "chipster-js-common";
+import { Dataset, Job, Session } from "chipster-js-common";
 import { Logger, RestClient } from "chipster-nodejs-core";
 import { empty, from, of, range, timer } from "rxjs";
 import { catchError, concatAll, map, mergeMap, takeUntil, tap, toArray } from "rxjs/operators";
@@ -69,7 +69,7 @@ export default class Benchmark {
 
         console.log('login as', args.username);
         let benchmark = ChipsterUtils.login(args.URL, args.username, args.password).pipe(
-            mergeMap((token: Token) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
+            mergeMap((token: string) => ChipsterUtils.getRestClient(args.URL, token)),
             tap(restClient => this.restClient = restClient),
         );
 
