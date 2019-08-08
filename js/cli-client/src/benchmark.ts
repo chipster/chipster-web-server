@@ -1,13 +1,9 @@
-import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest, empty, range, timer } from "rxjs";
-import { tap, mergeMap, toArray, take, map, finalize, catchError, merge, takeUntil, concatMap, concatAll, delay } from "rxjs/operators";
-import { RestClient, Logger } from "chipster-nodejs-core";
+import { RxHttpRequestResponse } from "@akanass/rx-http-request";
+import { Dataset, Job, Session, Token } from "chipster-js-common";
+import { Logger, RestClient } from "chipster-nodejs-core";
+import { empty, from, of, range, timer } from "rxjs";
+import { catchError, concatAll, map, mergeMap, takeUntil, tap, toArray } from "rxjs/operators";
 import ChipsterUtils from "./chipster-utils";
-import wsClient from "./ws-client";
-import WsClient from "./ws-client";
-import * as _ from 'lodash';
-import { last } from "rxjs/internal/operators/last";
-import { Session, Dataset, Job, Module, Category, Token } from "chipster-js-common";
-import {RxHttpRequestResponse} from "@akanass/rx-http-request";
 
 const ArgumentParser = require('argparse').ArgumentParser;
 const fs = require('fs');
@@ -228,7 +224,6 @@ export default class Benchmark {
                 const dataset: Dataset = {
                     name: "dataset_" + i,
                     fileId: null,
-                    metadata: [],
                     checksum: null,
                     created: null,
                     datasetId: null,
@@ -238,20 +233,22 @@ export default class Benchmark {
                     sourceJob: null,
                     x: null,
                     y: null,
+                    sessionId: null,
+                    metadataFiles: [],
                 };
+                let phenodata = "";
                 for (let j = 0; j < metadataCount; j++) {
-                    dataset.metadata.push({
-                        // col: "col_" + j,
-                        key: "metadatakey_" + j,
-                        value: "value_" + j,
-                        column: null,
-                    });
+                    phenodata += "metadatakey_" + j + "\t" + "value_" + j + "\n";
                 }
+                dataset.metadataFiles.push({
+                    name: "phenodata",
+                    content: phenodata,
+                });
                 dataset.fileId = this.uuidv4();
-                dataset.notes = this.notes;
+                    dataset.notes = this.notes;
 
-                return dataset;
-            }),            
+                    return dataset;
+                }),            
             mergeMap(dataset => this.restClient.postDataset(sessionId, dataset)),
             tap((id: string) => idMap.set(id, sessionId)),
         );   

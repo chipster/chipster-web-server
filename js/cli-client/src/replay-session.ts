@@ -1,12 +1,11 @@
-import { Observable, observable, Subject, forkJoin, of, concat, from, throwError, combineLatest, empty } from "rxjs";
-import { tap, mergeMap, toArray, take, map, finalize, catchError, merge } from "rxjs/operators";
-import { RestClient, Logger } from "chipster-nodejs-core";
-import ChipsterUtils from "./chipster-utils";
-import wsClient from "./ws-client";
-import WsClient from "./ws-client";
+import { Dataset, Job, Module, Session, Token, Tool } from "chipster-js-common";
+import { Logger } from "chipster-nodejs-core";
 import * as _ from 'lodash';
+import { concat, empty, forkJoin, from, Observable, of } from "rxjs";
 import { last } from "rxjs/internal/operators/last";
-import { Session, Dataset, Job, Module, Category, Token } from "chipster-js-common";
+import { catchError, finalize, map, merge, mergeMap, tap, toArray } from "rxjs/operators";
+import ChipsterUtils from "./chipster-utils";
+import WsClient from "./ws-client";
 
 const ArgumentParser = require('argparse').ArgumentParser;
 const fs = require('fs');
@@ -314,7 +313,8 @@ export default class ReplaySession {
         const parameterMap = new Map<string, any>();
         let replayJobId;
 
-        return of(null).pipe(
+        // why the type isn't recognized after adding the finzalize()?
+        return <any>of(null).pipe(
             tap(() => console.log('session ' + plan.originalSession.name + ', replay job ' + job.toolId)),
             mergeMap(() => {
                 const fileCopies = job.inputs.map(input => {
@@ -346,7 +346,7 @@ export default class ReplaySession {
                 wsClient.connect(replaySessionId, quiet);
             }),
             mergeMap(() => this.restClient.getTool(job.toolId)),
-            mergeMap(tool => ChipsterUtils.jobRun(this.restClient, replaySessionId, tool, parameterMap, inputMap)),
+            mergeMap((tool: Tool) => ChipsterUtils.jobRun(this.restClient, replaySessionId, tool, parameterMap, inputMap)),
             mergeMap(jobId => {
                 replayJobId = jobId;
                 wsClient.getJobScreenOutput$(jobId).subscribe(output => {
@@ -376,7 +376,7 @@ export default class ReplaySession {
         );
     }
 
-    errorToReplayResult(err, job: Job, plan: JobPlan) {
+    errorToReplayResult(err, job: Job, plan: JobPlan): ReplayResult {
         const j = _.clone(job);
         j.state = 'REPLAY_ERROR';
         j.stateDetail = '(see replay logs)';
@@ -470,8 +470,8 @@ export default class ReplaySession {
             mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, replaySessionId, localFileName, dataset.name)),
             tap(id => copyDatasetId = id),
             mergeMap(copyDatasetId => this.restClient.getDataset(replaySessionId, copyDatasetId)),
-            mergeMap((copyDataset: Dataset) => {
-                copyDataset.metadata = dataset.metadata;
+            mergeMap((copyDataset: Dataset) => {                
+                copyDataset.metadataFiles = dataset.metadataFiles;
                 return this.restClient.putDataset(replaySessionId, copyDataset);
             }),
             tap(() => fs.unlinkSync(localFileName)),

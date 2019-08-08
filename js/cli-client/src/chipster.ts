@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import {empty as observableEmpty, of as observableOf, forkJoin as observableForkJoin, from as observableFrom } from 'rxjs';
-
-import {toArray, tap, mergeMap, map} from 'rxjs/operators';
-
-import CliEnvironment from "./cli-environment";
+import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-common";
+import { Logger } from "chipster-nodejs-core";
 import * as _ from 'lodash';
-import WsClient from "./ws-client";
+import { empty as observableEmpty, forkJoin as observableForkJoin, from as observableFrom, of as observableOf } from 'rxjs';
+import { map, mergeMap, tap, toArray } from 'rxjs/operators';
 import ChipsterUtils from "./chipster-utils";
-import { RestClient, Logger } from "chipster-nodejs-core";
-import { Token, Session, Rule, Dataset, Job, Module, Tool, Service } from "chipster-js-common";
+import CliEnvironment from "./cli-environment";
+import WsClient from "./ws-client";
+
+
 
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
@@ -294,7 +294,7 @@ export default class CliClient {
 
       mergeMap(() => ChipsterUtils.login(webServerUri, username, password)),
       // save
-      mergeMap((token: Token) => this.env.set('token', token.tokenKey)),
+      mergeMap((token: string) => this.env.set('token', token)),
       mergeMap(() => this.env.set('webServerUri', webServerUri)),
       mergeMap(() => this.env.set('username', username)),
       mergeMap(() => this.checkLogin()),);
@@ -606,7 +606,7 @@ export default class CliClient {
           if (statuses.length === 1) {
             let res = statuses[0];
             let service = res[0];
-            let status = res[1];
+            let status = <any>res[1];
             for (let key in status) {
               let value = status[key];
               console.log(service.role + '\t' + service.serviceId+ '\t' + key + '\t' + value + '\t' + ChipsterUtils.toHumanReadable(value));

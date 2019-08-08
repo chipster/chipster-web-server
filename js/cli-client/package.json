@@ -13,22 +13,22 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@akanass/rx-http-request": "^3.0.0",
-    "argparse": "^1.0.9",
-    "chipster-js-common": "^0.3.1",
-    "chipster-nodejs-core": "0.0.6",
-    "lodash": "^4.17.10",
+    "@akanass/rx-http-request": "^3.3.0",
+    "argparse": "^1.0.10",
+    "chipster-js-common": "^0.7.0",
+    "chipster-nodejs-core": "0.1.0",
+    "lodash": "^4.17.15",
     "read": "^1.0.7",
-    "restify": "^7.2.1",
-    "rxjs": "6.0.0",
+    "restify": "^8.4.0",
+    "rxjs": "^6.5.2",
     "url": "^0.11.0",
-    "winston": "^2.4.0",
-    "ws": "^5.2.2",
+    "winston": "^3.2.1",
+    "ws": "^7.1.1",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
-    "@types/node": "~10.1.2",
-    "ts-node": "~5.0.1",
-    "typescript": "~2.7.2"
+    "@types/node": "^12.7.0",
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.3"
   }
 }
