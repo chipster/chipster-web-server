@@ -1,4 +1,4 @@
-import { Dataset, Job, Module, Session, Token, Tool } from "chipster-js-common";
+import { Dataset, Job, Module, Session, Tool } from "chipster-js-common";
 import { Logger } from "chipster-nodejs-core";
 import * as _ from 'lodash';
 import { concat, empty, forkJoin, from, Observable, of } from "rxjs";
@@ -159,7 +159,7 @@ export default class ReplaySession {
 
         console.log('login as', args.username);
         ChipsterUtils.login(args.URL, args.username, args.password).pipe(
-            mergeMap((token: Token) => ChipsterUtils.getRestClient(args.URL, token.tokenKey)),
+            mergeMap((token: string) => ChipsterUtils.getRestClient(args.URL, token)),
             tap(restClient => this.restClient = restClient),
             mergeMap(() => this.deleteOldSessions(this.uploadSessionPrefix, this.replaySessionPrefix)),
             mergeMap(() => this.writeResults([], [], false)),
