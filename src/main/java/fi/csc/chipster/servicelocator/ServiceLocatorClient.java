@@ -99,4 +99,8 @@ public class ServiceLocatorClient {
 	public void setCredentials(CredentialsProvider credentials) {
 		this.credentials = credentials;
 	}
+	
+	public String getBaseUri() {
+		return this.baseUri;
+	}
 }

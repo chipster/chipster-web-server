@@ -25,7 +25,7 @@ public class CORSResponseFilter implements ContainerResponseFilter {
 	private Logger logger = LogManager.getLogger();
 	
 	private ServiceLocatorClient serviceLocator;
-	private String webServerUri; 
+	private volatile String webServerUri; 
 
 	public CORSResponseFilter(ServiceLocatorClient serviceLocator) {
 		// get web-server uri only when it's needed, because auth initializes this before the service locator is running
@@ -36,11 +36,20 @@ public class CORSResponseFilter implements ContainerResponseFilter {
 	@Override
 	public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {			
 		
-		if (webServerUri == null) {
-			try {
-				webServerUri = serviceLocator.getPublicUri(Role.WEB_SERVER);
-			} catch (Exception e) {
-				logger.warn("cors headers not yeat available");
+		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
+		// to make this safe and relatively fast for multi-thread usage
+		if (webServerUri == null) {			
+			synchronized (CORSResponseFilter.class) {
+				if (webServerUri == null) {
+					long t = 0;
+					try {
+						logger.info("get cors origin from " + serviceLocator.getBaseUri());
+						t = System.currentTimeMillis();
+						webServerUri = serviceLocator.getPublicUri(Role.WEB_SERVER);
+					} catch (Exception e) {
+						logger.warn("cors headers not yeat available (request took " + (System.currentTimeMillis() - t) + "ms)");
+					}
+				}
 			}
 		}
 		
