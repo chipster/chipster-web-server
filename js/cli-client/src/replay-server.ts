@@ -9,6 +9,7 @@ const logger = Logger.getLogger(__filename, "logs/chipster.log");
 const schedule = require("node-schedule");
 const serveIndex = require("serve-index");
 const express = require("express");
+const path = require("path");
 
 export default class ReplayServer {
   startTime: Date;
@@ -62,6 +63,8 @@ export default class ReplayServer {
       args.port
     );
 
+    new ReplaySession().mkdirIfMissing(args.results);
+
     var app = express();
     app.use(
       "/",
@@ -79,6 +82,7 @@ export default class ReplayServer {
       const colonSplitted = sched.split(":");
       let cron = colonSplitted[0];
       const filters = colonSplitted[1].split(" ");
+      const testSetName = filters.join("_");
 
       const replayNow = () => {
         new ReplaySession()
@@ -89,14 +93,14 @@ export default class ReplayServer {
             false,
             1,
             false,
-            args.results,
+            path.join(args.results, testSetName),
             null,
             filters,
             null
           )
           .pipe(
             mergeMap((stats: Map<string, number>) => {
-              return this.postToInflux(stats, filters.join("_"), args.influxdb);
+              return this.postToInflux(stats, testSetName, args.influxdb);
             })
           )
           .subscribe(
