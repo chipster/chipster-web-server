@@ -1,29 +1,25 @@
-import CliEnvironment from "./cli-environment";
-import { Subject, ReplaySubject } from "rxjs";
+import { Dataset, Job, WsEvent } from "chipster-js-common";
+import { Logger, RestClient } from "chipster-nodejs-core";
+import { ReplaySubject, Subject } from "rxjs";
 import {
-  filter,
-  mergeMap,
-  takeWhile,
-  tap,
-  distinctUntilChanged,
-  map,
-  startWith,
-  pairwise,
-  multicast,
   concat,
-  take
+  distinctUntilChanged,
+  filter,
+  map,
+  mergeMap,
+  multicast,
+  pairwise,
+  startWith,
+  take,
+  takeWhile
 } from "rxjs/operators";
-//const RestClient = require('rest-client')
-
-import * as _ from "lodash";
-import { RestClient, Logger } from "chipster-nodejs-core";
-import { WsEvent, Job, SessionEvent, Dataset } from "chipster-js-common";
+import { VError } from "verror";
 const WebSocket = require("ws");
 
 const path = require("path");
 const read = require("read");
 const ArgumentParser = require("argparse").ArgumentParser;
-//const logger = Logger.getLogger(__filename);
+const logger = Logger.getLogger(__filename);
 
 export default class WsClient {
   sessionId: string;
@@ -57,7 +53,7 @@ export default class WsClient {
 
       if (!quiet) {
         this.ws.on("open", () => {
-          console.log("websocket connected");
+          logger.info("websocket connected");
         });
       }
 
@@ -70,16 +66,16 @@ export default class WsClient {
         this.ws.on("close", (code, reason) => {
           if (code === 1001) {
             // idle timeout
-            console.log("websocket " + reason + ", reconnecting...");
+            logger.info("websocket " + reason + ", reconnecting...");
             this.connect(sessionId, quiet);
           } else {
-            console.log("websocket closed", code, reason);
-            this.wsEvents$.error("websocket closed: " + code + " " + reason);
+            logger.info("websocket closed " + code + reason);
+            +this.wsEvents$.error("websocket closed: " + code + " " + reason);
           }
         });
 
         this.ws.on("error", error => {
-          console.log("websocket error", error);
+          logger.error(new VError(error, "websocket error"));
           this.wsEvents$.error("websocket error: " + error);
         });
       }

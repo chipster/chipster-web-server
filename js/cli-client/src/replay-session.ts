@@ -397,7 +397,8 @@ export default class ReplaySession {
                 replayJobId = jobId;
                 wsClient.getJobScreenOutput$(jobId).subscribe(output => {
                     if (!quiet) {
-                        process.stdout.write(output);
+                        // process.stdout.write(output);
+                        logger.info(output);
                     }
                 }, err => {
                     logger.error(new VError(err, 'failed to get the screen output'));

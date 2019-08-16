@@ -1,4 +1,5 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
+import { of } from "rxjs";
 import { mergeMap } from "rxjs/operators";
 import { VError } from "verror";
 import ReplaySession from "./replay-session";
@@ -37,20 +38,15 @@ export default class ReplayServer {
     parser.addArgument(["--results", "-r"], {
       help:
         "replay session prefix and test result directory (both cleared automatically)",
-      defaultValue: "results/default-test-set"
-    });
-    parser.addArgument(["--filter", "-F"], {
-      help:
-        "replay all sessions stored on the server starting with this string",
-      action: "append"
+      defaultValue: "results"
     });
     parser.addArgument(["--schedule", "-s"], {
-      help: "how often to run the tests, in cron format",
-      defaultValue: "* * * * *"
+      help:
+        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty ",
+      action: "append"
     });
     parser.addArgument(["--influxdb", "-i"], {
-      help: "influxdb url for statistics",
-      defaultValue: "http://influxdb:8086/write?db=db"
+      help: "influxdb url for statistics, e.g. http://influxdb:8086/write?db=db"
     });
     parser.addArgument(["--port", "-P"], {
       help: "HTTP port for serving the result files",
@@ -60,7 +56,6 @@ export default class ReplayServer {
     let args = parser.parseArgs();
 
     this.startTime = new Date();
-    this.influxdbUrl = args.influxdb;
 
     logger.info(
       "start server for sharing the result files, in port",
@@ -75,36 +70,52 @@ export default class ReplayServer {
     );
     app.listen(parseInt(args.port));
 
-    logger.info("schedule session replay test", args.schedule);
-    const replaySessionJob = schedule.scheduleJob(args.schedule, () => {
-      const replaySession = new ReplaySession();
+    let schedules = args.schedule;
+    if (schedule.length === 0) {
+      schedules = [":"];
+    }
 
-      logger.info("ReplayServer.parseCommand()");
-      replaySession
-        .replay(
-          args.URL,
-          args.username,
-          args.password,
-          false,
-          1,
-          false,
-          args.results,
-          null,
-          args.filter,
-          null
-        )
-        .pipe(
-          mergeMap((stats: Map<string, number>) => {
-            return this.postToInflux(stats, args.filter);
-          })
-        )
-        .subscribe(
-          () => logger.info("session replay done"),
-          err => logger.error(new VError(err, "session replay error")),
-          () => logger.info("session replay completed")
-        );
+    schedules.forEach((sched: string) => {
+      const colonSplitted = sched.split(":");
+      let cron = colonSplitted[0];
+      const filters = colonSplitted[1].split(" ");
+
+      const replayNow = () => {
+        new ReplaySession()
+          .replay(
+            args.URL,
+            args.username,
+            args.password,
+            false,
+            1,
+            false,
+            args.results,
+            null,
+            filters,
+            null
+          )
+          .pipe(
+            mergeMap((stats: Map<string, number>) => {
+              return this.postToInflux(stats, filters.join("_"), args.influxdb);
+            })
+          )
+          .subscribe(
+            () => logger.info("session replay done"),
+            err => logger.error(new VError(err, "session replay error")),
+            () => logger.info("session replay completed")
+          );
+      };
+
+      if (cron.length === 0) {
+        replayNow();
+      } else {
+        logger.info("schedule session replay test " + filters + " at " + cron);
+        const replaySessionJob = schedule.scheduleJob(cron, () => {
+          replayNow();
+        });
+        logger.info("next invocation " + replaySessionJob.nextInvocation());
+      }
     });
-    logger.info("next invocation", replaySessionJob.nextInvocation());
 
     // these shouldn't happen if RestClient handled errrors correctly
     // apparently it doesn't, so let's catch them to prevent crashing this server after each tool failure
@@ -113,7 +124,7 @@ export default class ReplayServer {
     });
   }
 
-  postToInflux(stats: Map<string, number>, testSet: string) {
+  postToInflux(stats: Map<string, number>, testSet: string, influxdb: string) {
     let data = "";
     // nanosecond unix time
     let timestamp = new Date().getTime() * 1000 * 1000;
@@ -129,9 +140,15 @@ export default class ReplayServer {
         timestamp +
         "\n";
     }
+
     logger.info("stats: " + data);
 
-    return new RestClient().post(this.influxdbUrl, null, data);
+    if (influxdb != null) {
+      logger.info("post to InfluxDB " + influxdb);
+      return new RestClient().post(influxdb, null, data);
+    } else {
+      return of(null);
+    }
   }
 
   /**
