@@ -376,6 +376,7 @@ export default class ReplaySession {
         let wsClient;
         const inputMap = new Map<string, Dataset>();
         const parameterMap = new Map<string, any>();
+        let metadataFiles = null;
         let replayJobId;
 
         // why the type isn't recognized after adding the finzalize()?
@@ -402,6 +403,7 @@ export default class ReplaySession {
                         logger.info('set parameter ' + p.parameterId + ' ' + p.value);
                     }
                 });
+                metadataFiles = job.metadataFiles;
             }),
             tap(() => {
                 if (!quiet) {
@@ -411,7 +413,7 @@ export default class ReplaySession {
                 wsClient.connect(replaySessionId, quiet);
             }),
             mergeMap(() => this.restClient.getTool(job.toolId)),
-            mergeMap((tool: Tool) => ChipsterUtils.jobRun(this.restClient, replaySessionId, tool, parameterMap, inputMap)),
+            mergeMap((tool: Tool) => ChipsterUtils.jobRunWithMetadata(this.restClient, replaySessionId, tool, parameterMap, inputMap, metadataFiles)),
             mergeMap(jobId => {
                 replayJobId = jobId;
                 wsClient.getJobScreenOutput$(jobId).subscribe(output => {
@@ -563,7 +565,7 @@ export default class ReplaySession {
               this.restClient.getDataset(replaySessionId, copyDatasetId)
             ),
             mergeMap((copyDataset: Dataset) => {
-              copyDataset.metadataFiles = dataset.metadataFiles;
+                copyDataset.metadataFiles = dataset.metadataFiles;
               return this.restClient.putDataset(
                 replaySessionId,
                 copyDataset
