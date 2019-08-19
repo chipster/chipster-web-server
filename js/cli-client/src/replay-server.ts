@@ -41,9 +41,13 @@ export default class ReplayServer {
         "replay session prefix and test result directory (both cleared automatically)",
       defaultValue: "results"
     });
+    parser.addArgument(["--temp", "-t"], {
+      help: "temp directory",
+      defaultValue: ReplaySession.tempDefault
+    });
     parser.addArgument(["--schedule", "-s"], {
       help:
-        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty ",
+        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a specail string 'example-sessions'. ",
       action: "append"
     });
     parser.addArgument(["--influxdb", "-i"], {
@@ -63,7 +67,8 @@ export default class ReplayServer {
       args.port
     );
 
-    new ReplaySession().mkdirIfMissing(args.results);
+    ReplaySession.mkdirIfMissing(args.results);
+    ReplaySession.mkdirIfMissing(args.temp);
 
     var app = express();
     app.use(
@@ -94,7 +99,7 @@ export default class ReplayServer {
             1,
             false,
             path.join(args.results, testSetName),
-            null,
+            path.join(args.temp, testSetName),
             filters,
             null
           )

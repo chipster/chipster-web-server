@@ -42,7 +42,7 @@ export default class ReplaySession {
         'fi.csc.chipster.tools.ngs.LocalNGSPreprocess.java'
     ]
 
-    readonly tempDefault = "tmp";
+    static readonly tempDefault = "tmp";
 
     startTime: Date;
     restClient: any;
@@ -71,7 +71,7 @@ export default class ReplaySession {
         parser.addArgument(['--parallel', '-P'], { help: 'how many jobs to run in parallel (>1 implies --quiet)', defaultValue: 1 });
         parser.addArgument(['--quiet', '-q'], { help: 'do not print job state changes', action: 'storeTrue' });
         parser.addArgument(['--results', '-r'], { help: 'replay session prefix and test result directory (both cleared automatically)', defaultValue: 'default-test-set' });
-        parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: this.tempDefault });
+        parser.addArgument(['--temp', '-t'], { help: 'temp directory', defaultValue: ReplaySession.tempDefault });
         parser.addArgument(['--filter', '-F'], { help: 'replay all sessions stored on the server starting with this string', action: 'append' });
         parser.addArgument(['session'], { help: 'session file or dir to replay', nargs: '?' });
         
@@ -102,7 +102,7 @@ export default class ReplaySession {
     replay(URL: string, username: string, password: string, debug: boolean, parallel: number, quiet: boolean, resultsPath: string, temp: string, filter: string[], sessionPath: string) {
         
         if (temp == null) {
-            temp = this.tempDefault;
+            temp = ReplaySession.tempDefault;
         }
         this.startTime = new Date();        
         this.resultsPath = resultsPath;
@@ -130,7 +130,7 @@ export default class ReplaySession {
             throw new Error('results path is not set');
         }
 
-        this.mkdirIfMissing(this.resultsPath);
+        ReplaySession.mkdirIfMissing(this.resultsPath);
 
         const originalSessions: any[] = [];
         
@@ -165,23 +165,40 @@ export default class ReplaySession {
         );
 
         const serverSessionPlans$ = of(null).pipe(
-            mergeMap(() => this.restClient.getSessions()),
-            map((sessions: Session[]) => {
-                const filtered = [];
-                if (filter && sessions) {
-                    filter.forEach(prefix => {
-                        sessions.forEach(s => {
-                            if (s.name.startsWith(prefix)) {
-                                filtered.push(s);
-                            }
-                        });
-                    });
+          mergeMap(() => this.restClient.getSessions()),
+          map((sessions: Session[]) => {
+            const filtered = [];
+              if (filter && sessions) {
+                  filter.filter(f => !f.startsWith("example-sessions")).forEach(prefix => {
+                      sessions.forEach(s => {
+                          if (s.name.startsWith(prefix)) {
+                              filtered.push(s);
+                          }
+                      });
+                  });
+              }
+            return filtered;
+          }),
+          mergeMap((sessions: Session[]) => from(sessions)),
+          mergeMap((session: Session) =>
+            this.getSessionJobPlans(session, quiet)
+          )
+        );
+
+        const exampleSessionPlans$ = of(null).pipe(
+            mergeMap(() => {
+                if (filter.indexOf("example-sessions") !== -1) {
+                    return this.restClient.getExampleSessions("chipster");
+                } else {
+                    return of([]); 
                 }
-                return filtered;
-            }),
+              }),            
             mergeMap((sessions: Session[]) => from(sessions)),
-            mergeMap((session: Session) => this.getSessionJobPlans(session, quiet)),            
-        )
+            mergeMap((session: Session) =>
+                this.getSessionJobPlans(session, quiet)
+            )
+        );
+
 
         logger.info('login as ' + username);
         return ChipsterUtils.login(URL, username, password).pipe(
@@ -197,7 +214,9 @@ export default class ReplaySession {
           ),
           mergeMap(() => this.writeResults([], [], false)),
           mergeMap(() =>
-            fileSessionPlans$.pipe(merge(serverSessionPlans$))
+              fileSessionPlans$.pipe(
+                merge(serverSessionPlans$),
+                merge(exampleSessionPlans$))
           ),
           mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
           mergeMap(
@@ -509,28 +528,53 @@ export default class ReplaySession {
         let copyDatasetId;
         
         
-        return this.restClient.getDataset(originalSessionId, datasetId).pipe(
-            tap(d => dataset = d),
-            tap(() => this.mkdirIfMissing(this.tempPath)),
+        return this.restClient
+          .getDataset(originalSessionId, datasetId)
+          .pipe(
+            tap(d => (dataset = d)),
+            tap(() => ReplaySession.mkdirIfMissing(this.tempPath)),
             tap(() => {
-                if (!quiet) {
-                    logger.info('copy dataset ' + dataset.name + " " + ChipsterUtils.toHumanReadable(dataset.size));
-                }
+              if (!quiet) {
+                logger.info(
+                  "copy dataset " +
+                    dataset.name +
+                    " " +
+                    ChipsterUtils.toHumanReadable(dataset.size)
+                );
+              }
             }),
-            mergeMap(() => this.restClient.downloadFile(originalSessionId, datasetId, localFileName)),
-            mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, replaySessionId, localFileName, dataset.name)),
-            tap(id => copyDatasetId = id),
-            mergeMap(copyDatasetId => this.restClient.getDataset(replaySessionId, copyDatasetId)),
-            mergeMap((copyDataset: Dataset) => {                
-                copyDataset.metadataFiles = dataset.metadataFiles;
-                return this.restClient.putDataset(replaySessionId, copyDataset);
+            mergeMap(() =>
+              this.restClient.downloadFile(
+                originalSessionId,
+                datasetId,
+                localFileName
+              )
+            ),
+            mergeMap(() =>
+              ChipsterUtils.datasetUpload(
+                this.restClient,
+                replaySessionId,
+                localFileName,
+                dataset.name
+              )
+            ),
+            tap(id => (copyDatasetId = id)),
+            mergeMap(copyDatasetId =>
+              this.restClient.getDataset(replaySessionId, copyDatasetId)
+            ),
+            mergeMap((copyDataset: Dataset) => {
+              copyDataset.metadataFiles = dataset.metadataFiles;
+              return this.restClient.putDataset(
+                replaySessionId,
+                copyDataset
+              );
             }),
             tap(() => fs.unlinkSync(localFileName)),
-            map(() => copyDatasetId),
-        );
+            map(() => copyDatasetId)
+          );
     }   
 
-    mkdirIfMissing(path: string) {
+    static mkdirIfMissing(path: string) {
         try {
             fs.mkdirSync(path);
         } catch (err) {

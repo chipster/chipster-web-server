@@ -3,3 +3,5 @@
 **/*.js
 **/*.js.map
 /lib/
+/logs
+/results

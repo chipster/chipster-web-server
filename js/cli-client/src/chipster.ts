@@ -2,7 +2,7 @@
 import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-common";
 import { Logger } from "chipster-nodejs-core";
 import * as _ from 'lodash';
-import { empty as observableEmpty, forkJoin as observableForkJoin, from as observableFrom, of as observableOf } from 'rxjs';
+import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf } from 'rxjs';
 import { map, mergeMap, tap, toArray } from 'rxjs/operators';
 import ChipsterUtils from "./chipster-utils";
 import CliEnvironment from "./cli-environment";
@@ -151,7 +151,10 @@ export default class CliClient {
 
     loginSubparser.addArgument(['URL'], { nargs: '?', help: 'url of the API server'});
     loginSubparser.addArgument(['--username', '-u'], { help: 'username for the server'});
-    loginSubparser.addArgument(['--password', '-p'], { help: 'password for the server'});
+    loginSubparser.addArgument(['--password', '-p'], { help: 'password for the server' });
+    loginSubparser.addArgument(["--app", "-a"], {
+      help: "application name"
+    });
 
     subparsers.addParser('logout');
 
@@ -271,33 +274,65 @@ export default class CliClient {
     return this.env.get('sessionId');
   }
 
+  getApp() {
+    logger.info("getApp()", this.env.get('app'));
+    return this.env.get('app');
+  }
+
   login(args) {
 
     let webServerUri;
     let username;
     let password;
+    let app;
 
     // get the previous uri and use it as a prompt default
-    return this.env.get('webServerUri').pipe(
-      mergeMap(defaultUri => args.URL ? observableOf(args.URL) : ChipsterUtils.getPrompt('server: ', defaultUri)),
+    return this.env.get("webServerUri").pipe(
+      mergeMap(defaultUri =>
+        args.URL
+          ? observableOf(args.URL)
+          : ChipsterUtils.getPrompt("server: ", defaultUri)
+      ),
       map(webServer => ChipsterUtils.fixUri(webServer)),
-      tap(webServer => webServerUri = webServer),
+      tap(webServer => (webServerUri = webServer)),
 
       // get the previous username and use it as a prompt default
-      mergeMap(() => this.env.get('username')),
-      mergeMap(defaultUsername => args.username ? observableOf(args.username) : ChipsterUtils.getPrompt('username: ', defaultUsername)),
-      tap(u => username = u),
+      mergeMap(() => this.env.get("username")),
+      mergeMap(defaultUsername =>
+        args.username
+          ? observableOf(args.username)
+          : ChipsterUtils.getPrompt("username: ", defaultUsername)
+      ),
+      tap(u => (username = u)),
 
       // password prompt
-      mergeMap(() => args.password ? observableOf(args.password) : ChipsterUtils.getPrompt('password: ', '', true)),
-      tap(p => password = p),
+      mergeMap(() =>
+        args.password
+          ? observableOf(args.password)
+          : ChipsterUtils.getPrompt("password: ", "", true)
+      ),
+      tap(p => (password = p)),
+
+      // get the previous app name and use it as a prompt default
+      mergeMap(() => this.env.get("app")),
+      mergeMap(defaultApp => {
+        if (defaultApp == null) {
+          defaultApp = "chipster";
+        }
+        return args.application
+          ? observableOf(args.application)
+          : ChipsterUtils.getPrompt("application: ", defaultApp)
+      }),
+      tap(u => (app = u)),
 
       mergeMap(() => ChipsterUtils.login(webServerUri, username, password)),
       // save
-      mergeMap((token: string) => this.env.set('token', token)),
-      mergeMap(() => this.env.set('webServerUri', webServerUri)),
-      mergeMap(() => this.env.set('username', username)),
-      mergeMap(() => this.checkLogin()),);
+      mergeMap((token: string) => this.env.set("token", token)),
+      mergeMap(() => this.env.set("webServerUri", webServerUri)),
+      mergeMap(() => this.env.set("username", username)),
+      mergeMap(() => this.env.set("app", app)),
+      mergeMap(() => this.checkLogin())
+    );
   }
 
   logout() {
@@ -326,8 +361,20 @@ export default class CliClient {
   }
 
   sessionList() {
-    this.checkLogin().pipe(
-      mergeMap(() => this.restClient.getSessions()))
+    this.checkLogin().pipe(      
+      mergeMap(() => this.getApp()),
+      mergeMap(appId =>
+            forkJoin(
+              this.restClient.getSessions(),
+              this.restClient.getExampleSessions(appId)
+            )
+          ),
+        map(res => {
+          const ownSessions = <Session[]>res[0];
+          const sharedSessions = <Session[]>res[1];
+          const allSessions = ownSessions.concat(sharedSessions);
+          return allSessions;
+        }))
       .subscribe((sessions: Array<Session>) => {
         sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
       });
