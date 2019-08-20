@@ -207,14 +207,18 @@ public class ToolboxService {
 		String username = Role.TOOLBOX;
 		String password = config.getPassword(username);
 		
-		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+		// don't start these in the old Chipster
+		if (enableStatsAndAdminServer) {
+			this.serviceLocator = new ServiceLocatorClient(config);
+			this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+		}
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(this.toolResource)
 				.register(moduleResource);
 		// .register(new LoggingFilter())
 		
+		// don't start these in the old Chipster
 		if (enableStatsAndAdminServer) {
 			
 			// this must be called before the server is started, otherwise throws an IllegalStateException

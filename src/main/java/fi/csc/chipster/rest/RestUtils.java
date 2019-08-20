@@ -272,10 +272,8 @@ public class RestUtils {
 	}
 
 	public static ResourceConfig getDefaultResourceConfig(ServiceLocatorClient serviceLocator) {
-		
-		CORSResponseFilter cr = new CORSResponseFilter(serviceLocator);
-		
-		return new ResourceConfig()
+				
+		ResourceConfig rc = new ResourceConfig()
 				/*
 				 * Disable auto discovery so that we can decide what we want to register
 				 * and what not. Don't register JacksonFeature, because it will register
@@ -289,11 +287,19 @@ public class RestUtils {
 				.register(JavaTimeObjectMapperProvider.class)
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
-				// add CORS headers
-				.register(cr)
 				// enable the RolesAllowed annotation
 				.register(RolesAllowedDynamicFeature.class)
-				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class); 
+				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class);
+		
+		if (serviceLocator != null) {
+			CORSResponseFilter cors = new CORSResponseFilter(serviceLocator);
+			// add CORS headers
+			rc.register(cors);
+		} else {
+			logger.info("CORS headers disabled because ServiceLocatorClient is null");
+		}
+		
+		return rc;
 	}
 
 	public static void shutdown(String name, HttpServer httpServer) {
