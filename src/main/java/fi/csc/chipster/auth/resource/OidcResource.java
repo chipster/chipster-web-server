@@ -257,11 +257,19 @@ public class OidcResource {
 				continue;
 			}
 			
+			logger.info("getOidcConfig() oidc: " + oidc.getOidcName() + " requireClaim '" + oidc.getRequireClaim() + "' " + oidc.getRequireClaim().isEmpty());
 			if (!oidc.getRequireClaim().isEmpty()) {
 				String[] keyValue = oidc.getRequireClaim().split("=");
 				String key = keyValue[0];
 				String value = keyValue[1];
-				String claimValue = claims.getClaim(key).toString();
+				Object claimObj = claims.getClaim(key);
+				if (claimObj == null) {
+					logger.info("oidc " + oidc.getOidcName() + " requires a non existent claim " + oidc.getRequireClaim());
+					for (String k : claims.getClaims().keySet()) {
+						logger.info("claim " + k + ": " + claims.getClaim(key));
+					}
+				}
+				String claimValue = claimObj.toString();
 				if (claimValue == null) {					
 					continue;
 				}
