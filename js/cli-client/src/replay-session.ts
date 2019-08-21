@@ -1,4 +1,5 @@
-import { Dataset, Job, Module, Session, Tool } from "chipster-js-common";
+import { Dataset, Job, Module, PhenodataUtils, Session, Tool } from "chipster-js-common";
+import MetadataFile from "chipster-js-common/lib/model/metadata-file";
 import { Logger } from "chipster-nodejs-core";
 import * as _ from 'lodash';
 import { concat, empty, forkJoin, from, Observable, of } from "rxjs";
@@ -251,6 +252,10 @@ export default class ReplaySession {
         );
     }
 
+    phenodataTypeCheck(dataset: Dataset) {
+        return dataset.name.endsWith(".tsv") || dataset.name.endsWith(".TSV");
+    }
+
     getSessionFiles(sessionPath) {
         const sessionFiles: string[] = [];
         if (fs.existsSync(sessionPath)) {
@@ -376,76 +381,188 @@ export default class ReplaySession {
         let wsClient;
         const inputMap = new Map<string, Dataset>();
         const parameterMap = new Map<string, any>();
-        let metadataFiles = null;
+        const datasetsMap = new Map<string, Dataset>();
+        const jobsMap = new Map<string, Job>();
+        let tool: Tool;
+        let metadataFiles: MetadataFile[] = [];
         let replayJobId;
 
         // why the type isn't recognized after adding the finzalize()?
         return <any>of(null).pipe(
-            tap(() => logger.info('session ' + plan.originalSession.name + ', replay job ' + job.toolId)),
-            mergeMap(() => {
-                const fileCopies = job.inputs.map(input => {
-                    return this.copyDataset(originalSessionId, replaySessionId, input.datasetId, job.jobId + input.datasetId, quiet).pipe(
-                        mergeMap(datasetId => this.restClient.getDataset(replaySessionId, datasetId)),
-                        tap((dataset: Dataset) => inputMap.set(input.inputId, dataset)),
-                        tap((dataset: Dataset) => {
-                            if (!quiet) {
-                                logger.info('dataset ' + dataset.name + ' copied for input ' + input.inputId);
-                            }
-                        }),
+          tap(() =>
+            logger.info(
+              "session " +
+                plan.originalSession.name +
+                ", replay job " +
+                job.toolId
+            )              
+          ),
+          mergeMap(() => this.restClient.getDatasets(job.sessionId)),
+          tap((datasets: Dataset[]) => datasets.forEach(d => datasetsMap.set(d.datasetId, d))),
+          mergeMap(() => this.restClient.getJobs(job.sessionId)),
+          tap((jobs: Job[]) => jobs.forEach(j => jobsMap.set(j.jobId, j))),
+          mergeMap(() => {
+            const fileCopies = job.inputs.map(input => {
+              return this.copyDataset(
+                originalSessionId,
+                replaySessionId,
+                input.datasetId,
+                job.jobId + input.datasetId,
+                quiet
+              ).pipe(
+                mergeMap(datasetId =>
+                  this.restClient.getDataset(replaySessionId, datasetId)
+                ),
+                tap((dataset: Dataset) =>
+                  inputMap.set(input.inputId, dataset)
+                ),
+                tap((dataset: Dataset) => {
+                  if (!quiet) {
+                    logger.info(
+                      "dataset " +
+                        dataset.name +
+                        " copied for input " +
+                        input.inputId
                     );
-                });
-                return concat(...fileCopies).pipe(toArray());
-            }),
-            tap(() => {
-                job.parameters.forEach(p => {
-                    parameterMap.set(p.parameterId, p.value);
-                    if (!quiet) {
-                        logger.info('set parameter ' + p.parameterId + ' ' + p.value);
-                    }
-                });
-                metadataFiles = job.metadataFiles;
-            }),
-            tap(() => {
-                if (!quiet) {
-                    logger.info('connect websocket');
-                }
-                wsClient = new WsClient(this.restClient);
-                wsClient.connect(replaySessionId, quiet);
-            }),
-            mergeMap(() => this.restClient.getTool(job.toolId)),
-            mergeMap((tool: Tool) => ChipsterUtils.jobRunWithMetadata(this.restClient, replaySessionId, tool, parameterMap, inputMap, metadataFiles)),
-            mergeMap(jobId => {
-                replayJobId = jobId;
-                wsClient.getJobScreenOutput$(jobId).subscribe(output => {
-                    if (!quiet) {
-                        // process.stdout.write(output);
-                        logger.info(output);
-                    }
-                }, err => {
-                    logger.error(new VError(err, 'failed to get the screen output'));
-                });
-                return wsClient.getJobState$(jobId).pipe(
-                    tap((job: Job) => {
-                        if (!quiet) {
-                            logger.info('*', job.state, '(' + (job.stateDetail || '') + ')');
-                        }
-                    }),
-                    last(),
+                  }
+                })
+              );
+            });
+            return concat(...fileCopies).pipe(toArray());
+          }),
+          tap(() => {
+            job.parameters.forEach(p => {
+              parameterMap.set(p.parameterId, p.value);
+              if (!quiet) {
+                logger.info(
+                  "set parameter " + p.parameterId + " " + p.value
                 );
-            }),
-            mergeMap(() => this.compareOutputs(job.jobId, replayJobId, originalSessionId, replaySessionId, plan)),
-            catchError(err => {
-                // unexpected technical problems
-                logger.error(new VError(err, 'replay error ' + job.toolId));
-                return of(this.errorToReplayResult(err, job, plan));
-            }),
-            // why exceptions (like missing tool) interrupt the parallel run if this is before catchError()?
-            finalize(() => {
-                if (wsClient != null) {
-                    wsClient.disconnect();
+              }
+            });
+          }),
+          mergeMap(() => this.restClient.getTool(job.toolId)),
+          tap((t: Tool) => tool = t),          
+          tap(() => {
+              metadataFiles = this.bindPhenodata(job, tool, datasetsMap, jobsMap);  
+          }),
+          tap(() => {
+            if (!quiet) {
+              logger.info("connect websocket");
+            }
+            wsClient = new WsClient(this.restClient);
+            wsClient.connect(replaySessionId, quiet);
+          }),          
+          mergeMap(() =>
+            ChipsterUtils.jobRunWithMetadata(
+              this.restClient,
+              replaySessionId,
+              tool,
+              parameterMap,
+              inputMap,
+              metadataFiles
+            )
+          ),
+          mergeMap(jobId => {
+            replayJobId = jobId;
+            wsClient.getJobScreenOutput$(jobId).subscribe(
+              output => {
+                if (!quiet) {
+                  // process.stdout.write(output);
+                  logger.info(output);
                 }
-            }),
+              },
+              err => {
+                logger.error(
+                  new VError(err, "failed to get the screen output")
+                );
+              }
+            );
+            return wsClient.getJobState$(jobId).pipe(
+              tap((job: Job) => {
+                if (!quiet) {
+                  logger.info(
+                    "*",
+                    job.state,
+                    "(" + (job.stateDetail || "") + ")"
+                  );
+                }
+              }),
+              last()
+            );
+          }),
+          mergeMap(() =>
+            this.compareOutputs(
+              job.jobId,
+              replayJobId,
+              originalSessionId,
+              replaySessionId,
+              plan
+            )
+          ),
+          catchError(err => {
+            // unexpected technical problems
+            logger.error(new VError(err, "replay error " + job.toolId));
+            return of(this.errorToReplayResult(err, job, plan));
+          }),
+          // why exceptions (like missing tool) interrupt the parallel run if this is before catchError()?
+          finalize(() => {
+            if (wsClient != null) {
+              wsClient.disconnect();
+            }
+          })
         );
+    }
+
+    bindPhenodata(job: Job, tool: Tool, datasetsMap: Map<string, Dataset>, jobsMap: Map<string, Job>): MetadataFile[] {
+        // this is almost like ToolService.bindPhenodata() in the client, but can get the phenodata also from the old job
+                
+        // if no phenodata inputs, return empty array
+        const phenodataInputs = tool.inputs.filter(
+            input => input.meta
+        );
+        if (phenodataInputs.length === 0) {
+            return [];
+        }
+
+        if (job.metadataFiles != null && job.metadataFiles.length > 0) {
+            logger.info("using phenodata from the old job");
+            return job.metadataFiles;
+        } else {
+            logger.info("the old job doesn't have phenodata (session from Java client), try to find it from the inputs");
+                
+            // for now, if tool has multiple phenodata inputs, don't try to bind anything
+            // i.e. return array with phenodata inputs but no bound datasets
+            if (phenodataInputs.length > 1) {
+                logger.error("multiple phenodata inputs are not supported, toolId: " + tool.name.id);
+                return [];
+            }
+            
+            // try to bind the first (and only, see above) phenodata input
+            const firstPhenodataInput = phenodataInputs[0];
+
+            // get the datasetIds of all potential phenodatas (to remove duplicates soon)
+            const phenodataDatasetIds = job.inputs
+                .map(input => {
+                    const dataset = datasetsMap.get(input.datasetId);
+                    const phenodataDataset = PhenodataUtils.getPhenodataDataset(dataset, jobsMap, datasetsMap, d => this.phenodataTypeCheck(d));
+                    return phenodataDataset;
+                })
+                .filter(dataset => dataset != null)
+                .map(dataset => dataset.datasetId);
+            // remove duplicates (in case multiple inputs point to the same phenodata)
+            const uniquePhenodataDatasetIds = Array.from(new Set(phenodataDatasetIds));
+            logger.info("phenodata dataset ids: " + phenodataDatasetIds.length + ", unique: " + uniquePhenodataDatasetIds.length);
+
+            if (uniquePhenodataDatasetIds.length === 0) {
+                logger.error("can't bind phenodata, inputs have no phenodata");
+            } else if (uniquePhenodataDatasetIds.length > 1) {
+                logger.error("can't bind phenodata, inputs have multiple phenodatas (rerun the job in the Chipster app to bind the correct phenodata)");
+            } else {
+                const phenodata = PhenodataUtils.getOwnPhenodata(datasetsMap.get(uniquePhenodataDatasetIds[0]));
+                logger.info("found phenodata '" + phenodata + "' for job input " + firstPhenodataInput.name.id);
+                return [{ name: firstPhenodataInput.name.id, content: phenodata}];
+            }
+        }
     }
 
     errorToReplayResult(err, job: Job, plan: JobPlan): ReplayResult {

@@ -190,6 +190,10 @@ export default class ChipsterUtils {
     inputMap: Map<string, Dataset>,
     metadata: MetadataFile[]
   ) {
+    if (metadata == null) {
+      metadata = [];
+    }
+
     let job = {
       toolId: tool.name.id,
       state: "NEW",
