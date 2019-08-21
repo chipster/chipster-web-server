@@ -551,15 +551,15 @@ export default class ReplaySession {
                 .map(dataset => dataset.datasetId);
             // remove duplicates (in case multiple inputs point to the same phenodata)
             const uniquePhenodataDatasetIds = Array.from(new Set(phenodataDatasetIds));
-            logger.info("phenodata dataset ids: " + phenodataDatasetIds.length + ", unique: " + uniquePhenodataDatasetIds.length);
 
             if (uniquePhenodataDatasetIds.length === 0) {
                 logger.error("can't bind phenodata, inputs have no phenodata");
             } else if (uniquePhenodataDatasetIds.length > 1) {
                 logger.error("can't bind phenodata, inputs have multiple phenodatas (rerun the job in the Chipster app to bind the correct phenodata)");
             } else {
-                const phenodata = PhenodataUtils.getOwnPhenodata(datasetsMap.get(uniquePhenodataDatasetIds[0]));
-                logger.info("found phenodata '" + phenodata + "' for job input " + firstPhenodataInput.name.id);
+                const phenodataDataset = datasetsMap.get(uniquePhenodataDatasetIds[0]);
+                const phenodata = PhenodataUtils.getOwnPhenodata(phenodataDataset);
+                logger.info("found phenodata for job input " + firstPhenodataInput.name.id + " from dataset " + phenodataDataset.name);
                 return [{ name: firstPhenodataInput.name.id, content: phenodata}];
             }
         }
