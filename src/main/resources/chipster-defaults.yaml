@@ -167,8 +167,10 @@ auth-oidc-verified-email-only: true
 auth-oidc-claim-organization: ""
 # claim name for the user ID
 auth-oidc-claim-user-id: "sub"
-# append this extra parameter the the authorization URL, in format KEY=VALUE, separated by a space character if more than one
+# append this extra parameter the the authorization URL, in format KEY=VALUE
 auth-oidc-parameter: ""
+# accept authentication only if the token contains this claim, in format KEY=VALUE
+auth-oidc-require-claim: ""
 # prefix for the userId, set different for each authentication provider the prevent clashes
 auth-oidc-user-id-prefix: "oidc"
 # appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs 

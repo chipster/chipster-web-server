@@ -68,6 +68,7 @@ public class OidcResource {
 	public static final String CONF_PARAMETER = "auth-oidc-parameter";
 	public static final String CONF_USER_ID_PREFIX = "auth-oidc-user-id-prefix";
 	public static final String CONF_APP_ID = "auth-oidc-app-id";
+	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
 		
 	private AuthTokens tokenTable;
 	private UserTable userTable;
@@ -101,6 +102,7 @@ public class OidcResource {
 			oidc.setParameter(config.getString(CONF_PARAMETER, oidcName));
 			oidc.setUserIdPrefix(config.getString(CONF_USER_ID_PREFIX, oidcName));
 			oidc.setAppId(config.getString(CONF_APP_ID, oidcName));
+			oidc.setRequireClaim(config.getString(CONF_REQUIRE_CLAIM, oidcName));
 			 
 			// multiple oidcConfigs may have the same issuer
 			oidcConfigs.add(oidc);
@@ -253,6 +255,20 @@ public class OidcResource {
 			
 			if (claims.getClaim(oidc.getClaimUserId()) == null) {
 				continue;
+			}
+			
+			if (!oidc.getRequireClaim().isEmpty()) {
+				String[] keyValue = oidc.getRequireClaim().split("=");
+				String key = keyValue[0];
+				String value = keyValue[1];
+				String claimValue = claims.getClaim(key).toString();
+				if (claimValue == null) {					
+					continue;
+				}
+				
+				if (!claimValue.equals(value)) {
+					continue;
+				}
 			}
 			
 			// this is fine
