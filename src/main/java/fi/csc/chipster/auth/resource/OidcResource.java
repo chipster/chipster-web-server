@@ -268,6 +268,7 @@ public class OidcResource {
 					for (String k : claims.getClaims().keySet()) {
 						logger.info("claim " + k + ": " + claims.getClaim(key));
 					}
+					continue;
 				}
 				String claimValue = claimObj.toString();
 				if (claimValue == null) {					
