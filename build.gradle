@@ -130,7 +130,7 @@ dependencies {
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
 
 	// toolbox
-	compile "org.apache.activemq:activemq-client:5.10.0"
+	compile "org.apache.activemq:activemq-client:5.15.9"
 
 	// RestCliClient
 	compile "org.apache.commons:commons-compress:+"
