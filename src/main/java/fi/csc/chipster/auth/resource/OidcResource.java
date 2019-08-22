@@ -10,6 +10,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -69,6 +70,7 @@ public class OidcResource {
 	public static final String CONF_USER_ID_PREFIX = "auth-oidc-user-id-prefix";
 	public static final String CONF_APP_ID = "auth-oidc-app-id";
 	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
+	public static final String CONF_DEBUG = "auth-oidc-debug";
 		
 	private AuthTokens tokenTable;
 	private UserTable userTable;
@@ -77,9 +79,12 @@ public class OidcResource {
 	HashMap<OidcConfig, IDTokenValidator> validators = new HashMap<>();
 	ArrayList<OidcConfig> oidcConfigs = new ArrayList<>();
 
+	private boolean isDebug;
+
 	public OidcResource(AuthTokens tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
 		this.tokenTable = tokenTable;
 		this.userTable = userTable;
+		this.isDebug = config.getBoolean(CONF_DEBUG);
 				
 		for (String oidcName : config.getConfigEntries(OidcResource.CONF_ISSUER + "-").keySet()) {
 			String issuer = config.getString(CONF_ISSUER, oidcName);
@@ -167,6 +172,13 @@ public class OidcResource {
 			throw new ForbiddenException("ID token parsing failed");
 		}
 
+		if (this.isDebug) {
+			logger.info("claims before validation: ");
+			Map<String, Object> claims = idToken.getJWTClaimsSet().getClaims();
+			for (String k : claims.keySet()) {
+				logger.info("claim " + k + ": " + claims.get(k));
+			}
+		}
 		
 		// the OidcConfig is selected based on token data before it's validated
 		// to find out which validator should to use
@@ -197,10 +209,6 @@ public class OidcResource {
 		String name = claims.getStringClaim("name");
 		String email = claims.getStringClaim("email");
 		Boolean emailVerified = claims.getBooleanClaim("email_verified");
-		
-		for (String claim : idToken.getJWTClaimsSet().getClaims().keySet()) {
-			System.out.println(claim + ": " + claims.getStringClaim(claim));
-		}
 				
 		// use different auth names in Chipster based on the claims that we get
 		String username = getClaim(oidcConfig.getClaimUserId(), claims);
@@ -214,7 +222,7 @@ public class OidcResource {
 			userId = new UserId(userIdPrefix, username);
 						
 		} else {
-			throw new ForbiddenException("username not found from claim" + oidcConfig.getClaimUserId());
+			throw new ForbiddenException("username not found from claim " + oidcConfig.getClaimUserId());
 		}
 		
 		// store only verified emails
@@ -245,43 +253,57 @@ public class OidcResource {
 	 */
 	private OidcConfig getOidcConfig(String issuer,  String clientId, JWTClaimsSet claims) {
 		for (OidcConfig oidc : sortedOidcConfigs) {
+			if (this.isDebug) {
+				logger.info("searching oidc config");
+			}
 			if (!oidc.getIssuer().equals(issuer)) {
+				if (this.isDebug) {
+					logger.info("issuer '" + issuer + "' does not match " + oidc.getIssuer() + "'");
+				}
 				continue;
 			}
 			
 			if (!oidc.getClientId().equals(clientId)) {
+				if (this.isDebug) {
+					logger.info("clientId '" + clientId  + "' does not match " + oidc.getClientId() + "'");
+				}
 				continue;
 			}
 			
 			if (claims.getClaim(oidc.getClaimUserId()) == null) {
+				if (this.isDebug) {
+					logger.info("claim '" + oidc.getClaimUserId()  + "' not found");
+				}
 				continue;
 			}
 			
-			logger.info("getOidcConfig() oidc: " + oidc.getOidcName() + " requireClaim '" + oidc.getRequireClaim() + "' " + oidc.getRequireClaim().isEmpty());
 			if (!oidc.getRequireClaim().isEmpty()) {
 				String[] keyValue = oidc.getRequireClaim().split("=");
 				String key = keyValue[0];
 				String value = keyValue[1];
 				Object claimObj = claims.getClaim(key);
 				if (claimObj == null) {
-					logger.info("oidc " + oidc.getOidcName() + " requires a non existent claim " + oidc.getRequireClaim());
-					for (String k : claims.getClaims().keySet()) {
-						logger.info("claim " + k + ": " + claims.getClaim(key));
-					}
+					logger.info("oidc " + oidc.getOidcName() + " requires a non existent claim " + oidc.getRequireClaim());					
 					continue;
 				}
 				String claimValue = claimObj.toString();
-				if (claimValue == null) {					
-					continue;
-				}
 				
 				if (!claimValue.equals(value)) {
+					if (this.isDebug) {
+						logger.info("claim " + key + " has value '" + claimValue  + "', which does not match expected '" + value + "'");
+					}
 					continue;
 				}
 			}
-			
+		
+			if (this.isDebug) {
+				logger.info("oidc config found: " + oidc.getOidcName());
+			}
 			// this is fine
 			return oidc;
+		}
+		if (this.isDebug) {
+			logger.info("oidc config not found");
 		}
 		throw new ForbiddenException("oidc config not found for issuer " + issuer);
 	}

@@ -175,6 +175,8 @@ auth-oidc-require-claim: ""
 auth-oidc-user-id-prefix: "oidc"
 # appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs 
 auth-oidc-app-id: "chipster"
+# print more information about failed login attempts
+auth-oidc-debug: false
 
  
 # comp

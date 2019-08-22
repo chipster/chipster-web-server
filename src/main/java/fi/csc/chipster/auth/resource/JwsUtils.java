@@ -57,10 +57,10 @@ public class JwsUtils {
 			keyPair = Keys.keyPairFor(signatureAlgorithm);
 		}
 
-		logger.info(role + "jws private key:" + keyPair.getPrivate().getAlgorithm() + " "
+		logger.info(role + " jws private key:" + keyPair.getPrivate().getAlgorithm() + " "
 				+ keyPair.getPrivate().getFormat());
 		logger.info(
-				role + "jws public key:" + keyPair.getPublic().getAlgorithm() + " " + keyPair.getPublic().getFormat());
+				role + " jws public key:" + keyPair.getPublic().getAlgorithm() + " " + keyPair.getPublic().getFormat());
 
 		return keyPair;
 	}
