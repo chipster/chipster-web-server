@@ -12,7 +12,6 @@ const express = require("express");
 const path = require("path");
 
 export default class ReplayServer {
-  startTime: Date;
   resultsPath: string;
   influxdbUrl: string;
 
@@ -60,8 +59,6 @@ export default class ReplayServer {
 
     let args = parser.parseArgs();
 
-    this.startTime = new Date();
-
     logger.info(
       "start server for sharing the result files, in port",
       args.port
@@ -70,6 +67,7 @@ export default class ReplayServer {
     ReplaySession.mkdirIfMissing(args.results);
     ReplaySession.mkdirIfMissing(args.temp);
 
+    // start a web server for the results
     var app = express();
     app.use(
       "/",
