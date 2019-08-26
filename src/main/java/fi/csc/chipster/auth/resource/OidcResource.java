@@ -252,10 +252,13 @@ public class OidcResource {
 	 * @return
 	 */
 	private OidcConfig getOidcConfig(String issuer,  String clientId, JWTClaimsSet claims) {
+		if (this.isDebug) {
+			logger.info("searching oidc config");
+		}
 		for (OidcConfig oidc : sortedOidcConfigs) {
 			if (this.isDebug) {
-				logger.info("searching oidc config");
-			}
+				logger.info("check if oidc config " + oidc.getOidcName() + " is suitable");
+			}	
 			if (!oidc.getIssuer().equals(issuer)) {
 				if (this.isDebug) {
 					logger.info("issuer '" + issuer + "' does not match " + oidc.getIssuer() + "'");
