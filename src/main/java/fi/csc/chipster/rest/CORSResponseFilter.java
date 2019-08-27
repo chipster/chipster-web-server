@@ -1,6 +1,7 @@
 package fi.csc.chipster.rest;
 
 import java.io.IOException;
+import java.util.Map.Entry;
 
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
@@ -15,54 +16,31 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.Method;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
 @Provider
 @Priority(Priorities.HEADER_DECORATOR)
 public class CORSResponseFilter implements ContainerResponseFilter {
 	
-	private Logger logger = LogManager.getLogger();
-	
-	private ServiceLocatorClient serviceLocator;
-	private volatile String webServerUri; 
+	@SuppressWarnings("unused")
+	private static Logger logger = LogManager.getLogger();
+
+	private CORSFilter corsFilter; 
 
 	public CORSResponseFilter(ServiceLocatorClient serviceLocator) {
-		// get web-server uri only when it's needed, because auth initializes this before the service locator is running
-		this.serviceLocator = serviceLocator;
+		this.corsFilter = new CORSFilter(serviceLocator);
 	}
 	
 	
 	@Override
 	public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException {			
-		
-		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
-		// to make this safe and relatively fast for multi-thread usage
-		if (webServerUri == null) {			
-			synchronized (CORSResponseFilter.class) {
-				if (webServerUri == null) {
-					long t = 0;
-					try {
-						logger.info("get cors origin from " + serviceLocator.getBaseUri());
-						t = System.currentTimeMillis();
-						webServerUri = serviceLocator.getPublicUri(Role.WEB_SERVER);
-					} catch (Exception e) {
-						logger.warn("cors headers not yeat available (request took " + (System.currentTimeMillis() - t) + "ms)");
-					}
-				}
-			}
-		}
-		
-		if (webServerUri != null) {
-			MultivaluedMap<String, Object> headers = responseContext.getHeaders();
-			headers.add("Access-Control-Allow-Origin", webServerUri);		
-			headers.add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
-			headers.add("Access-Control-Allow-Headers", "authorization, content-type"); // request
-			headers.add("Access-Control-Expose-Headers", "location, Accept-Ranges, Retry-After"); // response
-			headers.add("Access-Control-Allow-Credentials", "true");
-			headers.add("Access-Control-Max-Age", "" + (60 * 60 * 24)); // in seconds, 1 day
-			//headers.add("Access-Control-Max-Age", "1"); // makes debugging easier
-		}
+			
+		String origin = requestContext.getHeaderString(CORSFilter.HEADER_KEY_ORIGIN);
+
+		MultivaluedMap<String, Object> headers = responseContext.getHeaders();
+		for (Entry<String, String> entry : corsFilter.getCorsHeaders(origin).entrySet()) {
+			headers.add(entry.getKey(), entry.getValue());
+		}			
 				
 		if (Method.OPTIONS.matchesMethod(requestContext.getMethod())) {
 			// otherwise Jersey responds with some xml that Chrome doesn't like: chrome cross-origin read blocking blocked cross-origin response with mime type application/vnd.sun.wadl+xml"
