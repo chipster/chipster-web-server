@@ -58,7 +58,9 @@ public class CORSFilter {
 				//headers.put("Access-Control-Max-Age", "1"); // makes debugging easier
 
 			} else {
-				logger.info("cors headers not added for origin: '" + origin + "'");
+				if (origin != null) {
+					logger.info("cors headers not added for origin: '" + origin + "'");
+				}
 			}
 		}
 		return headers;
