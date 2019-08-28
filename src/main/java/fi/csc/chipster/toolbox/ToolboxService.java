@@ -54,7 +54,7 @@ public class ToolboxService {
 
 	private static final String RELOAD_DIR = ".reload";
 	private static final String RELOAD_FILE = "touch-me-to-reload-tools";
-	
+
 	private Logger logger = LogManager.getLogger();
 
 	private Config config;
@@ -72,9 +72,9 @@ public class ToolboxService {
 
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
-		this.url = config.getBindUrl(Role.TOOLBOX);			
+		this.url = config.getBindUrl(Role.TOOLBOX);
 		this.toolsBin = new File(config.getString(Config.KEY_TOOLBOX_TOOLS_BIN_PATH));
-		
+
 		initialise();
 	}
 
@@ -93,9 +93,10 @@ public class ToolboxService {
 	}
 
 	private void initialise() throws IOException, URISyntaxException {
-				
+		logger.info("starting toolbox service...");
 		if (!toolsBin.exists()) {
-			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBin.getPath() + " doesn't exist");
+			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBin.getPath()
+					+ " doesn't exist");
 		}
 
 		// load toolbox
@@ -105,38 +106,37 @@ public class ToolboxService {
 		} else {
 			throw new RuntimeException("failed to load toolbox");
 		}
-		
-		// start reload watch 
+
+		// start reload watch
 		startReloadWatch();
-		
+
 	}
-	
-	
+
 	private Toolbox loadToolbox() throws IOException, URISyntaxException {
 
 		Path foundPath = findToolsDir();
-		
+
 		Toolbox box;
 		if (Files.isDirectory(foundPath)) {
 			box = new Toolbox(foundPath, toolsBin);
 
 			Path tempDir = Files.createTempDirectory(TOOLS_DIR_NAME);
 			Path tempZipFile = tempDir.resolve(TOOLS_ZIP_NAME);
-			
+
 			dirToZip(foundPath, tempZipFile);
-			byte [] zipContents = Files.readAllBytes(tempZipFile);
+			byte[] zipContents = Files.readAllBytes(tempZipFile);
 			box.setZipContents(zipContents);
 			Files.delete(tempZipFile);
 			Files.delete(tempDir);
 		}
-		
+
 		// found tools zip
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
 			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
 			box = new Toolbox(toolsPath, toolsBin);
 
-			byte [] zipContents = Files.readAllBytes(foundPath);
+			byte[] zipContents = Files.readAllBytes(foundPath);
 			box.setZipContents(zipContents);
 		}
 
@@ -148,11 +148,11 @@ public class ToolboxService {
 		Toolbox newToolbox;
 		try {
 			newToolbox = loadToolbox();
-		
+
 			if (newToolbox == null) {
 				logger.warn("failed to reload tools");
 				return;
-			}		
+			}
 			// switch to new toolbox
 			this.toolbox = newToolbox;
 			if (this.toolResource != null) { // null if rest server not started yet
@@ -171,11 +171,8 @@ public class ToolboxService {
 		}
 
 		logger.info("tools reload done");
-		
+
 	}
-	
-	
-	
 
 	/**
 	 * Starts only the Grizzly HTTP server exposing JAX-RS resources defined in this
@@ -185,13 +182,14 @@ public class ToolboxService {
 	 * @throws URISyntaxException
 	 */
 	public void startServerWithoutStatsAndAdminServer() throws IOException, URISyntaxException {
-		startServer(false);;
+		startServer(false);
+		;
 	}
 
 	public void startServer() throws IOException, URISyntaxException {
 		startServer(true);
 	}
-	
+
 	/**
 	 * 
 	 * @param enableStatsAndAdminServer
@@ -201,31 +199,29 @@ public class ToolboxService {
 	private void startServer(boolean enableStatsAndAdminServer) throws IOException, URISyntaxException {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
-		
+
 		JerseyStatisticsSource jerseyStatisticsSource = null;
-		
+
 		String username = Role.TOOLBOX;
 		String password = config.getPassword(username);
-		
+
 		// don't start these in the old Chipster
 		if (enableStatsAndAdminServer) {
 			this.serviceLocator = new ServiceLocatorClient(config);
 			this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		}
-		
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
-				.register(this.toolResource)
+
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(this.toolResource)
 				.register(moduleResource);
 		// .register(new LoggingFilter())
-		
+
 		// don't start these in the old Chipster
 		if (enableStatsAndAdminServer) {
-			
-			// this must be called before the server is started, otherwise throws an IllegalStateException
+
+			// this must be called before the server is started, otherwise throws an
+			// IllegalStateException
 			jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		}
-		
-
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -234,7 +230,8 @@ public class ToolboxService {
 
 		if (enableStatsAndAdminServer) {
 			jerseyStatisticsSource.collectConnectionStatistics(httpServer);
-			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, this.serviceLocator, jerseyStatisticsSource);
+			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, this.serviceLocator,
+					jerseyStatisticsSource);
 		}
 
 		this.httpServer.start();
@@ -247,24 +244,24 @@ public class ToolboxService {
 	 * @throws URISyntaxException
 	 */
 	public static void main(String[] args) throws IOException, URISyntaxException {
-		
+
 		ToolboxService service = new ToolboxService(new Config());
-    	try {
-    		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.TOOLBOX);
-    		service.startServer();
-    		RestUtils.waitForShutdown("toolbox", service.getHttpServer());
-    	} catch (Exception e) {
-    		System.err.println("toolbox startup failed, exiting");
-    		e.printStackTrace(System.err);
-    		service.close();
-    	}
+		try {
+			RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.TOOLBOX);
+			service.startServer();
+			RestUtils.waitForShutdown("toolbox", service.getHttpServer());
+		} catch (Exception e) {
+			System.err.println("toolbox startup failed, exiting");
+			e.printStackTrace(System.err);
+			service.close();
+		}
 	}
 
 	private HttpServer getHttpServer() {
 		return this.httpServer;
 	}
 
-	public void close() {		
+	public void close() {
 		RestUtils.shutdown("toolbox-admin", adminServer);
 		closeReloadWatcher();
 		RestUtils.shutdown("toolbox", httpServer);
@@ -284,8 +281,7 @@ public class ToolboxService {
 	 * Try to locate tools dir or tools zip
 	 * 
 	 * @return path to tolls dir or tools zip
-	 * @throws FileNotFoundException
-	 *             if tools dir or zip not found
+	 * @throws FileNotFoundException if tools dir or zip not found
 	 */
 	private Path findToolsDir() throws FileNotFoundException {
 
@@ -320,48 +316,51 @@ public class ToolboxService {
 	public Toolbox getToolbox() {
 		return this.toolbox;
 	}
-	
+
 	public void dirToZip(final Path srcDir, Path destZip) throws IOException, URISyntaxException {
-		
+
 		logger.debug("packaging " + srcDir + " -> " + destZip);
-		
+
 		if (Files.exists(destZip)) {
 			logger.info("deleting existing " + destZip);
 			Files.delete(destZip);
 		}
-		
+
 		// destZip.toUri() does not work
 		URI zipLocation = new URI("jar:file:" + destZip);
-		
+
 		// create zip
 		Map<String, String> env = new HashMap<String, String>();
 		env.put("create", "true");
 		final FileSystem zipFs = FileSystems.newFileSystem(zipLocation, env);
-		
+
 		// copy recursively
 		Files.walkFileTree(srcDir, new SimpleFileVisitor<Path>() {
-			public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) throws IOException {
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				return copy(file);
 			}
-			public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) throws IOException {
+
+			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 				return copy(dir);
 			}
+
 			private FileVisitResult copy(Path src) throws IOException {
 				Path dest = src.subpath(srcDir.getNameCount() - 1, src.getNameCount());
 				Path destInZip = zipFs.getPath(dest.toString());
-				
-				// permissions are not necessarily correct though, so they are also reset in comp
-				Files.copy(src, destInZip, new CopyOption[] { StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING });
-				return FileVisitResult.CONTINUE;	
+
+				// permissions are not necessarily correct though, so they are also reset in
+				// comp
+				Files.copy(src, destInZip,
+						new CopyOption[] { StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING });
+				return FileVisitResult.CONTINUE;
 			}
 		});
 
-		zipFs.close();			
+		zipFs.close();
 	}
 
-	
 	private void startReloadWatch() {
-		
+
 		new Thread(new Runnable() {
 
 			@Override
@@ -377,10 +376,10 @@ public class ToolboxService {
 					} catch (FileAlreadyExistsException e) {
 						// ignore
 					}
-					
+
 					// register watcher
-					reloadWatcher = FileSystems.getDefault().newWatchService(); 
-					reloadDir.register(reloadWatcher, ENTRY_CREATE, ENTRY_MODIFY);				
+					reloadWatcher = FileSystems.getDefault().newWatchService();
+					reloadDir.register(reloadWatcher, ENTRY_CREATE, ENTRY_MODIFY);
 					logger.info("watching " + reloadFile + " for triggering tools reload");
 
 					// watch
@@ -388,7 +387,7 @@ public class ToolboxService {
 						WatchKey key;
 						try {
 							key = reloadWatcher.take();
-						} catch (InterruptedException | ClosedWatchServiceException e ) {
+						} catch (InterruptedException | ClosedWatchServiceException e) {
 							break;
 						}
 
@@ -399,8 +398,8 @@ public class ToolboxService {
 							WatchEvent<Path> ev = (WatchEvent<Path>) event;
 							Path fileName = ev.context();
 
-							if ((kind == ENTRY_MODIFY || kind == ENTRY_CREATE) &&
-									fileName.toString().equals(RELOAD_FILE)) {
+							if ((kind == ENTRY_MODIFY || kind == ENTRY_CREATE)
+									&& fileName.toString().equals(RELOAD_FILE)) {
 								logger.info("tool reload requested");
 								reloadToolbox();
 							}
@@ -416,12 +415,11 @@ public class ToolboxService {
 				} finally {
 					closeReloadWatcher();
 				}
-				
+
 				logger.info("stopped watching " + reloadDir);
 
 			}
 		}, "toolbox-reload-watch").start();
 	}
-	
 
 }

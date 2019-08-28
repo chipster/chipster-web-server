@@ -15,9 +15,13 @@ import org.apache.log4j.Logger;
 import fi.csc.microarray.description.SADLDescription.Name;
 
 public class SADLReplacements {
-	
+
 	@SuppressWarnings("unused")
 	private static final Logger logger = Logger.getLogger(SADLReplacements.class);
+
+	public static final String FILES = "FILES";
+	public static final String SYMLINK_TARGET = "SYMLINK_TARGET";
+
 	private File toolsBin;
 
 	public SADLReplacements(File toolsBin) {
@@ -38,7 +42,7 @@ public class SADLReplacements {
 		}
 		return newOptions.toArray(new Name[0]);
 	}
-	
+
 	public String[] processStrings(Collection<String> options) throws IOException {
 		ArrayList<String> newOptions = new ArrayList<>();
 		for (String option : options) {
@@ -48,8 +52,6 @@ public class SADLReplacements {
 	}
 
 	private List<String> processReplacements(String option) throws IOException {
-		String FILES = "FILES";
-		String SYMLINK_TARGET = "SYMLINK_TARGET";
 
 		// split by white space
 		String[] tokens = parseReplacements(option);
@@ -59,18 +61,18 @@ public class SADLReplacements {
 					return getFiles(tokens[1], tokens[2]);
 				} else {
 					throw new IOException(FILES + " expected 2 parameters, but got " + (tokens.length - 1));
-				}				
+				}
 			} else if (SYMLINK_TARGET.equals(tokens[0])) {
 				if (tokens.length == 3) {
-					return Arrays.asList(new String[] {getSymlinkTarget(tokens[1], tokens[2])});
+					return Arrays.asList(new String[] { getSymlinkTarget(tokens[1], tokens[2]) });
 				} else {
 					throw new IOException(SYMLINK_TARGET + " expected 2 parameters, but got " + (tokens.length - 1));
 				}
 			}
 		}
-		return Arrays.asList(new String[] {option});
-	}	
-	
+		return Arrays.asList(new String[] { option });
+	}
+
 	private String[] parseReplacements(String value) {
 		// split by white space
 		String[] tokens = value.split("\\s+");
@@ -86,7 +88,7 @@ public class SADLReplacements {
 		}
 		return names;
 	}
-	
+
 	private ArrayList<String> getFiles(String path, String endsWith) throws IOException {
 		ArrayList<String> basenames = new ArrayList<>();
 		File dir = new File(toolsBin, path);
@@ -99,21 +101,21 @@ public class SADLReplacements {
 				basenames.add(basename);
 			}
 		}
-		
+
 		// sort alphabetically
 		basenames.sort(null);
-		
+
 		return basenames;
 	}
-	
+
 	private String getSymlinkTarget(String path, String fileExtension) throws IOException {
-		Path symlink = new File(toolsBin, path).toPath();		
+		Path symlink = new File(toolsBin, path).toPath();
 		if (Files.isSymbolicLink(symlink)) {
 			String target = Files.readSymbolicLink(symlink).getFileName().toString();
 			target = StringUtils.removeEnd(target, fileExtension);
 			return target;
 		} else {
 			throw new IOException("failed to get symlink target, not a symlink: " + path);
-		}		
+		}
 	}
 }
