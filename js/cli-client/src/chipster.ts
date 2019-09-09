@@ -27,7 +27,7 @@ export default class CliClient {
 	parseCommand() {
 
     let parser = new ArgumentParser({
-      version: '0.0.1',
+      version: '0.2.4',
       addHelp:true,
       description: 'Chipster command line client for the version 4 and upwards',
     });
@@ -275,7 +275,6 @@ export default class CliClient {
   }
 
   getApp() {
-    logger.info("getApp()", this.env.get('app'));
     return this.env.get('app');
   }
 
