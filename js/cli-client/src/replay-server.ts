@@ -84,8 +84,9 @@ export default class ReplayServer {
     schedules.forEach((sched: string) => {
       const colonSplitted = sched.split(":");
       let cron = colonSplitted[0];
-      const filters = colonSplitted[1].split(" ").map(f => f + "/");
-      const testSetName = filters.join("_");
+      const testSets = colonSplitted[1].split(" ");
+      const filters = testSets.map(f => f + "/");
+      const testSetName = testSets.join("_");
 
       const replayNow = () => {
         new ReplaySession()
