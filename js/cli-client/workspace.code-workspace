@@ -1,0 +1,14 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../../chipster-nodejs-core"
+    },
+    {
+      "path": "../../chipster-js-common"
+    }
+  ],
+  "settings": {}
+}
