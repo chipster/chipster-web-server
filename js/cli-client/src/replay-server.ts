@@ -46,7 +46,7 @@ export default class ReplayServer {
     });
     parser.addArgument(["--schedule", "-s"], {
       help:
-        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a specail string 'example-sessions'. ",
+        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
       action: "append"
     });
     parser.addArgument(["--influxdb", "-i"], {
@@ -84,7 +84,7 @@ export default class ReplayServer {
     schedules.forEach((sched: string) => {
       const colonSplitted = sched.split(":");
       let cron = colonSplitted[0];
-      const filters = colonSplitted[1].split(" ");
+      const filters = colonSplitted[1].split(" ").map(f => f + "/");
       const testSetName = filters.join("_");
 
       const replayNow = () => {
