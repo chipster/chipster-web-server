@@ -100,7 +100,7 @@ export default class ReplaySession {
         );
     }
     
-    replay(URL: string, username: string, password: string, debug: boolean, parallel: number, quiet: boolean, resultsPath: string, temp: string, filter: string[], sessionPath: string) {
+    replay(URL: string, username: string, password: string, debug: boolean, parallel: number, quiet: boolean, resultsPath: string, temp: string, filter: string[], sessionPath: string) {        
         
         if (temp == null) {
             temp = ReplaySession.tempDefault;
@@ -116,9 +116,10 @@ export default class ReplaySession {
         different test sets, so it's a good value for grouping these temporaray sessions too.
         */
         const testSet = path.basename(resultsPath); 
+
+        logger.info("start replay test " + testSet + ", server " + URL + ", resultsPath " + resultsPath + ", temp " + temp);
+
         this.uploadSessionPrefix = 'zip-upload/' + testSet + '/';
-        //FIXME use this to name the sessions and delete then in the beginning
-        //TODO modify OpenShift script to run test sessions and copy test-sessions to the server
         this.replaySessionPrefix = 'replay/' + testSet + '/';
         
         this.tempPath = temp;
@@ -200,38 +201,52 @@ export default class ReplaySession {
             )
         );
 
+        let jobPlanCount = 0;
 
         logger.info('login as ' + username);
         return ChipsterUtils.login(URL, username, password).pipe(
-          mergeMap((token: string) =>
-            ChipsterUtils.getRestClient(URL, token)
-          ),
-          tap(restClient => (this.restClient = restClient)),
-          mergeMap(() =>
-            this.deleteOldSessions(
-              this.uploadSessionPrefix,
-              this.replaySessionPrefix
-            )
-          ),
-          mergeMap(() => this.writeResults([], [], false)),
-          mergeMap(() =>
-              fileSessionPlans$.pipe(
-                merge(serverSessionPlans$),
-                merge(exampleSessionPlans$))
-          ),
-          mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
-          mergeMap(
-            (plan: JobPlan) => {
-              return this.replayJob(plan, quiet);
-            },
-            null,
-            parallel
-          ),
-          tap((sessionResults: any[][]) => {
-            results = results.concat(sessionResults);
-          }),
-          // update results afte each job
-          mergeMap(() =>
+            mergeMap((token: string) =>
+                ChipsterUtils.getRestClient(URL, token)
+            ),
+            tap(restClient => (this.restClient = restClient)),
+            mergeMap(() =>
+                this.deleteOldSessions(
+                    this.uploadSessionPrefix,
+                    this.replaySessionPrefix
+                )
+            ),
+            mergeMap(() => this.writeResults([], [], false)),
+            mergeMap(() =>
+                fileSessionPlans$.pipe(
+                    merge(serverSessionPlans$),
+                    merge(exampleSessionPlans$))
+            ),
+            tap((jobPlans: JobPlan[]) => jobPlanCount += jobPlans.length),
+            finalize(() => logger.info("test set " + testSet + " has " + jobPlanCount + " jobs")),
+            mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
+            mergeMap(
+                (plan: JobPlan) => {
+                    logger.info(testSet +
+                        " from " +
+                        plan.originalSession.name +
+                        ", run tool " +
+                        plan.job.toolId);
+
+                    return this.replayJob(plan, quiet, testSet);
+                },
+                null,
+                parallel
+            ),
+            tap((replayResult: ReplayResult) => {
+                results = results.concat(replayResult);
+                logger.info(testSet +
+                    " from " +
+                    replayResult.sessionName +
+                    ", finished tool " +
+                    replayResult.job.toolId + " (" + results.length + "/" + jobPlanCount + ")");
+            }),
+            // update results after each job
+            mergeMap(() => 
             this.writeResults(results, importErrors, false)
           ),
           toArray(), // wait for completion and write the final results
@@ -371,7 +386,7 @@ export default class ReplaySession {
         );
     }
     
-    replayJob(plan: JobPlan, quiet: boolean): Observable<ReplayResult> {
+    replayJob(plan: JobPlan, quiet: boolean, testSet: string): Observable<ReplayResult> {
         
         const job = plan.job;
         const originalSessionId = plan.originalSessionId;
@@ -389,45 +404,37 @@ export default class ReplaySession {
 
         // why the type isn't recognized after adding the finzalize()?
         return <any>of(null).pipe(
-          tap(() =>
-            logger.info(
-              "session " +
-                plan.originalSession.name +
-                ", replay job " +
-                job.toolId
-            )              
-          ),
           mergeMap(() => this.restClient.getDatasets(job.sessionId)),
           tap((datasets: Dataset[]) => datasets.forEach(d => datasetsMap.set(d.datasetId, d))),
           mergeMap(() => this.restClient.getJobs(job.sessionId)),
           tap((jobs: Job[]) => jobs.forEach(j => jobsMap.set(j.jobId, j))),
           mergeMap(() => {
-            const fileCopies = job.inputs.map(input => {
-              return this.copyDataset(
-                originalSessionId,
-                replaySessionId,
-                input.datasetId,
-                job.jobId + input.datasetId,
-                quiet
-              ).pipe(
-                mergeMap(datasetId =>
-                  this.restClient.getDataset(replaySessionId, datasetId)
-                ),
-                tap((dataset: Dataset) =>
-                  inputMap.set(input.inputId, dataset)
-                ),
-                tap((dataset: Dataset) => {
-                  if (!quiet) {
-                    logger.info(
-                      "dataset " +
-                        dataset.name +
-                        " copied for input " +
-                        input.inputId
-                    );
-                  }
-                })
-              );
-            });
+              const fileCopies = job.inputs.map(input => {
+                return this.copyDatasetShallow(
+                    originalSessionId,
+                    replaySessionId,
+                    input.datasetId,
+                    job.jobId + input.datasetId,
+                    quiet
+                  ).pipe(
+                      mergeMap(datasetId =>
+                          this.restClient.getDataset(replaySessionId, datasetId)
+                      ),
+                      tap((dataset: Dataset) =>
+                          inputMap.set(input.inputId, dataset)
+                      ),
+                      tap((dataset: Dataset) => {
+                          if (!quiet) {
+                              logger.info(
+                                  "dataset " +
+                                  dataset.name +
+                                  " copied for input " +
+                                  input.inputId
+                              );
+                          }
+                      })
+                  );
+              });
             return concat(...fileCopies).pipe(toArray());
           }),
           tap(() => {
@@ -443,7 +450,7 @@ export default class ReplaySession {
           mergeMap(() => this.restClient.getTool(job.toolId)),
           tap((t: Tool) => tool = t),          
           tap(() => {
-              metadataFiles = this.bindPhenodata(job, tool, datasetsMap, jobsMap);  
+              metadataFiles = this.bindPhenodata(job, tool, datasetsMap, jobsMap, quiet);  
           }),
           tap(() => {
             if (!quiet) {
@@ -473,7 +480,7 @@ export default class ReplaySession {
               },
               err => {
                 logger.error(
-                  new VError(err, "failed to get the screen output")
+                  new VError(err, "failed to get the screen output, test set " + testSet)
                 );
               }
             );
@@ -501,7 +508,7 @@ export default class ReplaySession {
           ),
           catchError(err => {
             // unexpected technical problems
-            logger.error(new VError(err, "replay error " + job.toolId));
+            logger.error(new VError(err, "test set " + testSet + " replay error " + job.toolId));
             return of(this.errorToReplayResult(err, job, plan));
           }),
           // why exceptions (like missing tool) interrupt the parallel run if this is before catchError()?
@@ -513,7 +520,7 @@ export default class ReplaySession {
         );
     }
 
-    bindPhenodata(job: Job, tool: Tool, datasetsMap: Map<string, Dataset>, jobsMap: Map<string, Job>): MetadataFile[] {
+    bindPhenodata(job: Job, tool: Tool, datasetsMap: Map<string, Dataset>, jobsMap: Map<string, Job>, quiet: boolean): MetadataFile[] {
         // this is almost like ToolService.bindPhenodata() in the client, but can get the phenodata also from the old job
                 
         // if no phenodata inputs, return empty array
@@ -525,11 +532,14 @@ export default class ReplaySession {
         }
 
         if (job.metadataFiles != null && job.metadataFiles.length > 0) {
-            logger.info("using phenodata from the old job");
+            if (!quiet) {
+                logger.info("using phenodata from the old job");
+            }
             return job.metadataFiles;
         } else {
-            logger.info("the old job doesn't have phenodata (session from Java client), try to find it from the inputs");
-                
+            if (!quiet) {
+                logger.info("the old job doesn't have phenodata (session from Java client), try to find it from the inputs");
+            }
             // for now, if tool has multiple phenodata inputs, don't try to bind anything
             // i.e. return array with phenodata inputs but no bound datasets
             if (phenodataInputs.length > 1) {
@@ -559,7 +569,9 @@ export default class ReplaySession {
             } else {
                 const phenodataDataset = datasetsMap.get(uniquePhenodataDatasetIds[0]);
                 const phenodata = PhenodataUtils.getOwnPhenodata(phenodataDataset);
-                logger.info("found phenodata for job input " + firstPhenodataInput.name.id + " from dataset " + phenodataDataset.name);
+                if (!quiet) {
+                    logger.info("found phenodata for job input " + firstPhenodataInput.name.id + " from dataset " + phenodataDataset.name);
+                }
                 return [{ name: firstPhenodataInput.name.id, content: phenodata}];
             }
         }
@@ -638,14 +650,30 @@ export default class ReplaySession {
             })
         );            
     }
+
+    copyDatasetShallow(originalSessionId: string, replaySessionId: string, datasetId: string, tempFileName: string, quiet: boolean) {
+
+        return this.restClient
+            .getDataset(originalSessionId, datasetId)
+            .pipe(
+                mergeMap((dataset: Dataset) => {
+                    // create a new dataset pointing to the same fileId                    
+                    dataset.datasetId = null;
+                    dataset.sessionId = null;
+                    return this.restClient.postDataset(
+                        replaySessionId,
+                        dataset
+                    );
+                })
+            );
+    }
     
-    copyDataset(originalSessionId: string, replaySessionId: string, datasetId: string, tempFileName: string, quiet: boolean) {
+    copyDatasetDeep(originalSessionId: string, replaySessionId: string, datasetId: string, tempFileName: string, quiet: boolean) {
 
         
         const localFileName = this.tempPath + '/' + tempFileName;
         let dataset;
-        let copyDatasetId;
-        
+        let copyDatasetId;        
         
         return this.restClient
           .getDataset(originalSessionId, datasetId)

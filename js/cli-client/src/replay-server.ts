@@ -96,7 +96,7 @@ export default class ReplayServer {
             args.password,
             false,
             1,
-            false,
+            true,
             path.join(args.results, testSetName),
             path.join(args.temp, testSetName),
             filters,
@@ -108,9 +108,12 @@ export default class ReplayServer {
             })
           )
           .subscribe(
-            () => logger.info("session replay done"),
-            err => logger.error(new VError(err, "session replay error")),
-            () => logger.info("session replay completed")
+            () => logger.info("session replay " + testSetName + " done"),
+            err =>
+              logger.error(
+                new VError(err, "session replay " + testSetName + " error")
+              ),
+            () => logger.info("session replay " + testSetName + " completed")
           );
       };
 
@@ -149,10 +152,10 @@ export default class ReplayServer {
         "\n";
     }
 
-    logger.info("stats: " + data);
+    logger.debug("stats: " + data);
 
     if (influxdb != null) {
-      logger.info("post to InfluxDB " + influxdb);
+      logger.info("post to InfluxDB " + testSet + " " + influxdb);
       return new RestClient().post(influxdb, null, data);
     } else {
       return of(null);
