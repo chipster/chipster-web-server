@@ -1,5 +1,5 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
-import { of } from "rxjs";
+import { interval, of } from "rxjs";
 import { mergeMap } from "rxjs/operators";
 import { VError } from "verror";
 import ReplaySession from "./replay-session";
@@ -10,6 +10,7 @@ const schedule = require("node-schedule");
 const serveIndex = require("serve-index");
 const express = require("express");
 const path = require("path");
+const v8 = require("v8");
 
 export default class ReplayServer {
   resultsPath: string;
@@ -85,7 +86,24 @@ export default class ReplayServer {
       const colonSplitted = sched.split(":");
       let cron = colonSplitted[0];
       const testSets = colonSplitted[1].split(" ");
-      const filters = testSets.map(f => f + "/");
+      let parallel = 1;
+      if (colonSplitted.length >= 3 && colonSplitted[2].length > 0) {
+        parallel = parseInt(colonSplitted[2]);
+      }
+      let jobTimeout = 60 * 60;
+      if (colonSplitted.length >= 4 && colonSplitted[3].length > 0) {
+        jobTimeout = parseInt(colonSplitted[3]);
+      }
+      logger.info("run " + parallel + " jobs in parallel");
+      logger.info("cancel jobs after " + jobTimeout + " seconds");
+
+      const filters = testSets.map(f => {
+        if (f === "example-sessions") {
+          return f;
+        }
+        // match only full folder names
+        return f + "/";
+      });
       const testSetName = testSets.join("_");
 
       const replayNow = () => {
@@ -95,12 +113,13 @@ export default class ReplayServer {
             args.username,
             args.password,
             false,
-            1,
+            parallel,
             true,
             path.join(args.results, testSetName),
             path.join(args.temp, testSetName),
             filters,
-            null
+            null,
+            jobTimeout
           )
           .pipe(
             mergeMap((stats: Map<string, number>) => {
@@ -126,12 +145,36 @@ export default class ReplayServer {
         });
         logger.info("next invocation " + replaySessionJob.nextInvocation());
       }
+
+      interval(30 * 1000)
+        .pipe(
+          mergeMap(() => {
+            const stats = new Map();
+            stats.set("memExternal", process.memoryUsage().external);
+            stats.set("memHeapTotal", process.memoryUsage().heapTotal);
+            stats.set("memHeapUsed", process.memoryUsage().heapUsed);
+            stats.set("memRss", process.memoryUsage().rss);
+            stats.set(
+              "memHeapTotalAvailable",
+              v8.getHeapStatistics().total_available_size
+            );
+            return this.postToInflux(stats, "memoryUsage", args.influxdb);
+          })
+        )
+        .subscribe();
     });
 
     // these shouldn't happen if RestClient handled errrors correctly
     // apparently it doesn't, so let's catch them to prevent crashing this server after each tool failure
     process.on("uncaughtException", err => {
       logger.error(new VError(err, "uncaught exception"));
+    });
+
+    // try to see if the process was killed with SIGINT
+    process.on("SIGINT", function() {
+      console.log("SIGINT");
+      logger.info("SIGINT");
+      process.exit();
     });
   }
 
@@ -155,7 +198,7 @@ export default class ReplayServer {
     logger.debug("stats: " + data);
 
     if (influxdb != null) {
-      logger.info("post to InfluxDB " + testSet + " " + influxdb);
+      logger.debug("post to InfluxDB " + testSet + " " + influxdb);
       return new RestClient().post(influxdb, null, data);
     } else {
       return of(null);

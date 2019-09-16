@@ -4,10 +4,12 @@ import { RestClient } from "chipster-nodejs-core";
 import * as _ from "lodash";
 import { Observable, Subject } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
+import { VError } from "verror";
 
 const path = require("path");
 const read = require("read");
 
+export const missingInputError = "MissingInputError";
 export default class ChipsterUtils {
   static printStatus(args, status, value = null) {
     if (!args.quiet) {
@@ -265,8 +267,15 @@ export default class ChipsterUtils {
     } else if (toolInput.optional) {
       return null;
     } else {
-      console.log("input", inputId, toolInput, inputMap.get(inputId));
-      throw Error('non-optional input "' + inputId + '" has no dataset');
+      throw new VError(
+        {
+          name: missingInputError,
+          info: {
+            inputId: inputId
+          }
+        },
+        'non-optional input "' + inputId + '" has no dataset'
+      );
     }
     return input;
   }
