@@ -878,8 +878,11 @@ export default class ReplaySession {
 
         results.forEach(r => {
             const toolId = r.job.toolId;
-            coverageCounts.set(toolId, coverageCounts.get(toolId) + 1);
-            coverageSessions.get(toolId).add(r.sessionName);
+
+            if (coverageCounts.has(toolId)) {
+                coverageCounts.set(toolId, coverageCounts.get(toolId) + 1);
+                coverageSessions.get(toolId).add(r.sessionName);
+            }
         });
 
         const sortedToolIds = Array.from(allToolIds).sort((a, b) => coverageCounts.get(b) - coverageCounts.get(a));
