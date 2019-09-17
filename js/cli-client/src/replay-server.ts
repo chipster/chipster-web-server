@@ -47,7 +47,7 @@ export default class ReplayServer {
     });
     parser.addArgument(["--schedule", "-s"], {
       help:
-        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
+        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...][:PARALLEL_JOBS][:JOB_TIMEOUT_SECONDS]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
       action: "append"
     });
     parser.addArgument(["--influxdb", "-i"], {
