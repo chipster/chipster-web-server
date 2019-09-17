@@ -208,6 +208,7 @@ export default class ReplaySession {
         );
 
         let jobPlanCount = 0;
+        let allTools;
 
         logger.info('login as ' + username);
         return ChipsterUtils.login(URL, username, password).pipe(
@@ -215,13 +216,15 @@ export default class ReplaySession {
                 ChipsterUtils.getRestClient(URL, token)
             ),
             tap(restClient => (this.restClient = restClient)),
+            mergeMap(() => this.restClient.getTools()),
+            tap(tools => allTools = tools),
             mergeMap(() =>
                 this.deleteOldSessions(
                     this.uploadSessionPrefix,
                     this.replaySessionPrefix
                 )
             ),
-            mergeMap(() => this.writeResults([], [], false, null, testSet)),
+            mergeMap(() => this.writeResults([], [], false, null, testSet, allTools)),
             mergeMap(() =>
                 fileSessionPlans$.pipe(
                     merge(serverSessionPlans$),
@@ -247,11 +250,11 @@ export default class ReplaySession {
             }),
             // update results after each job
             mergeMap(() => 
-            this.writeResults(results, importErrors, false, jobPlanCount, testSet)
+            this.writeResults(results, importErrors, false, jobPlanCount, testSet, allTools)
           ),
           toArray(), // wait for completion and write the final results
           mergeMap(() =>
-            this.writeResults(results, importErrors, true, jobPlanCount, testSet)
+            this.writeResults(results, importErrors, true, jobPlanCount, testSet, allTools)
           ),
           mergeMap(() => {
             const cleanUps = originalSessions.map(u =>
@@ -826,33 +829,29 @@ export default class ReplaySession {
         }
     }        
     
-    writeResults(results, importErrors: ImportError[], isCompleted: boolean, jobPlanCount: number, testSet: string): Observable<any> {
+    writeResults(results, importErrors: ImportError[], isCompleted: boolean, jobPlanCount: number, testSet: string, allTools: Array<Module>): Observable<any> {
 
         this.removeAllFiles(this.resultsPath);
 
         let allToolIds = new Set<string>();
 
-        return this.restClient.getTools().pipe(
-          tap((modules: Array<Module>) => {
-            modules.forEach(module => {
-              module.categories.forEach(category => {
-                category.tools.forEach(tool => {
-                  allToolIds.add(tool.name.id);
-                });
-              });
+        allTools.forEach(module => {
+          module.categories.forEach(category => {
+            category.tools.forEach(tool => {
+              allToolIds.add(tool.name.id);
             });
-          }),
-          tap(() =>
-            this.writeResultsSync(
-              results,
-              importErrors,
-              isCompleted,
-              allToolIds,
-              jobPlanCount,
-              testSet
-            )
-          )
-        );
+          });
+        });
+
+        this.writeResultsSync(
+          results,
+          importErrors,
+          isCompleted,
+          allToolIds,
+          jobPlanCount,
+          testSet
+        )
+        return of(null);
     }
 
         

@@ -1,6 +1,6 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
-import { interval, of } from "rxjs";
-import { mergeMap } from "rxjs/operators";
+import { empty, interval, of } from "rxjs";
+import { catchError, mergeMap } from "rxjs/operators";
 import { VError } from "verror";
 import ReplaySession from "./replay-session";
 
@@ -159,6 +159,11 @@ export default class ReplayServer {
               v8.getHeapStatistics().total_available_size
             );
             return this.postToInflux(stats, "memoryUsage", args.influxdb);
+          }),
+          catchError(err => {
+            // allow timer to continue even if posting fails every now and then
+            logger.error(new VError(err, "memory monitoring error"));
+            return empty;
           })
         )
         .subscribe();
