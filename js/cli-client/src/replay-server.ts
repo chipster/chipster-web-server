@@ -158,12 +158,13 @@ export default class ReplayServer {
               "memHeapTotalAvailable",
               v8.getHeapStatistics().total_available_size
             );
-            return this.postToInflux(stats, "memoryUsage", args.influxdb);
-          }),
-          catchError(err => {
-            // allow timer to continue even if posting fails every now and then
-            logger.error(new VError(err, "memory monitoring error"));
-            return empty;
+            return this.postToInflux(stats, "memoryUsage", args.influxdb).pipe(
+              catchError(err => {
+                // allow timer to continue even if posting fails every now and then
+                logger.error(new VError(err, "memory monitoring error"));
+                return empty;
+              })
+            );
           })
         )
         .subscribe();
