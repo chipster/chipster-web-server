@@ -137,8 +137,6 @@ export default class ReplaySession {
         }
 
         ReplaySession.mkdirIfMissing(this.resultsPath);
-
-        const originalSessions: any[] = [];
         
         let importErrors: ImportError[] = [];
         let results = [];
@@ -153,7 +151,6 @@ export default class ReplaySession {
             }),
             mergeMap((s: string) => {
                 return this.uploadSession(s, quiet).pipe(
-                    tap((session: Session) => originalSessions.push(session)),
                     mergeMap((session: Session) => {
                         return this.getSessionJobPlans(session, quiet);
                     }),
@@ -256,16 +253,12 @@ export default class ReplaySession {
           mergeMap(() =>
             this.writeResults(results, importErrors, true, jobPlanCount, testSet, allTools)
           ),
-          mergeMap(() => {
-            const cleanUps = originalSessions.map(u =>
-              this.cleanUp(
-                u.originalSessionId,
-                u.replaySessionId,
-                debug
-              )
-            );
-            return concat(...cleanUps).pipe(toArray());
-          }),
+          mergeMap(() =>
+            this.deleteOldSessions(
+              this.uploadSessionPrefix,
+              this.replaySessionPrefix
+            )
+          ),
           map(() => this.stats)
         );
     }
@@ -371,20 +364,6 @@ export default class ReplaySession {
                     });                
                 logger.info('session ' + originalSession.name + ' has ' + jobPlans.length + ' jobs');
                 return jobPlans;
-            }),
-        );
-    }
-
-    cleanUp(originalSessionId, replaySessionId, debug: boolean) {
-                
-        return of(null).pipe(
-            mergeMap(() => this.restClient.deleteSession(originalSessionId)),
-            mergeMap(() => {
-                if (debug) {
-                    return of(null);
-                } else {
-                    return this.restClient.deleteSession(replaySessionId);
-                }
             }),
         );
     }
