@@ -209,13 +209,24 @@ export default class TypeService {
   }
 
   getTypeTags(sessionId, dataset, token) {
-    // always calculate fast type tags, because it's difficult to know when the name has changed
-    let fastTags = TypeTags.getFastTypeTags(dataset.name);
+    if (dataset.fileId != null) {
+      // always calculate fast type tags, because it's difficult to know when the name has changed
+      let fastTags = TypeTags.getFastTypeTags(dataset.name);
 
-    return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags).pipe(
-      map(slowTags => Object.assign({}, fastTags, slowTags)),
-      map(allTags => [dataset.datasetId, allTags])
-    );
+      return this.getSlowTypeTagsCached(
+        sessionId,
+        dataset,
+        token,
+        fastTags
+      ).pipe(
+        map(slowTags => Object.assign({}, fastTags, slowTags)),
+        map(allTags => [dataset.datasetId, allTags])
+      );
+    } else {
+      /* The dataset has been created, but the file hasn't been uploaded.
+      No need to add type tags */
+      return [dataset.datasetId, {}];
+    }
   }
 
   /**
