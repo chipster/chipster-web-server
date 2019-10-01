@@ -14,6 +14,7 @@ service-password-web-server: web-server
 service-password-toolbox: toolbox
 service-password-job-history: job-history
 service-password-backup: backup
+service-password-type-service : type-service
 
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN

@@ -92,7 +92,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		// Starting the Job History Admin Server
 		this.jobHistoryAdminServer = RestUtils.startAdminServer(jobHistoryResource, hibernate, Role.JOB_HISTORY, config,
 				authService, this.serviceLocator);
-		System.out.println("Admin server started");
 		this.jobHistoryAdminServer.start();
 
 	}
@@ -165,7 +164,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	}
 
 	private void saveJobHistory(Job job) {
-		logger.info("saveJobHistory " + job.getCreated() + " " + job.getStartTime() + " " + job.getEndTime());
 		JobHistoryModel jobHistory = new JobHistoryModel();
 		jobHistory.setJobIdPair(job.getJobIdPair());
 		jobHistory.setToolId(job.getToolId());
