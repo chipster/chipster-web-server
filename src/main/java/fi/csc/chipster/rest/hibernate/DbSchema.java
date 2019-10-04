@@ -54,15 +54,17 @@ public class DbSchema {
      * 
      * @param hibernateClasses
      * @param file
+	 * @param driver 
 	 * @param url 
 	 * @throws InterruptedException 
 	 * @throws IOException 
 	 * @throws SQLException 
      */
-    public void exportHibernateSchema(List<Class<?>> hibernateClasses, String file, String dialect) {
+    public void exportHibernateSchema(List<Class<?>> hibernateClasses, String file, String dialect, String url) {
     	
     	Map<String, String> settings = new HashMap<>();
-		settings.put(Environment.DIALECT, dialect);			
+		settings.put(Environment.DIALECT, dialect);
+		settings.put(Environment.URL, url);
  
         MetadataSources metadata = new MetadataSources(
         		new StandardServiceRegistryBuilder()
@@ -93,9 +95,9 @@ public class DbSchema {
     }
 
 
-	public void export(List<Class<?>> hibernateClasses, String dialect) {
+	public void export(List<Class<?>> hibernateClasses, String dialect, String url) {
     	String exportFile = getExportFile();
-    	this.exportHibernateSchema(hibernateClasses, exportFile, dialect);
+    	this.exportHibernateSchema(hibernateClasses, exportFile, dialect, url);
 	}
 
 	private String getExportFile() {

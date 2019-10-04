@@ -24,6 +24,8 @@ import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.SessionDbToken;
+import fi.csc.chipster.sessiondb.model.WorkflowPlan;
+import fi.csc.chipster.sessiondb.model.WorkflowRun;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
@@ -97,8 +99,9 @@ public class SessionDb {
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 
-		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
-				Job.class, File.class);
+		List<Class<?>> hibernateClasses = Arrays.asList(
+				Rule.class, Session.class, Dataset.class,
+				Job.class, File.class, WorkflowPlan.class, WorkflowRun.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);

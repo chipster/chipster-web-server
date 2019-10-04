@@ -2,18 +2,10 @@
     alter table if exists Dataset 
        drop constraint if exists FKtnwjerv439jr4lmc37uvdp6ha;
 
-    alter table if exists DatasetToken 
-       drop constraint if exists FK2vdi25wvt3n7gd4wadatk8np8;
-
-    alter table if exists DatasetToken 
-       drop constraint if exists FK2ld1310doy7l3b9t7yp71ni37;
-
     alter table if exists Rule 
        drop constraint if exists FKmf1c6t4ld9isrgivjddortper;
 
     drop table if exists Dataset cascade;
-
-    drop table if exists DatasetToken cascade;
 
     drop table if exists File cascade;
 
@@ -22,6 +14,10 @@
     drop table if exists Rule cascade;
 
     drop table if exists Session cascade;
+
+    drop table if exists WorkflowPlan cascade;
+
+    drop table if exists WorkflowRun cascade;
 
     create table Dataset (
        datasetId uuid not null,
@@ -35,16 +31,6 @@
         y int4,
         fileId uuid,
         primary key (datasetId, sessionId)
-    );
-
-    create table DatasetToken (
-       tokenKey uuid not null,
-        username varchar(255),
-        valid timestamp,
-        dataset_datasetId uuid,
-        dataset_sessionId uuid,
-        session_sessionId uuid,
-        primary key (tokenKey)
     );
 
     create table File (
@@ -97,27 +83,44 @@
         state int4,
         primary key (sessionId)
     );
+
+    create table WorkflowPlan (
+       sessionId uuid not null,
+        workflowPlanId uuid not null,
+        created timestamp,
+        name varchar(255),
+        notes oid,
+        originalDuration int8,
+        workflowJobPlans jsonb,
+        primary key (sessionId, workflowPlanId)
+    );
+
+    create table WorkflowRun (
+       sessionId uuid not null,
+        workflowRunId uuid not null,
+        created timestamp,
+        createdBy varchar(255),
+        currentJobPlanId varchar(255),
+        currentWorkflowJobPlanId varchar(255),
+        endTime timestamp,
+        name varchar(255),
+        state int4,
+        workflowPlanId varchar(255),
+        primary key (sessionId, workflowRunId)
+    );
 create index dataset_fileid_index on Dataset (fileId);
 create index dataset_sessionid_index on Dataset (sessionId);
 create index job_sessionid_index on Job (sessionId);
 create index rule_username_index on Rule (username);
 create index rule_sessionid_index on Rule (sessionId);
 create index rule_sharedby_index on Rule (sharedBy);
+create index workflowplan_sessionid_index on WorkflowPlan (sessionId);
+create index workflowrun_sessionid_index on WorkflowRun (sessionId);
 
     alter table if exists Dataset 
        add constraint FKtnwjerv439jr4lmc37uvdp6ha 
        foreign key (fileId) 
        references File;
-
-    alter table if exists DatasetToken 
-       add constraint FK2vdi25wvt3n7gd4wadatk8np8 
-       foreign key (dataset_datasetId, dataset_sessionId) 
-       references Dataset;
-
-    alter table if exists DatasetToken 
-       add constraint FK2ld1310doy7l3b9t7yp71ni37 
-       foreign key (session_sessionId) 
-       references Session;
 
     alter table if exists Rule 
        add constraint FKmf1c6t4ld9isrgivjddortper 

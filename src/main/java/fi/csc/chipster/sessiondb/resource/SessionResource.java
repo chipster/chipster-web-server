@@ -94,6 +94,11 @@ public class SessionResource {
 		return new RuleResource(this, id, this.ruleTable, config);
 	}
 	
+	@Path("{id}/workflows")
+	public SessionWorkflowResource getWorkflowResource(@PathParam("id") UUID id) {
+		return new SessionWorkflowResource(this, id);
+	}
+	
     // CRUD
     @GET
     @Path("{id}")

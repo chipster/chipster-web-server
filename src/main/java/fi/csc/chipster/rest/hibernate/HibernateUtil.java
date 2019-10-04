@@ -28,6 +28,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
+import fi.csc.chipster.sessiondb.model.WorkflowJobPlan;
 
 public class HibernateUtil {
 
@@ -90,7 +91,7 @@ public class HibernateUtil {
 			this.dbSchema = new DbSchema(role);
 
 			if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
-				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName(), config.getString(CONF_DB_URL, role));
 			}
 
 			this.dbSchema.migrate(url, user, password);
@@ -124,7 +125,7 @@ public class HibernateUtil {
 		} catch (SchemaManagementException e) {
 
 			this.dbSchema.printSchemaError(e);
-			this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role));
+			this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName(), config.getString(CONF_DB_URL, role));
 			throw e;
 		}
 	}
@@ -243,8 +244,8 @@ public class HibernateUtil {
 			{
 				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(!isPostgres, Parameter.class));
 				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
-				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
-						new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
+				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE, new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
+				put(WorkflowJobPlan.WORKFLOWJOBPLAN_LIST_JSON_TYPE, new ListJsonType<WorkflowJobPlan>(!isPostgres, WorkflowJobPlan.class));
 			}
 		};
 	}

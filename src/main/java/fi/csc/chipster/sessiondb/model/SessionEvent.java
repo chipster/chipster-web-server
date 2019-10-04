@@ -22,7 +22,7 @@ public class SessionEvent {
 	private String state;
 	
 	public enum EventType { CREATE, UPDATE, DELETE }
-	public enum ResourceType { RULE, DATASET, JOB, FILE, SESSION }
+	public enum ResourceType { RULE, DATASET, JOB, FILE, SESSION, WORKFLOW_PLAN, WORKFLOW_RUN }
 
 	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {
 		this(sessionId, resource, resourceId, type, null);
