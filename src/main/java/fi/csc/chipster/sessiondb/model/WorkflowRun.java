@@ -81,7 +81,7 @@ public class WorkflowRun {
 	public void setCreatedBy(String createdBy) {
 		this.createdBy = createdBy;
 	}
-	public Object getSessionId() {
+	public UUID getSessionId() {
 		if (this.workflowRunIdPair == null) {
 			return null;
 		}

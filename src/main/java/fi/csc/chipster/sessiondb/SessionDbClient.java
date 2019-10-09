@@ -38,6 +38,7 @@ import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
+import fi.csc.chipster.sessiondb.model.WorkflowRun;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
@@ -153,8 +154,16 @@ public class SessionDbClient {
 		return getSessionTarget(sessionId).path("jobs");
 	}
 	
+	private WebTarget getWorkflowRunTarget(UUID sessionId) {
+		return getSessionTarget(sessionId).path("workflows").path("runs");
+	}
+	
 	private WebTarget getJobTarget(UUID sessionId, UUID jobId) {
 		return getJobsTarget(sessionId).path(jobId.toString());
+	}
+	
+	private WebTarget getWorkflowRunTarget(UUID sessionId, UUID runId) {
+		return getWorkflowRunTarget(sessionId).path(runId.toString());
 	}
 	
 	private WebTarget getRulesTarget(UUID sessionId) {
@@ -312,8 +321,16 @@ public class SessionDbClient {
 		return RestMethods.get(getJobTarget(sessionId, jobId), Job.class);	
 	}
 	
+	public WorkflowRun getWorkflowRun(UUID sessionId, UUID runId) throws RestException {
+		return RestMethods.get(getWorkflowRunTarget(sessionId, runId), WorkflowRun.class);	
+	}
+	
 	public List<IdPair> getJobs(JobState state) throws RestException {
 		return RestMethods.getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
+	}
+	
+	public List<IdPair> getWorkflowRuns(JobState state) throws RestException {
+		return RestMethods.getList(getSessionDbTarget().path("workflows").path("runs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
 	public String createSessionToken(UUID sessionId, Integer validSeconds) throws RestException {

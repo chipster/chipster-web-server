@@ -25,7 +25,7 @@ public class WorkflowJobPlan implements DeepCopyable {
 	@Type(type = Parameter.PARAMETER_LIST_JSON_TYPE)
 	private List<Parameter> parameters = new ArrayList<>();
 
-	@Column
+	@Column	
 	@Type(type = Input.INPUT_LIST_JSON_TYPE)
 	private List<Input> inputs = new ArrayList<>();
 

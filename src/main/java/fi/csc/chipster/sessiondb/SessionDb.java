@@ -33,6 +33,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.SessionDbTokenResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbTokens;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
+import fi.csc.chipster.sessiondb.resource.GlobalWorkflowResource;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
@@ -80,6 +81,8 @@ public class SessionDb {
 
 	private UserResource userResource;
 
+	private GlobalWorkflowResource globalWorkflowResource;
+
 	public SessionDb(Config config) {
 		this.config = config;
 	}
@@ -116,6 +119,7 @@ public class SessionDb {
 		this.datasetTokenResource = new SessionDbTokenResource(datasetTokenTable, ruleTable);
 		this.sessionResource = new SessionResource(hibernate, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
+		this.globalWorkflowResource = new GlobalWorkflowResource(hibernate);
 		this.userResource = new UserResource(hibernate);
 
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
@@ -129,9 +133,15 @@ public class SessionDb {
 
 		sessionResource.setPubSubServer(pubSubServer);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(datasetTokenResource)
-				.register(ruleTable).register(sessionResource).register(globalJobResource).register(userResource)
-				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
+				.register(datasetTokenResource)
+				.register(ruleTable)
+				.register(sessionResource)
+				.register(globalJobResource)
+				.register(globalWorkflowResource)
+				.register(userResource)
+				.register(new HibernateRequestFilter(hibernate))
+				.register(new HibernateResponseFilter(hibernate))
 				// .register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 

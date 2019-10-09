@@ -41,6 +41,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import fi.csc.chipster.sessiondb.model.WorkflowJobPlan;
 import fi.csc.chipster.sessiondb.model.WorkflowPlan;
 import fi.csc.chipster.sessiondb.model.WorkflowPlanIdPair;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
@@ -243,6 +244,12 @@ public class SessionWorkflowResource {
 				planId = RestUtils.createUUID();
 			}
 			
+			for (WorkflowJobPlan jobPlan : plan.getWorkflowJobPlans()) {
+				if (jobPlan.getWorkflowJobPlanId() == null) {
+					jobPlan.setWorkflowJobPlanId(RestUtils.createUUID());
+				}
+			}
+			
 			// make sure a hostile client doesn't set the session
 			if (plan.getSessionId() != null && !sessionId.equals(plan.getSessionId())) {
 				throw new BadRequestException("different sessionId in the job object and in the url");
@@ -285,6 +292,9 @@ public class SessionWorkflowResource {
 			}
 			run.setWorkflowRunIdPair(sessionId, runId);
 			run.setCreated(Instant.now());
+			
+			// set the createdBy username
+			run.setCreatedBy(sc.getUserPrincipal().getName());
 		}		
 		
 		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);

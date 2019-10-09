@@ -29,6 +29,7 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 	public static final String AUTHORIZATIONS_TOPIC = "authorizations";
 	public static final String DATASETS_TOPIC = "datasets";
 	public static final String SESSIONS_TOPIC = "sessions";
+	public static final String WORKFLOW_RUNS_TOPIC = "workflow-runs";
 
 	private HibernateUtil hibernate;
 
