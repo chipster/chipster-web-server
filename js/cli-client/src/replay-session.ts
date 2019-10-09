@@ -384,7 +384,8 @@ export default class ReplaySession {
         let metadataFiles: MetadataFile[] = [];
         let replayJobId;
 
-        let timeout$ = new Subject();
+      let timeout$ = new Subject();
+      let timeoutSubscription;
 
         // why the type isn't recognized after adding the finzalize()?
         return <any>of(null).pipe(
@@ -469,7 +470,7 @@ export default class ReplaySession {
           mergeMap(jobId => {
               replayJobId = jobId;
 
-                timer(jobtimeout * 1000)
+                timeoutSubscription = timer(jobtimeout * 1000)
                     .pipe(
                     tap(() =>
                         logger.info(
@@ -546,7 +547,10 @@ export default class ReplaySession {
                   );
                 }
               }),
-              last()
+              // the first null sets no filter, the second null is emitted if there wasn't any job state changes
+              // before the the observable completed (e.g. when timeout === 0). Otherwise last() would terminate
+              // with EmptyError
+              last(null, null)
             );
           }),
           mergeMap(() =>
@@ -573,7 +577,7 @@ export default class ReplaySession {
                     )
                     );
                 }
-              logger.info("conver to replay result");
+              logger.info("convert to replay result");
             return of(this.errorToReplayResult(err, job, plan));
           }),
           // why exceptions (like missing tool) interrupt the parallel run if this is before catchError()?
@@ -581,7 +585,7 @@ export default class ReplaySession {
             if (wsClient != null) {
               wsClient.disconnect();
             }
-            timeout$.unsubscribe();
+            timeoutSubscription.unsubscribe();
           })
         );
     }
