@@ -160,8 +160,18 @@ export default class ReplayServer {
             );
             return this.postToInflux(stats, "memoryUsage", args.influxdb).pipe(
               catchError(err => {
+                if (err.statusCode === 500) {
+                  // this happens a lot, no need to log the stack
+                  logger.error(
+                    "posting memory statistics to influx failed: " +
+                      err.statusCode +
+                      " " +
+                      err.message
+                  );
+                } else {
+                  logger.error(new VError(err, "memory monitoring error"));
+                }
                 // allow timer to continue even if posting fails every now and then
-                logger.error(new VError(err, "memory monitoring error"));
                 return empty;
               })
             );
