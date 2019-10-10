@@ -91,25 +91,59 @@ export default class ChipsterUtils {
     return uri;
   }
 
+  static configureRestClient(
+    webServerUri: string,
+    token: string,
+    restClient: RestClient
+  ) {
+    return restClient.getServiceLocator(webServerUri).pipe(
+      map(serviceLocatorUri => {
+        restClient.setServiceLocatorUri(serviceLocatorUri);
+        restClient.setToken(token);
+        return restClient;
+      })
+    );
+  }
+
   static getRestClient(webServerUri, token) {
-    return new RestClient(true, null, null)
-      .getServiceLocator(webServerUri)
-      .pipe(
-        map(serviceLocatorUri => new RestClient(true, token, serviceLocatorUri))
-      );
+    console.warn(
+      "method ChipsterUtils.getRestClient() is deprecated, use configureRestClient() instead"
+    );
+    return this.configureRestClient(
+      new RestClient(true, null, null),
+      webServerUri,
+      token
+    );
+  }
+
+  static getToken(
+    webServerUri: string,
+    username: string,
+    password: string,
+    restClient: RestClient
+  ) {
+    // get the service locator address
+    return restClient.getServiceLocator(webServerUri).pipe(
+      // get token
+
+      mergeMap((serviceLocatorUrl: any) => {
+        restClient.setServiceLocatorUri(serviceLocatorUrl);
+        return restClient.getToken(username, password);
+      })
+    );
   }
 
   static login(webServerUri: string, username: string, password: string) {
-    // get the service locator address
-    return new RestClient(true, null, null)
-      .getServiceLocator(webServerUri)
-      .pipe(
-        // get token
-        mergeMap((serviceLocatorUrl: any) => {
-          let guestClient = new RestClient(true, null, serviceLocatorUrl);
-          return guestClient.getToken(username, password);
-        })
-      );
+    console.warn(
+      "method ChipsterUtils.login() is deprecated, use getToken() instead"
+    );
+
+    return this.getToken(
+      webServerUri,
+      username,
+      password,
+      new RestClient(true, null, null)
+    );
   }
 
   static sessionUpload(

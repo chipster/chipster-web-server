@@ -1,6 +1,6 @@
-import { Dataset, Job, JobState, Module, PhenodataUtils, Session, Tool } from "chipster-js-common";
+import { Dataset, Job, Module, PhenodataUtils, Session, Tool } from "chipster-js-common";
 import MetadataFile from "chipster-js-common/lib/model/metadata-file";
-import { Logger } from "chipster-nodejs-core";
+import { Logger, RestClient } from "chipster-nodejs-core";
 import * as _ from 'lodash';
 import { concat, empty, forkJoin, from, ObjectUnsubscribedError, Observable, of, Subject, throwError, timer } from "rxjs";
 import { last } from "rxjs/internal/operators/last";
@@ -208,59 +208,60 @@ export default class ReplaySession {
     let allTools;
 
     logger.info('login as ' + username);
-    return ChipsterUtils.login(URL, username, password).pipe(
-      mergeMap((token: string) =>
-        ChipsterUtils.getRestClient(URL, token)
-      ),
-      tap(restClient => (this.restClient = restClient)),
+    this.restClient = new RestClient(true, null, null);
+    return ChipsterUtils.getToken(URL, username, password, this.restClient).pipe(
+      mergeMap((token: string) => ChipsterUtils.configureRestClient(URL, token, this.restClient)),
       mergeMap(() => this.restClient.getTools()),
       tap((tools: Module[]) => allTools = tools.filter(m => m.name !== "Kielipankki")),
       mergeMap(() =>
-          this.deleteOldSessions(
-              this.uploadSessionPrefix,
-              this.replaySessionPrefix
-          )
+        this.deleteOldSessions(
+          this.uploadSessionPrefix,
+          this.replaySessionPrefix
+        )
       ),
       mergeMap(() => this.writeResults([], [], false, null, testSet, allTools)),
       mergeMap(() =>
-          fileSessionPlans$.pipe(
-              merge(serverSessionPlans$),
-              merge(exampleSessionPlans$))
+        fileSessionPlans$.pipe(
+          merge(serverSessionPlans$),
+          merge(exampleSessionPlans$))
       ),
       tap((jobPlans: JobPlan[]) => jobPlanCount += jobPlans.length),
       finalize(() => logger.info("test set " + testSet + " has " + jobPlanCount + " jobs")),
       mergeMap((jobPlans: JobPlan[]) => from(jobPlans)),
       mergeMap(
-          (plan: JobPlan) => {
-              logger.info(testSet + " " + plan.originalSession.name +
-                  " run tool " + plan.job.toolId);
+        (plan: JobPlan) => {
+          logger.info(testSet + " " + plan.originalSession.name +
+            " run tool " + plan.job.toolId);
 
-              return this.replayJob(plan, quiet, testSet, jobtimeout);
-          },
-          null,
-          parallel
+          return this.replayJob(plan, quiet, testSet, jobtimeout);
+        },
+        null,
+        parallel
       ),
       tap((replayResult: ReplayResult) => {
-          results = results.concat(replayResult);
-          logger.info(testSet + " (" + results.length + "/" + jobPlanCount + ")" + " " + replayResult.sessionName +
-              " finished tool " + replayResult.job.toolId);
+        results = results.concat(replayResult);
+        logger.info(testSet + " (" + results.length + "/" + jobPlanCount + ")" + " " + replayResult.sessionName +
+          " finished tool " + replayResult.job.toolId);
       }),
       // update results after each job
       mergeMap(() =>
-      this.writeResults(results, importErrors, false, jobPlanCount, testSet, allTools)
-    ),
-    toArray(), // wait for completion and write the final results
-    mergeMap(() =>
-      this.writeResults(results, importErrors, true, jobPlanCount, testSet, allTools)
-    ),
-    mergeMap(() =>
-      this.deleteOldSessions(
-        this.uploadSessionPrefix,
-        this.replaySessionPrefix
-      )
-    ),
-    map(() => this.stats)
-        );
+        this.writeResults(results, importErrors, false, jobPlanCount, testSet, allTools)
+      ),
+      toArray(), // wait for completion and write the final results
+      mergeMap(() =>
+        this.writeResults(results, importErrors, true, jobPlanCount, testSet, allTools)
+      ),
+      mergeMap(() => this.deleteOldSessions(
+          this.uploadSessionPrefix,
+          this.replaySessionPrefix
+      )),
+      tap(() => {
+        // close restClient's HTTP keep-alive connections
+        this.restClient.destroy();
+        this.restClient = null;
+      }),
+      map(() => this.stats)
+      );
     }
 
     phenodataTypeCheck(dataset: Dataset) {
@@ -484,21 +485,7 @@ export default class ReplaySession {
                             " seconds"
                         )
                     ),
-                    // TODO implement job cancelling in RestClient
-                    mergeMap(() =>
-                        this.restClient.getJob(
-                        plan.replaySessionId,
-                        jobId
-                        )
-                    ),
-                    mergeMap((job: Job) => {
-                        job.state = JobState.Cancelled;
-                        job.stateDetail = "";
-                        return this.restClient.putJob(
-                        plan.replaySessionId,
-                        job
-                        );
-                    }),
+                    mergeMap(() => this.restClient.cancelJob(plan.replaySessionId, jobId)),
                     catchError(err => {
                         logger.info(
                         testSet +

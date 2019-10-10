@@ -15,6 +15,7 @@ const v8 = require("v8");
 export default class ReplayServer {
   resultsPath: string;
   influxdbUrl: string;
+  restClient: RestClient;
 
   constructor() {
     Logger.addLogFile();
@@ -82,6 +83,10 @@ export default class ReplayServer {
       schedules = [":"];
     }
 
+    // RestClient contains the connection pool for HTTP keep-alive, so everything should use the
+    // same instance
+    this.restClient = new RestClient(true, null, null);
+
     schedules.forEach((sched: string) => {
       const colonSplitted = sched.split(":");
       let cron = colonSplitted[0];
@@ -123,7 +128,12 @@ export default class ReplayServer {
           )
           .pipe(
             mergeMap((stats: Map<string, number>) => {
-              return this.postToInflux(stats, testSetName, args.influxdb);
+              return this.postToInflux(
+                stats,
+                testSetName,
+                args.influxdb,
+                this.restClient
+              );
             })
           )
           .subscribe(
@@ -158,7 +168,12 @@ export default class ReplayServer {
               "memHeapTotalAvailable",
               v8.getHeapStatistics().total_available_size
             );
-            return this.postToInflux(stats, "memoryUsage", args.influxdb).pipe(
+            return this.postToInflux(
+              stats,
+              "memoryUsage",
+              args.influxdb,
+              this.restClient
+            ).pipe(
               catchError(err => {
                 if (err.statusCode === 500) {
                   // this happens a lot, no need to log the stack
@@ -172,7 +187,7 @@ export default class ReplayServer {
                   logger.error(new VError(err, "memory monitoring error"));
                 }
                 // allow timer to continue even if posting fails every now and then
-                return empty;
+                return empty();
               })
             );
           })
@@ -190,11 +205,19 @@ export default class ReplayServer {
     process.on("SIGINT", function() {
       console.log("SIGINT");
       logger.info("SIGINT");
+      if (this.restClient) {
+        this.restClient.destroy();
+      }
       process.exit();
     });
   }
 
-  postToInflux(stats: Map<string, number>, testSet: string, influxdb: string) {
+  postToInflux(
+    stats: Map<string, number>,
+    testSet: string,
+    influxdb: string,
+    restClient: RestClient
+  ) {
     let data = "";
     // nanosecond unix time
     let timestamp = new Date().getTime() * 1000 * 1000;
@@ -215,7 +238,7 @@ export default class ReplayServer {
 
     if (influxdb != null) {
       logger.debug("post to InfluxDB " + testSet + " " + influxdb);
-      return new RestClient().post(influxdb, null, data);
+      return restClient.post(influxdb, null, data);
     } else {
       return of(null);
     }
