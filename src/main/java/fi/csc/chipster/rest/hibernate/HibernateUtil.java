@@ -90,7 +90,7 @@ public class HibernateUtil {
 			this.dbSchema = new DbSchema(role);
 
 			if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
-				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName(), url);
 			}
 
 			this.dbSchema.migrate(url, user, password);
@@ -124,7 +124,7 @@ public class HibernateUtil {
 		} catch (SchemaManagementException e) {
 
 			this.dbSchema.printSchemaError(e);
-			this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role));
+			this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role), url);
 			throw e;
 		}
 	}

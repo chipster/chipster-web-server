@@ -24,6 +24,11 @@ public class User {
 	private String organization;
 	private String name;
 	
+	// add first name and last name 
+	private String firstName;
+	private String lastName;
+	
+
 	// terms of use
 	private int termsVersion;
 	private Instant termsAccepted;
@@ -42,15 +47,17 @@ public class User {
 		// JAX-B needs this
 	}
 
-	public User(String username, String mail, String organization, String name) {
-		this(null, username, mail, organization, name);
+	public User(String username, String mail, String organization, String name, String firstName, String lastName) {
+		this(null, username, mail, organization, name,firstName, lastName );
 	}
 	
-	public User(String auth, String username, String mail, String organization, String name) {
+	public User(String auth, String username, String mail, String organization, String name, String firstName, String lastName) {
 		this.userId = new UserId(auth, username);
 		this.mail = mail;
 		this.organization = organization;
 		this.name = name;
+		this.firstName = firstName;
+		this.lastName = lastName;
 	}
 
 	public String getMail() {
@@ -122,10 +129,26 @@ public class User {
 	public String getName() {
 		return name;
 	}
-
+	
 
 	public void setName(String name) {
 		this.name = name;
+	}
+	
+	public String getFirstName() {
+		return firstName;
+	}
+	
+	public void setFirstName(String firstName) {
+		this.firstName = firstName; 
+	}
+	
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
 	}
 
 	public UserId getUserId() {

@@ -204,15 +204,20 @@ public class OidcResource {
 		}		
 
 		// token is valid, we can trust that it came from the issuer
+		
 				
 		String sub = claims.getSubject().getValue();	
 		String name = claims.getStringClaim("name");
 		String email = claims.getStringClaim("email");
 		Boolean emailVerified = claims.getBooleanClaim("email_verified");
+		String firstName= claims.getStringClaim("given_name");
+		String lastName = claims.getStringClaim("family_name");
+		
 				
 		// use different auth names in Chipster based on the claims that we get
 		String username = getClaim(oidcConfig.getClaimUserId(), claims);
 		String userIdPrefix = oidcConfig.getUserIdPrefix();
+		
 		
 		UserId userId = null;
 		if (oidcConfig.getClaimUserId().equals("sub")) {
@@ -230,21 +235,28 @@ public class OidcResource {
 			email = null;
 		}
 		
-		String organization = getClaim(oidcConfig.getClaimOrganization(), claims);				
-		User user = new User(userId.getAuth(), userId.getUsername(), email, organization, name);
+		String organization = getClaim(oidcConfig.getClaimOrganization(), claims);	
+		// get the username and split it for 
+		User user = new User(userId.getAuth(), userId.getUsername(), email, organization, name, firstName, lastName);
 				
 		userTable.addOrUpdate(user);
 
 		HashSet<String> roles = Stream.of(Role.CLIENT, Role.OIDC).collect(Collectors.toCollection(HashSet::new));
-		String token = tokenTable.createNewToken(userId.toUserIdString(), roles, user.getName());
-
+		String fullName = user.getFirstName() + " "+ user.getLastName();
+		if(fullName.isEmpty()) {
+			fullName = user.getName();
+		}
+		// add extra fullName field to show first or last name
+		
+		String token = tokenTable.createNewToken(userId.toUserIdString(), roles, fullName);
+		
 		return Response.ok(token).build();	
 	}
 	
 
 	/**
 	 * Get the oidc config
-	 * 
+	 * q
 	 * If the same issuer has multiple configs, iterate in priority order.
 	 * 
 	 * @param issuer

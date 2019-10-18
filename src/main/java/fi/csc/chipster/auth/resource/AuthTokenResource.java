@@ -140,7 +140,13 @@ public class AuthTokenResource {
 	private String getName(String username, Set<String> roles ) {
 		// service accounts are not in the userTable
 		if (roles.contains(Role.CLIENT)) {
-			return this.userTable.get(new UserId(username)).getName();
+			String fullName =this.userTable.get(new UserId(username)).getFirstName()+ "" +
+						this.userTable.get(new UserId(username)).getLastName();
+			if(fullName.isEmpty()) {
+				return this.userTable.get(new UserId(username)).getName();
+			}else {
+				return fullName;
+			}
 		} else {
 			return null;
 		}

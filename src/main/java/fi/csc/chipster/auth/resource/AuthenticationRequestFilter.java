@@ -188,7 +188,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	}
 
 	private User addOrUpdateUser(String username) {
-		User user = new User(jaasPrefix, username, null, null, username);
+		User user = new User(jaasPrefix, username, null, null, username, "", "");
 		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
