@@ -180,6 +180,8 @@ export default class WsClient {
   }
 
   disconnect() {
-    this.ws.close();
+    if (this.ws != null) {
+      this.ws.close();
+    }
   }
 }

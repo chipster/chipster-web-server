@@ -1,6 +1,6 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
-import { of } from "rxjs";
-import { mergeMap } from "rxjs/operators";
+import { empty, interval, of } from "rxjs";
+import { catchError, mergeMap } from "rxjs/operators";
 import { VError } from "verror";
 import ReplaySession from "./replay-session";
 
@@ -10,10 +10,12 @@ const schedule = require("node-schedule");
 const serveIndex = require("serve-index");
 const express = require("express");
 const path = require("path");
+const v8 = require("v8");
 
 export default class ReplayServer {
   resultsPath: string;
   influxdbUrl: string;
+  restClient: RestClient;
 
   constructor() {
     Logger.addLogFile();
@@ -46,7 +48,7 @@ export default class ReplayServer {
     });
     parser.addArgument(["--schedule", "-s"], {
       help:
-        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a specail string 'example-sessions'. ",
+        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...][:PARALLEL_JOBS][:JOB_TIMEOUT_SECONDS]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
       action: "append"
     });
     parser.addArgument(["--influxdb", "-i"], {
@@ -81,11 +83,33 @@ export default class ReplayServer {
       schedules = [":"];
     }
 
+    // RestClient contains the connection pool for HTTP keep-alive, so everything should use the
+    // same instance
+    this.restClient = new RestClient(true, null, null);
+
     schedules.forEach((sched: string) => {
       const colonSplitted = sched.split(":");
       let cron = colonSplitted[0];
-      const filters = colonSplitted[1].split(" ");
-      const testSetName = filters.join("_");
+      const testSets = colonSplitted[1].split(" ");
+      let parallel = 1;
+      if (colonSplitted.length >= 3 && colonSplitted[2].length > 0) {
+        parallel = parseInt(colonSplitted[2]);
+      }
+      let jobTimeout = 60 * 60;
+      if (colonSplitted.length >= 4 && colonSplitted[3].length > 0) {
+        jobTimeout = parseInt(colonSplitted[3]);
+      }
+      logger.info("run " + parallel + " jobs in parallel");
+      logger.info("cancel jobs after " + jobTimeout + " seconds");
+
+      const filters = testSets.map(f => {
+        if (f === "example-sessions") {
+          return f;
+        }
+        // match only full folder names
+        return f + "/";
+      });
+      const testSetName = testSets.join("_");
 
       const replayNow = () => {
         new ReplaySession()
@@ -94,22 +118,31 @@ export default class ReplayServer {
             args.username,
             args.password,
             false,
-            1,
-            false,
+            parallel,
+            true,
             path.join(args.results, testSetName),
             path.join(args.temp, testSetName),
             filters,
-            null
+            null,
+            jobTimeout
           )
           .pipe(
             mergeMap((stats: Map<string, number>) => {
-              return this.postToInflux(stats, testSetName, args.influxdb);
+              return this.postToInflux(
+                stats,
+                testSetName,
+                args.influxdb,
+                this.restClient
+              );
             })
           )
           .subscribe(
-            () => logger.info("session replay done"),
-            err => logger.error(new VError(err, "session replay error")),
-            () => logger.info("session replay completed")
+            () => logger.info("session replay " + testSetName + " done"),
+            err =>
+              logger.error(
+                new VError(err, "session replay " + testSetName + " error")
+              ),
+            () => logger.info("session replay " + testSetName + " completed")
           );
       };
 
@@ -122,6 +155,44 @@ export default class ReplayServer {
         });
         logger.info("next invocation " + replaySessionJob.nextInvocation());
       }
+
+      interval(30 * 1000)
+        .pipe(
+          mergeMap(() => {
+            const stats = new Map();
+            stats.set("memExternal", process.memoryUsage().external);
+            stats.set("memHeapTotal", process.memoryUsage().heapTotal);
+            stats.set("memHeapUsed", process.memoryUsage().heapUsed);
+            stats.set("memRss", process.memoryUsage().rss);
+            stats.set(
+              "memHeapTotalAvailable",
+              v8.getHeapStatistics().total_available_size
+            );
+            return this.postToInflux(
+              stats,
+              "memoryUsage",
+              args.influxdb,
+              this.restClient
+            ).pipe(
+              catchError(err => {
+                if (err.statusCode === 500) {
+                  // this happens a lot, no need to log the stack
+                  logger.error(
+                    "posting memory statistics to influx failed: " +
+                      err.statusCode +
+                      " " +
+                      err.message
+                  );
+                } else {
+                  logger.error(new VError(err, "memory monitoring error"));
+                }
+                // allow timer to continue even if posting fails every now and then
+                return empty();
+              })
+            );
+          })
+        )
+        .subscribe();
     });
 
     // these shouldn't happen if RestClient handled errrors correctly
@@ -129,9 +200,24 @@ export default class ReplayServer {
     process.on("uncaughtException", err => {
       logger.error(new VError(err, "uncaught exception"));
     });
+
+    // try to see if the process was killed with SIGINT
+    process.on("SIGINT", function() {
+      console.log("SIGINT");
+      logger.info("SIGINT");
+      if (this.restClient) {
+        this.restClient.destroy();
+      }
+      process.exit();
+    });
   }
 
-  postToInflux(stats: Map<string, number>, testSet: string, influxdb: string) {
+  postToInflux(
+    stats: Map<string, number>,
+    testSet: string,
+    influxdb: string,
+    restClient: RestClient
+  ) {
     let data = "";
     // nanosecond unix time
     let timestamp = new Date().getTime() * 1000 * 1000;
@@ -148,11 +234,11 @@ export default class ReplayServer {
         "\n";
     }
 
-    logger.info("stats: " + data);
+    logger.debug("stats: " + data);
 
     if (influxdb != null) {
-      logger.info("post to InfluxDB " + influxdb);
-      return new RestClient().post(influxdb, null, data);
+      logger.debug("post to InfluxDB " + testSet + " " + influxdb);
+      return restClient.post(influxdb, null, data);
     } else {
       return of(null);
     }

@@ -51,7 +51,7 @@ public class CORSFilter {
 
 				headers.put("Access-Control-Allow-Origin", origin);		
 				headers.put("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
-				headers.put("Access-Control-Allow-Headers", "authorization, content-type"); // request
+				headers.put("Access-Control-Allow-Headers", "authorization, content-type, range"); // request
 				headers.put("Access-Control-Expose-Headers", "location, Accept-Ranges, Retry-After"); // response
 				headers.put("Access-Control-Allow-Credentials", "true");
 				headers.put("Access-Control-Max-Age", "" + (60 * 60 * 24)); // in seconds, 1 day
