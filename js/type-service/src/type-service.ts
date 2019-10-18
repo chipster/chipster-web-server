@@ -21,6 +21,7 @@ const MAX_HEADER_LENGTH = 4096;
 export default class TypeService {
   private tagIdMap = new Map<string, Tag>();
   private cache = new Map<string, {}>();
+
   private config = new Config();
 
   constructor() {
@@ -43,7 +44,7 @@ export default class TypeService {
       "/sessions/:sessionId/datasets/:datasetId",
       this.respond.bind(this)
     );
-    server.get("/admin/status", this.respondAlive.bind(this));
+    server.get("/admin/status", this.respondStatus.bind(this));
 
     let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
     let bindUrl = url.parse(bindUrlString);
@@ -109,6 +110,7 @@ export default class TypeService {
 
   respond(req, res, next) {
     let token;
+
     try {
       token = this.getToken(req, next);
     } catch (e) {
@@ -256,13 +258,24 @@ export default class TypeService {
   }
 
   getTypeTags(sessionId, dataset, token) {
-    // always calculate fast type tags, because it's difficult to know when the name has changed
-    let fastTags = TypeTags.getFastTypeTags(dataset.name);
+    if (dataset.fileId != null) {
+      // always calculate fast type tags, because it's difficult to know when the name has changed
+      let fastTags = TypeTags.getFastTypeTags(dataset.name);
 
-    return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags).pipe(
-      map(slowTags => Object.assign({}, fastTags, slowTags)),
-      map(allTags => [dataset.datasetId, allTags])
-    );
+      return this.getSlowTypeTagsCached(
+        sessionId,
+        dataset,
+        token,
+        fastTags
+      ).pipe(
+        map(slowTags => Object.assign({}, fastTags, slowTags)),
+        map(allTags => [dataset.datasetId, allTags])
+      );
+    } else {
+      /* The dataset has been created, but the file hasn't been uploaded.
+      No need to add type tags */
+      return [dataset.datasetId, {}];
+    }
   }
 
   /**
@@ -354,10 +367,6 @@ export default class TypeService {
 
     return req.authorization.basic.password;
   }
-
-
-
-
 }
 
 if (require.main === module) {
