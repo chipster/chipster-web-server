@@ -28,7 +28,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
-import fi.csc.chipster.sessiondb.model.WorkflowJobPlan;
+import fi.csc.chipster.sessiondb.model.WorkflowJob;
 
 public class HibernateUtil {
 
@@ -245,7 +245,7 @@ public class HibernateUtil {
 				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(!isPostgres, Parameter.class));
 				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
 				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE, new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
-				put(WorkflowJobPlan.WORKFLOWJOBPLAN_LIST_JSON_TYPE, new ListJsonType<WorkflowJobPlan>(!isPostgres, WorkflowJobPlan.class));
+				put(WorkflowJob.WORKFLOW_JOB_LIST_JSON_TYPE, new ListJsonType<WorkflowJob>(!isPostgres, WorkflowJob.class));
 			}
 		};
 	}

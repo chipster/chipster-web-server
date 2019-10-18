@@ -27,6 +27,7 @@
         name varchar(255),
         notes oid,
         sourceJob uuid,
+        sourceJobOutputId varchar(255),
         x int4,
         y int4,
         fileId uuid,
@@ -91,7 +92,7 @@
         name varchar(255),
         notes oid,
         originalDuration int8,
-        workflowJobPlans jsonb,
+        workflowJobs jsonb,
         primary key (sessionId, workflowPlanId)
     );
 
@@ -100,12 +101,10 @@
         workflowRunId uuid not null,
         created timestamp,
         createdBy varchar(255),
-        currentJobPlanId varchar(255),
-        currentWorkflowJobPlanId varchar(255),
         endTime timestamp,
         name varchar(255),
         state int4,
-        workflowPlanId varchar(255),
+        workflowJobs jsonb,
         primary key (sessionId, workflowRunId)
     );
 create index dataset_fileid_index on Dataset (fileId);

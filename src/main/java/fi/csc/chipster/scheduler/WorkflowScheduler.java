@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -12,55 +13,41 @@ import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-import javax.websocket.MessageHandler;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
+import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
-import fi.csc.chipster.sessiondb.model.WorkflowJobPlan;
-import fi.csc.chipster.sessiondb.model.WorkflowPlan;
+import fi.csc.chipster.sessiondb.model.WorkflowInput;
+import fi.csc.chipster.sessiondb.model.WorkflowJob;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
-import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.microarray.messaging.JobState;
 
-public class WorkflowScheduler implements SessionEventListener, MessageHandler.Whole<String>, StatusSource {
+public class WorkflowScheduler implements SessionEventListener, StatusSource {
 
 	private Logger logger = LogManager.getLogger();
-	
-	@SuppressWarnings("unused")
-	private String serviceId;	
+		
 	private Config config;
 
-	private AuthenticationClient authService;
-	private ServiceLocatorClient serviceLocator;
 	private SessionDbClient sessionDbClient;
-	private ToolboxClientComp toolbox;
 	
 	private long waitTimeout;
-	private long waitRunnableTimeout;
-	private long scheduleTimeout;
-	private long heartbeatLostTimeout;
-	private long jobTimerInterval;
-	private int maxScheduledAndRunningSlotsPerUser;
-	private long waitNewSlotsPerUserTimeout;
-	private int maxNewSlotsPerUser;
+	private long timerInterval;
+	private long waitNewSlotsPerUserTimeout;	
 
-	private Timer jobTimer;
+	private Timer timer;
 	private SchedulerWorkflowRuns workflowRuns = new SchedulerWorkflowRuns();
 	
 	public WorkflowScheduler(Config config) {
@@ -69,8 +56,6 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 
     public WorkflowScheduler(ServiceLocatorClient serviceLocator, AuthenticationClient authService,
 			SessionDbClient sessionDbClient, Config config) throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
-		this.authService = authService;
-		this.serviceLocator = serviceLocator;
 		this.sessionDbClient = sessionDbClient;
 		this.config = config;
 		
@@ -79,35 +64,29 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 
 	public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
     	    	
+		//FIXME add separate configs for workflows
     	this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
-    	this.waitRunnableTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT);
-    	this.scheduleTimeout = config.getLong(Config.KEY_SCHEDULER_SCHEDULE_TIMEOUT);
-    	this.heartbeatLostTimeout = config.getLong(Config.KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT);
-    	this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
-    	this.maxScheduledAndRunningSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
-    	this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
-    	this.waitNewSlotsPerUserTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_NEW_SLOTS_PER_USER_TIMEOUT);
-    	
-		String toolboxUrl = this.serviceLocator.getInternalService(Role.TOOLBOX).getUri();
-		this.toolbox = new ToolboxClientComp(toolboxUrl);
+    	this.timerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
+    	this.waitNewSlotsPerUserTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_NEW_SLOTS_PER_USER_TIMEOUT);    	
 
-    	this.sessionDbClient.subscribe(SessionDbTopicConfig.WORKFLOW_RUNS_TOPIC, this, "scheduler-workflow-listener");    	
+    	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "workflow-scheduler-job-listener");
+    	this.sessionDbClient.subscribe(SessionDbTopicConfig.WORKFLOW_RUNS_TOPIC, this, "workflow-scheduler-workflow-listener");    	
     	    	    
     	logger.info("getting unfinished workflows from the session-db");
     	getStateFromDb();    	
     	
-    	this.jobTimer = new Timer("job timer", true);
-    	this.jobTimer.schedule(new TimerTask() {
+    	this.timer = new Timer("job timer", true);
+    	this.timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
 				// catch exceptions to keep the timer running
 				try {
-					handleJobTimer();
+					handleWorkflowTimer();
 				} catch (Exception e) {
 					logger.error("error in job timer", e);
 				}
 			}
-    	}, jobTimerInterval, jobTimerInterval);
+    	}, timerInterval, timerInterval);
     	    	    	
     	logger.info("workflow scheduler is up and running");    		
     }
@@ -149,24 +128,6 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 			}			
 		}
 	}
-	
-    /**
-     * Main method.
-     * @param args
-     * @throws Exception 
-     */
-    public static void main(String[] args) throws Exception {
-    	        
-        WorkflowScheduler server = new WorkflowScheduler(new Config());
-    	try {
-    		server.startServer();
-    	} catch (Exception e) {
-    		System.err.println("scheduler startup failed, exiting");
-    		e.printStackTrace(System.err);
-    		server.close();
-    		System.exit(1);
-    	}
-    }
 
 	public void close() {
 	}
@@ -187,7 +148,7 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 	}	
 	
 	/**
-	 * React to events from the session-db
+	 * React to workflow events from the session-db
 	 * 
 	 * @param e
 	 * @param idPair
@@ -209,8 +170,7 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 					
 					// when a client adds a new workflow run, try to run it immediately
 					logger.info("received a new workflow run " + idPair + ", trying to schedule it");
-					JobSchedulingState state = workflowRuns.addNew(idPair, run.getCreatedBy());
-					schedule(idPair, state);
+					runNextJobs(idPair);
 					
 					break;
 				default:
@@ -242,12 +202,28 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 				break;
 				
 			case UPDATE:
-				Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-				if (job.getState() == JobState.)
+				JobState jobState = JobState.valueOf(e.getState());
+
+				if (jobState.isFinished()) {
+					IdPair runId = this.workflowRuns.getWorkflowRunId(e.getResourceId());
+					
+					if (runId == null) {
+						// not a workflow job
+					} else if (JobState.COMPLETED == jobState) {
+						runNextJobs(runId);
+					} else {
+						// job was unsuccesful
+						endWorkflowRun(runId, jobState, "job state " + jobState);
+					}
+				}
 				break;
 				
 			case DELETE:
+				IdPair runId = this.workflowRuns.getWorkflowRunId(e.getResourceId());
 				
+				if (runId != null) {
+					endWorkflowRun(runId, JobState.CANCELLED, "job deleted");
+				}
 				break;
 				
 			default:
@@ -259,171 +235,261 @@ public class WorkflowScheduler implements SessionEventListener, MessageHandler.W
 	/**
 	 * Timer for checking the timeouts
 	 */
-	private void handleJobTimer() {
-		synchronized (workflowRuns) {
+	private void handleWorkflowTimer() {
+		synchronized (workflowRuns) {			
 			
-			// expire waiting jobs if any comp haven't accepted it (either because of being full or missing the suitable tool)				
-			
-			for (IdPair jobIdPair : workflowRuns.getNewJobs().keySet()) {
-				JobSchedulingState jobState = workflowRuns.get(jobIdPair);
+			for (IdPair idPair : workflowRuns.getRunning().keySet()) {
+				WorkflowSchedulingState schedulingState = workflowRuns.get(idPair);
 				
-				if (jobState.isUserLimitReached()) {
-					if (jobState.getTimeSinceNew() > waitNewSlotsPerUserTimeout) {
-						workflowRuns.remove(jobIdPair);
-						expire(jobIdPair, "The job couldn't run, because you had the maximum number of jobs running. Please try again after you other jobs have completed.");
-					}
-				} else if (jobState.isRunnable()) {
-					if (jobState.getTimeSinceNew() > waitRunnableTimeout) {
-						workflowRuns.remove(jobIdPair);
-						expire(jobIdPair, "There was no computing server available to run this job, please try again later");
+				if (schedulingState.isUserLimitReached()) {
+					if (schedulingState.getTimeSinceNew() > waitNewSlotsPerUserTimeout) {
+						workflowRuns.remove(idPair);
+						expire(idPair, "The workflow couldn't run, because you had the maximum number of workflows running. Please try again after you other workflow have completed.");
 					}
 				} else {
-					if (jobState.getTimeSinceNew() > waitTimeout) {
-						workflowRuns.remove(jobIdPair);
-						expire(jobIdPair, "There was no computing server available to run this job, please inform server maintainers");
+					if (schedulingState.getTimeSinceNew() > waitTimeout) {
+						workflowRuns.remove(idPair);
+						expire(idPair, "the workflow max time reached (" + waitTimeout + " seconds)");
+					}
+				}
+			}
+		}
+	}
+	
+	private boolean udpateInputBindings(WorkflowRun run, HashMap<UUID, Dataset> sessionDatasets, HashMap<UUID, Job> sessionJobs) throws RestException {
+		synchronized (workflowRuns) {
+			
+			boolean isChanged = false;
+			//TODO fix type
+			IdPair runIdPair = new IdPair(run.getWorkflowRunIdPair().getSessionId(), run.getWorkflowRunIdPair().getWorkflowRunId());
+			
+			for (WorkflowJob workflowJob : run.getWorkflowJobs()) {
+				logger.info("job " + workflowJob.getToolId() + " has " + workflowJob.getInputs().size() + " input(s)");
+				for (WorkflowInput input : workflowJob.getInputs()) {
+					logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': try to bind");
+					if (input.getDatasetId() != null) {
+						// input is already bound to dataset
+						logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': is bound to dataset " + input.getDatasetId()); 
+						Dataset dataset = sessionDatasets.get(UUID.fromString(input.getDatasetId()));
+						if (dataset == null) {
+							expire(runIdPair, "job " + workflowJob.getToolId() + " input '" + input.getInputId() + "' is bound to non existing dataset " + input.getDatasetId());
+						} else {
+							logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "':  bound to dataset " + input.getDatasetId());
+						}
+					
+					} else if (input.getSourceWorkflowJobId() != null) {
+						
+						Optional<WorkflowJob> sourceWorkflowJobOptional = run.getWorkflowJobs().stream().filter(j -> UUID.fromString(input.getSourceWorkflowJobId()).equals(j.getWorkflowJobId())).findFirst();
+						
+						if (sourceWorkflowJobOptional.isEmpty()) {
+							logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': waiting workflow job " + input.getSourceWorkflowJobId() + " which doesn't exist");
+						} else {
+						
+							WorkflowJob sourceWorkflowJob = sourceWorkflowJobOptional.get();
+							if (sourceWorkflowJob.getJobId() != null) {
+							
+								logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': is bound to job " + sourceWorkflowJob.getJobId() + " output '" + input.getSourceJobOutputId() + "'");
+								Job sourceJob = sessionJobs.get(sourceWorkflowJob.getJobId());
+								if (sourceJob == null) {
+									logger.error("job " + sourceWorkflowJob.getJobId() + " is not found from the session");
+								} else if (sourceJob.getState() == JobState.COMPLETED) {
+									//FIXME save and use sourceJobOutputId
+		//							List<Dataset> sourceDatasets = sessionDatasets.values().stream().filter(d -> input.getSourceJobOutputId().equals(d.getSourceJobOutputId()))
+									List<Dataset> sourceDatasets = sessionDatasets.values().stream()
+											.filter(d -> sourceJob.getJobId().equals(d.getSourceJob()) && input.getSourceJobOutputId().equals(d.getName()))
+											.collect(Collectors.toList());
+									
+									if (sourceDatasets.isEmpty()) {
+										expire(runIdPair, "the job " + sourceJob.getToolId() + " has completed, but its output '" + input.getSourceJobOutputId() + "' dataset cannot be found");
+									} else if (sourceDatasets.size() > 1) {
+										expire(runIdPair, "the job " + sourceJob.getToolId() + " has more than one datasets for output '" + input.getSourceJobOutputId() + "'");
+									} else {
+										// the job output is ready, we can bind the dataset
+										Dataset dataset = sourceDatasets.get(0);
+										logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': bind dataset " + dataset.getName());
+										input.setDatasetId(dataset.getDatasetId().toString());
+										input.setDisplayName(dataset.getName());
+										isChanged = true;
+									}
+								} else {
+									logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': waiting for job " + sourceJob.getToolId() + " (" + sourceJob.getState() + ")");
+								}
+							} else {
+								logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': waiting for workflow job " + input.getSourceWorkflowJobId() + " to start");
+							}
+						}
+					} else {
+						expire(runIdPair, "job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': is not bound to anything");
 					}
 				}
 			}
 			
-			// if a job isn't scheduled, move it back to NEW state for trying again later			
-			
-			for (IdPair jobIdPair : workflowRuns.getScheduledJobs().keySet()) {
-				if (workflowRuns.get(jobIdPair).getTimeSinceScheduled() > scheduleTimeout) {
-					workflowRuns.get(jobIdPair).removeScheduled();
-				}
-			}
-			
-			// if the the running job hasn't sent heartbeats for some time, something unexpected has happened for the
-			// comp and the job is lost
-			
-			for (IdPair jobIdPair : workflowRuns.getRunningJobs().keySet()) {
-				if (workflowRuns.get(jobIdPair).getTimeSinceLastHeartbeat() > heartbeatLostTimeout) {
-					workflowRuns.remove(jobIdPair);
-					expire(jobIdPair, "heartbeat lost");
-				}
-			}
+			return isChanged;
 		}
 	}
 	
-	private boolean schedule(IdPair idPair, JobSchedulingState jobState) {
+	private List<Job> getJobs(WorkflowRun run, HashMap<UUID, Job> sessionJobs) throws RestException {
+		
+		return run.getWorkflowJobs().stream()
+			.filter(workflowJob -> workflowJob.getJobId() != null)
+			.map(workflowJob -> sessionJobs.get(workflowJob.getJobId()))
+			.filter(job -> job != null)
+			.collect(Collectors.toList());
+	}
+	
+	private List<WorkflowJob> getUnstartedJobs(WorkflowRun run) throws RestException {
+		
+		return run.getWorkflowJobs().stream()
+			.filter(workflowJob -> workflowJob.getJobId() == null)
+			.collect(Collectors.toList());
+	}
+	
+	/**
+	 * Get jobs that haven't started yet but are ready to run
+	 * 
+	 * @param run
+	 * @param schedulingState
+	 * @return
+	 * @throws RestException
+	 */
+	private List<WorkflowJob> getOperableJobs(WorkflowRun run) throws RestException {
+					
+		List<WorkflowJob> operableJobs = this.getUnstartedJobs(run).stream()
+			.filter(workflowJob -> {
+			
+			List<WorkflowInput> readyInputs = workflowJob.getInputs().stream()
+				.filter(input -> input.getDatasetId() != null)
+				.collect(Collectors.toList());
+			
+			// check if all inputs are ready in this job
+			return readyInputs.size() == workflowJob.getInputs().size();
+			
+		}).collect(Collectors.toList());
+		
+		logger.info("the workflow has " + run.getWorkflowJobs().size() + " jobs, " + operableJobs.size() + " can be started now");
+		
+		return operableJobs;
+	}
+	
+	private void runWorkflowJob(WorkflowRun run, WorkflowJob workflowJob) throws RestException {
 		synchronized (workflowRuns) {
-			
-			WorkflowRun run = sessionDbClient.getWorkflowRun(idPair.getSessionId(), idPair.getJobId());
-			
-			WorkflowPlan plan = sessionDbClient.getWorkflowPlan(idPair.getSessionId(), run.getWorkflowPlanId());
-			
-			if (run.getCurrentWorkflowJobPlanId() != null) {
-				this.endJob(idPair, JobState.ERROR, "The workflow isn't new");
-				return false;
-			}
-			
-			if (plan.getWorkflowJobPlans().isEmpty()) {
-				this.endJob(idPair, JobState.ERROR, "The workflow is empty");
-				return false;
-			}
-			
-			WorkflowJobPlan jobPlan = plan.getWorkflowJobPlans().get(0);
-			
-			run.setCurrentWorkflowJobPlanId(jobPlan.getWorkflowJobPlanId());
-			
+												
 			Job job = new Job();
 			
+			// Convert WorkflowInputs to Inputs
+			List<Input> jobInputs = workflowJob.getInputs().stream()
+					.map(wi -> wi.deepCopy(new Input()))
+					.collect(Collectors.toList());
+			
 			job.setCreatedBy(run.getCreatedBy());
-			job.setInputs(jobPlan.getInputs());
-			job.setParameters(jobPlan.getParameters());
-			job.setMetadataFiles(jobPlan.getMetadataFiles());
-			job.setModule(jobPlan.getModule());
+			job.setInputs(jobInputs);
+			job.setParameters(workflowJob.getParameters());
+			job.setMetadataFiles(workflowJob.getMetadataFiles());
+			job.setModule(workflowJob.getModule());
 			job.setState(JobState.NEW);
-			job.setToolCategory(jobPlan.getToolCategory());
-			job.setToolId(jobPlan.getToolId());
-			job.setToolName(jobPlan.getToolName());
+			job.setToolCategory(workflowJob.getToolCategory());
+			job.setToolId(workflowJob.getToolId());
+			job.setToolName(workflowJob.getToolName());
 			
-			UUID jobId = sessionDbClient.createJob(idPair.getSessionId(), job);
+			UUID jobId = sessionDbClient.createJob(run.getSessionId(), job);
+						
+			//TODO simplify mapping of jobId to runId
+			IdPair runIdPair = new IdPair(run.getWorkflowRunIdPair().getSessionId(), run.getWorkflowRunIdPair().getWorkflowRunId());
+			WorkflowSchedulingState schedulingState = workflowRuns.addNew(runIdPair, run.getCreatedBy());			
+			schedulingState.setCurrentJobId(jobId);			
 			
-			//FXIME the name should be currentJobId
-			run.setCurrentJobPlanId(jobId.toString());
-			
-			sessionDbClient.updateWorkflowRun(run);
-					
-			return true;
+			workflowJob.setJobId(jobId);
 		}
-	}
-
-	/**
-	 * Move from NEW to EXPIRED_WAITING
-	 * 
-	 * @param jobId
-	 * @param reason
-	 */
-	private void expire(IdPair jobId, String reason) {
-		logger.warn("max wait time reached for job " + jobId);
-		endJob(jobId, JobState.EXPIRED_WAITING, reason);
 	}
 	
-	/**
-	 * Set dbState in the session-db
-	 * 
-	 * This should be used only when anything else isn't updating the job, e.g. NEW or EXPIRED_WAITING jobs.
-	 * Job's end time is set to current time.
-	 * 
-	 * @param jobId
-	 * @param reason
-	 */
-	private void endJob(IdPair jobId, JobState jobState, String reason) {
-		try {			
-			Job job = sessionDbClient.getJob(jobId.getSessionId(), jobId.getJobId());
-			job.setEndTime(Instant.now());
-			job.setState(jobState);
-			job.setStateDetail("Job state " + jobState + " (" + reason + ")");
-			sessionDbClient.updateJob(jobId.getSessionId(), job);
-		} catch (RestException e) {
-			logger.error("could not set an old job " + jobId + " to " + jobState, e);
+	private void runNextJobs(IdPair runIdPair) throws RestException {
+		synchronized (workflowRuns) {
+			
+			WorkflowRun run = sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getJobId());
+			
+			HashMap<UUID, Dataset> sessionDatasets = sessionDbClient.getDatasets(runIdPair.getSessionId());
+			HashMap<UUID, Job> sessionJobs = sessionDbClient.getJobs(runIdPair.getSessionId());
+						
+			boolean isChanged = this.udpateInputBindings(run, sessionDatasets, sessionJobs);
+			
+			List<WorkflowJob> operableJobs = this.getOperableJobs(run);
+			List<Job> unfinishedJobs = this.getJobs(run, sessionJobs).stream()
+					.filter(job -> !job.getState().isFinished())
+					.collect(Collectors.toList());
+			
+			List<Job> completedJobs = this.getJobs(run, sessionJobs).stream()
+					.filter(job -> job.getState() == JobState.COMPLETED)
+					.collect(Collectors.toList());
+			
+			for (WorkflowJob job : operableJobs) {
+				// adds jobIds the workflowJob
+				this.runWorkflowJob(run, job);
+				isChanged = true;
+			}
+			
+			if (run.getState() == JobState.NEW) {
+				run.setState(JobState.RUNNING);
+				isChanged = true;
+			}
+			
+			if (completedJobs.size() == run.getWorkflowJobs().size()) {
+				run.setState(JobState.COMPLETED);
+				isChanged = true;
+			} else if (operableJobs.isEmpty() && unfinishedJobs.isEmpty()) {
+				run.setState(JobState.FAILED);
+				run.setStateDetail("completed jobs didn't produce the files that are needed for the remaining tools, "
+						+ completedJobs.size() + "/" + run.getWorkflowJobs().size() + " jobs completed");
+				isChanged = true;
+			}
+				
+			
+			if (isChanged) { 
+				// save updates to session-db for client  
+				sessionDbClient.updateWorkflowRun(run.getSessionId(), run);
+			}
 		}
 	}
 
-	/**
-	 * The job has been cancelled or deleted
-	 * 
-	 * Inform the comps to cancel the job and remove it from the scheduler. By doing this here
-	 * in the scheduler we can handle both waiting and running jobs.
-	 * 
-	 * @param jobId
-	 */
-	private void cancel(IdPair jobId) {
+	private void expire(IdPair idPair, String reason) {
+		logger.warn("workflow " + idPair + " expired: " + reason);
+		endWorkflowRun(idPair, JobState.EXPIRED_WAITING, reason);
+	}
+	
+	private void endWorkflowRun(IdPair idPair, JobState state, String reason) {
+		try {			
+			WorkflowRun run = sessionDbClient.getWorkflowRun(idPair.getSessionId(), idPair.getJobId());
+			run.setEndTime(Instant.now());
+			run.setState(state);
+			run.setStateDetail(reason);
+			sessionDbClient.updateWorkflowRun(idPair.getSessionId(), run);
+		} catch (RestException e) {
+			logger.error("could not set a workflow " + idPair + " to " + state, e);
+		}
+	}
+
+	private void cancel(IdPair idPair) throws RestException {
 		synchronized (workflowRuns) {
 			
-			logger.info("cancel job " + jobId);			
-			workflowRuns.remove(jobId);
+			logger.info("cancel workflow " + idPair);			
+			workflowRuns.remove(idPair);
 			
-			JobCommand cmd = new JobCommand(jobId.getSessionId(), jobId.getJobId(), null, Command.CANCEL);
-			pubSubServer.publish(cmd);
+			WorkflowSchedulingState schedulingState = this.workflowRuns.get(idPair);
+					
+			if (schedulingState == null) {
+				logger.warn("scheduling state not found for workflow " + idPair);
+				return;
+			}
+			
+			UUID jobId = schedulingState.getCurrentJobId();
+			if (jobId != null) {
+				Job job = this.sessionDbClient.getJob(idPair.getSessionId(), jobId);
+				job.setState(JobState.CANCELLED);
+				job.setStateDetail("workflow cancelled");
+				this.sessionDbClient.updateJob(idPair.getSessionId(), job);
+			}
 		}
 	}
 		
-	/**
-	 * Get all waiting jobs and try to schedule them
-	 * 
-	 * We have to send all of them, because we can't know what kind of jobs are accepted by different comps.
-	 * 
-	 * The oldest jobs jobs are sent first although the previous failed attempts have most likely already
-	 * reseted the timestamp.
-	 * @throws RestException 
-	 */
-	private void scheduleNewJobs() {		
-		List<IdPair> newJobs = workflowRuns.getNewJobs().entrySet().stream()
-			.sorted((e1, e2) -> e1.getValue().getNewTimestamp().compareTo(e2.getValue().getNewTimestamp()))
-			.map(e -> e.getKey())
-			.collect(Collectors.toList());			
-	
-		if (newJobs.size() > 0) {
-			logger.info("rescheduling " + newJobs.size() + " waiting jobs (" + workflowRuns.getScheduledJobs().size() + " still being scheduled");
-			for (IdPair idPair : newJobs) {
-				JobSchedulingState jobState = workflowRuns.get(idPair);
-				schedule(idPair, jobState);				
-			}
-		}
-	}
-
 	/**
 	 * First 4 letters of the UUID for log messages 
 	 * 

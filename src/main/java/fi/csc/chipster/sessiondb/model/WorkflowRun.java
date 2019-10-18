@@ -1,14 +1,19 @@
 package fi.csc.chipster.sessiondb.model;
 
-import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
 import javax.persistence.Index;
+import javax.persistence.Lob;
 import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import org.hibernate.annotations.Type;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
@@ -23,14 +28,17 @@ public class WorkflowRun {
 	@JsonUnwrapped
 	private WorkflowRunIdPair workflowRunIdPair;
 
-	private String workflowPlanId;
-	private String currentWorkflowJobPlanId;
-	private String currentJobPlanId;
 	private JobState state;
+	@Lob
+	private String stateDetail;
 	private Instant created;
 	private Instant endTime;
 	private String createdBy;
 	private String name;
+	
+	@Column
+	@Type(type = WorkflowJob.WORKFLOW_JOB_LIST_JSON_TYPE)
+	private List<WorkflowJob> workflowJobs = new ArrayList<>();
 	
 	public UUID getWorkflowRunId() {
 		if (this.workflowRunIdPair == null) {
@@ -39,24 +47,6 @@ public class WorkflowRun {
 		return this.workflowRunIdPair.getWorkflowRunId();
 	}
 	
-	public String getWorkflowPlanId() {
-		return workflowPlanId;
-	}
-	public void setWorkflowPlanId(String workflowPlanId) {
-		this.workflowPlanId = workflowPlanId;
-	}
-	public String getCurrentWorkflowJobPlanId() {
-		return currentWorkflowJobPlanId;
-	}
-	public void setCurrentWorkflowJobPlanId(String currentWorkflowJobPlanId) {
-		this.currentWorkflowJobPlanId = currentWorkflowJobPlanId;
-	}
-	public String getCurrentJobPlanId() {
-		return currentJobPlanId;
-	}
-	public void setCurrentJobPlanId(String currentJobPlanId) {
-		this.currentJobPlanId = currentJobPlanId;
-	}
 	public JobState getState() {
 		return state;
 	}
@@ -96,7 +86,7 @@ public class WorkflowRun {
 		this.setWorkflowRunIdPair(new WorkflowRunIdPair(sessionId, runId));
 	}
 
-	public Serializable getWorkflowRunIdPair() {
+	public WorkflowRunIdPair getWorkflowRunIdPair() {
 		return this.workflowRunIdPair;
 	}
 
@@ -106,5 +96,21 @@ public class WorkflowRun {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public List<WorkflowJob> getWorkflowJobs() {
+		return workflowJobs;
+	}
+
+	public void setWorkflowJobs(List<WorkflowJob> workflowJobs) {
+		this.workflowJobs = workflowJobs;
+	}
+
+	public String getStateDetail() {
+		return stateDetail;
+	}
+
+	public void setStateDetail(String stateDetail) {
+		this.stateDetail = stateDetail;
 	}
 }

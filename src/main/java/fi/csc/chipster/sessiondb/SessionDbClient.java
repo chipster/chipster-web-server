@@ -38,6 +38,7 @@ import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
+import fi.csc.chipster.sessiondb.model.WorkflowPlan;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
@@ -158,6 +159,10 @@ public class SessionDbClient {
 		return getSessionTarget(sessionId).path("workflows").path("runs");
 	}
 	
+	private WebTarget getWorkflowPlanTarget(UUID sessionId) {
+		return getSessionTarget(sessionId).path("workflows").path("plans");
+	}
+	
 	private WebTarget getJobTarget(UUID sessionId, UUID jobId) {
 		return getJobsTarget(sessionId).path(jobId.toString());
 	}
@@ -166,6 +171,10 @@ public class SessionDbClient {
 		return getWorkflowRunTarget(sessionId).path(runId.toString());
 	}
 	
+	private WebTarget getWorkflowPlanTarget(UUID sessionId, String workflowPlanId) {
+		return getWorkflowPlanTarget(sessionId).path(workflowPlanId.toString());
+	}
+
 	private WebTarget getRulesTarget(UUID sessionId) {
 		return getSessionTarget(sessionId).path("rules");
 	}
@@ -325,6 +334,11 @@ public class SessionDbClient {
 		return RestMethods.get(getWorkflowRunTarget(sessionId, runId), WorkflowRun.class);	
 	}
 	
+
+	public WorkflowPlan getWorkflowPlan(UUID sessionId, String workflowPlanId) throws RestException {
+		return RestMethods.get(getWorkflowPlanTarget(sessionId, workflowPlanId), WorkflowPlan.class);
+	}
+
 	public List<IdPair> getJobs(JobState state) throws RestException {
 		return RestMethods.getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
@@ -394,6 +408,10 @@ public class SessionDbClient {
 	
 	public void updateJob(UUID sessionId, Job job) throws RestException {
 		RestMethods.put(getJobTarget(sessionId, job.getJobId()), job);
+	}
+	
+	public void updateWorkflowRun(UUID sessionId, WorkflowRun run) throws RestException {
+		RestMethods.put(getWorkflowRunTarget(sessionId, run.getWorkflowRunId()), run);
 	}
 	
 	public void deleteJob(UUID sessionId, UUID jobId) throws RestException {

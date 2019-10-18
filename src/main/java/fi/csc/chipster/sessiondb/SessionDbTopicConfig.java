@@ -26,7 +26,7 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 	
 	public static final String JOBS_TOPIC = "jobs";
 	public static final String FILES_TOPIC = "files";
-	public static final String AUTHORIZATIONS_TOPIC = "authorizations";
+	public static final String RULES_TOPIC = "authorizations";
 	public static final String DATASETS_TOPIC = "datasets";
 	public static final String SESSIONS_TOPIC = "sessions";
 	public static final String WORKFLOW_RUNS_TOPIC = "workflow-runs";
@@ -45,10 +45,10 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 	public boolean isAuthorized(final AuthPrincipal principal, String topic) {
 		logger.debug("check topic authorization for topic " + topic);
 		
-		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic)) {
+		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic) || WORKFLOW_RUNS_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SERVER);
 			
-		} else if (DATASETS_TOPIC.equals(topic) || AUTHORIZATIONS_TOPIC.equals(topic) || SESSIONS_TOPIC.equals(topic)) {
+		} else if (DATASETS_TOPIC.equals(topic) || RULES_TOPIC.equals(topic) || SESSIONS_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SESSION_DB);
 			
 		} else {  
@@ -96,7 +96,7 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 		if (JOBS_TOPIC.equals(topic) || 
 				FILES_TOPIC.equals(topic) || 
 				DATASETS_TOPIC.equals(topic) || 
-				AUTHORIZATIONS_TOPIC.equals(topic) || 
+				RULES_TOPIC.equals(topic) || 
 				SESSIONS_TOPIC.equals(topic)) {			
 			
 			return TOPIC_GROUP_SERVER;

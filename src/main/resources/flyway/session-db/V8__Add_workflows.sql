@@ -5,7 +5,7 @@
         name varchar(255),
         notes oid,
         originalDuration int8,
-        workflowJobPlans jsonb,
+        workflowJobs jsonb,
         primary key (sessionId, workflowPlanId)
     );
 
@@ -13,14 +13,15 @@
        sessionId uuid not null,
         workflowRunId uuid not null,
         created timestamp,
-        createdBy varchar(255),
-        currentJobPlanId varchar(255),
-        currentWorkflowJobPlanId varchar(255),
+        createdBy varchar(255),    
         endTime timestamp,
+        name varchar(255),
         state int4,
-        workflowPlanId varchar(255),
+        workflowJobs jsonb,
         primary key (sessionId, workflowRunId)
     );
 
     create index workflowplan_sessionid_index on WorkflowPlan (sessionId);
     create index workflowrun_sessionid_index on WorkflowRun (sessionId);
+
+    alter table Dataset add column sourceJobOutputId varchar(255);

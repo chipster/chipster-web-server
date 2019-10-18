@@ -41,7 +41,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
-import fi.csc.chipster.sessiondb.model.WorkflowJobPlan;
+import fi.csc.chipster.sessiondb.model.WorkflowJob;
 import fi.csc.chipster.sessiondb.model.WorkflowPlan;
 import fi.csc.chipster.sessiondb.model.WorkflowPlanIdPair;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
@@ -244,9 +244,9 @@ public class SessionWorkflowResource {
 				planId = RestUtils.createUUID();
 			}
 			
-			for (WorkflowJobPlan jobPlan : plan.getWorkflowJobPlans()) {
-				if (jobPlan.getWorkflowJobPlanId() == null) {
-					jobPlan.setWorkflowJobPlanId(RestUtils.createUUID());
+			for (WorkflowJob jobPlan : plan.getWorkflowJobs()) {
+				if (jobPlan.getWorkflowJobId() == null) {
+					jobPlan.setWorkflowJobId(RestUtils.createUUID());
 				}
 			}
 			

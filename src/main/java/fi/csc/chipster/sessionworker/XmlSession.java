@@ -23,7 +23,6 @@ import java.util.zip.ZipInputStream;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.xml.bind.JAXBException;
-import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -149,7 +148,7 @@ public class XmlSession {
 			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap);
 
 			return new ExtractedSession(session, datasetMap, jobMap);
-		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
+		} catch (IOException | RestException | SAXException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
 	}
@@ -315,7 +314,7 @@ public class XmlSession {
 	}
 
 	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId)
-			throws IOException, RestException, SAXException, ParserConfigurationException {
+			throws IOException, RestException, SAXException {
 		try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
 			ZipEntry entry = zipInputStream.getNextEntry();
 

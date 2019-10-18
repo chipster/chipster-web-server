@@ -35,9 +35,6 @@ public class JavascriptService {
 			throw new IllegalConfigurationException("typescript project " + serviceRootPath + " not found");
 		}
 
-		System.out.println("Remove possible existing node_modules");
-		runAndWait("rm", "-rf", "node_modules");
-
 		System.out.println("Install dependencies");
 		runAndWait("npm", "ci");
 

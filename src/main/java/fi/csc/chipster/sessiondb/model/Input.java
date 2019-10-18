@@ -47,12 +47,15 @@ public class Input implements DeepCopyable {
 	}
 	@Override
 	public Object deepCopy() {
-		Input i = new Input();
-		i.inputId = inputId;
-		i.displayName = displayName;
-		i.description = description;
-		i.type = type;
-		i.datasetId = datasetId;
+		return deepCopy(new Input());
+		
+	}
+	public <T extends Input> T deepCopy(T i) {
+		i.setInputId(inputId);
+		i.setDisplayName(displayName);
+		i.setDescription(description);
+		i.setType(type);
+		i.setDatasetId(datasetId);
 		return i;
 	}
 }

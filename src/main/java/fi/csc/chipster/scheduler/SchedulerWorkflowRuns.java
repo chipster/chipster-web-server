@@ -2,22 +2,24 @@ package fi.csc.chipster.scheduler;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class SchedulerWorkflowRuns {
 	
-	HashMap<IdPair, JobSchedulingState> runs = new HashMap<>();
+	HashMap<IdPair, WorkflowSchedulingState> runs = new HashMap<>();
 	
-	public Map<IdPair, JobSchedulingState> getRunning() {
-		Map<IdPair, JobSchedulingState> runningJobs = runs.entrySet().stream()
+	public Map<IdPair, WorkflowSchedulingState> getRunning() {
+		Map<IdPair, WorkflowSchedulingState> runningJobs = runs.entrySet().stream()
 				.filter(entry -> entry.getValue().isRunning())
 				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 		return runningJobs;
 	}
 
-	public Map<IdPair, JobSchedulingState> getNew() {
-		Map<IdPair, JobSchedulingState> newJobs = runs.entrySet().stream()
+	public Map<IdPair, WorkflowSchedulingState> getNew() {
+		Map<IdPair, WorkflowSchedulingState> newJobs = runs.entrySet().stream()
 				.filter(entry -> entry.getValue().isNew())
 				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 		return newJobs;
@@ -27,20 +29,19 @@ public class SchedulerWorkflowRuns {
 		runs.remove(jobId);	
 	}
 
-	public JobSchedulingState addNew(IdPair idPair, String userId) {
-		JobSchedulingState jobState = new JobSchedulingState(userId, -1);
-		runs.put(idPair, jobState);
-		return jobState;
+	public WorkflowSchedulingState addNew(IdPair idPair, String userId) {
+		WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(userId);
+		runs.put(idPair, schedulingState);
+		return schedulingState;
 	}
 	
 	public void addRunning(IdPair idPair, String userId) {
-		JobSchedulingState job = new JobSchedulingState(userId, -1);
-		job.setScheduleTimestamp();
-		job.setRunningTimestamp();
-		runs.put(idPair, job);
+		WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(userId);
+		schedulingState.setRunningTimestamp();
+		runs.put(idPair, schedulingState);
 	}
 
-	public JobSchedulingState get(IdPair jobIdPair) {
+	public WorkflowSchedulingState get(IdPair jobIdPair) {
 		return runs.get(jobIdPair);
 	}
 
@@ -48,5 +49,16 @@ public class SchedulerWorkflowRuns {
 		return runs.keySet().stream()
 				.map(p -> p.getJobId())
 				.anyMatch(id -> jobId.equals(id));
+	}
+
+	public IdPair getWorkflowRunId(UUID jobId) {
+		Optional<Entry<IdPair, WorkflowSchedulingState>> optional = runs.entrySet().stream()
+				.filter(entry -> jobId.equals(entry.getValue().getCurrentJobId()))
+				.findAny();
+		
+		if (optional.isPresent()) {
+			return optional.get().getKey();
+		}
+		return null;
 	}
 }

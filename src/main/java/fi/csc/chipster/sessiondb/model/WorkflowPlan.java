@@ -34,8 +34,8 @@ public class WorkflowPlan {
 	private String notes;
 	
 	@Column
-	@Type(type = WorkflowJobPlan.WORKFLOWJOBPLAN_LIST_JSON_TYPE)
-	private List<WorkflowJobPlan> workflowJobPlans = new ArrayList<>();
+	@Type(type = WorkflowJob.WORKFLOW_JOB_LIST_JSON_TYPE)
+	private List<WorkflowJob> workflowJobs = new ArrayList<>();
 
 	public UUID getWorkflowPlanId() {
 		if (workflowPlanIdPair == null) {
@@ -60,12 +60,12 @@ public class WorkflowPlan {
 		this.created = created;
 	}
 
-	public List<WorkflowJobPlan> getWorkflowJobPlans() {
-		return workflowJobPlans;
+	public List<WorkflowJob> getWorkflowJobs() {
+		return workflowJobs;
 	}
 
-	public void setWorkflowJobPlans(List<WorkflowJobPlan> workflowJobPlans) {
-		this.workflowJobPlans = workflowJobPlans;
+	public void setWorkflowJobs(List<WorkflowJob> jobs) {
+		this.workflowJobs = jobs;
 	}
 
 	public Duration getOriginalDuration() {

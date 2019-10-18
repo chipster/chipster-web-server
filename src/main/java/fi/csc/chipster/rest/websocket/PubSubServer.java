@@ -108,7 +108,7 @@ public class PubSubServer implements StatusSource {
         server.setHandler(context);
 		
         // Initialize javax.websocket layer
-        ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
+        ServerContainer wscontainer = WebSocketServerContainerInitializer.initialize(context);
         
         // add this instance to user properties, so that we can call it from the PubSubEndpoint
         ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, "/" + path).build();

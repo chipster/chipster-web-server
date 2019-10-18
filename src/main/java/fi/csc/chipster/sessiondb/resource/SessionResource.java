@@ -400,8 +400,11 @@ public class SessionResource {
 				// global topics for servers
 				if (ResourceType.JOB == obj.getResourceType()) {
 					events.publish(SessionDbTopicConfig.JOBS_TOPIC, obj);
+				} else if (ResourceType.WORKFLOW_RUN == obj.getResourceType()) {
+					events.publish(SessionDbTopicConfig.WORKFLOW_RUNS_TOPIC, obj);
 				}
-				// global AUTHORIZATIONS_TOPIC and SESSIONS_TOPIC and DATASETS_TOPIC hasn't been needed yet
+				
+				// global RULES_TOPIC and SESSIONS_TOPIC and DATASETS_TOPIC hasn't been needed yet
 			}				
 		});	
 	}

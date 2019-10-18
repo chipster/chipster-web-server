@@ -39,6 +39,7 @@ public class Dataset {
 	private Integer x;
 	private Integer y;
 	private UUID sourceJob;
+	private String sourceJobOutputId;
 	private Instant created;
 
 	@ManyToOne
@@ -143,6 +144,14 @@ public class Dataset {
 
 	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
 		this.metadataFiles = metadataFiles;
+	}
+
+	public String getSourceJobOutputId() {
+		return sourceJobOutputId;
+	}
+
+	public void setSourceJobOutputId(String sourceJobOutputId) {
+		this.sourceJobOutputId = sourceJobOutputId;
 	}
 
 }
