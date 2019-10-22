@@ -78,7 +78,7 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 
 	@Override
 	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file,
-			CopyProgressListener progressListener, String datsetName, boolean isMetaOutput, File phenodataFile)
+			CopyProgressListener progressListener, String datsetName, boolean isMetaOutput, File phenodataFile, String jobOutputId)
 			throws FileBrokerException, IOException {
 
 		if (!file.exists()) {
@@ -105,6 +105,7 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 
 		Dataset dataset = new Dataset();
 		dataset.setSourceJob(jobId);
+		dataset.setSourceJobOutputId(jobOutputId);
 		dataset.setName(datsetName);
 		dataset.setMetadataFiles(metadataFiles);
 

@@ -40,6 +40,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.model.WorkflowPlan;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
+import fi.csc.chipster.sessiondb.model.WorkflowRunIdPair;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
@@ -343,8 +344,8 @@ public class SessionDbClient {
 		return RestMethods.getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
-	public List<IdPair> getWorkflowRuns(JobState state) throws RestException {
-		return RestMethods.getList(getSessionDbTarget().path("workflows").path("runs").queryParam("state", state.toString()), IdPair.class);
+	public List<WorkflowRunIdPair> getWorkflowRuns(JobState state) throws RestException {
+		return RestMethods.getList(getSessionDbTarget().path("workflows").path("runs").queryParam("state", state.toString()), WorkflowRunIdPair.class);
 	}
 	
 	public String createSessionToken(UUID sessionId, Integer validSeconds) throws RestException {

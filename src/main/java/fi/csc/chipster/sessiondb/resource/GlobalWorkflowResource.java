@@ -20,8 +20,8 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
+import fi.csc.chipster.sessiondb.model.WorkflowRunIdPair;
 import fi.csc.microarray.messaging.JobState;
 
 @Path("workflows")
@@ -59,7 +59,7 @@ public class GlobalWorkflowResource {
 			
 			// Convert to IdPairs, because the Job JSON doesn't include the sessionId
 			// update: it does now, but is thisidPair list still a good concise format?
-			List<IdPair> idPairs = runs.stream().map(run -> new IdPair(run.getSessionId(), run.getWorkflowRunId()))
+			List<WorkflowRunIdPair> idPairs = runs.stream().map(run -> new WorkflowRunIdPair(run.getSessionId(), run.getWorkflowRunId()))
 					.collect(Collectors.toList());
 			
 			return Response.ok(idPairs).build();

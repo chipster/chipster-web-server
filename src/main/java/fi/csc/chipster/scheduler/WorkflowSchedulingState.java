@@ -2,6 +2,8 @@ package fi.csc.chipster.scheduler;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 public class WorkflowSchedulingState {
@@ -10,7 +12,7 @@ public class WorkflowSchedulingState {
 		private Instant runningTimestamp;
 		private String userId;
 		private Instant userLimitReachedTimestamp;
-		private UUID currentJobId;
+		private Set<UUID> jobIds = new HashSet<UUID>();
 		
 		public WorkflowSchedulingState(String userId) {
 			setNewTimestamp();
@@ -26,9 +28,11 @@ public class WorkflowSchedulingState {
 				this.newTimestamp = Instant.now();
 			}
 		}
+		
 		public Instant getRunningTimestamp() {
 			return runningTimestamp;
 		}
+		
 		public void setRunningTimestamp() {
 			this.runningTimestamp = Instant.now();
 		}		
@@ -49,10 +53,6 @@ public class WorkflowSchedulingState {
 			return newTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
 		}
 		
-		public long getTimeSinceLastHeartbeat() {
-			return runningTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
-		}
-		
 		public boolean isUserLimitReached() {
 			return userLimitReachedTimestamp != null;
 		}
@@ -61,15 +61,19 @@ public class WorkflowSchedulingState {
 			return userId;
 		}
 
-		public UUID getCurrentJobId() {
-			return currentJobId;
-		}
-
-		public void setCurrentJobId(UUID currentJobId) {
-			this.currentJobId = currentJobId;
+		public boolean putJobId(UUID jobId) {
+			return jobIds.add(jobId);
 		}
 		
-		public boolean isNew() {
-			return runningTimestamp == null;
+		public boolean containsJobId(UUID jobId) {
+			return jobIds.contains(jobId);
+		}
+
+		public boolean removeJobId(UUID jobId) {
+			return jobIds.remove(jobId);
+		}
+
+		public Set<UUID> getJobIds() {
+			return jobIds;
 		}
 	}

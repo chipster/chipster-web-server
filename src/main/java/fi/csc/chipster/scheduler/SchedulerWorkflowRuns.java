@@ -1,63 +1,62 @@
 package fi.csc.chipster.scheduler;
 
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import fi.csc.chipster.sessiondb.model.WorkflowRunIdPair;
+
 public class SchedulerWorkflowRuns {
 	
-	HashMap<IdPair, WorkflowSchedulingState> runs = new HashMap<>();
+	HashMap<WorkflowRunIdPair, WorkflowSchedulingState> runs = new HashMap<>();
 	
-	public Map<IdPair, WorkflowSchedulingState> getRunning() {
-		Map<IdPair, WorkflowSchedulingState> runningJobs = runs.entrySet().stream()
-				.filter(entry -> entry.getValue().isRunning())
-				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-		return runningJobs;
+	public Set<WorkflowRunIdPair> getRunning() {
+		return runs.entrySet().stream()
+			.filter(entry -> entry.getValue().isRunning())
+			.map(entry -> entry.getKey())
+			.collect(Collectors.toSet());
 	}
 
-	public Map<IdPair, WorkflowSchedulingState> getNew() {
-		Map<IdPair, WorkflowSchedulingState> newJobs = runs.entrySet().stream()
-				.filter(entry -> entry.getValue().isNew())
-				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-		return newJobs;
+	public Set<WorkflowRunIdPair> getNew() {
+		return runs.entrySet().stream()
+				.filter(entry -> !entry.getValue().isRunning())
+				.map(entry -> entry.getKey())
+				.collect(Collectors.toSet());
 	}	
 
-	public void remove(IdPair jobId) {
-		runs.remove(jobId);	
+	public WorkflowSchedulingState remove(WorkflowRunIdPair runIdPair) {
+		return runs.remove(runIdPair);	
 	}
-
-	public WorkflowSchedulingState addNew(IdPair idPair, String userId) {
-		WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(userId);
-		runs.put(idPair, schedulingState);
-		return schedulingState;
-	}
-	
-	public void addRunning(IdPair idPair, String userId) {
-		WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(userId);
-		schedulingState.setRunningTimestamp();
-		runs.put(idPair, schedulingState);
-	}
-
-	public WorkflowSchedulingState get(IdPair jobIdPair) {
-		return runs.get(jobIdPair);
-	}
-
-	public boolean contains(UUID jobId) {
-		return runs.keySet().stream()
-				.map(p -> p.getJobId())
-				.anyMatch(id -> jobId.equals(id));
-	}
-
-	public IdPair getWorkflowRunId(UUID jobId) {
-		Optional<Entry<IdPair, WorkflowSchedulingState>> optional = runs.entrySet().stream()
-				.filter(entry -> jobId.equals(entry.getValue().getCurrentJobId()))
-				.findAny();
 		
-		if (optional.isPresent()) {
-			return optional.get().getKey();
+	public void put(WorkflowRunIdPair runIdPair, WorkflowSchedulingState schedulingState) {		
+		runs.put(runIdPair, schedulingState);
+	}	
+
+	public WorkflowRunIdPair getWorkflowRun(UUID sessionId, UUID jobId) {
+		
+		for (WorkflowRunIdPair runIdPair : runs.keySet()) {
+			if (sessionId.equals(runIdPair.getSessionId())) {
+				if (runs.get(runIdPair).containsJobId(jobId)) {
+					return runIdPair;
+				}
+			}
+		}
+				
+		return null;
+	}
+
+	public WorkflowSchedulingState get(WorkflowRunIdPair workflowRunIdPair) {
+		return runs.get(workflowRunIdPair);
+	}
+
+	public WorkflowRunIdPair getWorkflowRunId(IdPair jobIdPair) {
+		for (WorkflowRunIdPair runIdPair : runs.keySet()) {
+			if (jobIdPair.getSessionId().equals(runIdPair.getSessionId())) {
+				if (runs.get(runIdPair).containsJobId(jobIdPair.getJobId())) {
+					return runIdPair;
+				}
+			}
 		}
 		return null;
 	}
