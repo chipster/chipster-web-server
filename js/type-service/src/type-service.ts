@@ -44,7 +44,7 @@ export default class TypeService {
       "/sessions/:sessionId/datasets/:datasetId",
       this.respond.bind(this)
     );
-    server.get("/admin/status", this.respondStatus.bind(this));
+    // server.get("/admin/status", this.respondStatus.bind(this));
 
     let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
     let bindUrl = url.parse(bindUrlString);
