@@ -74,11 +74,17 @@ export default class ReplayServer {
 
     const accessLogStream = rfs("access.log", {
       interval: "1d", // rotate daily
-      path: path.join("logs")
+      path: path.join("logs"),
+      maxFiles: 60
+    });
+
+    // add custom token to log all request headers
+    morgan.token("request-headers", function(req, res) {
+      return Object.keys(req.headers);
     });
 
     const shortWithDateFormat =
-      "[:date[iso]] :remote-addr :remote-user :method :url HTTP/:http-version :status :res[content-length] - :response-time ms";
+      "[:date[iso]] :req[x-forwarded-for] :remote-addr :remote-user :method :url HTTP/:http-version :status :res[content-length] - :response-time ms :request-headers";
 
     // start a web server for the results
     var app = express();
@@ -96,6 +102,13 @@ export default class ReplayServer {
       morgan(shortWithDateFormat, {
         immediate: false,
         stream: accessLogStream
+      })
+    );
+
+    // stdout
+    app.use(
+      morgan(shortWithDateFormat, {
+        immediate: false
       })
     );
 
