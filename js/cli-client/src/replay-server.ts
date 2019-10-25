@@ -105,10 +105,13 @@ export default class ReplayServer {
       })
     );
 
-    // stdout
+    // errors to stdout
     app.use(
       morgan(shortWithDateFormat, {
-        immediate: false
+        immediate: false,
+        skip: function(req, res) {
+          return res.statusCode < 400;
+        }
       })
     );
 
