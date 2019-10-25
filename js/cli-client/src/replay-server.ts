@@ -11,6 +11,9 @@ const serveIndex = require("serve-index");
 const express = require("express");
 const path = require("path");
 const v8 = require("v8");
+const morgan = require("morgan");
+const fs = require("fs");
+const rfs = require("rotating-file-stream");
 
 export default class ReplayServer {
   resultsPath: string;
@@ -69,13 +72,39 @@ export default class ReplayServer {
     ReplaySession.mkdirIfMissing(args.results);
     ReplaySession.mkdirIfMissing(args.temp);
 
+    const accessLogStream = rfs("access.log", {
+      interval: "1d", // rotate daily
+      path: path.join("logs")
+    });
+
+    const shortWithDateFormat =
+      "[:date[iso]] :remote-addr :remote-user :method :url HTTP/:http-version :status :res[content-length] - :response-time ms";
+
     // start a web server for the results
     var app = express();
+
+    // log requests in case the server crashes
+    app.use(
+      morgan(shortWithDateFormat, {
+        immediate: true,
+        stream: accessLogStream
+      })
+    );
+
+    // log responses
+    app.use(
+      morgan(shortWithDateFormat, {
+        immediate: false,
+        stream: accessLogStream
+      })
+    );
+
     app.use(
       "/",
       express.static("results"),
       serveIndex("results", { icons: true, view: "details" })
     );
+
     app.listen(parseInt(args.port));
 
     let schedules = args.schedule;
