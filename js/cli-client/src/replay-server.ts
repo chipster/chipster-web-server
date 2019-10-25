@@ -93,7 +93,8 @@ export default class ReplayServer {
     app.use(
       morgan(shortWithDateFormat, {
         immediate: true,
-        stream: accessLogStream
+        stream: accessLogStream,
+        skip: (req, res) => req.url === "/alive"
       })
     );
 
@@ -101,7 +102,8 @@ export default class ReplayServer {
     app.use(
       morgan(shortWithDateFormat, {
         immediate: false,
-        stream: accessLogStream
+        stream: accessLogStream,
+        skip: (req, res) => req.url === "/alive"
       })
     );
 
@@ -109,11 +111,15 @@ export default class ReplayServer {
     app.use(
       morgan(shortWithDateFormat, {
         immediate: false,
-        skip: function(req, res) {
+        skip: (req, res) => {
           return res.statusCode < 400;
         }
       })
     );
+
+    app.get("/alive", (req, res) => {
+      res.send("ok\n");
+    });
 
     app.use(
       "/",
