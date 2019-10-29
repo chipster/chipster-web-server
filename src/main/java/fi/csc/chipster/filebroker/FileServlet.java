@@ -491,6 +491,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 				} catch (EOFException e) {
 					// upload interrupted
+					logger.warn("put failed", e);
 					throw new BadRequestException("EOF");
 				} finally {
 					if (chunkFile.exists()) {
