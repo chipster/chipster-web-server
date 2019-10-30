@@ -29,11 +29,19 @@
     "verror": "^1.10.0",
     "winston": "^3.2.1",
     "ws": "^7.1.1",
-    "yamljs": "^0.3.0"
+    "yamljs": "^0.3.0",
+    "tslib": "^1.10.0"
   },
   "devDependencies": {
     "@types/node": "^12.7.0",
     "ts-node": "^8.3.0",
-    "typescript": "^3.5.3"
+    "typescript": "^3.5.3",
+    "@typescript-eslint/eslint-plugin": "^2.3.0",
+    "@typescript-eslint/parser": "^2.3.0",
+    "eslint": "^6.4.0",
+    "eslint-config-prettier": "^6.3.0",
+    "prettier": "1.18.2",
+    "rxjs-tslint": "^0.1.7",
+    "tslint": "^5.16.0"
   }
 }
