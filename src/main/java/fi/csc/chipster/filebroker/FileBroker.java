@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
@@ -96,6 +97,9 @@ public class FileBroker {
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter(this.serviceLocator)), "/*", null);
+		
+		CustomRequestLog requestLog = new CustomRequestLog("logs/yyyy_mm_dd.request.log", "%t %{client}a %{x-forwarded-for}i \"%r\" %k %X %s %{ms}T ms %{CLF}I B %{CLF}O B");
+		server.setRequestLog(requestLog);
         
         stats = RestUtils.createStatisticsListener(server);
 		
