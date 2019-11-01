@@ -36,23 +36,28 @@ public class ExceptionServletFilter implements Filter {
 		
 			chain.doFilter(request, response);
 		} catch (ForbiddenException e) {
+			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
 			return;
 		} catch (NotFoundException e) {
+			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
 			return;
 		} catch (BadRequestException e) {
+			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
 			return;
 		} catch (javax.ws.rs.NotAuthorizedException e) {
+			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
 			return;
 		} catch (ConflictException e) {
+			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
 			return;	
 		} catch (Exception e) {
 			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			logger.error("authentication error", e);
+			logger.error("servlet error", e);
 			return;
 		}
 	}

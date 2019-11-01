@@ -33,18 +33,26 @@ public class CORSServletFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
-			throws IOException, ServletException {	
+			throws IOException, ServletException {
 		
-		HttpServletRequest request = (HttpServletRequest)req;
-		HttpServletResponse response = (HttpServletResponse)resp;
+		try {
 		
-		String origin = request.getHeader(CORSFilter.HEADER_KEY_ORIGIN);
+			HttpServletRequest request = (HttpServletRequest)req;
+			HttpServletResponse response = (HttpServletResponse)resp;
+			
+			String origin = request.getHeader(CORSFilter.HEADER_KEY_ORIGIN);
+			
+			for (Entry<String, String> entry : corsFilter.getCorsHeaders(origin).entrySet()) {
+				response.addHeader(entry.getKey(), entry.getValue());
+			}
+			
+			
+			chain.doFilter(request, response);
 		
-		for (Entry<String, String> entry : corsFilter.getCorsHeaders(origin).entrySet()) {
-			response.addHeader(entry.getKey(), entry.getValue());
+		} catch (Exception e) {
+			logger.error("error in CORSServletFilter", e);
+			throw e;
 		}
-		
-		chain.doFilter(request, response);
 	}
 
 	@Override

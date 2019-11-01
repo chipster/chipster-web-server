@@ -116,70 +116,79 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		if (logger.isDebugEnabled()) {
-			logger.debug("RESTful file access: GET request for " + request.getRequestURI());
-		}
-
-		// get query parameters
-		boolean download = request.getParameter("download") != null;
-		boolean type = request.getParameter("type") != null;
-
-		// user's token set by TokenServletFilter
-		String userToken = getToken(request);
-
-		Path path = parsePath(request.getPathInfo());
-
-		// check authorization
-		Dataset dataset;
+		
 		try {
-			dataset = getDataset(path.getSessionId(), path.getDatasetId(), userToken, false);
-		} catch (RestException e) {
-			// authentication errors throw javax.ws.rs exceptions, but this is some other
-			// error
-			// and is converted to InternalServerException
-			throw new ServletException(e.getMessage());
-		}
-
-		if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
-			throw new NotFoundException("file id is null");
-		}
-
-		UUID fileId = dataset.getFile().getFileId();
-
-		// get the file
-
-		java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
-
-		if (!Files.exists(f)) {
-			throw new NotFoundException("no such file");
-		}
-
-		// remove "storage/" from the beginning
-		java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
-
-		RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
-
-		if (download) {
-			// hint filename for dataset export
-			RestUtils.configureForDownload(response, dataset.getName());
-		}
-
-		if (type) {
-			// rendenring a html file in an iFrame requires the Content-Type header
-			response.setContentType(getType(dataset).toString());
-		}
-
-		Instant before = Instant.now();
-
-		// delegate to super class
-		super.doGet(rewrittenRequest, response);
-
-		// log performance
-		if (logRest) {
-			logAsyncGet(request, response, f.toFile(), before);
+			if (logger.isDebugEnabled()) {
+				logger.debug("RESTful file access: GET request for " + request.getRequestURI());
+			}
+	
+			// get query parameters
+			boolean download = request.getParameter("download") != null;
+			boolean type = request.getParameter("type") != null;
+	
+			// user's token set by TokenServletFilter
+			String userToken = getToken(request);
+	
+			Path path = parsePath(request.getPathInfo());
+	
+			// check authorization
+			Dataset dataset;
+			try {
+				dataset = getDataset(path.getSessionId(), path.getDatasetId(), userToken, false);
+			} catch (RestException e) {
+				// authentication errors throw javax.ws.rs exceptions, but this is some other
+				// error
+				// and is converted to InternalServerException
+				throw new ServletException(e.getMessage());
+			}
+	
+			if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
+				throw new NotFoundException("file id is null");
+			}
+	
+			UUID fileId = dataset.getFile().getFileId();
+	
+			// get the file
+	
+			java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
+	
+			if (!Files.exists(f)) {
+				throw new NotFoundException("no such file");
+			}
+	
+			// remove "storage/" from the beginning
+			java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
+	
+			RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
+	
+			if (download) {
+				// hint filename for dataset export
+				RestUtils.configureForDownload(response, dataset.getName());
+			}
+	
+			if (type) {
+				// rendenring a html file in an iFrame requires the Content-Type header
+				response.setContentType(getType(dataset).toString());
+			}
+	
+			Instant before = Instant.now();
+						
+	
+			// delegate to super class
+			super.doGet(rewrittenRequest, response);
+			
+			// log performance
+			if (logRest) {
+				logAsyncGet(request, response, f.toFile(), before);
+			}
+		} catch (Exception e) {
+			// make sure all errors are logged
+			logger.error("GET error", e);
+			throw e;
 		}
 	}
-
+	
+	
 	private void logAsyncGet(HttpServletRequest request, HttpServletResponse response, File f, Instant before) {
 
 		// addListener() complains about an illegal state, if we do this before
