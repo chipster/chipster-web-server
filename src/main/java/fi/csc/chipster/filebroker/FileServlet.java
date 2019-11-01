@@ -26,11 +26,13 @@ import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.server.InclusiveByteRange;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -188,6 +190,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 				@Override
 				public void onTimeout(AsyncEvent event) throws IOException {
+					logger.warn("async request timeout");
 				}
 
 				@Override
@@ -196,6 +199,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 				@Override
 				public void onError(AsyncEvent event) throws IOException {
+					logger.warn("async request error: " + ExceptionUtils.getStackTrace(event.getThrowable()));
 				}
 
 				@Override
@@ -204,6 +208,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				}
 			});
 		} else {
+			logger.info("sync request");
 			logGet(request, f, before);
 		}
 	}
@@ -226,6 +231,18 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				+ FileUtils.byteCountToDisplaySize(length) + " | " + FileUtils.byteCountToDisplaySize(f.length())
 				+ " | " + DurationFormatUtils.formatDurationHMS(duration.toMillis()) + " | "
 				+ new DecimalFormat("###.##").format(rate) + " MB/s");
+		
+		if (request instanceof Request) {
+			Request jettyRequest = (Request) request;
+	
+			logger.info("connection created " + (System.currentTimeMillis() - jettyRequest.getHttpChannel().getConnection().getCreatedTimeStamp()) + " ms ago" + 
+//			", request complete " + jettyRequest.getHttpChannel().isRequestCompleted() + 
+//			", response complte " + jettyRequest.getHttpChannel().isResponseCompleted() +  
+			", channel state " + jettyRequest.getHttpChannel().getState() + 
+			", channel persistent " + jettyRequest.getHttpChannel().isPersistent());
+		}
+		
+		
 	}
 
 	private String getToken(HttpServletRequest request) {
