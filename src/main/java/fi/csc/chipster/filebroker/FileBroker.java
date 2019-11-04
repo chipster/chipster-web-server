@@ -3,7 +3,6 @@ package fi.csc.chipster.filebroker;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -93,65 +92,65 @@ public class FileBroker {
         
         connector.addBean(new HttpChannel.Listener() {
 
-            public void onRequestBegin(Request request) {
-            	logger.info("onRequestBegin");
-            }
-
-            public void onBeforeDispatch(Request request) {
-            	logger.info("onBeforeDispatch");
-            }
+//            public void onRequestBegin(Request request) {
+//            	logger.info("onRequestBegin");
+//            }
+//
+//            public void onBeforeDispatch(Request request) {
+//            	logger.info("onBeforeDispatch");
+//            }
 
             public void onDispatchFailure(Request request, Throwable failure) {
-            	logger.info("onDispatchFailure", ExceptionUtils.getStackTrace(failure));
+            	logger.info("onDispatchFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));
             }
 
-            public void onAfterDispatch(Request request) {
-            	logger.info("onAfterDispatch");
-            }
-
-            public void onRequestContent(Request request, ByteBuffer content) {
-            	logger.info("onRequestContent");
-            }
-
-            public void onRequestContentEnd(Request request) {
-            	logger.info("onRequestContentEnd");
-            }
-
-            public void onRequestTrailers(Request request) {
-            	logger.info("onRequestTrailers");
-            }
-
-            public void onRequestEnd(Request request) {
-            	logger.info("onRequestEnd");
-            }
+//            public void onAfterDispatch(Request request) {
+//            	logger.info("onAfterDispatch");
+//            }
+//
+//            public void onRequestContent(Request request, ByteBuffer content) {
+//            	logger.info("onRequestContent");
+//            }
+//
+//            public void onRequestContentEnd(Request request) {
+//            	logger.info("onRequestContentEnd");
+//            }
+//
+//            public void onRequestTrailers(Request request) {
+//            	logger.info("onRequestTrailers");
+//            }
+//
+//            public void onRequestEnd(Request request) {
+//            	logger.info("onRequestEnd");
+//            }
 
             public void onRequestFailure(Request request, Throwable failure) {
-            	logger.info("onRequestFailure", ExceptionUtils.getStackTrace(failure));
+            	logger.info("onRequestFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));
             }
 
-            public void onResponseBegin(Request request) {
-            	logger.info("onResponseBegin");
-            }
-
-            public void onResponseCommit(Request request) {
-            	logger.info("onResponseCommit");
-            }
-
-            public void onResponseContent(Request request, ByteBuffer content) {
-            	logger.info("onResponseContent");
-            }
-
-            public void onResponseEnd(Request request) {
-            	logger.info("onResponseEnd");
-            }
+//            public void onResponseBegin(Request request) {
+//            	logger.info("onResponseBegin");
+//            }
+//
+//            public void onResponseCommit(Request request) {
+//            	logger.info("onResponseCommit");
+//            }
+//
+//            public void onResponseContent(Request request, ByteBuffer content) {
+//            	logger.info("onResponseContent");
+//            }
+//
+//            public void onResponseEnd(Request request) {
+//            	logger.info("onResponseEnd");
+//            }
 
             public void onResponseFailure(Request request, Throwable failure) {
-            	logger.info("onResponseFailure", ExceptionUtils.getStackTrace(failure));
+            	logger.info("onResponseFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));            	
             }
 
-            public void onComplete(Request request) {
-            	logger.info("onComplete");
-            }
+//            public void onComplete(Request request) {
+//            	logger.info("onComplete");
+//            }
         });
         server.addConnector(connector);
 		                
