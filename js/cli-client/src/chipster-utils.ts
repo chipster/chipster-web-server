@@ -6,8 +6,8 @@ import { Observable, Subject } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
 import { VError } from "verror";
 
-const path = require("path");
-const read = require("read");
+import path = require("path");
+import read = require("read");
 
 export const missingInputError = "MissingInputError";
 export default class ChipsterUtils {
@@ -51,7 +51,7 @@ export default class ChipsterUtils {
   }
 
   static getPrompt(prompt, defaultValue = "", silent = false) {
-    let subject = new Subject();
+    const subject = new Subject();
 
     read({ prompt: prompt, silent: silent, default: defaultValue }, function(
       err,
@@ -152,8 +152,8 @@ export default class ChipsterUtils {
     name: string,
     printStatus: boolean
   ): Observable<string> {
-    let datasetName = path.basename(file);
-    let sessionName = name || datasetName.replace(".zip", "");
+    const datasetName = path.basename(file);
+    const sessionName = name || datasetName.replace(".zip", "");
     let sessionId;
     let datasetId;
 
@@ -179,7 +179,7 @@ export default class ChipsterUtils {
       }),
       mergeMap(() => restClient.extractSession(sessionId, datasetId)),
       tap((resp: string) => {
-        const warnings = <string[]>JSON.parse(resp);
+        const warnings = JSON.parse(resp) as string[];
         if (warnings.length > 0) {
           console.error("warnings", warnings);
         }
@@ -230,7 +230,7 @@ export default class ChipsterUtils {
       metadata = [];
     }
 
-    let job = {
+    const job = {
       toolId: tool.name.id,
       state: "NEW",
       parameters: [],
@@ -317,7 +317,7 @@ export default class ChipsterUtils {
   // https://stackoverflow.com/a/2117523
   static uuidv4(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-      var r = (Math.random() * 16) | 0,
+      const r = (Math.random() * 16) | 0,
         v = c == "x" ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
