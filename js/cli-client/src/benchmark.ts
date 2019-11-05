@@ -14,8 +14,6 @@ import {
 import ChipsterUtils from "./chipster-utils";
 
 const ArgumentParser = require("argparse").ArgumentParser;
-const fs = require("fs");
-const path = require("path");
 const logger = Logger.getLogger(__filename);
 
 export default class Benchmark {
@@ -52,7 +50,7 @@ export default class Benchmark {
   }
 
   parseCommand() {
-    let parser = new ArgumentParser({
+    const parser = new ArgumentParser({
       version: "0.0.1",
       addHelp: true,
       description: "Chipster server benchmark"
@@ -87,7 +85,7 @@ export default class Benchmark {
       defaultValue: 1000
     });
 
-    let args = parser.parseArgs();
+    const args = parser.parseArgs();
 
     this.onlyPost = args.post;
     this.maxRequestCount = args.requests;
