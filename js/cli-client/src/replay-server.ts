@@ -46,6 +46,10 @@ export default class ReplayServer {
     parser.addArgument(["--resultName"], {
       help: "name for the result directory, goes under resultsRoot"
     });
+    parser.addArgument(["--skipFilterAsResultName"], {
+      help: "don't use the filter string as the name of the result dir",
+      action: "storeTrue"
+    });
     parser.addArgument(["--tempRoot", "-t"], {
       help: "root directory for temp files"
     });
@@ -168,13 +172,21 @@ export default class ReplayServer {
       });
       const testSetName = testSets.join("_");
 
+      // figure out the result name, i.e. the dir under resultsRoot where the results go
+      let resultName;
+      if (args.resultName != null) {
+        resultName = args.resultName;
+      } else if (!args.skipFilterAsResultName) {
+        resultName = testSetName;
+      }
+
       const replayNow = () => {
         new ReplaySession()
           .replayFilter(args.URL, args.username, args.password, filters, {
             parallel: parallel,
             quiet: true,
             resultsRoot: args.resultsRoot,
-            resultName: args.resultName,
+            resultName: resultName,
             tempRoot: args.tempRoot,
             jobTimeout: jobTimeout
           })
