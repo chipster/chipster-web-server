@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-common";
-import { Logger } from "chipster-nodejs-core";
+import { Logger, RestClient } from "chipster-nodejs-core";
 import * as _ from 'lodash';
 import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf } from 'rxjs';
 import { map, mergeMap, tap, toArray } from 'rxjs/operators';
@@ -17,7 +17,7 @@ const logger = Logger.getLogger(__filename);
 
 export default class CliClient {
 
-	private restClient = null;
+	private restClient = new RestClient();
   private env = new CliEnvironment();
 
 	constructor() {
@@ -248,7 +248,7 @@ export default class CliClient {
   }
 
   isLoggedIn() {
-    return !!this.restClient;
+    return !!this.restClient.token;
   }
 
   checkLogin() {
@@ -263,7 +263,7 @@ export default class CliClient {
           if (!webServerUrl || !token) {
             throw new Error('Login required');
           }
-          return ChipsterUtils.getRestClient(webServerUrl, token);
+          return ChipsterUtils.configureRestClient(webServerUrl, token, this.restClient);
         }),
         tap(restClient => this.restClient = restClient),
       );
@@ -324,7 +324,7 @@ export default class CliClient {
       }),
       tap(u => (app = u)),
 
-      mergeMap(() => ChipsterUtils.login(webServerUri, username, password)),
+      mergeMap(() => ChipsterUtils.getToken(webServerUri, username, password, this.restClient)),
       // save
       mergeMap((token: string) => this.env.set("token", token)),
       mergeMap(() => this.env.set("webServerUri", webServerUri)),
@@ -339,13 +339,13 @@ export default class CliClient {
   }
 
   sessionUpload(args) {
-
+    
     let datasetName = path.basename(args.file);
     let sessionName = args.name || datasetName.replace('.zip', '');
     let sessionId;
     let datasetId;
 
-    this.checkLogin().pipe(  
+    this.checkLogin().pipe(
       mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !args.quiet)),
       mergeMap(sessionId => this.setOpenSession(sessionId)),)
       .subscribe();
@@ -436,11 +436,30 @@ export default class CliClient {
   datasetUpload(args) {
     let name = args.name || path.basename(args.file);
     let sessionId;
-    this.checkLogin().pipe(
-      mergeMap(() => this.getSessionId()),
-      tap(id => sessionId = id),
-      mergeMap(() => ChipsterUtils.datasetUpload(this.restClient, sessionId, args.file, name)),      
-    ).subscribe();
+    this.checkLogin()
+      .pipe(
+        mergeMap(() => this.getSessionId()),
+        tap(id => (sessionId = id)),
+
+        //FIXME remove this debug test
+        // mergeMap(() => this.restClient.getDatasets(sessionId)),
+        // mergeMap(datasets =>
+        //   this.restClient.downloadFile(
+        //     sessionId,
+        //     datasets[0].datasetId,
+        //     "tmp/kmans.tsv"
+        //   )
+        // ),
+        mergeMap(() =>
+          ChipsterUtils.datasetUpload(
+            this.restClient,
+            sessionId,
+            args.file,
+            name
+          )
+        )
+      )
+      .subscribe(null, err => console.error("upload error", err));
   }
 
   datasetDelete(args) {
