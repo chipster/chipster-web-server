@@ -1,10 +1,14 @@
 {
   "include": ["src/**/*"],
   "compilerOptions": {
+    "outDir": "./lib",
+    "sourceMap": true,
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es5",
-    "outDir": "./lib",
     "downlevelIteration": true,
     "importHelpers": true,
     "typeRoots": ["node_modules/@types"],

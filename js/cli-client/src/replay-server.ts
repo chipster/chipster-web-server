@@ -1,4 +1,5 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
+import rfs from "rotating-file-stream";
 import { empty, interval, of } from "rxjs";
 import { catchError, mergeMap } from "rxjs/operators";
 import { VError } from "verror";
@@ -14,8 +15,6 @@ import v8 = require("v8");
 import morgan = require("morgan");
 import mkdirp = require("mkdirp"); // not needed after node 10.12
 
-import rfs from "rotating-file-stream";
-// import * as rfs from "rotating-file-stream";
 export default class ReplayServer {
   resultsPath: string;
   influxdbUrl: string;
