@@ -1,14 +1,14 @@
 import { Config, Logger, RestClient } from "chipster-nodejs-core";
-import { forkJoin, of as observableOf, of } from "rxjs";
-import { map, mergeMap, catchError } from "rxjs/operators";
+import { forkJoin, of as observableOf } from "rxjs";
+import { map, mergeMap } from "rxjs/operators";
 import { Tag, Tags, TypeTags } from "./type-tags";
-import { VerifyToken } from "./verify-token";
 
 const os = require("os");
 const url = require("url");
 const restify = require("restify");
 const corsMiddleware = require("restify-cors-middleware");
 const errors = require("restify-errors");
+
 const logger = Logger.getLogger(__filename);
 
 class IdPair {
@@ -44,7 +44,7 @@ export default class TypeService {
       "/sessions/:sessionId/datasets/:datasetId",
       this.respond.bind(this)
     );
-    // server.get("/admin/status", this.respondStatus.bind(this));
+    server.get("/admin/status", this.respondStatus.bind(this));
 
     let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
     let bindUrl = url.parse(bindUrlString);
@@ -60,28 +60,22 @@ export default class TypeService {
     server.get("/admin/alive", this.respondAlive.bind(this));
     server.get("/admin/status", this.respondStatus.bind(this));
 
-
     let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
     let bindUrl = url.parse(bindUrlString);
-
 
     server.listen(bindUrl.port, bindUrl.hostname, () => {
       logger.info("type-service listening at " + bindUrlString);
     });
-
-
   }
 
   createServer() {
     var server = restify.createServer();
     server.use(restify.plugins.authorizationParser());
 
-
     // getting the allowed origin from rest-client
     let originUri,
       originList = [],
       cors;
-
     new RestClient()
       //.getServiceUri("web-server") // get one web-server
       .getServices() // allow many web-servers (Chipster and Mylly) to use the same backend
@@ -177,62 +171,19 @@ export default class TypeService {
   }
 
   respondAlive(req, res, next) {
-    // added Jwt token verification for admin request
-    let username = "type-service";
-    let password = this.config.get(Config.KEY_SECRET_TYPE_SERVICE);
-    let token;
-    try {
-      token = this.getToken(req, next);
-      new RestClient().getToken(username, password).subscribe(serverToken => {
-        new RestClient().getAuthPublicKey(username, serverToken).subscribe(key => {
-          let x = new VerifyToken().verifyToken(token, this.config, key);
-          if (x.ResCode == 200) {
-            res.send();
-            next();
-          } else {
-            res.send(x.ResCode);
-          }
-
-        })
-      })
-    }
-    catch (e) {
-      this.respondError(next, e);
-      return;
-    }
-
+    res.send();
+    next();
   }
 
   respondStatus(req, res, next) {
     //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
-    let username = "type-service";
-    let password = this.config.get(Config.KEY_SECRET_TYPE_SERVICE);
-    let token;
-    try {
-      token = this.getToken(req, next);
-      new RestClient().getToken(username, password).subscribe(serverToken => {
-        new RestClient().getAuthPublicKey(username, serverToken).subscribe(key => {
-          let x = new VerifyToken().verifyToken(token, this.config, key);
-          if (x.ResCode == 200) {
-            res.contentType = "json";
-            let status = {
-              load: os.loadavg()[0] // 1 min load average
-            };
-            res.send(status);
-            next();
-          } else {
-            res.send(x.ResCode);
-          }
-
-        })
-      })
-    } catch (e) {
-      this.respondError(next, e);
-      return;
-    }
-
+    res.contentType = "json";
+    let status = {
+      load: os.loadavg()[0] // 1 min load average
+    };
+    res.send(status);
+    next();
   }
-
 
   respondError(next, err) {
     if (err.statusCode >= 400 && err.statusCode <= 499) {
