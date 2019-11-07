@@ -1,16 +1,17 @@
 {
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "compilerOptions": {
+    "outDir": "./lib",
+    "sourceMap": true,
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es5",
-    "lib": [
-      // rxjs references staff from DOM
-      "dom",
-      "es2017"
-    ],
-    "outDir": "./lib"
+    "downlevelIteration": true,
+    "importHelpers": true,
+    "typeRoots": ["node_modules/@types"],
+    "lib": ["es2017", "dom", "es2015.collection", "es2015.iterable"]
   }
 }

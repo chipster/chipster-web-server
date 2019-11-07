@@ -9,8 +9,12 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.server.CustomRequestLog;
+import org.eclipse.jetty.server.HttpChannel;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
@@ -85,6 +89,69 @@ public class FileBroker {
         ServerConnector connector = new ServerConnector(server);
         connector.setPort(baseUri.getPort());
         connector.setHost(baseUri.getHost());
+        
+        connector.addBean(new HttpChannel.Listener() {
+
+//            public void onRequestBegin(Request request) {
+//            	logger.info("onRequestBegin");
+//            }
+//
+//            public void onBeforeDispatch(Request request) {
+//            	logger.info("onBeforeDispatch");
+//            }
+
+            public void onDispatchFailure(Request request, Throwable failure) {
+            	logger.info("onDispatchFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));
+            }
+
+//            public void onAfterDispatch(Request request) {
+//            	logger.info("onAfterDispatch");
+//            }
+//
+//            public void onRequestContent(Request request, ByteBuffer content) {
+//            	logger.info("onRequestContent");
+//            }
+//
+//            public void onRequestContentEnd(Request request) {
+//            	logger.info("onRequestContentEnd");
+//            }
+//
+//            public void onRequestTrailers(Request request) {
+//            	logger.info("onRequestTrailers");
+//            }
+//
+//            public void onRequestEnd(Request request) {
+//            	logger.info("onRequestEnd");
+//            }
+
+            public void onRequestFailure(Request request, Throwable failure) {
+            	logger.info("onRequestFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));
+            }
+
+//            public void onResponseBegin(Request request) {
+//            	logger.info("onResponseBegin");
+//            }
+//
+//            public void onResponseCommit(Request request) {
+//            	logger.info("onResponseCommit");
+//            }
+//
+//            public void onResponseContent(Request request, ByteBuffer content) {
+//            	logger.info("onResponseContent");
+//            }
+//
+//            public void onResponseEnd(Request request) {
+//            	logger.info("onResponseEnd");
+//            }
+
+            public void onResponseFailure(Request request, Throwable failure) {
+            	logger.info("onResponseFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));            	
+            }
+
+//            public void onComplete(Request request) {
+//            	logger.info("onComplete");
+//            }
+        });
         server.addConnector(connector);
 		                
 		ServletContextHandler contextHandler = new ServletContextHandler(server, "/", false, false);
@@ -96,6 +163,9 @@ public class FileBroker {
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		contextHandler.addFilter(new FilterHolder(new CORSServletFilter(this.serviceLocator)), "/*", null);
+		
+		CustomRequestLog requestLog = new CustomRequestLog("logs/yyyy_mm_dd.request.log", "%t %{client}a %{x-forwarded-for}i \"%r\" %k %X %s %{ms}T ms %{CLF}I B %{CLF}O B %{connection}i %{connection}o");
+		server.setRequestLog(requestLog);
         
         stats = RestUtils.createStatisticsListener(server);
 		

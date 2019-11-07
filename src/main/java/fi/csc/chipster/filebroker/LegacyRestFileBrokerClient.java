@@ -132,6 +132,8 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 		Response response = datasetTarget.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),
 				Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
+			logger.warn("upload failed: " + response.getStatus() + " " + response.readEntity(String.class) + " "
+					+ datasetTarget.getUri());
 			throw new IOException("upload failed: " + response.getStatus() + " " + response.readEntity(String.class)
 					+ " " + datasetTarget.getUri());
 		}

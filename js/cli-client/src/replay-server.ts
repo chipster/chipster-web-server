@@ -1,4 +1,5 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
+import rfs from "rotating-file-stream";
 import { empty, interval, of } from "rxjs";
 import { catchError, mergeMap } from "rxjs/operators";
 import { VError } from "verror";
@@ -6,11 +7,13 @@ import ReplaySession from "./replay-session";
 
 const ArgumentParser = require("argparse").ArgumentParser;
 const logger = Logger.getLogger(__filename, "logs/chipster.log");
-const schedule = require("node-schedule");
-const serveIndex = require("serve-index");
-const express = require("express");
-const path = require("path");
-const v8 = require("v8");
+import schedule = require("node-schedule");
+import serveIndex = require("serve-index");
+import express = require("express");
+import path = require("path");
+import v8 = require("v8");
+import morgan = require("morgan");
+import mkdirp = require("mkdirp"); // not needed after node 10.12
 
 export default class ReplayServer {
   resultsPath: string;
@@ -19,12 +22,11 @@ export default class ReplayServer {
 
   constructor() {
     Logger.addLogFile();
-
     this.parseCommand();
   }
 
-  parseCommand() {
-    let parser = new ArgumentParser({
+  parseCommand(): void {
+    const parser = new ArgumentParser({
       version: "0.0.1",
       addHelp: true,
       description: "Chipster session replay server"
@@ -37,14 +39,18 @@ export default class ReplayServer {
     parser.addArgument(["--password", "-p"], {
       help: "password for the server"
     });
-    parser.addArgument(["--results", "-r"], {
-      help:
-        "replay session prefix and test result directory (both cleared automatically)",
-      defaultValue: "results"
+    parser.addArgument(["--resultsRoot"], {
+      help: "root directory for results"
     });
-    parser.addArgument(["--temp", "-t"], {
-      help: "temp directory",
-      defaultValue: ReplaySession.tempDefault
+    parser.addArgument(["--resultName"], {
+      help: "name for the result directory, goes under resultsRoot"
+    });
+    parser.addArgument(["--skipFilterAsResultName"], {
+      help: "don't use the filter string as the name of the result dir",
+      action: "storeTrue"
+    });
+    parser.addArgument(["--tempRoot", "-t"], {
+      help: "root directory for temp files"
     });
     parser.addArgument(["--schedule", "-s"], {
       help:
@@ -59,23 +65,77 @@ export default class ReplayServer {
       defaultValue: "9000"
     });
 
-    let args = parser.parseArgs();
+    const args = parser.parseArgs();
+
+    const resultsRoot =
+      args.resultsRoot != null
+        ? args.resultsRoot
+        : ReplaySession.resultsRootDefault;
 
     logger.info(
-      "start server for sharing the result files, in port",
-      args.port
+      "start server for sharing the result files in port " +
+        args.port +
+        ", results root is",
+      resultsRoot
     );
 
-    ReplaySession.mkdirIfMissing(args.results);
-    ReplaySession.mkdirIfMissing(args.temp);
+    mkdirp.sync(resultsRoot);
+
+    const accessLogStream = rfs("access.log", {
+      interval: "1d", // rotate daily
+      path: path.join("logs"),
+      maxFiles: 60
+    });
+
+    // add custom token to log all request headers
+    morgan.token("request-headers", function(req, res) {
+      return Object.keys(req.headers);
+    });
+
+    const shortWithDateFormat =
+      "[:date[iso]] :req[x-forwarded-for] :remote-addr :remote-user :method :url HTTP/:http-version :status :res[content-length] - :response-time ms :request-headers";
 
     // start a web server for the results
-    var app = express();
+    const app = express();
+
+    // log requests in case the server crashes
+    app.use(
+      morgan(shortWithDateFormat, {
+        immediate: true,
+        stream: accessLogStream,
+        skip: (req, res) => req.url === "/alive"
+      })
+    );
+
+    // log responses
+    app.use(
+      morgan(shortWithDateFormat, {
+        immediate: false,
+        stream: accessLogStream,
+        skip: (req, res) => req.url === "/alive"
+      })
+    );
+
+    // errors to stdout
+    app.use(
+      morgan(shortWithDateFormat, {
+        immediate: false,
+        skip: (req, res) => {
+          return res.statusCode < 400;
+        }
+      })
+    );
+
+    app.get("/alive", (req, res) => {
+      res.send("ok\n");
+    });
+
     app.use(
       "/",
-      express.static("results"),
-      serveIndex("results", { icons: true, view: "details" })
+      express.static(resultsRoot),
+      serveIndex(resultsRoot, { icons: true, view: "details" })
     );
+
     app.listen(parseInt(args.port));
 
     let schedules = args.schedule;
@@ -89,7 +149,7 @@ export default class ReplayServer {
 
     schedules.forEach((sched: string) => {
       const colonSplitted = sched.split(":");
-      let cron = colonSplitted[0];
+      const cron = colonSplitted[0];
       const testSets = colonSplitted[1].split(" ");
       let parallel = 1;
       if (colonSplitted.length >= 3 && colonSplitted[2].length > 0) {
@@ -111,21 +171,24 @@ export default class ReplayServer {
       });
       const testSetName = testSets.join("_");
 
+      // figure out the result name, i.e. the dir under resultsRoot where the results go
+      let resultName;
+      if (args.resultName != null) {
+        resultName = args.resultName;
+      } else if (!args.skipFilterAsResultName) {
+        resultName = testSetName;
+      }
+
       const replayNow = () => {
         new ReplaySession()
-          .replay(
-            args.URL,
-            args.username,
-            args.password,
-            false,
-            parallel,
-            true,
-            path.join(args.results, testSetName),
-            path.join(args.temp, testSetName),
-            filters,
-            null,
-            jobTimeout
-          )
+          .replayFilter(args.URL, args.username, args.password, filters, {
+            parallel: parallel,
+            quiet: true,
+            resultsRoot: args.resultsRoot,
+            resultName: resultName,
+            tempRoot: args.tempRoot,
+            jobTimeout: jobTimeout
+          })
           .pipe(
             mergeMap((stats: Map<string, number>) => {
               return this.postToInflux(
@@ -220,7 +283,7 @@ export default class ReplayServer {
   ) {
     let data = "";
     // nanosecond unix time
-    let timestamp = new Date().getTime() * 1000 * 1000;
+    const timestamp = new Date().getTime() * 1000 * 1000;
 
     for (const key of Array.from(stats.keys())) {
       data +=
@@ -252,7 +315,7 @@ export default class ReplayServer {
    * @param w1
    * @param w2
    */
-  concatCamelCase(w1: string, w2: string) {
+  concatCamelCase(w1: string, w2: string): string {
     return w1 + w2.charAt(0).toUpperCase() + w2.slice(1);
   }
 }
