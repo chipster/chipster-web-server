@@ -39,8 +39,8 @@ import WsClient from "./ws-client";
 import mkdirp = require("mkdirp"); // not needed after node 10.12
 
 const ArgumentParser = require("argparse").ArgumentParser;
-import fs = require("fs");
-import path = require("path");
+const fs = require("fs");
+const path = require("path");
 const logger = Logger.getLogger(__filename);
 
 interface ReplayOptions {
@@ -98,8 +98,10 @@ export default class ReplaySession {
   tempPath: string;
   stats = new Map<string, number>();
 
+  constructor() {}
+
   parseCommand() {
-    const parser = new ArgumentParser({
+    let parser = new ArgumentParser({
       version: "0.0.1",
       addHelp: true,
       description: "Chipster session replay test"
@@ -145,7 +147,7 @@ export default class ReplaySession {
       nargs: "?"
     });
 
-    const args = parser.parseArgs();
+    let args = parser.parseArgs();
 
     // check that user gives either session or filter
     if (args.filter == null && args.session == null) {
@@ -301,9 +303,9 @@ export default class ReplaySession {
 
     mkdirp.sync(this.resultsPath);
 
-    const importErrors: ImportError[] = [];
+    let importErrors: ImportError[] = [];
     let results = [];
-    const tempSessionsToDelete: Set<string> = new Set();
+    let tempSessionsToDelete: Set<string> = new Set();
 
     const fileSessionPlans$ = of(null).pipe(
       mergeMap(() => {
@@ -358,7 +360,7 @@ export default class ReplaySession {
 
     const exampleSessionPlans$ = of(null).pipe(
       mergeMap(() => {
-        if (filter.includes("example-sessions")) {
+        if (filter.indexOf("example-sessions") !== -1) {
           return this.restClient.getExampleSessions("chipster");
         } else {
           return of([]);
@@ -528,7 +530,7 @@ export default class ReplaySession {
   }
 
   uploadSession(sessionFile: string, quiet: boolean): Observable<any> {
-    const name =
+    let name =
       this.uploadSessionPrefix + path.basename(sessionFile).replace(".zip", "");
 
     return of(null).pipe(
@@ -545,7 +547,7 @@ export default class ReplaySession {
     quiet: boolean
   ): Observable<JobPlan[]> {
     let jobSet;
-    const datasetIdSet = new Set<string>();
+    let datasetIdSet = new Set<string>();
     let replaySessionId: string;
 
     const originalSessionId = originalSession.sessionId;
@@ -573,20 +575,20 @@ export default class ReplaySession {
       }),
       mergeMap(() => this.restClient.getJobs(originalSessionId)),
       map((jobs: Job[]) => {
-        const jobPlans = jobs
+        let jobPlans = jobs
           // run only jobs whose output files exist
           // and don't care about failed or orphan jobs
           .filter(j => jobSet.has(j.jobId))
           // run only jobs that still have at least one input file in the session
           .filter(j => {
-            for (const i of j.inputs) {
-              if (datasetIdSet.has((i as any).datasetId)) {
+            for (let i of j.inputs) {
+              if (datasetIdSet.has((<any>i).datasetId)) {
                 return true;
               }
             }
           })
           // a dummy job of the old Java client
-          .filter(j => ReplaySession.ignoreJobIds.includes(j.toolId))
+          .filter(j => ReplaySession.ignoreJobIds.indexOf(j.toolId) === -1)
           .map(j => {
             return {
               originalSessionId: originalSessionId,
@@ -627,11 +629,11 @@ export default class ReplaySession {
     let metadataFiles: MetadataFile[] = [];
     let replayJobId;
 
-    const timeout$ = new Subject();
+    let timeout$ = new Subject();
     let timeoutSubscription;
 
     // why the type isn't recognized after adding the finzalize()?
-    return of(null).pipe(
+    return <any>of(null).pipe(
       mergeMap(() => this.restClient.getDatasets(job.sessionId)),
       tap((datasets: Dataset[]) =>
         datasets.forEach(d => datasetsMap.set(d.datasetId, d))
@@ -836,7 +838,7 @@ export default class ReplaySession {
         }
         timeoutSubscription.unsubscribe();
       })
-    ) as any;
+    );
   }
 
   bindPhenodata(
@@ -958,7 +960,7 @@ export default class ReplaySession {
         const errors = [];
         const messages = [];
 
-        if (WsClient.successStates.includes(job2.state)) {
+        if (WsClient.successStates.indexOf(job2.state) === -1) {
           errors.push("unsuccessful job state");
         } else {
           if (outputs1.length === outputs2.length) {
@@ -1098,10 +1100,10 @@ export default class ReplaySession {
     );
   }
 
-  removeAllFiles(path: string): void {
+  removeAllFiles(path: string) {
     if (fs.existsSync(path)) {
-      fs.readdirSync(path).forEach(file => {
-        const filePath = path + "/" + file;
+      fs.readdirSync(path).forEach((file, index) => {
+        var filePath = path + "/" + file;
         if (
           !fs.lstatSync(filePath).isDirectory() &&
           (file.endsWith(".txt") || file.endsWith(".html"))
@@ -1122,7 +1124,7 @@ export default class ReplaySession {
   ): Observable<any> {
     this.removeAllFiles(this.resultsPath);
 
-    const allToolIds = new Set<string>();
+    let allToolIds = new Set<string>();
 
     allTools.forEach(module => {
       module.categories.forEach(category => {
@@ -1210,7 +1212,7 @@ th {
 <body>
             `);
 
-      const runningState = isCompleted ? "completed" : "running";
+      let runningState = isCompleted ? "completed" : "running";
 
       if (failCount === 0 && importErrors.length === 0) {
         if (isCompleted) {
@@ -1299,7 +1301,7 @@ th {
         importErrors.forEach(importError => {
           stream.write("<tr><td>" + importError.file + "</td>");
           stream.write("<td>" + importError.error.message + "</td>");
-          const errFile =
+          let errFile =
             Math.random()
               .toString()
               .replace(".", "") + ".txt";
@@ -1433,8 +1435,8 @@ th {
     const intMinutes = Math.floor(minutes);
 
     // get remainder from minutes and convert to seconds
-    const seconds = (minutes - intMinutes) * 60;
-    const intSeconds = Math.floor(seconds);
+    var seconds = (minutes - intMinutes) * 60;
+    var intSeconds = Math.floor(seconds);
 
     if (intHours > 0) {
       return intHours + "h " + intMinutes + "m";
@@ -1446,7 +1448,7 @@ th {
   }
 
   private filterArrayToStringfilter(filters: string[]): string {
-    const result = filters.reduce((aggregate, filter) => {
+    const result = filters.reduce((aggregate, filter, index, filters) => {
       const s = filter.replace("/", "_");
       return aggregate + (s.endsWith("_") ? s : s + "_");
     }, "");
