@@ -851,15 +851,16 @@ export default class ReplaySession {
         if (wsClient != null) {
           wsClient.disconnect();
         }
-        if (timeoutSubscription != null) {
-          timeoutSubscription.unsubscribe();
-        } else {
-          logger.warn(
-            "timeoutSbuscription was null, can't unsubscribe",
-            plan,
-            testSet
-          );
-        }
+        timeoutSubscription.unsubscribe();
+        // if (timeoutSubscription != null) {
+        //   timeoutSubscription.unsubscribe();
+        // } else {
+        //   logger.warn(
+        //     "timeoutSbuscription was null, can't unsubscribe",
+        //     plan,
+        //     testSet
+        //   );
+        // }
       })
     ) as any;
   }
