@@ -39,8 +39,11 @@ import WsClient from "./ws-client";
 import mkdirp = require("mkdirp"); // not needed after node 10.12
 
 const ArgumentParser = require("argparse").ArgumentParser;
-const fs = require("fs");
-const path = require("path");
+import fs = require("fs");
+import path = require("path");
+// const fs = require("fs");
+// const path = require("path");
+
 const logger = Logger.getLogger(__filename);
 
 interface ReplayOptions {
@@ -98,10 +101,8 @@ export default class ReplaySession {
   tempPath: string;
   stats = new Map<string, number>();
 
-  constructor() {}
-
   parseCommand() {
-    let parser = new ArgumentParser({
+    const parser = new ArgumentParser({
       version: "0.0.1",
       addHelp: true,
       description: "Chipster session replay test"
@@ -147,7 +148,7 @@ export default class ReplaySession {
       nargs: "?"
     });
 
-    let args = parser.parseArgs();
+    const args = parser.parseArgs();
 
     // check that user gives either session or filter
     if (args.filter == null && args.session == null) {
@@ -303,9 +304,9 @@ export default class ReplaySession {
 
     mkdirp.sync(this.resultsPath);
 
-    let importErrors: ImportError[] = [];
+    const importErrors: ImportError[] = [];
     let results = [];
-    let tempSessionsToDelete: Set<string> = new Set();
+    const tempSessionsToDelete: Set<string> = new Set();
 
     const fileSessionPlans$ = of(null).pipe(
       mergeMap(() => {
@@ -360,7 +361,7 @@ export default class ReplaySession {
 
     const exampleSessionPlans$ = of(null).pipe(
       mergeMap(() => {
-        if (filter.indexOf("example-sessions") !== -1) {
+        if (filter.includes("example-sessions")) {
           return this.restClient.getExampleSessions("chipster");
         } else {
           return of([]);
@@ -530,7 +531,7 @@ export default class ReplaySession {
   }
 
   uploadSession(sessionFile: string, quiet: boolean): Observable<any> {
-    let name =
+    const name =
       this.uploadSessionPrefix + path.basename(sessionFile).replace(".zip", "");
 
     return of(null).pipe(
@@ -547,7 +548,7 @@ export default class ReplaySession {
     quiet: boolean
   ): Observable<JobPlan[]> {
     let jobSet;
-    let datasetIdSet = new Set<string>();
+    const datasetIdSet = new Set<string>();
     let replaySessionId: string;
 
     const originalSessionId = originalSession.sessionId;
@@ -575,20 +576,20 @@ export default class ReplaySession {
       }),
       mergeMap(() => this.restClient.getJobs(originalSessionId)),
       map((jobs: Job[]) => {
-        let jobPlans = jobs
+        const jobPlans = jobs
           // run only jobs whose output files exist
           // and don't care about failed or orphan jobs
           .filter(j => jobSet.has(j.jobId))
           // run only jobs that still have at least one input file in the session
           .filter(j => {
-            for (let i of j.inputs) {
-              if (datasetIdSet.has((<any>i).datasetId)) {
+            for (const i of j.inputs) {
+              if (datasetIdSet.has((i as any).datasetId)) {
                 return true;
               }
             }
           })
           // a dummy job of the old Java client
-          .filter(j => ReplaySession.ignoreJobIds.indexOf(j.toolId) === -1)
+          .filter(j => !ReplaySession.ignoreJobIds.includes(j.toolId))
           .map(j => {
             return {
               originalSessionId: originalSessionId,
@@ -629,11 +630,11 @@ export default class ReplaySession {
     let metadataFiles: MetadataFile[] = [];
     let replayJobId;
 
-    let timeout$ = new Subject();
+    const timeout$ = new Subject();
     let timeoutSubscription;
 
     // why the type isn't recognized after adding the finzalize()?
-    return <any>of(null).pipe(
+    return of(null).pipe(
       mergeMap(() => this.restClient.getDatasets(job.sessionId)),
       tap((datasets: Dataset[]) =>
         datasets.forEach(d => datasetsMap.set(d.datasetId, d))
@@ -838,7 +839,7 @@ export default class ReplaySession {
         }
         timeoutSubscription.unsubscribe();
       })
-    );
+    ) as any;
   }
 
   bindPhenodata(
@@ -960,7 +961,7 @@ export default class ReplaySession {
         const errors = [];
         const messages = [];
 
-        if (WsClient.successStates.indexOf(job2.state) === -1) {
+        if (WsClient.successStates.includes(job2.state)) {
           errors.push("unsuccessful job state");
         } else {
           if (outputs1.length === outputs2.length) {
@@ -1103,7 +1104,7 @@ export default class ReplaySession {
   removeAllFiles(path: string) {
     if (fs.existsSync(path)) {
       fs.readdirSync(path).forEach((file, index) => {
-        var filePath = path + "/" + file;
+        const filePath = path + "/" + file;
         if (
           !fs.lstatSync(filePath).isDirectory() &&
           (file.endsWith(".txt") || file.endsWith(".html"))
@@ -1124,7 +1125,7 @@ export default class ReplaySession {
   ): Observable<any> {
     this.removeAllFiles(this.resultsPath);
 
-    let allToolIds = new Set<string>();
+    const allToolIds = new Set<string>();
 
     allTools.forEach(module => {
       module.categories.forEach(category => {
@@ -1212,7 +1213,7 @@ th {
 <body>
             `);
 
-      let runningState = isCompleted ? "completed" : "running";
+      const runningState = isCompleted ? "completed" : "running";
 
       if (failCount === 0 && importErrors.length === 0) {
         if (isCompleted) {
@@ -1301,7 +1302,7 @@ th {
         importErrors.forEach(importError => {
           stream.write("<tr><td>" + importError.file + "</td>");
           stream.write("<td>" + importError.error.message + "</td>");
-          let errFile =
+          const errFile =
             Math.random()
               .toString()
               .replace(".", "") + ".txt";
@@ -1435,8 +1436,8 @@ th {
     const intMinutes = Math.floor(minutes);
 
     // get remainder from minutes and convert to seconds
-    var seconds = (minutes - intMinutes) * 60;
-    var intSeconds = Math.floor(seconds);
+    const seconds = (minutes - intMinutes) * 60;
+    const intSeconds = Math.floor(seconds);
 
     if (intHours > 0) {
       return intHours + "h " + intMinutes + "m";
