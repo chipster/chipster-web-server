@@ -565,21 +565,21 @@ export default class ReplaySession {
 
       tap((id: string) => (replaySessionId = id)),
 
-      tap(
-        (id: string) => (replaySessionId = id)
-        // {
-        //   replaySessionId = id;
-        //   logger.info(
-        //     "created temp session",
-        //     replaySessionName,
-        //     replaySessionId,
-        //     "original was",
-        //     originalSession.name,
-        //     originalSessionId
-        //   );
+      // tap(
+      //   (id: string) => (replaySessionId = id)
+      // {
+      //   replaySessionId = id;
+      //   logger.info(
+      //     "created temp session",
+      //     replaySessionName,
+      //     replaySessionId,
+      //     "original was",
+      //     originalSession.name,
+      //     originalSessionId
+      //   );
 
-        // }
-      ),
+      // }
+      // ),
       mergeMap(() => this.restClient.getDatasets(originalSessionId)),
       map((datasets: Dataset[]) => {
         // collect the list of datasets' sourceJobs
