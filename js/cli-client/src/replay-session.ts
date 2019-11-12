@@ -41,8 +41,6 @@ import mkdirp = require("mkdirp"); // not needed after node 10.12
 const ArgumentParser = require("argparse").ArgumentParser;
 import fs = require("fs");
 import path = require("path");
-// const fs = require("fs");
-// const path = require("path");
 
 const logger = Logger.getLogger(__filename);
 
@@ -979,7 +977,7 @@ export default class ReplaySession {
         const errors = [];
         const messages = [];
 
-        if (WsClient.successStates.includes(job2.state)) {
+        if (!WsClient.successStates.includes(job2.state)) {
           errors.push("unsuccessful job state");
         } else {
           if (outputs1.length === outputs2.length) {
@@ -1428,7 +1426,10 @@ th {
         fs.writeFileSync(flagPath, "test-ok");
       } else {
         if (fs.existsSync(flagPath)) {
+          logger.info("deleting flag file");
           fs.unlinkSync(flagPath);
+        } else {
+          logger.info("no previous flag file to delete");
         }
       }
 
