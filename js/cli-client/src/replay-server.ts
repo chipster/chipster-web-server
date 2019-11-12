@@ -159,8 +159,6 @@ export default class ReplayServer {
       if (colonSplitted.length >= 4 && colonSplitted[3].length > 0) {
         jobTimeout = parseInt(colonSplitted[3]);
       }
-      logger.info("run " + parallel + " jobs in parallel");
-      logger.info("cancel jobs after " + jobTimeout + " seconds");
 
       const filters = testSets.map(f => {
         if (f === "example-sessions") {
@@ -212,7 +210,17 @@ export default class ReplayServer {
       if (cron.length === 0) {
         replayNow();
       } else {
-        logger.info("schedule session replay test " + filters + " at " + cron);
+        logger.info(
+          "schedule " +
+            filters +
+            " at " +
+            cron +
+            ", parallel: " +
+            parallel +
+            ", timeout: " +
+            jobTimeout +
+            "s"
+        );
         const replaySessionJob = schedule.scheduleJob(cron, () => {
           replayNow();
         });

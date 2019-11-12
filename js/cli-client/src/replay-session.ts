@@ -99,7 +99,7 @@ export default class ReplaySession {
   tempPath: string;
   stats = new Map<string, number>();
 
-  parseCommand() {
+  parseCommand(): void {
     const parser = new ArgumentParser({
       version: "0.0.1",
       addHelp: true,
