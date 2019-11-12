@@ -555,9 +555,11 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 			// cancel all jobs in this workflow
 			for (UUID jobId : runSchedulingState.getJobIds()) {
 				Job job = this.sessionDbClient.getJob(runIdPair.getSessionId(), jobId);
-				job.setState(JobState.CANCELLED);
-				job.setStateDetail("workflow cancelled");
-				this.sessionDbClient.updateJob(runIdPair.getSessionId(), job);
+				if (!job.getState().isFinished()) {
+					job.setState(JobState.CANCELLED);					
+					job.setStateDetail("workflow cancelled");
+					this.sessionDbClient.updateJob(runIdPair.getSessionId(), job);
+				}					
 			}
 		}
 	}
