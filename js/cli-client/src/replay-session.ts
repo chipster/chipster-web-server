@@ -1,37 +1,10 @@
-import {
-  Dataset,
-  Job,
-  Module,
-  PhenodataUtils,
-  Session,
-  Tool
-} from "chipster-js-common";
+import { Dataset, Job, Module, PhenodataUtils, Session, Tool } from "chipster-js-common";
 import MetadataFile from "chipster-js-common/lib/model/metadata-file";
 import { Logger, RestClient } from "chipster-nodejs-core";
 import * as _ from "lodash";
-import {
-  concat,
-  empty,
-  forkJoin,
-  from,
-  ObjectUnsubscribedError,
-  Observable,
-  of,
-  Subject,
-  throwError,
-  timer
-} from "rxjs";
+import { concat, empty, forkJoin, from, ObjectUnsubscribedError, Observable, of, Subject, throwError, timer } from "rxjs";
 import { last } from "rxjs/internal/operators/last";
-import {
-  catchError,
-  finalize,
-  map,
-  merge,
-  mergeMap,
-  takeUntil,
-  tap,
-  toArray
-} from "rxjs/operators";
+import { catchError, finalize, map, merge, mergeMap, takeUntil, tap, toArray } from "rxjs/operators";
 import { VError } from "verror";
 import ChipsterUtils, { missingInputError } from "./chipster-utils";
 import WsClient from "./ws-client";
@@ -849,7 +822,7 @@ export default class ReplaySession {
           timeoutSubscription.unsubscribe();
         } else {
           logger.warn(
-            "timeoutSbuscription was null, can't unsubscribe",
+            "timeoutSubscription was null, can't unsubscribe",
             plan,
             testSet
           );
