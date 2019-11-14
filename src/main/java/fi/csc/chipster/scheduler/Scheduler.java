@@ -279,7 +279,7 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 
 				// when the comp has finished the job, we can forget it
 				if (job.getState().isFinishedByComp()) {
-					logger.info("job finished by comp" + jobIdPair);
+					logger.info("job " + jobIdPair + " finished by comp");
 					jobs.remove(jobIdPair);
 				}
 
