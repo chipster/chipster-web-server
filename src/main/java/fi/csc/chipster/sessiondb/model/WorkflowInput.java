@@ -32,4 +32,37 @@ public class WorkflowInput extends Input implements DeepCopyable {
 	public void setSourceWorkflowJobId(String sourceWorkflowJobId) {
 		this.sourceWorkflowJobId = sourceWorkflowJobId;
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + ((sourceJobOutputId == null) ? 0 : sourceJobOutputId.hashCode());
+		result = prime * result + ((sourceWorkflowJobId == null) ? 0 : sourceWorkflowJobId.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		WorkflowInput other = (WorkflowInput) obj;
+		if (sourceJobOutputId == null) {
+			if (other.sourceJobOutputId != null)
+				return false;
+		} else if (!sourceJobOutputId.equals(other.sourceJobOutputId))
+			return false;
+		if (sourceWorkflowJobId == null) {
+			if (other.sourceWorkflowJobId != null)
+				return false;
+		} else if (!sourceWorkflowJobId.equals(other.sourceWorkflowJobId))
+			return false;
+		return true;
+	}
+
+	
 }

@@ -221,6 +221,16 @@ scheduler-max-new-slots-per-user: 1000
 # how long a job can wait for the free slot (per user limit), seconds
 scheduler-wait-new-slots-per-user-timeout: 604800 # a week
 
+# cancel workflow if it takes longer than this, seconds
+workflow-scheduler-running-timeout: 604800 # a week
+# max time for remaining jobs to finish after another job has failed, seconds
+workflow-scheduler-draining-timeout: 604800 # a week
+# max time to wait for all jobs to be cancelled, seconds
+workflow-scheduler-cancelling-timeout: 60
+# how often to check workflow timeouts, seconds
+workflow-scheduler-timer-interval: 1
+# how many workflow runs can one user run at the same time
+workflow-scheduler-max-workflow-runs-per-user: 3
 
 # session-db 
     

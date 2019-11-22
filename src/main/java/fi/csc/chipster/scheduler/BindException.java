@@ -1,9 +1,10 @@
 package fi.csc.chipster.scheduler;
 
-public class BindException extends Exception {
+import fi.csc.chipster.sessiondb.model.WorkflowState;
+
+public class BindException extends WorkflowException {
 
 	public BindException(String msg) {
-		super(msg);
+		super(msg, WorkflowState.FAILED);
 	}
-
 }

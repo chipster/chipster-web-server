@@ -54,6 +54,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
+import fi.csc.chipster.sessiondb.model.WorkflowPlan;
+import fi.csc.chipster.sessiondb.model.WorkflowRun;
 
 @Path("sessions")
 public class SessionResource {
@@ -351,6 +353,16 @@ public class SessionResource {
 		// see the note about datasets above
 		for (Job job : SessionJobResource.getJobs(hibernateSession, session)) {
 			getJobResource(sessionId).deleteJob(job, hibernateSession);
+		}
+		
+		// see the note about datasets above
+		for (WorkflowRun run : SessionWorkflowResource.getRuns(hibernateSession, session)) {
+			getWorkflowResource(sessionId).deleteRun(run, hibernateSession);
+		}
+		
+		// see the note about datasets above
+		for (WorkflowPlan plan : SessionWorkflowResource.getPlans(hibernateSession, session)) {
+			getWorkflowResource(sessionId).deletePlan(plan, hibernateSession);
 		}
 		
 		// see the note about datasets above

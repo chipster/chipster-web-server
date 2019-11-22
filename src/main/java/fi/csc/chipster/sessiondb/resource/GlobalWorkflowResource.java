@@ -22,6 +22,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
 import fi.csc.chipster.sessiondb.model.WorkflowRunIdPair;
+import fi.csc.chipster.sessiondb.model.WorkflowState;
 import fi.csc.microarray.messaging.JobState;
 
 @Path("workflows")
@@ -49,7 +50,7 @@ public class GlobalWorkflowResource {
 				
 		try {		
 			// throws if invalid
-			JobState state = JobState.valueOf(stateString);
+			WorkflowState state = WorkflowState.valueOf(stateString);
 			
 			@SuppressWarnings("unchecked")
 			List<WorkflowRun> runs = hibernate.session()

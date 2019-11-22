@@ -46,6 +46,7 @@ import fi.csc.chipster.sessiondb.model.WorkflowPlan;
 import fi.csc.chipster.sessiondb.model.WorkflowPlanIdPair;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
 import fi.csc.chipster.sessiondb.model.WorkflowRunIdPair;
+import fi.csc.chipster.sessiondb.model.WorkflowState;
 
 public class SessionWorkflowResource {
 	
@@ -292,6 +293,7 @@ public class SessionWorkflowResource {
 			}
 			run.setWorkflowRunIdPair(sessionId, runId);
 			run.setCreated(Instant.now());
+			run.setState(WorkflowState.NEW);
 			
 			// set the createdBy username
 			run.setCreatedBy(sc.getUserPrincipal().getName());
@@ -312,7 +314,7 @@ public class SessionWorkflowResource {
 
 	public void createRun(WorkflowRun run, org.hibernate.Session hibernateSession) {
 		HibernateUtil.persist(run, hibernateSession);
-		SessionEvent event = new SessionEvent(sessionId, ResourceType.WORKFLOW_RUN, run.getWorkflowRunId(), EventType.CREATE);
+		SessionEvent event = new SessionEvent(sessionId, ResourceType.WORKFLOW_RUN, run.getWorkflowRunId(), EventType.CREATE, run.getState());
 		sessionResource.publish(sessionId.toString(), event, hibernateSession);
 	}
 

@@ -1,11 +1,10 @@
 package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
-import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -29,14 +28,13 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
-import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
-import fi.csc.chipster.sessiondb.model.WorkflowInput;
 import fi.csc.chipster.sessiondb.model.WorkflowJob;
 import fi.csc.chipster.sessiondb.model.WorkflowRun;
 import fi.csc.chipster.sessiondb.model.WorkflowRunIdPair;
+import fi.csc.chipster.sessiondb.model.WorkflowState;
 import fi.csc.microarray.messaging.JobState;
 
-public class WorkflowScheduler implements SessionEventListener, StatusSource {
+public class WorkflowScheduler implements StatusSource {
 
 	private Logger logger = LogManager.getLogger();
 		
@@ -44,12 +42,29 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 
 	private SessionDbClient sessionDbClient;
 	
-	private long waitTimeout;
-	private long timerInterval;
-	private long waitNewSlotsPerUserTimeout;	
 
 	private Timer timer;
 	private SchedulerWorkflowRuns workflowRuns = new SchedulerWorkflowRuns();
+	
+	public static final String KEY_RUNNING_TIMEOUT = "workflow-scheduler-running-timeout";
+	public static final String KEY_DRAINING_TIMEOUT = "workflow-scheduler-draining-timeout";
+	public static final String KEY_CANCELLING_TIMEOUT = "workflow-scheduler-cancelling-timeout";
+	public static final String KEY_TIMER_INTERVAL = "workflow-scheduler-timer-interval";
+	public static final String KEY_MAX_WORKFLOW_RUNS_PER_USER = "workflow-scheduler-max-workflow-runs-per-user";
+	
+	enum DrainMode {
+		IGNORE,
+		BAIL_OUT,
+		DRAIN,
+	}
+	
+	private DrainMode onError = DrainMode.DRAIN;
+
+	private long timerInterval;
+	private long maxWorkflowRUnsPerUser;	
+	private long runningTimeout;
+	private long drainingTimeout;
+	private long cancelTimeout;
 	
 	public WorkflowScheduler(Config config) {
 		this.config = config;
@@ -65,13 +80,14 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 
 	public void startServer() throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
     	    	
-		//FIXME add separate configs for workflows
-    	this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
-    	this.timerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
-    	this.waitNewSlotsPerUserTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_NEW_SLOTS_PER_USER_TIMEOUT);    	
+    	this.runningTimeout = config.getLong(KEY_RUNNING_TIMEOUT);
+    	this.drainingTimeout = config.getLong(KEY_DRAINING_TIMEOUT);
+    	this.cancelTimeout = config.getLong(KEY_CANCELLING_TIMEOUT);
+    	this.timerInterval = config.getLong(KEY_TIMER_INTERVAL) * 1000;
+    	this.maxWorkflowRUnsPerUser = config.getLong(KEY_MAX_WORKFLOW_RUNS_PER_USER);    	
 
-    	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "workflow-scheduler-job-listener");
-    	this.sessionDbClient.subscribe(SessionDbTopicConfig.WORKFLOW_RUNS_TOPIC, this, "workflow-scheduler-workflow-listener");
+    	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, new JobEventLister(), "workflow-scheduler-job-listener");
+    	this.sessionDbClient.subscribe(SessionDbTopicConfig.WORKFLOW_RUNS_TOPIC, new WorkflowEventLister(), "workflow-scheduler-workflow-listener");
     	    	    
     	logger.info("getting unfinished workflows from the session-db");
     	getStateFromDb();    	
@@ -95,26 +111,19 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 	/**
 	 * Get unfinished workflows from the session-db
 	 * 
-	 * The unfinished workflows in the db are always in NEW or RUNNING state.   
+	 * The unfinished workflows in the db are always in NEW, RUNNING or DRAINING state.   
 	 * 
 	 * @throws RestException
 	 */
 	private void getStateFromDb() throws RestException {
-		synchronized (workflowRuns) {			
-			
-			List<WorkflowRunIdPair> newDbWorkflows = sessionDbClient.getWorkflowRuns(JobState.NEW);
-			if (!newDbWorkflows.isEmpty()) {
-				logger.info("found " + newDbWorkflows.size() + " waiting workflows from the session-db");				
-				for (WorkflowRunIdPair runIdPair : newDbWorkflows) {
-					addWorkflowRun(runIdPair);
-				}
-			}
-			
-			List<WorkflowRunIdPair> runningDbWorkflows = sessionDbClient.getWorkflowRuns(JobState.RUNNING);
-			if (!runningDbWorkflows.isEmpty()) {
-				logger.info("found " + runningDbWorkflows.size() + " running workflows from the session-db");
-				for (WorkflowRunIdPair runIdPair : runningDbWorkflows) {
-					addWorkflowRun(runIdPair);;
+		synchronized (workflowRuns) {						
+			for (WorkflowState state : Arrays.asList(new WorkflowState[] { WorkflowState.NEW, WorkflowState.RUNNING, WorkflowState.DRAINING, WorkflowState.CANCELLING })) {
+				List<WorkflowRunIdPair> runs = sessionDbClient.getWorkflowRuns(state);
+				if (!runs.isEmpty()) {
+					logger.info("found " + runs.size() + " workflows from the session-db in state " + state);				
+					for (WorkflowRunIdPair runIdPair : runs) {
+						updateWorkflowRun(runIdPair);						
+					}
 				}
 			}			
 		}
@@ -122,21 +131,30 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 
 	public void close() {
 	}
-
-	@Override
-	public void onEvent(SessionEvent e) {
-		logger.debug("received a workflow event: " + e.getResourceType() + " " + e.getType());
-		try {			
-			if (e.getResourceType() == ResourceType.WORKFLOW_RUN) {
-				handleWorkflowEvent(e, new WorkflowRunIdPair(e.getSessionId(), e.getResourceId()));
+	
+	public class WorkflowEventLister implements SessionEventListener {
+		@Override
+		public void onEvent(SessionEvent e) {
+			logger.debug("received a workflow event: " + e.getResourceType() + " " + e.getType());
+			try {							
+				handleWorkflowEvent(e, new WorkflowRunIdPair(e.getSessionId(), e.getResourceId()));				
+			} catch (Exception ex) {
+				logger.error("error when handling a workflow run event", ex);
 			}
-			if (e.getResourceType() == ResourceType.JOB) {
-				handleJobEvent(e, new IdPair(e.getSessionId(), e.getResourceId()));
-			}
-		} catch (Exception ex) {
-			logger.error("error when handling a session event", ex);
 		}
-	}	
+	}
+	
+	public class JobEventLister implements SessionEventListener {
+		@Override
+		public void onEvent(SessionEvent e) {
+			logger.debug("received a workflow event: " + e.getResourceType() + " " + e.getType());
+			try {			
+				handleJobEvent(e, new IdPair(e.getSessionId(), e.getResourceId()));
+			} catch (Exception ex) {
+				logger.error("error when handling a job event", ex);
+			}
+		}
+	}
 	
 	/**
 	 * React to workflow events from the session-db
@@ -145,57 +163,58 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 	 * @param runIdPair
 	 * @throws RestException
 	 */
-	private void handleWorkflowEvent(SessionEvent e, WorkflowRunIdPair runIdPair) throws RestException {				
+	private void handleWorkflowEvent(SessionEvent e, WorkflowRunIdPair runIdPair) throws RestException {
 		switch (e.getType()) {
 		case CREATE:
-			WorkflowRun run = null;
-			try {
-				run = sessionDbClient.getWorkflowRun(e.getSessionId(), e.getResourceId());
-			} catch (RestException err) {
-				logger.error("received a CREATE event of workflow run " + asShort(e.getResourceId()) + ", but couldn't get it from session-db", e);
-				break;
-			}
-			switch (run.getState()) {
-			case NEW:
-				
-				// when a client adds a new workflow run, try to run it immediately
-				logger.info("received a new workflow run " + runIdPair + ", trying to schedule it");
-				addWorkflowRun(runIdPair);
-				
-				break;
-			default:
-				break;
-			}
+			logger.info("workflow run " + runIdPair + " was created");
+			updateWorkflowRun(runIdPair);
 			break;
-
 		case UPDATE:
-			run = sessionDbClient.getWorkflowRun(e.getSessionId(), e.getResourceId());
-			if (run.getState() == JobState.CANCELLED) {
-				cancelWorkflowRun(runIdPair);
+			logger.info("workflow run " + runIdPair + " update " + e.getState());
+			if (WorkflowState.valueOf(e.getState()) == WorkflowState.CANCELLING) {
+				logger.info("workflow run " + runIdPair + " is cancelling");
+				WorkflowSchedulingState schedulingState = workflowRuns.get(runIdPair);
+				if (schedulingState == null) {
+					logger.warn("scheduling state of cancelling workflow run " + runIdPair + " is missing");
+					break;
+				}
+				schedulingState.setState(WorkflowState.CANCELLING);
+				
+				// try get stateDetail from session-db
+				WorkflowRun run = this.sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getWorkflowRunId());
+				if (run.getState() == WorkflowState.CANCELLING) {
+					schedulingState.setStateDetail(run.getStateDetail());
+				}
+				this.updateWorkflowRun(runIdPair);
 			}
 			break;
 		case DELETE:
-			cancelWorkflowRun(runIdPair);				
+			logger.info("workflow run " + runIdPair + " was deleted");
+			if (workflowRuns.get(runIdPair) != null) {
+				// no need to update the session-db, just cancel the jobs
+				this.cancelWorkflowRunJobs(runIdPair);
+			}
 			break;
 		default:
 			break;
 		}
 	}
 	
-	private void addWorkflowRun(WorkflowRunIdPair runIdPair) throws RestException {
+	private WorkflowSchedulingState run(WorkflowRun run) throws WorkflowException {
 		synchronized (workflowRuns) {
-			WorkflowRun run = this.sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getWorkflowRunId());
+			
+			if (workflowRuns.getByUserId(run.getCreatedBy()).size() > this.maxWorkflowRUnsPerUser) {
+				throw new WorkflowException("The workflow couldn't run, because you had the maximum number of workflows running. "
+						+ "Please try again after another workflow has finished.", WorkflowState.FAILED);
+			}
 			
 			WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(run.getCreatedBy());
-			schedulingState.setNewTimestamp();
+			schedulingState.setState(WorkflowState.RUNNING);
+			schedulingState.setWorkflowJobs(run.getWorkflowJobs());			
 			
-			for (WorkflowJob workflowJob : run.getWorkflowJobs()) {
-				if (workflowJob.getJobId() != null) {
-					schedulingState.putJobId(workflowJob.getJobId());
-				}
-			}
-			workflowRuns.put(runIdPair, schedulingState);
-			this.runNextJobs(runIdPair);
+			workflowRuns.put(run.getWorkflowRunIdPair(), schedulingState);
+			
+			return schedulingState;
 		}
 	}
 
@@ -209,26 +228,51 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 				
 			case UPDATE:
 				JobState jobState = JobState.valueOf(e.getState());
-
-				if (jobState.isFinished()) {
-					WorkflowRunIdPair runIdPair = this.workflowRuns.getWorkflowRunId(jobIdPair);
 					
-					if (runIdPair == null) {
-						// not a workflow job
-					} else if (JobState.COMPLETED == jobState) {
-						runNextJobs(runIdPair);
-					} else {
-						// job was unsuccesful
-						endWorkflowRun(runIdPair, jobState, "job state " + jobState);
+					WorkflowRunIdPair runIdPair = this.workflowRuns.getWorkflowRunId(jobIdPair);										
+					
+					// if a workflow job
+					if (runIdPair != null) {
+						
+						// update jobs state
+						WorkflowSchedulingState schedulingState = workflowRuns.get(runIdPair);
+						schedulingState.putJobId(jobIdPair.getJobId(), jobState);
+						
+						if (jobState.isFinished()) {
+																				
+							logger.info("workflow run " + runIdPair + " job " + jobIdPair + " state " + jobState);
+							
+							if (JobState.COMPLETED == jobState) {
+								try {
+									updateInputBindings(runIdPair, schedulingState.getWorkflowJobs());
+									
+								} catch (BindException ex) {				
+									this.handleJobFail(runIdPair, WorkflowState.ERROR, ex.getMessage());
+								}
+							} else if (JobState.CANCELLED == jobState) {
+								// nothing to do, just update the workflow run 
+							} else {
+								// job was unsuccessful or cancelled						
+								handleJobFail(runIdPair, WorkflowState.FAILED, "job " + jobIdPair + " state " + jobState);
+							}
+							updateWorkflowRun(runIdPair);
+						}
 					}
-				}
 				break;
 				
 			case DELETE:
-				WorkflowRunIdPair runIdPair = this.workflowRuns.getWorkflowRunId(jobIdPair);
+				runIdPair = this.workflowRuns.getWorkflowRunId(jobIdPair);
 				
+				// if the job is part of some workflow
 				if (runIdPair != null) {
-					endWorkflowRun(runIdPair, JobState.CANCELLED, "job deleted");
+					/* Someone deleted the job
+					 * - Session deletion should be the only way to do this in the UI (cancellation is 
+					 *   implemented with JobState.CANCELLED)
+					 * - Remove it from our bookkeeping
+					 * - Don't do anything for the WorkflowRun. The one who deleted this job should take care of anything else.
+					 */					
+					logger.info("job " + jobIdPair + " is deleted");
+					this.workflowRuns.get(runIdPair).removeJobId(jobIdPair.getJobId());
 				}
 				break;
 				
@@ -244,187 +288,114 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 	private void handleWorkflowTimer() {
 		synchronized (workflowRuns) {			
 			
-			for (WorkflowRunIdPair runIdPair : workflowRuns.getRunning()) {
-				WorkflowSchedulingState schedulingState = workflowRuns.get(runIdPair);
+			// this shouldn't be possible, because all workflows are run immediately
+			this.checkTimeouts(WorkflowState.NEW, 10, WorkflowState.CANCELLING);
+			this.checkTimeouts(WorkflowState.RUNNING, runningTimeout, WorkflowState.CANCELLING);
+			this.checkTimeouts(WorkflowState.DRAINING, drainingTimeout, WorkflowState.CANCELLING);			
+			this.checkTimeouts(WorkflowState.CANCELLING, cancelTimeout, WorkflowState.ERROR);
+		}
+	}
+	
+	private void checkTimeouts(WorkflowState stateNow, long timeoutSeconds, WorkflowState timeoutState) {
+		for (WorkflowRunIdPair runIdPair : workflowRuns.get(stateNow)) {
+			WorkflowSchedulingState schedulingState = workflowRuns.get(runIdPair);
+			
+			//FIXME store state change times
+			if (schedulingState.getTimeSince(stateNow) > timeoutSeconds) {
 				
-				if (schedulingState.isUserLimitReached()) {
-					if (schedulingState.getTimeSinceNew() > waitNewSlotsPerUserTimeout) {
-						expire(runIdPair, "The workflow couldn't run, because you had the maximum number of workflows running. Please try again after you other workflow have completed.");
-					}
-				} else {
-					if (schedulingState.getTimeSinceNew() > waitTimeout) {						
-						expire(runIdPair, "the workflow max time reached (" + waitTimeout + " seconds)");
-					}
-				}
+				logger.info(stateNow + " timeout for workflow run " + runIdPair);
+				schedulingState.setState(timeoutState);
+				schedulingState.setStateDetail("the workflow max time reached for state " + stateNow + " (" + timeoutSeconds + " seconds)");
+				updateWorkflowRun(runIdPair);
 			}
 		}
 	}
 	
-	private boolean updateInputBindings(WorkflowRun run, HashMap<UUID, Dataset> sessionDatasets, HashMap<UUID, Job> sessionJobs) throws RestException, BindException {
+	public void updateWorkflowRun(WorkflowRunIdPair runIdPair) {
+		synchronized (workflowRuns) {
+			WorkflowSchedulingState schedulingState = this.workflowRuns.get(runIdPair);
 			
-		boolean isChanged = false;
-		
-		for (WorkflowJob workflowJob : run.getWorkflowJobs()) {
-			
-			logger.info("job " + workflowJob.getToolId() + " has " + workflowJob.getInputs().size() + " input(s)");
-			
-			for (WorkflowInput input : workflowJob.getInputs()) {
-				
-				logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': check binding");
-				
-				if (updateBinding(input, run, workflowJob, sessionDatasets, sessionJobs)) {
-					isChanged = true;
-				}
-			}
-		}
-		
-		return isChanged;
-	}
-		
-	private boolean updateBinding(WorkflowInput input, WorkflowRun run, WorkflowJob workflowJob, HashMap<UUID, Dataset> sessionDatasets,
-			HashMap<UUID, Job> sessionJobs) throws BindException {
-				
-		Dataset sourceDataset = this.getSourceDataset(input, sessionDatasets);
-		WorkflowJob sourceWorkflowJob = this.getSourceWorkflowJob(input, run);
-		Job sourceJob = this.getSourceJob(input, sessionJobs, run);
-		
-		if (sourceDataset != null) {
-			
-			// input is already bound to dataset
-			logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "':  bound to dataset " + input.getDatasetId());
-		
-		} else if (sourceWorkflowJob != null && sourceJob == null) {
-			logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': waiting for workflow job " + input.getSourceWorkflowJobId() + " to start");
-			
-		} else if (sourceWorkflowJob != null && sourceJob != null) { 	
-																
-			logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': is bound to job " + sourceWorkflowJob.getJobId() + " output '" + input.getSourceJobOutputId() + "'");
+			try {
+				// if new
+				if (schedulingState == null) {
+					WorkflowRun run;
+					try {
+						run = this.sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getWorkflowRunId());
+						schedulingState = run(run);
 						
-			if (sourceJob.getState() == JobState.COMPLETED) {
+					} catch (RestException e) {
+						logger.error("failed to get the workflow run", e);
+					}					
+				}
 				
-				Dataset dataset = getSourceDataset(input, sourceJob, sessionDatasets);
+				if (WorkflowState.CANCELLING == schedulingState.getState()) {
+					if (schedulingState.getUnfinishedJobs().isEmpty()) {
+						// after all jobs are finished, set this run to a finished state 
+						schedulingState.setState(WorkflowState.CANCELLED);
+					} else {
+						// cancel all remaining jobs
+						cancelWorkflowRunJobs(runIdPair);
+					}
+				}
 				
-				logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': bind dataset " + dataset.getName());
-				input.setDatasetId(dataset.getDatasetId().toString());
-				input.setDisplayName(dataset.getName());
-				
-				return true;
-				
-			} else {
-				logger.info("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': waiting for job " + sourceJob.getToolId() + " (" + sourceJob.getState() + ")");
-			}
-		} else {
-			throw new BindException("job " + workflowJob.getToolId() + " input '" + input.getInputId() + "': is not bound to anything");			
-		}
-		
-		return false;
-	}
-	
-
-	private Dataset getSourceDataset(WorkflowInput input, Job sourceJob, HashMap<UUID, Dataset> sessionDatasets) throws BindException {
-		
-		List<Dataset> sourceDatasets = sessionDatasets.values().stream()
-				.filter(d -> sourceJob.getJobId().equals(d.getSourceJob()))
-				.filter(d -> input.getSourceJobOutputId().equals(d.getSourceJobOutputId()))
-				.collect(Collectors.toList());
-		
-		if (sourceDatasets.isEmpty()) {
-			throw new BindException("the job " + sourceJob.getToolId() + " has completed, but its output '" + input.getSourceJobOutputId() + "' dataset cannot be found");
-		} else if (sourceDatasets.size() > 1) {
-			throw new BindException("the job " + sourceJob.getToolId() + " has more than one datasets for output '" + input.getSourceJobOutputId() + "'");
-		} else {
-			// the job output is ready, we can bind the dataset
-			return sourceDatasets.get(0);
-		}
-	}
-	
-	private Job getSourceJob(WorkflowInput input, HashMap<UUID, Job> sessionJobs, WorkflowRun run) throws BindException {
-		WorkflowJob sourceWorkflowJob = getSourceWorkflowJob(input, run);
-		
-		if (sourceWorkflowJob != null && sourceWorkflowJob.getJobId() != null) {
-			
-			Job sourceJob = sessionJobs.get(sourceWorkflowJob.getJobId());
-			
-			if (sourceJob == null) {
-				throw new BindException("job " + sourceWorkflowJob.getJobId() + " is not found from the session");
-			}
-			return sourceJob;
-		}
-		return null;
-	}
-
-	private Dataset getSourceDataset(WorkflowInput input, HashMap<UUID, Dataset> sessionDatasets) throws BindException {
-		
-		if (input.getDatasetId() != null) {
-			Dataset dataset = sessionDatasets.get(UUID.fromString(input.getDatasetId()));
-			
-			if (dataset == null) {
-				throw new BindException(" input '" + input.getInputId() + "' is bound to non existing dataset " + input.getDatasetId());
-			} else {
-				return dataset;
-			}
-		}
-		return null;
-	}
-	
-	private WorkflowJob getSourceWorkflowJob(WorkflowInput input, WorkflowRun run) throws BindException {
-		
-		if (input.getSourceWorkflowJobId() != null) {
-			Optional<WorkflowJob> sourceWorkflowJobOptional = run.getWorkflowJobs().stream()
-					.filter(j -> UUID.fromString(input.getSourceWorkflowJobId()).equals(j.getWorkflowJobId()))
-					.findFirst();
-		
-			if (sourceWorkflowJobOptional.isEmpty()) {
-				throw new BindException("input '" + input.getInputId() + "': waiting workflow job " + input.getSourceWorkflowJobId() + " which doesn't exist");
-			}
-			
-			return sourceWorkflowJobOptional.get();
-		}
-		return null;
-	}
-	
-	private List<Job> getJobs(WorkflowRun run, HashMap<UUID, Job> sessionJobs) throws RestException {
-		
-		return run.getWorkflowJobs().stream()
-			.filter(workflowJob -> workflowJob.getJobId() != null)
-			.map(workflowJob -> sessionJobs.get(workflowJob.getJobId()))
-			.filter(job -> job != null)
-			.collect(Collectors.toList());
-	}
-	
-	private List<WorkflowJob> getUnstartedJobs(WorkflowRun run) throws RestException {
-		
-		return run.getWorkflowJobs().stream()
-			.filter(workflowJob -> workflowJob.getJobId() == null)
-			.collect(Collectors.toList());
-	}
-	
-	/**
-	 * Get jobs that haven't started yet but are ready to run
-	 * 
-	 * @param run
-	 * @param schedulingState
-	 * @return
-	 * @throws RestException
-	 */
-	private List<WorkflowJob> getOperableJobs(WorkflowRun run) throws RestException {
+				if (WorkflowState.RUNNING == schedulingState.getState() || WorkflowState.DRAINING == schedulingState.getState()) {
 					
-		List<WorkflowJob> operableJobs = this.getUnstartedJobs(run).stream()
-			.filter(workflowJob -> {
+					List<WorkflowJob> workflowJobs = workflowRuns.get(runIdPair).getWorkflowJobs();
+					List<WorkflowJob> operableJobs = workflowRuns.get(runIdPair).getOperableJobs();
+					Map<UUID, JobState> unfinishedJobs = workflowRuns.get(runIdPair).getUnfinishedJobs();				
+					Map<UUID, JobState> completedJobs = workflowRuns.get(runIdPair).getCompletedJobs();
+					
+					if (!operableJobs.isEmpty() && WorkflowState.DRAINING != schedulingState.getState()) {
+						
+						logger.info("the workflow has "
+								+ workflowJobs.size() + " jobs, "
+								+ operableJobs.size() + " can be started now, "
+								+ completedJobs.size() + " are completed");
+						// keep in RUNNING 
+						runNextJobs(runIdPair, operableJobs);
+						
+					} else 	if (completedJobs.size() == workflowJobs.size()) {
+						logger.info("workflow run " + runIdPair + " completed successfully");
+						this.endWorkflowRun(runIdPair, WorkflowState.COMPLETED, null);
+						
+					} else if (operableJobs.isEmpty() && unfinishedJobs.isEmpty()) {
+						
+						// move to FAILED
+						throw new WorkflowException("completed jobs didn't produce the files "
+								+ "that are needed for the remaining tools, "
+								+ completedJobs.size() + "/" 
+								+ workflowJobs.size() + " jobs completed", WorkflowState.FAILED);
+					}				
+				}
+			} catch (WorkflowException e) {
+				
+				logger.warn("workflow " + runIdPair + " failed: " + e.getMessage());
+				schedulingState.setState(e.getState());
+				schedulingState.setStateDetail(e.getMessage());
+			}
 			
-			List<WorkflowInput> readyInputs = workflowJob.getInputs().stream()
-				.filter(input -> input.getDatasetId() != null)
-				.collect(Collectors.toList());
+			try {
+				this.updateSessionDb(runIdPair);
+				
+			} catch (RestException e) {
+				
+				if (e.getResponse().getStatus() == 404) {
+					logger.warn("the worklow " + runIdPair + " has been deleted");
+					this.workflowRuns.remove(runIdPair);
+				} else {
+					logger.error("failed to update the WorkflowRun in sessions-db", e);
+				}
+			}
 			
-			// check if all inputs are ready in this job
-			return readyInputs.size() == workflowJob.getInputs().size();
+			if (schedulingState.getState().isFinished()) {
+				logger.info("workflow run " + runIdPair + " is finished as " + schedulingState.getState() + " (" + schedulingState.getStateDetail() + ")");
+				this.workflowRuns.remove(runIdPair);
+			}
 			
-		}).collect(Collectors.toList());
-		
-		return operableJobs;
+		}
 	}
 	
-	private void runWorkflowJob(WorkflowRun run, WorkflowJob workflowJob) throws RestException {
+	private UUID runWorkflowJob(WorkflowRun run, WorkflowJob workflowJob) throws RestException {
 		synchronized (workflowRuns) {
 												
 			Job job = new Job();
@@ -446,138 +417,165 @@ public class WorkflowScheduler implements SessionEventListener, StatusSource {
 			
 			UUID jobId = sessionDbClient.createJob(run.getSessionId(), job);
 						
-			// store the job id in memory to know when it's updated
-			workflowRuns.get(run.getWorkflowRunIdPair()).putJobId(jobId);					
-			
-			// store the job in session-db for client to show progress
-			workflowJob.setJobId(jobId);
+			return jobId;
 		}
 	}
 	
-	private void runNextJobs(WorkflowRunIdPair runIdPair) throws RestException {
+	private void updateInputBindings(WorkflowRunIdPair runIdPair, List<WorkflowJob> workflowJobs) throws RestException, BindException {
 		synchronized (workflowRuns) {
-			
-			WorkflowRun run = sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getWorkflowRunId());
 			
 			HashMap<UUID, Dataset> sessionDatasets = sessionDbClient.getDatasets(runIdPair.getSessionId());
 			HashMap<UUID, Job> sessionJobs = sessionDbClient.getJobs(runIdPair.getSessionId());
-						
-			boolean isChanged;
-			try {
-				isChanged = this.updateInputBindings(run, sessionDatasets, sessionJobs);
-						
-				List<WorkflowJob> operableJobs = this.getOperableJobs(run);
-				List<Job> unfinishedJobs = getUnfinishedJobs(run, sessionJobs);				
-				List<Job> completedJobs = getCompletedJobs(run, sessionJobs);
-				
-				
-				logger.info("the workflow has "
-					+ run.getWorkflowJobs().size() + " jobs, "
-					+ operableJobs.size() + " can be started now, "
-					+ completedJobs.size() + " are completed");
-				
-				for (WorkflowJob job : operableJobs) {
-					// adds jobIds the workflowJob
-					this.runWorkflowJob(run, job);
-					isChanged = true;
-				}
-				
-				if (run.getState() == JobState.NEW) {
-					run.setState(JobState.RUNNING);
-					isChanged = true;
-				}
-				
-				if (completedJobs.size() == run.getWorkflowJobs().size()) {
-					run.setState(JobState.COMPLETED);
-					isChanged = true;
-				} else if (operableJobs.isEmpty() && unfinishedJobs.isEmpty()) {
-					run.setState(JobState.FAILED);
-					run.setStateDetail("completed jobs didn't produce the files that are needed for the remaining tools, "
-							+ completedJobs.size() + "/" + run.getWorkflowJobs().size() + " jobs completed");
-					isChanged = true;
-				}
-					
-				
-				if (isChanged) { 
-					// save updates to session-db for client  
-					sessionDbClient.updateWorkflowRun(run.getSessionId(), run);
-				}
-			} catch (BindException e) {
-				this.expire(runIdPair, e.getMessage());
-			}
+			
+			// this will update the local copy in this.workflowRuns, session-db will be updated later in updateWorkflowRun()
+			WorkflowBinder.updateInputBindings(workflowJobs, sessionDatasets, sessionJobs);
 		}
-	}
-
-	private List<Job> getCompletedJobs(WorkflowRun run, HashMap<UUID, Job> sessionJobs) throws RestException {
-		return this.getJobs(run, sessionJobs).stream()
-		.filter(job -> job.getState() == JobState.COMPLETED)
-		.collect(Collectors.toList());
-	}
-
-	private List<Job> getUnfinishedJobs(WorkflowRun run, HashMap<UUID, Job> sessionJobs) throws RestException {
-		return this.getJobs(run, sessionJobs).stream()
-		.filter(job -> !job.getState().isFinished())
-		.collect(Collectors.toList());
-	}
-
-	private void expire(WorkflowRunIdPair runIdPair, String reason) {
-		logger.warn("workflow " + runIdPair + " expired: " + reason);
-		endWorkflowRun(runIdPair, JobState.EXPIRED_WAITING, reason);
 	}
 	
-	private void endWorkflowRun(WorkflowRunIdPair runIdPair, JobState state, String reason) {
-		synchronized (workflowRuns) {			
-			workflowRuns.remove(runIdPair);
+	private void runNextJobs(WorkflowRunIdPair runIdPair, List<WorkflowJob> operableJobs) throws WorkflowException {
+		synchronized (workflowRuns) {
 			
-			try {			
+			try {
 				WorkflowRun run = sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getWorkflowRunId());
-				run.setEndTime(Instant.now());
-				run.setState(state);
-				run.setStateDetail(reason);
-				sessionDbClient.updateWorkflowRun(runIdPair.getSessionId(), run);
+			
+				for (WorkflowJob job : operableJobs) {
+					
+					UUID jobId = this.runWorkflowJob(run, job);
+	
+					//TODO store to workflowRuns explicitly
+					// store the job id in memory to know when it's updated
+					job.setJobId(jobId);
+					
+					// store the job state
+					workflowRuns.get(run.getWorkflowRunIdPair()).putJobId(jobId, JobState.NEW);				
+				}				
 			} catch (RestException e) {
-				logger.error("could not set a workflow " + runIdPair + " to " + state, e);
+				// shouldn't happen when if all services are working
+				logger.error("failed to create a new job", e);
+				throw new WorkflowException("Internal error: failed to create a new job", WorkflowState.ERROR);
+			}
+		}
+	}
+	
+	private void updateSessionDb(WorkflowRunIdPair runIdPair) throws RestException {
+		synchronized (workflowRuns) {
+			
+			WorkflowRun sessionDbRun = sessionDbClient.getWorkflowRun(runIdPair.getSessionId(), runIdPair.getWorkflowRunId());
+			
+			WorkflowRun run = sessionDbRun.deepCopy();
+			
+			WorkflowSchedulingState schedulingState = this.workflowRuns.get(runIdPair);
+			
+			run.setWorkflowJobs(schedulingState.getWorkflowJobs());
+			run.setState(schedulingState.getState());
+			run.setStateDetail(schedulingState.getStateDetail());
+			run.setEndTime(schedulingState.getTimestamp(schedulingState.getState()));
+			
+			// update only if there was any changes
+			if (!run.equals(sessionDbRun)) {
+				logger.info("update the workflow run in session-db " + sessionDbRun.getState() + " -> " + run.getState());
+				// save updates to session-db for client			
+				sessionDbClient.updateWorkflowRun(run.getSessionId(), run);
+			} else {
+				logger.debug("no changes to the workflow run in session-db");
+			}
+		}
+	}
+	
+	private void handleJobFail(WorkflowRunIdPair runIdPair, WorkflowState state, String reason) throws RestException {
+		synchronized (workflowRuns) {
+			switch (onError) {
+			case IGNORE:								
+				logger.info("a job in workflow run " + runIdPair + " failed (" + reason + ") but the workflow run tries to continue");
+				break;
+			case BAIL_OUT:
+				logger.info("a job in workflow run " + runIdPair + " failed (" + reason + "), cancel other jobs");
+				cancelWorkflowRunJobs(runIdPair);
+				// the workflow run should finish when we have received session-db (a finished state) event of each job  
+				break;
+			case DRAIN:
+				logger.info("a job in workflow run " + runIdPair + " failed (" + reason + "), drain other jobs");
+				WorkflowSchedulingState schedulingState = this.workflowRuns.get(runIdPair);
+				schedulingState.setState(WorkflowState.DRAINING);
+				schedulingState.setStateDetail(reason);
+				break;
+			default:
+				logger.error("unrecognized job error mode: " + onError);
 			}
 		}
 	}
 
-	private void cancelWorkflowRun(WorkflowRunIdPair runIdPair) throws RestException {
+	private void endWorkflowRun(WorkflowRunIdPair runIdPair, WorkflowState state, String reason) {
+		synchronized (workflowRuns) {
+						
+			if (!state.isFinished()) {
+				throw new IllegalArgumentException("cannot end the workflow run with state " + state);
+			}
+			
+			Map<UUID, JobState> unfinishedJobs = this.workflowRuns.get(runIdPair).getUnfinishedJobs();
+			if (!unfinishedJobs.isEmpty()) {
+				throw new IllegalStateException("cannot end the workflow run " + runIdPair + " because it has " + unfinishedJobs.size() + " jobs running");
+			}
+			
+			WorkflowSchedulingState schedulingState = workflowRuns.get(runIdPair);
+			schedulingState.setState(state);
+			schedulingState.setStateDetail(reason);				
+		}
+	}
+
+	private void cancelWorkflowRunJobs(WorkflowRunIdPair runIdPair) {
 		synchronized (workflowRuns) {
 			
-			logger.info("cancel workflow " + runIdPair);			
-			WorkflowSchedulingState runSchedulingState = workflowRuns.remove(runIdPair);
+			logger.info("cancel jobs of workflow " + runIdPair);			
+			WorkflowSchedulingState runSchedulingState = workflowRuns.get(runIdPair);
 					
 			if (runSchedulingState == null) {
 				logger.warn("scheduling state not found for workflow " + runIdPair);
 				return;
 			}
 			
+			Map<UUID, JobState> unfinishedJobs = runSchedulingState.getUnfinishedJobs();
+			
+			if (unfinishedJobs.isEmpty()) {
+				logger.info("no unfinished jobs");
+			}
+			
 			// cancel all jobs in this workflow
-			for (UUID jobId : runSchedulingState.getJobIds()) {
-				Job job = this.sessionDbClient.getJob(runIdPair.getSessionId(), jobId);
-				if (!job.getState().isFinished()) {
-					job.setState(JobState.CANCELLED);					
-					job.setStateDetail("workflow cancelled");
-					this.sessionDbClient.updateJob(runIdPair.getSessionId(), job);
-				}					
+			for (UUID jobId : unfinishedJobs.keySet()) {
+				try {
+					JobState jobState = runSchedulingState.getJobs().get(jobId);
+					logger.info("cancel job " + jobId + " " + jobState);
+					Job job = this.sessionDbClient.getJob(runIdPair.getSessionId(), jobId);
+					if (!job.getState().isFinished()) {
+						job.setState(JobState.CANCELLED);					
+						job.setStateDetail("workflow cancelled");
+						this.sessionDbClient.updateJob(runIdPair.getSessionId(), job);
+													
+						/* Cancel only once
+						 * 
+						 * Set the local job state to a finished state, so that we don't try to cancel
+						 * repeatedly. Otherwise the WorkflowScheduler is only reacting to the state changes 
+						 * that come from the
+						 * events, so maybe it would be better store this information somewhere else. 
+						 */
+						runSchedulingState.putJobId(jobId, JobState.CANCELLED);
+					}					
+				} catch (RestException e) {					
+					if (e.getResponse().getStatus() == 404) {
+						logger.warn("tried to cancel job " + jobId + ", but it was already deleted");	
+					}
+					logger.error("cancelling job " + jobId + "failed", e);
+				}
 			}
 		}
-	}
-		
-	/**
-	 * First 4 letters of the UUID for log messages 
-	 * 
-	 * @param id
-	 * @return
-	 */
-	private String asShort(UUID id) {
-		return id.toString().substring(0, 4);
 	}
 
 	public Map<String, Object> getStatus() {
 		HashMap<String, Object> status = new HashMap<>();
-		status.put("newWorkflowCount", workflowRuns.getNew().size());
-		status.put("runningWorkflowCount", workflowRuns.getRunning().size());
+		status.put("newWorkflowCount", workflowRuns.get(WorkflowState.NEW).size());
+		status.put("runningWorkflowCount", workflowRuns.get(WorkflowState.RUNNING).size());
+		status.put("cancelWorkflowCount", workflowRuns.get(WorkflowState.CANCELLING).size());
+		status.put("draininggWorkflowCount", workflowRuns.get(WorkflowState.DRAINING).size());
 		return status;
 	}
 }
