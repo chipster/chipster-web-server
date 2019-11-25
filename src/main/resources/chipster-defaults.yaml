@@ -230,7 +230,7 @@ workflow-scheduler-cancelling-timeout: 60
 # how often to check workflow timeouts, seconds
 workflow-scheduler-timer-interval: 1
 # how many workflow runs can one user run at the same time
-workflow-scheduler-max-workflow-runs-per-user: 3
+workflow-scheduler-max-workflow-runs-per-user: 100
 
 # session-db 
     

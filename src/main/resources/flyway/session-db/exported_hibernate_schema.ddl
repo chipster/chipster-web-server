@@ -99,11 +99,16 @@
     create table WorkflowRun (
        sessionId uuid not null,
         workflowRunId uuid not null,
+        cancellingTimeout int8 not null,
         created timestamp,
         createdBy varchar(255),
+        drainingTimeout int8 not null,
         endTime timestamp,
         name varchar(255),
+        onError int4,
+        runningTimeout int8 not null,
         state int4,
+        stateDetail oid,
         workflowJobs jsonb,
         primary key (sessionId, workflowRunId)
     );

@@ -18,6 +18,8 @@ import org.hibernate.annotations.Type;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
+import fi.csc.chipster.scheduler.WorkflowScheduler.DrainMode;
+
 @Entity // db
 @XmlRootElement // rest
 @Table(indexes = { @Index(columnList = "sessionId", name = "workflowrun_sessionid_index"), })
@@ -34,6 +36,10 @@ public class WorkflowRun {
 	private Instant endTime;
 	private String createdBy;
 	private String name;
+	private Long runningTimeout;
+	private Long drainingTimeout;
+	private Long cancellingTimeout;
+	private DrainMode onError; 
 	
 	@Column
 	@Type(type = WorkflowJob.WORKFLOW_JOB_LIST_JSON_TYPE)
@@ -127,18 +133,58 @@ public class WorkflowRun {
 		run.workflowJobs = this.workflowJobs.stream()
 				.map(j -> (WorkflowJob)j.deepCopy())
 				.collect(Collectors.toList());
+		run.runningTimeout = this.runningTimeout;
+		run.cancellingTimeout = this.cancellingTimeout;
+		run.drainingTimeout = this.drainingTimeout;
+		run.onError = this.onError;
 		
 		return run;
 	}
+	
+	public Long getRunningTimeout() {
+		return runningTimeout;
+	}
 
+	public void setRunningTimeout(Long runningTimeout) {
+		this.runningTimeout = runningTimeout;
+	}
+
+	public Long getDrainingTimeout() {
+		return drainingTimeout;
+	}
+
+	public void setDrainingTimeout(Long drainingTimeout) {
+		this.drainingTimeout = drainingTimeout;
+	}
+
+	public Long getCancellingTimeout() {
+		return cancellingTimeout;
+	}
+
+	public void setCancellingTimeout(Long cancellingTimeout) {
+		this.cancellingTimeout = cancellingTimeout;
+	}
+
+	public DrainMode getOnError() {
+		return onError;
+	}
+
+	public void setOnError(DrainMode onError) {
+		this.onError = onError;
+	}
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
+		result = prime * result + ((cancellingTimeout == null) ? 0 : cancellingTimeout.hashCode());
 		result = prime * result + ((created == null) ? 0 : created.hashCode());
 		result = prime * result + ((createdBy == null) ? 0 : createdBy.hashCode());
+		result = prime * result + ((drainingTimeout == null) ? 0 : drainingTimeout.hashCode());
 		result = prime * result + ((endTime == null) ? 0 : endTime.hashCode());
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		result = prime * result + ((onError == null) ? 0 : onError.hashCode());
+		result = prime * result + ((runningTimeout == null) ? 0 : runningTimeout.hashCode());
 		result = prime * result + ((state == null) ? 0 : state.hashCode());
 		result = prime * result + ((stateDetail == null) ? 0 : stateDetail.hashCode());
 		result = prime * result + ((workflowJobs == null) ? 0 : workflowJobs.hashCode());
@@ -155,6 +201,11 @@ public class WorkflowRun {
 		if (getClass() != obj.getClass())
 			return false;
 		WorkflowRun other = (WorkflowRun) obj;
+		if (cancellingTimeout == null) {
+			if (other.cancellingTimeout != null)
+				return false;
+		} else if (!cancellingTimeout.equals(other.cancellingTimeout))
+			return false;
 		if (created == null) {
 			if (other.created != null)
 				return false;
@@ -165,6 +216,11 @@ public class WorkflowRun {
 				return false;
 		} else if (!createdBy.equals(other.createdBy))
 			return false;
+		if (drainingTimeout == null) {
+			if (other.drainingTimeout != null)
+				return false;
+		} else if (!drainingTimeout.equals(other.drainingTimeout))
+			return false;
 		if (endTime == null) {
 			if (other.endTime != null)
 				return false;
@@ -174,6 +230,13 @@ public class WorkflowRun {
 			if (other.name != null)
 				return false;
 		} else if (!name.equals(other.name))
+			return false;
+		if (onError != other.onError)
+			return false;
+		if (runningTimeout == null) {
+			if (other.runningTimeout != null)
+				return false;
+		} else if (!runningTimeout.equals(other.runningTimeout))
 			return false;
 		if (state != other.state)
 			return false;

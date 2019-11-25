@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import fi.csc.chipster.scheduler.WorkflowScheduler.DrainMode;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.WorkflowInput;
 import fi.csc.chipster.sessiondb.model.WorkflowJob;
@@ -23,6 +24,11 @@ public class WorkflowSchedulingState {
 		private WorkflowState state;
 		private HashMap<WorkflowState, Instant> stateTimestamps = new HashMap<>();
 		private String stateDetail;
+		
+		private long runningTimeout;
+		private long cancellingTimeout;
+		private long drainingTimeout;
+		private DrainMode onError;
 		
 		public WorkflowSchedulingState(String userId) {
 			this.userId = userId;
@@ -130,5 +136,37 @@ public class WorkflowSchedulingState {
 
 		public String getStateDetail() {
 			return this.stateDetail;
+		}
+
+		public long getRunningTimeout() {
+			return runningTimeout;
+		}
+
+		public void setRunningTimeout(long runningTimeout) {
+			this.runningTimeout = runningTimeout;
+		}
+
+		public long getCancellingTimeout() {
+			return cancellingTimeout;
+		}
+
+		public void setCancellingTimeout(long cancellingTimeout) {
+			this.cancellingTimeout = cancellingTimeout;
+		}
+
+		public long getDrainingTimeout() {
+			return drainingTimeout;
+		}
+
+		public void setDrainingTimeout(long drainingTimeout) {
+			this.drainingTimeout = drainingTimeout;
+		}
+
+		public DrainMode getOnError() {
+			return onError;
+		}
+
+		public void setOnError(DrainMode onError) {
+			this.onError = onError;
 		}
 	}

@@ -52,7 +52,7 @@ public class WorkflowScheduler implements StatusSource {
 	public static final String KEY_TIMER_INTERVAL = "workflow-scheduler-timer-interval";
 	public static final String KEY_MAX_WORKFLOW_RUNS_PER_USER = "workflow-scheduler-max-workflow-runs-per-user";
 	
-	enum DrainMode {
+	public enum DrainMode {
 		IGNORE,
 		BAIL_OUT,
 		DRAIN,
@@ -61,7 +61,7 @@ public class WorkflowScheduler implements StatusSource {
 	private DrainMode onError = DrainMode.DRAIN;
 
 	private long timerInterval;
-	private long maxWorkflowRUnsPerUser;	
+	private long maxWorkflowRunsPerUser;	
 	private long runningTimeout;
 	private long drainingTimeout;
 	private long cancelTimeout;
@@ -84,7 +84,7 @@ public class WorkflowScheduler implements StatusSource {
     	this.drainingTimeout = config.getLong(KEY_DRAINING_TIMEOUT);
     	this.cancelTimeout = config.getLong(KEY_CANCELLING_TIMEOUT);
     	this.timerInterval = config.getLong(KEY_TIMER_INTERVAL) * 1000;
-    	this.maxWorkflowRUnsPerUser = config.getLong(KEY_MAX_WORKFLOW_RUNS_PER_USER);    	
+    	this.maxWorkflowRunsPerUser = config.getLong(KEY_MAX_WORKFLOW_RUNS_PER_USER);    	
 
     	this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, new JobEventLister(), "workflow-scheduler-job-listener");
     	this.sessionDbClient.subscribe(SessionDbTopicConfig.WORKFLOW_RUNS_TOPIC, new WorkflowEventLister(), "workflow-scheduler-workflow-listener");
@@ -203,19 +203,41 @@ public class WorkflowScheduler implements StatusSource {
 	private WorkflowSchedulingState run(WorkflowRun run) throws WorkflowException {
 		synchronized (workflowRuns) {
 			
-			if (workflowRuns.getByUserId(run.getCreatedBy()).size() > this.maxWorkflowRUnsPerUser) {
-				throw new WorkflowException("The workflow couldn't run, because you had the maximum number of workflows running. "
-						+ "Please try again after another workflow has finished.", WorkflowState.FAILED);
+			WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(run.getCreatedBy());
+			
+			if (workflowRuns.getByUserId(run.getCreatedBy()).size() >= this.maxWorkflowRunsPerUser) {
+				// create a SchedulingState to update the session-db
+				String msg = "The workflow couldn't run, because you had the maximum number of workflows running. "
+						+ "Please try again after another workflow has finished.";
+				schedulingState.setState(WorkflowState.FAILED);
+				schedulingState.setStateDetail(msg);
+			} else {			
+				schedulingState.setState(WorkflowState.RUNNING);
 			}
 			
-			WorkflowSchedulingState schedulingState = new WorkflowSchedulingState(run.getCreatedBy());
-			schedulingState.setState(WorkflowState.RUNNING);
-			schedulingState.setWorkflowJobs(run.getWorkflowJobs());			
+			// allow client to set shorter timeouts to make testing easier
+			schedulingState.setCancellingTimeout(timeoutMin(run.getCancellingTimeout(), this.cancelTimeout));
+			schedulingState.setRunningTimeout(timeoutMin(run.getRunningTimeout(), this.runningTimeout));
+			schedulingState.setDrainingTimeout(timeoutMin(run.getDrainingTimeout(), this.drainingTimeout));
+			if (run.getOnError() != null) {
+				schedulingState.setOnError(run.getOnError());
+			} else {
+				schedulingState.setOnError(this.onError);
+			}
 			
+			schedulingState.setWorkflowJobs(run.getWorkflowJobs());		
 			workflowRuns.put(run.getWorkflowRunIdPair(), schedulingState);
 			
 			return schedulingState;
 		}
+	}
+	
+	private long timeoutMin(Long request, long conf) {
+		if (request == null) {
+			return conf;
+		}
+		
+		return Math.min(request, conf);
 	}
 
 	private void handleJobEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
@@ -288,19 +310,31 @@ public class WorkflowScheduler implements StatusSource {
 	private void handleWorkflowTimer() {
 		synchronized (workflowRuns) {			
 			
-			// this shouldn't be possible, because all workflows are run immediately
-			this.checkTimeouts(WorkflowState.NEW, 10, WorkflowState.CANCELLING);
-			this.checkTimeouts(WorkflowState.RUNNING, runningTimeout, WorkflowState.CANCELLING);
-			this.checkTimeouts(WorkflowState.DRAINING, drainingTimeout, WorkflowState.CANCELLING);			
-			this.checkTimeouts(WorkflowState.CANCELLING, cancelTimeout, WorkflowState.ERROR);
+			this.checkTimeouts(WorkflowState.RUNNING, WorkflowState.CANCELLING);
+			this.checkTimeouts(WorkflowState.DRAINING, WorkflowState.CANCELLING);			
+			this.checkTimeouts(WorkflowState.CANCELLING, WorkflowState.ERROR);
 		}
 	}
 	
-	private void checkTimeouts(WorkflowState stateNow, long timeoutSeconds, WorkflowState timeoutState) {
+	private void checkTimeouts(WorkflowState stateNow, WorkflowState timeoutState) {
 		for (WorkflowRunIdPair runIdPair : workflowRuns.get(stateNow)) {
 			WorkflowSchedulingState schedulingState = workflowRuns.get(runIdPair);
 			
-			//FIXME store state change times
+			long timeoutSeconds;
+			switch (stateNow) {
+			case RUNNING:
+				timeoutSeconds = schedulingState.getRunningTimeout();
+				break;
+			case DRAINING:
+				timeoutSeconds = schedulingState.getDrainingTimeout();
+				break;
+			case CANCELLING:
+				timeoutSeconds = schedulingState.getCancellingTimeout();
+				break;
+			default:
+				throw new IllegalArgumentException("unkown state " + stateNow);
+			}
+			
 			if (schedulingState.getTimeSince(stateNow) > timeoutSeconds) {
 				
 				logger.info(stateNow + " timeout for workflow run " + runIdPair);
@@ -470,6 +504,10 @@ public class WorkflowScheduler implements StatusSource {
 			run.setState(schedulingState.getState());
 			run.setStateDetail(schedulingState.getStateDetail());
 			run.setEndTime(schedulingState.getTimestamp(schedulingState.getState()));
+			run.setRunningTimeout(schedulingState.getRunningTimeout());
+			run.setCancellingTimeout(schedulingState.getCancellingTimeout());
+			run.setDrainingTimeout(schedulingState.getDrainingTimeout());
+			run.setOnError(schedulingState.getOnError());
 			
 			// update only if there was any changes
 			if (!run.equals(sessionDbRun)) {
