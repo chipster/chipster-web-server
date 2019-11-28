@@ -56,6 +56,7 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -69,8 +70,7 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.microarray.description.SADLSyntax.ParameterType;
-import fi.csc.microarray.messaging.JobState;
+import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
 
 public class RestUtils {
 	
@@ -87,9 +87,10 @@ public class RestUtils {
 		if (objectMapperDefault == null || objectMapperFailOnUnknwonProperties == null) {
 			
 			// separate instance, because configuration may not be thread safe
-			objectMapperDefault = getNewObjectMapper();			
+			objectMapperDefault = getNewObjectMapper()
+					.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 			objectMapperFailOnUnknwonProperties = getNewObjectMapper()
-					.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, failOnUnknownProperties);
+					.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
 		}
 		if (failOnUnknownProperties) {
 			return objectMapperFailOnUnknwonProperties;
@@ -132,7 +133,7 @@ public class RestUtils {
 		// using Jackson library
 		try {
 			StringReader reader= new StringReader(json);
-			ObjectMapper mapper = getObjectMapper(true);
+			ObjectMapper mapper = getObjectMapper(failOnUnknownProperties);
 			return mapper.readValue(reader, obj);
 		} catch (IOException e) {
 			logger.error("json parsing failed", e);

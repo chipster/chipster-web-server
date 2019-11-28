@@ -3,7 +3,6 @@ package fi.csc.chipster.comp;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -23,6 +22,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
@@ -39,23 +39,6 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
-import fi.csc.microarray.comp.CompException;
-import fi.csc.microarray.comp.CompJob;
-import fi.csc.microarray.comp.ProcessUtils;
-import fi.csc.microarray.comp.ResourceMonitor;
-import fi.csc.microarray.comp.ResourceMonitor.ProcessProvider;
-import fi.csc.microarray.comp.ResultCallback;
-import fi.csc.microarray.comp.RuntimeRepository;
-import fi.csc.microarray.comp.ToolRuntime;
-import fi.csc.microarray.config.DirectoryLayout;
-import fi.csc.microarray.constants.ApplicationConstants;
-import fi.csc.microarray.filebroker.FileBrokerClient;
-import fi.csc.microarray.messaging.JobState;
-import fi.csc.microarray.messaging.message.GenericJobMessage;
-import fi.csc.microarray.messaging.message.GenericResultMessage;
-import fi.csc.microarray.service.KeepAliveShutdownHandler;
-import fi.csc.microarray.service.ShutdownCallback;
-import fi.csc.microarray.util.SystemMonitorUtil;
 
 /**
  * Executes analysis jobs and handles input&output. Uses multithreading and
@@ -64,7 +47,7 @@ import fi.csc.microarray.util.SystemMonitorUtil;
  * @author Taavi Hupponen, Aleksi Kallio, Petri Klemela
  */
 public class RestCompServer
-		implements ShutdownCallback, ResultCallback, MessageHandler.Whole<String>, ProcessProvider, StatusSource {
+		implements ResultCallback, MessageHandler.Whole<String>, ProcessProvider, StatusSource {
 
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
@@ -97,7 +80,7 @@ public class RestCompServer
 	private RuntimeRepository runtimeRepository;
 	private ToolboxClientComp toolboxClient;
 
-	private FileBrokerClient fileBroker;
+	private LegacyRestFileBrokerClient fileBroker;
 
 	/**
 	 * Java utility for multithreading.
@@ -138,14 +121,6 @@ public class RestCompServer
 	public RestCompServer(String configURL, Config config) throws Exception {
 
 		this.config = config;
-
-		// legacy directory layout is needed for the R and python runtimes
-		if (!DirectoryLayout.isInitialised()) {
-			new File("security").mkdir();
-			DirectoryLayout.initialiseServerLayout(Arrays.asList(new String[] { "comp" }), configURL);
-		}
-		// Configuration configuration =
-		// DirectoryLayout.getInstance().getConfiguration();
 	}
 
 	public void startServer()
@@ -181,7 +156,7 @@ public class RestCompServer
 
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir,
-				this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"));
+				this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"), config);
 
 		String username = Role.COMP;
 		String password = config.getPassword(username);
@@ -212,8 +187,8 @@ public class RestCompServer
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
 
-		// create keep-alive thread and register shutdown hook
-		KeepAliveShutdownHandler.init(this);
+//		// create keep-alive thread and register shutdown hook
+//		KeepAliveShutdownHandler.init(this);
 
 		logger.info("starting the admin rest server");
 
@@ -223,7 +198,7 @@ public class RestCompServer
 
 		sendCompAvailable();
 
-		logger.info("comp is up and running [" + ApplicationConstants.VERSION + "]");
+		logger.info("comp is up and running");
 		logger.info("[mem: " + SystemMonitorUtil.getMemInfo() + "]");
 	}
 
@@ -404,7 +379,7 @@ public class RestCompServer
 		logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
 	}
 
-	public FileBrokerClient getFileBrokerClient() {
+	public LegacyRestFileBrokerClient getFileBrokerClient() {
 		return this.fileBroker;
 	}
 

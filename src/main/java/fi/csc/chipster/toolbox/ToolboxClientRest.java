@@ -12,7 +12,7 @@ import javax.ws.rs.core.MediaType;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.microarray.description.SADLDescription;
+import fi.csc.chipster.toolbox.sadl.SADLDescription;
 
 /**
  * Created by hupponen on 02/11/2015.

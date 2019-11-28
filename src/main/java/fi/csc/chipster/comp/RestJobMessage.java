@@ -10,16 +10,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
 import fi.csc.chipster.scheduler.JobCommand;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
-import fi.csc.microarray.comp.ToolDescription;
-import fi.csc.microarray.comp.ToolDescription.ParameterDescription;
-import fi.csc.microarray.messaging.message.GenericJobMessage;
-import fi.csc.microarray.messaging.message.JobMessage.ParameterSecurityPolicy;
-import fi.csc.microarray.messaging.message.JobMessage.ParameterValidityException;
-import fi.csc.microarray.messaging.message.JobMessageUtils;
 
 public class RestJobMessage implements GenericJobMessage {
 

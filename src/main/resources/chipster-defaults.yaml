@@ -201,6 +201,11 @@ comp-module-filter-mode: exclude
 comp-resource-monitoring-interval: 10000
 # timeout after which a job is killed, seconds
 comp-job-timeout: 604800 # a week
+# max number or threads that single job should use
+comp-job-threads-max: 4
+# max memory that single job should use, megabytes
+comp-job-memory-max: 8192
+
 
 # scheduler
 

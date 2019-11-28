@@ -50,7 +50,7 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
-import fi.csc.microarray.util.IOUtils;
+import fi.csc.chipster.util.IOUtils;
 
 /**
  * <p>

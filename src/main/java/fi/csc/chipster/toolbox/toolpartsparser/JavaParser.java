@@ -5,8 +5,8 @@ import java.nio.file.Path;
 
 import org.apache.log4j.Logger;
 
+import fi.csc.chipster.comp.java.JavaCompJobBase;
 import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
-import fi.csc.microarray.comp.java.JavaCompJobBase;
 
 public class JavaParser implements ToolPartsParser {
 
