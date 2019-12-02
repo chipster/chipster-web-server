@@ -242,7 +242,7 @@ db-pass-job-history: ""
 
 # web-server
 
-web-server-web-root-path: ../chipster-web/src
+web-server-web-root-path: web-root
 
 
 # toolbox
