@@ -25,21 +25,25 @@ public class CORSFilter {
 	private Logger logger = LogManager.getLogger();
 
 	private ServiceLocatorClient serviceLocator;
-	private volatile Set<String> webServerUris; 
+	private volatile Set<String> webServerUris;
+	private volatile boolean isRequesting;
 
 	public CORSFilter(ServiceLocatorClient serviceLocator) {
 		// get web-server uri only when it's needed, because auth initializes this before the service locator is running
-		this.serviceLocator = serviceLocator;
+		this.serviceLocator = serviceLocator; 
 	}
 
 	public HashMap<String, String> getCorsHeaders(String origin) {
 
 		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
 		// to make this safe and relatively fast for multi-thread usage
-		if (webServerUris == null) {			
+		if (webServerUris == null && !isRequesting) {			
 			synchronized (CORSResponseFilter.class) {
+				
 				if (webServerUris == null) {
+					isRequesting = true;
 					webServerUris = getWebServerUris(serviceLocator);
+					isRequesting = false;
 				}
 			}
 		}
