@@ -165,7 +165,11 @@ public class SessionJobResource {
 				throw new BadRequestException("different sessionId in the job object and in the url");
 			}
 			job.setJobIdPair(sessionId, jobId);
-			job.setCreated(Instant.now());
+			
+			// allow client to post old jobs with correct timestamps (e.g. when importing a zip session)
+			if (job.getCreated() == null) {
+				job.setCreated(Instant.now());
+			}
 		}		
 		
 		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);

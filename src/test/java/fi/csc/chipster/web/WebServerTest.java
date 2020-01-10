@@ -70,7 +70,7 @@ public class WebServerTest {
 		
 		// check something in the content to make sure this is not the index.html
 		String main = IOUtils.toString((InputStream)resp.getEntity(), Charset.defaultCharset());
-		assertEquals(true, main.contains("platformBrowserDynamic()"));
+		assertEquals(true, main.contains("<h1>Chipster web-server</h1>"));
     }
     
 	/**
