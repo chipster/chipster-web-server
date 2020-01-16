@@ -7,13 +7,11 @@ import java.nio.file.Paths;
 
 import org.junit.Test;
 
-import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
-
 public class ToolboxLoadTest {
 
 	
 	@Test
-	public void loadToolbox() throws IOException, IllegalConfigurationException, URISyntaxException {
+	public void loadToolbox() throws IOException, URISyntaxException {
 		Toolbox.loadModuleDescriptions(Paths.get("../chipster-tools/tools"), new File("."));	
 	}
 

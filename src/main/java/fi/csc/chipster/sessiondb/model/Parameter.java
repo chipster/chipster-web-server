@@ -3,7 +3,7 @@ package fi.csc.chipster.sessiondb.model;
 import javax.persistence.Lob;
 
 import fi.csc.chipster.rest.hibernate.DeepCopyable;
-import fi.csc.microarray.description.SADLSyntax.ParameterType;
+import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
 
 public class Parameter implements DeepCopyable {
 

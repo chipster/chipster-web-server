@@ -13,11 +13,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.scheduler.IdPair;
-import fi.csc.microarray.messaging.JobState;
 
 public class GlobalJobResourceTest {
 	

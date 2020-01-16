@@ -56,6 +56,7 @@ import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionState;
+import fi.csc.chipster.sessionworker.xml.XmlSession;
 
 @Path("sessions")
 public class SessionWorkerResource {

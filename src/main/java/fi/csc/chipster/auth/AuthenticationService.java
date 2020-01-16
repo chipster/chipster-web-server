@@ -16,11 +16,11 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
+import fi.csc.chipster.auth.resource.AuthTokenResource;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
 import fi.csc.chipster.auth.resource.OidcResource;
-import fi.csc.chipster.auth.resource.AuthTokenResource;
-import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
@@ -30,7 +30,6 @@ import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
  * Main class.
@@ -62,7 +61,7 @@ public class AuthenticationService {
      * @throws URISyntaxException 
      * @throws SQLException 
      */
-    public void startServer() throws IOException, IllegalConfigurationException, InterruptedException, URISyntaxException {    	    	
+    public void startServer() throws IOException, InterruptedException, URISyntaxException {    	    	
     	
     	// init Hibernate
     	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
@@ -126,7 +125,7 @@ public class AuthenticationService {
      * @throws SQLException 
      * @throws URISyntaxException 
      */
-    public static void main(String[] args) throws IOException, IllegalConfigurationException, InterruptedException, SQLException, URISyntaxException {
+    public static void main(String[] args) throws IOException, InterruptedException, SQLException, URISyntaxException {
     	
         final AuthenticationService service = new AuthenticationService(new Config());
         service.startServer();

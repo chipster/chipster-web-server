@@ -281,8 +281,7 @@ public class SessionDatasetResource {
 			// make sure a hostile client doesn't set the session
 			requestDataset.setDatasetIdPair(session.getSessionId(), requestDataset.getDatasetId());
 
-			// make sure client doesn't change created
-			requestDataset.setCreated(dbDatasets.get(requestDataset.getDatasetId()).getCreated());
+			// the created timestamp needs to be overridden with a value from the client when openig a zip session
 		}
 
 		for (Dataset requestDataset : requestDatasets) {

@@ -17,7 +17,7 @@ import org.hibernate.annotations.Type;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
-import fi.csc.microarray.messaging.JobState;
+import fi.csc.chipster.comp.JobState;
 
 @Entity // db
 @XmlRootElement // rest

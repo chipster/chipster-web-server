@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.rest.RestUtils;
@@ -32,17 +33,15 @@ import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.SessionDbToken;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionDbToken;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
-import fi.csc.microarray.exception.MicroarrayException;
-import fi.csc.microarray.messaging.JobState;
 
 public class SessionDbClient {
 	
@@ -173,7 +172,6 @@ public class SessionDbClient {
 	
 	/**
 	 * @return a list of session objects without datasets and jobs
-	 * @throws MicroarrayException
 	 */
 	public HashMap<UUID, Session> getSessions() throws RestException {		
 		List<Session> sessionList = RestMethods.getList(getSessionsTarget(), Session.class);

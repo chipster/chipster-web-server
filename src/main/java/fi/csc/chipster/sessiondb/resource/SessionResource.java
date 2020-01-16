@@ -5,6 +5,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
@@ -29,7 +30,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 
-import org.apache.commons.compress.utils.Sets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.BaseSessionEventListener;
@@ -167,7 +167,7 @@ public class SessionResource {
 			Session session = rule.getSession();
 			// user's own rule should be enough in the session list
 			// otherwise we would be selectin rules of sessions of rules of username
-			session.setRules(Sets.newHashSet(rule));
+			session.setRules(new HashSet<Rule>() {{ add(rule); }});
 			sessions.add(session);
 		}
 		
@@ -188,7 +188,7 @@ public class SessionResource {
 			Session session = rule.getSession();
 			// the shared rule should be enough in the session list
 			// otherwise we would be selecting rules of sessions of rules of username
-			session.setRules(Sets.newHashSet(rule));
+			session.setRules(new HashSet<Rule>() {{ add(rule); }});
 			sessions.add(session);
 		}
 

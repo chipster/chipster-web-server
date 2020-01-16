@@ -9,8 +9,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
-
 /**
  * Main class.
  *
@@ -27,19 +25,22 @@ public class JavascriptService {
 		this.serviceRootPath = serviceRootPath;
 	}
 
-	public void startServer() throws IOException, IllegalConfigurationException, InterruptedException {
+	public void startServer() throws IOException, IllegalStateException, InterruptedException {
 
 		serviceRoot = new File(serviceRootPath);
 
 		if (!serviceRoot.exists()) {
-			throw new IllegalConfigurationException("typescript project " + serviceRootPath + " not found");
+			throw new IllegalStateException("typescript project " + serviceRootPath + " not found");
 		}
 
-		System.out.println("Remove possible existing node_modules");
-		runAndWait("rm", "-rf", "node_modules");
-
-		System.out.println("Install dependencies");
-		runAndWait("npm", "ci");
+		
+		if (!new File(serviceRoot, "node_modules").exists()) {
+	//		System.out.println("Remove possible existing node_modules");
+	//		runAndWait("rm", "-rf", "node_modules");
+	
+			System.out.println("Install dependencies");
+			runAndWait("npm", "ci");
+		}
 
 		System.out.println("Compile");
 		runAndWaitCareless("npm", "run", "build");
@@ -49,7 +50,7 @@ public class JavascriptService {
 		this.process = builder.start();
 
 		// wait a bit to show startup log messages in correct order
-		Thread.sleep(5000);
+		Thread.sleep(2000);
 
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {
@@ -95,7 +96,7 @@ public class JavascriptService {
 	 * @throws IllegalConfigurationException
 	 * @throws InterruptedException
 	 */
-	public static void main(String[] args) throws IOException, IllegalConfigurationException, InterruptedException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 
 		if (args.length != 1) {
 			System.out.println("1 argument required: path to npm project to run");

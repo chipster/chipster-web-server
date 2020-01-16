@@ -25,20 +25,16 @@ import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
+import fi.csc.chipster.toolbox.sadl.SADLDescription;
+import fi.csc.chipster.toolbox.sadl.SADLGenerator;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Input;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Output;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
+import fi.csc.chipster.toolbox.sadl.SADLParser.ParseException;
+import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
 import fi.csc.chipster.toolbox.toolpartsparser.ToolPartsParser;
-import fi.csc.chipster.util.StringUtils;
-import fi.csc.microarray.description.SADLDescription;
-import fi.csc.microarray.description.SADLDescription.Input;
-import fi.csc.microarray.description.SADLDescription.Name;
-import fi.csc.microarray.description.SADLDescription.Output;
-import fi.csc.microarray.description.SADLDescription.Parameter;
-import fi.csc.microarray.description.SADLGenerator;
-import fi.csc.microarray.description.SADLParser.ParseException;
-import fi.csc.microarray.description.SADLSyntax.ParameterType;
-import fi.csc.microarray.messaging.message.ModuleDescriptionMessage;
-import fi.csc.microarray.messaging.message.ModuleDescriptionMessage.Category;
-import fi.csc.microarray.module.chipster.ChipsterSADLParser;
-import fi.csc.microarray.util.XmlUtil;
+import fi.csc.chipster.util.XmlUtil;
 
 /**
  * One module in toolbox , corresponds to one (modulename)-module.xml file.
@@ -107,24 +103,24 @@ public class ToolboxModule {
 		load();
 	}
 
-	public ModuleDescriptionMessage getModuleDescriptionMessage() {
-
-		// Construct description message using the current state
-		ModuleDescriptionMessage msg = new ModuleDescriptionMessage(moduleName);
-
-		for (ToolboxCategory toolboxCategory : categories) {
-			Category category = new Category(toolboxCategory.getName(), toolboxCategory.getColor(),
-					toolboxCategory.isHidden());
-
-			for (ToolboxTool tool : toolboxCategory.getTools()) {
-				// help url not supported (or used) at the moment
-				category.addTool(tool.getSadlString(), null);
-			}
-			msg.addCategory(category);
-		}
-
-		return msg;
-	}
+//	public ModuleDescriptionMessage getModuleDescriptionMessage() {
+//
+//		// Construct description message using the current state
+//		ModuleDescriptionMessage msg = new ModuleDescriptionMessage(moduleName);
+//
+//		for (ToolboxCategory toolboxCategory : categories) {
+//			Category category = new Category(toolboxCategory.getName(), toolboxCategory.getColor(),
+//					toolboxCategory.isHidden());
+//
+//			for (ToolboxTool tool : toolboxCategory.getTools()) {
+//				// help url not supported (or used) at the moment
+//				category.addTool(tool.getSadlString(), null);
+//			}
+//			msg.addCategory(category);
+//		}
+//
+//		return msg;
+//	}
 
 	public ToolboxTool getTool(String id) {
 		return tools.get(id);

@@ -1,4 +1,4 @@
-package fi.csc.chipster.sessionworker;
+package fi.csc.chipster.sessionworker.xml;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
 
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
@@ -40,18 +41,15 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.microarray.client.session.SessionLoader;
-import fi.csc.microarray.client.session.SessionLoaderImpl2;
-import fi.csc.microarray.client.session.UserSession;
-import fi.csc.microarray.client.session.schema2.DataType;
-import fi.csc.microarray.client.session.schema2.InputType;
-import fi.csc.microarray.client.session.schema2.LocationType;
-import fi.csc.microarray.client.session.schema2.OperationType;
-import fi.csc.microarray.client.session.schema2.ParameterType;
-import fi.csc.microarray.client.session.schema2.SessionType;
-import fi.csc.microarray.databeans.DataBean.Link;
-import fi.csc.microarray.databeans.DataManager.StorageMethod;
-import fi.csc.microarray.messaging.JobState;
+import fi.csc.chipster.sessionworker.ExtractedSession;
+import fi.csc.chipster.sessionworker.xml.DataBean.Link;
+import fi.csc.chipster.sessionworker.xml.DataManager.StorageMethod;
+import fi.csc.chipster.sessionworker.xml.schema2.DataType;
+import fi.csc.chipster.sessionworker.xml.schema2.InputType;
+import fi.csc.chipster.sessionworker.xml.schema2.LocationType;
+import fi.csc.chipster.sessionworker.xml.schema2.OperationType;
+import fi.csc.chipster.sessionworker.xml.schema2.ParameterType;
+import fi.csc.chipster.sessionworker.xml.schema2.SessionType;
 
 public class XmlSession {
 

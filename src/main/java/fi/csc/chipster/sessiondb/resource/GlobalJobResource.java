@@ -18,11 +18,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.microarray.messaging.JobState;
 
 @Path("jobs")
 public class GlobalJobResource {

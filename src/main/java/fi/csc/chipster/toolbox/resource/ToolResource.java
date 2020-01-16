@@ -15,7 +15,7 @@ import javax.ws.rs.core.Response;
 
 import fi.csc.chipster.toolbox.Toolbox;
 import fi.csc.chipster.toolbox.ToolboxTool;
-import fi.csc.microarray.description.SADLDescription;
+import fi.csc.chipster.toolbox.sadl.SADLDescription;
 
 /**
  * Created by hupponen on 12/10/2015.

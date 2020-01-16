@@ -80,7 +80,7 @@ public class PubSubServer implements StatusSource {
 		
 		init();                    
 	}
-	
+		
 	public void init() throws DeploymentException, ServletException {
 		server = new Server();
         
@@ -107,8 +107,12 @@ public class PubSubServer implements StatusSource {
 
         server.setHandler(context);
 		
+        /* configureContext() is deprecated, but the recommended alternative method configure() doesn't return the ServerContainer.
+         * How do we then configure the user properties? 
+         */
+        @SuppressWarnings("deprecation") 
         // Initialize javax.websocket layer
-        ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
+		ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
         
         // add this instance to user properties, so that we can call it from the PubSubEndpoint
         ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, "/" + path).build();

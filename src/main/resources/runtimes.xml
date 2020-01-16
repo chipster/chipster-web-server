@@ -27,7 +27,7 @@
 	<runtime>
 		<name>R-3.6.1</name>
 		<handler>
-			<class>fi.csc.microarray.comp.r.RJobFactory</class> 
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
 			<parameter>
 				<name>command</name>
 				<value>/opt/chipster/tools/R-3.6.1/bin/R</value>
@@ -41,7 +41,7 @@
 		<runtime>
 		<name>R-3.6.1-plain</name>
 		<handler>
-			<class>fi.csc.microarray.comp.r.RJobFactory</class> 
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
 			<parameter>
 				<name>command</name>
 				<value>/opt/chipster/tools/R-3.6.1-plain/bin/R</value>
@@ -56,7 +56,7 @@
 	<runtime>
 		<name>R-3.4.3</name>
 		<handler>
-			<class>fi.csc.microarray.comp.r.RJobFactory</class> 
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
 			<parameter>
 				<name>command</name>
 				<value>/opt/chipster/tools/R-3.4.3/bin/R</value>
@@ -71,7 +71,7 @@
 	<runtime>
 		<name>R-3.3.2</name>
 		<handler>
-			<class>fi.csc.microarray.comp.r.RJobFactory</class> 
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
 			<parameter>
 				<name>command</name>
 				<value>/opt/chipster/tools/R-3.3.2/bin/R</value>
@@ -87,7 +87,7 @@
 	<runtime>
 		<name>R</name>
 		<handler>
-			<class>fi.csc.microarray.comp.r.RJobFactory</class> 
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
 			<parameter>
 				<name>command</name>
 				<value>/opt/chipster/tools/R-3.2.3/bin/R</value>
@@ -102,14 +102,14 @@
 	<runtime>
         <name>java</name>
         <handler>
-            <class>fi.csc.microarray.comp.java.JavaJobFactory</class> 
+            <class>fi.csc.chipster.comp.java.JavaJobFactory</class> 
         </handler>
     </runtime>
 	
 	<runtime>
 		<name>python</name>
 		<handler>
-			<class>fi.csc.microarray.comp.python.PythonJobFactory</class>
+			<class>fi.csc.chipster.comp.python.PythonJobFactory</class>
 			<parameter>
 				<name>command</name>
 				<value>python</value>
@@ -124,7 +124,7 @@
 	<runtime>
 		<name>python3</name>
 		<handler>
-			<class>fi.csc.microarray.comp.python.PythonJobFactory</class>
+			<class>fi.csc.chipster.comp.python.PythonJobFactory</class>
 			<parameter>
 				<name>command</name>
 				<value>python3</value>

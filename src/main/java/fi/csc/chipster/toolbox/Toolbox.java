@@ -16,7 +16,6 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.toolbox.toolpartsparser.HeaderAsCommentParser;
 import fi.csc.chipster.toolbox.toolpartsparser.JavaParser;
 import fi.csc.chipster.toolbox.toolpartsparser.ToolPartsParser;
-import fi.csc.microarray.messaging.message.ModuleDescriptionMessage;
 
 public class Toolbox {
 
@@ -74,20 +73,20 @@ public class Toolbox {
 		return null;
 	}
 
-	/**
-	 * @return a list of DescriptionMessages about available tool modules that can
-	 *         be sent to client.
-	 */
-	public List<ModuleDescriptionMessage> getModuleDescriptions() {
-
-		LinkedList<ModuleDescriptionMessage> moduleDescriptions = new LinkedList<ModuleDescriptionMessage>();
-
-		for (ToolboxModule module : modules) {
-			moduleDescriptions.add(module.getModuleDescriptionMessage());
-		}
-
-		return moduleDescriptions;
-	}
+//	/**
+//	 * @return a list of DescriptionMessages about available tool modules that can
+//	 *         be sent to client.
+//	 */
+//	public List<ModuleDescriptionMessage> getModuleDescriptions() {
+//
+//		LinkedList<ModuleDescriptionMessage> moduleDescriptions = new LinkedList<ModuleDescriptionMessage>();
+//
+//		for (ToolboxModule module : modules) {
+//			moduleDescriptions.add(module.getModuleDescriptionMessage());
+//		}
+//
+//		return moduleDescriptions;
+//	}
 
 	/**
 	 * Load all the tool modules in this toolbox. Put them to the modules list.

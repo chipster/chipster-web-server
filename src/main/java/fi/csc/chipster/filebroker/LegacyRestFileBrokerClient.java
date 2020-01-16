@@ -5,16 +5,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
-import javax.jms.JMSException;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -26,6 +20,7 @@ import org.glassfish.jersey.client.ClientProperties;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.FileBrokerException;
 import fi.csc.chipster.comp.PhenodataUtils;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -33,16 +28,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
-import fi.csc.microarray.client.session.SessionManager;
-import fi.csc.microarray.filebroker.ChecksumException;
-import fi.csc.microarray.filebroker.ChecksumInputStream;
-import fi.csc.microarray.filebroker.DbSession;
-import fi.csc.microarray.filebroker.FileBrokerClient;
-import fi.csc.microarray.filebroker.FileBrokerException;
-import fi.csc.microarray.messaging.admin.StorageAdminAPI.StorageEntryMessageListener;
-import fi.csc.microarray.util.Exceptions;
-import fi.csc.microarray.util.IOUtils;
-import fi.csc.microarray.util.IOUtils.CopyProgressListener;
+import fi.csc.chipster.util.IOUtils;
 
 /**
  * RestFileBrokerClient is a bridge between the old code written for JMS and the
@@ -52,13 +38,13 @@ import fi.csc.microarray.util.IOUtils.CopyProgressListener;
  * 
  * @author klemela
  */
-public class LegacyRestFileBrokerClient implements FileBrokerClient {
+public class LegacyRestFileBrokerClient {
 
 	private static final long PHENODATA_FILE_MAX_SIZE = FileUtils.ONE_MB;
 	private static final Logger logger = Logger.getLogger(LegacyRestFileBrokerClient.class);
 
 	private SessionDbClient sessionDbClient;
-	private SessionManager sessionManager;
+//	private SessionManager sessionManager;
 	private AuthenticationClient authClient;
 
 	private ServiceLocatorClient serviceLocator;
@@ -70,16 +56,13 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 		this.serviceLocator = serviceLocator;
 	}
 
-	@Override
-	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file,
-			CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
-		throw new UnsupportedOperationException();
-	}
+//	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file,
+//			CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
+//		throw new UnsupportedOperationException();
+//	}
 
-	@Override
-	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file,
-			CopyProgressListener progressListener, String datsetName, boolean isMetaOutput, File phenodataFile)
-			throws FileBrokerException, IOException {
+	public String addFile(UUID jobId, UUID sessionId, File file, String datsetName, boolean isMetaOutput, File phenodataFile)
+			throws IOException, FileBrokerException {
 
 		if (!file.exists()) {
 			throw new FileNotFoundException(file.getPath());
@@ -139,29 +122,27 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 		}
 	}
 
-	private UUID getSessionId() {
-		return sessionManager.getSessionId();
-	}
-
-	/**
-	 * @return md5 String of the uploaded data, if enabled in configuration
-	 * @see fi.csc.microarray.filebroker.FileBrokerClient#addFile(InputStream,
-	 *      CopyProgressListener)
-	 */
-	@Override
-	public String addFile(String dataId, FileBrokerArea area, InputStream file, long contentLength,
-			CopyProgressListener progressListener) throws FileBrokerException, IOException {
-
-		upload(getSessionId(), dataId, file);
-		return null;
-	}
-
-	@Override
-	public ChecksumInputStream getInputStream(String dataId) throws IOException, FileBrokerException {
-
-		InputStream remoteStream = download(getSessionId(), dataId);
-		return new ChecksumInputStream(remoteStream, true);
-	}
+//	private UUID getSessionId() {
+//		return sessionManager.getSessionId();
+//	}
+//
+////	/**
+////	 * @return md5 String of the uploaded data, if enabled in configuration
+////	 * @see fi.csc.microarray.filebroker.FileBrokerClient#addFile(InputStream,
+////	 *      CopyProgressListener)
+////	 */
+////	public String addFile(String dataId, FileBrokerArea area, InputStream file, long contentLength,
+////			CopyProgressListener progressListener) throws FileBrokerException, IOException {
+////
+////		upload(getSessionId(), dataId, file);
+////		return null;
+////	}
+//
+//	public ChecksumInputStream getInputStream(String dataId) throws IOException, FileBrokerException {
+//
+//		InputStream remoteStream = download(getSessionId(), dataId);
+//		return new ChecksumInputStream(remoteStream, true);
+//	}
 
 	private InputStream download(UUID sessionId, String dataId) throws FileBrokerException {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
@@ -181,100 +162,87 @@ public class LegacyRestFileBrokerClient implements FileBrokerClient {
 	 * downloaded.
 	 * 
 	 * @throws JMSException
-	 * @throws ChecksumException
 	 * 
 	 * @see fi.csc.microarray.filebroker.FileBrokerClient#getFile(File, URL)
 	 */
-	@Override
 	public void getFile(UUID sessionId, String dataId, File destFile)
-			throws IOException, FileBrokerException, ChecksumException {
+			throws IOException, FileBrokerException {
 
 		InputStream inStream = download(sessionId, dataId);
 		IOUtils.copy(inStream, destFile);
 	}
-
-	@Override
-	public boolean isAvailable(String dataId, Long contentLength, String checksum, FileBrokerArea area)
-			throws FileBrokerException {
-
-		try {
-			InputStream inStream = download(getSessionId(), dataId);
-			IOUtils.closeIfPossible(inStream);
-			return true;
-		} catch (NotFoundException e) {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean moveFromCacheToStorage(String dataId) throws FileBrokerException, FileBrokerException {
-		return true;
-	}
-
-	/**
-	 * @see fi.csc.microarray.filebroker.FileBrokerClient#getPublicFiles()
-	 */
-	@Override
-	public List<URL> getPublicFiles() throws FileBrokerException {
-		return fetchPublicFiles();
-	}
-
-	private List<URL> fetchPublicFiles() throws FileBrokerException {
-		return new ArrayList<URL>();
-	}
-
-	@Override
-	public boolean requestDiskSpace(long size) throws FileBrokerException {
-		return true;
-	}
-
-	@Override
-	public void saveRemoteSession(String sessionName, String sessionId, LinkedList<String> dataIds)
-			throws FileBrokerException {
-	}
-
-	@Override
-	public List<DbSession> listRemoteSessions() throws FileBrokerException {
-
-		try {
-			HashMap<UUID, fi.csc.chipster.sessiondb.model.Session> sessions;
-			sessions = sessionDbClient.getSessions();
-
-			List<DbSession> dbSessions = new LinkedList<>();
-			for (fi.csc.chipster.sessiondb.model.Session session : sessions.values()) {
-				dbSessions.add(new DbSession(session.getSessionId().toString(), session.getName(), null));
-			}
-
-			return dbSessions;
-		} catch (RestException e) {
-			throw new FileBrokerException(Exceptions.getStackTrace(e));
-		}
-	}
-
-	@Override
-	public StorageEntryMessageListener getStorageUsage() throws FileBrokerException, InterruptedException {
-		return null;
-	}
-
-	@Override
-	public List<DbSession> listPublicRemoteSessions() throws FileBrokerException {
-		return new LinkedList<>();
-	}
-
-	@Override
-	public void removeRemoteSession(String dataId) throws FileBrokerException {
-	}
-
-	@Override
-	public String getExternalURL(String dataId) throws FileBrokerException, MalformedURLException {
-		return null;
-	}
-
-	@Override
-	public Long getContentLength(String dataId) throws IOException, FileBrokerException {
-		return null;
-	}
-
+//
+//	public boolean isAvailable(String dataId, Long contentLength, String checksum, FileBrokerArea area)
+//			throws FileBrokerException {
+//
+//		try {
+//			InputStream inStream = download(getSessionId(), dataId);
+//			IOUtils.closeIfPossible(inStream);
+//			return true;
+//		} catch (NotFoundException e) {
+//			return false;
+//		}
+//	}
+//
+//	public boolean moveFromCacheToStorage(String dataId) throws FileBrokerException, FileBrokerException {
+//		return true;
+//	}
+//
+//	/**
+//	 * @see fi.csc.microarray.filebroker.FileBrokerClient#getPublicFiles()
+//	 */
+//	public List<URL> getPublicFiles() throws FileBrokerException {
+//		return fetchPublicFiles();
+//	}
+//
+//	private List<URL> fetchPublicFiles() throws FileBrokerException {
+//		return new ArrayList<URL>();
+//	}
+//
+//	public boolean requestDiskSpace(long size) throws FileBrokerException {
+//		return true;
+//	}
+//
+//	public void saveRemoteSession(String sessionName, String sessionId, LinkedList<String> dataIds)
+//			throws FileBrokerException {
+//	}
+//
+//	public List<DbSession> listRemoteSessions() throws FileBrokerException {
+//
+//		try {
+//			HashMap<UUID, fi.csc.chipster.sessiondb.model.Session> sessions;
+//			sessions = sessionDbClient.getSessions();
+//
+//			List<DbSession> dbSessions = new LinkedList<>();
+//			for (fi.csc.chipster.sessiondb.model.Session session : sessions.values()) {
+//				dbSessions.add(new DbSession(session.getSessionId().toString(), session.getName(), null));
+//			}
+//
+//			return dbSessions;
+//		} catch (RestException e) {
+//			throw new FileBrokerException(Exceptions.getStackTrace(e));
+//		}
+//	}
+//
+////	public StorageEntryMessageListener getStorageUsage() throws FileBrokerException, InterruptedException {
+////		return null;
+////	}
+//
+//	public List<DbSession> listPublicRemoteSessions() throws FileBrokerException {
+//		return new LinkedList<>();
+//	}
+//
+//	public void removeRemoteSession(String dataId) throws FileBrokerException {
+//	}
+//
+//	public String getExternalURL(String dataId) throws FileBrokerException, MalformedURLException {
+//		return null;
+//	}
+//
+//	public Long getContentLength(String dataId) throws IOException, FileBrokerException {
+//		return null;
+//	}
+//
 	private WebTarget getFileBrokerTarget() {
 		return authClient.getAuthenticatedClient().target(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
 	}
