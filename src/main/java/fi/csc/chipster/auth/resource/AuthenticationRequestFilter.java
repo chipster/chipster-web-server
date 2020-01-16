@@ -16,8 +16,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 
-import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
 import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
@@ -26,8 +27,6 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.microarray.auth.JaasAuthenticationProvider;
-import fi.csc.microarray.config.ConfigurationLoader.IllegalConfigurationException;
 
 /**
  * @author klemela
@@ -59,7 +58,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private AuthTokens tokenTable;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, AuthTokens tokenTable) throws IOException, IllegalConfigurationException {
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, AuthTokens tokenTable) throws IOException {
 		this.hibernate = hibernate;
 		this.config = config;
 		this.userTable = userTable;

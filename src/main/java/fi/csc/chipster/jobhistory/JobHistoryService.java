@@ -138,7 +138,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				saveJobHistory(job);
 				break;
 			case COMPLETED:
-				logger.info("For imported sessions, jobs are not logged in to job history database");
+				//logger.info("For imported sessions, jobs are not logged in to job history database");
 				break;
 			default:
 				break;

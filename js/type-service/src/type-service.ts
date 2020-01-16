@@ -165,6 +165,7 @@ export default class TypeService {
           );
         },
         err => {
+          console.log("tagging error");
           this.respondError(next, err);
         }
       );
@@ -282,27 +283,36 @@ export default class TypeService {
   }
 
   getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
+
     let observable;
-    if (Tags.TSV.id in fastTags) {
+    /*if (Tags.TSV.id in fastTags) {
       observable = this.getParsedTsv(sessionId, dataset, token).pipe(
         map((table: any[][]) => {
+          console.log("got type tags");
           return TypeTags.getSlowTypeTags(table);
         })
       );
-    } else {
-      observable = observableOf({});
-    }
+    } else {*/
+    console.log("doing else");
+    observable = observableOf({});
+    //}
 
     return observable;
   }
 
   getParsedTsv(sessionId, dataset, token) {
     let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
+    new RestClient(false, token)
+      .getFile(sessionId, dataset.datasetId, requestSize).subscribe(
+        res => {
+
+        });
 
     return new RestClient(false, token)
       .getFile(sessionId, dataset.datasetId, requestSize)
       .pipe(
         map((data: string) => {
+          console.log("get file worked");
           return TypeTags.parseTsv(data);
         })
       );

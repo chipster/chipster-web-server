@@ -120,8 +120,8 @@ public class ServerLauncher {
 		if (verbose) {
 			logger.info("starting type service");
 		}
-		typeService = new JavascriptService("js/type-service");
-		typeService.startServer();
+		//typeService = new JavascriptService("js/type-service");
+		//typeService.startServer();
 		
 		if (verbose) {
 			logger.info("starting backup service");
