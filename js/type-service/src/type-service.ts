@@ -12,7 +12,7 @@ const errors = require("restify-errors");
 const logger = Logger.getLogger(__filename);
 
 class IdPair {
-  constructor(public sessionId: string, public datasetId: string) { }
+  constructor(public sessionId: string, public datasetId: string) {}
 }
 
 const MAX_CACHE_SIZE = 100 * 1000;
@@ -158,14 +158,13 @@ export default class TypeService {
           logger.info("response", JSON.stringify(types));
           logger.info(
             "type tagging " +
-            typesArray.length +
-            " datasets took " +
-            (Date.now() - t0) +
-            "ms"
+              typesArray.length +
+              " datasets took " +
+              (Date.now() - t0) +
+              "ms"
           );
         },
         err => {
-          console.log("tagging error");
           this.respondError(next, err);
         }
       );
@@ -283,36 +282,27 @@ export default class TypeService {
   }
 
   getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
-
     let observable;
-    /*if (Tags.TSV.id in fastTags) {
+    if (Tags.TSV.id in fastTags) {
       observable = this.getParsedTsv(sessionId, dataset, token).pipe(
         map((table: any[][]) => {
-          console.log("got type tags");
           return TypeTags.getSlowTypeTags(table);
         })
       );
-    } else {*/
-    console.log("doing else");
-    observable = observableOf({});
-    //}
+    } else {
+      observable = observableOf({});
+    }
 
     return observable;
   }
 
   getParsedTsv(sessionId, dataset, token) {
     let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
-    new RestClient(false, token)
-      .getFile(sessionId, dataset.datasetId, requestSize).subscribe(
-        res => {
-
-        });
 
     return new RestClient(false, token)
       .getFile(sessionId, dataset.datasetId, requestSize)
       .pipe(
         map((data: string) => {
-          console.log("get file worked");
           return TypeTags.parseTsv(data);
         })
       );
