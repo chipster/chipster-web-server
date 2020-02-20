@@ -90,9 +90,9 @@ public class ServiceLocator {
     	ServiceLocatorClient client = new LocalServiceLocatorClient(publicServices, allServices, config);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(client)
+			//.register(RestUtils.getLoggingFeature(Role.SERVICE_LOCATOR))
         	.register(new ServiceResource(publicServices, allServices))
         	.register(tokenRequestFilter);
-			//.register(new LoggingFilter())
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		
