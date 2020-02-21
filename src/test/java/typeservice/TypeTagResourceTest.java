@@ -120,6 +120,10 @@ public class TypeTagResourceTest {
         Dataset dataset = RestUtils.getRandomDataset();
         dataset.setName("file.png");     
         UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
+        
+        // upload a file content, because TypeService skips files without content
+        //TODO why other tests work?
+        FileResourceTest.uploadInputStream(launcher.getUser1Target(Role.FILE_BROKER), sessionId, datasetId, IOUtils.toInputStream("abc", "UTF-8"));
                 
 		Response resp = typeServiceTarget1
 				.path("sessions").path(sessionId.toString())
