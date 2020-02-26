@@ -14,6 +14,7 @@ service-password-web-server: web-server
 service-password-toolbox: toolbox
 service-password-job-history: job-history
 service-password-backup: backup
+service-password-file-storage: file-storage
 
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
@@ -41,6 +42,7 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
+url-int-file-storage: http://{{public-ip}}:8016
 
 url-admin-ext-web-server: http://{{admin-ip}}:8100
 url-admin-ext-auth: http://{{admin-ip}}:8102
@@ -54,7 +56,7 @@ url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
-
+url-admin-ext-file-storage: http://{{admin-ip}}:8116
 
 # Address for the server to bind
 
@@ -70,6 +72,7 @@ url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
 url-bind-sso: ajp://127.0.0.1:8012
 url-bind-job-history: http://{{bind-ip}}:8014
+url-bind-file-storage: http://{{bind-ip}}:8016
 
 url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
 url-admin-bind-auth: http://{{admin-bind-ip}}:8102
@@ -83,6 +86,7 @@ url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
+url-admin-bind-file-storage: http://{{bind-ip}}:8116
 
 
 # DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
@@ -289,4 +293,3 @@ variable-public-ip: 127.0.0.1
 variable-admin-ip: 127.0.0.1 
 variable-bind-ip: 0.0.0.0
 variable-admin-bind-ip: 0.0.0.0
-

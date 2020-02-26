@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.filestorage;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -36,7 +36,8 @@ import fi.csc.chipster.rest.hibernate.S3Util;
 
 public class StorageBackup implements StatusSource {
 		
-	public static final String FILE_BROKER_BACKUP_NAME_PREFIX = "file-broker-backup_";
+	//FIXME how about other storage replicas?
+	public static final String FILE_STORAGE_BACKUP_NAME_PREFIX = "file-storage-backup_";
 
 	private Logger logger = LogManager.getLogger();
 	
@@ -109,7 +110,7 @@ public class StorageBackup implements StatusSource {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = BackupUtils.findLatest(objects, FILE_BROKER_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
+		String archiveInfoKey = BackupUtils.findLatest(objects, FILE_STORAGE_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		
@@ -123,7 +124,7 @@ public class StorageBackup implements StatusSource {
 		}
 		
 		Instant now = Instant.now();
-		String backupName = FILE_BROKER_BACKUP_NAME_PREFIX + now;
+		String backupName = FILE_STORAGE_BACKUP_NAME_PREFIX + now;
 			
 		Path backupInfoPath = backupDir.resolve(BackupArchive.BACKUP_INFO);				
 		FileUtils.touch(backupInfoPath.toFile());
@@ -403,7 +404,7 @@ public class StorageBackup implements StatusSource {
 		
 		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
 		
-		Instant backupTime = BackupUtils.getLatestArchive(transferManager, FILE_BROKER_BACKUP_NAME_PREFIX, bucket);
+		Instant backupTime = BackupUtils.getLatestArchive(transferManager, FILE_STORAGE_BACKUP_NAME_PREFIX, bucket);
 		
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		

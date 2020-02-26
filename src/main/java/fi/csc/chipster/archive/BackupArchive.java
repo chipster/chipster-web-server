@@ -30,7 +30,7 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.StorageBackup;
+import fi.csc.chipster.filestorage.StorageBackup;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.BackupRotation2;
@@ -68,7 +68,7 @@ public class BackupArchive {
 			archiveAndCleanUp(role, BackupType.FULL, backupPrefix);
 		}
 		
-		archiveAndCleanUp(Role.FILE_BROKER, BackupType.INCREMENTAL, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX);		
+		archiveAndCleanUp(Role.FILE_STORAGE, BackupType.INCREMENTAL, StorageBackup.FILE_STORAGE_BACKUP_NAME_PREFIX);		
 	}
 	
 	private void archiveAndCleanUp(String role, BackupType type, String backupPrefix) {
@@ -104,7 +104,7 @@ public class BackupArchive {
 					if (type == BackupType.FULL) {
 						removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
 					} else {
-						removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_BROKER_BACKUP_NAME_PREFIX, 60);
+						removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_STORAGE_BACKUP_NAME_PREFIX, 60);
 					}
 					
 				} catch (IOException | InterruptedException | CleanUpException e) {

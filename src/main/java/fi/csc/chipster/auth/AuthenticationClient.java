@@ -159,6 +159,7 @@ public class AuthenticationClient {
 			HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(username, password);
 			c.register(feature);
 		}
+		
 		return c;
 	}
 	
