@@ -2,8 +2,11 @@ package fi.csc.chipster.filebroker;
 
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
@@ -43,15 +46,16 @@ import fi.csc.chipster.sessiondb.model.File;
 @Path("/")
 public class FileBrokerResource {
 	
-	public static final String HEADER_RANGE = "Range";
+	private static final String FILE_BROKER_PRIMARY_STORAGE_PREFIX = "file-broker-primary-storage-";
+	private static final String FILE_BROKER_STORAGE_URL_PREFIX = "file-broker-storage-url-";
+	private static final String FILE_BROKER_STORAGE_ID_PREFIX = "file-broker-storage-id-";
 
 	private static final String FLOW_TOTAL_CHUNKS = "flowTotalChunks";
-
 	private static final String FLOW_CHUNK_SIZE = "flowChunkSize";
-
 	private static final String FLOW_CHUNK_NUMBER = "flowChunkNumber";
+	
+	public static final String HEADER_RANGE = "Range";
 
-	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
 	@SuppressWarnings("unused")
@@ -61,11 +65,14 @@ public class FileBrokerResource {
 
 	private SessionDbClient sessionDbWithFileBrokerCredentials;
 
-	private FileStorageClient fileStorageClient;
-
 	private String sessionDbUri;
-
 	private String sessionDbEventsUri;
+	
+	private Map<String, String> storageUrls = new HashMap<>();
+	private Map<String, FileStorageClient> storageClients = new HashMap<>();
+	private List<String> primaryStorages = new ArrayList<>();
+	
+	Random rand = new Random();
 	
 	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient, AuthenticationClient authService, Config config) {
 		this.serviceLocator = serviceLocator;
@@ -74,7 +81,45 @@ public class FileBrokerResource {
 		
 		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
 		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
-		this.fileStorageClient = new FileStorageClient(serviceLocator, authService.getCredentials());
+		
+		Map<String, String> configStorageIds = config.getConfigEntries(FILE_BROKER_STORAGE_ID_PREFIX);
+		Map<String, String> configStorageUrls = config.getConfigEntries(FILE_BROKER_STORAGE_URL_PREFIX);		
+		Map<String, String> configPrimaryStorages = config.getConfigEntries(FILE_BROKER_PRIMARY_STORAGE_PREFIX);
+		
+		
+		for (String key : configStorageIds.keySet()) {
+			
+			String id = configStorageIds.get(key);			
+			String url = configStorageUrls.get(key);
+			
+			if (id == null) {
+				throw new RuntimeException(FILE_BROKER_STORAGE_ID_PREFIX + key + " is not configured");
+			}
+			
+			if (url == null) {
+				throw new RuntimeException(FILE_BROKER_STORAGE_URL_PREFIX + key + " is not configured");
+			}
+			
+			// convert string "null" to a real null value, because that's what the old rows in DB have
+			if ("null".equals(id)) {
+				id = null;
+			}
+			
+			storageUrls.put(id, url);			
+		}
+		
+		for (String id : configPrimaryStorages.values()) {
+			if (!storageUrls.keySet().contains(id)) {
+				throw new RuntimeException("file-storage with id " + id + " is not configured");
+			}
+			primaryStorages.add(id);
+		}
+		
+		for (String id : storageUrls.keySet()) {			
+			String url = storageUrls.get(id);
+			logger.info("add file-storage " + id + " in " + url + (primaryStorages.contains(id) ? " (primary)" : ""));
+			this.storageClients.put(id, new FileStorageClient(url, authService.getCredentials()));
+		}
 	}
 
 	@GET
@@ -108,10 +153,17 @@ public class FileBrokerResource {
 		}
 
 		UUID fileId = dataset.getFile().getFileId();
+		String storageId = dataset.getFile().getStorage();
+		
+		FileStorageClient storageClient = storageClients.get(storageId);
+		
+		if (storageClient == null) {
+			throw new InternalServerErrorException("storageId " + storageId + " is not configured");
+		}
 
 		InputStream fileStream;
 		try {
-			fileStream = fileStorageClient.download(fileId, range);
+			fileStream = storageClient.download(fileId, range);
 		} catch (RestException e) {
 			throw extractRestException(e);
 		}
@@ -170,15 +222,20 @@ public class FileBrokerResource {
 			throw extractRestException(e);
 		}
 		
+		String storageId = choosePrimaryStorage();
+		
 		if (dataset.getFile() == null) {
 			File file = new File();
 			// create a new fileId
 			file.setFileId(RestUtils.createUUID());
 			file.setFileCreated(Instant.now());
+			file.setStorage(storageId);
 			dataset.setFile(file);
 		}
 		
-		long fileLength = this.fileStorageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
+		FileStorageClient storageClient = storageClients.get(storageId);
+		
+		long fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 
 		if (fileLength >= 0) {
 			// update the file size after each chunk
@@ -198,6 +255,17 @@ public class FileBrokerResource {
 	}
 	
 	
+	/**
+	 * Get one of the primary storages for new file upload
+	 * 
+	 * Now chosen randomly to distribute load over all primary storages. 
+	 * 
+	 * @return
+	 */
+	private String choosePrimaryStorage() {
+		return primaryStorages.get(rand.nextInt(primaryStorages.size()));
+	}
+
 	private Dataset getDatasetObject(UUID sessionId, UUID datasetId, String userToken, boolean requireReadWrite) throws RestException {
 
 		// check authorization

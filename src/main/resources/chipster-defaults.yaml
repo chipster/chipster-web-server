@@ -255,12 +255,22 @@ toolbox-tools-bin-path: /opt/chipster/tools
 
 # file-broker
 
+
 # how long to wait for connections to complete after receiving SIGINT, seconds
 file-broker-shutdown-timeout: 3600
 
-# session-worker
+file-broker-storage-id-0: storage0
+file-broker-storage-url-0: http://localhost:8016
 
-file-broker-shutdown-timeout: 3600
+# File.storage field is null in the DB if the file was created before the file-storage system was created
+file-broker-storage-id-1: "null"
+file-broker-storage-url-1: http://localhost:8016
+
+file-broker-primary-storage-0: storage0
+
+# file-storage
+
+# session-worker
 
 session-worker-smtp-host: ""
 session-worker-smtp-username: ""

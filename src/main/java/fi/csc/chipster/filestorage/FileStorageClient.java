@@ -36,8 +36,6 @@ public class FileStorageClient {
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
-	@SuppressWarnings("unused")
-	private ServiceLocatorClient serviceLocator;
 	private CredentialsProvider credentials;
 
 	private WebTarget fileStorageTarget;
@@ -48,13 +46,17 @@ public class FileStorageClient {
 	 * @param role set to Role.CLIENT to use the public file-broker address, anything else e.g. Role.SERVER to the internal address
 	 */
 	public FileStorageClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
-		this.serviceLocator = serviceLocator;
 		this.credentials = credentials;
 		
 		// get with credentials from ServiceLocator
 		init(serviceLocator.getInternalService(Role.FILE_STORAGE).getUri());
 	}	
 	
+	public FileStorageClient(String url, CredentialsProvider credentials) {
+		this.credentials = credentials;
+		init(url);
+	}
+
 	private void init(String fileStorageUri) {
 
 		fileStorageTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(fileStorageUri);

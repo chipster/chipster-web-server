@@ -20,7 +20,6 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
@@ -107,7 +106,6 @@ public class FileStorage {
 		FileServlet fileServlet = new FileServlet(storage, authService);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
-		contextHandler.addFilter(new FilterHolder(new CORSServletFilter(this.serviceLocator)), "/*", null);
 		
 		CustomRequestLog requestLog = new CustomRequestLog("logs/yyyy_mm_dd.request.log", "%t %{client}a %{x-forwarded-for}i \"%r\" %k %X %s %{ms}T ms %{CLF}I B %{CLF}O B %{connection}i %{connection}o");
 		server.setRequestLog(requestLog);
@@ -119,7 +117,7 @@ public class FileStorage {
          *  events, there might be many file-broker replicas, and all those would try to delete the file
          *  from the file-storage at the same time.
          */
-        sessionDbClient.subscribe(SessionDbTopicConfig.FILES_TOPIC, fileServlet, "file-broker-file-listener");
+        sessionDbClient.subscribe(SessionDbTopicConfig.FILES_TOPIC, fileServlet, "file-storage-file-listener");
 		
         server.start();                      
                
