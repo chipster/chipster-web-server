@@ -259,14 +259,48 @@ toolbox-tools-bin-path: /opt/chipster/tools
 # how long to wait for connections to complete after receiving SIGINT, seconds
 file-broker-shutdown-timeout: 3600
 
-file-broker-storage-id-0: storage0
-file-broker-storage-url-0: http://localhost:8016
+# Find file-storages from the DNS server's SRV records. This is handy for Kubernetes
+# statefulset, because this way the file-broker will find out automatically the number
+# of file-storage replicas. Configure here the domain name of the replicaset's 
+# (headless) service. You can check that records are populated correctly by running
+# this command in some container:
+# 
+#   nslookup -type=SRV file-storage
+# 
+# Unfortunately the Java DNS seems to require the longer form of the domain name: 
+# 
+#   file-storage.NAMESPACE.svc.cluster.local
+#
+file-broker-storage-dns-domain-0: ""
 
-# File.storage field is null in the DB if the file was created before the file-storage system was created
-file-broker-storage-id-1: "null"
-file-broker-storage-url-1: http://localhost:8016
+# In addition to hostname from DNS we need also the protocol and port
+file-broker-storage-dns-protocol: "http://"
+file-broker-storage-dns-port: "8016"
 
-file-broker-primary-storage-0: storage0
+# Add here the file-storage names that shouldn't be used for writing new files.
+# The file-storage name is
+# 1) a string between "url-int-" and ":" when configured in the service-locator
+# 2) a string before the first period ".", when found from the DNS
+file-broker-storage-read-only-0: ""
+
+# When migrating files from file-broker to file-storage, the storage field in 
+# the DB is null for all old files.
+# If you can't copy all the files from the old file-broker to the new file-storage,
+# you can configure a special read-only file-storage service that mounts the old 
+# file-broker volume.
+# Its name must start with "file-storage-". Let's call it "file-storage-migration" 
+# in this example. Then you configure its address in the service-locator:
+#
+#   url-int-file-storage-migration: ADDRESS
+#
+# and configure here it to be used for reading all files that have null in the storage
+# field:
+#   
+#   file-broker-storage-null: "file-storage-migration"
+# 
+# The file-storage configured here won't be used for writing new files.
+file-broker-storage-null: ""
+
 
 # file-storage
 

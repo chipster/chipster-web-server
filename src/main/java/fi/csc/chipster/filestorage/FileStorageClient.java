@@ -4,6 +4,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,12 +35,13 @@ import fi.csc.chipster.sessiondb.RestException;
 
 public class FileStorageClient {
 	
-	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	private CredentialsProvider credentials;
 
 	private WebTarget fileStorageTarget;
+
+	private String id;
 
 	/**
 	 * @param serviceLocator
@@ -95,20 +98,25 @@ public class FileStorageClient {
 			for (String key : queryParams.keySet()) {
 				uriBuilder = uriBuilder.queryParam(key, queryParams.get(key));
 			}
+			
+			URL url = uriBuilder.build().toURL();
+			String authoriationHeader = "Basic " + Base64.encodeAsString(credentials.getUsername() + ":" + credentials.getPassword());
+			String contentTypeHeader = MediaType.APPLICATION_OCTET_STREAM;
 
 			// create a new connection for every request, because HttpURLConnection isn't thread safe
-			connection = (HttpURLConnection) uriBuilder.build().toURL().openConnection();
+			connection = (HttpURLConnection) url.openConnection();
 			connection.setDoOutput(true);
 			connection.setRequestMethod("PUT");
-			connection.setRequestProperty("Content-Type", MediaType.APPLICATION_OCTET_STREAM);
+			connection.setRequestProperty("Content-Type", contentTypeHeader);
 			
 			/* The default chunk size is 4k which limited the upload to about 30 MB/s. 
 			 * Anything between 16k and 1M seems to work fine 100-200 MB/s, when everything is communicating
 			 * through localhost.
 			 */
 			connection.setChunkedStreamingMode(128 * 1024);
-
-			connection.setRequestProperty("Authorization", "Basic " + Base64.encodeAsString(credentials.getUsername() + ":" + credentials.getPassword()));
+			connection.setRequestProperty("Authorization", authoriationHeader);
+			
+			logger.debug("curl -X POST -H Authorization: " + authoriationHeader + " -H Content-Type: " + contentTypeHeader + " " + url);
 
 			IOUtils.copy(inputStream, connection.getOutputStream());                      
 
@@ -186,5 +194,17 @@ public class FileStorageClient {
 			throw new RestException("getting input stream failed", response, target.getUri());
 		}
 		return response.readEntity(InputStream.class);
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public URI getUri() {
+		return this.fileStorageTarget.getUri();
 	}
 }

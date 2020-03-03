@@ -75,8 +75,7 @@ public class FileBroker {
         
         this.httpServer.start();
                 
-        this.adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, serviceLocator, jerseyStatisticsSource);
-        
+        this.adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, serviceLocator, jerseyStatisticsSource);   
     }
 
 

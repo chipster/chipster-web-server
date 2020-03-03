@@ -2,7 +2,6 @@ package fi.csc.chipster.rest;
 
 import java.util.HashMap;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -79,10 +78,7 @@ public class CORSFilter {
 			t = System.currentTimeMillis();
 
 			// allow one backend to serve multiple web-servers (Chipster and Mylly)
-			return serviceLocator.getPublicServices().stream()
-					.filter(s -> s.getRole().startsWith(Role.WEB_SERVER))
-					.map(s -> s.getPublicUri())
-					.collect(Collectors.toSet());
+			return serviceLocator.getPublicUris(Role.WEB_SERVER);
 
 		} catch (Exception e) {
 			logger.warn("cors headers not yeat available (request took " + (System.currentTimeMillis() - t) + "ms)");

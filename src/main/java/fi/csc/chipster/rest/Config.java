@@ -319,7 +319,7 @@ public class Config {
 	 * @return a map where keys are the service names and values are their internal addresses 
 	 */
 	public Map<String, String> getInternalServiceUrls() {
-		return getConfigEntriesFixed(URL_INT_PREFIX);		
+		return getConfigEntries(URL_INT_PREFIX);		
 	}
 
 	/**
