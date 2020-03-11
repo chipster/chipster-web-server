@@ -73,8 +73,9 @@ public class UserResource {
 				.flatMap(session -> SessionDatasetResource.getDatasets(hibernate.session(), session).stream())
 				.collect(Collectors.toList());
 
+		// in case of duplicate IDs, pick any of them. They all should come from the same DB row even if there are multiple Java objects
 		Map<UUID, File> uniqueFiles = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
-				.collect(Collectors.toMap(file -> file.getFileId(), file -> file));
+				.collect(Collectors.toMap(file -> file.getFileId(), file -> file, (f1, f2) -> f1));
 
 		Long size = uniqueFiles.values().stream().collect(Collectors.summingLong(file -> file.getSize()));
 
