@@ -278,9 +278,11 @@ file-broker-storage-dns-protocol: "http://"
 file-broker-storage-dns-port: "8016"
 
 # Add here the file-storage names that shouldn't be used for writing new files.
-# The file-storage name is
+# The file-storage name is:
 # 1) a string between "url-int-" and ":" when configured in the service-locator
 # 2) a string before the first period ".", when found from the DNS
+# Add as many configuration keys as require by appending new postfixes, e.g. 
+# "-0", "-1" and so on.
 file-broker-storage-read-only-0: ""
 
 # When migrating files from file-broker to file-storage, the storage field in 
