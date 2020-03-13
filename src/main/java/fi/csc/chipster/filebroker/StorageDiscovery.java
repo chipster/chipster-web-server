@@ -190,7 +190,13 @@ public class StorageDiscovery {
 			String id = storage.getRole();
 			try {
 				URI uri = new URI(storage.getUri());
-				URI adminUri = new URI(storage.getAdminUri());
+				
+				URI adminUri = null;
+				
+				if (storage.getAdminUri() != null) {
+					adminUri = new URI(storage.getAdminUri());
+				}
+				
 				boolean readOnly = readOnlyStorages.contains(id);
 							
 				if (verbose) {
@@ -209,7 +215,7 @@ public class StorageDiscovery {
 					logger.info("use file-storage '" + storageForNull + "' if storage is null in the DB");
 				}
 				// create copy
-				Storage storage = new Storage(storages.get(storageForNull));					
+				Storage storage = new Storage(newStorages.get(storageForNull));					
 				
 				storage.setStorageId(null);
 				// storageForNull is only for migration, no need to write there

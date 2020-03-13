@@ -53,10 +53,17 @@ public class FileBrokerAdminResource extends AdminResource {
     }
 	
 	private FileStorageAdminClient getStorageAdminClient(String id, SecurityContext sc) {
+		
+		Storage storage = storageDiscovery.getStorages().get(id);
+		
+		if (storage == null) {
+			throw new NotFoundException("storage " + id + " not found");
+		}
+		
 		URI url = storageDiscovery.getStorages().get(id).getAdminUri();
 		
 		if (url == null) {
-			throw new NotFoundException("storage " + id + " not found");
+			throw new NotFoundException("storage " + id + " has no admin address");
 		}
 		
 		String tokenKey = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
