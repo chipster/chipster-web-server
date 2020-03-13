@@ -35,6 +35,10 @@ public class FileBroker {
 
 	private HttpServer httpServer;
 
+	private FileBrokerResource fileBrokerResource;
+
+	private StorageDiscovery storageDiscovery;
+
 	public FileBroker(Config config) {
 		this.config = config;
 	}
@@ -54,14 +58,17 @@ public class FileBroker {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 		
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		this.serviceLocator.setCredentials(authService.getCredentials());    	
+		this.serviceLocator.setCredentials(authService.getCredentials());
+		
+		this.storageDiscovery = new StorageDiscovery(this.serviceLocator, authService, config);		
+		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery);
                 
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	tokenRequestFilter.authenticationRequired(false, false);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)
 			//.register(RestUtils.getLoggingFeature(Role.FILE_STORAGE))
-        	.register(new FileBrokerResource(this.serviceLocator, this.sessionDbClient, authService, config))
+        	.register(fileBrokerResource)
         	.register(tokenRequestFilter);
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
@@ -74,8 +81,9 @@ public class FileBroker {
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         
         this.httpServer.start();
-                
-        this.adminServer = RestUtils.startAdminServer(Role.FILE_BROKER, config, authService, serviceLocator, jerseyStatisticsSource);   
+        
+        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(jerseyStatisticsSource, storageDiscovery);
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService, this.serviceLocator);
     }
 
 

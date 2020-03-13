@@ -1,22 +1,11 @@
 package fi.csc.chipster.filebroker;
 
 import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import javax.naming.NamingException;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
@@ -37,16 +26,13 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filestorage.FileStorageClient;
-import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -56,12 +42,6 @@ import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 @Path("/")
 public class FileBrokerResource {
 	
-	private static final String FILE_BROKER_STORAGE_READ_ONLY_PREFIX = "file-broker-storage-read-only-";
-	private static final String FILE_BROKER_STORAGE_DNS_DOMAIN_PREFIX = "file-broker-storage-dns-domain-";
-	private static final String FILE_BROKER_STORAGE_DNS_PROTOCOL = "file-broker-storage-dns-protocol";
-	private static final String FILE_BROKER_STORAGE_DNS_PORT = "file-broker-storage-dns-port";
-	private static final String FILE_BROKER_STORAGE_NULL = "file-broker-storage-null";
-
 	private static final String FLOW_TOTAL_CHUNKS = "flowTotalChunks";
 	private static final String FLOW_CHUNK_SIZE = "flowChunkSize";
 	private static final String FLOW_CHUNK_NUMBER = "flowChunkNumber";
@@ -70,130 +50,21 @@ public class FileBrokerResource {
 
 	private static Logger logger = LogManager.getLogger();
 	
-	private Config config;
-	private ServiceLocatorClient serviceLocator;
-
 	private SessionDbClient sessionDbWithFileBrokerCredentials;
-
 	private String sessionDbUri;
 	private String sessionDbEventsUri;
+	private StorageDiscovery storageDiscovery;
 		
-	private Map<String, FileStorageClient> storageClients = new HashMap<>();
-	private List<String> writeStorages = new ArrayList<>();
-	
-	Random rand = new Random();
-	private AuthenticationClient authService;
-	private ExecutorService updateExecutor;
-	private Instant fileStoragesLastUpdated;
-	private Map<String, String> dnsDomains;
-	private String storageForNull;
-	private Collection<String> readOnlyStorages;
-	
-	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient, AuthenticationClient authService, Config config) {
-		this.serviceLocator = serviceLocator;
-		this.sessionDbWithFileBrokerCredentials = sessionDbClient;
-		this.authService = authService;
-		this.config = config;
-		
-		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
-		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
-		
-		dnsDomains = config.getConfigEntries(FILE_BROKER_STORAGE_DNS_DOMAIN_PREFIX);
-		storageForNull = config.getString(FILE_BROKER_STORAGE_NULL);
-		// create a new Set to be able to add new items
-		readOnlyStorages = new HashSet<>(config.getConfigEntries(FILE_BROKER_STORAGE_READ_ONLY_PREFIX).values());
-		
-		this.updateFileStorages(true);
-		
-		this.updateExecutor = Executors.newCachedThreadPool();
-	}
-	
-	private void updateFileStorages(boolean verbose) {
-		
-		synchronized (storageClients) {
-			
-			HashMap<String, FileStorageClient> oldStorageClients = new HashMap<>(storageClients);
 
-			Set<String> dnsStorages = new HashSet<>();
-			Map<String, String> storageUrls = new HashMap<>();
-			
-			for (String dnsConfigKey : dnsDomains.keySet()) {
-				
-				String dnsDomain = dnsDomains.get(dnsConfigKey);
-				// use default or allow to be configured for each dns domain
-				String protocol = config.getString(FILE_BROKER_STORAGE_DNS_PROTOCOL, dnsConfigKey);
-				String port = config.getString(FILE_BROKER_STORAGE_DNS_PORT, dnsConfigKey);
-				
-				if (dnsDomain != null && !dnsDomain.isEmpty()) {
-					if (verbose) {
-						logger.info("get file-storages from DNS record " + dnsDomain);
-					}
-					try {
-						dnsStorages = DnsUtils.getSrvRecords(dnsDomain);
-					} catch (NamingException | URISyntaxException e) {
-						throw new RuntimeException("failed to get file-storages from DNS for " + dnsDomain, e);
-					}
-					
-					for (String host : dnsStorages) {
-						String[] domains = host.split("\\.");
-						String id = domains[0];
-						String url = protocol + host + ":" + port; 
-						logger.debug("file-storage id " + id + ", url " + url + " found from DNS ");
-						storageUrls.put(id, url);
-					}
-				}
-			}
-			
-			Set<Service> serviceLocatorStorages = serviceLocator.getInternalServices(Role.FILE_STORAGE);
-			
-			for (Service storage : serviceLocatorStorages) {
-				String id = storage.getRole();
-				String url = storage.getUri();
-				if (verbose) {
-					logger.info("file-storage '" + id + "', url " + url + " found from service-locator");
-				}
-				storageUrls.put(id, url);
-			}
-			
-			if (storageForNull != null && !storageForNull.isEmpty()) {
-				if (storageUrls.containsKey(storageForNull)) {				
-					if (verbose) {
-						logger.info("use file-storage '" + storageForNull + "' if storage is null in the DB");
-					}
-					storageUrls.put(null, storageUrls.get(storageForNull));
-					
-					// storageForNull is only for migration, no need to write there
-					readOnlyStorages.add(null);
-				} else {
-					throw new IllegalStateException(FILE_BROKER_STORAGE_NULL + " configured to '" + storageForNull
-							+ "' but no such file-storage was found");
-				}
-			}
-			
-			for (String id : storageUrls.keySet()) {
-				FileStorageClient client = new FileStorageClient(storageUrls.get(id), authService.getCredentials());
-				client.setId(id);
-				this.storageClients.put(id, client);
-				
-				if (!readOnlyStorages.contains(id)) {
-					writeStorages.add(id);
-				}
-				
-				if (!oldStorageClients.containsKey(id)) {
-					logger.info("added file-storage '" + id + "', url " + client.getUri()
-							 + (readOnlyStorages.contains(id) ? " (read-only)" : ""));
-				}
-			}
-			
-			for (String id : oldStorageClients.keySet()) {
-				if (!storageClients.containsKey(id)) {
-					logger.warn("lost file-storage '" + id + "'");
-				}
-			}
-			
-			this.fileStoragesLastUpdated = Instant.now();
-		}
+	
+	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient, StorageDiscovery storageDiscovery) {
+		
+		this.sessionDbWithFileBrokerCredentials = sessionDbClient;		
+		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
+		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();		
+		this.storageDiscovery = storageDiscovery;
 	}
+	
 
 	@GET
 	@Path("sessions/{sessionId}/datasets/{datasetId}")
@@ -228,7 +99,7 @@ public class FileBrokerResource {
 		UUID fileId = dataset.getFile().getFileId();
 		String storageId = dataset.getFile().getStorage();
 		
-		FileStorageClient storageClient = getStorageClient(storageId);
+		FileStorageClient storageClient = storageDiscovery.getStorageClientForRead(storageId);
 
 		InputStream fileStream;
 		try {
@@ -258,63 +129,6 @@ public class FileBrokerResource {
 		return response.build();
 	}
 	
-	private FileStorageClient getStorageClient(String storageId) {
-		
-		synchronized (storageClients) {
-			
-			FileStorageClient storageClient = storageClients.get(storageId);
-			
-			if (storageClient == null) {
-				
-				logger.info("storageId " + storageId + " found from DB but we don't know its URL. Trying to update file-storages again");
-				// maybe the file-storage wasn't running when we searched last time and thus not in the DNS
-				this.updateFileStorages(true);
-				storageClient = storageClients.get(storageId);
-				
-				if (storageClient == null) {
-					throw new InternalServerErrorException("storageId " + storageId + " is not found");
-				}
-			}
-			
-			return storageClient;
-		}
-	}
-	
-	private FileStorageClient getStorageClientForNewFile() {
-		
-		synchronized (storageClients) {
-			
-			if (writeStorages.isEmpty()) {
-				logger.info("file upload requested, but there aren't any writable file-storages. Try to find again");
-				this.updateFileStorages(true);
-			}
-			
-			if (writeStorages.isEmpty()) {
-				throw new InternalServerErrorException("no writable file-storage");
-			}
-			
-			// choose one of the current storages			
-			String storageId = writeStorages.get(rand.nextInt(writeStorages.size()));
-			
-			// make sure we will notice new replicas from DNS eventually
-			this.updateInBackgroundIfNecessary();
-						
-			return storageClients.get(storageId);
-		}
-	}
-
-	private void updateInBackgroundIfNecessary() {
-		boolean isOld = Duration.between(fileStoragesLastUpdated, Instant.now())
-				.compareTo(Duration.ofMinutes(1)) > 0;
-				
-		if (!dnsDomains.isEmpty() && fileStoragesLastUpdated == null || isOld) {			
-			this.updateExecutor.execute(() -> {
-				this.updateFileStorages(false);
-				logger.info("file-storages updated: " + storageClients.size());
-			});
-		}
-	}
-
 	@PUT
 	@Path("sessions/{sessionId}/datasets/{datasetId}")
 	public Response putDataset(
@@ -351,7 +165,7 @@ public class FileBrokerResource {
 		FileStorageClient storageClient = null;
 		
 		if (dataset.getFile() == null) {
-			storageClient = getStorageClientForNewFile();
+			storageClient = storageDiscovery.getStorageClientForNewFile();
 			File file = new File();
 			// create a new fileId
 			file.setFileId(RestUtils.createUUID());
@@ -361,7 +175,7 @@ public class FileBrokerResource {
 		} else {
 			
 			String storageId = dataset.getFile().getStorage();
-			storageClient = getStorageClient(storageId);
+			storageClient = storageDiscovery.getStorageClientForRead(storageId);
 		}
 		
 		long fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
@@ -400,7 +214,7 @@ public class FileBrokerResource {
 		return dataset;
 	}
 
-	private WebApplicationException extractRestException(RestException e) {
+	public static WebApplicationException extractRestException(RestException e) {
 		int statusCode = e.getResponse().getStatus();
 		String msg = e.getMessage();
 		if (statusCode == HttpServletResponse.SC_FORBIDDEN) {

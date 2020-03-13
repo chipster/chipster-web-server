@@ -275,7 +275,9 @@ file-broker-storage-dns-domain-0: ""
 
 # In addition to hostname from DNS we need also the protocol and port
 file-broker-storage-dns-protocol: "http://"
+file-broker-storage-dns-protocol-admin: "http://"
 file-broker-storage-dns-port: "8016"
+file-broker-storage-dns-port-admin: "8116"
 
 # Add here the file-storage names that shouldn't be used for writing new files.
 # The file-storage name is:
