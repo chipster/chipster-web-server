@@ -4,7 +4,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +29,7 @@ import fi.csc.chipster.filebroker.FileBrokerResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
+import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 
@@ -40,8 +40,6 @@ public class FileStorageClient {
 	private CredentialsProvider credentials;
 
 	private WebTarget fileStorageTarget;
-
-	private String id;
 
 	/**
 	 * @param serviceLocator
@@ -138,6 +136,9 @@ public class FileStorageClient {
 
 			} else if (connection.getResponseCode() == HttpURLConnection.HTTP_FORBIDDEN) {
 				throw new ForbiddenException(connection.getResponseMessage());
+				
+			} else if (connection.getResponseCode() == InsufficientStorageException.STATUS_CODE) {
+				throw new InsufficientStorageException(connection.getResponseMessage());
 			} else {
 				logger.error("upload failed: unknwon response code", connection.getResponseCode() + " " + connection.getResponseMessage());
 				throw new InternalServerErrorException("upload failed");
@@ -149,6 +150,15 @@ public class FileStorageClient {
 			// disconnect will do the same for the file-storage connection
 
 		} catch (IOException e) {
+			try {
+				 if (connection.getResponseCode() == InsufficientStorageException.STATUS_CODE) {
+					throw new InsufficientStorageException(connection.getResponseMessage());
+				 } else {
+					 throw e;
+				 }
+			} catch (IOException e1) {
+				logger.error(e1);
+			}
 			throw new InternalServerErrorException("upload failed", e);
 		} finally {
 			if (connection != null) {
@@ -194,17 +204,5 @@ public class FileStorageClient {
 			throw new RestException("getting input stream failed", response, target.getUri());
 		}
 		return response.readEntity(InputStream.class);
-	}
-
-	public void setId(String id) {
-		this.id = id;
-	}
-
-	public String getId() {
-		return id;
-	}
-
-	public URI getUri() {
-		return this.fileStorageTarget.getUri();
 	}
 }

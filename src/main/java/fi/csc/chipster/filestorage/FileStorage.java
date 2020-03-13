@@ -103,7 +103,7 @@ public class FileStorage {
 		contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
 		contextHandler.setResourceBase(storage.getPath());
 				
-		FileServlet fileServlet = new FileServlet(storage, authService);
+		FileServlet fileServlet = new FileServlet(storage, authService, config);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 		

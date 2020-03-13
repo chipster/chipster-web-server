@@ -416,6 +416,10 @@ public class Config {
 	public int getInt(String key) throws NumberFormatException {
 		return Integer.parseInt(getString(key));
 	}
+	
+	public float getFloat(String key) {
+		return Float.parseFloat(getString(key));
+	}
 
 	public boolean getBoolean(String key) {
 		return "true".equalsIgnoreCase(getString(key));

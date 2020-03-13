@@ -27,7 +27,6 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -35,6 +34,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 
 public class FileStorageAdminResource extends AdminResource {
 	
+
 	private static final String PATH_ORPHAN = "orphan";
 	
 	private Logger logger = LogManager.getLogger();
@@ -58,7 +58,6 @@ public class FileStorageAdminResource extends AdminResource {
 	@GET
 	@Path("monitoring/backup")
     @Produces(MediaType.APPLICATION_JSON)
-	@Transaction
 	public Response backupMonitoring(@Context SecurityContext sc) {
 		
 		if (!backup.monitoringCheck()) {

@@ -31,6 +31,7 @@ import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -42,9 +43,10 @@ import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 @Path("/")
 public class FileBrokerResource {
 	
-	private static final String FLOW_TOTAL_CHUNKS = "flowTotalChunks";
-	private static final String FLOW_CHUNK_SIZE = "flowChunkSize";
-	private static final String FLOW_CHUNK_NUMBER = "flowChunkNumber";
+	public static final String FLOW_TOTAL_CHUNKS = "flowTotalChunks";
+	public static final String FLOW_CHUNK_SIZE = "flowChunkSize";
+	public static final String FLOW_CHUNK_NUMBER = "flowChunkNumber";
+	public static final String FLOW_TOTAL_SIZE = "flowTotalSize";
 	
 	public static final String HEADER_RANGE = "Range";
 
@@ -99,7 +101,7 @@ public class FileBrokerResource {
 		UUID fileId = dataset.getFile().getFileId();
 		String storageId = dataset.getFile().getStorage();
 		
-		FileStorageClient storageClient = storageDiscovery.getStorageClientForRead(storageId);
+		FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
 
 		InputStream fileStream;
 		try {
@@ -138,6 +140,7 @@ public class FileBrokerResource {
 			@QueryParam(FLOW_CHUNK_NUMBER) Long chunkNumber,
 			@QueryParam(FLOW_CHUNK_SIZE) Long chunkSize,
 			@QueryParam(FLOW_TOTAL_CHUNKS) Long flowTotalChunks,
+			@QueryParam(FLOW_TOTAL_SIZE) Long flowTotalSize,
 			@Context SecurityContext sc) {
 		
 		String userToken = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
@@ -153,6 +156,9 @@ public class FileBrokerResource {
 		if (flowTotalChunks != null) {
 			queryParams.put(FLOW_TOTAL_CHUNKS, "" + flowTotalChunks);
 		}
+		if (flowTotalSize != null) {
+			queryParams.put(FLOW_TOTAL_SIZE, "" + flowTotalSize);
+		}
 		
 		// checks authorization
 		Dataset dataset;
@@ -161,24 +167,38 @@ public class FileBrokerResource {
 		} catch (RestException e) {
 			throw extractRestException(e);
 		}
-		
-		FileStorageClient storageClient = null;
-		
+				
+		long fileLength = -1;
 		if (dataset.getFile() == null) {
-			storageClient = storageDiscovery.getStorageClientForNewFile();
+			
 			File file = new File();
 			// create a new fileId
 			file.setFileId(RestUtils.createUUID());
 			file.setFileCreated(Instant.now());
-			file.setStorage(storageClient.getId());
 			dataset.setFile(file);
+			
+			for (String storageId : storageDiscovery.getStoragesForNewFile()) {
+				// not synchronized, may fail when storage is lost
+				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
+				try {
+					fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
+					file.setStorage(storageId);
+				} catch (InsufficientStorageException e) {
+					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
+				}
+			}
+			
+			if (fileLength == -1) {
+				logger.error("insufficient storage on all storages");
+				throw new InsufficientStorageException("insufficient storage on all storages");
+			}
 		} else {
 			
 			String storageId = dataset.getFile().getStorage();
-			storageClient = storageDiscovery.getStorageClientForRead(storageId);
+			FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
+			
+			fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 		}
-		
-		long fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 
 		if (fileLength >= 0) {
 			// update the file size after each chunk

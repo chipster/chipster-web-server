@@ -308,6 +308,9 @@ file-broker-storage-null: ""
 
 # file-storage
 
+# how many percentages of the total space must remain empty after an upload (to allow other parallel uploads)
+file-storage-preserve-space: 1.0
+
 # session-worker
 
 session-worker-smtp-host: ""

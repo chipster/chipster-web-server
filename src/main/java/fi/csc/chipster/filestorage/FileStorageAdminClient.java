@@ -67,6 +67,10 @@ public class FileStorageAdminClient {
 		
 		post("delete-orphans");		
     }
+	
+	public String getStatus() {
+		return getJson("status");
+	}
 		
 	public String getJson(String... paths) {
 		

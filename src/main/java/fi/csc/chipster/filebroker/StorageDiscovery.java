@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -78,7 +79,7 @@ public class StorageDiscovery {
 		}
 	}
 	
-	public FileStorageClient getStorageClientForNewFile() {
+	public ArrayList<String> getStoragesForNewFile() {
 		
 		synchronized (storages) {
 
@@ -94,14 +95,14 @@ public class StorageDiscovery {
 			if (writeStorages.isEmpty()) {
 				throw new InternalServerErrorException("no writable file-storage");
 			}
-			
-			// choose one of the current storages			
-			String storageId = new ArrayList<String>(writeStorages.keySet()).get(rand.nextInt(writeStorages.size()));
-			
+
 			// make sure we will notice new replicas from DNS eventually
 			this.updateInBackgroundIfNecessary();
-						
-			return getStorageClient(storageId);
+			
+			// return storages in random order			
+			ArrayList<String> storageIds = new ArrayList<String>(writeStorages.keySet());
+			Collections.shuffle(storageIds);
+			return storageIds;
 		}
 	}
 
@@ -116,7 +117,7 @@ public class StorageDiscovery {
 		return new FileStorageClient(storage.getUri().toString(), authService.getCredentials());
 	}
 	
-	public FileStorageClient getStorageClientForRead(String storageId) {
+	public FileStorageClient getStorageClientForExistingFile(String storageId) {
 		
 		synchronized (storages) {
 			

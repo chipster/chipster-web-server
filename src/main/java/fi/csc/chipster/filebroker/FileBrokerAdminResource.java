@@ -75,6 +75,17 @@ public class FileBrokerAdminResource extends AdminResource {
 		
 		return Response.ok().build();
 	}
+	
+	@GET
+	@Path("storages/{storageId}/status")
+	@Produces(MediaType.APPLICATION_JSON)
+	@RolesAllowed({Role.ADMIN})
+	public Response getBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		String json = getStorageAdminClient(storageId, sc).getStatus();
+		
+		return Response.ok(json).build();
+    }
 
 	@POST
 	@Path("storages/{storageId}/backup")

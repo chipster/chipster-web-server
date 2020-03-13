@@ -36,7 +36,10 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.FileBrokerResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ConflictException;
+import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
@@ -61,6 +64,8 @@ import fi.csc.chipster.util.IOUtils;
  */
 public class FileServlet extends DefaultServlet implements SessionEventListener {
 
+	private static final String CONF_KEY_FILE_STORAGE_PRESERVE_SPACE = "file-storage-preserve-space";
+
 	public static final String PATH_FILES = "files";
 
 	private static final Logger logger = LogManager.getLogger();
@@ -77,10 +82,14 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 	private AuthenticationClient authService;
 
-	public FileServlet(File storageRoot, AuthenticationClient authService) {
+	private float preserveSpace;
+
+	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
 		this.storageRoot = storageRoot;
 		this.authService = authService;
+		
+		this.preserveSpace = config.getFloat(CONF_KEY_FILE_STORAGE_PRESERVE_SPACE);
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);
@@ -107,6 +116,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			throws ServletException, IOException {
 		
 		try {
+						
 			if (logger.isDebugEnabled()) {
 				logger.debug("RESTful file access: GET request for " + request.getRequestURI());
 			}
@@ -144,7 +154,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			if (logRest) {
 				logAsyncGet(request, response, f.toFile(), before);
 			}
-		} catch (Exception e) {
+		} catch (IOException | ServletException e) {
 			// make sure all errors are logged
 			logger.error("GET error", e);
 			throw e;
@@ -286,10 +296,11 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 		logger.info("PUT " + request.getRequestURI());
 		// get query parameters
-		Long chunkNumber = getParameterLong(request, "flowChunkNumber");
-		Long chunkSize = getParameterLong(request, "flowChunkSize");
+		Long chunkNumber = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_NUMBER);
+		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
 		@SuppressWarnings("unused")
-		Long flowTotalChunks = getParameterLong(request, "flowTotalChunks");
+		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_CHUNKS);
+		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
 
 		// user's token set by TokenServletFilter
 		String tokenString = getToken(request);
@@ -307,7 +318,9 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 			InputStream inputStream = request.getInputStream();
 
-			if (chunkNumber == null || chunkNumber == 1) {				
+			if (chunkNumber == null || chunkNumber == 1) {
+				
+				checkDiskSpace(totalSize, request);
 
 				// create a new file
 				File f = getStorageFile(fileId);
@@ -397,6 +410,30 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			throw e;
 		}
 	}
+
+	private void checkDiskSpace(Long flowTotalSize, HttpServletRequest request) {
+		
+		long size;
+		if (flowTotalSize != null) {
+			size = flowTotalSize;
+		} else {
+			if (request.getContentLengthLong() != -1) {
+				size = request.getContentLengthLong();
+ 			} else {
+				logger.warn("put request doesn't have " + FileBrokerResource.FLOW_TOTAL_SIZE + " or content length header, cannot ensure disk space");
+				size = 0;
+ 			}
+		}
+		
+		long preserveBytes = (long) (storageRoot.getTotalSpace() * this.preserveSpace / 100);
+		
+		if (size + preserveBytes > storageRoot.getUsableSpace()) {
+			throw new InsufficientStorageException("insufficient storage");
+		} else {
+			logger.debug("upload size: " + size + ", preserve size: " + preserveBytes + ", available: " + storageRoot.getUsableSpace());
+		}
+	}
+
 
 	private boolean isChunkReady(File f, Long chunkNumber, Long chunkSize) {
 		long expectedSize = chunkNumber * chunkSize;
