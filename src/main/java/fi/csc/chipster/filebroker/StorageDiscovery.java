@@ -26,6 +26,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
 
@@ -54,7 +55,6 @@ public class StorageDiscovery {
 	private Config config;
 	
 	public StorageDiscovery(ServiceLocatorClient serviceLocator, AuthenticationClient authService, Config config) {
-	
 		
 		this.serviceLocator = serviceLocator;
 		this.authService = authService;
@@ -101,7 +101,9 @@ public class StorageDiscovery {
 			
 			// return storages in random order			
 			ArrayList<String> storageIds = new ArrayList<String>(writeStorages.keySet());
+			logger.info("write storages               " + RestUtils.asJson(storageIds));
 			Collections.shuffle(storageIds);
+			logger.info("write storages after shuffle " + RestUtils.asJson(storageIds));
 			return storageIds;
 		}
 	}

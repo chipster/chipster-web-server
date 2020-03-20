@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.SecurityContext;
+import javax.ws.rs.core.UriInfo;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -76,7 +77,10 @@ public class FileBrokerResource {
 			@QueryParam("download") String downloadParam,
 			@QueryParam("type") String typeParam,
 			@HeaderParam(HEADER_RANGE) String range,
-			@Context SecurityContext sc) {
+			@Context SecurityContext sc,
+			@Context UriInfo uriInfo) {		
+		
+		logger.info("GET " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
 		
 		// get query parameters
 		// empty string when set, otherwise null (boolean without value would have been false)
@@ -100,6 +104,8 @@ public class FileBrokerResource {
 
 		UUID fileId = dataset.getFile().getFileId();
 		String storageId = dataset.getFile().getStorage();
+		
+		logger.info("GET from storage '" + storageId + "' " + FileBrokerAdminResource.humanFriendly(dataset.getFile().getSize()));
 		
 		FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
 
@@ -141,7 +147,10 @@ public class FileBrokerResource {
 			@QueryParam(FLOW_CHUNK_SIZE) Long chunkSize,
 			@QueryParam(FLOW_TOTAL_CHUNKS) Long flowTotalChunks,
 			@QueryParam(FLOW_TOTAL_SIZE) Long flowTotalSize,
-			@Context SecurityContext sc) {
+			@Context SecurityContext sc,
+			@Context UriInfo uriInfo) {
+		
+		logger.info("PUT " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
 		
 		String userToken = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
 
@@ -171,6 +180,8 @@ public class FileBrokerResource {
 		long fileLength = -1;
 		if (dataset.getFile() == null) {
 			
+			logger.info("PUT new file");
+			
 			File file = new File();
 			// create a new fileId
 			file.setFileId(RestUtils.createUUID());
@@ -181,8 +192,10 @@ public class FileBrokerResource {
 				// not synchronized, may fail when storage is lost
 				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
 				try {
+					logger.info("PUT to storage '" + storageId  + "'");
 					fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 					file.setStorage(storageId);
+					break;
 				} catch (InsufficientStorageException e) {
 					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
 				}
@@ -197,9 +210,12 @@ public class FileBrokerResource {
 			String storageId = dataset.getFile().getStorage();
 			FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
 			
+			logger.info("PUT file exists in storage '" + storageId + "'");
 			fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 		}
 
+		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(fileLength));
+		
 		if (fileLength >= 0) {
 			// update the file size after each chunk
 			dataset.getFile().setSize(fileLength);

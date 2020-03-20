@@ -35,9 +35,6 @@ import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
 public class StorageBackup implements StatusSource {
-		
-	//FIXME how about other storage replicas?
-	public static final String FILE_STORAGE_BACKUP_NAME_PREFIX = "file-storage-backup_";
 
 	private Logger logger = LogManager.getLogger();
 	
@@ -56,11 +53,14 @@ public class StorageBackup implements StatusSource {
 
 	private TransferManager transferManager;
 
-	public StorageBackup(Path storage, boolean scheduleTimer, Config config) throws IOException, InterruptedException {	
+	private String fileStorageBackupNamePrefix;
+
+	public StorageBackup(Path storage, boolean scheduleTimer, Config config, String storageId) throws IOException, InterruptedException {	
 		
 		this.storage = storage; 		
-		this.role = Role.FILE_BROKER;
+		this.role = Role.FILE_STORAGE;
 		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
+		this.fileStorageBackupNamePrefix = storageId + "_";
 		
 		this.config = config;		
 		this.bucket = BackupUtils.getBackupBucket(config, role);
@@ -110,7 +110,7 @@ public class StorageBackup implements StatusSource {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		
-		String archiveInfoKey = BackupUtils.findLatest(objects, FILE_STORAGE_BACKUP_NAME_PREFIX, BackupArchive.ARCHIVE_INFO);
+		String archiveInfoKey = BackupUtils.findLatest(objects, this.fileStorageBackupNamePrefix, BackupArchive.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;		
 		
@@ -124,7 +124,7 @@ public class StorageBackup implements StatusSource {
 		}
 		
 		Instant now = Instant.now();
-		String backupName = FILE_STORAGE_BACKUP_NAME_PREFIX + now;
+		String backupName = this.fileStorageBackupNamePrefix + now;
 			
 		Path backupInfoPath = backupDir.resolve(BackupArchive.BACKUP_INFO);				
 		FileUtils.touch(backupInfoPath.toFile());
@@ -387,7 +387,7 @@ public class StorageBackup implements StatusSource {
 	}
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
-		new StorageBackup(Paths.get("storage"), false, new Config());
+		new StorageBackup(Paths.get("storage"), false, new Config(), "file-storage");
 	}
 
 
@@ -404,7 +404,7 @@ public class StorageBackup implements StatusSource {
 		
 		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
 		
-		Instant backupTime = BackupUtils.getLatestArchive(transferManager, FILE_STORAGE_BACKUP_NAME_PREFIX, bucket);
+		Instant backupTime = BackupUtils.getLatestArchive(transferManager, this.fileStorageBackupNamePrefix, bucket);
 		
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		

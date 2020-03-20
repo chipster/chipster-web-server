@@ -1,15 +1,22 @@
 package fi.csc.chipster.filebroker;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -21,24 +28,31 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filestorage.FileStorageAdminClient;
+import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Session;
 
 @Path("admin")
 public class FileBrokerAdminResource extends AdminResource {
-	
-	
-	@SuppressWarnings("unused")
+		
 	private Logger logger = LogManager.getLogger();
 
 	private StorageDiscovery storageDiscovery;
+
+	private SessionDbClient sessionDbClient;
 	
-	public FileBrokerAdminResource(StatusSource stats, StorageDiscovery storageDiscovery) {
+	public FileBrokerAdminResource(StatusSource stats, StorageDiscovery storageDiscovery, SessionDbClient sessionDbClient) {
 		super(stats);
 		
 		this.storageDiscovery = storageDiscovery;
+		this.sessionDbClient = sessionDbClient;
 	}
 	
 	@GET
@@ -93,6 +107,126 @@ public class FileBrokerAdminResource extends AdminResource {
 		
 		return Response.ok(json).build();
     }
+	
+	@GET
+	@Path("storages/{storageId}/id")
+	@Produces(MediaType.APPLICATION_JSON)
+	@RolesAllowed({Role.ADMIN})
+	public Response getStorageId(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		String json = getStorageAdminClient(storageId, sc).getStorageId();
+		
+		return Response.ok(json).build();
+    }
+	
+	@GET
+	@Path("storages/{storageId}/filestats")
+	@Produces(MediaType.APPLICATION_JSON)
+	@RolesAllowed({Role.ADMIN})
+	public Response getFileStats(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		String json = getStorageAdminClient(storageId, sc).getFileStats();
+		
+		return Response.ok(json).build();
+    }
+	
+	@POST
+	@Path("storages/copy")
+	@RolesAllowed({Role.ADMIN})
+	public Response copy(
+			@QueryParam("source") String sourceStorageId,
+			@QueryParam("target") String targetStorageId,
+			@DefaultValue("" + Long.MAX_VALUE) @QueryParam("maxBytes") long maxBytes,
+			@Context SecurityContext sc) {
+
+		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
+		
+		if (maxBytes != Long.MAX_VALUE) {
+			logger.info("copy max " + humanFriendly(maxBytes));
+		}
+		
+		HashMap<UUID, File> fileMap = new HashMap<>();
+		HashMap<UUID, UUID> fileSessions = new HashMap<>();
+		HashMap<UUID, UUID> fileDatasets = new HashMap<>();
+		
+		// lot of requests and far from atomic
+		try {
+			for (String user : sessionDbClient.getUsers()) {
+				try {
+					for (Session session : sessionDbClient.getSessions(user)) {
+						try {
+							for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
+								if (dataset.getFile() != null && sourceStorageId.equals(dataset.getFile().getStorage())) {
+									fileMap.put(dataset.getFile().getFileId(), dataset.getFile());
+									fileSessions.put(dataset.getFile().getFileId(), session.getSessionId());
+									fileDatasets.put(dataset.getFile().getFileId(), dataset.getDatasetId());
+								}
+							}
+						} catch (RestException e) {
+							logger.warn("get datasets error", e);
+						}
+					}
+				} catch (RestException e) {
+					logger.warn("get sessions error", e);
+				}
+			}
+		} catch (RestException e) {
+			throw new InternalServerErrorException("get users failed", e);
+		}
+		
+		logger.info("found " + fileDatasets.size() + " files");
+		
+		long bytesCopied = 0;
+		
+		for (File file : fileMap.values()) {
+			
+			if (bytesCopied + file.getSize() >= maxBytes) {
+				logger.info("copied " + humanFriendly(bytesCopied) + " bytes, maxBytes reached");
+				break;
+			}
+			
+			logger.info("copy from '" + sourceStorageId + "' to '" + targetStorageId + "' fileId: " + file.getFileId() + ", " + humanFriendly(file.getSize())); 
+			
+			FileStorageClient sourceClient = storageDiscovery.getStorageClientForExistingFile(sourceStorageId);
+			FileStorageClient targetClient = storageDiscovery.getStorageClient(targetStorageId);
+			
+			try {
+				InputStream sourceStream = sourceClient.download(file.getFileId(), null);
+				
+				Map<String, String> queryParams = new HashMap<>() {{ put(FileBrokerResource.FLOW_TOTAL_SIZE, "" + file.getSize()); }};
+				long fileLength = targetClient.upload(file.getFileId(), sourceStream, queryParams );
+				
+				if (fileLength != file.getSize()) {
+					logger.warn("file length error. storageId '" + sourceStorageId + "', fileId " + file.getFileId() + ", copied: " + fileLength + " bytes, but size in DB is " + file.getSize() + ". Keeping both.");
+					continue;
+				}
+				
+				file.setSize(fileLength);
+				file.setStorage(targetStorageId);			
+				
+				UUID sessionId = fileSessions.get(file.getFileId());
+				UUID datasetId = fileDatasets.get(file.getFileId());
+			
+				Dataset dataset = sessionDbClient.getDataset(sessionId, datasetId);
+				dataset.setFile(file);
+			
+				/* File can be in several sessions, but updating it in one of them is enough.
+				 * Other sessions won't get events, but that shouldn't matter, because the file-broker
+				 * will get the storage from the session-db anyway.
+				 */
+				sessionDbClient.updateDataset(sessionId, dataset);			
+				storageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
+				
+				bytesCopied += fileLength;			
+			} catch (RestException e) {
+				logger.error("file copy failed", e);
+			}
+		}
+		
+		logger.info("copy completed");
+		
+		return Response.ok().build();
+    }
 
 	@POST
 	@Path("storages/{storageId}/backup")
@@ -122,5 +256,25 @@ public class FileBrokerAdminResource extends AdminResource {
 		getStorageAdminClient(storageId, sc).deleteOldOrphans();
 		
 		return Response.ok().build();
-    }			
+    }
+	
+	public static String humanFriendly(Long l) {
+		if (l == null) {
+			return null;
+		}
+		
+		if (l >= 1024l * 1024 * 1024 * 1024) {			
+			return "" + l/1024/1024/1024/1024 + " TB";
+		}
+		if (l >= 1024l * 1024 * 1024) {			
+			return "" + l/1024/1024/1024 + " GB";
+		}
+		if (l >= 1024l * 1024) {			
+			return "" + l/1024/1024 + " MB";
+		}
+		if (l >= 1024l) {			
+			return "" + l/1024 + " kB";
+		}
+		return "" + l + " B";
+	}
 }

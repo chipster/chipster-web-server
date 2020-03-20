@@ -71,6 +71,14 @@ public class FileStorageAdminClient {
 	public String getStatus() {
 		return getJson("status");
 	}
+	
+	public String getStorageId() {
+		return getJson("id");
+	}
+	
+	public String getFileStats() {
+		return getJson("filestats");
+	}
 		
 	public String getJson(String... paths) {
 		

@@ -120,6 +120,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			if (logger.isDebugEnabled()) {
 				logger.debug("RESTful file access: GET request for " + request.getRequestURI());
 			}
+			
+			logger.info("GET " + request.getRequestURI());
 		
 			// user's token set by TokenServletFilter
 			String tokenString = getToken(request);
@@ -289,12 +291,9 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	@Override
 	protected void doPut(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-
-		if (logger.isDebugEnabled()) {
-			logger.info("PUT request for " + request.getRequestURI());
-		}
-
+		
 		logger.info("PUT " + request.getRequestURI());
+		
 		// get query parameters
 		Long chunkNumber = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_NUMBER);
 		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
@@ -312,7 +311,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 		
 		try {
-			logger.debug("chunkNumber " + chunkNumber + " uploading");
+			logger.info("chunkNumber " + chunkNumber + " uploading");
 
 			UUID fileId = parsePath(request.getPathInfo());
 
@@ -370,7 +369,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				File chunkFile = new File(f.getParent(), f.getName() + ".chunk" + chunkNumber);
 				try {
 
-					logger.debug("file size at start: " + f.length());
+					logger.info("file size at start: " + f.length());
 
 					// copy first to a temp file
 					try (FileOutputStream chunkOutStream = new FileOutputStream(chunkFile, false)) {
@@ -441,13 +440,27 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		return f.exists() && f.length() >= expectedSize;
 	}
 
+	/**
+	 * Delete file when it's deleted from the DB
+	 * 
+	 * Handle events here in file-storage, because there could be multiple file-brokers and it would be
+	 * messy if all those would start making delete requests to the file-storage in parallel.
+	 * 
+	 * Unfortunately we don't know if the file was supposed to be in this file-storage replica, because
+	 * the DB object has been deleted already.
+	 *
+	 */
 	@Override
 	public void onEvent(SessionEvent e) {
 		logger.debug("received a file event: " + e.getResourceType() + " " + e.getType());
 		if (ResourceType.FILE == e.getResourceType()) {
 			if (EventType.DELETE == e.getType()) {
 				if (e.getResourceId() != null) {
-					getStorageFile(e.getResourceId()).delete();
+					File storageFile = getStorageFile(e.getResourceId());
+					// otherwise probably just a file on some other file-storage replica
+					if (storageFile.exists()) {
+						storageFile.delete();
+					}					
 				} else {
 					logger.warn("received a file deletion event with null id");
 				}
@@ -466,10 +479,46 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		return rate;
 	}
 
+	/**
+	 * Delete file
+	 * 
+	 * Only used in storage migrations, normally files are deleted based on session-db events.
+	 */
 	@Override
 	protected void doDelete(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+		
+		try {			
+		
+			// user's token set by TokenServletFilter
+			String tokenString = getToken(request);
+			ParsedToken token = authService.validate(tokenString);
+			
+			// check authorization
+			if (!token.getRoles().contains(Role.FILE_BROKER)) {
+				throw new NotAuthorizedException("wrong role");
+			}
+	
+			UUID fileId = parsePath(request.getPathInfo());
+			
+			logger.info("delete file " + fileId);
+	
+			// get the file
+			java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
+	
+			if (!Files.exists(f)) {
+				throw new NotFoundException("no such file");
+			}
+			
+			Files.delete(f);
+
+			response.setStatus(204);
+			
+		} catch (IOException e) {
+			// make sure all errors are logged
+			logger.error("DELETE error", e);
+			throw e;
+		}
 	}
 
 	@Override

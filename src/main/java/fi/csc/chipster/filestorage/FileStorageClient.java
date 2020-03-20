@@ -72,8 +72,7 @@ public class FileStorageClient {
 	
 	// methods 
 	
-	public long upload(UUID fileId, InputStream inputStream, Map<String, String> queryParams) {		
-		     
+	public long upload(UUID fileId, InputStream inputStream, Map<String, String> queryParams) {
 
 		WebTarget target = getFileTarget(fileId);
 
@@ -114,13 +113,18 @@ public class FileStorageClient {
 			connection.setChunkedStreamingMode(128 * 1024);
 			connection.setRequestProperty("Authorization", authoriationHeader);
 			
-			logger.debug("curl -X POST -H Authorization: " + authoriationHeader + " -H Content-Type: " + contentTypeHeader + " " + url);
+			logger.debug("curl -X PUT -H Authorization: " + authoriationHeader + " -H Content-Type: " + contentTypeHeader + " " + url);
 
 			IOUtils.copy(inputStream, connection.getOutputStream());                      
 
 			if (RestUtils.isSuccessful(connection.getResponseCode())) {
-				logger.info("success");
-				return Long.parseLong(connection.getHeaderField(FileServlet.HEADER_FILE_CONTENT_LENGTH));
+				
+				long fileContentLength = Long.parseLong(connection.getHeaderField(FileServlet.HEADER_FILE_CONTENT_LENGTH));
+				
+				logger.info("PUT " + connection.getResponseCode() + " " + connection.getResponseMessage() + " file size: " + fileContentLength);
+				
+				return fileContentLength;
+				
 			} else if (connection.getResponseCode() == HttpURLConnection.HTTP_CONFLICT) {
 				/* Our other Java client libraries throw RestExceptions for historical reasons.
 				 * Let's throw more specific exceptions that are directly converted to error responses 
@@ -204,5 +208,16 @@ public class FileStorageClient {
 			throw new RestException("getting input stream failed", response, target.getUri());
 		}
 		return response.readEntity(InputStream.class);
+	}
+
+	public void delete(UUID fileId) throws RestException {
+		WebTarget target = getFileTarget(fileId);		
+		Builder request = target.request();
+		
+		Response response = request.delete(Response.class);
+		
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("delete file error", response, target.getUri());
+		}
 	}
 }

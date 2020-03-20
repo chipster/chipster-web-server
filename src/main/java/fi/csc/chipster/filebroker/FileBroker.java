@@ -82,7 +82,7 @@ public class FileBroker {
         
         this.httpServer.start();
         
-        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(jerseyStatisticsSource, storageDiscovery);
+        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(jerseyStatisticsSource, storageDiscovery, sessionDbClient);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService, this.serviceLocator);
     }
 

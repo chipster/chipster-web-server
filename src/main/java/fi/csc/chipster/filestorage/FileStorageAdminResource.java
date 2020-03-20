@@ -26,6 +26,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -43,13 +44,16 @@ public class FileStorageAdminResource extends AdminResource {
 	private File storage;
 
 	private java.nio.file.Path orphanRootPath;
+
+	private String storageId;
 	
-	public FileStorageAdminResource(StatusSource stats, StorageBackup backup, SessionDbClient sessionDbClient, File storage) {
+	public FileStorageAdminResource(StatusSource stats, StorageBackup backup, SessionDbClient sessionDbClient, File storage, String storageId) {
 		super(stats, backup);
 		
 		this.backup = backup;
 		this.sessionDbClient = sessionDbClient;
 		this.storage = storage;
+		this.storageId = storageId;
 		
 		orphanRootPath = storage.toPath().resolve(PATH_ORPHAN);
 	}
@@ -66,6 +70,32 @@ public class FileStorageAdminResource extends AdminResource {
 		return Response.ok().build();
 	}
 
+	@GET
+	@Path("id")
+	@RolesAllowed({Role.ADMIN})
+	public Response getStorageId(@Context SecurityContext sc) {		
+		HashMap<String, Object> jsonMap = new HashMap<>();
+		jsonMap.put("storageId", storageId);
+		return Response.ok(RestUtils.asJson(jsonMap)).build();
+    }
+	
+	@GET
+	@Path("filestats")
+	@RolesAllowed({Role.ADMIN})
+	public Response getFileStats(@Context SecurityContext sc) throws IOException {		
+		
+		HashMap<String, Long> files = getFilesAndSizes(storage.toPath(), orphanRootPath);
+		long fileBytes = files.values().stream()
+			.mapToLong(l -> l).sum();
+		
+		HashMap<String, Object> jsonMap = new HashMap<>();
+		jsonMap.put("storageId", storageId);
+		jsonMap.put("fileCount", files.size());
+		jsonMap.put("fileBytes", fileBytes);
+		
+		return Response.ok(RestUtils.asJson(jsonMap)).build();
+    }
+	
 	@POST
 	@Path("backup")
 	@RolesAllowed({Role.ADMIN})
@@ -138,7 +168,9 @@ public class FileStorageAdminResource extends AdminResource {
 			for (Session session : sessionDbClient.getSessions(user)) {
 				for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
 					if (dataset.getFile() != null) {
-						dbFiles.put(dataset.getFile().getFileId().toString(), dataset.getFile().getSize());
+						if (storageId.equals(dataset.getFile().getStorage())) {
+							dbFiles.put(dataset.getFile().getFileId().toString(), dataset.getFile().getSize());
+						}
 					}
 				}
 			}

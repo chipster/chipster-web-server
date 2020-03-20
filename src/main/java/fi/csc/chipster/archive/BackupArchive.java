@@ -30,7 +30,6 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filestorage.StorageBackup;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.BackupRotation2;
@@ -68,9 +67,30 @@ public class BackupArchive {
 			archiveAndCleanUp(role, BackupType.FULL, backupPrefix);
 		}
 		
-		archiveAndCleanUp(Role.FILE_STORAGE, BackupType.INCREMENTAL, StorageBackup.FILE_STORAGE_BACKUP_NAME_PREFIX);		
+		logger.info("find file-storage backups from S3");
+		
+		//TODO make prefix configurable
+		for (String backupPrefix : findStorageBackups("file-storage", "_", Role.FILE_STORAGE)) {
+			archiveAndCleanUp(Role.FILE_STORAGE, BackupType.INCREMENTAL, backupPrefix);		
+		}
 	}
 	
+	private HashSet<String> findStorageBackups(String startsWith, String delimiter, String role) {
+		String bucket = BackupUtils.getBackupBucket(config, Role.FILE_STORAGE);
+		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
+		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		List<String> backups = findBackups(objects, startsWith, BACKUP_INFO);
+		
+		HashSet<String> backupPrefixes = new HashSet<>();
+		
+		for (String backup : backups) {
+			String[] parts = backup.split(delimiter);
+			backupPrefixes.add(parts[0] + delimiter);			
+		}
+		
+		return backupPrefixes;
+	}
+
 	private void archiveAndCleanUp(String role, BackupType type, String backupPrefix) {
 				
 		int dailyCount = Math.max(3, Integer.parseInt(config.getString(CONF_BACKUP_DAILY_COUNT, role)));
@@ -104,7 +124,7 @@ public class BackupArchive {
 					if (type == BackupType.FULL) {
 						removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
 					} else {
-						removeOldIncrementalArchives(archiveRootPath, StorageBackup.FILE_STORAGE_BACKUP_NAME_PREFIX, 60);
+						removeOldIncrementalArchives(archiveRootPath, backupPrefix, 60);
 					}
 					
 				} catch (IOException | InterruptedException | CleanUpException e) {

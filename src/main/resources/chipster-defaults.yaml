@@ -56,6 +56,7 @@ url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
+# this is really url-admin-int and accessed only through file-broker, but we don't yet hanle it differently in deployment scripts
 url-admin-ext-file-storage: http://{{admin-ip}}:8116
 
 # Address for the server to bind
@@ -311,6 +312,9 @@ file-broker-storage-null: ""
 # how many percentages of the total space must remain empty after an upload (to allow other parallel uploads)
 file-storage-preserve-space: 1.0
 
+# file-storage storageId. Hostname is used if this is not set. If set incorrectly, orphan removal will delete all files on this file-storage
+file-storage-id: ""
+
 # session-worker
 
 session-worker-smtp-host: ""
@@ -328,7 +332,7 @@ session-worker-support-throttle-period: 1440
 session-worker-support-throttle-request-count: 20
 session-worker-support-session-owner: jaas/support_session_owner
 # days
-session-worker-support-session-delete-after: 60 
+session-worker-support-session-delete-after: 60
 
 # shared
 

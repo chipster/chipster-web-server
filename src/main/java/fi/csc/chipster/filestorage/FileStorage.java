@@ -2,6 +2,7 @@ package fi.csc.chipster.filestorage;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -61,7 +62,14 @@ public class FileStorage {
     public void startServer() throws Exception {
     	
     	String username = Role.FILE_STORAGE;
-    	String password = config.getPassword(username);    	
+    	String password = config.getPassword(username);
+    	
+    	String storageId = config.getString("file-storage-id");
+    	if (storageId == null || storageId.isEmpty()) {
+    		storageId = InetAddress.getLocalHost().getHostName();
+    	}
+    	
+    	logger.info("file-storage storageId '" + storageId + "'");
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
@@ -73,7 +81,7 @@ public class FileStorage {
 		File storage = new File("storage");
 		storage.mkdir();
 		
-		backup = new StorageBackup(storage.toPath(), true, config);
+		backup = new StorageBackup(storage.toPath(), true, config, storageId);
 
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_STORAGE));
                 
@@ -121,7 +129,7 @@ public class FileStorage {
 		
         server.start();                      
                
-        FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbClient, storage);
+        FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbClient, storage, storageId);
     	adminResource.addFileSystem("storage", storage);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_STORAGE, config, authService, this.serviceLocator);
     }
