@@ -1,5 +1,6 @@
 package fi.csc.chipster.sessiondb.resource;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -21,6 +22,7 @@ import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
+import fi.csc.chipster.sessiondb.model.File;
 
 public class SessionDbAdminResource extends AdminResource {
 	
@@ -58,6 +60,29 @@ public class SessionDbAdminResource extends AdminResource {
 	
 		return status;
 		
+    }
+	
+	@GET
+	@Path("storages")
+	@RolesAllowed({Role.ADMIN})
+    @Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Object getStorages(@Context SecurityContext sc) {
+				
+		@SuppressWarnings("unchecked")
+		List<Object[]> dbStorages = hibernate.session().createQuery("select storage, count(*), sum(size) from " + File.class.getSimpleName() + " group by storage").getResultList();
+		
+		ArrayList<HashMap<String, Object>> storages = new ArrayList<>();
+		
+		for ( Object[] dbStorage : dbStorages) {
+			storages.add(new HashMap<String, Object>() {{
+				put("storageId", dbStorage[0]);
+				put("fileCount", dbStorage[1]);
+				put("fileBytes", dbStorage[2]);
+			}});
+		}
+		
+		return storages;
     }
 	
 	@GET

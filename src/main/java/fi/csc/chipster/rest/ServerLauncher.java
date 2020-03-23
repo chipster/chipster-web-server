@@ -7,6 +7,7 @@ import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.backup.Backup;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
+import fi.csc.chipster.filestorage.FileStorage;
 import fi.csc.chipster.jobhistory.JobHistoryService;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
@@ -38,6 +39,8 @@ public class ServerLauncher {
 	private JobHistoryService jobHistoryService;
 
 	private Backup backup;
+
+	private FileStorage fileStorage;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 
@@ -74,6 +77,12 @@ public class ServerLauncher {
 		// sessionDbSlave = new SessionDb(slaveConfig);it 
 		// sessionDbSlave.startServer();
 
+		if (verbose) {
+			logger.info("starting file-storage");
+		}
+		fileStorage = new FileStorage(config);
+		fileStorage.startServer();
+		
 		if (verbose) {
 			logger.info("starting file-broker");
 		}
@@ -210,7 +219,14 @@ public class ServerLauncher {
 			try {
 				fileBroker.close();
 			} catch (Exception e) {
-				logger.warn("closing filebroker failed", e);
+				logger.warn("closing file-broker failed", e);
+			}
+		}
+		if (fileStorage != null) {
+			try {
+				fileStorage.close();
+			} catch (Exception e) {
+				logger.warn("closing file-storage failed", e);
 			}
 		}
 		if (sessionDbSlave != null) {

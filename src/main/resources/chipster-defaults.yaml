@@ -14,6 +14,7 @@ service-password-web-server: web-server
 service-password-toolbox: toolbox
 service-password-job-history: job-history
 service-password-backup: backup
+service-password-file-storage: file-storage
 
 # Admin accounts
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
@@ -41,6 +42,7 @@ url-int-session-worker: http://{{public-ip}}:8009
 url-ext-session-worker: http://{{public-ip}}:8009
 url-int-type-service: http://{{public-ip}}:8010
 url-ext-type-service: http://{{public-ip}}:8010
+url-int-file-storage: http://{{public-ip}}:8016
 
 url-admin-ext-web-server: http://{{admin-ip}}:8100
 url-admin-ext-auth: http://{{admin-ip}}:8102
@@ -54,7 +56,8 @@ url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
-
+# this is really url-admin-int and accessed only through file-broker, but we don't yet hanle it differently in deployment scripts
+url-admin-ext-file-storage: http://{{admin-ip}}:8116
 
 # Address for the server to bind
 
@@ -70,6 +73,7 @@ url-bind-session-worker: http://{{bind-ip}}:8009
 url-bind-type-service: http://{{bind-ip}}:8010
 url-bind-sso: ajp://127.0.0.1:8012
 url-bind-job-history: http://{{bind-ip}}:8014
+url-bind-file-storage: http://{{bind-ip}}:8016
 
 url-admin-bind-web-server: http://{{admin-bind-ip}}:8100
 url-admin-bind-auth: http://{{admin-bind-ip}}:8102
@@ -83,6 +87,7 @@ url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
+url-admin-bind-file-storage: http://{{bind-ip}}:8116
 
 
 # DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
@@ -251,12 +256,66 @@ toolbox-tools-bin-path: /opt/chipster/tools
 
 # file-broker
 
+
 # how long to wait for connections to complete after receiving SIGINT, seconds
 file-broker-shutdown-timeout: 3600
 
-# session-worker
+# Find file-storages from the DNS server's SRV records. This is handy for Kubernetes
+# statefulset, because this way the file-broker will find out automatically the number
+# of file-storage replicas. Configure here the domain name of the replicaset's 
+# (headless) service. You can check that records are populated correctly by running
+# this command in some container:
+# 
+#   nslookup -type=SRV file-storage
+# 
+# Unfortunately the Java DNS seems to require the longer form of the domain name: 
+# 
+#   file-storage.NAMESPACE.svc.cluster.local
+#
+file-broker-storage-dns-domain-0: ""
 
-file-broker-shutdown-timeout: 3600
+# In addition to hostname from DNS we need also the protocol and port
+file-broker-storage-dns-protocol: "http://"
+file-broker-storage-dns-protocol-admin: "http://"
+file-broker-storage-dns-port: "8016"
+file-broker-storage-dns-port-admin: "8116"
+
+# Add here the file-storage names that shouldn't be used for writing new files.
+# The file-storage name is:
+# 1) a string between "url-int-" and ":" when configured in the service-locator
+# 2) a string before the first period ".", when found from the DNS
+# Add as many configuration keys as require by appending new postfixes, e.g. 
+# "-0", "-1" and so on.
+file-broker-storage-read-only-0: ""
+
+# When migrating files from file-broker to file-storage, the storage field in 
+# the DB is null for all old files.
+# If you can't copy all the files from the old file-broker to the new file-storage,
+# you can configure a special read-only file-storage service that mounts the old 
+# file-broker volume.
+# Its name must start with "file-storage-". Let's call it "file-storage-migration" 
+# in this example. Then you configure its address in the service-locator:
+#
+#   url-int-file-storage-migration: ADDRESS
+#
+# and configure here it to be used for reading all files that have null in the storage
+# field:
+#   
+#   file-broker-storage-null: "file-storage-migration"
+# 
+# The file-storage configured here won't be used for writing new files.
+file-broker-storage-null: ""
+
+
+# file-storage
+
+# how many percentages of the total space must remain empty after an upload (to allow other parallel uploads)
+file-storage-preserve-space: 1.0
+
+# file-storage storageId. Hostname is used if this is not set. If set incorrectly, orphan removal will delete all files on this file-storage
+file-storage-id: ""
+
+# session-worker
 
 session-worker-smtp-host: ""
 session-worker-smtp-username: ""
@@ -273,7 +332,7 @@ session-worker-support-throttle-period: 1440
 session-worker-support-throttle-request-count: 20
 session-worker-support-session-owner: jaas/support_session_owner
 # days
-session-worker-support-session-delete-after: 60 
+session-worker-support-session-delete-after: 60
 
 # shared
 
@@ -289,4 +348,3 @@ variable-public-ip: 127.0.0.1
 variable-admin-ip: 127.0.0.1 
 variable-bind-ip: 0.0.0.0
 variable-admin-bind-ip: 0.0.0.0
-

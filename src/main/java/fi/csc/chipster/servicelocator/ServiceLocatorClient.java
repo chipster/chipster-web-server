@@ -2,6 +2,7 @@ package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.client.WebTarget;
@@ -64,6 +65,7 @@ public class ServiceLocatorClient {
 		return services;
 	}
 	
+		
 	/**
 	 * Public URIs are available without authentication 
 	 * 
@@ -78,6 +80,35 @@ public class ServiceLocatorClient {
 	public Service getInternalService(String role) {
 
 		return filterByRole(getInternalServices(), role);
+	}
+
+	public Set<Service> getPublicServices(String role) {
+		
+		return getPublicServices().stream()
+				.filter(s -> s.getRole().startsWith(role))
+				.collect(Collectors.toSet());
+	}
+	
+	public Set<Service> getInternalServices(String role) {
+		
+		return getInternalServices().stream()
+				.filter(s -> s.getRole().startsWith(role))
+				.collect(Collectors.toSet());
+	}
+
+	
+	public Set<String> getPublicUris(String role) {
+		
+		return getPublicServices(role).stream()
+				.map(s -> s.getPublicUri())
+				.collect(Collectors.toSet());
+	}
+	
+	public Set<String> getInternalUris(String role) {
+		
+		return getInternalServices(role).stream()
+				.map(s -> s.getPublicUri())
+				.collect(Collectors.toSet());
 	}
 
 	private Service filterByRole(List<Service> services, String role) {

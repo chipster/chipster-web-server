@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.filestorage;
 
 import java.io.EOFException;
 import java.io.File;
@@ -20,10 +20,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.BadRequestException;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -36,17 +34,15 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.filebroker.FileBrokerResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ConflictException;
+import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
-import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
@@ -66,12 +62,17 @@ import fi.csc.chipster.util.IOUtils;
  * DefaultServlet supports range queries by default.
  * </p>
  */
-@SuppressWarnings("serial")
 public class FileServlet extends DefaultServlet implements SessionEventListener {
+
+	private static final String CONF_KEY_FILE_STORAGE_PRESERVE_SPACE = "file-storage-preserve-space";
+
+	public static final String PATH_FILES = "files";
 
 	private static final Logger logger = LogManager.getLogger();
 
 	public static final int partitionLength = 2;
+
+	public static final String HEADER_FILE_CONTENT_LENGTH = "File-Content-Length";
 
 	// specify whether get and put requests are logged
 	// using jetty debug logging is not very useful as it is so verbose
@@ -79,19 +80,16 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 	private File storageRoot;
 
-	private SessionDbClient sessionDbClient;
+	private AuthenticationClient authService;
 
-	private String sessionDbUri;
+	private float preserveSpace;
 
-	private String sessionDbEventsUri;
-
-	public FileServlet(File storageRoot, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator,
-			AuthenticationClient authService) {
+	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
 		this.storageRoot = storageRoot;
-		this.sessionDbClient = sessionDbClient;
-		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
-		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
+		this.authService = authService;
+		
+		this.preserveSpace = config.getFloat(CONF_KEY_FILE_STORAGE_PRESERVE_SPACE);
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);
@@ -118,35 +116,23 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			throws ServletException, IOException {
 		
 		try {
+						
 			if (logger.isDebugEnabled()) {
 				logger.debug("RESTful file access: GET request for " + request.getRequestURI());
 			}
-	
-			// get query parameters
-			boolean download = request.getParameter("download") != null;
-			boolean type = request.getParameter("type") != null;
-	
+			
+			logger.info("GET " + request.getRequestURI());
+		
 			// user's token set by TokenServletFilter
-			String userToken = getToken(request);
-	
-			Path path = parsePath(request.getPathInfo());
-	
+			String tokenString = getToken(request);
+			ParsedToken token = authService.validate(tokenString);
+			
 			// check authorization
-			Dataset dataset;
-			try {
-				dataset = getDataset(path.getSessionId(), path.getDatasetId(), userToken, false);
-			} catch (RestException e) {
-				// authentication errors throw javax.ws.rs exceptions, but this is some other
-				// error
-				// and is converted to InternalServerException
-				throw new ServletException(e.getMessage());
+			if (!token.getRoles().contains(Role.FILE_BROKER)) {
+				throw new NotAuthorizedException("wrong role");
 			}
 	
-			if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
-				throw new NotFoundException("file id is null");
-			}
-	
-			UUID fileId = dataset.getFile().getFileId();
+			UUID fileId = parsePath(request.getPathInfo());
 	
 			// get the file
 	
@@ -160,19 +146,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
 	
 			RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
-	
-			if (download) {
-				// hint filename for dataset export
-				RestUtils.configureForDownload(response, dataset.getName());
-			}
-	
-			if (type) {
-				// rendenring a html file in an iFrame requires the Content-Type header
-				response.setContentType(getType(dataset).toString());
-			}
-	
-			Instant before = Instant.now();
-						
+		
+			Instant before = Instant.now();						
 	
 			// delegate to super class
 			super.doGet(rewrittenRequest, response);
@@ -181,7 +156,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			if (logRest) {
 				logAsyncGet(request, response, f.toFile(), before);
 			}
-		} catch (Exception e) {
+		} catch (IOException | ServletException e) {
 			// make sure all errors are logged
 			logger.error("GET error", e);
 			throw e;
@@ -262,98 +237,23 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		return TokenRequestFilter.getToken(tokenHeader, tokenParameter);
 	}
 
-	private Path parsePath(String pathInfo) {
+	private UUID parsePath(String pathInfo) {
 		// parse path
 		String[] path = pathInfo.split("/");
 
-		if (path.length != 5) {
+		if (path.length != 3) {
 			throw new NotFoundException();
 		}
 
 		if (!"".equals(path[0])) {
 			throw new BadRequestException("path doesn't start with slash");
 		}
-
-		if (!"sessions".equals(path[1])) {
-			throw new NotFoundException(path[1] + " not found");
+		
+		if (!PATH_FILES.equals(path[1])) {
+			throw new NotFoundException("path not found");
 		}
 
-		UUID sessionId = UUID.fromString(path[2]);
-
-		if (!"datasets".equals(path[3])) {
-			throw new NotFoundException(path[3] + " not found");
-		}
-
-		UUID datasetId = UUID.fromString(path[4]);
-
-		return new Path(sessionId, datasetId);
-	}
-
-	public static class Path {
-		private UUID datasetId;
-		private UUID sessionId;
-
-		public Path(UUID sessionId, UUID datasetId) {
-			this.sessionId = sessionId;
-			this.datasetId = datasetId;
-		}
-
-		public UUID getDatasetId() {
-			return datasetId;
-		}
-
-		public void setDatasetId(UUID datasetId) {
-			this.datasetId = datasetId;
-		}
-
-		public UUID getSessionId() {
-			return sessionId;
-		}
-
-		public void setSessionId(UUID sessionId) {
-			this.sessionId = sessionId;
-		}
-	}
-
-	private Dataset getDataset(UUID sessionId, UUID datasetId, String userToken, boolean requireReadWrite)
-			throws RestException, IOException {
-
-		// check authorization
-		SessionDbClient sessionDbWithUserCredentials = new SessionDbClient(sessionDbUri, sessionDbEventsUri,
-				new StaticCredentials("token", userToken));
-
-		try {
-			Dataset dataset = sessionDbWithUserCredentials.getDataset(sessionId, datasetId, requireReadWrite);
-
-			if (dataset == null) {
-				throw new ForbiddenException("dataset not found");
-			}
-
-			return dataset;
-
-		} catch (RestException e) {
-			int statusCode = e.getResponse().getStatus();
-			String msg = e.getMessage();
-			if (statusCode == HttpServletResponse.SC_FORBIDDEN) {
-				throw new ForbiddenException(msg);
-			} else if (statusCode == HttpServletResponse.SC_UNAUTHORIZED) {
-				throw new NotAuthorizedException(msg);
-			} else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
-				throw new NotFoundException(msg);
-			} else {
-				throw e;
-			}
-		}
-	}
-
-	private MediaType getType(Dataset dataset) {
-		MediaType type = null;
-		// we should store the recognized type so that client could rely on it
-		if (dataset.getName().toLowerCase().endsWith(".html")) {
-			// required for visualizing html files in an iFrame
-			type = MediaType.TEXT_HTML_TYPE;
-		}
-		return type;
+		return UUID.fromString(path[2]);
 	}
 
 	private File getStorageFile(UUID fileId) {
@@ -391,40 +291,37 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	@Override
 	protected void doPut(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-
-		if (logger.isDebugEnabled()) {
-			logger.info("PUT request for " + request.getRequestURI());
-		}
-
+		
 		logger.info("PUT " + request.getRequestURI());
+		
 		// get query parameters
-		Long chunkNumber = getParameterLong(request, "flowChunkNumber");
-		Long chunkSize = getParameterLong(request, "flowChunkSize");
-		Long flowTotalChunks = getParameterLong(request, "flowTotalChunks");
+		Long chunkNumber = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_NUMBER);
+		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
+		@SuppressWarnings("unused")
+		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_CHUNKS);
+		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
 
 		// user's token set by TokenServletFilter
-		String userToken = getToken(request);
-
-		UUID fileId = null;
-		Dataset dataset = null;
-
+		String tokenString = getToken(request);
+		ParsedToken token = authService.validate(tokenString);
+		
+		// check authorization
+		if (!token.getRoles().contains(Role.FILE_BROKER)) {
+			throw new NotAuthorizedException("wrong role");
+		}
+		
 		try {
-			logger.debug("chunkNumber " + chunkNumber + " uploading");
+			logger.info("chunkNumber " + chunkNumber + " uploading");
 
-			Path path = parsePath(request.getPathInfo());
-
-			// check authorization
-			dataset = getDataset(path.getSessionId(), path.getDatasetId(), userToken, true);
+			UUID fileId = parsePath(request.getPathInfo());
 
 			InputStream inputStream = request.getInputStream();
 
 			if (chunkNumber == null || chunkNumber == 1) {
-				if (dataset.getFile() != null) {
-					throw new ConflictException("file not null");
-				}
+				
+				checkDiskSpace(totalSize, request);
 
 				// create a new file
-				fileId = RestUtils.createUUID();
 				File f = getStorageFile(fileId);
 				if (f.exists()) {
 					throw new ConflictException("file exists");
@@ -432,13 +329,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 				try {
 					IOUtils.copy(inputStream, f);
+					response.setHeader(HEADER_FILE_CONTENT_LENGTH, "" + f.length());
 
-					fi.csc.chipster.sessiondb.model.File file = new fi.csc.chipster.sessiondb.model.File();
-					file.setFileId(fileId);
-					file.setSize(f.length());
-					file.setFileCreated(Instant.now());
-					dataset.setFile(file);
-					sessionDbClient.updateDataset(path.getSessionId(), dataset);
 				} catch (EOFException e) {
 					// upload interrupted
 					f.delete();
@@ -446,12 +338,12 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				}
 			} else {
 
-				if (dataset.getFile() == null) {
+				// does parsePath check this already?
+				if (fileId == null) {
 					throw new ConflictException("file is null");
 				}
 
 				// append to the old file
-				fileId = dataset.getFile().getFileId();
 				File f = getStorageFile(fileId);
 
 				if (f.exists()) {
@@ -477,7 +369,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				File chunkFile = new File(f.getParent(), f.getName() + ".chunk" + chunkNumber);
 				try {
 
-					logger.debug("file size at start: " + f.length());
+					logger.info("file size at start: " + f.length());
 
 					// copy first to a temp file
 					try (FileOutputStream chunkOutStream = new FileOutputStream(chunkFile, false)) {
@@ -492,43 +384,24 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 					try (FileInputStream chunkInStream = new FileInputStream(chunkFile)) {
 						try (FileOutputStream outStream = new FileOutputStream(f, true)) {
 							IOUtils.copy(chunkInStream, outStream);
+							response.setHeader(HEADER_FILE_CONTENT_LENGTH, "" + f.length());
 						}
 					}
 
 					logger.debug("file size after copy: " + f.length());
-
-					// // alternative implementation which buffers the chunk in memory
-					// // the last chunk may be double the size of the chunkSize
-					// ByteArrayOutputStream chunkOutStream = new
-					// ByteArrayOutputStream(100*1024*1024);
-					// IOUtils.copy(inputStream, chunkOutStream);
-					//
-					// // append chunk to the right file
-					// FileOutputStream outStream = new FileOutputStream(f, true);
-					// chunkOutStream.writeTo(outStream);
-					// chunkOutStream.close();
-					// outStream.close();
-
-					// update the file size
-					if (flowTotalChunks == chunkNumber) {
-						dataset.getFile().setSize(f.length());
-						sessionDbClient.updateDataset(path.getSessionId(), dataset);
-					}
+					
+					response.setStatus(HttpServletResponse.SC_NO_CONTENT);
 
 				} catch (EOFException e) {
-					// upload interrupted
-					logger.warn("put failed", e);
-					throw new BadRequestException("EOF");
+					logger.info("upload paused in file-storage: " + e.getClass().getSimpleName() + " " + e.getMessage());					
+					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 				} finally {
 					if (chunkFile.exists()) {
 						chunkFile.delete();
 					}
 				}
-			}
-
-			response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-			return;
-		} catch (IOException | RestException e) {
+			}			
+		} catch (IOException e) {
 			logger.error("PUT failed " + e.getMessage());
 			throw new InternalServerErrorException("upload failed", e);
 		} catch (Exception e) {
@@ -537,19 +410,57 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 	}
 
+	private void checkDiskSpace(Long flowTotalSize, HttpServletRequest request) {
+		
+		long size;
+		if (flowTotalSize != null) {
+			size = flowTotalSize;
+		} else {
+			if (request.getContentLengthLong() != -1) {
+				size = request.getContentLengthLong();
+ 			} else {
+				logger.warn("put request doesn't have " + FileBrokerResource.FLOW_TOTAL_SIZE + " or content length header, cannot ensure disk space");
+				size = 0;
+ 			}
+		}
+		
+		long preserveBytes = (long) (storageRoot.getTotalSpace() * this.preserveSpace / 100);
+		
+		if (size + preserveBytes > storageRoot.getUsableSpace()) {
+			throw new InsufficientStorageException("insufficient storage");
+		} else {
+			logger.debug("upload size: " + size + ", preserve size: " + preserveBytes + ", available: " + storageRoot.getUsableSpace());
+		}
+	}
+
+
 	private boolean isChunkReady(File f, Long chunkNumber, Long chunkSize) {
 		long expectedSize = chunkNumber * chunkSize;
 		logger.debug("is chunk " + chunkNumber + " ready? File size: " + f.length() + " expected " + expectedSize);
 		return f.exists() && f.length() >= expectedSize;
 	}
 
+	/**
+	 * Delete file when it's deleted from the DB
+	 * 
+	 * Handle events here in file-storage, because there could be multiple file-brokers and it would be
+	 * messy if all those would start making delete requests to the file-storage in parallel.
+	 * 
+	 * Unfortunately we don't know if the file was supposed to be in this file-storage replica, because
+	 * the DB object has been deleted already.
+	 *
+	 */
 	@Override
 	public void onEvent(SessionEvent e) {
 		logger.debug("received a file event: " + e.getResourceType() + " " + e.getType());
 		if (ResourceType.FILE == e.getResourceType()) {
 			if (EventType.DELETE == e.getType()) {
 				if (e.getResourceId() != null) {
-					getStorageFile(e.getResourceId()).delete();
+					File storageFile = getStorageFile(e.getResourceId());
+					// otherwise probably just a file on some other file-storage replica
+					if (storageFile.exists()) {
+						storageFile.delete();
+					}					
 				} else {
 					logger.warn("received a file deletion event with null id");
 				}
@@ -568,10 +479,46 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		return rate;
 	}
 
+	/**
+	 * Delete file
+	 * 
+	 * Only used in storage migrations, normally files are deleted based on session-db events.
+	 */
 	@Override
 	protected void doDelete(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+		
+		try {			
+		
+			// user's token set by TokenServletFilter
+			String tokenString = getToken(request);
+			ParsedToken token = authService.validate(tokenString);
+			
+			// check authorization
+			if (!token.getRoles().contains(Role.FILE_BROKER)) {
+				throw new NotAuthorizedException("wrong role");
+			}
+	
+			UUID fileId = parsePath(request.getPathInfo());
+			
+			logger.info("delete file " + fileId);
+	
+			// get the file
+			java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
+	
+			if (!Files.exists(f)) {
+				throw new NotFoundException("no such file");
+			}
+			
+			Files.delete(f);
+
+			response.setStatus(204);
+			
+		} catch (IOException e) {
+			// make sure all errors are logged
+			logger.error("DELETE error", e);
+			throw e;
+		}
 	}
 
 	@Override
@@ -583,8 +530,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	@Override
 	protected void doOptions(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		// CORS preflight checks require an ok response for OPTIONS
-		response.setStatus(HttpServletResponse.SC_OK);
+		response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 	};
 
 	@Override

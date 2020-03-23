@@ -319,7 +319,14 @@ public class Config {
 	 * @return a map where keys are the service names and values are their internal addresses 
 	 */
 	public Map<String, String> getInternalServiceUrls() {
-		return getConfigEntriesFixed(URL_INT_PREFIX);		
+		// remove empty values to allow services to be removed in config, e.g. file-storage is not needed in service-locator, when it's discovered from DNS
+		return removeEmptyValues(getConfigEntries(URL_INT_PREFIX));
+	}
+	
+	public Map<String, String> removeEmptyValues(Map<String, String> map) {
+		return map.entrySet().stream()
+				.filter(e -> e.getValue() != null && !e.getValue().isEmpty())
+				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 	}
 
 	/**
@@ -328,7 +335,7 @@ public class Config {
 	 * @return a map where keys are the service names and values are their external addresses 
 	 */
 	public Map<String, String> getExternalServiceUrls() {
-		return getConfigEntries(URL_EXT_PREFIX);		
+		return removeEmptyValues(getConfigEntries(URL_EXT_PREFIX));		
 	}
 	
 	/**
@@ -337,7 +344,7 @@ public class Config {
 	 * @return a map where keys are the service names and values are their admin addresses 
 	 */
 	public Map<String, String> getAdminServiceUrls() {
-		return getConfigEntriesFixed(URL_ADMIN_EXT_PREFIX);		
+		return removeEmptyValues(getConfigEntriesFixed(URL_ADMIN_EXT_PREFIX));		
 	}
 	
 	/**
@@ -415,6 +422,10 @@ public class Config {
 
 	public int getInt(String key) throws NumberFormatException {
 		return Integer.parseInt(getString(key));
+	}
+	
+	public float getFloat(String key) {
+		return Float.parseFloat(getString(key));
 	}
 
 	public boolean getBoolean(String key) {

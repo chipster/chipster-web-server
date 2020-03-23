@@ -54,6 +54,19 @@ public class ExceptionServletFilter implements Filter {
 		} catch (ConflictException e) {
 			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
+			return;				
+		} catch (InsufficientStorageException e) {
+						
+			logger.error(e.getClass().getSimpleName() + " " + e.getMessage());
+			try {
+				// try to avoid "unconsumed input" error
+				req.getInputStream().skip(Long.MAX_VALUE);
+			} catch (Exception e2) {
+				logger.warn("couldn't consume useless input", e2.getMessage());
+			}
+			
+			response.sendError(InsufficientStorageException.STATUS_CODE, e.getMessage());
+			
 			return;	
 		} catch (Exception e) {
 			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

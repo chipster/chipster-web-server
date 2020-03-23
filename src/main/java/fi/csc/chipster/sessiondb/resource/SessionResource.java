@@ -132,12 +132,13 @@ public class SessionResource {
 		String authenticatedUserId = sc.getUserPrincipal().getName();
 		List<Session> sessions;
 		
-		if (Role.SESSION_WORKER.equals(authenticatedUserId) || Role.FILE_BROKER.equals(authenticatedUserId)) {
+		if (Role.SESSION_WORKER.equals(authenticatedUserId) || Role.FILE_STORAGE.equals(authenticatedUserId) || Role.FILE_BROKER.equals(authenticatedUserId)) {
 			if (userIdString == null) {
 				throw new ForbiddenException("query parameter " + QUERY_PARAM_USER_ID + " is null");
 			}
 			// session-worker needs access to support_session_owner's sessions
-			// file broker needs access to sessions to do the storage check
+			// file-storage needs access to sessions to do the storage check
+			// file-broker needs access to sessions to copy files between file-storages
 			sessions = this.getSessions(ruleTable.getRulesOwn(userIdString));
 		} else {
 			if (userIdString != null) {
