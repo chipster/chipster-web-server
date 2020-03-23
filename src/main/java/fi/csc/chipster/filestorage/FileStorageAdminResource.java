@@ -165,6 +165,10 @@ public class FileStorageAdminResource extends AdminResource {
 		
 		// lot of requests and far from atomic
 		for (String user : sessionDbClient.getUsers()) {
+			if (user == null) {
+				logger.info("skip user 'null'");
+				continue;
+			}
 			for (Session session : sessionDbClient.getSessions(user)) {
 				for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
 					if (dataset.getFile() != null) {

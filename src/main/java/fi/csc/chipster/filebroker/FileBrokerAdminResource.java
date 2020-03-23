@@ -138,8 +138,12 @@ public class FileBrokerAdminResource extends AdminResource {
 			@QueryParam("target") String targetStorageId,
 			@DefaultValue("" + Long.MAX_VALUE) @QueryParam("maxBytes") long maxBytes,
 			@Context SecurityContext sc) {
-
+		
 		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
+		
+		if ("null".equals(targetStorageId)) {
+			targetStorageId = null;
+		}
 		
 		if (maxBytes != Long.MAX_VALUE) {
 			logger.info("copy max " + humanFriendly(maxBytes));
@@ -167,7 +171,7 @@ public class FileBrokerAdminResource extends AdminResource {
 						}
 					}
 				} catch (RestException e) {
-					logger.warn("get sessions error", e);
+					logger.warn("get sessions error for user " + user, e);
 				}
 			}
 		} catch (RestException e) {
