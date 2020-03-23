@@ -44,7 +44,7 @@ public class UserResource {
 	}
 
 	@GET
-	@RolesAllowed({ Role.ADMIN, Role.FILE_BROKER })
+	@RolesAllowed({ Role.ADMIN, Role.FILE_STORAGE, Role.FILE_BROKER })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {

@@ -1,236 +1,280 @@
 package fi.csc.chipster.filebroker;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStream;
+import java.net.URI;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.filestorage.FileStorageAdminClient;
+import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
 
+@Path("admin")
 public class FileBrokerAdminResource extends AdminResource {
-	
-	private static final String PATH_ORPHAN = "orphan";
-	
+		
 	private Logger logger = LogManager.getLogger();
-	private StorageBackup backup;
-	private SessionDbClient sessionDbClient;
-	private File storage;
 
-	private java.nio.file.Path orphanRootPath;
+	private StorageDiscovery storageDiscovery;
+
+	private SessionDbClient sessionDbClient;
 	
-	public FileBrokerAdminResource(StatusSource stats, StorageBackup backup, SessionDbClient sessionDbClient, File storage) {
-		super(stats, backup);
+	public FileBrokerAdminResource(StatusSource stats, StorageDiscovery storageDiscovery, SessionDbClient sessionDbClient) {
+		super(stats);
 		
-		this.backup = backup;
+		this.storageDiscovery = storageDiscovery;
 		this.sessionDbClient = sessionDbClient;
-		this.storage = storage;
+	}
+	
+	@GET
+	@Path("storages")
+	@RolesAllowed({Role.ADMIN})
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getStorages(@Context SecurityContext sc) {
+
+		Storage[] storages = storageDiscovery.getStorages().values().toArray(new Storage[0]);
 		
-		orphanRootPath = storage.toPath().resolve(PATH_ORPHAN);
+		return Response.ok(storages).build();
+    }
+	
+	private FileStorageAdminClient getStorageAdminClient(String id, SecurityContext sc) {
+		
+		Storage storage = storageDiscovery.getStorages().get(id);
+		
+		if (storage == null) {
+			throw new NotFoundException("storage " + id + " not found");
+		}
+		
+		URI url = storageDiscovery.getStorages().get(id).getAdminUri();
+		
+		if (url == null) {
+			throw new NotFoundException("storage " + id + " has no admin address");
+		}
+		
+		String tokenKey = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
+		
+		return new FileStorageAdminClient(url, new StaticCredentials("token", tokenKey));
 	}
 	
 	// unauthenticated but firewalled monitoring tap
 	@GET
-	@Path("monitoring/backup")
+	@Path("storages/{storageId}/monitoring/backup")
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response backupMonitoring(@Context SecurityContext sc) {
+	public Response backupMonitoring(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 		
-		if (!backup.monitoringCheck()) {
-			return Response.status(Status.NOT_FOUND.getStatusCode(), "backup of " + Role.FILE_BROKER).build();		
-		}
+		getStorageAdminClient(storageId, sc).checkBackup();
+		
 		return Response.ok().build();
 	}
-
-	@POST
-	@Path("backup")
+	
+	@GET
+	@Path("storages/{storageId}/status")
+	@Produces(MediaType.APPLICATION_JSON)
 	@RolesAllowed({Role.ADMIN})
-	public Response startBackup(@Context SecurityContext sc) {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					backup.backupNow();
-				} catch (IOException | InterruptedException e) {
-					logger.error("backup error", e);
-
-				}
-			}			
-		}).start();
+	public Response getBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 		
-		return Response.ok().build();
+		String json = getStorageAdminClient(storageId, sc).getStatus();
+		
+		return Response.ok(json).build();
+    }
+	
+	@GET
+	@Path("storages/{storageId}/id")
+	@Produces(MediaType.APPLICATION_JSON)
+	@RolesAllowed({Role.ADMIN})
+	public Response getStorageId(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		String json = getStorageAdminClient(storageId, sc).getStorageId();
+		
+		return Response.ok(json).build();
+    }
+	
+	@GET
+	@Path("storages/{storageId}/filestats")
+	@Produces(MediaType.APPLICATION_JSON)
+	@RolesAllowed({Role.ADMIN})
+	public Response getFileStats(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		String json = getStorageAdminClient(storageId, sc).getFileStats();
+		
+		return Response.ok(json).build();
     }
 	
 	@POST
-	@Path("check")
+	@Path("storages/copy")
 	@RolesAllowed({Role.ADMIN})
-	public Response startCheck(@Context SecurityContext sc) {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					check(sessionDbClient, storage);
-				} catch (RestException | IOException e) {
-					logger.error("storage check error", e);
-				}
-			}
+	public Response copy(
+			@QueryParam("source") String sourceStorageId,
+			@QueryParam("target") String targetStorageId,
+			@DefaultValue("" + Long.MAX_VALUE) @QueryParam("maxBytes") long maxBytes,
+			@Context SecurityContext sc) {
 
-		}).start();
+		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
 		
-		return Response.ok().build();
-    }
-	
-	@POST
-	@Path("delete-orphans")
-	@RolesAllowed({Role.ADMIN})
-	public Response deleteOldOrphans(@Context SecurityContext sc) throws IOException {
+		if (maxBytes != Long.MAX_VALUE) {
+			logger.info("copy max " + humanFriendly(maxBytes));
+		}
 		
-			HashMap<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);
-			long oldOrphanFilesTotal = oldOrphanFiles.values().stream().mapToLong(s -> s).sum();
-			logger.info("delete " + oldOrphanFiles.size() + " old orphan files (" + FileUtils.byteCountToDisplaySize(oldOrphanFilesTotal) + ")");
-			
-			if (Files.exists(orphanRootPath)) {
-				FileUtils.deleteDirectory(orphanRootPath.toFile());
-			}
-			logger.info("delete " + oldOrphanFiles.size() + " old orphan files done");
-		
-		return Response.ok().build();
-    }
-	
-	private void check(SessionDbClient sessionDbClient, File storage) throws RestException, IOException {
-		
-		logger.info("storage check started");
-		
-		HashMap<String, Long> dbFiles = new HashMap<>();
-				
-		Files.createDirectories(orphanRootPath);		
-		
-		// collect storage files first to make sure we don't delete new files
-		HashMap<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
-		HashMap<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);		
+		HashMap<UUID, File> fileMap = new HashMap<>();
+		HashMap<UUID, UUID> fileSessions = new HashMap<>();
+		HashMap<UUID, UUID> fileDatasets = new HashMap<>();
 		
 		// lot of requests and far from atomic
-		for (String user : sessionDbClient.getUsers()) {
-			for (Session session : sessionDbClient.getSessions(user)) {
-				for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
-					if (dataset.getFile() != null) {
-						dbFiles.put(dataset.getFile().getFileId().toString(), dataset.getFile().getSize());
-					}
-				}
-			}
-		}
-		
-		List<String> correctNameFiles = new HashSet<>(dbFiles.keySet()).stream()
-		.filter(fileName -> storageFiles.containsKey(fileName))
-		.collect(Collectors.toList());
-		
-		List<String> correctSizeFiles = correctNameFiles.stream()
-		.filter(fileName -> (long)storageFiles.get(fileName) == (long)dbFiles.get(fileName))
-		.collect(Collectors.toList());
-				
-		List<String> wrongSizeFiles = correctNameFiles.stream()
-		.filter(fileName -> (long)storageFiles.get(fileName) != (long)dbFiles.get(fileName))
-		.collect(Collectors.toList());
-						
-		// why the second iteration without the new HashSet throws a call site initialization exception?
-		List<String> missingFiles = new HashSet<>(dbFiles.keySet()).stream()
-		.filter(fileName -> !storageFiles.containsKey(fileName))
-		.collect(Collectors.toList());
-				
-		List<String> orphanFiles = new HashSet<>(storageFiles.keySet()).stream()
-		.filter(fileName -> !dbFiles.containsKey(fileName))
-		.collect(Collectors.toList());
-		
-		for (String fileName : wrongSizeFiles) {
-			logger.info("wrong size " + fileName + ", db: " + dbFiles.get(fileName) + ", file: " + dbFiles.get(fileName));
-		}
-		
-		for (String fileName : missingFiles) {
-			logger.info("missing file " + fileName + ", db: " + dbFiles.get(fileName));
-		}
-		
-		for (String fileName : orphanFiles) {
-			try {				
-				UUID fileId = UUID.fromString(fileName);
-				java.nio.file.Path storageFilePath = FileServlet.getStoragePath(storage.toPath(), fileId);
-				java.nio.file.Path orphanFilePath = FileServlet.getStoragePath(orphanRootPath, fileId);
-								
-				Files.createDirectories(orphanFilePath.getParent());
-				Files.move(storageFilePath, orphanFilePath);
-			} catch (IllegalArgumentException e) {
-				logger.warn("orpah file " + fileName + " in storage is not valid UUID (" + e.getClass().getName() + " " + e.getMessage() + ")");
-			
-			} catch (IOException e) {				
-				logger.info("couldn't move orphan file " + fileName, e);
-			}
-		}
-		
-		long correctSizeTotal = correctSizeFiles.stream().mapToLong(dbFiles::get).sum();
-		long wrongSizeTotal = wrongSizeFiles.stream().mapToLong(dbFiles::get).sum();
-		long missingFilesTotal = missingFiles.stream().mapToLong(dbFiles::get).sum();
-		long orphanFilesTotal = orphanFiles.stream().mapToLong(storageFiles::get).sum();
-		long oldOrphanFilesTotal = oldOrphanFiles.values().stream().mapToLong(s -> s).sum();
-		
-		logger.info(correctSizeFiles.size() + " files (" + FileUtils.byteCountToDisplaySize(correctSizeTotal) + ") are fine");
-		logger.info(wrongSizeFiles.size() + " files (" + FileUtils.byteCountToDisplaySize(wrongSizeTotal) + ") have wrong size");
-		logger.info(missingFiles.size() + " missing files or created during this check (" + FileUtils.byteCountToDisplaySize(missingFilesTotal) + ")");
-		logger.info(oldOrphanFiles.size() + " old orphan files (" + FileUtils.byteCountToDisplaySize(oldOrphanFilesTotal) + ") in " + orphanRootPath);
-		logger.info(orphanFiles.size() + " orphan files (" + FileUtils.byteCountToDisplaySize(orphanFilesTotal) + ") moved to " + orphanRootPath);
-	}
-
-	private HashMap<String, Long> getFilesAndSizes(java.nio.file.Path root, java.nio.file.Path excludePath) throws IOException {
-		
-		HashMap<String, Long> result = new HashMap<>();
-		
-		if (Files.exists(root)) {
-			Files.list(root)
-			.filter(path -> excludePath == null || !path.startsWith(excludePath))
-			.forEach(partition -> {
+		try {
+			for (String user : sessionDbClient.getUsers()) {
 				try {
-					Files.list(partition)
-					.forEach(path -> {
-						String fileName = path.getFileName().toString();
-						Long size;
+					for (Session session : sessionDbClient.getSessions(user)) {
 						try {
-							size = Files.size(path);
-						} catch (IOException e) {
-							throw new RuntimeException(e);		
+							for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
+								if (dataset.getFile() != null && sourceStorageId.equals(dataset.getFile().getStorage())) {
+									fileMap.put(dataset.getFile().getFileId(), dataset.getFile());
+									fileSessions.put(dataset.getFile().getFileId(), session.getSessionId());
+									fileDatasets.put(dataset.getFile().getFileId(), dataset.getDatasetId());
+								}
+							}
+						} catch (RestException e) {
+							logger.warn("get datasets error", e);
 						}
-						result.put(fileName, size);
-					});
-				} catch (IOException e) {
-					throw new RuntimeException(e);
+					}
+				} catch (RestException e) {
+					logger.warn("get sessions error", e);
 				}
-			});
-		} else {
-			logger.warn("dir " + root +  " not found");
+			}
+		} catch (RestException e) {
+			throw new InternalServerErrorException("get users failed", e);
 		}
 		
-		return result;
-	}			
+		logger.info("found " + fileDatasets.size() + " files");
+		
+		long bytesCopied = 0;
+		
+		for (File file : fileMap.values()) {
+			
+			if (bytesCopied + file.getSize() >= maxBytes) {
+				logger.info("copied " + humanFriendly(bytesCopied) + " bytes, maxBytes reached");
+				break;
+			}
+			
+			logger.info("copy from '" + sourceStorageId + "' to '" + targetStorageId + "' fileId: " + file.getFileId() + ", " + humanFriendly(file.getSize())); 
+			
+			FileStorageClient sourceClient = storageDiscovery.getStorageClientForExistingFile(sourceStorageId);
+			FileStorageClient targetClient = storageDiscovery.getStorageClient(targetStorageId);
+			
+			try {
+				InputStream sourceStream = sourceClient.download(file.getFileId(), null);
+				
+				Map<String, String> queryParams = new HashMap<>() {{ put(FileBrokerResource.FLOW_TOTAL_SIZE, "" + file.getSize()); }};
+				long fileLength = targetClient.upload(file.getFileId(), sourceStream, queryParams );
+				
+				if (fileLength != file.getSize()) {
+					logger.warn("file length error. storageId '" + sourceStorageId + "', fileId " + file.getFileId() + ", copied: " + fileLength + " bytes, but size in DB is " + file.getSize() + ". Keeping both.");
+					continue;
+				}
+				
+				file.setSize(fileLength);
+				file.setStorage(targetStorageId);			
+				
+				UUID sessionId = fileSessions.get(file.getFileId());
+				UUID datasetId = fileDatasets.get(file.getFileId());
+			
+				Dataset dataset = sessionDbClient.getDataset(sessionId, datasetId);
+				dataset.setFile(file);
+			
+				/* File can be in several sessions, but updating it in one of them is enough.
+				 * Other sessions won't get events, but that shouldn't matter, because the file-broker
+				 * will get the storage from the session-db anyway.
+				 */
+				sessionDbClient.updateDataset(sessionId, dataset);			
+				storageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
+				
+				bytesCopied += fileLength;			
+			} catch (RestException e) {
+				logger.error("file copy failed", e);
+			}
+		}
+		
+		logger.info("copy completed");
+		
+		return Response.ok().build();
+    }
+
+	@POST
+	@Path("storages/{storageId}/backup")
+	@RolesAllowed({Role.ADMIN})
+	public Response startBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		getStorageAdminClient(storageId, sc).startBackup();
+		
+		return Response.ok().build();
+    }
+	
+	@POST
+	@Path("storages/{storageId}/check")
+	@RolesAllowed({Role.ADMIN})
+	public Response startCheck(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		getStorageAdminClient(storageId, sc).startCheck();
+		
+		return Response.ok().build();
+    }
+	
+	@POST
+	@Path("storages/{storageId}/delete-orphans")
+	@RolesAllowed({Role.ADMIN})
+	public Response deleteOldOrphans(@PathParam("storageId") String storageId, @Context SecurityContext sc) throws IOException {
+		
+		getStorageAdminClient(storageId, sc).deleteOldOrphans();
+		
+		return Response.ok().build();
+    }
+	
+	public static String humanFriendly(Long l) {
+		if (l == null) {
+			return null;
+		}
+		
+		if (l >= 1024l * 1024 * 1024 * 1024) {			
+			return "" + l/1024/1024/1024/1024 + " TB";
+		}
+		if (l >= 1024l * 1024 * 1024) {			
+			return "" + l/1024/1024/1024 + " GB";
+		}
+		if (l >= 1024l * 1024) {			
+			return "" + l/1024/1024 + " MB";
+		}
+		if (l >= 1024l) {			
+			return "" + l/1024 + " kB";
+		}
+		return "" + l + " B";
+	}
 }

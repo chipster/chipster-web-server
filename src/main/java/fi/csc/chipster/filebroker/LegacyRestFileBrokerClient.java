@@ -56,11 +56,6 @@ public class LegacyRestFileBrokerClient {
 		this.serviceLocator = serviceLocator;
 	}
 
-//	public String addFile(UUID jobId, UUID sessionId, FileBrokerArea area, File file,
-//			CopyProgressListener progressListener, String datsetName) throws FileBrokerException, IOException {
-//		throw new UnsupportedOperationException();
-//	}
-
 	public String addFile(UUID jobId, UUID sessionId, File file, String datsetName, boolean isMetaOutput, File phenodataFile)
 			throws IOException, FileBrokerException {
 
@@ -95,7 +90,7 @@ public class LegacyRestFileBrokerClient {
 		try {
 			datasetId = sessionDbClient.createDataset(sessionId, dataset);
 			InputStream inputStream = new FileInputStream(file);
-			upload(sessionId, datasetId.toString(), inputStream);
+			upload(sessionId, datasetId.toString(), inputStream, file.length());
 			logger.info("uploaded dataset " + datasetId.toString());
 		} catch (RestException e) {
 			throw new FileBrokerException("failed to create a result dataset", e);
@@ -104,7 +99,7 @@ public class LegacyRestFileBrokerClient {
 		return datasetId.toString();
 	}
 
-	private void upload(UUID sessionId, String dataId, InputStream inputStream) throws IOException {
+	private void upload(UUID sessionId, String dataId, InputStream inputStream, long size) throws IOException {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
 		WebTarget datasetTarget = getFileBrokerTarget().path(datasetPath);
 
@@ -112,8 +107,9 @@ public class LegacyRestFileBrokerClient {
 		// Jersey buffers the whole file before sending it by default, which
 		// won't work with big files.
 		datasetTarget.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
-		Response response = datasetTarget.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),
-				Response.class);
+		Response response = datasetTarget.request()
+				.header(FileBrokerResource.FLOW_TOTAL_SIZE, size)
+				.put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			logger.warn("upload failed: " + response.getStatus() + " " + response.readEntity(String.class) + " "
 					+ datasetTarget.getUri());
@@ -121,28 +117,6 @@ public class LegacyRestFileBrokerClient {
 					+ " " + datasetTarget.getUri());
 		}
 	}
-
-//	private UUID getSessionId() {
-//		return sessionManager.getSessionId();
-//	}
-//
-////	/**
-////	 * @return md5 String of the uploaded data, if enabled in configuration
-////	 * @see fi.csc.microarray.filebroker.FileBrokerClient#addFile(InputStream,
-////	 *      CopyProgressListener)
-////	 */
-////	public String addFile(String dataId, FileBrokerArea area, InputStream file, long contentLength,
-////			CopyProgressListener progressListener) throws FileBrokerException, IOException {
-////
-////		upload(getSessionId(), dataId, file);
-////		return null;
-////	}
-//
-//	public ChecksumInputStream getInputStream(String dataId) throws IOException, FileBrokerException {
-//
-//		InputStream remoteStream = download(getSessionId(), dataId);
-//		return new ChecksumInputStream(remoteStream, true);
-//	}
 
 	private InputStream download(UUID sessionId, String dataId) throws FileBrokerException {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
@@ -171,78 +145,7 @@ public class LegacyRestFileBrokerClient {
 		InputStream inStream = download(sessionId, dataId);
 		IOUtils.copy(inStream, destFile);
 	}
-//
-//	public boolean isAvailable(String dataId, Long contentLength, String checksum, FileBrokerArea area)
-//			throws FileBrokerException {
-//
-//		try {
-//			InputStream inStream = download(getSessionId(), dataId);
-//			IOUtils.closeIfPossible(inStream);
-//			return true;
-//		} catch (NotFoundException e) {
-//			return false;
-//		}
-//	}
-//
-//	public boolean moveFromCacheToStorage(String dataId) throws FileBrokerException, FileBrokerException {
-//		return true;
-//	}
-//
-//	/**
-//	 * @see fi.csc.microarray.filebroker.FileBrokerClient#getPublicFiles()
-//	 */
-//	public List<URL> getPublicFiles() throws FileBrokerException {
-//		return fetchPublicFiles();
-//	}
-//
-//	private List<URL> fetchPublicFiles() throws FileBrokerException {
-//		return new ArrayList<URL>();
-//	}
-//
-//	public boolean requestDiskSpace(long size) throws FileBrokerException {
-//		return true;
-//	}
-//
-//	public void saveRemoteSession(String sessionName, String sessionId, LinkedList<String> dataIds)
-//			throws FileBrokerException {
-//	}
-//
-//	public List<DbSession> listRemoteSessions() throws FileBrokerException {
-//
-//		try {
-//			HashMap<UUID, fi.csc.chipster.sessiondb.model.Session> sessions;
-//			sessions = sessionDbClient.getSessions();
-//
-//			List<DbSession> dbSessions = new LinkedList<>();
-//			for (fi.csc.chipster.sessiondb.model.Session session : sessions.values()) {
-//				dbSessions.add(new DbSession(session.getSessionId().toString(), session.getName(), null));
-//			}
-//
-//			return dbSessions;
-//		} catch (RestException e) {
-//			throw new FileBrokerException(Exceptions.getStackTrace(e));
-//		}
-//	}
-//
-////	public StorageEntryMessageListener getStorageUsage() throws FileBrokerException, InterruptedException {
-////		return null;
-////	}
-//
-//	public List<DbSession> listPublicRemoteSessions() throws FileBrokerException {
-//		return new LinkedList<>();
-//	}
-//
-//	public void removeRemoteSession(String dataId) throws FileBrokerException {
-//	}
-//
-//	public String getExternalURL(String dataId) throws FileBrokerException, MalformedURLException {
-//		return null;
-//	}
-//
-//	public Long getContentLength(String dataId) throws IOException, FileBrokerException {
-//		return null;
-//	}
-//
+
 	private WebTarget getFileBrokerTarget() {
 		return authClient.getAuthenticatedClient().target(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
 	}
