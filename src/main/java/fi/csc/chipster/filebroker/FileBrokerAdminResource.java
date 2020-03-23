@@ -156,6 +156,10 @@ public class FileBrokerAdminResource extends AdminResource {
 		// lot of requests and far from atomic
 		try {
 			for (String user : sessionDbClient.getUsers()) {
+				if (user == null) {
+					logger.info("skip user 'null'");
+					continue;
+				}
 				try {
 					for (Session session : sessionDbClient.getSessions(user)) {
 						try {
