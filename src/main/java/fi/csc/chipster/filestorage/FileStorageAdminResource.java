@@ -172,7 +172,10 @@ public class FileStorageAdminResource extends AdminResource {
 			for (Session session : sessionDbClient.getSessions(user)) {
 				for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
 					if (dataset.getFile() != null) {
-						if (storageId.equals(dataset.getFile().getStorage())) {
+						if (
+								("null".equals(storageId) && dataset.getFile().getStorage() == null) ||
+								(storageId.equals(dataset.getFile().getStorage()))) {
+							
 							dbFiles.put(dataset.getFile().getFileId().toString(), dataset.getFile().getSize());
 						}
 					}
