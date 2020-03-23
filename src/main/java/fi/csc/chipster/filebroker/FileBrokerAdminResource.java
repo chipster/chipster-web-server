@@ -162,7 +162,7 @@ public class FileBrokerAdminResource extends AdminResource {
 							for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
 								if (dataset.getFile() != null && (
 										(sourceStorageId == null && dataset.getFile().getStorage() == null) ||
-										(sourceStorageId.equals(dataset.getFile().getStorage())))) {
+										(sourceStorageId != null && sourceStorageId.equals(dataset.getFile().getStorage())))) {
 									fileMap.put(dataset.getFile().getFileId(), dataset.getFile());
 									fileSessions.put(dataset.getFile().getFileId(), session.getSessionId());
 									fileDatasets.put(dataset.getFile().getFileId(), dataset.getDatasetId());
