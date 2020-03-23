@@ -141,8 +141,8 @@ public class FileBrokerAdminResource extends AdminResource {
 		
 		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
 		
-		if ("null".equals(targetStorageId)) {
-			targetStorageId = null;
+		if ("null".equals(sourceStorageId)) {
+			sourceStorageId = null;
 		}
 		
 		if (maxBytes != Long.MAX_VALUE) {
