@@ -136,10 +136,14 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response copy(
 			@QueryParam("source") String sourceStorageId,
 			@QueryParam("target") String targetStorageId,
+			@QueryParam("ignoreSize") String ignoreSizeParam,
 			@DefaultValue("" + Long.MAX_VALUE) @QueryParam("maxBytes") long maxBytes,
 			@Context SecurityContext sc) {
 		
 		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
+		
+		// false by default
+		boolean ignoreSize = ignoreSizeParam != null;
 		
 		if ("null".equals(sourceStorageId)) {
 			sourceStorageId = null;
@@ -208,7 +212,9 @@ public class FileBrokerAdminResource extends AdminResource {
 				
 				if (fileLength != file.getSize()) {
 					logger.warn("file length error. storageId '" + sourceStorageId + "', fileId " + file.getFileId() + ", copied: " + fileLength + " bytes, but size in DB is " + file.getSize() + ". Keeping both.");
-					continue;
+					if (!ignoreSize) {
+						continue;
+					}
 				}
 				
 				file.setSize(fileLength);
