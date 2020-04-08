@@ -117,11 +117,9 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		
 		try {
 						
-			if (logger.isDebugEnabled()) {
-				logger.debug("RESTful file access: GET request for " + request.getRequestURI());
+			if (logRest) {
+				logger.info("GET " + request.getRequestURI());
 			}
-			
-			logger.info("GET " + request.getRequestURI());
 		
 			// user's token set by TokenServletFilter
 			String tokenString = getToken(request);
@@ -192,7 +190,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				}
 			});
 		} else {
-			logger.info("sync request");
+			logger.debug("sync request");
 			logGet(request, f, before);
 		}
 	}
@@ -211,7 +209,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		Duration duration = Duration.between(before, Instant.now());
 		double rate = getTransferRate(length, duration);
 
-		logger.info("GET " + f.getName() + " " + "from " + request.getRemoteHost() + " | "
+		logger.info("GET " + request.getRequestURI() + " " + "from " + request.getRemoteHost() + " | "
 				+ FileUtils.byteCountToDisplaySize(length) + " | " + FileUtils.byteCountToDisplaySize(f.length())
 				+ " | " + DurationFormatUtils.formatDurationHMS(duration.toMillis()) + " | "
 				+ new DecimalFormat("###.##").format(rate) + " MB/s");
@@ -219,14 +217,14 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		if (request instanceof Request) {
 			Request jettyRequest = (Request) request;
 	
-			logger.info("connection created " + (System.currentTimeMillis() - jettyRequest.getHttpChannel().getConnection().getCreatedTimeStamp()) + " ms ago" + 
-//			", request complete " + jettyRequest.getHttpChannel().isRequestCompleted() + 
-//			", response complte " + jettyRequest.getHttpChannel().isResponseCompleted() +  
-			", channel state " + jettyRequest.getHttpChannel().getState() + 
-			", channel persistent " + jettyRequest.getHttpChannel().isPersistent());
-		}
-		
-		
+			if (logger.isDebugEnabled()) {
+				logger.debug("connection created " + (System.currentTimeMillis() - jettyRequest.getHttpChannel().getConnection().getCreatedTimeStamp()) + " ms ago" + 
+					", request complete " + jettyRequest.getHttpChannel().isRequestCompleted() + 
+					", response complte " + jettyRequest.getHttpChannel().isResponseCompleted() +  
+					", channel state " + jettyRequest.getHttpChannel().getState() + 
+					", channel persistent " + jettyRequest.getHttpChannel().isPersistent());
+			}
+		}		
 	}
 
 	private String getToken(HttpServletRequest request) {
@@ -292,7 +290,9 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	protected void doPut(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		
-		logger.info("PUT " + request.getRequestURI());
+		if (logRest) {
+			logger.info("PUT " + request.getRequestURI());
+		}
 		
 		// get query parameters
 		Long chunkNumber = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_NUMBER);
@@ -311,7 +311,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 		
 		try {
-			logger.info("chunkNumber " + chunkNumber + " uploading");
+			logger.debug("chunkNumber " + chunkNumber + " uploading");
 
 			UUID fileId = parsePath(request.getPathInfo());
 
@@ -334,7 +334,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				} catch (EOFException e) {
 					// upload interrupted
 					f.delete();
-					throw new BadRequestException("EOF");
+					logger.error("PUT cancelled " + e.getClass().getName() + " " + e.getMessage());
+					throw new UploadCancelledException("EOF");
 				}
 			} else {
 
@@ -369,7 +370,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				File chunkFile = new File(f.getParent(), f.getName() + ".chunk" + chunkNumber);
 				try {
 
-					logger.info("file size at start: " + f.length());
+					logger.debug("file size at start: " + f.length());
 
 					// copy first to a temp file
 					try (FileOutputStream chunkOutStream = new FileOutputStream(chunkFile, false)) {
@@ -400,7 +401,10 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 						chunkFile.delete();
 					}
 				}
-			}			
+			}
+		} catch (UploadCancelledException e) {
+			// logged already
+			throw e;
 		} catch (IOException e) {
 			logger.error("PUT failed " + e.getMessage());
 			throw new InternalServerErrorException("upload failed", e);

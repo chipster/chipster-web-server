@@ -69,7 +69,8 @@ public class FileBroker {
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)
 			//.register(RestUtils.getLoggingFeature(Role.FILE_STORAGE))
         	.register(fileBrokerResource)
-        	.register(tokenRequestFilter);
+        	.register(tokenRequestFilter)
+        	.register(ExceptionWriterInterceptor.class);
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		

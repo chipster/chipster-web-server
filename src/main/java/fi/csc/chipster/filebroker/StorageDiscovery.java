@@ -101,9 +101,10 @@ public class StorageDiscovery {
 			
 			// return storages in random order			
 			ArrayList<String> storageIds = new ArrayList<String>(writeStorages.keySet());
-			logger.info("write storages               " + RestUtils.asJson(storageIds));
 			Collections.shuffle(storageIds);
-			logger.info("write storages after shuffle " + RestUtils.asJson(storageIds));
+			if (logger.isDebugEnabled()) {
+				logger.debug("write storages after shuffle " + RestUtils.asJson(storageIds));
+			}
 			return storageIds;
 		}
 	}
@@ -260,7 +261,7 @@ public class StorageDiscovery {
 		if (!dnsDomains.isEmpty() && fileStoragesLastUpdated == null || isOld) {			
 			this.updateExecutor.execute(() -> {
 				this.updateFileStorages(false);
-				logger.info("file-storages updated: " + storages.size());
+				logger.debug("file-storages updated: " + storages.size());
 			});
 		}
 	}

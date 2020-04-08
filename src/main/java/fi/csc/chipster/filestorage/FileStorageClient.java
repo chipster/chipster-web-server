@@ -121,7 +121,7 @@ public class FileStorageClient {
 				
 				long fileContentLength = Long.parseLong(connection.getHeaderField(FileServlet.HEADER_FILE_CONTENT_LENGTH));
 				
-				logger.info("PUT " + connection.getResponseCode() + " " + connection.getResponseMessage() + " file size: " + fileContentLength);
+				logger.debug("PUT " + connection.getResponseCode() + " " + connection.getResponseMessage() + " file size: " + fileContentLength);
 				
 				return fileContentLength;
 				
@@ -150,7 +150,7 @@ public class FileStorageClient {
 			
 		} catch (EOFException e) {
 			logger.info("upload paused in file-broker: " + e.getClass().getSimpleName() + " " + e.getMessage());
-			return -1;
+			throw new UploadCancelledException("upload paused");
 			// disconnect will do the same for the file-storage connection
 
 		} catch (IOException e) {

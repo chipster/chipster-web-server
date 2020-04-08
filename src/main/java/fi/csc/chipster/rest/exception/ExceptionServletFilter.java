@@ -17,6 +17,8 @@ import javax.ws.rs.NotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.filestorage.UploadCancelledException;
+
 public class ExceptionServletFilter implements Filter {
 	
 	private static final Logger logger = LogManager.getLogger();
@@ -42,6 +44,10 @@ public class ExceptionServletFilter implements Filter {
 		} catch (NotFoundException e) {
 			logger.error("servlet error", e);
 			response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+			return;
+		} catch (UploadCancelledException e) {
+			// logged already in FileServlet
+			response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
 			return;
 		} catch (BadRequestException e) {
 			logger.error("servlet error", e);

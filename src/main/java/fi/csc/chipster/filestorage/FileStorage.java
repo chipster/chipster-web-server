@@ -100,8 +100,24 @@ public class FileStorage {
             	logger.info("onRequestFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));
             }
 
-            public void onResponseFailure(Request request, Throwable failure) {
-            	logger.info("onResponseFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));            	
+            public void onResponseFailure(Request request, Throwable failure) {            	
+            	if (logger.isDebugEnabled()) {
+            		logger.debug("onResponseFailure " + request.getMethod() + " " + request.getRequestURI() + "\n" + ExceptionUtils.getStackTrace(failure));
+            	} else {
+            		// produce concise log line without stack trace.
+            		// there seems to be three separate exceptions now
+            		String msg = "request cancelled " + request.getMethod() + " " + request.getRequestURI() + "\n" + failure.getClass().getSimpleName();
+            		if (failure.getMessage() != null) {
+            			msg += " " + failure.getMessage();
+            		}
+            		if (failure.getCause() != null) {
+            			msg += " caused by " + failure.getCause();
+            			if (failure.getCause().getMessage() != null) {
+                			msg += " " + failure.getCause().getMessage();
+                		}
+            		}
+                	logger.info(msg);            		
+            	}
             }
         });
         server.addConnector(connector);

@@ -80,7 +80,9 @@ public class FileBrokerResource {
 			@Context SecurityContext sc,
 			@Context UriInfo uriInfo) {		
 		
-		logger.info("GET " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
+		if (logger.isDebugEnabled()) {
+			logger.debug("GET " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
+		}
 		
 		// get query parameters
 		// empty string when set, otherwise null (boolean without value would have been false)
@@ -150,7 +152,9 @@ public class FileBrokerResource {
 			@Context SecurityContext sc,
 			@Context UriInfo uriInfo) {
 		
-		logger.info("PUT " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
+		if (logger.isDebugEnabled()) {
+			logger.debug("PUT " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
+		}
 		
 		String userToken = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
 
@@ -180,19 +184,19 @@ public class FileBrokerResource {
 		long fileLength = -1;
 		if (dataset.getFile() == null) {
 			
-			logger.info("PUT new file");
+			logger.debug("PUT new file");
 			
 			File file = new File();
 			// create a new fileId
 			file.setFileId(RestUtils.createUUID());
 			file.setFileCreated(Instant.now());
-			dataset.setFile(file);
+			dataset.setFile(file);			
 			
 			for (String storageId : storageDiscovery.getStoragesForNewFile()) {
 				// not synchronized, may fail when storage is lost
 				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
 				try {
-					logger.info("PUT to storage '" + storageId  + "'");
+					logger.info("PUT new file to storage '" + storageId  + "'");
 					fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 					file.setStorage(storageId);
 					break;
@@ -220,8 +224,8 @@ public class FileBrokerResource {
 			// update the file size after each chunk
 			dataset.getFile().setSize(fileLength);
 		
-			try {
-				logger.debug("curl -X PUT " + sessionDbUri + "/sessions/" + sessionId + "/datasets/" + datasetId);
+			try {				
+				logger.debug("PUT " + sessionDbUri + "/sessions/" + sessionId + "/datasets/" + datasetId);
 				this.sessionDbWithFileBrokerCredentials.updateDataset(sessionId, dataset);
 				return Response.noContent().build();
 				
