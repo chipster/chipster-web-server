@@ -3,6 +3,8 @@ package fi.csc.chipster.rest.hibernate;
 import java.net.URL;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -22,6 +24,8 @@ import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 
 public class S3Util {
 	
+	private final static Logger logger = LogManager.getLogger();
+	
 	public static TransferManager getTransferManager(String endpoint, String region, String access, String secret, String signerOverride) {
 		return TransferManagerBuilder.standard()
 				.withS3Client(getClient(endpoint, region, access, secret, signerOverride))
@@ -35,7 +39,17 @@ public class S3Util {
 		ClientConfiguration clientConfig = new ClientConfiguration();
 		//clientConfig.setSignerOverride("S3SignerType");
 		clientConfig.setSignerOverride(signerOverride);
-
+		
+		clientConfig.setConnectionTimeout(3 * clientConfig.getConnectionTimeout());
+		clientConfig.setSocketTimeout(3 * clientConfig.getSocketTimeout());
+		
+		logger.info("S3 max idle:                 " + clientConfig.getConnectionMaxIdleMillis() + " ms");
+		logger.info("S3 connection timeout:       " + clientConfig.getConnectionTimeout() + " ms");
+		logger.info("S3 connection TTL:           " + clientConfig.getConnectionTTL() + " ms");
+		logger.info("S3 request timeout:          " + clientConfig.getRequestTimeout() + " ms");
+		logger.info("S3 socket timeout:           " + clientConfig.getSocketTimeout() + " ms");
+		logger.info("S3 client execution timeout: " + clientConfig.getClientExecutionTimeout() + " ms");
+		
 		AmazonS3 s3 = AmazonS3ClientBuilder.standard()
 				.withClientConfiguration(clientConfig)
 				//.withEndpointConfiguration(new EndpointConfiguration("object.pouta.csc.fi", "regionOne"))
