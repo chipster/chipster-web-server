@@ -63,7 +63,7 @@ export class TypeTags {
       // for-in to iterate object keys
       for (let extension of Tags[tagKey].extensions) {
         // for-of to iterate array items
-        if (name && name.endsWith(extension)) {
+        if (name && name.toLowerCase().endsWith(extension.toLowerCase())) {
           typeTags[tagKey] = null;
         }
       }
