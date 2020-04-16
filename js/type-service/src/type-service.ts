@@ -240,7 +240,7 @@ export default class TypeService {
    * @param fastTags
    * @returns {any}
    */
-  getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags) {
+  getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags: Object) {
     let idPair = new IdPair(sessionId, dataset.datasetId);
     let cacheItem = this.getFromCache(idPair);
 
@@ -281,9 +281,10 @@ export default class TypeService {
     this.cache.set(JSON.stringify(idPair), tags);
   }
 
-  getSlowTypeTagsForDataset(sessionId, dataset, token, fastTags) {
+  getSlowTypeTagsForDataset(sessionId: string, dataset: string, token: string, fastTags: Object) {
     let observable;
     if (Tags.TSV.id in fastTags) {
+
       observable = this.getParsedTsv(sessionId, dataset, token).pipe(
         map((table: any[][]) => {
           return TypeTags.getSlowTypeTags(table);

@@ -31,6 +31,7 @@ export const Tags = {
   GZIP: new Tag("GZIP", [".gz"]),
   VCF: new Tag("VCF", [".vcf"]),
   BAM: new Tag("BAM", [".bam"]),
+  SAM: new Tag("SAM", [".sam"]),
   QUAL: new Tag("QUAL", [".qual"]),
   MOTHUR_OLIGOS: new Tag("MOTHUR_OLIGOS", [".oligos"]),
   MOTHUR_NAMES: new Tag("MOTHUR_NAMES", [".names"]),
@@ -55,7 +56,7 @@ const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
 export class TypeTags {
-  static getFastTypeTags(name: string) {
+  static getFastTypeTags(name: string): Object {
     let typeTags = {};
 
     // add simple type tags based on file extensions
@@ -88,6 +89,13 @@ export class TypeTags {
         "NAME\tLENGTH\tOFFSET\tLINEBASES\tLINEWIDTH";
     }
 
+    if (Tags.SAM.id in typeTags) {
+      // simply add enough optional TAG columns, because spreadsheet doesn't seem to care about extra headers
+      typeTags[Tags.COLUMN_TITLES.id] =
+        "QNAME\tFLAG\tRNAME\tPOS\tMAPQ\tCIGAR\tRNEXT\tPNEXT\tTLEN\tSEQ\tQUAL\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG\tTAG";
+      typeTags[Tags.SKIP_LINES.id] = "@";
+    }
+
     if (Tags.MOTHUR_GROUPS.id in typeTags) {
       typeTags[Tags.NO_TITLE_ROW.id] = "";
     }
@@ -110,6 +118,7 @@ export class TypeTags {
 
   static getSlowTypeTags(table: string[][]) {
     let slowTags = {};
+
     let headers = table[0];
     let firstRow = table[1];
 
