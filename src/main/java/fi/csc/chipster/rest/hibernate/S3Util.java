@@ -27,9 +27,13 @@ public class S3Util {
 	private final static Logger logger = LogManager.getLogger();
 	
 	public static TransferManager getTransferManager(String endpoint, String region, String access, String secret, String signerOverride) {
-		return TransferManagerBuilder.standard()
-				.withS3Client(getClient(endpoint, region, access, secret, signerOverride))
-				.build();
+		TransferManagerBuilder builder = TransferManagerBuilder.standard()
+				.withS3Client(getClient(endpoint, region, access, secret, signerOverride));
+		
+		builder.setDisableParallelDownloads(true);
+		
+		return builder.build();
+		
 	}
 
 	public static AmazonS3 getClient(String endpoint, String region, String access, String secret, String signerOverride) {
