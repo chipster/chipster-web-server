@@ -373,9 +373,20 @@ public class BackupArchive {
 			String filename = Paths.get(key).getFileName().toString();
 			Path downloadFilePath = downloadDirPath.resolve(filename);
 			
-			logger.info("download " + bucket + "/" + key);
-			Download download = transferManager.download(bucket, key, downloadFilePath.toFile());
-			download.waitForCompletion();
+			int maxRetries = 10;
+			for (int i = 0; i < maxRetries; i++) {
+				logger.info("download " + bucket + "/" + key);
+				try {
+					Download download = transferManager.download(bucket, key, downloadFilePath.toFile());
+					download.waitForCompletion();
+					break;
+				} catch (AmazonClientException e) {
+					logger.warn("download try " + i + " failed with exception", e);
+					if (i == maxRetries - 1) {
+						throw e;
+					}
+				}
+			}
 			
 			if (key.endsWith(".tar")) {
 				extract(downloadFilePath, downloadDirPath);
