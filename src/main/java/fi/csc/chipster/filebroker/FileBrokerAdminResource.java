@@ -80,9 +80,14 @@ public class FileBrokerAdminResource extends AdminResource {
 			throw new NotFoundException("storage " + id + " has no admin address");
 		}
 		
-		String tokenKey = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
+		StaticCredentials creds = null;
 		
-		return new FileStorageAdminClient(url, new StaticCredentials("token", tokenKey));
+		if (sc != null) {
+			String tokenKey = ((AuthPrincipal)sc.getUserPrincipal()).getTokenKey();
+			creds = new StaticCredentials("token", tokenKey);
+		}
+		
+		return new FileStorageAdminClient(url, creds);
 	}
 	
 	// unauthenticated but firewalled monitoring tap
@@ -90,9 +95,10 @@ public class FileBrokerAdminResource extends AdminResource {
 	@Path("storages/{storageId}/monitoring/backup")
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response backupMonitoring(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+	public Response backupMonitoring(@PathParam("storageId") String storageId) {
 		
-		getStorageAdminClient(storageId, sc).checkBackup();
+		// pass null for the sc because we don't have credentials
+		getStorageAdminClient(storageId, null).checkBackup();
 		
 		return Response.ok().build();
 	}

@@ -378,6 +378,14 @@ public class BackupArchive {
 				logger.info("download " + bucket + "/" + key);
 				try {
 					Download download = transferManager.download(bucket, key, downloadFilePath.toFile());
+//					download.addProgressListener(new ProgressListener() {
+//						@Override
+//						public void progressChanged(ProgressEvent progressEvent) {
+//							logger.info("download progress " + progressEvent.getEventType().name()
+//									+ " bytes: " + FileUtils.byteCountToDisplaySize(progressEvent.getBytes())
+//									+ " transferred: " + FileUtils.byteCountToDisplaySize(progressEvent.getBytesTransferred()));
+//						}						
+//					});
 					download.waitForCompletion();
 					break;
 				} catch (AmazonClientException e) {

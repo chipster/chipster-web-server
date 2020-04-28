@@ -26,8 +26,10 @@ public class FileStorageAdminClient {
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
-	private CredentialsProvider credentials;	
+	private CredentialsProvider credentials;
+	
 	private WebTarget target;
+	private WebTarget unauthenticatedTarget;
 	
 	
 	public FileStorageAdminClient(URI url, CredentialsProvider credentials) {
@@ -38,7 +40,10 @@ public class FileStorageAdminClient {
 	
 	private void init(URI url) {
 
-		target = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(url);
+		if (this.credentials != null) {
+			target = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true).target(url);
+		}
+		unauthenticatedTarget = AuthenticationClient.getClient().target(url);
 	}
 	
 	/**
@@ -51,7 +56,7 @@ public class FileStorageAdminClient {
 	 */
 	public void checkBackup() {
 		
-		getJson("monitoring", "backup");
+		getJson(false, "monitoring", "backup");
 	}
 
 	public void startBackup() {
@@ -69,20 +74,29 @@ public class FileStorageAdminClient {
     }
 	
 	public String getStatus() {
-		return getJson("status");
+		return getJson(true, "status");
 	}
 	
 	public String getStorageId() {
-		return getJson("id");
+		return getJson(true, "id");
 	}
 	
 	public String getFileStats() {
-		return getJson("filestats");
+		return getJson(true, "filestats");
 	}
 		
-	public String getJson(String... paths) {
+	public String getJson(boolean authenticate, String... paths) {
 		
-		WebTarget target = this.target.path("admin");
+		WebTarget target = this.unauthenticatedTarget;
+		
+		if (authenticate) {
+			if (this.target == null) {
+				throw new IllegalStateException(this.getClass().getSimpleName() + " initilised without credentials");
+			}
+			target = this.target;
+		}
+		
+		target = target.path("admin");
 		
 		for (String path : paths) {
 			target = target.path(path);

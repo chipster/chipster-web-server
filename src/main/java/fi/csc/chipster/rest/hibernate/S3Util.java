@@ -44,15 +44,12 @@ public class S3Util {
 		//clientConfig.setSignerOverride("S3SignerType");
 		clientConfig.setSignerOverride(signerOverride);
 		
-		clientConfig.setConnectionTimeout(3 * clientConfig.getConnectionTimeout());
-		clientConfig.setSocketTimeout(3 * clientConfig.getSocketTimeout());
-		
-		logger.info("S3 max idle:                 " + clientConfig.getConnectionMaxIdleMillis() + " ms");
-		logger.info("S3 connection timeout:       " + clientConfig.getConnectionTimeout() + " ms");
-		logger.info("S3 connection TTL:           " + clientConfig.getConnectionTTL() + " ms");
-		logger.info("S3 request timeout:          " + clientConfig.getRequestTimeout() + " ms");
-		logger.info("S3 socket timeout:           " + clientConfig.getSocketTimeout() + " ms");
-		logger.info("S3 client execution timeout: " + clientConfig.getClientExecutionTimeout() + " ms");
+		logger.debug("S3 max idle:                 " + clientConfig.getConnectionMaxIdleMillis() + " ms");
+		logger.debug("S3 connection timeout:       " + clientConfig.getConnectionTimeout() + " ms");
+		logger.debug("S3 connection TTL:           " + clientConfig.getConnectionTTL() + " ms");
+		logger.debug("S3 request timeout:          " + clientConfig.getRequestTimeout() + " ms");
+		logger.debug("S3 socket timeout:           " + clientConfig.getSocketTimeout() + " ms");
+		logger.debug("S3 client execution timeout: " + clientConfig.getClientExecutionTimeout() + " ms");
 		
 		AmazonS3 s3 = AmazonS3ClientBuilder.standard()
 				.withClientConfiguration(clientConfig)
