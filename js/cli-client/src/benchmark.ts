@@ -1,6 +1,5 @@
-import { RxHttpRequestResponse } from "@akanass/rx-http-request";
 import { Dataset, Job, Session } from "chipster-js-common";
-import { Logger, RestClient } from "chipster-nodejs-core";
+import { Logger, RestClient, HttpResponse } from "chipster-nodejs-core";
 import { empty, from, of, range, timer } from "rxjs";
 import {
   catchError,
@@ -369,8 +368,8 @@ export default class Benchmark {
   getStatic(i: number) {
     return of(i).pipe(
       mergeMap(() => this.restClient.getSessionDbUri()),
-      mergeMap((uri: string) => this.restClient.getPooled(uri)),
-      tap((resp: RxHttpRequestResponse) => {
+      mergeMap((uri: string) => this.restClient.request("GET", uri)),
+      tap((resp: HttpResponse) => {
         if (resp.response.statusCode != 404) {
           throw this.restClient.reponseToError(resp);
         }

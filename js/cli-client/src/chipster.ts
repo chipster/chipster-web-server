@@ -2,22 +2,18 @@
 import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-common";
 import { Logger, RestClient } from "chipster-nodejs-core";
 import * as _ from 'lodash';
-import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf } from 'rxjs';
+import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf, Observable } from 'rxjs';
 import { map, mergeMap, tap, toArray } from 'rxjs/operators';
 import ChipsterUtils from "./chipster-utils";
 import CliEnvironment from "./cli-environment";
 import WsClient from "./ws-client";
 
-
-
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
 const logger = Logger.getLogger(__filename);
-
-
 export default class CliClient {
 
-	private restClient = new RestClient();
+	private restClient = new RestClient(true);
   private env = new CliEnvironment();
 
 	constructor() {
@@ -163,18 +159,18 @@ export default class CliClient {
     logger.debug(args);
 
     this.printLoginStatus(args).pipe(
-      tap(() => this.runCommand(args)))
-      .subscribe();
+      mergeMap(() => this.runCommand(args)))
+      .subscribe(null, err => this.showError(err));
   }
 
-  runCommand(args) {
+  runCommand(args): Observable<any> {
     if (args.command === 'session') {
       switch (args.subcommand) {
-        case 'list': this.sessionList(); break;
-        case 'get': this.sessionGet(args); break;
-        case 'create': this.sessionCreate(args); break;
-        case 'delete': this.sessionDelete(args); break;
-        case 'upload': this.sessionUpload(args); break;
+        case 'list': return this.sessionList();
+        case 'get': return this.sessionGet(args);
+        case 'create': return this.sessionCreate(args);
+        case 'delete': return this.sessionDelete(args);
+        case 'upload': return this.sessionUpload(args);
         case 'download': this.sessionDownload(args); break;
         case 'open': this.sessionOpen(args); break;
         default: throw new Error('unknown subcommand ' + args.subcommand);
@@ -216,9 +212,8 @@ export default class CliClient {
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'login') {
-      this.login(args).pipe(
-        mergeMap(() => this.printLoginStatus(null)))
-        .subscribe()
+      return this.login(args).pipe(
+        mergeMap(() => this.printLoginStatus(null)));
     } else if (args.command === 'logout') {
       this.logout().pipe(
         mergeMap(() => this.printLoginStatus(null)))
@@ -345,10 +340,10 @@ export default class CliClient {
     let sessionId;
     let datasetId;
 
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !args.quiet)),
-      mergeMap(sessionId => this.setOpenSession(sessionId)),)
-      .subscribe();
+      mergeMap(sessionId => this.setOpenSession(sessionId)),
+    );
   }
 
   sessionDownload(args) {
@@ -360,7 +355,7 @@ export default class CliClient {
   }
 
   sessionList() {
-    this.checkLogin().pipe(      
+    return this.checkLogin().pipe(      
       mergeMap(() => this.getApp()),
       mergeMap(appId =>
             forkJoin(
@@ -373,15 +368,16 @@ export default class CliClient {
           const sharedSessions = <Session[]>res[1];
           const allSessions = ownSessions.concat(sharedSessions);
           return allSessions;
-        }))
-      .subscribe((sessions: Array<Session>) => {
-        sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
-      });
+        }),
+        tap((sessions: Array<Session>) => {
+          sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
+      }));
   }
 
   sessionGet(args) {
-    this.getSessionByNameOrId(args.name)
-      .subscribe(session => console.log(session));
+    return this.getSessionByNameOrId(args.name).pipe(
+      tap(session => console.log(session))
+    );
   }
 
   sessionOpen(args) {
@@ -425,7 +421,11 @@ export default class CliClient {
       mergeMap(sessionId => this.restClient.getDatasets(sessionId)),)
       .subscribe((datasets: Array<Dataset>) => {
         datasets.forEach(d => console.log(d.name.padEnd(50), d.datasetId))
-      });
+      }, err => this.showError(err));
+  }
+
+  showError(err) {
+    console.error(err.message);
   }
 
   datasetGet(args) {
@@ -632,15 +632,13 @@ export default class CliClient {
   }
 
   sessionDelete(args) {
-    this.getSessionByNameOrId(args.name).pipe(
-      mergeMap(s => this.restClient.deleteSession(s.sessionId)))
-      .subscribe();
+    return this.getSessionByNameOrId(args.name).pipe(
+      mergeMap(s => this.restClient.deleteSession(s.sessionId)));
   }
 
   sessionCreate(args) {
-    this.checkLogin().pipe(
-      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)))
-      .subscribe();
+    return this.checkLogin().pipe(
+      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)));
   }
 
   serviceList() {
