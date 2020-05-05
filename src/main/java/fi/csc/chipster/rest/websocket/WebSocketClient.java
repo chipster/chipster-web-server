@@ -6,12 +6,6 @@ import java.net.URISyntaxException;
 import java.util.Timer;
 import java.util.concurrent.TimeoutException;
 
-import javax.websocket.ClientEndpointConfig;
-import javax.websocket.CloseReason;
-import javax.websocket.DeploymentException;
-import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler.Whole;
-import javax.websocket.Session;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
@@ -20,6 +14,12 @@ import org.glassfish.tyrus.client.ClientManager;
 
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.websocket.WebSocketClientEndpoint.EndpointListener;
+import jakarta.websocket.ClientEndpointConfig;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.DeploymentException;
+import jakarta.websocket.EndpointConfig;
+import jakarta.websocket.MessageHandler.Whole;
+import jakarta.websocket.Session;
 
 public class WebSocketClient implements EndpointListener {
 	

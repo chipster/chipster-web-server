@@ -7,9 +7,8 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
-import javax.websocket.MessageHandler.Whole;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
@@ -18,7 +17,8 @@ import fi.csc.chipster.rest.websocket.TopicConfig;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
-import org.junit.Assert;
+import jakarta.websocket.DeploymentException;
+import jakarta.websocket.MessageHandler.Whole;
 
 public class WebSocketClientTest {
 	

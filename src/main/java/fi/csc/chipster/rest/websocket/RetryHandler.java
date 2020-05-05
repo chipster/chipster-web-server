@@ -1,13 +1,13 @@
 package fi.csc.chipster.rest.websocket;
 
-import javax.websocket.CloseReason;
-import javax.websocket.CloseReason.CloseCodes;
-import javax.websocket.DeploymentException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.core.HandshakeException;
+
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.CloseReason.CloseCodes;
+import jakarta.websocket.DeploymentException;
 
 public class RetryHandler extends ClientManager.ReconnectHandler {
 
