@@ -81,7 +81,7 @@ export default class ReplayServer {
 
     fs.mkdirSync(resultsRoot, {recursive:true})
 
-    const accessLogStream = rfs("access.log", {
+    const accessLogStream = rfs.createStream("access.log", {
       interval: "1d", // rotate daily
       path: path.join("logs"),
       maxFiles: 60
