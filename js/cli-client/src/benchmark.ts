@@ -92,13 +92,12 @@ export default class Benchmark {
     this.influxUrl = args.influx;
 
     console.log("login as", args.username);
-    let benchmark = ChipsterUtils.login(
-      args.URL,
-      args.username,
-      args.password
-    ).pipe(
-      mergeMap((token: string) => ChipsterUtils.getRestClient(args.URL, token)),
-      tap(restClient => (this.restClient = restClient))
+
+    this.restClient = new RestClient(true);
+
+    let benchmark = ChipsterUtils.getToken(args.URL, args.username, args.password, this.restClient).pipe(
+      mergeMap((token: string) =>
+        ChipsterUtils.configureRestClient(args.URL, token, this.restClient)),
     );
 
     if (this.onlyPost) {
