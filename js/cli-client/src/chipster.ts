@@ -161,7 +161,13 @@ export default class CliClient {
     this.printLoginStatus(args).pipe(
       mergeMap(() => this.runCommand(args)))
       .subscribe(null, err => {
-        this.showError(err)
+        if (err.code === "EPIPE") {
+          // stdout is closed, write to stderr (for example piped to "head")
+          console.error(err.message);
+        } else {
+          this.showError(err);          
+        }
+        process.exit(1);
       });
   }
 
