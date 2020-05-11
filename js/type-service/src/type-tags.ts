@@ -63,23 +63,57 @@ export const Tags = {
 // types that are tagged even if they are gzipped, for example .fasta.gz -> Tags.FASTA
 const GZIP_SUPPORTED_TYPES = new Set([Tags.FASTA, Tags.MOTHUR_COUNT, Tags.MOTHUR_GROUPS, Tags.GTF]);
 
+const TEXT_TYPES = new Set([Tags.TSV,
+  Tags.TSV,
+  Tags.CSV,
+  Tags.BED,
+  Tags.GTF,
+  Tags.FASTA,
+  Tags.FAI,
+  Tags.FASTQ,
+  Tags.SAM,
+  Tags.QUAL,
+  Tags.TRE,
+  Tags.VCF,
+  Tags.MOTHUR_COUNT,
+  Tags.MOTHUR_GROUPS,
+  Tags.MOTHUR_NAMES,
+  Tags.MOTHUR_OLIGOS,
+  Tags.MOTHUR_STABILITY
+  ]);
+
+
+
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
 export class TypeTags {
   static getFastTypeTags(name: string): Object {
-    let typeTags = {};
+    let typeTags = {}; // TODO refactor to Map
 
     // add simple type tags based on file extensions
+    // TODO refactor
     for (let tagKey in Tags) {
       // for-in to iterate object keys
       for (let extension of Tags[tagKey].extensions) {
         // for-of to iterate array items
-        if (name && (name.toLowerCase().endsWith(extension.toLowerCase()) || TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey]))) {
-          typeTags[tagKey] = null;
+        if (name) {
+          // check extension, also possibly add TEXT tag
+          if (name.toLowerCase().endsWith(extension.toLowerCase())) {
+            typeTags[tagKey] = null;
+            if (TEXT_TYPES.has(Tags[tagKey])) {
+              typeTags[Tags.TEXT.id] = null;
+              break;
+            }
+          }
+          // check extension with gz, never add TEXT tag
+          else if (TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey])) {
+            typeTags[tagKey] = null;
+          }
         }
       }
     }
+
 
     if (Tags.VCF.id in typeTags) {
       typeTags[Tags.SKIP_LINES.id] = "##";
