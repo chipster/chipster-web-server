@@ -162,12 +162,13 @@ export default class CliClient {
       mergeMap(() => this.runCommand(args)))
       .subscribe(null, err => {
         if (err.code === "EPIPE") {
-          // stdout is closed, write to stderr (for example piped to "head")
+          // stdout is closed, write to stderr (for example when output is piped to "head")
           console.error(err.message);
         } else {
           this.showError(err);          
         }
-        process.exit(1);
+        // set exit code but allow possible other asynchronous tasks to complete
+        process.exitCode = 1;
       });
   }
 
