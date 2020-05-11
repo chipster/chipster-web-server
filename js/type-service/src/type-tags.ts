@@ -1,3 +1,7 @@
+
+import { Logger } from "chipster-nodejs-core";
+const logger = Logger.getLogger(__filename);
+
 export class Tag {
   constructor(public id: string, public extensions: string[]) {}
 }
@@ -5,6 +9,9 @@ export class Tag {
 // tags in an object for code completion
 export const Tags = {
   // simple types are recognized with the file extension
+
+  // TODO refactor this so that other types can be references to avoid replicating multiple extension
+  // for example .fastq .fq for FASTQ
   TEXT: new Tag("TEXT", [
     ".txt",
     ".dat",
@@ -12,7 +19,8 @@ export const Tags = {
     ".seq",
     ".log",
     ".sam",
-    ".fastq"
+    ".fastq",
+    ".fq"
   ]),
   TSV: new Tag("TSV", [".tsv"]),
   CSV: new Tag("CSV", [".csv"]),
@@ -28,7 +36,7 @@ export const Tags = {
   FASTA: new Tag("FASTA", [".fasta", ".fa", ".fna", ".fsa", ".mpfa"]),
   FAI: new Tag("FAI", [".fai"]),
   FASTQ: new Tag("FASTQ", [".fastq", ".fq"]),
-  GZIP: new Tag("GZIP", [".gz"]),
+  GZIP: new Tag("GZIP", [".gz", ".gzip"]),
   VCF: new Tag("VCF", [".vcf"]),
   BAM: new Tag("BAM", [".bam"]),
   SAM: new Tag("SAM", [".sam"]),
@@ -52,6 +60,9 @@ export const Tags = {
   NO_TITLE_ROW: new Tag("NO_TITLE_ROW", [])
 };
 
+// types that are tagged even if they are gzipped, for example .fasta.gz -> Tags.FASTA
+const GZIP_SUPPORTED_TYPES = new Set([Tags.FASTA, Tags.MOTHUR_COUNT, Tags.MOTHUR_GROUPS, Tags.GTF]);
+
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
@@ -64,7 +75,7 @@ export class TypeTags {
       // for-in to iterate object keys
       for (let extension of Tags[tagKey].extensions) {
         // for-of to iterate array items
-        if (name && name.toLowerCase().endsWith(extension.toLowerCase())) {
+        if (name && (name.toLowerCase().endsWith(extension.toLowerCase()) || TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey]))) {
           typeTags[tagKey] = null;
         }
       }
@@ -159,5 +170,9 @@ export class TypeTags {
         headers.some(header => header.startsWith(foldChangeHeader))
       )
     );
+  }
+
+  static endsWithExtensionAndGzip(filename: string, extension: string, tag: Tag): boolean {
+    return GZIP_SUPPORTED_TYPES.has(tag) && Tags.GZIP.extensions.some(gzipExtension => filename.toLowerCase().endsWith(extension.toLowerCase() + gzipExtension.toLowerCase()))
   }
 }
