@@ -63,7 +63,7 @@ export const Tags = {
 // types that are tagged even if they are gzipped, for example .fasta.gz -> Tags.FASTA
 const GZIP_SUPPORTED_TYPES = new Set([Tags.FASTA, Tags.MOTHUR_COUNT, Tags.MOTHUR_GROUPS, Tags.GTF]);
 
-const TEXT_TYPES = new Set([Tags.TSV,
+const TEXT_TYPES = new Set([
   Tags.TSV,
   Tags.CSV,
   Tags.BED,
@@ -122,6 +122,8 @@ export class TypeTags {
     if (Tags.GTF.id in typeTags) {
       typeTags[Tags.COLUMN_TITLES.id] =
         "seqname\tsource\tfeature\tstart\tend\tscore\tstrand\tframe\tattribute";
+        // this is now set also for .gtf.gz, whether that's good or bad
+        typeTags[Tags.SKIP_LINES.id] = "#!";
     }
 
     if (Tags.BED.id in typeTags) {
