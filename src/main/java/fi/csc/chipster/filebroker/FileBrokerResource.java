@@ -195,13 +195,17 @@ public class FileBrokerResource {
 			for (String storageId : storageDiscovery.getStoragesForNewFile()) {
 				// not synchronized, may fail when storage is lost
 				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
-				try {
-					logger.info("PUT new file to storage '" + storageId  + "'");
+				
+				logger.info("PUT new file to storage '" + storageId  + "'");
+				try {					
+					storageClient.checkIfUploadAllowed(queryParams);
 					fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
 					file.setStorage(storageId);
 					break;
 				} catch (InsufficientStorageException e) {
 					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
+				} catch (RestException e) {
+					throw extractRestException(e);
 				}
 			}
 			

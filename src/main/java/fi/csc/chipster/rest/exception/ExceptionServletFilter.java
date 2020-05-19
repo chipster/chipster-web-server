@@ -39,27 +39,27 @@ public class ExceptionServletFilter implements Filter {
 			chain.doFilter(request, response);
 		} catch (ForbiddenException e) {
 			logger.error("servlet error", e);
-			response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
 			return;
 		} catch (NotFoundException e) {
 			logger.error("servlet error", e);
-			response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+			sendError(response, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
 			return;
 		} catch (UploadCancelledException e) {
 			// logged already in FileServlet
-			response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
 			return;
 		} catch (BadRequestException e) {
 			logger.error("servlet error", e);
-			response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+			sendError(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
 			return;
 		} catch (javax.ws.rs.NotAuthorizedException e) {
 			logger.error("servlet error", e);
-			response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+			sendError(response, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
 			return;
 		} catch (ConflictException e) {
 			logger.error("servlet error", e);
-			response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
+			sendError(response, HttpServletResponse.SC_CONFLICT, e.getMessage());
 			return;				
 		} catch (InsufficientStorageException e) {
 						
@@ -71,13 +71,34 @@ public class ExceptionServletFilter implements Filter {
 				logger.warn("couldn't consume useless input", e2.getMessage());
 			}
 			
-			response.sendError(InsufficientStorageException.STATUS_CODE, e.getMessage());
+			sendError(response, InsufficientStorageException.STATUS_CODE, e.getMessage());
 			
 			return;	
 		} catch (Exception e) {
-			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
 			logger.error("servlet error", e);
 			return;
+		}
+	}
+	
+	/**
+	 * Send an HTTP error with plain text message
+	 * 
+	 * response.sendError() would send a html error, which is difficult use further
+	 * 
+	 * @param response
+	 * @param statusCode
+	 * @param message
+	 * @throws IOException
+	 */
+	public void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
+		response.setStatus(statusCode);
+		try {
+			response.getOutputStream().write(message.getBytes());
+		} catch (IllegalStateException e) {
+			// Jetty response can be in "STREAM" "WRITER" or undefined mode
+			// What happens if something has been written already?
+			response.getWriter().write(message);
 		}
 	}
 
