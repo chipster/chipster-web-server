@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -100,8 +101,8 @@ public class StorageDiscovery {
 			
 			// return storages in random order			
 			ArrayList<String> storageIds = new ArrayList<String>(writeStorages.keySet());
-//			Collections.shuffle(storageIds);
-//			Collections.reverse(storageIds);
+			Collections.shuffle(storageIds);
+ 
 			if (logger.isDebugEnabled()) {
 				logger.debug("write storages after shuffle " + RestUtils.asJson(storageIds));
 			}
