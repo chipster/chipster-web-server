@@ -220,14 +220,6 @@ public class SupportResource {
 	    	emailBody += "email (given by user): " + feedback.getMail() + "\n";
 	    }
 	    
-	    // show warning if we didn't get email address from the authentication or user has changed it
-	    if (!feedback.getMail().equals(user.getMail())) {
-	    	emailBody += "Privacy warning!\n"
-	    			+ "User can enter any email address. Make sure you share only information about "
-	    			+ "the authenticated user (userId, name, organization above) even if the email address "
-	    			+ "would have someone else's name.\n";
-	    }
-	    
 	    if (user.getMail() == null && feedback.getMail() == null) {
 	    	emailBody += "email: [not available]\n";
 	    }
