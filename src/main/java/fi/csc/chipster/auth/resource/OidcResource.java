@@ -70,6 +70,7 @@ public class OidcResource {
 	public static final String CONF_USER_ID_PREFIX = "auth-oidc-user-id-prefix";
 	public static final String CONF_APP_ID = "auth-oidc-app-id";
 	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
+	public static final String CONF_DESCRIPTION = "auth-oidc-description";
 	public static final String CONF_DEBUG = "auth-oidc-debug";
 		
 	private AuthTokens tokenTable;
@@ -108,6 +109,7 @@ public class OidcResource {
 			oidc.setUserIdPrefix(config.getString(CONF_USER_ID_PREFIX, oidcName));
 			oidc.setAppId(config.getString(CONF_APP_ID, oidcName));
 			oidc.setRequireClaim(config.getString(CONF_REQUIRE_CLAIM, oidcName));
+			oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 			 
 			// multiple oidcConfigs may have the same issuer
 			oidcConfigs.add(oidc);

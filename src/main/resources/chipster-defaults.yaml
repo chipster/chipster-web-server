@@ -164,6 +164,8 @@ auth-oidc-logo: ""
 auth-oidc-logo-width: ""
 # login button text, if logo is not set
 auth-oidc-text: "Login"
+# description text
+auth-oidc-description: ""
 # order of the logos on the login page, ascending
 auth-oidc-priority: 1
 # store the email only if the claim "verified_email" is true

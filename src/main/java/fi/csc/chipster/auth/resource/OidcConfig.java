@@ -18,6 +18,7 @@ public class OidcConfig {
 	private String userIdPrefix;
 	private String appId;
 	private String requireClaim;
+	private String description;
 
 	public OidcConfig() {
 	}
@@ -148,5 +149,13 @@ public class OidcConfig {
 
 	public void setRequireClaim(String requireClaim) {
 		this.requireClaim = requireClaim;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+	
+	public String getDescription() {
+		return this.description;
 	}
 }
