@@ -102,6 +102,7 @@ public class StorageDiscovery {
 			// return storages in random order			
 			ArrayList<String> storageIds = new ArrayList<String>(writeStorages.keySet());
 			Collections.shuffle(storageIds);
+ 
 			if (logger.isDebugEnabled()) {
 				logger.debug("write storages after shuffle " + RestUtils.asJson(storageIds));
 			}

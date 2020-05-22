@@ -2,22 +2,18 @@
 import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-common";
 import { Logger, RestClient } from "chipster-nodejs-core";
 import * as _ from 'lodash';
-import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf } from 'rxjs';
-import { map, mergeMap, tap, toArray } from 'rxjs/operators';
+import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf, Observable, of } from 'rxjs';
+import { map, mergeMap, tap, toArray, catchError } from 'rxjs/operators';
 import ChipsterUtils from "./chipster-utils";
 import CliEnvironment from "./cli-environment";
 import WsClient from "./ws-client";
 
-
-
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
 const logger = Logger.getLogger(__filename);
-
-
 export default class CliClient {
 
-	private restClient = new RestClient();
+	private restClient = new RestClient(true);
   private env = new CliEnvironment();
 
 	constructor() {
@@ -163,66 +159,73 @@ export default class CliClient {
     logger.debug(args);
 
     this.printLoginStatus(args).pipe(
-      tap(() => this.runCommand(args)))
-      .subscribe();
+      mergeMap(() => this.runCommand(args)))
+      .subscribe(null, err => {
+        if (err.code === "EPIPE") {
+          // stdout is closed, write to stderr (for example when output is piped to "head")
+          console.error(err.message);
+        } else {
+          this.showError(err);          
+        }
+        // set exit code but allow possible other asynchronous tasks to complete
+        process.exitCode = 1;
+      });
   }
 
-  runCommand(args) {
+  runCommand(args): Observable<any> {
     if (args.command === 'session') {
       switch (args.subcommand) {
-        case 'list': this.sessionList(); break;
-        case 'get': this.sessionGet(args); break;
-        case 'create': this.sessionCreate(args); break;
-        case 'delete': this.sessionDelete(args); break;
-        case 'upload': this.sessionUpload(args); break;
-        case 'download': this.sessionDownload(args); break;
-        case 'open': this.sessionOpen(args); break;
+        case 'list': return this.sessionList();
+        case 'get': return this.sessionGet(args);
+        case 'create': return this.sessionCreate(args);
+        case 'delete': return this.sessionDelete(args);
+        case 'upload': return this.sessionUpload(args);
+        case 'download': return this.sessionDownload(args);
+        case 'open': return this.sessionOpen(args);
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'dataset') {
       switch (args.subcommand) {
-        case 'list': this.datasetList(); break;
-        case 'get': this.datasetGet(args); break;
-        case 'upload': this.datasetUpload(args); break;
-        case 'download': this.datasetDownload(args); break;
-        case 'delete': this.datasetDelete(args); break;
+        case 'list': return this.datasetList();
+        case 'get': return this.datasetGet(args);
+        case 'upload': return this.datasetUpload(args);
+        case 'download': return this.datasetDownload(args);
+        case 'delete': return this.datasetDelete(args);
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'job') {
       switch (args.subcommand) {
-        case 'list': this.jobList(); break;
-        case 'get': this.jobGet(args); break;
-        case 'run': this.jobRun(args); break;
-        case 'delete': this.jobDelete(args); break;
+        case 'list': return this.jobList();
+        case 'get': return this.jobGet(args);
+        case 'run': return this.jobRun(args);
+        case 'delete': return this.jobDelete(args);
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'tool') {
       switch (args.subcommand) {
-        case 'list': this.toolList(); break;
-        case 'get': this.toolGet(args); break;
+        case 'list': return this.toolList();
+        case 'get': return this.toolGet(args);
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'rule') {
       switch (args.subcommand) {
-        case 'list': this.ruleList(); break;
-        case 'create': this.ruleCreate(args); break;
-        case 'delete': this.ruleDelete(args); break;
+        case 'list': return this.ruleList();
+        case 'create': return this.ruleCreate(args);
+        case 'delete': return this.ruleDelete(args);
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'service') {
       switch (args.subcommand) {
-        case 'list': this.serviceList(); break;
-        case 'get': this.serviceGet(args); break;
+        case 'list': return this.serviceList();
+        case 'get': return this.serviceGet(args);
         default: throw new Error('unknown subcommand ' + args.subcommand);
       }
     } else if (args.command === 'login') {
-      this.login(args).pipe(
-        mergeMap(() => this.printLoginStatus(null)))
-        .subscribe()
+      return this.login(args).pipe(
+        mergeMap(() => this.printLoginStatus(null)));
     } else if (args.command === 'logout') {
-      this.logout().pipe(
-        mergeMap(() => this.printLoginStatus(null)))
-        .subscribe();
+      return this.logout().pipe(
+        mergeMap(() => this.printLoginStatus(null)));
     }
   }
 
@@ -345,22 +348,22 @@ export default class CliClient {
     let sessionId;
     let datasetId;
 
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !args.quiet)),
-      mergeMap(sessionId => this.setOpenSession(sessionId)),)
-      .subscribe();
+      mergeMap(sessionId => this.setOpenSession(sessionId)),
+    );
   }
 
   sessionDownload(args) {
     let file = args.file || args.name + '.zip';
 
-    this.getSessionByNameOrId(args.name).pipe(
-      mergeMap(session => this.restClient.packageSession(session.sessionId, file)))
-      .subscribe();
+    return this.getSessionByNameOrId(args.name).pipe(
+      mergeMap(session => this.restClient.packageSession(session.sessionId, file))
+    );
   }
 
   sessionList() {
-    this.checkLogin().pipe(      
+    return this.checkLogin().pipe(      
       mergeMap(() => this.getApp()),
       mergeMap(appId =>
             forkJoin(
@@ -373,21 +376,22 @@ export default class CliClient {
           const sharedSessions = <Session[]>res[1];
           const allSessions = ownSessions.concat(sharedSessions);
           return allSessions;
-        }))
-      .subscribe((sessions: Array<Session>) => {
-        sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
-      });
+        }),
+        tap((sessions: Array<Session>) => {
+          sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
+      }));
   }
 
   sessionGet(args) {
-    this.getSessionByNameOrId(args.name)
-      .subscribe(session => console.log(session));
+    return this.getSessionByNameOrId(args.name).pipe(
+      tap(session => console.log(session))
+    );
   }
 
   sessionOpen(args) {
-    this.getSessionByNameOrId(args.name).pipe(
-      mergeMap((session: Session) => this.setOpenSession(session.sessionId)))
-      .subscribe();
+    return this.getSessionByNameOrId(args.name).pipe(
+      mergeMap((session: Session) => this.setOpenSession(session.sessionId)),
+    );
   }
 
   setOpenSession(sessionId: string) {
@@ -395,61 +399,59 @@ export default class CliClient {
   }
 
   ruleList() {
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getRules(sessionId)),)
-      .subscribe(list => console.log(list));
+      mergeMap(sessionId => this.restClient.getRules(sessionId)),
+      tap(list => console.log(list)),
+    );
   }
 
   ruleCreate(args) {
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r')),)
-      .subscribe(res => console.log(res));
+      mergeMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r')),
+      tap(res => console.log(res)),
+    );
   }
 
   ruleDelete(args) {
     let sessionId: string;
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       mergeMap(() => this.restClient.getRules(sessionId)),
       mergeMap((rules: Rule[]) => observableFrom(rules.filter(r => r.username === args.username))),
-      mergeMap((rule: Rule) => this.restClient.deleteRule(sessionId, rule.ruleId)),)
-      .subscribe(null, err => console.error('failed to delete the rule', err));
+      mergeMap((rule: Rule) => this.restClient.deleteRule(sessionId, rule.ruleId)),
+    );
   }
 
   datasetList() {
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getDatasets(sessionId)),)
-      .subscribe((datasets: Array<Dataset>) => {
+      mergeMap(sessionId => this.restClient.getDatasets(sessionId)),
+      tap((datasets: Array<Dataset>) => {
         datasets.forEach(d => console.log(d.name.padEnd(50), d.datasetId))
-      });
+      }),
+    );
+  }
+
+  showError(err) {
+    console.error(err.message);
   }
 
   datasetGet(args) {
-    this.getDatasetByNameOrId(args.name)
-      .subscribe(dataset => console.log(dataset));
+    return this.getDatasetByNameOrId(args.name).pipe(
+      tap(dataset => console.log(dataset))
+    );
   }
 
   datasetUpload(args) {
     let name = args.name || path.basename(args.file);
     let sessionId;
-    this.checkLogin()
+    return this.checkLogin()
       .pipe(
         mergeMap(() => this.getSessionId()),
         tap(id => (sessionId = id)),
-
-        //FIXME remove this debug test
-        // mergeMap(() => this.restClient.getDatasets(sessionId)),
-        // mergeMap(datasets =>
-        //   this.restClient.downloadFile(
-        //     sessionId,
-        //     datasets[0].datasetId,
-        //     "tmp/kmans.tsv"
-        //   )
-        // ),
         mergeMap(() =>
           ChipsterUtils.datasetUpload(
             this.restClient,
@@ -458,52 +460,53 @@ export default class CliClient {
             name
           )
         )
-      )
-      .subscribe(null, err => console.error("upload error", err));
+      );
   }
 
   datasetDelete(args) {
     let sessionId;
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       mergeMap(() => this.getDatasetByNameOrId(args.name)),
-      mergeMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId)),)
-      .subscribe();
+      mergeMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId)),
+    );
   }
 
   datasetDownload(args) {
     let sessionId;
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       mergeMap(() => this.getDatasetByNameOrId(args.name)),
       mergeMap(dataset => {
         let file = args.file || args.name;
         return this.restClient.downloadFile(sessionId, dataset.datasetId, file);
-      }),)
-      .subscribe();
+      }),
+    );
   }
 
   jobList() {
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getJobs(sessionId)),)
-      .subscribe((jobs: Array<Job>) => {
+      mergeMap(sessionId => this.restClient.getJobs(sessionId)),
+      tap((jobs: Array<Job>) => {
         jobs.forEach(j => ChipsterUtils.printTable(j, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]));
-      });
+      }),
+    );
   }
 
   jobGet(args) {
-    this.getJobByNameOrId(args.name)
-      .subscribe(job => console.log(job));
+    return this.getJobByNameOrId(args.name).pipe(
+      tap(job => console.log(job))
+    );
   }
 
   jobRun(args) {
     let sessionId, jobId, inputMap;
     let wsClient;
 
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       tap(() => {
@@ -516,7 +519,11 @@ export default class CliClient {
           return this.getDatasetByNameOrId(inputMap.get(key)).pipe(
             tap(dataset => inputMap.set(key, dataset)));
         });
-        return observableForkJoin(datasetObservables);
+        if (datasetObservables.length > 0) {
+          return observableForkJoin(datasetObservables);
+        } else {
+          return of(null);
+        }
       }),
       mergeMap(() => this.getToolByNameOrId(args.tool)),
       mergeMap(tool => {
@@ -538,38 +545,40 @@ export default class CliClient {
         wsClient.getJobOutputDatasets$(jobId).subscribe(dataset => {
           console.log('* dataset created: ' + dataset.name.padEnd(24) + dataset.datasetId);
         });
-      }),)
-      .subscribe();
+      }),
+    );      
   }
 
   jobDelete(args) {
     let sessionId;
-    this.checkLogin().pipe(
+    return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       mergeMap(() => this.getJobByNameOrId(args.name)),
-      mergeMap(job => this.restClient.deleteJob(sessionId, job.jobId)),)
-      .subscribe();
+      mergeMap(job => this.restClient.deleteJob(sessionId, job.jobId)),
+    );
   }
 
   toolList() {
     // login not needed, but it creates restClient
-    this.checkLogin().pipe(
-      mergeMap(() => this.restClient.getTools()))
-      .subscribe((modules: Array<Module>) => {
-        modules.forEach(module => {
-          module.categories.forEach(category => {
-            category.tools.forEach(tool => {
-              console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
+    return this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getTools())).pipe(
+        tap((modules: Array<Module>) => {
+          modules.forEach(module => {
+            module.categories.forEach(category => {
+              category.tools.forEach(tool => {
+                console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
+              });
             });
           });
-        });
-      });
+        }),
+      );
   }
 
   toolGet(args) {
-    this.getToolByNameOrId(args.name)
-      .subscribe(tool => console.log(JSON.stringify(tool, null, 2)));
+    return this.getToolByNameOrId(args.name).pipe(
+      tap(tool => console.log(JSON.stringify(tool, null, 2))),
+    );
   }
 
   getSessionByNameOrId(search: string) {
@@ -632,42 +641,39 @@ export default class CliClient {
   }
 
   sessionDelete(args) {
-    this.getSessionByNameOrId(args.name).pipe(
-      mergeMap(s => this.restClient.deleteSession(s.sessionId)))
-      .subscribe();
+    return this.getSessionByNameOrId(args.name).pipe(
+      mergeMap(s => this.restClient.deleteSession(s.sessionId)));
   }
 
   sessionCreate(args) {
-    this.checkLogin().pipe(
-      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)))
-      .subscribe();
+    return this.checkLogin().pipe(
+      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)));
   }
 
   serviceList() {
-    this.checkLogin().pipe(
-      mergeMap(() => this.restClient.getServices()))
-      .subscribe(
-        services => console.log(services),
-        err => console.error('failed to list services', err))
+    return this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getServices()),
+      tap(services => console.log(services)),
+    );
   }
 
   serviceGet(args) {
-    this.checkLogin().pipe(
-      mergeMap(() => this.restClient.getServices()),
-      map((services: Array<Service>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http'))),
+    return this.checkLogin().pipe(
+      mergeMap(() => this.restClient.getInternalServices()),
+      // map((services: Array<Service>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http'))),
       map((services: Array<Service>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name)),
       mergeMap(services => observableFrom(services)),
       mergeMap(service => {
         return observableForkJoin(
           observableOf(service),
-          this.restClient.getStatus(service.publicUri)
-            .catch(err => {
+          this.restClient.getStatus(service.adminUri).pipe(
+            catchError(err => {
               console.log(service.role + ' error (' + service.publicUri + ')');
               return observableEmpty();
-        }));
+          })));
       }),
-      toArray(),)
-      .subscribe(statuses => {
+      toArray(),
+      tap(statuses => {
           if (statuses.length === 1) {
             let res = statuses[0];
             let service = res[0];
@@ -681,9 +687,8 @@ export default class CliClient {
               console.log(res[0].role, res[1]['status']);
             });
           }
-        },
-          err => console.error('failed to list services', err)
-      );
+        }),
+    );
   }
 }
 

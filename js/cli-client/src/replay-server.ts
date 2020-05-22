@@ -1,19 +1,19 @@
 import { Logger, RestClient } from "chipster-nodejs-core";
-import rfs from "rotating-file-stream";
 import { empty, interval, of } from "rxjs";
 import { catchError, mergeMap } from "rxjs/operators";
 import { VError } from "verror";
 import ReplaySession from "./replay-session";
-
-const ArgumentParser = require("argparse").ArgumentParser;
-const logger = Logger.getLogger(__filename, "logs/chipster.log");
 import schedule = require("node-schedule");
 import serveIndex = require("serve-index");
 import express = require("express");
 import path = require("path");
 import v8 = require("v8");
 import morgan = require("morgan");
-import mkdirp = require("mkdirp"); // not needed after node 10.12
+
+const fs = require("fs");
+const rfs = require ("rotating-file-stream");
+const ArgumentParser = require("argparse").ArgumentParser;
+const logger = Logger.getLogger(__filename, "logs/chipster.log");
 
 export default class ReplayServer {
   resultsPath: string;
@@ -79,9 +79,9 @@ export default class ReplayServer {
       resultsRoot
     );
 
-    mkdirp.sync(resultsRoot);
+    fs.mkdirSync(resultsRoot, {recursive:true})
 
-    const accessLogStream = rfs("access.log", {
+    const accessLogStream = rfs.createStream("access.log", {
       interval: "1d", // rotate daily
       path: path.join("logs"),
       maxFiles: 60

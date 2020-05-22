@@ -1,6 +1,5 @@
-import { RxHttpRequestResponse } from "@akanass/rx-http-request";
 import { Dataset, Job, Session } from "chipster-js-common";
-import { Logger, RestClient } from "chipster-nodejs-core";
+import { Logger, RestClient, HttpResponse } from "chipster-nodejs-core";
 import { empty, from, of, range, timer } from "rxjs";
 import {
   catchError,
@@ -93,13 +92,12 @@ export default class Benchmark {
     this.influxUrl = args.influx;
 
     console.log("login as", args.username);
-    let benchmark = ChipsterUtils.login(
-      args.URL,
-      args.username,
-      args.password
-    ).pipe(
-      mergeMap((token: string) => ChipsterUtils.getRestClient(args.URL, token)),
-      tap(restClient => (this.restClient = restClient))
+
+    this.restClient = new RestClient(true);
+
+    let benchmark = ChipsterUtils.getToken(args.URL, args.username, args.password, this.restClient).pipe(
+      mergeMap((token: string) =>
+        ChipsterUtils.configureRestClient(args.URL, token, this.restClient)),
     );
 
     if (this.onlyPost) {
@@ -369,8 +367,8 @@ export default class Benchmark {
   getStatic(i: number) {
     return of(i).pipe(
       mergeMap(() => this.restClient.getSessionDbUri()),
-      mergeMap((uri: string) => this.restClient.getPooled(uri)),
-      tap((resp: RxHttpRequestResponse) => {
+      mergeMap((uri: string) => this.restClient.request("GET", uri)),
+      tap((resp: HttpResponse) => {
         if (resp.response.statusCode != 404) {
           throw this.restClient.reponseToError(resp);
         }

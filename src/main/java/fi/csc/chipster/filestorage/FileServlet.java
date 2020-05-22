@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.time.Duration;
@@ -64,6 +65,8 @@ import fi.csc.chipster.util.IOUtils;
  */
 public class FileServlet extends DefaultServlet implements SessionEventListener {
 
+	public static final String PATH_PUT_ALLOWED = "putAllowed";
+
 	private static final String CONF_KEY_FILE_STORAGE_PRESERVE_SPACE = "file-storage-preserve-space";
 
 	public static final String PATH_FILES = "files";
@@ -114,6 +117,16 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
+
+		if (("/" + PATH_FILES + "/" + PATH_PUT_ALLOWED).equals(request.getPathInfo())) {
+			doGetPutAllowed(request, response);
+		} else {
+			doGetFile(request, response); 
+		}
+	}
+
+	protected void doGetFile(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
 		
 		try {
 						
@@ -121,14 +134,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				logger.info("GET " + request.getRequestURI());
 			}
 		
-			// user's token set by TokenServletFilter
-			String tokenString = getToken(request);
-			ParsedToken token = authService.validate(tokenString);
-			
-			// check authorization
-			if (!token.getRoles().contains(Role.FILE_BROKER)) {
-				throw new NotAuthorizedException("wrong role");
-			}
+			allowOnlyFileBroker(request);
 	
 			UUID fileId = parsePath(request.getPathInfo());
 	
@@ -285,6 +291,33 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 		return null;
 	}
+	
+	private void allowOnlyFileBroker(HttpServletRequest request) {
+		// user's token set by TokenServletFilter
+		String tokenString = getToken(request);
+		ParsedToken token = authService.validate(tokenString);
+		
+		// check authorization
+		if (!token.getRoles().contains(Role.FILE_BROKER)) {
+			throw new NotAuthorizedException("wrong role");
+		}
+	}
+	
+	private void doGetPutAllowed(HttpServletRequest request, HttpServletResponse response) throws IOException {
+		
+		// get query parameters
+		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
+
+		allowOnlyFileBroker(request);
+		
+		checkDiskSpace(totalSize, request);
+		
+		response.setStatus(200);
+		response.setHeader("Content-Type", "text/plain");
+		PrintWriter out = response.getWriter();
+		out.print("put is allowed");
+		out.flush();   
+	}
 
 	@Override
 	protected void doPut(HttpServletRequest request, HttpServletResponse response)
@@ -299,27 +332,19 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
 		@SuppressWarnings("unused")
 		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_CHUNKS);
+		@SuppressWarnings("unused")
 		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
 
-		// user's token set by TokenServletFilter
-		String tokenString = getToken(request);
-		ParsedToken token = authService.validate(tokenString);
-		
-		// check authorization
-		if (!token.getRoles().contains(Role.FILE_BROKER)) {
-			throw new NotAuthorizedException("wrong role");
-		}
+		allowOnlyFileBroker(request);
 		
 		try {
 			logger.debug("chunkNumber " + chunkNumber + " uploading");
 
-			UUID fileId = parsePath(request.getPathInfo());
-
-			InputStream inputStream = request.getInputStream();
+			UUID fileId = parsePath(request.getPathInfo());			
 
 			if (chunkNumber == null || chunkNumber == 1) {
-				
-				checkDiskSpace(totalSize, request);
+									
+				InputStream inputStream = request.getInputStream();
 
 				// create a new file
 				File f = getStorageFile(fileId);
@@ -346,13 +371,15 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 				// append to the old file
 				File f = getStorageFile(fileId);
+				
+				InputStream inputStream = request.getInputStream();
 
 				if (f.exists()) {
 					if (chunkNumber == null || chunkSize == null) {
 						throw new ConflictException("missing query parameters");
 					} else {
 						if (isChunkReady(f, chunkNumber, chunkSize)) {
-							// we have this junk already
+							// we have this chunk already							
 							inputStream.close();
 							response.setStatus(HttpServletResponse.SC_OK);
 							return;

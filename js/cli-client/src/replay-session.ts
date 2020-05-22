@@ -9,8 +9,6 @@ import { VError } from "verror";
 import ChipsterUtils, { missingInputError } from "./chipster-utils";
 import WsClient from "./ws-client";
 
-import mkdirp = require("mkdirp"); // not needed after node 10.12
-
 const ArgumentParser = require("argparse").ArgumentParser;
 import fs = require("fs");
 import path = require("path");
@@ -273,7 +271,8 @@ export default class ReplaySession {
       throw new Error("results path is not set");
     }
 
-    mkdirp.sync(this.resultsPath);
+    // set recursive to tolerate existing dir
+    fs.mkdirSync(this.resultsPath, { recursive: true });
 
     const importErrors: ImportError[] = [];
     let results = [];
@@ -444,8 +443,6 @@ export default class ReplaySession {
         // );
       }),
       tap(() => {
-        // close restClient's HTTP keep-alive connections
-        this.restClient.destroy();
         this.restClient = null;
       }),
       map(() => this.stats)
@@ -1051,7 +1048,7 @@ export default class ReplaySession {
 
     return this.restClient.getDataset(originalSessionId, datasetId).pipe(
       tap(d => (dataset = d)),
-      tap(() => mkdirp.sync(this.tempPath)),
+      tap(() => fs.mkdirSync(this.tempPath)),
       tap(() => {
         if (!quiet) {
           logger.info(

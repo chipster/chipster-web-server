@@ -105,17 +105,6 @@ export default class ChipsterUtils {
     );
   }
 
-  static getRestClient(webServerUri, token) {
-    console.warn(
-      "method ChipsterUtils.getRestClient() is deprecated, use configureRestClient() instead"
-    );
-    return this.configureRestClient(
-      new RestClient(true, null, null),
-      webServerUri,
-      token
-    );
-  }
-
   static getToken(
     webServerUri: string,
     username: string,
@@ -130,19 +119,6 @@ export default class ChipsterUtils {
         restClient.setServiceLocatorUri(serviceLocatorUrl);
         return restClient.getToken(username, password);
       })
-    );
-  }
-
-  static login(webServerUri: string, username: string, password: string) {
-    console.warn(
-      "method ChipsterUtils.login() is deprecated, use getToken() instead"
-    );
-
-    return this.getToken(
-      webServerUri,
-      username,
-      password,
-      new RestClient(true, null, null)
     );
   }
 

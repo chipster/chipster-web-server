@@ -6,7 +6,7 @@ import { Tag, Tags, TypeTags } from "./type-tags";
 const os = require("os");
 const url = require("url");
 const restify = require("restify");
-const corsMiddleware = require("restify-cors-middleware");
+const corsMiddleware = require("restify-cors-middleware2");
 const errors = require("restify-errors");
 
 const logger = Logger.getLogger(__filename);
@@ -25,6 +25,9 @@ export default class TypeService {
   private config = new Config();
 
   constructor() {
+    
+    Logger.addLogFile();
+
     this.init();
     this.initAdmin();
 
@@ -155,7 +158,7 @@ export default class TypeService {
           res.send(types);
           next();
 
-          logger.info("response", JSON.stringify(types));
+          // logger.info("response", JSON.stringify(types));
           logger.info(
             "type tagging " +
               typesArray.length +

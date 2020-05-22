@@ -70,7 +70,28 @@ public class FileStorageClient {
 		return fileStorageTarget.path(FileServlet.PATH_FILES).path(fileId.toString());
 	}
 	
-	// methods 
+	// methods
+	
+	public void checkIfUploadAllowed(Map<String, String> queryParams) throws RestException {
+		
+		WebTarget target = fileStorageTarget
+				.path(FileServlet.PATH_FILES)
+				.path(FileServlet.PATH_PUT_ALLOWED);
+
+		for (String key : queryParams.keySet()) {
+			target = target.queryParam(key, queryParams.get(key));
+		}
+
+		Response response = target.request().get();
+		
+		if (RestUtils.isSuccessful(response.getStatus())) {
+			return;
+		} else if (response.getStatus() == InsufficientStorageException.STATUS_CODE) {
+			throw new InsufficientStorageException(response.readEntity(String.class));
+		} else {
+			throw new RestException("error in put allowed check", response, target.getUri());
+		}
+	}
 	
 	public long upload(UUID fileId, InputStream inputStream, Map<String, String> queryParams) {
 
@@ -140,9 +161,7 @@ public class FileStorageClient {
 
 			} else if (connection.getResponseCode() == HttpURLConnection.HTTP_FORBIDDEN) {
 				throw new ForbiddenException(connection.getResponseMessage());
-				
-			} else if (connection.getResponseCode() == InsufficientStorageException.STATUS_CODE) {
-				throw new InsufficientStorageException(connection.getResponseMessage());
+			
 			} else {
 				logger.error("upload failed: unknwon response code", connection.getResponseCode() + " " + connection.getResponseMessage());
 				throw new InternalServerErrorException("upload failed");
