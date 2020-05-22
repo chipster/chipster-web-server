@@ -125,8 +125,8 @@ dependencies {
     // websockets
     compile "javax.websocket:javax.websocket-api:+"
     compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.4.20.v20190813"
-    compile "org.glassfish.tyrus:tyrus-client:1.+"
-    compile "org.glassfish.tyrus:tyrus-container-grizzly-client:1.+"
+    compile "org.glassfish.tyrus:tyrus-client:+"
+    compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
 
 	// other
     compile "commons-io:commons-io:+"
