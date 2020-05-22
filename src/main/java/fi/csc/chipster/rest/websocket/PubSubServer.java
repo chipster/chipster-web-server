@@ -14,10 +14,8 @@ import java.util.stream.Collectors;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
 import javax.websocket.MessageHandler;
 import javax.websocket.RemoteEndpoint.Basic;
-import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig;
 
 import org.apache.logging.log4j.LogManager;
@@ -26,6 +24,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
 import com.mchange.rmi.NotAuthorizedException;
@@ -71,7 +70,7 @@ public class PubSubServer implements StatusSource {
 	private long pingInterval = 0;
 	
 
-	public PubSubServer(String baseUri, String path, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException, DeploymentException {
+	public PubSubServer(String baseUri, String path, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException {
 		this.baseUri = baseUri;
 		this.path = path;
 		this.replyHandler = replyHandler;
@@ -81,7 +80,7 @@ public class PubSubServer implements StatusSource {
 		init();                    
 	}
 		
-	public void init() throws DeploymentException, ServletException {
+	public void init() throws ServletException {
 		server = new Server();
         
         URI uri = URI.create(baseUri);
@@ -119,7 +118,11 @@ public class PubSubServer implements StatusSource {
         serverConfig.getUserProperties().put(this.getClass().getName(), this);
 
         // Add WebSocket endpoint to javax.websocket layer
-        wscontainer.addEndpoint(serverConfig);
+        try {
+			wscontainer.addEndpoint(serverConfig);
+		} catch (javax.websocket.DeploymentException e) {
+			throw new RuntimeException("websocket deployment failed", e);
+		}
 	}
 
 	public void publish(Object obj) {

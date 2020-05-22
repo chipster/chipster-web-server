@@ -11,7 +11,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
+import jakarta.websocket.DeploymentException;
 import javax.websocket.MessageHandler;
 import javax.ws.rs.ProcessingException;
 

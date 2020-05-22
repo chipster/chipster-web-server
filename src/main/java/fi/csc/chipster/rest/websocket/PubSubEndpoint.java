@@ -10,13 +10,13 @@ import javax.websocket.CloseReason;
 import javax.websocket.CloseReason.CloseCodes;
 import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
+import javax.websocket.MessageHandler;
 
 /**
  * A stateless endpoint class for javax.websocket API. Gets the PubSubServer 

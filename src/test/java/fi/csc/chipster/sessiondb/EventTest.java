@@ -10,7 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import javax.websocket.MessageHandler;
+import jakarta.websocket.MessageHandler;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

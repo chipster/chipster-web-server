@@ -17,8 +17,8 @@ import fi.csc.chipster.rest.websocket.TopicConfig;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.MessageHandler.Whole;
+import javax.websocket.DeploymentException;
+import javax.websocket.MessageHandler.Whole;
 
 public class WebSocketClientTest {
 	
@@ -71,7 +71,7 @@ public class WebSocketClientTest {
 		
 		PubSubServer server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
-		WebSocketClient client = new WebSocketClient(uri, new Whole<String>() {
+		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
 			
 			@Override
 			public void onMessage(String message) {
@@ -88,7 +88,7 @@ public class WebSocketClientTest {
 		
 		PubSubServer server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
-		WebSocketClient client = new WebSocketClient(uri, new Whole<String>() {
+		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
 			
 			@Override
 			public void onMessage(String message) {
@@ -110,7 +110,7 @@ public class WebSocketClientTest {
 		
 		PubSubServer server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
-		WebSocketClient client = new WebSocketClient(uri, new Whole<String>() {
+		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
 			
 			@Override
 			public void onMessage(String message) {

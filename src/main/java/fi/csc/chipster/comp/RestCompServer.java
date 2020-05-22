@@ -14,7 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.websocket.MessageHandler;
+import jakarta.websocket.MessageHandler;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.log4j.Logger;
