@@ -56,8 +56,6 @@ public class RestCompServer
 	 * Loggers.
 	 */
 	private static Logger logger;
-	private static Logger loggerJobs;
-	private static Logger loggerStatus;
 
 	/**
 	 * Directory for storing input and output files.
@@ -141,8 +139,6 @@ public class RestCompServer
 		this.jobTimeout = config.getInt(Config.KEY_COMP_JOB_TIMEOUT);
 
 		logger = Logger.getLogger(RestCompServer.class);
-		loggerJobs = Logger.getLogger("jobs");
-		loggerStatus = Logger.getLogger("status");
 
 		// initialize working directory
 		logger.info("starting compute service...");
@@ -311,7 +307,7 @@ public class RestCompServer
 
 		char delimiter = ';';
 		try {
-			loggerJobs.info(job.getId() + delimiter + job.getInputMessage().getToolId().replaceAll("\"", "") + delimiter
+			logger.info(job.getId() + delimiter + job.getInputMessage().getToolId().replaceAll("\"", "") + delimiter
 					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
@@ -540,7 +536,7 @@ public class RestCompServer
 
 	private void updateStatus() {
 		synchronized (jobsLock) {
-			loggerStatus.info("scheduled jobs: " + scheduledJobs.size() + ", running jobs: " + runningJobs.size());
+			logger.info("scheduled jobs: " + scheduledJobs.size() + ", running jobs: " + runningJobs.size());
 		}
 	}
 
