@@ -25,9 +25,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
+import javax.ws.rs.core.UriBuilder;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -129,8 +129,8 @@ public class OidcResource {
 	
 	private IDTokenValidator getValidator(String issuer, String clientId) throws URISyntaxException, IOException {
 		
-		URI discoveryUri = new URIBuilder(issuer)
-				.setPath(".well-known/openid-configuration")
+		URI discoveryUri = UriBuilder.fromUri(issuer)
+				.path(".well-known/openid-configuration")
 				.build();
 		String discoveryString = IOUtils.toString(discoveryUri, Charset.defaultCharset());
 		@SuppressWarnings("unchecked")
