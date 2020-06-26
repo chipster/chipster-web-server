@@ -168,6 +168,8 @@ auth-oidc-text: "Login"
 auth-oidc-description: ""
 # order of the logos on the login page, ascending
 auth-oidc-priority: 1
+# which OIDC scopes to request
+auth-oidc-scope: "openid profile email"
 # store the email only if the claim "verified_email" is true
 auth-oidc-verified-email-only: true
 # claim name for the organization

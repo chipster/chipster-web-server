@@ -19,6 +19,7 @@ public class OidcConfig {
 	private String appId;
 	private String requireClaim;
 	private String description;
+	private String scope;
 
 	public OidcConfig() {
 	}
@@ -157,5 +158,13 @@ public class OidcConfig {
 	
 	public String getDescription() {
 		return this.description;
+	}
+
+	public String getScope() {
+		return scope;
+	}
+
+	public void setScope(String scope) {
+		this.scope = scope;
 	}
 }
