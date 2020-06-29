@@ -178,7 +178,7 @@ auth-oidc-claim-organization: ""
 auth-oidc-claim-user-id: "sub"
 # append this extra parameter the the authorization URL, in format KEY=VALUE
 auth-oidc-parameter: ""
-# accept authentication only if the token contains this claim, in format KEY=VALUE
+# accept authentication only if the token contains this claim, in format KEY=VALUE, or only KEY if the value doesn't matter
 auth-oidc-require-claim: ""
 # prefix for the userId, set different for each authentication provider the prevent clashes
 auth-oidc-user-id-prefix: "oidc"

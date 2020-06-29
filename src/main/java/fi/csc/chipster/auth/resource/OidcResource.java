@@ -286,20 +286,33 @@ public class OidcResource {
 			
 			if (!oidc.getRequireClaim().isEmpty()) {
 				String[] keyValue = oidc.getRequireClaim().split("=");
+				
 				String key = keyValue[0];
-				String value = keyValue[1];
+				String value = null;
+				
+				if (keyValue.length == 2) {
+					value = keyValue[1];
+				}
+				
 				Object claimObj = claims.getClaim(key);
 				if (claimObj == null) {
 					logger.info("oidc " + oidc.getOidcName() + " requires a non existent claim " + oidc.getRequireClaim());					
 					continue;
 				}
-				String claimValue = claimObj.toString();
 				
-				if (!claimValue.equals(value)) {
-					if (this.isDebug) {
-						logger.info("claim " + key + " has value '" + claimValue  + "', which does not match expected '" + value + "'");
+				if (value != null) {
+					String claimValue = claimObj.toString();
+					
+					if (!claimValue.equals(value)) {
+						if (this.isDebug) {
+							logger.info("claim " + key + " has value '" + claimValue  + "', which does not match expected '" + value + "'");
+						}
+						continue;
 					}
-					continue;
+				} else {
+					if (isDebug) {
+						logger.info("claim " + key + " found, value is not required");
+					}
 				}
 			}
 		
