@@ -74,7 +74,8 @@ public class AuthenticationService {
     	UserTable userTable = new UserTable(hibernate);
     	
     	AuthTokenResource tokenResource = new AuthTokenResource(tokenTable, userTable);
-    	OidcResource oidcResource = new OidcResource(tokenTable, userTable, config);
+    	OidcResource oidcResource = new OidcResource();
+    	oidcResource.init(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable);
     	

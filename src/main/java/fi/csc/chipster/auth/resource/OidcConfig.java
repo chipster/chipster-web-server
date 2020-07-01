@@ -18,6 +18,7 @@ public class OidcConfig {
 	private String userIdPrefix;
 	private String appId;
 	private String requireClaim;
+	private String requireUserinfoClaim;
 	private String description;
 	private String scope;
 
@@ -166,5 +167,13 @@ public class OidcConfig {
 
 	public void setScope(String scope) {
 		this.scope = scope;
+	}
+
+	public String getRequireUserinfoClaim() {
+		return requireUserinfoClaim;
+	}
+
+	public void setRequireUserinfoClaim(String requireUserinfoClaim) {
+		this.requireUserinfoClaim = requireUserinfoClaim;
 	}
 }
