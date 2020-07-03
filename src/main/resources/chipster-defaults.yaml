@@ -182,6 +182,8 @@ auth-oidc-parameter: ""
 auth-oidc-require-claim: ""
 # accept authentication only if the userinfo response contains this claim, in format KEY=VALUE, or only KEY if the value doesn't matter. Querying the userinfo endpoint is only possible with access token, i.e. when to response type is "code", or "id_token token". Authentication fails if this claim is not found.
 auth-oidc-require-userinfo-claim: ""
+# show this error message to the user when the required userinfo claim is not found
+auth-oidc-require-userinfo-claim-error: "Chipster login is not allowed for this account"
 # prefix for the userId, set different for each authentication provider the prevent clashes
 auth-oidc-user-id-prefix: "oidc"
 # appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs 

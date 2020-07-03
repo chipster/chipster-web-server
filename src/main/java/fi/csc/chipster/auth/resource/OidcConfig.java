@@ -19,6 +19,7 @@ public class OidcConfig {
 	private String appId;
 	private String requireClaim;
 	private String requireUserinfoClaim;
+	private String requireUserinfoClaimError;
 	private String description;
 	private String scope;
 
@@ -175,5 +176,13 @@ public class OidcConfig {
 
 	public void setRequireUserinfoClaim(String requireUserinfoClaim) {
 		this.requireUserinfoClaim = requireUserinfoClaim;
+	}
+
+	public String getRequireUserinfoClaimError() {
+		return requireUserinfoClaimError;
+	}
+
+	public void setRequireUserinfoClaimError(String requireUserinfoClaimError) {
+		this.requireUserinfoClaimError = requireUserinfoClaimError;
 	}
 }

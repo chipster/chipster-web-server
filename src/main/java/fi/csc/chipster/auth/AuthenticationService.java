@@ -20,6 +20,7 @@ import fi.csc.chipster.auth.resource.AuthTokenResource;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
+import fi.csc.chipster.auth.resource.OidcProvidersImpl;
 import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
@@ -48,6 +49,10 @@ public class AuthenticationService {
 
 	private HttpServer adminServer;
 	
+	public static List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
+		User.class,
+	});
+	
 	public AuthenticationService(Config config) {
 		this.config = config;
 	}
@@ -64,17 +69,14 @@ public class AuthenticationService {
     public void startServer() throws IOException, InterruptedException, URISyntaxException {    	    	
     	
     	// init Hibernate
-    	List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
-    		User.class,
-    	});
+
     	
     	hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);    	
-    	
-    	AuthTokens tokenTable = new AuthTokens(config);
     	UserTable userTable = new UserTable(hibernate);
+    	AuthTokens tokenTable = new AuthTokens(config);
     	
     	AuthTokenResource tokenResource = new AuthTokenResource(tokenTable, userTable);
-    	OidcResource oidcResource = new OidcResource();
+    	OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(tokenTable, userTable, config));
     	oidcResource.init(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
     	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable);
