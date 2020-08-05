@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import javax.ws.rs.InternalServerErrorException;
 
@@ -26,6 +27,7 @@ import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 
 public class OidcProvidersImpl implements OidcProviders {
 	
@@ -42,6 +44,12 @@ public class OidcProvidersImpl implements OidcProviders {
 		for (String oidcName : config.getConfigEntries(CONF_ISSUER + "-").keySet()) {			
 
 			OidcConfig oidc = OidcProviders.getOidcConfig(oidcName, config);
+			
+			logger.info("OIDC " + oidc.getOidcName() + " user ID claim: " + oidc.getClaimUserId());
+			logger.info("OIDC " + oidc.getOidcName() + " user ID prefix: " + oidc.getUserIdPrefix());
+			
+			logRequiredClaim("OIDC " + oidc.getOidcName() + " required claim", oidc.getRequiredClaimKey(), oidc.getRequiredClaimValue(), oidc.getRequiredClaimValueComparison());
+			logRequiredClaim("OIDC " + oidc.getOidcName() + " required userinfo claim", oidc.getRequiredUserinfoClaimKey(), oidc.getRequiredUserinfoClaimValue(), oidc.getRequiredUserinfoClaimValueComparison());
 						 
 			// use list, because there is no good map key. Multiple oidcConfigs may have the same issuer.
 			oidcConfigs.add(oidc);
@@ -64,6 +72,39 @@ public class OidcProvidersImpl implements OidcProviders {
 		setOidcConfigs(oidcConfigs);		
 	}
 	
+	private void logRequiredClaim(String name, String key, String value,
+			String comparison) {
+		
+		if (key.isEmpty()) {
+			logger.info(name + ": none");
+			return;
+		}
+		
+		if (OidcResource.COMPARISON_STRING.equals(comparison)) {
+			logger.info(name + " " + key + "=" + value);
+		} else if (OidcResource.COMPARISON_JSON_ARRAY_ANY.equals(comparison)) {
+									
+			logger.info(name + " " + key + " must include any of values: ");
+			
+			@SuppressWarnings("unchecked")
+			HashSet<String> items = RestUtils.parseJson(HashSet.class, value);
+			for (String item : items) {
+				logger.info("- " + item);
+			}
+		} else if (OidcResource.COMPARISON_JSON_ARRAY_ALL.equals(comparison)) {
+			logger.info(name + " " + key + " must include all values: ");
+			
+			@SuppressWarnings("unchecked")
+			HashSet<String> items = RestUtils.parseJson(HashSet.class, value);
+			for (String item : items) {
+				logger.info("- " + item);
+			}
+		} else {
+			logger.error("unknown " + name + " comparison: " + comparison);
+		}
+		
+	}
+
 	protected void setOidcConfigs(ArrayList<OidcConfig> oidcConfigs) {
 		
 		sortedOidcConfigs = new ArrayList<OidcConfig>(oidcConfigs);
