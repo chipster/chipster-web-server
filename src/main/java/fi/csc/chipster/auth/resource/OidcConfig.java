@@ -17,9 +17,13 @@ public class OidcConfig {
 	private String logoWidth;
 	private String userIdPrefix;
 	private String appId;
-	private String requireClaim;
-	private String requireUserinfoClaim;
-	private String requireUserinfoClaimError;
+	private String requiredClaimKey;
+	private String requiredClaimValue;
+	private String requiredClaimValueComparison;
+	private String requiredUserinfoClaimKey;
+	private String requiredUserinfoClaimValue;
+	private String requiredUserinfoClaimValueComparison;
+	private String requiredUserinfoClaimError;
 	private String description;
 	private String scope;
 
@@ -146,14 +150,6 @@ public class OidcConfig {
 		this.appId = appId;
 	}
 
-	public String getRequireClaim() {
-		return requireClaim;
-	}
-
-	public void setRequireClaim(String requireClaim) {
-		this.requireClaim = requireClaim;
-	}
-
 	public void setDescription(String description) {
 		this.description = description;
 	}
@@ -170,19 +166,60 @@ public class OidcConfig {
 		this.scope = scope;
 	}
 
-	public String getRequireUserinfoClaim() {
-		return requireUserinfoClaim;
+	public String getRequiredClaimKey() {
+		return requiredClaimKey;
 	}
 
-	public void setRequireUserinfoClaim(String requireUserinfoClaim) {
-		this.requireUserinfoClaim = requireUserinfoClaim;
+	public void setRequiredClaimKey(String requiredClaimKey) {
+		this.requiredClaimKey = requiredClaimKey;
 	}
 
-	public String getRequireUserinfoClaimError() {
-		return requireUserinfoClaimError;
+	public String getRequiredClaimValue() {
+		return requiredClaimValue;
 	}
 
-	public void setRequireUserinfoClaimError(String requireUserinfoClaimError) {
-		this.requireUserinfoClaimError = requireUserinfoClaimError;
+	public void setRequiredClaimValue(String requiredClaimValue) {
+		this.requiredClaimValue = requiredClaimValue;
 	}
+
+	public String getRequiredClaimValueComparison() {
+		return requiredClaimValueComparison;
+	}
+
+	public void setRequiredClaimValueComparison(String requiredClaimValueComparison) {
+		this.requiredClaimValueComparison = requiredClaimValueComparison;
+	}
+
+	public String getRequiredUserinfoClaimKey() {
+		return requiredUserinfoClaimKey;
+	}
+
+	public void setRequiredUserinfoClaimKey(String requiredUserinfoClaimKey) {
+		this.requiredUserinfoClaimKey = requiredUserinfoClaimKey;
+	}
+
+	public String getRequiredUserinfoClaimValue() {
+		return requiredUserinfoClaimValue;
+	}
+
+	public void setRequiredUserinfoClaimValue(String requiredUserinfoClaimValue) {
+		this.requiredUserinfoClaimValue = requiredUserinfoClaimValue;
+	}
+
+	public String getRequiredUserinfoClaimValueComparison() {
+		return requiredUserinfoClaimValueComparison;
+	}
+
+	public void setRequiredUserinfoClaimValueComparison(String requiredUserinfoClaimValueComparison) {
+		this.requiredUserinfoClaimValueComparison = requiredUserinfoClaimValueComparison;
+	}
+
+	public String getRequiredUserinfoClaimError() {
+		return requiredUserinfoClaimError;
+	}
+
+	public void setRequiredUserinfoClaimError(String requiredUserinfoClaimError) {
+		this.requiredUserinfoClaimError = requiredUserinfoClaimError;
+	}
+
 }

@@ -38,6 +38,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 /**
@@ -51,6 +52,10 @@ import fi.csc.chipster.rest.hibernate.Transaction;
  */
 @Path("oidc")
 public class OidcResource {
+
+	public static final String COMPARISON_STRING = "string";
+	public static final String COMPARISON_JSON_ARRAY_ALL = "jsonArrayAll";
+	public static final String COMPARISON_JSON_ARRAY_ANY = "jsonArrayAny";
 
 	private static final Logger logger = LogManager.getLogger();
 	
@@ -199,7 +204,7 @@ public class OidcResource {
 
 	private void checkUserInfo(OidcConfig oidcConfig, String accessTokenString, String issuer, String clientId, String sub) {
 		
-		if (oidcConfig.getRequireUserinfoClaim().isEmpty()) {
+		if (oidcConfig.getRequiredUserinfoClaimKey().isEmpty()) {
 			
 			if (this.isDebug) {
 				logger.info("no required userinfo claims");
@@ -234,11 +239,16 @@ public class OidcResource {
 			throw new InternalServerErrorException("id_token and userinfo subjects differ");
 		}
 		
-		if (!hasRequiredClaim(oidcConfig.getOidcName(), oidcConfig.getRequireUserinfoClaim(), userinfoClaims)) {
+		if (!hasRequiredClaim(
+				oidcConfig.getOidcName(), 
+				oidcConfig.getRequiredUserinfoClaimKey(), 
+				oidcConfig.getRequiredUserinfoClaimValue(), 
+				oidcConfig.getRequiredUserinfoClaimValueComparison(), 
+				userinfoClaims)) {
 			if (this.isDebug) {
-				logger.info("access denied. Required userinfo claim not found: " + oidcConfig.getRequireUserinfoClaim());
+				logger.info("access denied. Required userinfo claim not found: " + oidcConfig.getRequiredUserinfoClaimKey());
 			}
-			throw new ForbiddenException(oidcConfig.getRequireUserinfoClaimError());
+			throw new ForbiddenException(oidcConfig.getRequiredUserinfoClaimError());
 		}		
 	}
 
@@ -280,7 +290,12 @@ public class OidcResource {
 				continue;
 			}
 			
-			if (!hasRequiredClaim(oidc.getOidcName(), oidc.getRequireClaim(), claims)) {
+			if (!hasRequiredClaim(
+					oidc.getOidcName(), 
+					oidc.getRequiredClaimKey(), 
+					oidc.getRequiredClaimValue(), 
+					oidc.getRequiredClaimValueComparison(), 
+					claims)) {
 				continue;
 			}
 					
@@ -296,35 +311,66 @@ public class OidcResource {
 		throw new ForbiddenException("oidc config not found for issuer " + issuer);
 	}
 
-	protected boolean hasRequiredClaim(String oidcName, String requiredClaim, Map<String, Object> claims) {
-		if (!requiredClaim.isEmpty()) {
-			String[] keyValue = requiredClaim.split("=");
+	protected boolean hasRequiredClaim(String oidcName, String requiredClaimKey, String requiredClaimValue, String comparison, Map<String, Object> claims) {
+		if (!requiredClaimKey.isEmpty()) {
 			
-			String key = keyValue[0];
-			String value = null;
-			
-			if (keyValue.length == 2) {
-				value = keyValue[1];
-			}
-			
-			Object claimObj = claims.get(key);
+			Object claimObj = claims.get(requiredClaimKey);
 			if (claimObj == null) {
-				logger.info("oidc " + oidcName + " requires a non existent claim " + requiredClaim);					
+				logger.info("oidc " + oidcName + " requires a non existent claim " + requiredClaimKey);					
 				return false;
 			}
 			
-			if (value != null) {
+			if (!requiredClaimValue.isEmpty()) {
 				String claimValue = claimObj.toString();
 				
-				if (!claimValue.equals(value)) {
-					if (this.isDebug) {
-						logger.info("claim " + key + " has value '" + claimValue  + "', which does not match expected '" + value + "'");
+				if (COMPARISON_STRING.equals(comparison)) {
+					if (!claimValue.equals(requiredClaimValue)) {
+						if (this.isDebug) {
+							logger.info("claim " + requiredClaimKey + " has value '" + claimValue  + "', which does not match expected '" + requiredClaimValue + "'");
+						}
+						return false;
 					}
+				} else if (COMPARISON_JSON_ARRAY_ANY.equals(comparison) || COMPARISON_JSON_ARRAY_ALL.equals(comparison)) {
+				
+					try {
+						@SuppressWarnings("unchecked")
+						HashSet<String> requiredValues = RestUtils.parseJson(HashSet.class, requiredClaimValue);
+						@SuppressWarnings("unchecked")
+						HashSet<String> usersValues = RestUtils.parseJson(HashSet.class, claimValue);
+						
+						if (COMPARISON_JSON_ARRAY_ANY.equals(comparison)) {
+							
+							if (!requiredValues.stream().anyMatch(usersValues::contains)) {
+								if (this.isDebug) {
+									logger.info("claim " + requiredClaimKey + " has value '" + claimValue  + "', which does not contain any of expected '" + requiredClaimValue + "'");
+								}
+								return false;
+							}	
+							
+						} else if (COMPARISON_JSON_ARRAY_ALL.equals(comparison)) {
+							if (!requiredValues.stream().allMatch(usersValues::contains)) {
+								if (this.isDebug) {
+									logger.info("claim " + requiredClaimKey + " has value '" + claimValue  + "', which does not contain all of expected '" + requiredClaimValue + "'");
+								}
+								return false;
+							}
+						} else {
+							logger.error("impossible");
+							return false;
+						}
+						
+					} catch (InternalServerErrorException e) {
+						logger.error("failed to parse required claim value as json. configured: " + requiredClaimValue + ", from oidc: " + claimValue);
+						return false;
+					}
+					
+				} else {
+					logger.error("oidc " + oidcName + ", unknown required claim comparison: " + comparison);
 					return false;
 				}
 			} else {
 				if (isDebug) {
-					logger.info("claim " + key + " found, value is not required");
+					logger.info("claim " + requiredClaimKey + " found, value is not required");
 				}
 			}
 			

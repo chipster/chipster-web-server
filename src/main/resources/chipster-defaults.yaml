@@ -178,18 +178,36 @@ auth-oidc-claim-organization: ""
 auth-oidc-claim-user-id: "sub"
 # append this extra parameter the the authorization URL, in format KEY=VALUE
 auth-oidc-parameter: ""
-# accept authentication only if the token contains this claim, in format KEY=VALUE, or only KEY if the value doesn't matter. Next authentication method is tried if this claim is not found
-auth-oidc-require-claim: ""
-# accept authentication only if the userinfo response contains this claim, in format KEY=VALUE, or only KEY if the value doesn't matter. Querying the userinfo endpoint is only possible with access token, i.e. when to response type is "code", or "id_token token". Authentication fails if this claim is not found.
-auth-oidc-require-userinfo-claim: ""
-# show this error message to the user when the required userinfo claim is not found
-auth-oidc-require-userinfo-claim-error: "Chipster login is not allowed for this account"
 # prefix for the userId, set different for each authentication provider the prevent clashes
 auth-oidc-user-id-prefix: "oidc"
 # appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs 
 auth-oidc-app-id: "chipster"
 # print more information about failed login attempts
 auth-oidc-debug: false
+
+# Required claims. Empty lines in between to make it readable despite the long lines. 
+# accept authentication only if the token contains this claim key. Next authentication method is tried if this claim is not found
+auth-oidc-required-claim-key: ""
+
+# accept authentication only if the token contains the claim defined in auth-oidc-require-claim-key and its value matches the value given here.
+auth-oidc-required-claim-value: ""
+
+# how to compare claim values, like auth-oidc-require-userinfo-claim-value-comparison  
+auth-oidc-required-claim-value-comparison: "string"
+
+# accept authentication only if the userinfo response contains this claim key. Querying the userinfo endpoint is only possible with access token, i.e. when to response type is "code", or "id_token token". Authentication fails if this claim is not found.
+auth-oidc-required-userinfo-claim-key: ""
+
+# accept authentication only if the userinfo response contains the claim defined in auth-oidc-require-userinfo-claim-key and its value matches the value given here. Authentication fails if the value doesn't match.
+auth-oidc-required-userinfo-claim-value: ""
+
+# how to compare claim values. Set to "string" to require an exact string match. When this is set to "jsonArrayAll" or to "jsonArrayAny" the configured auth-oidc-require-userinfo-claim-value and the returned claim value is expected to be a json arrays of strings. Respectively, the claim value must contain all or at least one of the configured values.  
+auth-oidc-required-userinfo-claim-value-comparison: "string"
+
+# show this error message to the user when the required userinfo claim is not found
+auth-oidc-required-userinfo-claim-error: "Chipster login is not allowed for this account"
+
+
 
  
 # comp

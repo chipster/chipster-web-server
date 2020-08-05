@@ -94,7 +94,7 @@ public class OidcProvidersImpl implements OidcProviders {
 	private URI getUserInfoEndpointURI(OidcConfig oidc, OIDCProviderMetadata metadata) {
 		URI uri = metadata.getUserInfoEndpointURI();
 		
-		if (!oidc.getRequireUserinfoClaim().isEmpty() && uri == null) {
+		if (!oidc.getRequiredUserinfoClaimKey().isEmpty() && uri == null) {
 			throw new IllegalStateException("OpenID Connect userinfo endpoint is null, cannot check required claims without it");
 		}
 		

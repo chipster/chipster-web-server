@@ -45,14 +45,22 @@ public class OidcResourceTest {
 	private static final String PREFIX1 = "prefix1";
 	private static final String PREFIX2 = "prefix2";
 	private static final String PREFIX3 = "prefix3";
+	private static final String PREFIX4 = "prefix4";
+	private static final String PREFIX5 = "prefix5";
 	private static final String ISSUER12 = "issuer12";
 	private static final String CLIENT_ID12 = "clientId12";
 	private static final String USER_ID_CLAIM_KEY = "userIdClaimKey";
 	private static final String REQUIRED_CLAIM_KEY1 = "requiredClaimKey1";
 	private static final String REQUIRED_CLAIM_KEY2 = "requiredClaimKey2";
+	private static final String REQUIRED_CLAIM_KEY = "requiredClaimKey";
 	private static final String ISSUER3 = "issuer3";
+	private static final String ISSUER4 = "issuer4";
+	private static final String ISSUER5 = "issuer5";
 	private static final String CLIENT_ID3 = "clientId3";
+	private static final String CLIENT_ID4 = "clientId4";
+	private static final String CLIENT_ID5 = "clientId5";
 	private static final String REQUIRED_CLAIM_VALUE2 = "requiredClaimValue2";
+	private static final String REQUIRED_CLAIM_VALUE_JSON = "[\"a\", \"b\"]";
 	
 	private static TestServerLauncher launcher;
 	private static HibernateUtil hibernate;
@@ -144,6 +152,50 @@ public class OidcResourceTest {
 		String jws4 = oidcProviderMock.getIdToken(claimsIssuer2);
 		chipsterToken = resource.createTokenFromOidc(jws4, null);
 		assertEquals(PREFIX2, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+				
+		// issuer 4 requires any of "a" or "b"
+		HashMap<String, Object> claimsIssuer4 = new HashMap<>(claimsIssuer3) {{
+			put("aud", CLIENT_ID4);
+			put("iss", ISSUER4);
+			put(REQUIRED_CLAIM_KEY, "[\"b\", \"c\"]");
+		}};
+		
+		String jwsValid4 = oidcProviderMock.getIdToken(claimsIssuer4);
+		chipsterToken = resource.createTokenFromOidc(jwsValid4, null);
+		assertEquals(PREFIX4, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+		
+		// issuer 5 requires both of "a" and "b"
+		HashMap<String, Object> claimsIssuer5 = new HashMap<>(claimsIssuer3) {{
+			put("aud", CLIENT_ID5);
+			put("iss", ISSUER5);
+			put(REQUIRED_CLAIM_KEY, REQUIRED_CLAIM_VALUE_JSON);
+		}};
+		
+		String jwsValid5 = oidcProviderMock.getIdToken(claimsIssuer5);
+		chipsterToken = resource.createTokenFromOidc(jwsValid5, null);
+		assertEquals(PREFIX5, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+		
+		try {
+			// issuer 4 requires any of "a" or "b"
+			HashMap<String, Object> claimsIssuer4Fail = new HashMap<>(claimsIssuer4) {{
+				put(REQUIRED_CLAIM_KEY, "[\"c\"]");
+			}};
+			
+			String jwsFail4 = oidcProviderMock.getIdToken(claimsIssuer4Fail);
+			chipsterToken = resource.createTokenFromOidc(jwsFail4, null);
+			Assert.fail();
+		} catch (ForbiddenException e) { }
+		
+		try {
+			// issuer 5 requires both of "a" and "b"
+			HashMap<String, Object> claimsIssuer5Fail = new HashMap<>(claimsIssuer5) {{
+				put(REQUIRED_CLAIM_KEY, "[\"a\"]");
+			}};
+			
+			String jwsFail5 = oidcProviderMock.getIdToken(claimsIssuer5Fail);
+			chipsterToken = resource.createTokenFromOidc(jwsFail5, null);
+			Assert.fail();
+		} catch (ForbiddenException e) { }
 		
 		// wrong required claim value
 		try {
@@ -275,19 +327,22 @@ public class OidcResourceTest {
 		OidcConfig oidc1 = OidcProviders.getOidcConfig("oidcName1", config);
 		OidcConfig oidc2 = OidcProviders.getOidcConfig("oidcName2", config);
 		OidcConfig oidc3 = OidcProviders.getOidcConfig("oidcName3", config);
+		OidcConfig oidc4 = OidcProviders.getOidcConfig("oidcName4", config);
+		OidcConfig oidc5 = OidcProviders.getOidcConfig("oidcName5", config);
 
 		// oidc1 and oidc2 have same issuer and clientId, but different required claim
 		oidc1.setIssuer(ISSUER12);
 		oidc1.setClientId(CLIENT_ID12);
 		oidc1.setClaimUserId(USER_ID_CLAIM_KEY);
-		oidc1.setRequireClaim(REQUIRED_CLAIM_KEY1);
+		oidc1.setRequiredClaimKey(REQUIRED_CLAIM_KEY1);
 		oidc1.setUserIdPrefix(PREFIX1);
 		
 		oidc2.setIssuer(ISSUER12);
 		oidc2.setClientId(CLIENT_ID12);
 		oidc2.setOidcName("oidcName2");
 		oidc2.setClaimUserId(USER_ID_CLAIM_KEY);
-		oidc2.setRequireClaim(REQUIRED_CLAIM_KEY2 + "=" + REQUIRED_CLAIM_VALUE2);
+		oidc2.setRequiredClaimKey(REQUIRED_CLAIM_KEY2);
+		oidc2.setRequiredClaimValue(REQUIRED_CLAIM_VALUE2);
 		oidc2.setUserIdPrefix(PREFIX2);
 				
 		// oidc3 is alone
@@ -295,11 +350,31 @@ public class OidcResourceTest {
 		oidc3.setClientId("clientId3");
 		oidc3.setOidcName("oidcName3");
 		oidc3.setUserIdPrefix(PREFIX3);
+		
+		// oidc4
+		oidc4.setIssuer(ISSUER4);
+		oidc4.setClientId("clientId4");
+		oidc4.setOidcName("oidcName4");
+		oidc4.setRequiredClaimKey(REQUIRED_CLAIM_KEY);
+		oidc4.setRequiredClaimValue(REQUIRED_CLAIM_VALUE_JSON);
+		oidc4.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ANY);
+		oidc4.setUserIdPrefix(PREFIX4);
+		
+		// oidc5
+		oidc5.setIssuer(ISSUER5);
+		oidc5.setClientId("clientId5");
+		oidc5.setOidcName("oidcName5");
+		oidc5.setRequiredClaimKey(REQUIRED_CLAIM_KEY);
+		oidc5.setRequiredClaimValue(REQUIRED_CLAIM_VALUE_JSON);
+		oidc5.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ALL);
+		oidc5.setUserIdPrefix(PREFIX5);
 						
 		ArrayList<OidcConfig> oidcConfigs = new ArrayList<OidcConfig>() {{
 			add(oidc1);
 			add(oidc2);
 			add(oidc3);
+			add(oidc4);
+			add(oidc5);
 		}};		
 		
 		return oidcConfigs;

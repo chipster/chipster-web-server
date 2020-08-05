@@ -31,9 +31,13 @@ public interface OidcProviders {
 	public static final String CONF_PARAMETER = "auth-oidc-parameter";
 	public static final String CONF_USER_ID_PREFIX = "auth-oidc-user-id-prefix";
 	public static final String CONF_APP_ID = "auth-oidc-app-id";
-	public static final String CONF_REQUIRE_CLAIM = "auth-oidc-require-claim";
-	public static final String CONF_REQUIRE_USERINFO_CLAIM = "auth-oidc-require-userinfo-claim";
-	public static final String CONF_REQUIRE_USERINFO_CLAIM_ERROR = "auth-oidc-require-userinfo-claim-error";
+	public static final String CONF_REQUIRED_CLAIM_KEY = "auth-oidc-required-claim-key";
+	public static final String CONF_REQUIRED_CLAIM_VALUE = "auth-oidc-required-claim-value";
+	public static final String CONF_REQUIRED_CLAIM_VALUE_COMPARISON = "auth-oidc-required-claim-value-comparison";
+	public static final String CONF_REQUIRED_USERINFO_CLAIM_KEY = "auth-oidc-required-userinfo-claim-key";	
+	public static final String CONF_REQUIRED_USERINFO_CLAIM_VALUE = "auth-oidc-required-userinfo-claim-value";
+	public static final String CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON = "auth-oidc-required-userinfo-claim-value-comparison";
+	public static final String CONF_REQUIRED_USERINFO_CLAIM_ERROR = "auth-oidc-required-userinfo-claim-error";
 	public static final String CONF_DESCRIPTION = "auth-oidc-description";
 	public static final String CONF_SCOPE = "auth-oidc-scope";
 
@@ -62,9 +66,13 @@ public interface OidcProviders {
 		oidc.setParameter(config.getString(CONF_PARAMETER, oidcName));
 		oidc.setUserIdPrefix(config.getString(CONF_USER_ID_PREFIX, oidcName));
 		oidc.setAppId(config.getString(CONF_APP_ID, oidcName));
-		oidc.setRequireClaim(config.getString(CONF_REQUIRE_CLAIM, oidcName));
-		oidc.setRequireUserinfoClaim(config.getString(CONF_REQUIRE_USERINFO_CLAIM, oidcName));
-		oidc.setRequireUserinfoClaimError(config.getString(CONF_REQUIRE_USERINFO_CLAIM_ERROR, oidcName));
+		oidc.setRequiredClaimKey(config.getString(CONF_REQUIRED_CLAIM_KEY, oidcName));
+		oidc.setRequiredClaimValue(config.getString(CONF_REQUIRED_CLAIM_VALUE, oidcName));
+		oidc.setRequiredClaimValueComparison(config.getString(CONF_REQUIRED_CLAIM_VALUE_COMPARISON, oidcName));
+		oidc.setRequiredUserinfoClaimKey(config.getString(CONF_REQUIRED_USERINFO_CLAIM_KEY, oidcName));
+		oidc.setRequiredUserinfoClaimValue(config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE, oidcName));
+		oidc.setRequiredUserinfoClaimValueComparison(config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON, oidcName));
+		oidc.setRequiredUserinfoClaimError(config.getString(CONF_REQUIRED_USERINFO_CLAIM_ERROR, oidcName));
 		oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 		oidc.setScope(config.getString(CONF_SCOPE, oidcName));
 		
