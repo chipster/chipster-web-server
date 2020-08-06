@@ -5,6 +5,8 @@ import java.net.URI;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.rewrite.handler.HeaderPatternRule;
+import org.eclipse.jetty.rewrite.handler.RewriteHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
@@ -82,8 +84,17 @@ public class WebServer {
         if (!indexFile.exists()) {
         	logger.warn("index.html " + indexFile + " doesn't exist");
         }
-        
+                
+        // disable caching of the front page, because we use it for maintenance break communication
+        RewriteHandler cacheRewrite = new RewriteHandler();        
+        HeaderPatternRule cacheRule = new HeaderPatternRule();
+        cacheRule.setPattern("*/app-home.html");
+        cacheRule.setName("Cache-Control");
+        cacheRule.setValue("no-store");        
+        cacheRewrite.addRule(cacheRule);
+               
         HandlerList handlers = new HandlerList();                               
+        handlers.addHandler(cacheRewrite);
         handlers.addHandler(contextHandler);
         handlers.addHandler(new DefaultHandler());        
         server.setHandler(handlers);

@@ -127,6 +127,9 @@ dependencies {
     compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.4.20.v20190813"
     compile "org.glassfish.tyrus:tyrus-client:+"
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
+    
+    // cache settings in web-server
+    compile "org.eclipse.jetty:jetty-rewrite:9.4.20.v20190813"
 
 	// other
     compile "commons-io:commons-io:+"
