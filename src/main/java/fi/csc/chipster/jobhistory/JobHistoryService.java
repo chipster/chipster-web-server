@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import javax.websocket.MessageHandler;
 
@@ -33,6 +34,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.JobIdPair;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
@@ -149,10 +151,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			}
 			break;
 		case UPDATE:
-			if (jobState.isFinished()) {
-				job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-				updateJobHistory(job);
-			}
+			updateJobHistory(e.getSessionId(), e.getResourceId(), jobState);
 			break;
 		default:
 			break;
@@ -187,24 +186,39 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		});
 	}
 
-	private void updateJobHistory(Job job) {
+	private void updateJobHistory(UUID sessionId, UUID jobId, JobState newState) {
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
-				JobHistoryModel js = hibernateSession.get(JobHistoryModel.class, job.getJobIdPair());
+								
+				JobHistoryModel js = hibernateSession.get(JobHistoryModel.class, new JobIdPair(sessionId, jobId));
 				// the HibbernateUtil.update() assumes detached objects, otherwise it won't
 				// notice the changes
 				hibernateSession.detach(js);
 				
-				js.setStartTime(job.getStartTime());
-				js.setEndTime(job.getEndTime());
-				js.setOutput(job.getScreenOutput());
-				js.setJobStatus(job.getState().toString());
-				js.setJobStatusDetail(job.getStateDetail());
-				js.setMemoryUsage(job.getMemoryUsage());
+				boolean isFinished = newState.isFinished();
+				boolean isScheduled = JobState.NEW == JobState.valueOf(js.getJobStatus()) 
+						&& newState != JobState.NEW;
 				
-				HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
-
+				if (isFinished || isScheduled) {
+					Job job;
+					try {
+						job = sessionDbClient.getJob(sessionId, jobId);
+				
+						js.setStartTime(job.getStartTime());
+						js.setEndTime(job.getEndTime());
+						js.setOutput(job.getScreenOutput());
+						js.setJobStatus(job.getState().toString());
+						js.setJobStatusDetail(job.getStateDetail());
+						js.setMemoryUsage(job.getMemoryUsage());
+						js.setCompName(job.getComp());
+						
+						HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
+						
+					} catch (RestException e) {
+						logger.error("failed to get the job from session-db", e);
+					}
+				}
 				return null;
 			}
 		});

@@ -2,6 +2,7 @@ package fi.csc.chipster.comp;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -110,6 +111,7 @@ public class RestCompServer
 	private ResourceMonitor resourceMonitor;
 	private int monitoringInterval;
 	private HttpServer adminServer;
+	private String hostname;
 
 	/**
 	 * 
@@ -191,6 +193,8 @@ public class RestCompServer
 		AdminResource adminResource = new AdminResource(this);
 		adminResource.addFileSystem("work", workDir);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient, serviceLocator);
+		
+		this.hostname = InetAddress.getLocalHost().getHostName();
 
 		sendCompAvailable();
 
@@ -367,6 +371,13 @@ public class RestCompServer
 			}
 			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
+			dbJob.setComp(this.hostname);
+			
+			CompJob compJob = this.runningJobs.get(jobMessage.getJobId());
+			if (compJob != null) {
+				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem(compJob.getProcess()));
+			}
+			
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 		} catch (RestException e) {
 			logger.error("could not update the job", e);

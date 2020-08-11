@@ -47,6 +47,7 @@ public class Job {
 	private Long memoryUsage;
 
 	private String createdBy;
+	private String comp;
 
 	@Column
 	@Type(type = Parameter.PARAMETER_LIST_JSON_TYPE)
@@ -220,5 +221,13 @@ public class Job {
 
 	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
 		this.metadataFiles = metadataFiles;
+	}
+
+	public String getComp() {
+		return comp;
+	}
+
+	public void setComp(String comp) {
+		this.comp = comp;
 	}
 }
