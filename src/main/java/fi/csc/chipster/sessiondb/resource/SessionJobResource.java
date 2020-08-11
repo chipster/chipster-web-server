@@ -166,9 +166,26 @@ public class SessionJobResource {
 			}
 			job.setJobIdPair(sessionId, jobId);
 			
-			// allow client to post old jobs with correct timestamps (e.g. when importing a zip session)
-			if (job.getCreated() == null) {
-				job.setCreated(Instant.now());
+			// we'll set the job.created field for new jobs so that we can trust those for accounting. Client can set the timestamp 
+			// for old jobs to preserve the session history
+			
+			if (job.getState() == null) {
+				throw new BadRequestException("job state is null, job ID " + job.getJobId());
+				
+			} else if (job.getState().isFinished()) {
+				if (job.getCreated() == null) {
+					logger.warn("a finished job doesn't have creation time. The current time will be used. Username " + job.getCreatedBy() + " toolId " + job.getToolId());
+					job.setCreated(Instant.now());
+				} else {
+					// allow client to post old jobs with correct timestamps (e.g. when importing a zip session)		
+				}
+			} else {
+				if (job.getCreated() == null) {
+					// new job, the created time will be set now
+					job.setCreated(Instant.now());
+				} else {
+					throw new BadRequestException("setting the creation time for non-finished jobs is not allowed");
+				}
 			}
 		}		
 		
@@ -251,6 +268,8 @@ public class SessionJobResource {
 		}
 		// make sure a hostile client doesn't change the createdBy username
 		requestJob.setCreatedBy(dbJob.getCreatedBy());
+		// make sure a hostile client doesn't change the created timestamp
+		requestJob.setCreated(dbJob.getCreated());
 		
 		this.checkInputAccessRights(session, requestJob);
 		

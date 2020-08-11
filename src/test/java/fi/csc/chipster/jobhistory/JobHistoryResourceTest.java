@@ -3,7 +3,6 @@ package fi.csc.chipster.jobhistory;
 import static org.junit.Assert.assertEquals;
 
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Random;
@@ -61,7 +60,6 @@ public class JobHistoryResourceTest {
 			Instant jobStartTime = getRandomTimeStamp();
 			j.setStartTime(jobStartTime);
 			j.setEndTime(jobStartTime.plus(30, ChronoUnit.SECONDS));
-			j.setTimeDuration(Long.toString(Math.abs(Duration.between(j.getEndTime(), j.getStartTime()).getSeconds())));
 			if (i % 5 == 0) {
 				j.setJobStatus("NEW");
 			} else if (i % 2 == 0) {

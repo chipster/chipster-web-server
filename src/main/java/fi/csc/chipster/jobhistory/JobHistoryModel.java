@@ -18,9 +18,8 @@ import fi.csc.chipster.sessiondb.model.JobIdPair;
 
 @Entity
 @Table(name="JobHistoryModel", indexes={
-		@Index(columnList="startTime DESC", name="job_history_start_time_index")
+		@Index(columnList="created DESC", name="job_history_created_index")
 })
-
 @XmlRootElement
 public class JobHistoryModel {
 	@EmbeddedId // db
@@ -29,14 +28,16 @@ public class JobHistoryModel {
 	private String toolId;
 	private String toolName;
 	private String compName;
-	private String timeDuration;
 	@Column(name="startTime")
 	private Instant startTime;
 	private Instant endTime;
+	private Instant created;
 	private String userName;
 	@Lob
 	private String output;
 	private String jobStatus;
+	private String jobStatusDetail;
+	private Long memoryUsage;
 
 	public JobHistoryModel() {
 
@@ -64,14 +65,6 @@ public class JobHistoryModel {
 
 	public void setCompName(String compName) {
 		this.compName = compName;
-	}
-
-	public String getTimeDuration() {
-		return timeDuration;
-	}
-
-	public void setTimeDuration(String timeDuration) {
-		this.timeDuration = timeDuration;
 	}
 
 	public Instant getEndTime() {
@@ -124,5 +117,29 @@ public class JobHistoryModel {
 
 	public void setJobIdPair(UUID sessionId, UUID jobId) {
 		this.setJobIdPair(new JobIdPair(sessionId, jobId));
+	}
+
+	public Long getMemoryUsage() {
+		return memoryUsage;
+	}
+
+	public void setMemoryUsage(Long memoryUsage) {
+		this.memoryUsage = memoryUsage;
+	}
+
+	public Instant getCreated() {
+		return created;
+	}
+
+	public void setCreated(Instant created) {
+		this.created = created;
+	}
+
+	public String getJobStatusDetail() {
+		return jobStatusDetail;
+	}
+
+	public void setJobStatusDetail(String jobStatusDetail) {
+		this.jobStatusDetail = jobStatusDetail;
 	}
 }

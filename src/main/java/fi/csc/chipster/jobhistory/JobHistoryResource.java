@@ -84,7 +84,7 @@ public class JobHistoryResource extends AdminResource {
 		if (parameters.size() > 0) {
 			// Query itself
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
-			criteria.orderBy(builder.desc(root.get("startTime")));
+			criteria.orderBy(builder.desc(root.get("created")));
 			Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
 			query.setFirstResult((pageNumber - 1) * pageSize);
 			query.setMaxResults(pageSize);
@@ -94,7 +94,7 @@ public class JobHistoryResource extends AdminResource {
 		} else {
 			// Returning simple job history list without any filter attribute
 			criteria.select(root);
-			criteria.orderBy(builder.desc(root.get("startTime")));
+			criteria.orderBy(builder.desc(root.get("created")));
 			Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
 			query.setFirstResult((pageNumber - 1) * pageSize);
 			query.setMaxResults(pageSize);

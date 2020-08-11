@@ -3,7 +3,7 @@ package fi.csc.chipster.jobhistory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,6 +18,7 @@ import org.hibernate.Session;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
@@ -50,7 +51,6 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	public JobHistoryService(Config config) {
 		this.config = config;
-
 	}
 
 	/**
@@ -114,7 +114,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		logger.info("received a job event: " + e.getResourceType() + " " + e.getType());
 		try {
 			if (e.getResourceType() == ResourceType.JOB) {
-				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()));
+				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()), JobState.valueOf(e.getState()));
 			}
 		} catch (Exception ex) {
 			logger.error("error when handling a session event", ex);
@@ -124,19 +124,22 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	/**
 	 * Handling the events received from session-db
+	 * @param jobState 
 	 * 
 	 */
 
-	private void handleDbEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
+	private void handleDbEvent(SessionEvent e, IdPair jobIdPair, JobState jobState) throws RestException {
 		switch (e.getType()) {
 		case CREATE:
 			Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			switch (job.getState()) {
+			
+			// use the state from the event, because the state in db can be already something else
+			switch (jobState) {
 			case NEW:
 				// When a client adds a new job, save it the job history
 				// database
 				// hibernate.getsession.save()
-				saveJobHistory(job);
+				saveNewJobHistory(job, jobState);
 				break;
 			case COMPLETED:
 				logger.info("For imported sessions, jobs are not logged in to job history database");
@@ -146,38 +149,35 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			}
 			break;
 		case UPDATE:
-			job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			switch (job.getState()) {
-			case COMPLETED:
-			case FAILED:
-			case CANCELLED:
-			case FAILED_USER_ERROR:
-			case ERROR:
+			if (jobState.isFinished()) {
+				job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
 				updateJobHistory(job);
-				break;
-			default:
-				break;
 			}
+			break;
 		default:
 			break;
 		// what to do with if the client has cancelled the job?
 		}
 	}
 
-	private void saveJobHistory(Job job) {
+	private void saveNewJobHistory(Job job, JobState jobState) {
 		logger.info("saveJobHistory " + job.getCreated() + " " + job.getStartTime() + " " + job.getEndTime());
 		JobHistoryModel jobHistory = new JobHistoryModel();
 		jobHistory.setJobIdPair(job.getJobIdPair());
 		jobHistory.setToolId(job.getToolId());
 		jobHistory.setToolName(job.getToolName());
-		// this will be changed to real start time when the job ends
-		jobHistory.setStartTime(job.getCreated());
-		jobHistory.setEndTime(job.getEndTime());
-		// new jobs don't have end time
-		// jobHistory.setTimeDuration(Long.toString(Math.abs(Duration.between(job.getEndTime(),job.getStartTime()).getSeconds())));
-		jobHistory.setOutput(job.getScreenOutput());
-		jobHistory.setJobStatus(job.getState().toString());
-		jobHistory.setUserName(job.getCreatedBy());
+		
+		if (job.getCreated() == null) {
+			// session-db should make sure that this is set for all jobs
+			logger.warn("job.created is null, using the current time");
+			jobHistory.setCreated(Instant.now());
+		} else {
+			jobHistory.setCreated(job.getCreated());
+		}
+		
+		jobHistory.setJobStatus(jobState.toString());
+		jobHistory.setUserName(job.getCreatedBy());		
+		
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
@@ -195,17 +195,14 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				// the HibbernateUtil.update() assumes detached objects, otherwise it won't
 				// notice the changes
 				hibernateSession.detach(js);
-				js.setToolId(job.getToolId());
-				js.setToolName(job.getToolName());
+				
 				js.setStartTime(job.getStartTime());
 				js.setEndTime(job.getEndTime());
-				if ((job.getEndTime() != null) && (job.getStartTime() != null)) {
-					js.setTimeDuration(Long
-							.toString(Math.abs(Duration.between(job.getEndTime(), job.getStartTime()).getSeconds())));
-				}
 				js.setOutput(job.getScreenOutput());
 				js.setJobStatus(job.getState().toString());
-				js.setUserName(job.getCreatedBy());
+				js.setJobStatusDetail(job.getStateDetail());
+				js.setMemoryUsage(job.getMemoryUsage());
+				
 				HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
 
 				return null;
