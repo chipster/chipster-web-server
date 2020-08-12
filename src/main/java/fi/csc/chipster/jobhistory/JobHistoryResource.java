@@ -12,6 +12,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
@@ -35,11 +36,15 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 
 public class JobHistoryResource extends AdminResource {
+	private static final String PARAM_GREATER_THAN = ">";
+	private static final String PARAM_LESS_THAN = "<";
+	private static final String PARAM_NOT_EQUAL = "!";
+	
 	@SuppressWarnings("unused")
 	private Config config;
 	private HibernateUtil hibernate;
 	private Logger logger = LogManager.getLogger();
-	public static final String FILTER_ATTRIBUTE_TIME = "Time";
+	public static final String FILTER_ATTRIBUTE_TIME = "created";
 	public static final String FILTER_ATTRIBUTE_PAGE = "page";
 
 	public JobHistoryResource(HibernateUtil hibernate, Config config) {
@@ -79,32 +84,21 @@ public class JobHistoryResource extends AdminResource {
 
 		// Specify criteria root
 		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
-		List<Predicate> predicate = createPredicate(parameters, root, builder);
 
 		if (parameters.size() > 0) {
+			List<Predicate> predicate = createPredicate(parameters, root, builder);
 			// Query itself
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
-			criteria.orderBy(builder.desc(root.get("created")));
-			Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
-			query.setFirstResult((pageNumber - 1) * pageSize);
-			query.setMaxResults(pageSize);
-			Collection<JobHistoryModel> jobHistoryList = query.getResultList();
-			return Response.ok(toJaxbList(jobHistoryList)).build();
-
-		} else {
-			// Returning simple job history list without any filter attribute
-			criteria.select(root);
-			criteria.orderBy(builder.desc(root.get("created")));
-			Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
-			query.setFirstResult((pageNumber - 1) * pageSize);
-			query.setMaxResults(pageSize);
-			List<JobHistoryModel> jobHistoryList = query.getResultList();
-			logger.info(jobHistoryList);
-
-			return Response.ok(toJaxbList(jobHistoryList)).build();
-
 		}
 
+		criteria.select(root);
+		criteria.orderBy(builder.desc(root.get("created")));
+		Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
+		query.setFirstResult((pageNumber - 1) * pageSize);
+		query.setMaxResults(pageSize);
+		List<JobHistoryModel> jobHistoryList = query.getResultList();
+
+		return Response.ok(toJaxbList(jobHistoryList)).build();
 	}
 
 	@GET
@@ -126,10 +120,10 @@ public class JobHistoryResource extends AdminResource {
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		CriteriaQuery<JobHistoryModel> criteria = builder.createQuery(JobHistoryModel.class);
 		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
-		List<Predicate> predicate = createPredicate(parameters, root, builder);
 
 		if (parameters.size() > 0) {
 			try {
+				List<Predicate> predicate = createPredicate(parameters, root, builder);
 				CriteriaQuery<Long> q = builder.createQuery(Long.class);
 				q.select(builder.count(q.from(JobHistoryModel.class)));
 				getHibernate().session().createQuery(q);
@@ -179,42 +173,58 @@ public class JobHistoryResource extends AdminResource {
 		// the first parameter is the page number we are seeking record, so no
 		// need to add in query
 		List<Predicate> predicate = new ArrayList<Predicate>();
-		if (parameters.size() > 0) {
-			for (String key : parameters.keySet()) {
-				if (key != null) {
-					if (parameters.get(key).contains("gt")) {
-						// add greater than filter
-						try {
-							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
-								String time = parameters.get(key).split("=")[1];
-								Instant timeVal = Instant.parse(time);
-								predicate.add(builder.greaterThan(root.get(key), timeVal));
-							} else {
-								predicate.add(builder.greaterThan(root.get(key), parameters.get(key)));
-							}
 
-						} catch (IllegalArgumentException e) {
-							logger.error("error in parsing job history parameter", e);
-						}
-
-					} else if (parameters.get(key).contains("lt")) {
-						// add lt filter
-						try {
-							if (key.contains(FILTER_ATTRIBUTE_TIME)) {
-								Instant timeVal = Instant.parse(parameters.get(key).split("=")[1]);
-								predicate.add(builder.lessThan(root.get(key), timeVal));
-							} else {
-								predicate.add(builder.lessThan(root.get(key), parameters.get(key)));
-							}
-						} catch (IllegalArgumentException e) {
-							logger.error("error in parsing job history parameter", e);
-						}
+		for (String key : parameters.keySet()) {
+			if (key != null) {
+				String httpValue = parameters.get(key);
+				String stringValue = null;
+				Instant instantValue = null;
+				
+				if (httpValue.startsWith(PARAM_GREATER_THAN) 
+						|| httpValue.startsWith(PARAM_LESS_THAN) 
+						|| httpValue.startsWith(PARAM_NOT_EQUAL)) {
+					
+					stringValue = httpValue.substring(1);
+				} else {
+					stringValue = httpValue;
+				}
+				
+				boolean isTime = FILTER_ATTRIBUTE_TIME.equals(key);
+				
+				if (isTime) {
+					try {
+						instantValue = Instant.parse(stringValue);
+					} catch (IllegalArgumentException e) {
+						logger.error("error in parsing job history parameter", e);
+						throw new BadRequestException("unable to parse " + stringValue);
+					}
+				}
+								
+				if (httpValue.startsWith(PARAM_GREATER_THAN)) {
+					if (isTime) {
+						predicate.add(builder.greaterThan(root.get(key), instantValue));
 					} else {
-						try {
-							predicate.add(builder.equal(root.get(key), parameters.get(key)));
-						} catch (IllegalArgumentException e) {
-							logger.error("error in parsing job history parameter", e);
-						}
+						predicate.add(builder.greaterThan(root.get(key), stringValue));
+					}
+					
+				} else if (httpValue.startsWith(PARAM_LESS_THAN)) {
+					if (isTime) {
+						predicate.add(builder.lessThan(root.get(key), instantValue));
+					} else {
+						predicate.add(builder.lessThan(root.get(key), stringValue));
+					}
+					
+				} else if (httpValue.startsWith(PARAM_NOT_EQUAL)) {
+					if (isTime) {
+						predicate.add(builder.notEqual(root.get(key), instantValue));
+					} else {
+						predicate.add(builder.notEqual(root.get(key), stringValue));
+					}
+				} else {
+					if (isTime) {
+						predicate.add(builder.equal(root.get(key), instantValue));
+					} else {
+						predicate.add(builder.equal(root.get(key), stringValue));
 					}
 				}
 			}
