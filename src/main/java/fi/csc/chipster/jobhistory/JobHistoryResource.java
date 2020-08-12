@@ -80,10 +80,10 @@ public class JobHistoryResource extends AdminResource {
 
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		// Create CriteriaQuery
-		CriteriaQuery<JobHistoryModel> criteria = builder.createQuery(JobHistoryModel.class);
+		CriteriaQuery<JobHistory> criteria = builder.createQuery(JobHistory.class);
 
 		// Specify criteria root
-		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
+		Root<JobHistory> root = criteria.from(JobHistory.class);
 
 		if (parameters.size() > 0) {
 			List<Predicate> predicate = createPredicate(parameters, root, builder);
@@ -93,10 +93,10 @@ public class JobHistoryResource extends AdminResource {
 
 		criteria.select(root);
 		criteria.orderBy(builder.desc(root.get("created")));
-		Query<JobHistoryModel> query = getHibernate().session().createQuery(criteria);
+		Query<JobHistory> query = getHibernate().session().createQuery(criteria);
 		query.setFirstResult((pageNumber - 1) * pageSize);
 		query.setMaxResults(pageSize);
-		List<JobHistoryModel> jobHistoryList = query.getResultList();
+		List<JobHistory> jobHistoryList = query.getResultList();
 
 		return Response.ok(toJaxbList(jobHistoryList)).build();
 	}
@@ -118,14 +118,14 @@ public class JobHistoryResource extends AdminResource {
 		parameters.remove(FILTER_ATTRIBUTE_PAGE);
 
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
-		CriteriaQuery<JobHistoryModel> criteria = builder.createQuery(JobHistoryModel.class);
-		Root<JobHistoryModel> root = criteria.from(JobHistoryModel.class);
+		CriteriaQuery<JobHistory> criteria = builder.createQuery(JobHistory.class);
+		Root<JobHistory> root = criteria.from(JobHistory.class);
 
 		if (parameters.size() > 0) {
 			try {
 				List<Predicate> predicate = createPredicate(parameters, root, builder);
 				CriteriaQuery<Long> q = builder.createQuery(Long.class);
-				q.select(builder.count(q.from(JobHistoryModel.class)));
+				q.select(builder.count(q.from(JobHistory.class)));
 				getHibernate().session().createQuery(q);
 				q.where(predicate.toArray(new Predicate[] {}));
 				Long count = getHibernate().session().createQuery(q).getSingleResult();
@@ -136,7 +136,7 @@ public class JobHistoryResource extends AdminResource {
 
 		} else {
 			// Returning simple job history list without any filter attribute
-			Long count = getRowCount(JobHistoryModel.class, getHibernate());
+			Long count = getRowCount(JobHistory.class, getHibernate());
 			return Response.ok(count).build();
 		}
 		return Response.ok().build();
@@ -161,14 +161,14 @@ public class JobHistoryResource extends AdminResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response post(JobHistoryModel jobHistory) {
+	public Response post(JobHistory jobHistory) {
 
 		HibernateUtil.persist(jobHistory, getHibernate().session());
 
 		return Response.ok().build();
 	}
 
-	private List<Predicate> createPredicate(Map<String, String> parameters, Root<JobHistoryModel> root,
+	private List<Predicate> createPredicate(Map<String, String> parameters, Root<JobHistory> root,
 			CriteriaBuilder builder) {
 		// the first parameter is the page number we are seeking record, so no
 		// need to add in query
@@ -233,8 +233,8 @@ public class JobHistoryResource extends AdminResource {
 		return predicate;
 	}
 
-	private GenericEntity<Collection<JobHistoryModel>> toJaxbList(Collection<JobHistoryModel> result) {
-		return new GenericEntity<Collection<JobHistoryModel>>(result) {
+	private GenericEntity<Collection<JobHistory>> toJaxbList(Collection<JobHistory> result) {
+		return new GenericEntity<Collection<JobHistory>>(result) {
 		};
 	}
 

@@ -17,29 +17,30 @@ import fi.csc.chipster.sessiondb.model.JobIdPair;
 
 
 @Entity
-@Table(name="JobHistoryModel", indexes={
+@Table(indexes={
 		@Index(columnList="created DESC", name="job_history_created_index")
 })
 @XmlRootElement
-public class JobHistoryModel {
+public class JobHistory {
 	@EmbeddedId // db
 	@JsonUnwrapped
 	private JobIdPair jobIdPair;
 	private String toolId;
 	private String toolName;
-	private String compName;
+	private String comp;
 	@Column(name="startTime")
 	private Instant startTime;
 	private Instant endTime;
 	private Instant created;
-	private String userName;
+	private String createdBy;
 	@Lob
-	private String output;
-	private String jobStatus;
-	private String jobStatusDetail;
+	private String screenOutput;
+	private String state;
+	private String stateDetail;
 	private Long memoryUsage;
+	private String module;
 
-	public JobHistoryModel() {
+	public JobHistory() {
 
 	}
 
@@ -59,14 +60,6 @@ public class JobHistoryModel {
 		this.toolName = toolName;
 	}
 
-	public String getCompName() {
-		return compName;
-	}
-
-	public void setCompName(String compName) {
-		this.compName = compName;
-	}
-
 	public Instant getEndTime() {
 		return endTime;
 	}
@@ -75,36 +68,12 @@ public class JobHistoryModel {
 		this.endTime = endTime;
 	}
 
-	public String getOutput() {
-		return output;
-	}
-
-	public void setOutput(String output) {
-		this.output = output;
-	}
-
-	public String getJobStatus() {
-		return jobStatus;
-	}
-
-	public void setJobStatus(String jobStatus) {
-		this.jobStatus = jobStatus;
-	}
-
 	public Instant getStartTime() {
 		return startTime;
 	}
 
 	public void setStartTime(Instant startTime) {
 		this.startTime = startTime;
-	}
-
-	public String getUserName() {
-		return userName;
-	}
-
-	public void setUserName(String userName) {
-		this.userName = userName;
 	}
 
 	public JobIdPair getJobIdPair() {
@@ -135,11 +104,51 @@ public class JobHistoryModel {
 		this.created = created;
 	}
 
-	public String getJobStatusDetail() {
-		return jobStatusDetail;
+	public String getComp() {
+		return comp;
 	}
 
-	public void setJobStatusDetail(String jobStatusDetail) {
-		this.jobStatusDetail = jobStatusDetail;
+	public void setComp(String comp) {
+		this.comp = comp;
+	}
+
+	public String getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public String getScreenOutput() {
+		return screenOutput;
+	}
+
+	public void setScreenOutput(String screenOutput) {
+		this.screenOutput = screenOutput;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getStateDetail() {
+		return stateDetail;
+	}
+
+	public void setStateDetail(String stateDetail) {
+		this.stateDetail = stateDetail;
+	}
+
+	public String getModule() {
+		return module;
+	}
+
+	public void setModule(String module) {
+		this.module = module;
 	}
 }

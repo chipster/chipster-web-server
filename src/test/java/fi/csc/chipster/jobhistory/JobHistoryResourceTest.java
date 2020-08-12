@@ -55,24 +55,24 @@ public class JobHistoryResourceTest {
 		long startTime = System.nanoTime();
 
 		for (int i = 0; i < MAX_NUM; i++) {
-			JobHistoryModel j = new JobHistoryModel();
+			JobHistory j = new JobHistory();
 
 			Instant jobStartTime = getRandomTimeStamp();
 			j.setStartTime(jobStartTime);
 			j.setEndTime(jobStartTime.plus(30, ChronoUnit.SECONDS));
 			if (i % 5 == 0) {
-				j.setJobStatus("NEW");
+				j.setState("NEW");
 			} else if (i % 2 == 0) {
-				j.setJobStatus("COMPLETED");
+				j.setState("COMPLETED");
 			} else {
-				j.setJobStatus("ERROR");
+				j.setState("ERROR");
 			}
 
 			j.setJobIdPair(RestUtils.createUUID(), RestUtils.createUUID());
-			j.setUserName("testUser" + new Random().nextInt(50 - 1 + 1) + 1);
+			j.setCreatedBy("testUser" + new Random().nextInt(50 - 1 + 1) + 1);
 			j.setToolId("InputOutput.py");
 			j.setToolName("Input Output");
-			j.setOutput(getRandomString());
+			j.setScreenOutput(getRandomString());
 			jobHistoryClient2.saveTestJob(j);
 
 		}

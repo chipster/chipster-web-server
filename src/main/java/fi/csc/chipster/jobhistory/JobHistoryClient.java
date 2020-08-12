@@ -47,15 +47,15 @@ public class JobHistoryClient {
 	}
 
 	// methods
-	public HashMap<JobIdPair, JobHistoryModel> getJobHistoryList()
+	public HashMap<JobIdPair, JobHistory> getJobHistoryList()
 			throws RestException {
 		logger.info("JobHistory target" + getJobHistoryTarget());
-		List<JobHistoryModel> jobHistoryList = RestMethods.getList(
-				getJobHistoryTarget(), JobHistoryModel.class);
+		List<JobHistory> jobHistoryList = RestMethods.getList(
+				getJobHistoryTarget(), JobHistory.class);
 
-		HashMap<JobIdPair, JobHistoryModel> map = new HashMap<>();
+		HashMap<JobIdPair, JobHistory> map = new HashMap<>();
 
-		for (JobHistoryModel js : jobHistoryList) {
+		for (JobHistory js : jobHistoryList) {
 			map.put(js.getJobIdPair(), js);
 		}
 
@@ -67,7 +67,7 @@ public class JobHistoryClient {
 		return response;
 	}
 	
-	public void saveTestJob(JobHistoryModel jobHistory) throws RestException{
+	public void saveTestJob(JobHistory jobHistory) throws RestException{
 		logger.info("Target uri" + getJobHistoryTarget());
 		RestMethods.put(getJobHistoryTarget(), jobHistory);
 	}

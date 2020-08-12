@@ -78,7 +78,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "job-history");
 
-		List<Class<?>> hibernateClasses = Arrays.asList(JobHistoryModel.class);
+		List<Class<?>> hibernateClasses = Arrays.asList(JobHistory.class);
 		// Initializing hibernate components
 		hibernate = new HibernateUtil(this.config, Role.JOB_HISTORY, hibernateClasses);
 
@@ -161,10 +161,11 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	private void saveNewJobHistory(Job job, JobState jobState) {
 		logger.info("saveJobHistory " + job.getCreated() + " " + job.getStartTime() + " " + job.getEndTime());
-		JobHistoryModel jobHistory = new JobHistoryModel();
+		JobHistory jobHistory = new JobHistory();
 		jobHistory.setJobIdPair(job.getJobIdPair());
 		jobHistory.setToolId(job.getToolId());
 		jobHistory.setToolName(job.getToolName());
+		jobHistory.setModule(job.getModule());
 		
 		if (job.getCreated() == null) {
 			// session-db should make sure that this is set for all jobs
@@ -174,8 +175,8 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			jobHistory.setCreated(job.getCreated());
 		}
 		
-		jobHistory.setJobStatus(jobState.toString());
-		jobHistory.setUserName(job.getCreatedBy());		
+		jobHistory.setState(jobState.toString());
+		jobHistory.setCreatedBy(job.getCreatedBy());		
 		
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
@@ -191,13 +192,13 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 			@Override
 			public Void run(Session hibernateSession) {
 								
-				JobHistoryModel js = hibernateSession.get(JobHistoryModel.class, new JobIdPair(sessionId, jobId));
+				JobHistory js = hibernateSession.get(JobHistory.class, new JobIdPair(sessionId, jobId));
 				// the HibbernateUtil.update() assumes detached objects, otherwise it won't
 				// notice the changes
 				hibernateSession.detach(js);
 				
 				boolean isFinished = newState.isFinished();
-				boolean isScheduled = JobState.NEW == JobState.valueOf(js.getJobStatus()) 
+				boolean isScheduled = JobState.NEW == JobState.valueOf(js.getState()) 
 						&& newState != JobState.NEW;
 				
 				if (isFinished || isScheduled) {
@@ -207,11 +208,11 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				
 						js.setStartTime(job.getStartTime());
 						js.setEndTime(job.getEndTime());
-						js.setOutput(job.getScreenOutput());
-						js.setJobStatus(job.getState().toString());
-						js.setJobStatusDetail(job.getStateDetail());
+						js.setScreenOutput(job.getScreenOutput());
+						js.setState(job.getState().toString());
+						js.setStateDetail(job.getStateDetail());
 						js.setMemoryUsage(job.getMemoryUsage());
-						js.setCompName(job.getComp());
+						js.setComp(job.getComp());						
 						
 						HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
 						
