@@ -53,7 +53,7 @@ public class JobHistoryResource extends AdminResource {
 		this.hibernate = hibernate;
 	}
 
-	// http://localhost:8014/jobhistory/?startTime=gt=2018-02-21T14:16:18.585Z
+	// http://localhost:8014/jobhistory/?startTime=>2018-02-21T14:16:18.585Z
 	@GET
 	@Path("jobhistory")
 	@RolesAllowed({ Role.ADMIN })
@@ -65,18 +65,15 @@ public class JobHistoryResource extends AdminResource {
 		int pageSize = 200;
 
 		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
-		Map<String, String> parameters = new HashMap<String, String>();
+		
+		Map<String, ArrayList<String>> params = getModifiable(queryParams);
 
-		for (String str : queryParams.keySet()) {
-			parameters.put(str, queryParams.getFirst(str));
-		}
-
-		String pageParam = parameters.get(FILTER_ATTRIBUTE_PAGE);
+		String pageParam = params.get(FILTER_ATTRIBUTE_PAGE).get(0);
 		if (pageParam != null) {
 			pageNumber = Integer.parseInt(pageParam);
 		}
 
-		parameters.remove(FILTER_ATTRIBUTE_PAGE);
+		params.remove(FILTER_ATTRIBUTE_PAGE);
 
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		// Create CriteriaQuery
@@ -85,8 +82,8 @@ public class JobHistoryResource extends AdminResource {
 		// Specify criteria root
 		Root<JobHistory> root = criteria.from(JobHistory.class);
 
-		if (parameters.size() > 0) {
-			List<Predicate> predicate = createPredicate(parameters, root, builder);
+		if (queryParams.size() > 0) {
+			List<Predicate> predicate = createPredicate(params, root, builder);
 			// Query itself
 			criteria.select(root).where(predicate.toArray(new Predicate[] {}));
 		}
@@ -109,21 +106,18 @@ public class JobHistoryResource extends AdminResource {
 	public Response getJobHistoryRowCount(@Context UriInfo uriInfo) {
 
 		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
-		Map<String, String> parameters = new HashMap<String, String>();
+		
+		Map<String, ArrayList<String>> params = getModifiable(queryParams);
 
-		for (String str : queryParams.keySet()) {
-			parameters.put(str, queryParams.getFirst(str));
-		}
-
-		parameters.remove(FILTER_ATTRIBUTE_PAGE);
+		params.remove(FILTER_ATTRIBUTE_PAGE);
 
 		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
 		CriteriaQuery<JobHistory> criteria = builder.createQuery(JobHistory.class);
 		Root<JobHistory> root = criteria.from(JobHistory.class);
 
-		if (parameters.size() > 0) {
+		if (params.size() > 0) {
 			try {
-				List<Predicate> predicate = createPredicate(parameters, root, builder);
+				List<Predicate> predicate = createPredicate(params, root, builder);
 				CriteriaQuery<Long> q = builder.createQuery(Long.class);
 				q.select(builder.count(q.from(JobHistory.class)));
 				getHibernate().session().createQuery(q);
@@ -140,6 +134,21 @@ public class JobHistoryResource extends AdminResource {
 			return Response.ok(count).build();
 		}
 		return Response.ok().build();
+	}
+
+	private Map<String, ArrayList<String>> getModifiable(MultivaluedMap<String, String> inMap) {
+		
+		Map<String, ArrayList<String>> outMap = new HashMap<>();
+		
+		for (String key : inMap.keySet()) {			
+			ArrayList<String> values = new ArrayList<>();
+			for (String value : inMap.get(key)) {
+				values.add(value);
+			}
+			outMap.put(key, values);
+		}
+		
+		return outMap;
 	}
 
 	// how to encode jobIdPair to url if this is needed at all
@@ -168,15 +177,14 @@ public class JobHistoryResource extends AdminResource {
 		return Response.ok().build();
 	}
 
-	private List<Predicate> createPredicate(Map<String, String> parameters, Root<JobHistory> root,
+	private List<Predicate> createPredicate(Map<String, ArrayList<String>> params, Root<JobHistory> root,
 			CriteriaBuilder builder) {
 		// the first parameter is the page number we are seeking record, so no
 		// need to add in query
 		List<Predicate> predicate = new ArrayList<Predicate>();
 
-		for (String key : parameters.keySet()) {
-			if (key != null) {
-				String httpValue = parameters.get(key);
+		for (String key : params.keySet()) {
+			for (String httpValue : params.get(key)) {
 				String stringValue = null;
 				Instant instantValue = null;
 				

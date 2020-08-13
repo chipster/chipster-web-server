@@ -167,6 +167,7 @@ public class HibernateUtil {
 		hibernateConf.setProperty(Environment.DIALECT, config.getString(CONF_DB_DIALECT, role));
 		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(CONF_DB_SHOW_SQL, role));
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
+		hibernateConf.setProperty(Environment.JDBC_TIME_ZONE, "UTC");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
 		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately
 																				// in startup

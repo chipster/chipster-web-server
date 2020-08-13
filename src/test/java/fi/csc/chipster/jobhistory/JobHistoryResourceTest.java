@@ -69,6 +69,7 @@ public class JobHistoryResourceTest {
 			}
 
 			j.setJobIdPair(RestUtils.createUUID(), RestUtils.createUUID());
+			j.setCreated(Instant.now());
 			j.setCreatedBy("testUser" + new Random().nextInt(50 - 1 + 1) + 1);
 			j.setToolId("InputOutput.py");
 			j.setToolName("Input Output");
