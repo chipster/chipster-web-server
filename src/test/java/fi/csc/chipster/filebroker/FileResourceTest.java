@@ -183,7 +183,7 @@ public class FileResourceTest {
 		return "sessions/" + sessionId.toString() + "/datasets/" + datasetId.toString();
 	}
 
-	class DummyInputStream extends InputStream {
+	public static class DummyInputStream extends InputStream {
 	    
 		long bytes = 0;
 		private long size;

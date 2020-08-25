@@ -6,17 +6,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -31,9 +28,9 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -97,7 +94,7 @@ public class FileBrokerResource {
 		try {
 			dataset = getDatasetObject(sessionId, datasetId, userToken, false);
 		} catch (RestException e) {
-			throw extractRestException(e);
+			throw ServletUtils.extractRestException(e);
 		}
 
 		if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
@@ -115,7 +112,7 @@ public class FileBrokerResource {
 		try {
 			fileStream = storageClient.download(fileId, range);
 		} catch (RestException e) {
-			throw extractRestException(e);
+			throw ServletUtils.extractRestException(e);
 		}
 		
 		ResponseBuilder response = Response.ok(fileStream);
@@ -178,7 +175,7 @@ public class FileBrokerResource {
 		try {
 			dataset = getDatasetObject(sessionId, datasetId, userToken, true);
 		} catch (RestException e) {
-			throw extractRestException(e);
+			throw ServletUtils.extractRestException(e);
 		}
 				
 		long fileLength = -1;
@@ -205,7 +202,7 @@ public class FileBrokerResource {
 				} catch (InsufficientStorageException e) {
 					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
 				} catch (RestException e) {
-					throw extractRestException(e);
+					throw ServletUtils.extractRestException(e);
 				}
 			}
 			
@@ -234,7 +231,7 @@ public class FileBrokerResource {
 				return Response.noContent().build();
 				
 			} catch (RestException e) {
-				throw extractRestException(e);
+				throw ServletUtils.extractRestException(e);
 			}
 		} else {
 			// upload paused
@@ -258,19 +255,7 @@ public class FileBrokerResource {
 		return dataset;
 	}
 
-	public static WebApplicationException extractRestException(RestException e) {
-		int statusCode = e.getResponse().getStatus();
-		String msg = e.getMessage();
-		if (statusCode == HttpServletResponse.SC_FORBIDDEN) {
-			return new ForbiddenException(msg);
-		} else if (statusCode == HttpServletResponse.SC_UNAUTHORIZED) {
-			return new NotAuthorizedException(msg);
-		} else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
-			return new NotFoundException(msg);
-		} else {
-			return new InternalServerErrorException(e);
-		}
-	}
+
 
 	private MediaType getType(Dataset dataset) {
 		MediaType type = null;

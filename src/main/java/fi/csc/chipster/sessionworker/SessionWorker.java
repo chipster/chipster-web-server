@@ -1,6 +1,5 @@
 package fi.csc.chipster.sessionworker;
 
-import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -10,20 +9,24 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.servlet.FilterHolder;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -32,10 +35,32 @@ import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
 /**
- * Main class.
- *
+ * session-worker for server-side session management jobs
+ * 
+ * The session-worker is a service for all kind of session management jobs  
+ * that need to be run on the server. Some of these jobs may potentially be quite long
+ * running, like the download and upload of the session files.
+ * 
+ * In the strive to keep session-db as simple simple as possible, which isn't very
+ * simple anyway, this is the place for all other session-related functionality.
+ * 
+ * At the moment there are two API endpoints. There is {@link SupportResource} for 
+ * handling the support requests and {@link ZipSessionServlet} handling the 
+ * download and upload of the zip sessions. The first one is 
+ * a Jersey/JAX-RS resource but the latter had to be
+ * implemented as a servlet for the reasons explained in {@link ZipSessionServlet}.
+ *  
+ * Normally we would deploy Jersey resources to a Grizzly web server, but here we
+ * need a support for servlets too. Luckily it seems to be possible to deploy both
+ * Jersey and servlets to Jetty. 
+ * 
+ * These two endpoints aren't really related, so in a true microservice architecture
+ * these would probably separate services. Let's think about that when the resource
+ * overheads of a service are negligible.
  */
 public class SessionWorker {
+
+	private static final String PATH_SPEC_SESSIONS = "/sessions/*";
 
 	private Logger logger = LogManager.getLogger();
 
@@ -47,10 +72,9 @@ public class SessionWorker {
 	private AuthenticationClient authService;
 	private SessionDbClient sessionDb;
 	
-	private HttpServer httpServer;
+	private Server httpServer;
 	private HttpServer adminServer;
 	
-	private SessionWorkerResource sessionWorkerResource;
 	private SupportResource supportResource;
 
 	public SessionWorker(Config config) {
@@ -62,12 +86,9 @@ public class SessionWorker {
 	 * application.
 	 * 
 	 * @return Grizzly HTTP server.
-	 * @throws DeploymentException 
-	 * @throws ServletException 
-	 * @throws RestException 
-	 * @throws IOException 
+	 * @throws Exception 
 	 */
-	public void startServer() throws ServletException, DeploymentException, RestException, IOException {
+	public void startServer() throws Exception {
 
 		String username = Role.SESSION_WORKER;
 		String password = config.getPassword(username);    	
@@ -81,26 +102,39 @@ public class SessionWorker {
 		// allow access with SessionDbTokens
 		tokenRequestFilter.authenticationRequired(false, true);
 		
-		this.sessionWorkerResource = new SessionWorkerResource(serviceLocator);
 		this.supportResource = new SupportResource(config, authService, sessionDb);
 		
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
-				.register(sessionWorkerResource)
 				.register(supportResource)
 				.register(tokenRequestFilter);
 		
-    	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);		
-
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_WORKER));
-		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
-		
-		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
-		
-		httpServer.start();
-		
-		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, this.serviceLocator, jerseyStatisticsSource);
+			        
+        ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);        
+        servletHandler.setContextPath("/");
+
+        ServletHolder jerseyHolder = new ServletHolder(new ServletContainer(rc));
+
+        servletHandler.addServlet(jerseyHolder, "/*");
+        servletHandler.addServlet(new ServletHolder(new ZipSessionServlet(this.serviceLocator, this.authService)), PATH_SPEC_SESSIONS);
+        servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), PATH_SPEC_SESSIONS, null);
+        servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), PATH_SPEC_SESSIONS, null);
+        
+        httpServer = new Server();
+        
+        ServerConnector connector = new ServerConnector(httpServer);
+        connector.setPort(baseUri.getPort());
+        connector.setHost(baseUri.getHost());
+        httpServer.addConnector(connector);
+        
+        httpServer.setHandler(servletHandler);
+        
+        StatusSource stats = RestUtils.createStatisticsListener(httpServer);
+                      		
+		httpServer.start();	
+		adminServer = RestUtils.startAdminServer(Role.SESSION_WORKER, config, authService, this.serviceLocator, stats);
 		
 		// clean up daily
 		long cleanUpInterval = 24l * 60 * 60 * 1000;
@@ -148,28 +182,34 @@ public class SessionWorker {
 	 * Main method.
 	 * 
 	 * @param args
-	 * @throws IOException
-	 * @throws DeploymentException 
-	 * @throws ServletException 
-	 * @throws RestException 
+	 * @throws Exception 
 	 */
-	public static void main(String[] args) throws IOException, ServletException, DeploymentException, RestException {
-
-		final SessionWorker service = new SessionWorker(new Config());
+	public static void main(String[] args) throws Exception {
 		
-		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), service.config.getInt(Config.KEY_SESSION_WORKER_SHUTDOWN_TIMEOUT), Role.SESSION_WORKER);
-		
-		service.startServer();
-		
-		RestUtils.waitForShutdown("session-worker", service.getHttpServer());
+		SessionWorker sessionWorker = new SessionWorker(new Config());
+    	try {
+    		sessionWorker.startServer();
+    	} catch (Exception e) {
+    		System.err.println("session-worker startup failed, exiting");
+    		e.printStackTrace(System.err);
+    		sessionWorker.close();
+    		System.exit(1);
+    	}
+    	RestUtils.shutdownGracefullyOnInterrupt(sessionWorker.getHttpServer(), 
+    			sessionWorker.config.getInt(Config.KEY_SESSION_WORKER_SHUTDOWN_TIMEOUT),
+    			"session-worker");	
 	}
 
 	public void close() {
 		RestUtils.shutdown("session-worker-admin", adminServer);
-		RestUtils.shutdown("session-worker", httpServer);
+		try {
+			httpServer.stop();
+		} catch (Exception e) {
+			logger.warn("failed to stop the session-worker", e);
+		}
 	}
 	
-	public HttpServer getHttpServer() {
+	public Server getHttpServer() {
 		return httpServer;
 	}
 }

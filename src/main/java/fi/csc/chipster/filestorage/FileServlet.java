@@ -39,10 +39,10 @@ import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FileBrokerResource;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
-import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessiondb.SessionDbClient.SessionEventListener;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
@@ -160,6 +160,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			if (logRest) {
 				logAsyncGet(request, response, f.toFile(), before);
 			}
+			
 		} catch (IOException | ServletException e) {
 			// make sure all errors are logged
 			logger.error("GET error", e);
@@ -233,14 +234,6 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}		
 	}
 
-	private String getToken(HttpServletRequest request) {
-
-		String tokenParameter = request.getParameter(TokenRequestFilter.QUERY_PARAMETER_TOKEN);
-		String tokenHeader = request.getHeader(TokenRequestFilter.HEADER_AUTHORIZATION);
-
-		return TokenRequestFilter.getToken(tokenHeader, tokenParameter);
-	}
-
 	private UUID parsePath(String pathInfo) {
 		// parse path
 		String[] path = pathInfo.split("/");
@@ -294,7 +287,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	
 	private void allowOnlyFileBroker(HttpServletRequest request) {
 		// user's token set by TokenServletFilter
-		String tokenString = getToken(request);
+		String tokenString = ServletUtils.getToken(request);
 		ParsedToken token = authService.validate(tokenString);
 		
 		// check authorization
@@ -522,7 +515,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		try {			
 		
 			// user's token set by TokenServletFilter
-			String tokenString = getToken(request);
+			String tokenString = ServletUtils.getToken(request);
 			ParsedToken token = authService.validate(tokenString);
 			
 			// check authorization

@@ -95,11 +95,15 @@ dependencies {
 	}
     implementation("org.glassfish.grizzly:grizzly-framework:2.4.3.1") {
     	force = true
-	}
+	}	
     
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.28"
     compile "org.glassfish.jersey.inject:jersey-hk2:2.28"
     
+    
+    // Jersey in Jetty (session-worker)            
+    compile "org.glassfish.jersey.containers:jersey-container-servlet-core:2.28"    
+            
     // needed separately with java11
     compile 'javax.xml.bind:jaxb-api:2.3.1'
         

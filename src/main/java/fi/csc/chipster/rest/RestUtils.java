@@ -271,6 +271,18 @@ public class RestUtils {
 			}
 		}
 	}
+	
+	public static void waitForShutdown(String name, Server server) {
+		System.out.println(name + " started");
+        try {
+			server.join();
+			
+		} catch (InterruptedException e) {
+			logger.error(name + " failed", e);
+		} finally {
+	        server.destroy();
+		}
+	}
 
 	public static ResourceConfig getDefaultResourceConfig(ServiceLocatorClient serviceLocator) {
 				

@@ -77,7 +77,9 @@ public class ExceptionServletFilter implements Filter {
 		} catch (Exception e) {
 			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
 			logger.error("servlet error", e);
-			return;
+			// abort download from session-worker if there is an error. Otherwise the user thinks
+			// that the download was successful
+			throw e;
 		}
 	}
 	

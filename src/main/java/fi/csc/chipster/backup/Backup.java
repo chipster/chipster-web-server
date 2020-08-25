@@ -86,7 +86,7 @@ public class Backup {
 		final Backup service = new Backup(new Config());
 		service.start();
 
-		RestUtils.waitForShutdown("backup service", null);
+		RestUtils.waitForShutdown("backup service", (HttpServer)null);
 	}
 
 

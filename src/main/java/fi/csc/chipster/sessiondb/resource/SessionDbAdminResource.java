@@ -4,7 +4,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.GET;
@@ -25,11 +24,7 @@ import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
-import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.Rule;
-import fi.csc.chipster.sessiondb.model.Session;
 
 public class SessionDbAdminResource extends AdminResource {
 	

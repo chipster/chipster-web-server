@@ -64,19 +64,6 @@ public class ServerLauncher {
 		sessionDb = new SessionDb(config);
 		sessionDb.startServer();
 
-		// if (verbose) {
-		// logger.info("starting session-db slave");
-		// }
-		// Config slaveConfig = new Config();
-		// slaveConfig.set("session-db-replicate", "true");
-		// slaveConfig.set("session-db-bind",
-		// "http://127.0.0.1:8070/sessiondb/");
-		// slaveConfig.set("session-db-events-bind",
-		// "http://127.0.0.1:8074/sessiondbevents/");
-		// slaveConfig.set("session-db-name", "session-db-replicate");
-		// sessionDbSlave = new SessionDb(slaveConfig);it 
-		// sessionDbSlave.startServer();
-
 		if (verbose) {
 			logger.info("starting file-storage");
 		}

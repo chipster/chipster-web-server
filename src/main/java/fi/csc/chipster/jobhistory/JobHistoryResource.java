@@ -68,9 +68,8 @@ public class JobHistoryResource extends AdminResource {
 		
 		Map<String, ArrayList<String>> params = getModifiable(queryParams);
 
-		String pageParam = params.get(FILTER_ATTRIBUTE_PAGE).get(0);
-		if (pageParam != null) {
-			pageNumber = Integer.parseInt(pageParam);
+		if (params.get(FILTER_ATTRIBUTE_PAGE) != null) {
+			pageNumber = Integer.parseInt(params.get(FILTER_ATTRIBUTE_PAGE).get(0));
 		}
 
 		params.remove(FILTER_ATTRIBUTE_PAGE);
