@@ -64,7 +64,7 @@ import fi.csc.chipster.sessionworker.xml.XmlSession;
  * think that he/she has a complete copy of the session when only part of the
  * files were copied. The browser does the downloading, so we don't have any 
  * way in the client side to monitor its progress. We could implement a new REST
- * endpoint, where from the javasscript could follow the progress of the download,
+ * endpoint, where the javascript could follow the progress of the download,
  * but handling that state information would be a lot of work, when several 
  * session-workers are running behind a load balancer.  
  *    

@@ -113,11 +113,9 @@ public class ZipSessionServletTest {
 	 * 
 	 * See https://docs.oracle.com/javase/8/docs/technotes/guides/net/articles/connection_release.html
 	 * 
-	 * The server may have already sent the status code 200, but it can still
-	 * signal about the error by finishing the TCP connect with RST (instead of FIN)
-	 * or finishing the TCP connection without the last empty chunk in chunked 
-	 * transfer-encoding. (TODO find out which one does Jetty do and how this works
-	 * persistent connections in HTTP/1.1)
+	 * A valid chunked transfer encoding ends with a zero sized chunk. If the server has already sent 
+	 * the status code 200, it can still signal about the error by finishing the TCP connection 
+	 * without that empty chunk.  
 	 * 
 	 * @throws RestException
 	 * @throws IOException
@@ -173,7 +171,7 @@ public class ZipSessionServletTest {
 			assertEquals(true, false);
 			
 		} catch (RestException e) {
-			throw new RuntimeException("test is broken, Jetty didn't start streaming yet");
+			throw new RuntimeException("test is broken, Jetty didn't start streaming yet", e);
 			
 		} catch (IOException e) {
 			// this is expected
