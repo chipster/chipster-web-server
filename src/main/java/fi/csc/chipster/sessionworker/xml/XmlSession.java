@@ -123,8 +123,19 @@ public class XmlSession {
 							dummyDataset.setDatasetIdPair(sessionId, datasetId);
 
 							sessionDb.createDataset(sessionId, dummyDataset);
+														
+							/* Size should be available
+							 * 
+							 * When reading the zip from a file, ZipFile can read the
+							 * size from the directory in the end of the file.
+							 */
+							Long size = null;
+							
+							if (entry.getSize() >= 0) {
+								size = entry.getSize();
+							}
 
-							fileBroker.upload(sessionId, datasetId, entryInputStream);
+							fileBroker.upload(sessionId, datasetId, entryInputStream, size);
 
 						} else if (entry.getName().startsWith("source-code-")) {
 							// source code in the old session is actually a screen output

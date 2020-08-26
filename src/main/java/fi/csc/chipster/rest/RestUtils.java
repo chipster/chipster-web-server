@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -525,6 +526,17 @@ public class RestUtils {
 
 	public static InputStream toInputStream(String str) throws IOException {
 		return IOUtils.toInputStream(str, StandardCharsets.UTF_8.name());
+	}
+	
+	public static Long getLengthInBytes(String str) {
+		if (str != null) {
+			try {
+				return (long) str.getBytes(StandardCharsets.UTF_8.name()).length;
+			} catch (UnsupportedEncodingException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return null;
 	}
 
 	public static String readFileToString(File file) throws IOException {

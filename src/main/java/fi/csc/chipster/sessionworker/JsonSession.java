@@ -47,13 +47,14 @@ public class JsonSession {
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb, UUID sessionId, UUID zipDatasetId) throws IOException, RestException {	
 		
 		String jsonSession = null;
-		String jsonDatasets = null;
+		Map<UUID, Dataset> datasetMap = null;
 		String jsonJobs = null;
 		Integer version = null;
 		
 		// read zip stream from the file-broker, upload extracted files back to file-broker and store 
 		// metadata json files in memory
 		try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
+			
 			ZipEntry entry;
 			while ((entry = zipInputStream.getNextEntry()) != null) {
 				
@@ -87,7 +88,10 @@ public class JsonSession {
 					zipInputStream.closeEntry();
 					
 				} else if (entryName.equals(DATASETS_JSON)) {
-					jsonDatasets = RestUtils.toString(zipInputStream);
+					String jsonDatasets = RestUtils.toString(zipInputStream);
+					// parse datasets right away to get the file sizes
+					// there has been no need for the migrations here so far  
+					datasetMap = parseDatasets(jsonDatasets);
 					zipInputStream.closeEntry();
 					
 				} else if (entryName.equals(JOBS_JSON)) {
@@ -101,32 +105,58 @@ public class JsonSession {
 					Dataset dummyDataset = new Dataset();
 					dummyDataset.setDatasetIdPair(sessionId, datasetId);
 					sessionDb.createDataset(sessionId, dummyDataset);
+										
+					Long size = null;
+					/* 
+					 * Try to get the file size for the file-broker
+					 * 
+					 * File-broker uses this size information to choose a file-storage which has enough 
+					 * free space. In the ZipInputStream the size is available only after reading each 
+					 * entry. ZipFile can read this information from the zip file directory in the end 
+					 * of the file but ZipOutputStream can't do that kind of random-access reads.
+					 * 
+					 * Chipster writes the metadata to the beginning of the file, so we should get the
+					 * size from there. If the zip was made with some other program, this may not be 
+					 * available yet.
+					 */
+					if (datasetMap != null) {
+						Dataset dataset = datasetMap.get(datasetId);
+						if (dataset != null && dataset.getFile() != null) {
+							size = dataset.getFile().getSize();
+						}
+					}
 					
 					// close only the entry instead of the whole zip when Jersey client finished the upload
 					// try-with-resources will close the zipInputStream after the whole zip file is read
-					fileBroker.upload(sessionId, datasetId, new EntryClosingInputStream(zipInputStream));
+					fileBroker.upload(sessionId, datasetId, new EntryClosingInputStream(zipInputStream), size);
 				}
 			}
 		}
 				
-		return migrate(version, jsonSession, jsonDatasets, jsonJobs);
+		return migrate(version, jsonSession, datasetMap, jsonJobs);
+	}
+	
+	private static Map<UUID, Dataset> parseDatasets(String jsonDatasets) {
+		@SuppressWarnings("unchecked")
+		List<Dataset> datasets = RestUtils.parseJson(List.class, Dataset.class, jsonDatasets);
+		Map<UUID, Dataset> datasetMap = datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d));
+		
+		return datasetMap;
 	}
 	
 	@SuppressWarnings("unchecked")
-	private static ExtractedSession migrate(Integer version, String jsonSession, String jsonDatasets, String jsonJobs) {
+	private static ExtractedSession migrate(Integer version, String jsonSession, Map<UUID, Dataset> datasetMap, String jsonJobs) {
 
 		Session session;
-		List<Dataset> datasets;
 		List<Job> jobs;
 		
 		// so far we have been able to use the latest classes to parse all object versions
 		session = RestUtils.parseJson(Session.class, jsonSession);
-		datasets = RestUtils.parseJson(List.class, Dataset.class, jsonDatasets);
 		jobs = RestUtils.parseJson(List.class, Job.class, jsonJobs);
 		
 		if (version < 5) {
 			// since V5 dataset.metadataFiles has been an empty array instead of null
-			for (Dataset d : datasets) {
+			for (Dataset d : datasetMap.values()) {
 				if (d.getMetadataFiles() == null) {
 					d.setMetadataFiles(new ArrayList<>());
 				} else {
@@ -135,14 +165,13 @@ public class JsonSession {
 			}
 		} else if (version >= 5) {
 			// since V5 flyway migration should have created the metadataFiles array
-			for (Dataset d : datasets) {
+			for (Dataset d : datasetMap.values()) {
 				if (d.getMetadataFiles() == null) {
 					throw new IllegalStateException("dataset " + d.getName() + " metadataFiles is null despite the session version " + version);
 				}					
 			}
 		}
 		
-		Map<UUID, Dataset> datasetMap = datasets.stream().collect(Collectors.toMap(d -> d.getDatasetId(), d -> d));
 		Map<UUID, Job> jobMap = jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j));
 		
 		return new ExtractedSession(session, datasetMap, jobMap);
@@ -188,6 +217,18 @@ public class JsonSession {
 		
 		// we can't know if a username would refer to same person on the server where this session will be opened  
 		session.setRules(null);
+		
+		// remove datasets that don't have File. These are probably broken uploads 
+		datasets = datasets.stream()
+			.filter(d -> {
+				if (d.getFile() == null || d.getFile().getFileId() == null) {
+					logger.info("skipping null dataset, sessionId " + session.getSessionId() + " datasetId " + d.getDatasetId());
+					return false;
+				}
+				return true;
+			})	
+			.collect(Collectors.toList());
+		
 		
 		String sessionJson = RestUtils.asJson(session, true);
 		String datasetsJson = RestUtils.asJson(datasets, true);

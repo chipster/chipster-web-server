@@ -140,9 +140,6 @@ public class ZipSessionServlet extends HttpServlet {
 			
 	        response.setStatus(HttpServletResponse.SC_OK);
 	        response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-//	        response.setHeader("Transfer-Encoding", "chunked");
-//	        response.setCharacterEncoding("utf-8");
-	//        response.setHeader("Cache-Control", "no-store");
 	        
 	        RestUtils.configureForDownload(response, session.getName()+ ".zip");
 	        
@@ -167,27 +164,23 @@ public class ZipSessionServlet extends HttpServlet {
 	 */
 	private void streamZip(ArrayList<InputStreamEntry> entries, OutputStream output) throws IOException {
 		
-		// a decent output buffer seems to improve performance a bit (90MB/s -> 110MB/s)
-		long totalBytes = 0;
 	    try {
 	    	
+	    	// a decent output buffer seems to improve performance a bit (90MB/s -> 110MB/s)
 	    	ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(output, 2*1024*1024));
 	    		
-		    for (InputStreamEntry entry : entries) {
-		    	
-		    	System.out.println("add entry " + entry.getName());
-		    	
-		        zos.putNextEntry(new ZipEntry(entry.getName()));
+		    for (InputStreamEntry entry : entries) {		    	
+		    			    
+		    	ZipEntry zipEntry = new ZipEntry(entry.getName());		    	
+		        zos.putNextEntry(zipEntry);
 		        zos.setLevel(entry.getCompressionLevel());
 		        				        
 	        	InputStream entryStream = entry.getInputStreamCallable().call();			        	
-	        	int bytes = IOUtils.copy(entryStream, zos);
-	        	entryStream.close();				        
+	        	IOUtils.copy(entryStream, zos);
+	        	entryStream.close();
+	        	
 		        
 		        zos.closeEntry();
-//		        zos.flush();
-		        
-		        totalBytes += bytes;
 		    }
 		    
 		    // close zip stream only when there was no errors
@@ -197,8 +190,6 @@ public class ZipSessionServlet extends HttpServlet {
 	    			    	
 	    	// error happened. Do not close zip so at least the file isn't a valid zip format
 	    	logger.error("error in copying dataset input stream to zip output stream", e);
-	    	
-	    	System.out.println("bytes written " + totalBytes);
 	    	
 	    	/* show error in the browser's download
 	    	 *  
@@ -213,13 +204,6 @@ public class ZipSessionServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
 	
-//	@POST
-//	@RolesAllowed({Role.CLIENT, Role.SERVER}) // don't allow SessionDbTokens
-//	@Produces(MediaType.APPLICATION_JSON)
-//	@Path("{sessionId}/datasets/{datasetId}")
-//	@Transaction
-//    public Response post(@PathParam("sessionId") UUID sessionId, @PathParam("datasetId") UUID zipDatasetId, @Context SecurityContext sc) throws RestException, IOException {
-//		
 		// curl localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a/datasets/8997e0d1-1c0a-4295-af3f-f191c96e589a -I -X POST --user token:<TOKEN>
 				
 		StaticCredentials credentials = getUserCredentials(request);

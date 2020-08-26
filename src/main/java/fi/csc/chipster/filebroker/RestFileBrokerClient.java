@@ -78,17 +78,26 @@ public class RestFileBrokerClient {
 	public void upload(UUID sessionId, UUID datasetId, File file) throws RestException, IOException {
 
 		try (FileInputStream in = new FileInputStream(file)) {
-			upload(sessionId, datasetId, in);
+			upload(sessionId, datasetId, in, file.length());
 		}
 	}
 	
 	public void upload(UUID sessionId, UUID datasetId, InputStream inputStream) throws RestException {
+		this.upload(sessionId, datasetId, inputStream, null);
+	}
+	
+	public void upload(UUID sessionId, UUID datasetId, InputStream inputStream, Long size) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
 
 		// Use chunked encoding to disable buffering. HttpUrlConnector in 
 		// Jersey buffers the whole file before sending it by default, which 
 		// won't work with big files.
-		target.property(ClientProperties .REQUEST_ENTITY_PROCESSING, "CHUNKED");
+		target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
+		
+		if (size != null) {
+			target = target.queryParam(FileBrokerResource.FLOW_TOTAL_SIZE, size);
+		}
+		
 		Response response = target.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("upload failed ", response, target.getUri());
