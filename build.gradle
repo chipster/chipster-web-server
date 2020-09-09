@@ -121,7 +121,7 @@ dependencies {
     compile "org.postgresql:postgresql:+"
     
     // flyway
-    compile "org.flywaydb:flyway-core:+"
+    compile "org.flywaydb:flyway-core:6.5.+"
     
     // db backups
     compile "com.amazonaws:aws-java-sdk-s3:+"
