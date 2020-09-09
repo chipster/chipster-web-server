@@ -370,7 +370,7 @@ public class RestUtils {
 			String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocatorClient) {
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		// allow unauthenticated health checks
-		tokenRequestFilter.authenticationRequired(false, false);
+		tokenRequestFilter.addAllowedRole(Role.UNAUTHENTICATED);
 		return startAdminServer(adminResource, hibernate, role, config, tokenRequestFilter, serviceLocatorClient);
 	}
 

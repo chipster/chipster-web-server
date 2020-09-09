@@ -58,13 +58,12 @@ public class FileBroker {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 		
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		this.serviceLocator.setCredentials(authService.getCredentials());
 		
 		this.storageDiscovery = new StorageDiscovery(this.serviceLocator, authService, config);		
 		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery);
                 
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
-    	tokenRequestFilter.authenticationRequired(false, false);
+    	tokenRequestFilter.addAllowedRole(Role.SESSION_DB_TOKEN);
     	        
     	final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)
 			//.register(RestUtils.getLoggingFeature(Role.FILE_STORAGE))

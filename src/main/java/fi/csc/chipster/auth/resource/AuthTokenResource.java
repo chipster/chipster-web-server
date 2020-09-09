@@ -32,7 +32,7 @@ public class AuthTokenResource {
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 	
-	private static final String TOKEN_HEADER = "chipster-token";
+	public static final String TOKEN_HEADER = "chipster-token";
 
 	public static final String PATH_TOKENS = "tokens";
 	public static final String PATH_PUBLIC_KEY = "publicKey";

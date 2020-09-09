@@ -40,6 +40,7 @@ import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.DynamicCredentials;
 import fi.csc.chipster.rest.JavaTimeObjectMapperProvider;
 import fi.csc.chipster.rest.RestMethods;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -75,35 +76,43 @@ public class AuthenticationClient {
 	public AuthenticationClient(ServiceLocatorClient serviceLocator, String username, String password, String role) {
 		this.serviceLocator = serviceLocator;
 		this.role = role;
-		construct(username, password);
+		construct(username, password, true);
 	}
 
 	public AuthenticationClient(String authUri, String username, String password, String role) {		
 		this.authenticationServiceUri = authUri;
 		this.role = role;
-		construct(username, password);
+		construct(username, password, true);
 	}
 
-	private void construct(String username, String password) {
+	public AuthenticationClient(String authUri, String username, String password, String role, boolean startTokenRefreshTimer) {
+		this.authenticationServiceUri = authUri;
+		this.role = role;
+		construct(username, password, startTokenRefreshTimer);
+	}
+
+	private void construct(String username, String password, boolean startTokenRefreshTimer) {
 		this.username = username;
 		this.password = password;
 		
 		setToken(getTokenFromAuth());
 		
-		// schedule token refresh
-		this.tokenRefreshTimer = new Timer("auth-client-token-refresh-timer", true);
-		tokenRefreshTimer.schedule(new TimerTask() {
-
-			@Override
-			public void run() {
-				try {
-					refreshToken();
-				} catch (Exception e) {
-					logger.warn("refresh token failed",  e);
+		if (startTokenRefreshTimer) {
+			// schedule token refresh
+			this.tokenRefreshTimer = new Timer("auth-client-token-refresh-timer", true);
+			tokenRefreshTimer.schedule(new TimerTask() {
+	
+				@Override
+				public void run() {
+					try {
+						refreshToken();
+					} catch (Exception e) {
+						logger.warn("refresh token failed",  e);
+					}
 				}
-			}
-			
-		}, TOKEN_REFRESH_INTERVAL.toMillis(), TOKEN_REFRESH_INTERVAL.toMillis());
+				
+			}, TOKEN_REFRESH_INTERVAL.toMillis(), TOKEN_REFRESH_INTERVAL.toMillis());
+		}
 	}
 
 	/**
@@ -112,7 +121,8 @@ public class AuthenticationClient {
 	 * @return
 	 */
 	private String getTokenFromAuth() {
-		String authUri = getAuth();
+//		String authUri = getAuth();
+		String authUri = getAuth(username, password);
 
 		if (authUri == null) {
 			throw new InternalServerErrorException("no auth in service locator");
@@ -121,7 +131,7 @@ public class AuthenticationClient {
 		Client authClient = getClient(username, password, true);
 		WebTarget authTarget = authClient.target(authUri);
 		
-		logger.info("get token from " + authUri);
+		logger.info("get token from " + authUri + " for " + username);
 
 		String serverToken = authTarget
 				.path("tokens")
@@ -132,20 +142,44 @@ public class AuthenticationClient {
 	}
 
 	/**
-	 * Get Auth's URI
+	 * Get Auth's URI in the initialization when don't yet have a token
 	 * 
-	 * We use auth's public URI, because we can't get the internal from the service-locator before 
-	 * we have authenticated. In theory we could use the public URI for the first authentication and 
-	 * internal afterwards, but then misconfiguration of the internal URI would be difficult to notice and 
-	 * would cause problems later unexpectedly.  
-	 * 
-	 * @return
+	 * In the initialization (or after failures) we have to use username and password to authenticate to the
+	 * service-locator. Normally we would authenticate with a token, but we need 
+	 * the internal address of the auth service to acquire one.
 	 */
-	private String getAuth() {
-		if (serviceLocator != null) {
-			return serviceLocator.getPublicUri(Role.AUTH);
-		} else {
+	private String getAuth(String username, String password) {
+		if (authenticationServiceUri != null) {
+			/* auth uses localhost to call its own API and
+			 * service-locator has the auth address in the configuration
+			 */
 			return authenticationServiceUri;
+		} else {
+			if(Role.SERVER.equals(this.role)) {
+				logger.info("get auth address from the service-locator using username and password");
+				ServiceLocatorClient passwordClient = new ServiceLocatorClient(this.serviceLocator.getBaseUri());
+				passwordClient.setCredentials(new StaticCredentials(username, password));
+				return passwordClient.getInternalService(Role.AUTH).getUri();
+			} else {
+				// unit tests use this as client
+				return this.serviceLocator.getPublicUri(Role.AUTH);
+			}
+		}
+	}
+	
+	/**
+	 * Get Auth's URI when we have a working token
+	 */
+	public String getAuth() {
+		if (authenticationServiceUri != null) {
+			return authenticationServiceUri;
+		} else {
+			if(Role.SERVER.equals(this.role)) {
+				return this.serviceLocator.getInternalService(Role.AUTH).getUri();
+			} else {
+				// unit tests use this as client
+				return this.serviceLocator.getPublicUri(Role.AUTH);
+			}
 		}
 	}
 	
@@ -171,7 +205,7 @@ public class AuthenticationClient {
 		return getClient(TokenRequestFilter.TOKEN_USER, token, true);
 	}
 
-	public String getDbToken(String tokenKey) {
+	public String validateTokenKeyFromAuth(String tokenKey) {
 		
 		String authUri = getAuth();
 
@@ -180,7 +214,7 @@ public class AuthenticationClient {
 					.target(authUri)
 					.path(AuthTokenResource.PATH_TOKENS)
 					.request(MediaType.TEXT_PLAIN)
-					.header("chipster-token", tokenKey)
+					.header(AuthTokenResource.TOKEN_HEADER, tokenKey)
 					.get(String.class);
 
 			if (dbToken != null) {
@@ -328,7 +362,7 @@ public class AuthenticationClient {
 		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
 		// to make this safe and relatively fast for multi-thread usage
 		if (this.jwtPublicKey == null) {
-			synchronized (AuthenticationClient.class) {
+			synchronized (this) {
 				if (this.jwtPublicKey == null) {
 					try {
 						this.jwtPublicKey = this.getJwtPublicKey();
@@ -343,7 +377,7 @@ public class AuthenticationClient {
 	}
 
 	public PublicKey getJwtPublicKey() throws PEMException {
-		String authUri = getAuth();
+		String authUri = getAuth(username, password);
 
 		String pem = getAuthenticatedClient()
 				.target(authUri)

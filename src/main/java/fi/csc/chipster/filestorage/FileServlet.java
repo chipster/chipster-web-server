@@ -514,14 +514,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		
 		try {			
 		
-			// user's token set by TokenServletFilter
-			String tokenString = ServletUtils.getToken(request);
-			ParsedToken token = authService.validate(tokenString);
-			
-			// check authorization
-			if (!token.getRoles().contains(Role.FILE_BROKER)) {
-				throw new NotAuthorizedException("wrong role");
-			}
+			this.allowOnlyFileBroker(request);
 	
 			UUID fileId = parsePath(request.getPathInfo());
 			

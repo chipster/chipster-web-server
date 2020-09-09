@@ -85,7 +85,10 @@ public class ServiceLocator {
     	}    
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
-    	tokenRequestFilter.authenticationRequired(false, false);
+    	// clients can get the public services without authentication
+    	tokenRequestFilter.addAllowedRole(Role.UNAUTHENTICATED);
+    	// servers need to get the internal services with username and password to find the auth address and get a token
+    	tokenRequestFilter.addAllowedRole(Role.PASSWORD);
     	
     	ServiceLocatorClient client = new LocalServiceLocatorClient(publicServices, allServices, config);
     	        

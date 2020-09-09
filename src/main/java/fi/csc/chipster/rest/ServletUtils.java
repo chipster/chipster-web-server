@@ -8,6 +8,7 @@ import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
+import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessiondb.RestException;
 
@@ -18,7 +19,7 @@ public class ServletUtils {
 		String tokenParameter = request.getParameter(TokenRequestFilter.QUERY_PARAMETER_TOKEN);
 		String tokenHeader = request.getHeader(TokenRequestFilter.HEADER_AUTHORIZATION);
 
-		return TokenRequestFilter.getToken(tokenHeader, tokenParameter);
+		return getToken(tokenHeader, tokenParameter);
 	}
 	
 	public static WebApplicationException extractRestException(RestException e) {
@@ -32,6 +33,18 @@ public class ServletUtils {
 			return new NotFoundException(msg);
 		} else {
 			return new InternalServerErrorException(e);
+		}
+	}
+	
+	public static String getToken(String authHeader, String authParameter) {
+		if (authHeader != null) {
+			BasicAuthParser parser = new BasicAuthParser(authHeader);
+			if (!TokenRequestFilter.TOKEN_USER.equals(parser.getUsername())) {
+				throw new NotAuthorizedException("only tokens allowed");
+			}
+			return parser.getPassword();
+		} else {
+			return authParameter;
 		}
 	}
 }

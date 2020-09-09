@@ -100,7 +100,7 @@ public class SessionWorker {
 		
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		// allow access with SessionDbTokens
-		tokenRequestFilter.authenticationRequired(false, true);
+		tokenRequestFilter.addAllowedRole(Role.SESSION_DB_TOKEN);
 		
 		this.supportResource = new SupportResource(config, authService, sessionDb);
 		

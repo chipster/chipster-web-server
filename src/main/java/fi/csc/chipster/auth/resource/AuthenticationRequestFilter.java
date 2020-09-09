@@ -94,7 +94,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		String authHeader = requestContext.getHeaderString("authorization");
 
 		if (authHeader == null) {
-			// OidcResource needs unauthentiated access
+			// OidcResource needs unauthenticated access
 			requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
 			return;
 		}

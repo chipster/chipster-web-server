@@ -72,7 +72,7 @@ public class ServiceResourceTest {
 		        
         assertEquals(401, get(unparseableTokenTarget, PATH_SERVICES));
         assertEquals(403, get(tokenFailTarget, PATH_SERVICES));
-        assertEquals(401, get(authFailTarget, PATH_SERVICES));
+        assertEquals(403, get(authFailTarget, PATH_SERVICES));
     }
 	
 	@Test
@@ -94,7 +94,7 @@ public class ServiceResourceTest {
 		assertEquals(403, get(user1Target, PATH_INTERNAL));
         assertEquals(401, get(unparseableTokenTarget, PATH_INTERNAL));
         assertEquals(403, get(tokenFailTarget, PATH_INTERNAL));
-        assertEquals(401, get(authFailTarget, PATH_INTERNAL));
+        assertEquals(403, get(authFailTarget, PATH_INTERNAL));
     }
 	
 	public static int get(WebTarget target, String path) {

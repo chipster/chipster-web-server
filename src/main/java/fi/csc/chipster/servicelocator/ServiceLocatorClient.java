@@ -31,6 +31,10 @@ public class ServiceLocatorClient {
 		logger.info("get services from " + baseUri);
 	}
 
+	public ServiceLocatorClient(String baseUri) {
+		this.baseUri = baseUri;
+	}
+
 	/**
 	 * Public resource returns full Service objects but most fields are null
 	 * 
@@ -54,7 +58,12 @@ public class ServiceLocatorClient {
 			throw new IllegalArgumentException("only public URIs are available without the authentication");
 		}
 		
-		WebTarget serviceTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
+		return getInternalServices(credentials.getUsername(), credentials.getPassword());		
+	}
+	
+	public List<Service> getInternalServices(String username, String password) {
+		
+		WebTarget serviceTarget = AuthenticationClient.getClient(username, password, true)
 				.target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
@@ -73,7 +82,7 @@ public class ServiceLocatorClient {
 	 * @return
 	 */
 	public String getPublicUri(String role) {
-
+		
 		return filterByRole(getPublicServices(), role).getPublicUri();
 	}	
 	
