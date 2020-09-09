@@ -121,7 +121,7 @@ public class AuthenticationClient {
 	 * @return
 	 */
 	private String getTokenFromAuth() {
-//		String authUri = getAuth();
+
 		String authUri = getAuth(username, password);
 
 		if (authUri == null) {

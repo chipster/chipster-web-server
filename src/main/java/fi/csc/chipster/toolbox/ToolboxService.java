@@ -209,6 +209,7 @@ public class ToolboxService {
 		if (enableStatsAndAdminServer) {
 			this.serviceLocator = new ServiceLocatorClient(config);
 			this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+			this.serviceLocator.setCredentials(authService.getCredentials());
 		}
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(this.toolResource)
