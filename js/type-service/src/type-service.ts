@@ -23,13 +23,24 @@ export default class TypeService {
   private cache = new Map<string, {}>();
 
   private config = new Config();
+  username: any;
+  password: any;
+  serverRestClient: any;
 
   constructor() {
     
     Logger.addLogFile();
 
-    this.init();
-    this.initAdmin();
+    this.username = "type-service";
+    this.password = this.config.get("service-password-type-service");
+
+    this.serverRestClient = new RestClient(false);
+    this.serverRestClient.getToken(this.username, this.password)
+    .subscribe(serverToken => {
+      this.serverRestClient.setToken(serverToken);
+      this.init();
+      this.initAdmin();
+    })
 
     // the Tags object above is just for the code completion. For any real use
     // we wan't a real ES6 map
@@ -40,6 +51,7 @@ export default class TypeService {
   }
 
   init() {
+    
     let server = this.createServer();
 
     server.get("/sessions/:sessionId", this.respond.bind(this));
@@ -79,7 +91,8 @@ export default class TypeService {
     let originUri,
       originList = [],
       cors;
-    new RestClient()
+
+    this.serverRestClient
       //.getServiceUri("web-server") // get one web-server
       .getServices() // allow many web-servers (Chipster and Mylly) to use the same backend
       .pipe(
@@ -106,10 +119,10 @@ export default class TypeService {
   }
 
   respond(req, res, next) {
-    let token;
+    let clientToken;
 
     try {
-      token = this.getToken(req, next);
+      clientToken = this.getToken(req, next);
     } catch (e) {
       this.respondError(next, e);
       return;
@@ -124,17 +137,28 @@ export default class TypeService {
       return next(new restify.BadRequest("sessionId missing"));
     }
 
+    /* Configure RestClient to use internal addresses but client's token
+    * 
+    * We have to use the client token to test the user's access rights. 
+    * But we have to use internal addresses to contact other services.
+    * 
+    * Maybe we should impelement the token validation here and use server
+    * token the check the access rights from the session-db.
+    */
+   let clientRestClient = new RestClient(false, clientToken);
+   clientRestClient.services = this.serverRestClient.services;
+
     let datasets$;
 
     // check access permission by getting dataset objects
     if (datasetId) {
       // only one dataset requested
-      datasets$ = new RestClient(false, token)
+      datasets$ = clientRestClient
         .getDataset(sessionId, datasetId)
         .pipe(map(dataset => [dataset]));
     } else {
       // all datasets of the session requested
-      datasets$ = new RestClient(false, token).getDatasets(sessionId);
+      datasets$ = clientRestClient.getDatasets(sessionId);
     }
 
     let t0 = Date.now();
@@ -144,7 +168,7 @@ export default class TypeService {
         mergeMap((datasets: any[]) => {
           // array of observables that will resolve to [datasetId, typeTags] tuples
           let types$ = datasets.map(dataset =>
-            this.getTypeTags(sessionId, dataset, token)
+            this.getTypeTags(sessionId, dataset, clientToken)
           );
 
           // wait for all observables to complete and return an array of tuples
@@ -300,10 +324,14 @@ export default class TypeService {
     return observable;
   }
 
-  getParsedTsv(sessionId, dataset, token) {
+  getParsedTsv(sessionId, dataset, clientToken) {
     let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
-    return new RestClient(false, token)
+    // Configure RestClient to use internal addresses but client's token
+   let clientRestClient = new RestClient(false, clientToken);
+   clientRestClient.services = this.serverRestClient.services;
+
+    return clientRestClient
       .getFile(sessionId, dataset.datasetId, requestSize)
       .pipe(
         map((data: string) => {
