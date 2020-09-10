@@ -18,7 +18,7 @@
   "dependencies": {
     "chipster-js-common": "^0.9.1",
     "chipster-nodejs-core": "^0.3.3",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "restify": "^8.5.1",
     "restify-cors-middleware2": "^2.0.0",
     "restify-errors": "^8.0.2",
