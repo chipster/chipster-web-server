@@ -90,6 +90,8 @@ url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 url-admin-bind-file-storage: http://{{bind-ip}}:8116
 
+# use external (public) addresses when connecting to other services 
+use-external-addresses: false
 
 # DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
 

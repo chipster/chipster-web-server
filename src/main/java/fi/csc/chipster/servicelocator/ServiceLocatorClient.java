@@ -21,18 +21,25 @@ import fi.csc.chipster.servicelocator.resource.ServiceResource;
 
 public class ServiceLocatorClient {
 	
+	public static final String CONF_KEY_USE_EXTERNAL_ADDRESSES = "use-external-addresses";
+	
 	private static final Logger logger = LogManager.getLogger();
 
 	private String baseUri;
 	private CredentialsProvider credentials;
+
+	private boolean useExternalAddresses;
 	
 	public ServiceLocatorClient(Config config) throws IOException {
 		this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
+		this.useExternalAddresses = config.getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
 		logger.info("get services from " + baseUri);
 	}
 
 	public ServiceLocatorClient(String baseUri) {
 		this.baseUri = baseUri;
+		// get config default
+		this.useExternalAddresses = new Config().getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
 	}
 
 	/**
@@ -70,6 +77,15 @@ public class ServiceLocatorClient {
 		
 		@SuppressWarnings("unchecked")
 		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
+		
+		// use external addresses in the services that don't run in the same private network
+		if (this.useExternalAddresses) {
+			for (Service service : services) {
+				if (service.getPublicUri() != null) {
+					service.setUri(service.getPublicUri());
+				}
+			}			
+		}
 
 		return services;
 	}
