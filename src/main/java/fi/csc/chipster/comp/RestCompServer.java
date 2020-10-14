@@ -1,7 +1,9 @@
 package fi.csc.chipster.comp;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,6 +54,8 @@ public class RestCompServer
 
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
+	
+	private static final String KEY_COMP_RUNTIMES_PATH = "comp-runtimes-path";
 
 	/**
 	 * Loggers.
@@ -151,10 +155,18 @@ public class RestCompServer
 
 		// initialize executor service
 		this.executorService = Executors.newCachedThreadPool();
+		
+		String runtimesPath = config.getString(KEY_COMP_RUNTIMES_PATH);
+		InputStream runtimesStream = null;
+		
+		if (runtimesPath.isEmpty()) {
+			runtimesStream = this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"); 
+		} else {
+			runtimesStream = new FileInputStream(new File(runtimesPath));
+		}
 
 		// initialize runtime and tools
-		this.runtimeRepository = new RuntimeRepository(this.workDir,
-				this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"), config);
+		this.runtimeRepository = new RuntimeRepository(this.workDir, runtimesStream, config);
 
 		String username = Role.COMP;
 		String password = config.getPassword(username);

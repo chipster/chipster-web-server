@@ -239,7 +239,8 @@ comp-job-timeout: 604800 # a week
 comp-job-threads-max: 4
 # max memory that single job should use, megabytes
 comp-job-memory-max: 8192
-
+# path to a custom runtimes.xml file. src/main/resources/runtimes.xml is used when this is not set.
+comp-runtimes-path: ""
 
 # scheduler
 
