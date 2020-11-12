@@ -39,8 +39,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private static final Logger logger = LogManager.getLogger();
 
-	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
-
 	private HibernateUtil hibernate;
 	
 	@SuppressWarnings("unused")
@@ -58,11 +56,12 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private AuthTokens tokenTable;
 
-	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, AuthTokens tokenTable) throws IOException {
+	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, AuthTokens tokenTable, JaasAuthenticationProvider jaasAuthProvider) throws IOException {
 		this.hibernate = hibernate;
 		this.config = config;
 		this.userTable = userTable;
 		this.tokenTable = tokenTable;
+		this.authenticationProvider = jaasAuthProvider;
 
 		serviceAccounts = config.getServicePasswords();		
 		adminAccounts = config.getAdminAccounts();
@@ -74,14 +73,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		}
 		
 		monitoringAccounts = new HashMap<String, String>() {{ put(Role.MONITORING, monitoringPassword); }};
-		
-		String jaasConfPath = config.getString(KEY_JAAS_CONF_PATH);
-		if (jaasConfPath.isEmpty()) {
-			// load default from the jar to avoid handling extra files in deployment scripts
-			jaasConfPath = ClassLoader.getSystemClassLoader().getResource("jaas.config").toString();
-		}
-		logger.info("load JAAS config from " + jaasConfPath);
-		authenticationProvider = new JaasAuthenticationProvider(jaasConfPath);
 	}
 
 	@Override

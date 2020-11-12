@@ -14,6 +14,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthTokenResource;
@@ -38,6 +39,8 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
  */
 public class AuthenticationService {
 	
+	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
+	
 	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
 
@@ -48,6 +51,8 @@ public class AuthenticationService {
 	private HttpServer httpServer;
 
 	private HttpServer adminServer;
+
+	private JaasAuthenticationProvider jaasAuthProvider;
 	
 	public static List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] { 
 		User.class,
@@ -68,9 +73,17 @@ public class AuthenticationService {
      */
     public void startServer() throws IOException, InterruptedException, URISyntaxException {    	    	
     	
-    	// init Hibernate
-
+    	// for some reason Hibernate now initializes the JAAS ConfigFile class, so make sure we have configured 
+    	// the JAAS config file path system property before that
+    	String jaasConfPath = config.getString(KEY_JAAS_CONF_PATH);
+		if (jaasConfPath.isEmpty()) {
+			// load default from the jar to avoid handling extra files in deployment scripts
+			jaasConfPath = ClassLoader.getSystemClassLoader().getResource("jaas.config").toString();
+		}
+		logger.info("load JAAS config from " + jaasConfPath);
+    	jaasAuthProvider = new JaasAuthenticationProvider(jaasConfPath);
     	
+    	// init Hibernate
     	hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);    	
     	UserTable userTable = new UserTable(hibernate);
     	AuthTokens tokenTable = new AuthTokens(config);
@@ -79,7 +92,7 @@ public class AuthenticationService {
     	OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(tokenTable, userTable, config));
     	oidcResource.init(tokenTable, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
-    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable);
+    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable, jaasAuthProvider);
     	
     	ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
