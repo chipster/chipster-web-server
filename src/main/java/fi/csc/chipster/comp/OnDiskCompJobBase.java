@@ -140,7 +140,10 @@ public abstract class OnDiskCompJobBase extends CompJob {
 			for (File outputFile : describedFiles) {
 				// copy file to file broker
 				try {
-					File phenodataFileForThisOutput = outputFile.getName().endsWith(".tsv") ? phenodataFile : null;
+					File phenodataFileForThisOutput = 
+							outputFile.getName().endsWith(".tsv") ||
+							outputFile.getName().endsWith(".shared") ? phenodataFile : null;
+					
 					String nameInClient = nameMap.get(outputFile.getName());
 					String nameInSessionDb = nameInClient != null ? nameInClient : outputFile.getName();
 					String dataId = resultHandler.getFileBrokerClient().addFile(
