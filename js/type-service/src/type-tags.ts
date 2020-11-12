@@ -47,6 +47,8 @@ export const Tags = {
   MOTHUR_STABILITY: new Tag("MOTHUR_STABILITY", [".files"]),
   MOTHUR_COUNT: new Tag("MOTHUR_COUNT", [".count_table"]),
   SFF: new Tag("SFF", [".sff"]),
+  // phyloseq .shared files
+  PHYLOSEQ_SHARED: new Tag("PHYLOSEQ_SHARED", [".shared"]),
 
   // complex types are defined here for autocompletion, but have to be checked separately
   GENELIST: new Tag("GENELIST", []),
