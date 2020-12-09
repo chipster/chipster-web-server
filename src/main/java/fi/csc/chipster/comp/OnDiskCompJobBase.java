@@ -142,7 +142,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
 				try {
 					File phenodataFileForThisOutput = 
 							outputFile.getName().endsWith(".tsv") ||
-							outputFile.getName().endsWith(".shared") ? phenodataFile : null;
+							outputFile.getName().endsWith(".shared") ||
+							outputFile.getName().endsWith(".Rda") ? phenodataFile : null;
 					
 					String nameInClient = nameMap.get(outputFile.getName());
 					String nameInSessionDb = nameInClient != null ? nameInClient : outputFile.getName();

@@ -49,6 +49,8 @@ export const Tags = {
   SFF: new Tag("SFF", [".sff"]),
   // phyloseq .shared files
   PHYLOSEQ_SHARED: new Tag("PHYLOSEQ_SHARED", [".shared"]),
+  // RData format used in phyloseq tools
+  R_RDA: new Tag("R_RDA", [".Rda"]),
 
   // complex types are defined here for autocompletion, but have to be checked separately
   GENELIST: new Tag("GENELIST", []),
