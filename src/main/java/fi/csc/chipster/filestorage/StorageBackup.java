@@ -9,14 +9,18 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
@@ -44,9 +48,6 @@ public class StorageBackup implements StatusSource {
 	private String bucket;
 	private String gpgRecipient;
 
-	@SuppressWarnings("unused")
-	private Timer timer;
-
 	private String gpgPassphrase;
 
 	private Map<String, Object> stats = new HashMap<String, Object>();
@@ -54,6 +55,12 @@ public class StorageBackup implements StatusSource {
 	private TransferManager transferManager;
 
 	private String fileStorageBackupNamePrefix;
+
+	private ScheduledExecutorService executor;
+
+	private ScheduledFuture<?> scheduledBackup;
+
+	private Future<?> manualBackup;
 
 	public StorageBackup(Path storage, boolean scheduleTimer, Config config, String storageId) throws IOException, InterruptedException {	
 		
@@ -74,27 +81,88 @@ public class StorageBackup implements StatusSource {
 			return;
 		}
 		
+		this.initExecutor();
+		
 		if (scheduleTimer) {
-			timer = BackupUtils.startBackupTimer(new TimerTask() {			
-				@Override
-				public void run() {
-					try {
-						backupNow();
-					} catch (Exception e) {
-						logger.error("backup error", e);
-					}
-				}
-			}, role, config);
+			this.enableSchedule();
 		} else {
 			backupNow();
 		}
 	}
 	
-	public void backupNow() throws IOException, InterruptedException {
-		backup();
-	}	
+	private void initExecutor() {
+		executor = Executors.newScheduledThreadPool(1);
+	}
 	
-	private void backup() throws IOException, InterruptedException {						
+	public void backupNow() {
+		
+    	this.manualBackup = this.executor.submit(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					backup();
+				} catch (IOException | InterruptedException e) {
+					logger.error("backup error", e);
+				}
+			}    		
+    	});
+	}
+	
+	public void disable() {
+		
+		logger.info("disable and cancel scheduled backups");
+		this.scheduledBackup.cancel(true);
+		
+		this.executor.shutdownNow();
+	}
+	
+	private Calendar getNextBackupTime() {
+		String backupTimeString = config.getString(BackupUtils.CONF_BACKUP_TIME, role);	    
+    	
+    	int startHour = Integer.parseInt(backupTimeString.split(":")[0]);
+	    int startMinute = Integer.parseInt(backupTimeString.split(":")[1]);
+	    Calendar firstBackupTime = Calendar.getInstance();
+	    if (firstBackupTime.get(Calendar.HOUR_OF_DAY) > startHour || 
+	    		(firstBackupTime.get(Calendar.HOUR_OF_DAY) == startHour && 
+	    				firstBackupTime.get(Calendar.MINUTE) >= startMinute)) {
+	    	firstBackupTime.add(Calendar.DATE, 1);
+	    }
+    	firstBackupTime.set(Calendar.HOUR_OF_DAY, startHour);
+    	firstBackupTime.set(Calendar.MINUTE, startMinute);
+    	firstBackupTime.set(Calendar.SECOND, 0);
+    	firstBackupTime.set(Calendar.MILLISECOND, 0);
+    	
+    	return firstBackupTime;
+	}
+	
+	public void enableSchedule() {
+		
+		Runnable timerTask = new Runnable() {			
+			@Override
+			public void run() {
+				try {
+					backup();
+				} catch (Exception e) {
+					logger.error("backup error", e);
+				}
+			}
+		};
+					
+		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+    	
+		Calendar nextBackupTime = this.getNextBackupTime();
+	    
+    	logger.info("next " + role + " backup is scheduled at " + nextBackupTime.getTime().toString());
+    	logger.info("save " + role + " backups to bucket:  " + BackupUtils.getBackupBucket(config, role));
+    
+    	this.initExecutor();
+    	
+    	this.scheduledBackup = this.executor.scheduleAtFixedRate(
+    			timerTask, nextBackupTime.getTimeInMillis() - Calendar.getInstance().getTimeInMillis(), 
+    			backupInterval * 60 * 60 * 1000, TimeUnit.MILLISECONDS);
+	}
+	
+	public void backup() throws IOException, InterruptedException {						
 		
 		stats.clear();
 		long startTime = System.currentTimeMillis();		
@@ -408,5 +476,14 @@ public class StorageBackup implements StatusSource {
 		
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));		
+	}
+
+	public String getStatusString() {
+		if (this.manualBackup != null && !this.manualBackup.isDone()) {
+			return "manual backup running";
+		} else if (this.scheduledBackup != null && !this.scheduledBackup.isDone()) {
+			return "will run " + getNextBackupTime().getTime().toString();
+		}
+		return null;
 	}
 }

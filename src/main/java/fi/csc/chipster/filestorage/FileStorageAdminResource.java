@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -92,6 +93,7 @@ public class FileStorageAdminResource extends AdminResource {
 		jsonMap.put("storageId", storageId);
 		jsonMap.put("fileCount", files.size());
 		jsonMap.put("fileBytes", fileBytes);
+		jsonMap.put("status", this.backup.getStatusString());
 		
 		return Response.ok(RestUtils.asJson(jsonMap)).build();
     }
@@ -100,17 +102,8 @@ public class FileStorageAdminResource extends AdminResource {
 	@Path("backup")
 	@RolesAllowed({Role.ADMIN})
 	public Response startBackup(@Context SecurityContext sc) {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					backup.backupNow();
-				} catch (IOException | InterruptedException e) {
-					logger.error("backup error", e);
-
-				}
-			}			
-		}).start();
+		
+		backup.backupNow();
 		
 		return Response.ok().build();
     }
@@ -148,6 +141,26 @@ public class FileStorageAdminResource extends AdminResource {
 			}
 			logger.info("delete " + oldOrphanFiles.size() + " old orphan files done");
 		
+		return Response.ok().build();
+    }
+	
+	@DELETE
+	@Path("backup/schedule")
+	@RolesAllowed({Role.ADMIN})
+	public Response disableBackups(@Context SecurityContext sc) throws IOException {
+		
+		this.backup.disable();
+				
+		return Response.ok().build();
+    }
+	
+	@POST
+	@Path("backup/schedule")
+	@RolesAllowed({Role.ADMIN})
+	public Response enableBackups(@Context SecurityContext sc) throws IOException {
+		
+		this.backup.enableSchedule();
+				
 		return Response.ok().build();
     }
 	

@@ -64,6 +64,16 @@ public class FileStorageAdminClient {
 		post("backup");		
     }
 	
+	public void disableBackups() {
+		
+		delete("backup", "schedule");		
+    }
+	
+	public void enableBackups() {
+		
+		post("backup", "schedule");		
+    }
+	
 	public void startCheck() {
 		post("check");
     }
@@ -143,6 +153,26 @@ public class FileStorageAdminClient {
 		Builder request = target.request();		
 				
 		Response response = request.post(null);
+		
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw toException(response);
+		}
+		return response.readEntity(String.class);
+	}
+	
+	public String delete(String... paths) {
+		
+		WebTarget target = this.target.path("admin");
+		
+		for (String path : paths) {
+			target = target.path(path);
+		}
+				
+		logger.info("delete " + target.getUri());
+		
+		Builder request = target.request();		
+				
+		Response response = request.delete();
 		
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw toException(response);

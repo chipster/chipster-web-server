@@ -47,7 +47,7 @@ public class BackupUtils {
 	private static final String CONF_BACKUP_S3_REGION = "backup-s3-region";
 	private static final String CONF_BACKUP_S3_ENDPOINT = "backup-s3-endpoint";
 	
-	private static final String CONF_BACKUP_TIME = "backup-time";
+	public static final String CONF_BACKUP_TIME = "backup-time";
 	public static final String CONF_BACKUP_INTERVAL = "backup-interval";
 		
 	public static final String CONF_BACKUP_GPG_PASSPHRASE = "backup-gpg-passphrase";
@@ -234,7 +234,7 @@ public class BackupUtils {
 		backupTimer.scheduleAtFixedRate(timerTask, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
 		return backupTimer;
 	}
-
+	
 	public static String importPublicKey(Config config, String role) throws IOException, InterruptedException {
 		
 		String gpgPublicKey = config.getString(BackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY, role);

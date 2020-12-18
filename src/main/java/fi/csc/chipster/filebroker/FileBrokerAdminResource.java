@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
@@ -256,6 +257,26 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response startBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 		
 		getStorageAdminClient(storageId, sc).startBackup();
+		
+		return Response.ok().build();
+    }
+	
+	@DELETE
+	@Path("storages/{storageId}/backup/schedule")
+	@RolesAllowed({Role.ADMIN})
+	public Response disableBackups(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		getStorageAdminClient(storageId, sc).disableBackups();
+		
+		return Response.ok().build();
+    }
+	
+	@POST
+	@Path("storages/{storageId}/backup/schedule")
+	@RolesAllowed({Role.ADMIN})
+	public Response enableBackups(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+		
+		getStorageAdminClient(storageId, sc).enableBackups();
 		
 		return Response.ok().build();
     }
