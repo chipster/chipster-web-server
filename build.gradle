@@ -29,7 +29,7 @@ distTar {
 
 // option to set java version on command line
 // ./gradlew -P javaVersion=8
-ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '11'
+ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '15'
 sourceCompatibility = javaVersion
 targetCompatibility = javaVersion
 
@@ -89,39 +89,27 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-1.2-api:+"
 
     // jersey
-    // grizzly 2.4.4 is not yet in mavencentral
-    implementation("org.glassfish.grizzly:grizzly-http-server:2.4.3.1") {
-    	force = true
-	}
-    implementation("org.glassfish.grizzly:grizzly-framework:2.4.3.1") {
-    	force = true
-	}	
-    
-    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.28"
-    compile "org.glassfish.jersey.inject:jersey-hk2:2.28"
-    
+    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.33"
+    compile "org.glassfish.jersey.inject:jersey-hk2:2.33"    
     
     // Jersey in Jetty (session-worker)            
-    compile "org.glassfish.jersey.containers:jersey-container-servlet-core:2.28"    
-            
-    // needed separately with java11
-    compile 'javax.xml.bind:jaxb-api:2.3.1'
+    compile "org.glassfish.jersey.containers:jersey-container-servlet-core:2.33"    
         
     // jackson
-	compile "com.fasterxml.jackson.core:jackson-core:2.9.2"
-    compile "com.fasterxml.jackson.core:jackson-databind:2.9.2"
-    compile "com.fasterxml.jackson.core:jackson-annotations:2.9.2"
-	compile "com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.9.2"
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
+	compile "com.fasterxml.jackson.core:jackson-core:2.12.0"
+    compile "com.fasterxml.jackson.core:jackson-databind:2.12.0"
+    compile "com.fasterxml.jackson.core:jackson-annotations:2.12.0"
+	compile "com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.12.0"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.12.0"
 	
     // hibernate
-    compile "org.hibernate:hibernate-core:5.4.0.Final"
-    compile "org.hibernate:hibernate-c3p0:5.4.0.Final"
-    compile "com.h2database:h2:1.4.196"    
+    compile "org.hibernate:hibernate-core:5.4.25.Final"
+    compile "org.hibernate:hibernate-c3p0:5.4.25.Final"
+    compile "com.h2database:h2:1.4.200"    
     compile "org.postgresql:postgresql:+"
     
     // flyway
-    compile "org.flywaydb:flyway-core:6.5.+"
+    compile "org.flywaydb:flyway-core:7.+"
     
     // db backups
     compile "com.amazonaws:aws-java-sdk-s3:+"
@@ -141,12 +129,12 @@ dependencies {
     compile "com.esotericsoftware.yamlbeans:yamlbeans:+"
     
     // rxJava
-    compile "io.reactivex.rxjava2:rxjava:2.1.+"
+    compile "io.reactivex.rxjava3:rxjava:3.+"
     
     compile "com.sun.mail:javax.mail:+"
     
     // tsv parser
-    compile "com.univocity:univocity-parsers:2.8.1"
+    compile "com.univocity:univocity-parsers:+"
     
     // OpenID Connect
     compile "com.nimbusds:oauth2-oidc-sdk:+"

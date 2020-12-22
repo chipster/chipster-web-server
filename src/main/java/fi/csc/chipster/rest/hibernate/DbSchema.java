@@ -26,7 +26,7 @@ public class DbSchema {
 	
 	private static final String EXPORT_PATH_PREFIX = "src/main/resources/flyway/";
 	private static final String EXPORT_PATH_POSTFIX = "/exported_hibernate_schema.ddl";
-	private static final String MIGRATION_RESOURCE_PREFIX = "classpath:flyway.";
+	private static final String MIGRATION_RESOURCE_PREFIX = "classpath:flyway/";
 	
 	private String role;
 

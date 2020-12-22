@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,7 +22,6 @@ import javax.ws.rs.core.UriBuilder;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.jersey.internal.util.Base64;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -118,7 +118,7 @@ public class FileStorageClient {
 			}
 			
 			URL url = uriBuilder.build().toURL();
-			String authoriationHeader = "Basic " + Base64.encodeAsString(credentials.getUsername() + ":" + credentials.getPassword());
+			String authoriationHeader = "Basic " + Base64.getEncoder().encodeToString((credentials.getUsername() + ":" + credentials.getPassword()).getBytes());
 			String contentTypeHeader = MediaType.APPLICATION_OCTET_STREAM;
 
 			// create a new connection for every request, because HttpURLConnection isn't thread safe

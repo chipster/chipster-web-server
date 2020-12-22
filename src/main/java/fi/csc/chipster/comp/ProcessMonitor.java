@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
-import io.reactivex.subjects.PublishSubject;
+import io.reactivex.rxjava3.subjects.PublishSubject;
 
 
 public class ProcessMonitor implements Runnable {
