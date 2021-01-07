@@ -1,13 +1,14 @@
 package fi.csc.chipster.sessionworker.xml;
 
 import javax.xml.XMLConstants;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
 
 /**
@@ -25,7 +26,7 @@ public class UserSession {
 	public static final String SESSION_DATA_FILENAME = "session.xml";
 	
 	@SuppressWarnings("unused")
-	private static final Logger logger = Logger.getLogger(UserSession.class);
+	private static Logger logger = LogManager.getLogger();
     
 	public static JAXBContext getJAXBContext() throws JAXBException {
 		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2");

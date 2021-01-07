@@ -10,14 +10,15 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
 
 public class SADLReplacements {
 
 	@SuppressWarnings("unused")
-	private static final Logger logger = Logger.getLogger(SADLReplacements.class);
+	private static Logger logger = LogManager.getLogger();
 
 	public static final String FILES = "FILES";
 	public static final String SYMLINK_TARGET = "SYMLINK_TARGET";

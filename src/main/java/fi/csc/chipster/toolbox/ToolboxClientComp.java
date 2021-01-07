@@ -17,13 +17,14 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import org.apache.log4j.Logger;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -40,7 +41,7 @@ public class ToolboxClientComp {
 	// set file mode to 755 for these file types when unzipping modules
 	private final static String[] executableExtensions = { "sh", "bash", "py" };
 	
-	private static final Logger logger = Logger.getLogger(ToolboxClientComp.class);
+	private static Logger logger = LogManager.getLogger();
 	
 	
 	public ToolboxClientComp(String toolboxUri) {

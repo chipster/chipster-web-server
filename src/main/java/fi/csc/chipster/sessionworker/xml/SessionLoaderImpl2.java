@@ -3,11 +3,12 @@ package fi.csc.chipster.sessionworker.xml;
 import java.io.InputStream;
 import java.util.zip.ZipException;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
 
 import fi.csc.chipster.sessionworker.xml.schema2.SessionType;
@@ -17,7 +18,7 @@ public class SessionLoaderImpl2 {
 	 * Logger for this class
 	 */
 	@SuppressWarnings("unused")
-	private static final Logger logger = Logger.getLogger(SessionLoaderImpl2.class);
+	private static Logger logger = LogManager.getLogger();
 
 	public static SessionType parseXml(InputStream metadataStream) throws JAXBException, SAXException, ZipException {
 		if (metadataStream == null) {

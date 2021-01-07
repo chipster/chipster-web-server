@@ -3,15 +3,16 @@ package fi.csc.chipster.toolbox.toolpartsparser;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.java.JavaCompJobBase;
 import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
 
 public class JavaParser implements ToolPartsParser {
 
-	static final Logger logger = Logger.getLogger(JavaParser.class);
-
+	@SuppressWarnings("unused")
+	private static Logger logger = LogManager.getLogger();
 
 	@Override
 	public ParsedScript parse(Path moduleDir, String toolId) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {

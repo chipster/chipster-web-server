@@ -11,13 +11,14 @@ import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class JaasAuthenticationProvider implements AuthenticationProvider {
 
 	private static final String LOGIN_CONTEXT_NAME = "Chipster"; // login context name in JAAS configuration file
 	
-	private static final Logger logger = Logger.getLogger(JaasAuthenticationProvider.class);
+	private static Logger logger = LogManager.getLogger();
 	
 	public JaasAuthenticationProvider(String confPath) throws IOException {
 		initialize(confPath);

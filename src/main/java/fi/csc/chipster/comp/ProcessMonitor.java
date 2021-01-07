@@ -8,7 +8,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import io.reactivex.rxjava3.subjects.PublishSubject;
 
@@ -32,7 +33,8 @@ public class ProcessMonitor implements Runnable {
 	private boolean outputBufferFull = false;
 	private boolean outputUpdateBufferFull = false;
 
-	static final Logger logger = Logger.getLogger(ProcessMonitor.class);
+	@SuppressWarnings("unused")
+	private static Logger logger = LogManager.getLogger();
 
 	public ProcessMonitor(
 			Process process, 

@@ -8,7 +8,8 @@ import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Utility methods for collecting process information from the ps command. 
@@ -18,7 +19,7 @@ import org.apache.log4j.Logger;
  */
 public class ProcessUtils {
 	
-	static final Logger logger = Logger.getLogger(ProcessUtils.class);
+	private static Logger logger = LogManager.getLogger();
 	
 	/**
 	 * Some examples for quick tests

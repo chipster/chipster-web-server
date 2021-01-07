@@ -13,7 +13,8 @@ import java.util.Map;
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.util.IOUtils;
 
@@ -32,7 +33,7 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 	public static final String DELIMETER_CHARACTER = ":";
 	public static final String COMMENT_CHARACTER = "#";
 	
-	private static final Logger logger = Logger.getLogger(SimpleFileLoginModule.class);
+	private static Logger logger = LogManager.getLogger();
 
 	// configurable options
 	protected File passwdFile;

@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
@@ -42,7 +43,7 @@ import fi.csc.chipster.util.XmlUtil;
  */
 public class ToolboxModule {
 
-	private static final Logger logger = Logger.getLogger(ToolboxModule.class);
+	private static Logger logger = LogManager.getLogger();
 
 	private LinkedList<ToolboxCategory> categories = new LinkedList<ToolboxCategory>();
 	private LinkedHashMap<String, ToolboxTool> tools = new LinkedHashMap<String, ToolboxTool>();

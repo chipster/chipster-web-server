@@ -8,7 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.ToolDescription.OutputDescription;
 
@@ -19,7 +20,7 @@ import fi.csc.chipster.comp.ToolDescription.OutputDescription;
  */
 public abstract class OnDiskCompJobBase extends CompJob {
 
-	private static final Logger logger = Logger.getLogger(OnDiskCompJobBase.class);
+	private static Logger logger = LogManager.getLogger();
 
 	private static final String JOB_DATA_DIR_NAME = "data";
 	private static final String JOB_TOOLBOX_DIR_NAME = "toolbox";

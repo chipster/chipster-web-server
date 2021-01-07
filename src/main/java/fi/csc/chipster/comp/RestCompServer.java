@@ -18,9 +18,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import jakarta.websocket.MessageHandler;
-import javax.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriBuilder;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -144,7 +145,8 @@ public class RestCompServer
 		this.monitoringInterval = config.getInt(Config.KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(Config.KEY_COMP_JOB_TIMEOUT);
 
-		logger = Logger.getLogger(RestCompServer.class);
+		// why here?
+		logger = LogManager.getLogger();
 
 		// initialize working directory
 		logger.info("starting compute service...");

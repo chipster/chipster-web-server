@@ -16,7 +16,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.Exceptions;
 import fi.csc.chipster.comp.JobCancelledException;
@@ -117,7 +118,7 @@ public class RCompJob extends OnDiskCompJobBase {
 
 	public static RParameterSecurityPolicy R_PARAMETER_SECURITY_POLICY = new RParameterSecurityPolicy();
 
-	static final Logger logger = Logger.getLogger(RCompJob.class);
+	private static Logger logger = LogManager.getLogger();
 
 	private CountDownLatch waitProcessLatch = new CountDownLatch(1);
 

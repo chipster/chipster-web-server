@@ -9,13 +9,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.ClientProperties;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -41,7 +42,7 @@ import fi.csc.chipster.util.IOUtils;
 public class LegacyRestFileBrokerClient {
 
 	private static final long PHENODATA_FILE_MAX_SIZE = FileUtils.ONE_MB;
-	private static final Logger logger = Logger.getLogger(LegacyRestFileBrokerClient.class);
+	private static Logger logger = LogManager.getLogger();
 
 	private SessionDbClient sessionDbClient;
 //	private SessionManager sessionManager;

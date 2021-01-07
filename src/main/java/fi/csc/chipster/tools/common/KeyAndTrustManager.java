@@ -11,7 +11,8 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class KeyAndTrustManager {
 
@@ -19,7 +20,7 @@ public class KeyAndTrustManager {
 	 * Logger for this class
 	 */
 	@SuppressWarnings("unused")
-	private static final Logger logger = Logger.getLogger(KeyAndTrustManager.class);
+	private static Logger logger = LogManager.getLogger();
 
 	private static SocketFactoryCache _trustAllFactoryCache; // use getter for this
 

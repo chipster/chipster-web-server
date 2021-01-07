@@ -3,7 +3,8 @@ package fi.csc.chipster.comp.java;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.CompException;
 import fi.csc.chipster.comp.CompJob;
@@ -20,7 +21,7 @@ public class JavaJobFactory implements JobFactory {
 	/**
 	 * Logger for this class
 	 */
-	static final Logger logger = Logger.getLogger(JavaJobFactory.class);
+	private static Logger logger = LogManager.getLogger();
 	
 	private HashMap<String, String> parameters;
 

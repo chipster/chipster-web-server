@@ -11,7 +11,8 @@ import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.function.Function;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Deletion logic for backup files
@@ -20,8 +21,7 @@ import org.apache.log4j.Logger;
  */
 public class BackupRotation2 {
 	
-	private static final Logger logger = Logger.getLogger(BackupRotation2.class);
-
+	private static Logger logger = LogManager.getLogger();
 
 	public static <T> TreeMap<Instant, T> getFirstOfEachMonth(TreeMap<Instant, T> files) {
 		

@@ -4,7 +4,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Input;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
@@ -30,7 +31,7 @@ public class SADLParser {
 	/**
 	 * Logger for this class (debugging).
 	 */
-	private static final Logger logger = Logger.getLogger(SADLParser.class);
+	private static Logger logger = LogManager.getLogger();
 
 	/**
 	 * Parse failure caused by illegal input data (bad SADL).

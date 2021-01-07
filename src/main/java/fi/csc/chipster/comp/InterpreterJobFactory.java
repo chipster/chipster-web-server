@@ -4,7 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.toolbox.ToolboxTool;
@@ -20,7 +21,7 @@ public abstract class InterpreterJobFactory implements JobFactory {
 	/**
 	 * Logger for this class
 	 */
-	static final Logger logger = Logger.getLogger(InterpreterJobFactory.class);
+	private static Logger logger = LogManager.getLogger();
 
 	protected String interpreterCommand;
 	protected String toolDir;

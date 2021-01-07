@@ -7,7 +7,8 @@ import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.ProcessUtils.ProcessResourceMonitor;
 
@@ -46,7 +47,7 @@ public class ResourceMonitor {
 		public Collection<Process> getRunningJobProcesses();
 	}
 
-	static final Logger logger = Logger.getLogger(ResourceMonitor.class);
+	private static Logger logger = LogManager.getLogger();
 
 	private HashMap<Process, ProcessResourceMonitor> monitors = new HashMap<>();
 	private Timer resourceMonitorTimer;

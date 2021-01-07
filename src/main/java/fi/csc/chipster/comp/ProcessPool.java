@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * A process pool for pooling for example R processes.
  * 
@@ -19,7 +21,7 @@ public class ProcessPool {
 	private static int WAIT_TIME_BEFORE_FORCE_DESTROY = 10;
 	private static TimeUnit WAIT_TIME_BEFORE_FORCE_DESTROY_UNIT = TimeUnit.SECONDS;
 	
-	static final Logger logger = Logger.getLogger(ProcessPool.class);
+	private static Logger logger = LogManager.getLogger();
 	
 	private final String command;
 	

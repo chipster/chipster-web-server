@@ -3,7 +3,8 @@ package fi.csc.chipster.comp.r;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.CompException;
 import fi.csc.chipster.comp.CompJob;
@@ -16,9 +17,8 @@ import fi.csc.chipster.toolbox.ToolboxTool;
 
 public class RJobFactory extends InterpreterJobFactory {
 
-	static final Logger logger = Logger
-			.getLogger(RJobFactory.class);
-
+	@SuppressWarnings("unused")
+	private static Logger logger = LogManager.getLogger();
 
 	public RJobFactory(HashMap<String, String> parameters, Config config)
 			throws IOException {

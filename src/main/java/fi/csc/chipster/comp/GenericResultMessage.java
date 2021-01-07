@@ -6,7 +6,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Generic result message, independent of the communication method used.
@@ -19,7 +20,7 @@ public class GenericResultMessage {
 	 * Logger for this class
 	 */
 	@SuppressWarnings("unused")
-	private static final Logger logger = Logger.getLogger(GenericResultMessage.class);
+	private static Logger logger = LogManager.getLogger();
 		
 	private String jobId;
 	private JobState state;
