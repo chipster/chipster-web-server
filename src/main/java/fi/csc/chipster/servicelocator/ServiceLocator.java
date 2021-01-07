@@ -103,6 +103,7 @@ public class ServiceLocator {
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+        RestUtils.configureGrizzlyThreads(this.httpServer, Role.SERVICE_LOCATOR, false);
                 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

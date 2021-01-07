@@ -53,6 +53,7 @@ public class WebServer {
         URI baseUri = URI.create(config.getBindUrl(Role.WEB_SERVER));
         
         server = new Server();
+        RestUtils.configureJettyThreads(server, Role.WEB_SERVER);
         
         ServerConnector connector = new ServerConnector(server);
         connector.setPort(baseUri.getPort());

@@ -86,6 +86,8 @@ public class FileStorage {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_STORAGE));
                 
     	server = new Server();
+    	RestUtils.configureJettyThreads(server, Role.FILE_STORAGE);
+    	
         ServerConnector connector = new ServerConnector(server);
         connector.setPort(baseUri.getPort());
         connector.setHost(baseUri.getHost());

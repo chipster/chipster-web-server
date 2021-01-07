@@ -112,6 +112,7 @@ public class AuthenticationService {
         // exposing the Jersey application at BASE_URI
     	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+        RestUtils.configureGrizzlyThreads(httpServer, Role.AUTH, false);
 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

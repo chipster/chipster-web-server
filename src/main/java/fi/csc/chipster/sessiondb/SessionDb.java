@@ -140,7 +140,8 @@ public class SessionDb {
 		// exposing the Jersey application at BASE_URI
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
 
-		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false);
 
 		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 

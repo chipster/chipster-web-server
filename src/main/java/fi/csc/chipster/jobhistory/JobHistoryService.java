@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import javax.websocket.MessageHandler;
+import jakarta.websocket.MessageHandler;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -88,7 +88,8 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 				.register(new HibernateResponseFilter(hibernate)).register(tokenRequestFilter);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
-		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+		RestUtils.configureGrizzlyThreads(this.httpServer, Role.JOB_HISTORY, false);
 		httpServer.start();
 
 		// Starting the Job History Admin Server
