@@ -2,26 +2,22 @@ package fi.csc.chipster.rest.pretty;
 
 import java.io.IOException;
 
-import javax.ws.rs.core.MultivaluedMap;
-
+import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.EndpointConfigBase;
+import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.ObjectWriterModifier;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.jaxrs.cfg.EndpointConfigBase;
-import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
+
+import jakarta.ws.rs.core.MultivaluedMap;
 
 public class IndentingModifier extends ObjectWriterModifier {
 
-    @Override
-    public ObjectWriter modify(
-            EndpointConfigBase<?> endpoint,
-            MultivaluedMap<String, Object> responseHeaders,
-            Object valueToWrite,
-            ObjectWriter w,
-            JsonGenerator g) throws IOException {
+	@Override
+	public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
+			Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
+		
+		g.useDefaultPrettyPrinter();
 
-    	g.useDefaultPrettyPrinter();
-
-        return w;
-    }
+		return w;
+	}
 }

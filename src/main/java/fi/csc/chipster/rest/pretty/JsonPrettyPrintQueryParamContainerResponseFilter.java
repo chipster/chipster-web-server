@@ -2,15 +2,15 @@ package fi.csc.chipster.rest.pretty;
 
 import java.io.IOException;
 
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerResponseContext;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.ext.Provider;
-import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterInjector;
+import org.glassfish.jersey.jackson.internal.jackson.jaxrs.cfg.ObjectWriterInjector;
 
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerResponseContext;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.ext.Provider;
 
 @Provider
-public class JsonPrettyPrintQueryParamContainerResponseFilter implements javax.ws.rs.container.ContainerResponseFilter {
+public class JsonPrettyPrintQueryParamContainerResponseFilter implements jakarta.ws.rs.container.ContainerResponseFilter {
 
     private static final String QUERY_PARAM_PRETTY = "pretty";
 
