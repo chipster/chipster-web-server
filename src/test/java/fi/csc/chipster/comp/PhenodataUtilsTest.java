@@ -5,7 +5,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import javax.validation.ValidationException;
+import jakarta.validation.ValidationException;
 
 import org.junit.Assert;
 import org.junit.Test;

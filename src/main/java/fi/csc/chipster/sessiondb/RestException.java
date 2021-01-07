@@ -2,7 +2,7 @@ package fi.csc.chipster.sessiondb;
 
 import java.net.URI;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 
 public class RestException extends Exception {
 

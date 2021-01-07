@@ -9,7 +9,7 @@ import javax.persistence.Entity;
 import javax.persistence.Index;
 import javax.persistence.Lob;
 import javax.persistence.Table;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 

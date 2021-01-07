@@ -1,10 +1,10 @@
 package fi.csc.chipster.rest.exception;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 
-public class NotAuthorizedException extends javax.ws.rs.NotAuthorizedException {
+public class NotAuthorizedException extends jakarta.ws.rs.NotAuthorizedException {
 
 	public NotAuthorizedException(String message) {
 		super(Response.status(Status.UNAUTHORIZED).entity(message).type(MediaType.TEXT_PLAIN).build());

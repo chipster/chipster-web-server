@@ -2,7 +2,7 @@ package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement // json
 public class SessionDbToken {

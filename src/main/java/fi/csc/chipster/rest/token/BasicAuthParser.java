@@ -1,6 +1,6 @@
 package fi.csc.chipster.rest.token;
 
-import javax.xml.bind.DatatypeConverter;
+import jakarta.xml.bind.DatatypeConverter;
 
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 

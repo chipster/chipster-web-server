@@ -3,8 +3,8 @@ package fi.csc.chipster.sessionworker.xml;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.xml.bind.ValidationEvent;
-import javax.xml.bind.ValidationEventHandler;
+import jakarta.xml.bind.ValidationEvent;
+import jakarta.xml.bind.ValidationEventHandler;
 
 public class NonStoppingValidationEventHandler implements ValidationEventHandler {
 	

@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -17,8 +17,8 @@ import fi.csc.chipster.rest.websocket.TopicConfig;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
-import javax.websocket.DeploymentException;
-import javax.websocket.MessageHandler.Whole;
+import jakarta.websocket.DeploymentException;
+import jakarta.websocket.MessageHandler.Whole;
 
 public class WebSocketClientTest {
 	
@@ -131,5 +131,8 @@ public class WebSocketClientTest {
 		// client must be shutdown when the retry is enabled
 		client.shutdown();
 		server.stop();
+		
+		
+		Thread.sleep(10);
 	}
 }

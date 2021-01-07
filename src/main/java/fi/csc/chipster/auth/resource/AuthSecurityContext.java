@@ -2,7 +2,7 @@ package fi.csc.chipster.auth.resource;
 
 import java.security.Principal;
 
-import javax.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.core.SecurityContext;
 
 public class AuthSecurityContext implements SecurityContext {
 

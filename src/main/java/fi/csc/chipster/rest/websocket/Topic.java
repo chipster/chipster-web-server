@@ -3,7 +3,7 @@ package fi.csc.chipster.rest.websocket;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.websocket.RemoteEndpoint.Basic;
+import jakarta.websocket.RemoteEndpoint.Basic;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

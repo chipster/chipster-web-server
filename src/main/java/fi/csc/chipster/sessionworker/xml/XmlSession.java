@@ -20,9 +20,9 @@ import java.util.zip.ZipFile;
 //import java.util.zip.ZipInputStream;
 import java.util.zip.ZipInputStream;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.xml.bind.JAXBException;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.xml.bind.JAXBException;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.io.IOUtils;

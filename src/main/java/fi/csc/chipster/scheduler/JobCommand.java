@@ -2,7 +2,7 @@ package fi.csc.chipster.scheduler;
 
 import java.util.UUID;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class JobCommand {

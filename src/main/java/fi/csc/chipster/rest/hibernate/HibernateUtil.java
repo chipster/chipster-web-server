@@ -96,7 +96,7 @@ public class HibernateUtil {
 			this.dbSchema.migrate(url, user, password);
 
 			if (password.length() < 8) {
-				logger.warn("weak db passowrd for " + role + ", length " + password.length());
+				logger.warn("weak db password for " + role + ", length " + password.length());
 			}
 
 			logger.info("connect to db " + url);

@@ -2,7 +2,7 @@ package fi.csc.chipster.sessiondb.model;
 
 import java.util.UUID;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement // REST
 public class SessionEvent {

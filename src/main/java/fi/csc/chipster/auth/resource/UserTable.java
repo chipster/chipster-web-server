@@ -3,7 +3,7 @@ package fi.csc.chipster.auth.resource;
 import java.time.Instant;
 import java.util.List;
 
-import javax.ws.rs.NotFoundException;
+import jakarta.ws.rs.NotFoundException;
 
 import org.hibernate.Session;
 

@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.websocket.RemoteEndpoint.Basic;
+import jakarta.websocket.RemoteEndpoint.Basic;
 
 public class Subscriber {
 

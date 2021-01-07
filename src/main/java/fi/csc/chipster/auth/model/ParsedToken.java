@@ -3,7 +3,7 @@ package fi.csc.chipster.auth.model;
 import java.time.Instant;
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement // json
 public class ParsedToken {

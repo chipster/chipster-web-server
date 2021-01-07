@@ -5,7 +5,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.util.List;
 
-import javax.ws.rs.client.Client;
+import jakarta.ws.rs.client.Client;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

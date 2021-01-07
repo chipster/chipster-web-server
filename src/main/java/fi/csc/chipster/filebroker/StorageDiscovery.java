@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.naming.NamingException;
-import javax.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.InternalServerErrorException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

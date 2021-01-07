@@ -78,8 +78,8 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 					Session session = sessionResource.getRuleTable().checkAuthorization(principal, sessionId, false, hibernateSession, false);
 					return session != null;
 				} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
-						|javax.ws.rs.NotFoundException
-						|javax.ws.rs.ForbiddenException e) {
+						|jakarta.ws.rs.NotFoundException
+						|jakarta.ws.rs.ForbiddenException e) {
 					return false;
 				}		
 			}

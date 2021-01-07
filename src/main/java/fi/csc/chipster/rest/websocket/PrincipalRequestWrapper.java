@@ -1,8 +1,8 @@
 package fi.csc.chipster.rest.websocket;
 import java.security.Principal;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 

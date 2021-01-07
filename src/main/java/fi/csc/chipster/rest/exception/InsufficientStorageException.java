@@ -1,9 +1,9 @@
 package fi.csc.chipster.rest.exception;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
-public class InsufficientStorageException extends javax.ws.rs.WebApplicationException {
+public class InsufficientStorageException extends jakarta.ws.rs.WebApplicationException {
 
 	public static final int STATUS_CODE = 507;
 

@@ -10,10 +10,10 @@ import java.util.TimerTask;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 import jakarta.websocket.DeploymentException;
-import javax.websocket.MessageHandler;
-import javax.ws.rs.ProcessingException;
+import jakarta.websocket.MessageHandler;
+import jakarta.ws.rs.ProcessingException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
