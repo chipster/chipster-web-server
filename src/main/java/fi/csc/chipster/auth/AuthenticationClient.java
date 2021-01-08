@@ -18,8 +18,6 @@ import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.hibernate.service.spi.ServiceException;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-
 import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
@@ -187,7 +185,6 @@ public class AuthenticationClient {
 
 		Client c = ClientBuilder.newClient()
 				.register(JacksonFeature.class)
-//				.register(JacksonJaxbJsonProvider.class)
 				.register(JavaTimeObjectMapperProvider.class)
 				;
 		if (enableAuth) {
