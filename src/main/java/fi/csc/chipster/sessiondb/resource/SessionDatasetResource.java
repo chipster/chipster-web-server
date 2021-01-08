@@ -92,7 +92,7 @@ public class SessionDatasetResource {
 		if (result == null || !result.getSessionId().equals(sessionId)) {
 			throw new NotFoundException();
 		}
-
+		
 		return Response.ok(result).build();
 	}
 

@@ -43,7 +43,6 @@ import org.glassfish.grizzly.threadpool.ThreadPoolConfig;
 import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
@@ -298,9 +297,8 @@ public class RestUtils {
 				 * and what not. 
 				 * 
 				 * Register JacksonFeature without exception mappers, because by default it annoyingly 
-				 * swallows response's JsonMappingExceptions. Our more verbose versions 
-				 * ChipsterJsonMappingExceptionMapper and ChipsterJsonParseExceptionMapper are registered
-				 * along our other exception mappers.
+				 * swallows response's JsonMappingExceptions. Our more verbose (in loggging) GeneralExceptoinMapper
+				 * will take care of hiding details from the client.
 				 */
 				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
 				.register(JacksonFeature.withoutExceptionMappers())

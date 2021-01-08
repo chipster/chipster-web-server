@@ -328,8 +328,13 @@ public class HibernateUtil {
 	 * @param sessionFactory
 	 */
 	private static void rollback(Session session) {
-		session.getTransaction().rollback();
-		session.close();
+		if (session != null) {
+			session.getTransaction().rollback();
+			session.close();
+		} else {
+			// why the sessions is null e.g. when an exception happens when the result is mapped to json
+			logger.warn("cannot rollback Hibernate session, because it's null");
+		}
 	}
 
 	public org.hibernate.Session session() {
