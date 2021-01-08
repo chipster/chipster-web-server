@@ -12,8 +12,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.ws.rs.ForbiddenException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,6 +29,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
+import jakarta.ws.rs.ForbiddenException;
 
 public class AuthTokens {
 	

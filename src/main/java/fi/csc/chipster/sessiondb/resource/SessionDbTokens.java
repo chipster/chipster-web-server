@@ -5,9 +5,6 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.NotFoundException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.openssl.PEMException;
@@ -28,6 +25,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.NotFoundException;
 
 /**
  * Limited tokens for session-db

@@ -11,19 +11,11 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.openssl.PEMException;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.glassfish.jersey.jackson.JacksonFeature;
 import org.hibernate.service.spi.ServiceException;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
@@ -44,6 +36,14 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 
 
 public class AuthenticationClient {
@@ -186,7 +186,8 @@ public class AuthenticationClient {
 	public static Client getClient(String username, String password, boolean enableAuth) {
 
 		Client c = ClientBuilder.newClient()
-				.register(JacksonJaxbJsonProvider.class)
+				.register(JacksonFeature.class)
+//				.register(JacksonJaxbJsonProvider.class)
 				.register(JavaTimeObjectMapperProvider.class)
 				;
 		if (enableAuth) {
