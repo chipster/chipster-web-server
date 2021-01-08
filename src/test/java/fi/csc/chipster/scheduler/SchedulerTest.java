@@ -20,6 +20,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;

@@ -22,10 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.InternalServerErrorException;
-import javax.ws.rs.core.Response.ResponseBuilder;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.NotImplementedException;
@@ -37,10 +33,17 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnectionStatistics;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.util.component.Container;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.grizzly.http.server.NetworkListener;
+import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
+import org.glassfish.grizzly.threadpool.ThreadPoolConfig;
 import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.jackson.JacksonFeature;
+import org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
@@ -53,7 +56,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -72,6 +74,9 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
 
 public class RestUtils {
 	
@@ -290,14 +295,15 @@ public class RestUtils {
 		ResourceConfig rc = new ResourceConfig()
 				/*
 				 * Disable auto discovery so that we can decide what we want to register
-				 * and what not. Don't register JacksonFeature, because it will register
-				 * JacksonMappingExceptionMapper, which annoyingly swallows response's
-				 * JsonMappingExceptions. Register directly the JacksonJaxbJsonProvider
-				 * which is enough for the actual JSON conversion (see the code of
-				 * JacksonFeature).
+				 * and what not. 
+				 * 
+				 * Register JacksonFeature without exception mappers, because by default it annoyingly 
+				 * swallows response's JsonMappingExceptions. Our more verbose versions 
+				 * ChipsterJsonMappingExceptionMapper and ChipsterJsonParseExceptionMapper are registered
+				 * along our other exception mappers.
 				 */
 				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
-				.register(JacksonJaxbJsonProvider.class)
+				.register(JacksonFeature.withoutExceptionMappers())
 				.register(JavaTimeObjectMapperProvider.class)
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
@@ -362,12 +368,12 @@ public class RestUtils {
 				LoggingFeature.Verbosity.PAYLOAD_TEXT, LoggingFeature.DEFAULT_MAX_ENTITY_SIZE);
 	}
 	
-	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocator, StatusSource... stats) {
+	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocator, StatusSource... stats) throws IOException {
 		return startAdminServer(new AdminResource(stats), null, role, config, authService, serviceLocator);
 	}
 	
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
-			String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocatorClient) {
+			String role, Config config, AuthenticationClient authService, ServiceLocatorClient serviceLocatorClient) throws IOException {
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 		// allow unauthenticated health checks
 		tokenRequestFilter.addAllowedRole(Role.UNAUTHENTICATED);
@@ -375,7 +381,7 @@ public class RestUtils {
 	}
 
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate,
-			String role, Config config, Object authResource, ServiceLocatorClient serviceLocator) {
+			String role, Config config, Object authResource, ServiceLocatorClient serviceLocator) throws IOException {
 		
         final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)        	
             	.register(authResource)
@@ -387,9 +393,16 @@ public class RestUtils {
         }
 
     	URI baseUri = URI.create(config.getAdminBindUrl(role));
-        return GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+        HttpServer server = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+        
+        configureGrizzlyThreads(server, role + "-admin", true);
+        
+        server.start();
+        
+        return server;
 	}
-
+	
+	
 	public static JerseyStatisticsSource createJerseyStatisticsSource(ResourceConfig rc) {
 		
 		JerseyStatisticsSource listener = new JerseyStatisticsSource();
@@ -557,5 +570,90 @@ public class RestUtils {
 			obj.put(itemKey, id.toString());
 		}
 		return json;
+	}
+
+	/**
+	 * Configure Jetty threads
+	 * 
+	 * Threads are given a name to make debugging easier. 
+	 * 
+	 * @param server
+	 * @param name
+	 * @param isAdminAPI
+	 */
+	public static void configureJettyThreads(Server server, String name) {
+		
+		// no need to configure thread counts, because there are no Jetty admin APIs so far
+				
+		if (server.isStarted()) {
+        	// didn't test if it's possible to change the thread pool of running Jetty
+        	throw new IllegalStateException("jetty " + name + " shouldn't be running when configuring threads");
+        }        
+		
+		// give name for the thread pool to make debugging easier
+    	ThreadPool pool = server.getThreadPool();
+    	if (pool instanceof QueuedThreadPool) {
+    		QueuedThreadPool qtp = ((QueuedThreadPool)pool);
+    		qtp.setName("jetty-qtp-" + name);
+    		logger.info(name + " configured to use " + qtp.getMinThreads() + "-" + qtp.getMaxThreads() + " threads");
+    	}    	
+	}
+	
+	/**
+	 * Configure Grizzly threads
+	 * 
+	 * Threads are given a name to make debugging easier. Admin APIs get a lower number
+	 * of threads, mostly for the same reason.
+	 * 
+	 * @param server
+	 * @param name
+	 * @param isAdminAPI
+	 */
+	public static void configureGrizzlyThreads(HttpServer server, String name, boolean isAdminAPI) {
+				
+		// two threads should still reveal simplest concurrency issues
+		int adminWorkerThreads = 2;
+		int adminKernelThreads = 2;
+			
+		// less threads for admin API to avoid exhausting OS limits 
+        ThreadPoolConfig workerConfig = ThreadPoolConfig.defaultConfig()
+        		.setPoolName("grizzly-http-server-" + name);        
+            
+        ThreadPoolConfig kernelConfig = ThreadPoolConfig.defaultConfig()
+        		.setPoolName("grizzly-nio-kernel-" + name);        
+        
+        if (server.isStarted()) {
+        	/* 
+        	 * It's possible to reconfigure running instances like this:
+        	 *  
+        	 * GrizzlyExecutorService workerPool = (GrizzlyExecutorService) listener.getTransport().getWorkerThreadPool();
+        	 * workerPool.reconfigure(workerConfig);
+        	 * 
+        	 * But that doesn't seem to get rid of old kernel/selector pools.
+        	 */
+        	throw new IllegalStateException("grizzly " + name + " shouldn't be running when configuring threads");
+        }
+        
+        if (isAdminAPI) {
+            workerConfig.setCorePoolSize(adminWorkerThreads);
+            kernelConfig.setCorePoolSize(adminKernelThreads);
+        }
+        
+        NetworkListener listener = server.getListeners().iterator().next();
+        TCPNIOTransport transport = listener.getTransport();
+        
+        transport.setWorkerThreadPoolConfig(workerConfig);
+        
+        // set the thread name
+        transport.setKernelThreadPoolConfig(kernelConfig);
+        
+        if (isAdminAPI) {
+    	// why the pool size is overridden without this?
+        	transport.setSelectorRunnersCount(adminKernelThreads);
+        }
+    	
+    	logger.info(name + " configured to use "
+    			+ kernelConfig.getCorePoolSize() + " selector threads and "
+    			+ workerConfig.getCorePoolSize() + "-" + workerConfig.getMaxPoolSize() + " worker threads");
 	}
 }

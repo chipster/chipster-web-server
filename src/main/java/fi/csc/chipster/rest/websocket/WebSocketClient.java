@@ -6,7 +6,7 @@ import java.net.URISyntaxException;
 import java.util.Timer;
 import java.util.concurrent.TimeoutException;
 
-import javax.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -112,6 +112,15 @@ public class WebSocketClient implements EndpointListener {
 		}
 	}
 	
+	
+	public void waitForDisconnect(long timeout) throws InterruptedException, WebSocketClosedException, WebSocketErrorException {
+		if (this.endpoint != null) {
+			this.endpoint.waitForDisconnect(timeout);
+		} else {
+			throw new IllegalStateException("not connected");
+		}
+	}
+	
 	public static class WebSocketClosedException extends Exception {
 
 		public WebSocketClosedException(CloseReason closeReason) {
@@ -186,5 +195,5 @@ public class WebSocketClient implements EndpointListener {
 				}
 			}
 		}
-	}	
+	}
 }

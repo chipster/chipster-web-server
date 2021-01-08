@@ -25,6 +25,7 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -103,6 +104,7 @@ public class EventTest {
     		getTestClient(uri, sessionId, messages, latch, retry, token2);
     		assertEquals(true, false);
     	} catch (WebSocketErrorException e) {
+    		e.printStackTrace();
     	}    	
     	
     	// unparseable token
@@ -303,10 +305,14 @@ public class EventTest {
     
     	String encodedTopic = "";
     	if (topic != null) {
+    		// encode the topic twice to pass Jetty WebSocketUpgradeFilter when there is a slash in the topic name 
     		encodedTopic = URLEncoder.encode(topic, StandardCharsets.UTF_8.toString());
-    		// something here in the client decodes the url, so let's encode it twice
+    		encodedTopic = URLEncoder.encode(encodedTopic, StandardCharsets.UTF_8.toString());
+    		
+    		// something here in the client decodes the url, so let's encode it one more
     		// investigate more if this is used in somewhere else than just tests
     		encodedTopic = URLEncoder.encode(encodedTopic, StandardCharsets.UTF_8.toString());
+
     	}
     	
     	CredentialsProvider credentials = null;
@@ -325,8 +331,13 @@ public class EventTest {
     	// no events yet
     	assertEquals(1, latch.getCount());
     	
-    	// wait until the connection is really working
-    	client.ping();
+//    	try {
+//    	// wait until the connection is really working
+//    		client.ping();
+//    	} catch (IllegalStateException e) {
+//    		// throws the real remote error
+//    		client.waitForConnection();    		
+//    	}
     	    	
     	return client;
 	}

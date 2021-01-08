@@ -44,6 +44,8 @@ public class WebSocketClientEndpoint extends Endpoint {
 	@Override
 	public void onOpen(Session session, EndpointConfig config) {
 		
+		logger.info("WebSocket client onOpen");
+		
 		this.session = session;
 		
 		if (messageHandler != null) {
@@ -51,13 +53,37 @@ public class WebSocketClientEndpoint extends Endpoint {
 		}
 		
 		disconnectLatch = new CountDownLatch(1);
-		connectLatch.countDown();
+		
+		/* Wait for connection or error
+		 * 
+		 * If the server would use HTTP errors for signaling e.g. authentication errors, at this point
+		 * we would already know that the connection was succesfull. Unfortunately JSR 356 Java API 
+		 * for WebSocket doesn't support servlet filters or other methods
+		 * for responding with HTTP errors to the original WebSocket upgrade request. Then... 
+		 *   
+		 */
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					ping();
+					connectLatch.countDown();
+				} catch (IllegalArgumentException | IOException | TimeoutException | InterruptedException e) {
+					logger.warn("WebSocket client error", e);
+				}
+			}
+			
+		}, "websocket-connection-ping").start();
 		
 		this.endpointListener.onOpen(session, config);
 	}							
 
 	@Override
-	public void onClose(Session session, CloseReason reason) {		
+	public void onClose(Session session, CloseReason reason) {
+		
+		logger.info("WebSocket client onClose: " + reason);
+		
 		closeReason = reason;
 		connectLatch.countDown();
 		disconnectLatch.countDown();
@@ -66,7 +92,10 @@ public class WebSocketClientEndpoint extends Endpoint {
     }
 
 	@Override
-    public void onError(Session session, Throwable thr) {		
+    public void onError(Session session, Throwable thr) {
+		
+		logger.info("WebSocket client onError: " + thr.getMessage());
+		
 		throwable = thr;
 		connectLatch.countDown();
 		disconnectLatch.countDown();
@@ -79,15 +108,34 @@ public class WebSocketClientEndpoint extends Endpoint {
 	}
 	
 	public boolean waitForDisconnect(long timeout) throws InterruptedException {
+		logger.info("WebSocket client will wait for disconnect max " + timeout + " seconds");
 		return disconnectLatch.await(timeout, TimeUnit.SECONDS);
 	}
 
 	public void waitForConnection() throws InterruptedException, WebSocketClosedException, WebSocketErrorException {
+		System.out.println("WebSocket client waiting for connection" + closeReason);
 		connectLatch.await();
 		
 		if (closeReason != null) {
-			throw new WebSocketClosedException(closeReason);
+			if (CloseCodes.VIOLATED_POLICY.getCode() == closeReason.getCloseCode().getCode()) {
+				
+				// auth errors, no need to reconnect
+				throw new WebSocketErrorException(throwable);
+				
+			} else if (CloseCodes.UNEXPECTED_CONDITION.getCode() == closeReason.getCloseCode().getCode()) {
+				
+				// unexpected error in PubSubEndpoint, probably best not to reconnect
+				throw new WebSocketErrorException(throwable);
+				
+			} else {
+			
+				// something else, try to reconnect
+				throw new WebSocketClosedException(closeReason);
+			}
 		} else if (throwable != null) {
+			
+			// most likely error in the HTTP upgrade request, probably happens
+			// only if the configuration or network is broken
 			throw new WebSocketErrorException(throwable);
 		}
 	}
@@ -97,7 +145,7 @@ public class WebSocketClientEndpoint extends Endpoint {
 	}
 
 	public void ping() throws IllegalArgumentException, IOException, TimeoutException, InterruptedException {
-		logger.debug("ping");
+		logger.info("WebSocket client sends ping");
 		PongHandler pongHandler = new PongHandler();
 		session.addMessageHandler(pongHandler);
 		session.getBasicRemote().sendPing(null);
@@ -109,11 +157,14 @@ public class WebSocketClientEndpoint extends Endpoint {
 		private CountDownLatch latch = new CountDownLatch(1);
 		@Override
 		public void onMessage(PongMessage message) {
-			logger.debug("pong");
+			logger.info("WebSocket client received pong");
 			latch.countDown();
 		}
+		
 		public void await() throws TimeoutException, InterruptedException {
-			boolean received = latch.await(2, TimeUnit.SECONDS);
+			int timeout = 5;
+			logger.info("WebSocket client will wait for pong max " + timeout + " seconds");
+			boolean received = latch.await(timeout, TimeUnit.SECONDS);
 			if (!received) {
 				throw new TimeoutException("timeout while waiting for pong message");
 			}

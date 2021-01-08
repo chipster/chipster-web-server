@@ -5,6 +5,8 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.core.HandshakeException;
 
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
+import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.CloseReason.CloseCodes;
 import jakarta.websocket.DeploymentException;
@@ -33,7 +35,7 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 		
 		if (CloseCodes.VIOLATED_POLICY == closeReason.getCloseCode()) {
 			logger.error("reconnection cancelled");
-			throw new RuntimeException(closeReason.getReasonPhrase());
+			throw new RuntimeException(new WebSocketClosedException(closeReason));
 		}
 		counter++;
 		if (retries < 0 || counter <= retries) {
@@ -47,11 +49,21 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 	@Override
 	public boolean onConnectFailure(Exception exception) {
 		logger.info("websocket client " + name + " connection failure", exception);
+		System.out.println("webscoket client " + name + " connection failure");
+		exception.printStackTrace();
 		
+		// HTTP upgrade request errors
 		if (exception instanceof DeploymentException && exception.getCause() instanceof HandshakeException) {
 			logger.error("unrecoverable connection failure, reconnection cancelled");
 			return false;
 		}
+		
+		// VIOLATE_POLICY from onDisconnect(). Should we check the close reason also here?
+		if (exception instanceof RuntimeException && exception.getCause() instanceof WebSocketClosedException) {
+			logger.error("unrecoverable websocket close, reconnection cancelled");
+			return false;
+		}
+				
 		counter++;
 		if (retries < 0 || counter <= retries) {
 			logger.info("reconnecting... (" + counter + "/" + retries + ")");					

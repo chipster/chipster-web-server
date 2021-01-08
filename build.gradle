@@ -85,15 +85,20 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-api:+"
     compile "org.apache.logging.log4j:log4j-core:+"
     compile "org.apache.logging.log4j:log4j-jul:+"
-    compile "org.apache.logging.log4j:log4j-slf4j-impl:+"
-    compile "org.apache.logging.log4j:log4j-1.2-api:+"
+    compile "org.apache.logging.log4j:log4j-slf4j18-impl:+"
 
     // jersey
-    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:2.33"
-    compile "org.glassfish.jersey.inject:jersey-hk2:2.33"    
+    compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.0.0"
+    compile "org.glassfish.jersey.inject:jersey-hk2:3.0.0"
+    compile "org.glassfish.jersey.media:jersey-media-json-jackson:3.0.0"
+    compile "jakarta.xml.bind:jakarta.xml.bind-api"
     
     // Jersey in Jetty (session-worker)            
-    compile "org.glassfish.jersey.containers:jersey-container-servlet-core:2.33"    
+    compile "org.glassfish.jersey.containers:jersey-container-servlet-core:3.0.0"    
+    
+    // jetty for session-worker servlet
+    compile "org.eclipse.jetty:jetty-servlet:11.0.0"
+    compile "org.eclipse.jetty:jetty-server:11.0.0"
         
     // jackson
 	compile "com.fasterxml.jackson.core:jackson-core:2.12.0"
@@ -101,6 +106,9 @@ dependencies {
     compile "com.fasterxml.jackson.core:jackson-annotations:2.12.0"
 	compile "com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.12.0"
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.12.0"
+    
+    // config files
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.0"
 	
     // hibernate
     compile "org.hibernate:hibernate-core:5.4.25.Final"
@@ -115,18 +123,17 @@ dependencies {
     compile "com.amazonaws:aws-java-sdk-s3:+"
 
     // websockets
-    compile "javax.websocket:javax.websocket-api:+"
-    compile "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.4.20.v20190813"
+    //compile "javax.websocket:javax.websocket-api:+"
+    compile "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"   
     compile "org.glassfish.tyrus:tyrus-client:+"
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
     
     // cache settings in web-server
-    compile "org.eclipse.jetty:jetty-rewrite:9.4.20.v20190813"
+    compile "org.eclipse.jetty:jetty-rewrite:11.0.0"
 
 	// other
     compile "commons-io:commons-io:+"
     compile "org.apache.commons:commons-text:+"
-    compile "com.esotericsoftware.yamlbeans:yamlbeans:+"
     
     // rxJava
     compile "io.reactivex.rxjava3:rxjava:3.+"

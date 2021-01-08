@@ -21,7 +21,8 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 
-import com.esotericsoftware.yamlbeans.YamlReader;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 public class Config {
 	
@@ -223,22 +224,36 @@ public class Config {
 			} else {
 				streamReader = new FileReader(confFilePath);				
 			}
-			YamlReader reader = new YamlReader(streamReader);
-			Object object = reader.read();
-			if (object instanceof Map) {
-				@SuppressWarnings("rawtypes")
-				Map confFileMap = (Map) object;
-				
-				for (Object key : confFileMap.keySet()) {
-					Object valueObj = confFileMap.get(key);
-					String value = valueObj != null ? valueObj.toString() : null;
-					conf.put(key.toString(), value);
-				}
-			} else if (object == null){
-				// empty config file
-			} else {
-				throw new RuntimeException("configuration file should be a yaml map, but it is " + object);
+			
+			ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+			mapper.findAndRegisterModules();
+			@SuppressWarnings("rawtypes")
+			HashMap confFileMap = mapper.readValue(streamReader, HashMap.class);
+
+			for (Object key : confFileMap.keySet()) {
+				Object valueObj = confFileMap.get(key);
+				String value = valueObj != null ? valueObj.toString() : null;
+				conf.put(key.toString(), value);
 			}
+
+			
+			//Exception in thread "main" java.lang.NoClassDefFoundError: com/esotericsoftware/yamlbeans/YamlReader
+//			YamlReader reader = new YamlReader(streamReader);
+//			Object object = reader.read();
+//			if (object instanceof Map) {
+//				@SuppressWarnings("rawtypes")
+//				Map confFileMap = (Map) object;
+//				
+//				for (Object key : confFileMap.keySet()) {
+//					Object valueObj = confFileMap.get(key);
+//					String value = valueObj != null ? valueObj.toString() : null;
+//					conf.put(key.toString(), value);
+//				}
+//			} else if (object == null){
+//				// empty config file
+//			} else {
+//				throw new RuntimeException("configuration file should be a yaml map, but it is " + object);
+//			}
 		} catch (FileNotFoundException e) {
 			// show only once per JVM
 			if (!Config.confFileWarnShown) {

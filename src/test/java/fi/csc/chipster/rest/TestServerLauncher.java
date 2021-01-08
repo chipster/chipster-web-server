@@ -9,8 +9,8 @@ import java.util.HashSet;
 import java.util.UUID;
 
 import javax.crypto.spec.SecretKeySpec;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.WebTarget;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.WebTarget;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -47,7 +47,7 @@ public class TestServerLauncher {
 		if (quiet) {
 			webSocketLoggingLevel = Config.getLoggingLevel(PubSubServer.class.getPackage().getName());
 			// hide messages about websocket connection status
-			Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), Level.OFF);
+			//Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), Level.OFF);
 		}
 		
 		//this.serverLauncher = new ServerLauncher(config, false);

@@ -12,11 +12,13 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletException;
-import javax.websocket.MessageHandler;
-import javax.websocket.RemoteEndpoint.Basic;
-import javax.websocket.server.ServerEndpointConfig;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.websocket.MessageHandler;
+import jakarta.websocket.RemoteEndpoint.Basic;
+import jakarta.websocket.server.ServerEndpointConfig;
+import jakarta.ws.rs.NotAuthorizedException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,10 +26,16 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
-import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+import org.eclipse.jetty.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
+//import org.eclipse.jetty.websocket.server.JettyWebSocketServerContainer;
+//import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
+//import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+//import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
+//import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer.Configurator;
 
-import com.mchange.rmi.NotAuthorizedException;
+import fi.csc.chipster.auth.model.Role;
+
+//import com.mchange.rmi.NotAuthorizedException;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
@@ -82,6 +90,7 @@ public class PubSubServer implements StatusSource {
 		
 	public void init() throws ServletException {
 		server = new Server();
+		RestUtils.configureJettyThreads(server, name);
         
         URI uri = URI.create(baseUri);
     	
@@ -109,20 +118,32 @@ public class PubSubServer implements StatusSource {
         /* configureContext() is deprecated, but the recommended alternative method configure() doesn't return the ServerContainer.
          * How do we then configure the user properties? 
          */
-        @SuppressWarnings("deprecation") 
         // Initialize javax.websocket layer
-		ServerContainer wscontainer = WebSocketServerContainerInitializer.configureContext(context);
-        
-        // add this instance to user properties, so that we can call it from the PubSubEndpoint
-        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder.create(PubSubEndpoint.class, "/" + path).build();
-        serverConfig.getUserProperties().put(this.getClass().getName(), this);
+		JakartaWebSocketServletContainerInitializer.configure(context, (servletContext, wsContainer) -> {
+			
+			// This lambda will be called at the appropriate place in the
+            // ServletContext initialization phase where you can initialize
+            // and configure  your websocket container.
+			
+//			wsContainer.addMapping("/" + path, PubSubEndpoint.class);
+			
+	        // add this instance to user properties, so that we can call it from the PubSubEndpoint
+	        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder
+	        		.create(PubSubEndpoint.class, "/" + path)
+	        		.configurator(new PubSubConfigurator(this)).build();
+	        
+//	        serverConfig.getUserProperties().put(this.getClass().getName(), this);
+	        
+	        // Add WebSocket endpoint to javax.websocket layer
+//		        try {
+//					container.addEndpoint(serverConfig);
+				wsContainer.addEndpoint(serverConfig);
+//				} catch (javax.websocket.DeploymentException e) {
+//					throw new RuntimeException("websocket deployment failed", e);
+//				}				
+		});       
 
-        // Add WebSocket endpoint to javax.websocket layer
-        try {
-			wscontainer.addEndpoint(serverConfig);
-		} catch (javax.websocket.DeploymentException e) {
-			throw new RuntimeException("websocket deployment failed", e);
-		}
+
 	}
 
 	public void publish(Object obj) {
@@ -172,10 +193,14 @@ public class PubSubServer implements StatusSource {
 
 		synchronized (topics) {
 			Topic topic = topics.get(topicName);
-			topic.remove(basicRemote);
-			if (topic.isEmpty()) {
-				logger.debug("topic " + topicName + " is empty, remove it");
-				topics.remove(topicName);
+			if (topic != null) {
+				topic.remove(basicRemote);
+				if (topic.isEmpty()) {
+					logger.debug("topic " + topicName + " is empty, remove it");
+					topics.remove(topicName);
+				}
+			} else {
+				logger.warn("cannot unssubscribe, topic not found: " + topic);
 			}
 		}
 	}
@@ -223,6 +248,10 @@ public class PubSubServer implements StatusSource {
 		} catch (Exception e) {
 			logger.error("failed to start PubSubServer", e);
 		}
+	}
+	
+	public TopicConfig getTopicConfig() {
+		return this.topicConfig;
 	}
 
 	public boolean isTopicAuthorized(AuthPrincipal principal, String topic) throws NotAuthorizedException {

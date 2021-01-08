@@ -3,8 +3,8 @@
 //import java.io.IOException;
 //import java.util.Arrays;
 //
-//import javax.jms.JMSException;
-//import javax.xml.parsers.ParserConfigurationException;
+//import jakarta.jms.JMSException;
+//import jakarta.xml.parsers.ParserConfigurationException;
 //
 //import org.apache.logging.log4j.LogManager;
 //import org.apache.logging.log4j.Logger;
