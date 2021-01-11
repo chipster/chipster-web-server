@@ -77,8 +77,9 @@ public class SessionDbTokens {
 	public SessionDbToken checkSessionAuthorization(String jwsString, UUID requestSessionId, org.hibernate.Session hibernateSession) {
 		
 		try {
-			Jws<Claims> jws = Jwts.parser()
+			Jws<Claims> jws = Jwts.parserBuilder()
 					.setSigningKey(jwsKeyPair.getPublic())
+					.build()
 					.parseClaimsJws(jwsString);
 
 			// now we can safely trust the JWT
@@ -128,8 +129,9 @@ public class SessionDbTokens {
 	public SessionDbToken checkDatasetAuthorization(String jwsString, UUID requestSessionId, UUID requestDatasetId, org.hibernate.Session hibernateSession) {
 		
 		try {
-			Jws<Claims> jws = Jwts.parser()
+			Jws<Claims> jws = Jwts.parserBuilder()
 					.setSigningKey(jwsKeyPair.getPublic())
+					.build()
 					.parseClaimsJws(jwsString);
 
 			// now we can safely trust the JWT

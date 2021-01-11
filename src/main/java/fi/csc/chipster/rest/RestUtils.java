@@ -24,15 +24,12 @@ import java.util.logging.Level;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.io.ConnectionStatistics;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnectionStatistics;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import org.glassfish.grizzly.GrizzlyFuture;
@@ -411,22 +408,10 @@ public class RestUtils {
 		return listener;
 	}
 
-	public static StatusSource createStatisticsListener(Server server) {
-				
-		ServerConnectionStatistics.addToAllConnectors(server);
+	public static StatusSource createStatisticsListener(Server server) {				
 		
-        ConnectionStatistics connectionStats = null;
-        
-        if (server.getConnectors().length == 1) {
-        	Connector connector = server.getConnectors()[0];
-        	if (connector instanceof Container) {
-        		connectionStats = ((Container)connector).getBean(ConnectionStatistics.class);
-        	} else {
-        		throw new NotImplementedException("only Containers supported");
-        	}
-        } else {
-        	throw new NotImplementedException("server has multiple connectors");
-        }
+		ConnectionStatistics connectionStats = new ConnectionStatistics();
+		server.addBeanToAllConnectors(connectionStats);
 		
 		StatisticsHandler requestStats = new StatisticsHandler();
 		requestStats.setHandler(server.getHandler());

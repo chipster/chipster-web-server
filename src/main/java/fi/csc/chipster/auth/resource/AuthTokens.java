@@ -140,8 +140,9 @@ public class AuthTokens {
 	public static ParsedToken validate(String jwsString, PublicKey publicKey) {
 		
 		try {
-			Jws<Claims> jws = Jwts.parser()
+			Jws<Claims> jws = Jwts.parserBuilder()
 					.setSigningKey(publicKey)
+					.build()
 					.parseClaimsJws(jwsString);
 
 			// now we can safely trust the JWT
@@ -186,7 +187,7 @@ public class AuthTokens {
 		
 		try {
 			@SuppressWarnings("rawtypes")
-			Jwt<Header, Claims> jwt = Jwts.parser()
+			Jwt<Header, Claims> jwt = Jwts.parserBuilder().build()
 					.parseClaimsJwt(jwtString);
 
 			// now we can safely trust the JWT
