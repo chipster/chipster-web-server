@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -48,11 +49,17 @@ public class SessionDbAdminResource extends AdminResource {
 
 	private List<Class<?>> hibernateClasses;
 
-	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer, List<Class<?>> hibernateClasses) {
+	/**
+	 * @param hibernate
+	 * @param jerseyStats
+	 * @param pubSubServer
+	 * @param classes as an array, because Jersey doesn't like wildcard types (produces a log warning "Not resolvable to a concrete type"). We don't care about it, because we instantiate the class ourselves.
+	 */
+	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes) {
 		super(jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
-		this.hibernateClasses = hibernateClasses;
+		this.hibernateClasses = Arrays.asList(classes);
 	}
 	
 	@GET

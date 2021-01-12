@@ -298,13 +298,18 @@ public class RestUtils {
 				 * will take care of hiding details from the client.
 				 */
 				.property(CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE, true)
+				/* 
+				 * Disable WADL
+				 * 
+				 * We don't use it at the moment.
+				 */
+				.property(ServerProperties.WADL_FEATURE_DISABLE, true)
 				.register(JacksonFeature.withoutExceptionMappers())
 				.register(JavaTimeObjectMapperProvider.class)
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
 				// enable the RolesAllowed annotation
-				.register(RolesAllowedDynamicFeature.class)
-				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class);
+				.register(RolesAllowedDynamicFeature.class);
 		
 		if (serviceLocator != null) {
 			CORSResponseFilter cors = new CORSResponseFilter(serviceLocator);

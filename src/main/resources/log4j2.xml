@@ -76,6 +76,11 @@ developing, without having to worry about committing them accidentally.
     <!--  if this is enabled in the code, we really want to see it's logs -->
     <Logger name="org.glassfish.jersey.filter.LoggingFilter" level="info" />
     
+    <!-- hide warnings when we initialize Jersey with resource instances instead of classes -->
+    <!-- https://stackoverflow.com/questions/37204930/rest-filter-registered-in-server-runtime-does-not-implement-any-provider-inter -->
+    <!-- [2021-01-12 09:17:02,152] WARN: A provider fi.csc.chipster.backup.BackupAdminResource registered in SERVER runtime does not implement any provider interfaces applicable in the SERVER runtime. Due to constraint configuration problems the provider fi.csc.chipster.backup.BackupAdminResource will be ignored.  (in Providers:497) -->    
+    <Logger name="org.glassfish.jersey.internal.inject.Providers" level="error" />
+    
     <!--  default level for our code -->
     <Logger name="fi.csc.chipster" level="info" additivity="false">
     	<AppenderRef ref="chipster"/>
