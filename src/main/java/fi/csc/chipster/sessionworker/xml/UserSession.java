@@ -1,8 +1,8 @@
 package fi.csc.chipster.sessionworker.xml;
 
 import javax.xml.XMLConstants;
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBException;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
@@ -29,7 +29,7 @@ public class UserSession {
 	private static Logger logger = LogManager.getLogger();
     
 	public static JAXBContext getJAXBContext() throws JAXBException {
-		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2");
+		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2", Thread.currentThread().getContextClassLoader());
 	}
 
 	public static Schema getSchema() throws SAXException {

@@ -91,7 +91,9 @@ dependencies {
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.0.0"
     compile "org.glassfish.jersey.inject:jersey-hk2:3.0.0"
     compile "org.glassfish.jersey.media:jersey-media-json-jackson:3.0.0"
-    compile "jakarta.xml.bind:jakarta.xml.bind-api"
+    
+    // old xml sessions
+    //compile "jakarta.xml.bind:jakarta.xml.bind-api:+"
     
     // Jersey in Jetty (session-worker)            
     compile "org.glassfish.jersey.containers:jersey-container-servlet-core:3.0.0"    
