@@ -309,7 +309,8 @@ public class RestUtils {
 				 // register all exception mappers
 				.packages(NotFoundExceptionMapper.class.getPackage().getName())
 				// enable the RolesAllowed annotation
-				.register(RolesAllowedDynamicFeature.class);
+				.register(RolesAllowedDynamicFeature.class)
+				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class);
 		
 		if (serviceLocator != null) {
 			CORSResponseFilter cors = new CORSResponseFilter(serviceLocator);
