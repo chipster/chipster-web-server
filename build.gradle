@@ -92,9 +92,6 @@ dependencies {
     compile "org.glassfish.jersey.inject:jersey-hk2:3.0.0"
     compile "org.glassfish.jersey.media:jersey-media-json-jackson:3.0.0"
     
-    // old xml sessions
-    //compile "jakarta.xml.bind:jakarta.xml.bind-api:+"
-    
     // Jersey in Jetty (session-worker)            
     compile "org.glassfish.jersey.containers:jersey-container-servlet-core:3.0.0"    
     
@@ -104,9 +101,6 @@ dependencies {
         
     // jackson
 	compile "com.fasterxml.jackson.core:jackson-core:2.12.0"
-    compile "com.fasterxml.jackson.core:jackson-databind:2.12.0"
-    compile "com.fasterxml.jackson.core:jackson-annotations:2.12.0"
-//	compile "com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.12.0"
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.12.0"
     
     // config files
@@ -125,7 +119,6 @@ dependencies {
     compile "com.amazonaws:aws-java-sdk-s3:+"
 
     // websockets
-    //compile "javax.websocket:javax.websocket-api:+"
     compile "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"   
     compile "org.glassfish.tyrus:tyrus-client:+"
     compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
