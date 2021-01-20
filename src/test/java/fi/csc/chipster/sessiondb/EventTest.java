@@ -10,8 +10,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import jakarta.websocket.MessageHandler;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -25,8 +23,7 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
+import fi.csc.chipster.rest.websocket.WebSocketClosedException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
@@ -35,6 +32,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
+import jakarta.websocket.CloseReason.CloseCodes;
+import jakarta.websocket.MessageHandler;
 
 public class EventTest {
 	
@@ -94,38 +93,42 @@ public class EventTest {
     	
     	// jobs topic with client credentials
     	try {       
-    		getTestClient(uri + "/", SessionDbTopicConfig.JOBS_TOPIC, messages, latch, retry, token);
+    		getTestClient(uri, SessionDbTopicConfig.JOBS_TOPIC, messages, latch, retry, token);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
     	// wrong user
     	try {       
     		getTestClient(uri, sessionId, messages, latch, retry, token2);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
-    		e.printStackTrace();
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}    	
     	
     	// unparseable token
     	try {       
     		getTestClient(uri, sessionId, messages, latch, retry, "unparseableToken");
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
     	// wrong token
     	try {       
     		getTestClient(uri, sessionId, messages, latch, retry, RestUtils.createId());
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}    
 
     	// no token
     	try {       
     		getTestClient(uri, sessionId, messages, latch, retry, null);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     }
     
@@ -140,28 +143,36 @@ public class EventTest {
     	try {       
     		getTestClient(uri, userId, messages, latch, retry, token2);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
-    	}    	
+    		
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
+    	}
     	
     	// unparseable token
     	try {       
     		getTestClient(uri, userId, messages, latch, retry, "unparseableToken");
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    		
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
     	// wrong token
     	try {       
     		getTestClient(uri, userId, messages, latch, retry, RestUtils.createId());
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    		
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}    
 
     	// no token
     	try {       
     		getTestClient(uri, userId, messages, latch, retry, null);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    		
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     }
     
@@ -330,14 +341,6 @@ public class EventTest {
     	
     	// no events yet
     	assertEquals(1, latch.getCount());
-    	
-//    	try {
-//    	// wait until the connection is really working
-//    		client.ping();
-//    	} catch (IllegalStateException e) {
-//    		// throws the real remote error
-//    		client.waitForConnection();    		
-//    	}
     	    	
     	return client;
 	}

@@ -29,7 +29,7 @@ public class UserSession {
 	private static Logger logger = LogManager.getLogger();
     
 	public static JAXBContext getJAXBContext() throws JAXBException {
-		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2", Thread.currentThread().getContextClassLoader());
+		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2");
 	}
 
 	public static Schema getSchema() throws SAXException {

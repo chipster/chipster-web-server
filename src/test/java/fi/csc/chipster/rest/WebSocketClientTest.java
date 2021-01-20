@@ -15,8 +15,8 @@ import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.rest.websocket.TopicConfig;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
+import fi.csc.chipster.rest.websocket.WebSocketClosedException;
+import fi.csc.chipster.rest.websocket.WebSocketErrorException;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.MessageHandler.Whole;
 

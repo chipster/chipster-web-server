@@ -25,8 +25,6 @@ public class WebSocketClient implements EndpointListener {
 	
 	public static final Logger logger = LogManager.getLogger();
 
-//	private static final long PING_INTERVAL = 60_000;	
-
 	private String name;
 
 	private ClientManager client;
@@ -87,18 +85,6 @@ public class WebSocketClient implements EndpointListener {
 		}
 		
 		endpoint.waitForConnection();
-		 
-		// prevent jetty from closing this connection if it is idle for 5 minutes
-//		pingTimer.schedule(new TimerTask() {
-//			@Override
-//			public void run() {
-//				try {
-//					ping();
-//				} catch (IOException | TimeoutException | InterruptedException e) {
-//					logger.error("failed to send a ping", e);
-//				}
-//			}			
-//		}, PING_INTERVAL, PING_INTERVAL);
 	}	
 	
 	/*
@@ -112,29 +98,6 @@ public class WebSocketClient implements EndpointListener {
 		}
 	}
 	
-	
-	public void waitForDisconnect(long timeout) throws InterruptedException, WebSocketClosedException, WebSocketErrorException {
-		if (this.endpoint != null) {
-			this.endpoint.waitForDisconnect(timeout);
-		} else {
-			throw new IllegalStateException("not connected");
-		}
-	}
-	
-	public static class WebSocketClosedException extends Exception {
-
-		public WebSocketClosedException(CloseReason closeReason) {
-			super(closeReason.getCloseCode() + closeReason.getReasonPhrase());
-		}			
-	}
-	
-	public static class WebSocketErrorException extends Exception {
-
-		public WebSocketErrorException(Throwable throwable) {
-			super(throwable);
-		}
-	}
-
 	public void sendText(String text) throws InterruptedException, IOException {
 		endpoint.sendText(text);
 	}

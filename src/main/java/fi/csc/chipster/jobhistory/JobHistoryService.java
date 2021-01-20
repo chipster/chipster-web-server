@@ -75,12 +75,14 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 
-		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "job-history");
-
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistory.class);
 		// Initializing hibernate components
 		hibernate = new HibernateUtil(this.config, Role.JOB_HISTORY, hibernateClasses);
+		
+		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+		
+		// we are ready to handle events after this.hibernate has been set
+		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "job-history");
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 

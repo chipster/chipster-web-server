@@ -5,8 +5,6 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.core.HandshakeException;
 
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.CloseReason.CloseCodes;
 import jakarta.websocket.DeploymentException;
@@ -49,8 +47,6 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 	@Override
 	public boolean onConnectFailure(Exception exception) {
 		logger.info("websocket client " + name + " connection failure", exception);
-		System.out.println("webscoket client " + name + " connection failure");
-		exception.printStackTrace();
 		
 		// HTTP upgrade request errors
 		if (exception instanceof DeploymentException && exception.getCause() instanceof HandshakeException) {

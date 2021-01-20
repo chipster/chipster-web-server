@@ -20,13 +20,13 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketClosedException;
-import fi.csc.chipster.rest.websocket.WebSocketClient.WebSocketErrorException;
+import fi.csc.chipster.rest.websocket.WebSocketClosedException;
 import fi.csc.chipster.scheduler.JobCommand.Command;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.EventTest;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
+import jakarta.websocket.CloseReason.CloseCodes;
 
 public class SchedulerTest {
 	
@@ -75,28 +75,32 @@ public class SchedulerTest {
     	try {       
     		EventTest.getTestClient(uri, null, messages, latch, false, userToken);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
     	// unparseable token
     	try {       
     		EventTest.getTestClient(uri, null, messages, latch, false, "unparseableToken");
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
     	// wrong token
     	try {       
     		EventTest.getTestClient(uri, null, messages, latch, false, RestUtils.createId());
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}    
 
     	// no token
     	try {       
     		EventTest.getTestClient(uri, null, messages, latch, false, null);
     		assertEquals(true, false);
-    	} catch (WebSocketErrorException e) {
+    	} catch (WebSocketClosedException e) {
+    		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     }
     

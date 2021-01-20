@@ -17,13 +17,10 @@ import org.eclipse.jetty.websocket.jakarta.server.internal.JakartaWebSocketCreat
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import jakarta.websocket.ClientEndpoint;
 import jakarta.websocket.CloseReason;
-import jakarta.websocket.CloseReason.CloseCodes;
-import jakarta.websocket.Endpoint;
 import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.MessageHandler;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
-import jakarta.websocket.OnMessage;
 import jakarta.websocket.OnOpen;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
@@ -31,8 +28,8 @@ import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 
 /**
- * A stateless endpoint class for javax.websocket API. Gets the PubSubServer 
- * instance from the user properties to do most of the actual work. 
+ * A endpoint class for javax.websocket API. Assumes the PubSubConfigurator has set the PubSubServer 
+ * instance which will do the most of the actual work. 
  * 
  * @author klemela
  */
@@ -52,7 +49,6 @@ public class PubSubEndpoint {
 
 		session.setMaxIdleTimeout(this.server.getIdleTimeout());
 
-		Map<String, String> pathParameters = session.getPathParameters();
 		Map<String, List<String>> requestParameters = session.getRequestParameterMap();
 		Map<String, Object> userProperties = session.getUserProperties();
 
@@ -67,77 +63,58 @@ public class PubSubEndpoint {
 		try {
 			if (tokenParameters == null) {
 				logger.debug("no token parameter");
-				session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request"));
-				//response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "no token in request");
-				return;
+				/* 
+				 * Throwing an exception allows a clear way to interrupt execution of this method
+				 * before the connnection is subscribed to get any real content.
+				 * 
+				 * session.close(); return; would work too, but it would be too easy forget the
+				 * return clause. 
+				 */
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
 			}
 			
 			String tokenKey = tokenParameters.get(0);
 
 			if (tokenKey == null) {
 				logger.debug("no token");
-				session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request"));
-				//response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "no token in request");
-				return;
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
 			}
 
-			String topic = null;
+			// doesn't have to be a Principal anymore, because it's not passed in ServletRequest, ValidToken would enough
 			AuthPrincipal principal = null;
 
 			try {
 				principal = server.getTopicConfig().getUserPrincipal(tokenKey);
-
-				if (principal == null) {
-					session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "access denied"));
-					return;
-				}
-
-				// get topic from path params    
-				topic = getTopic(session);
-
-				boolean isAuthorized = this.server.isTopicAuthorized(principal, topic);
-
-				if (!isAuthorized) {
-					session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token not accepted"));
-					return;
-				}
-
-				// authentication ok
-				logger.debug("authentication ok");
-
-
-				//    				/* Jetty WebSocketUpgradeFilter gets the target path from getServletPath(), which
-				//    				 * is decoded. If the topic contains an encoded slash like /events/jaas%Fchipster, getServletPath()
-				//    				 * will return /events/jaas/chipster, which doesn't match with the pathTemplate resulting to a 404
-				//    				 * response. Make the getServletPath() return he encoded version despite the spec to
-				//    				 * get to the PubSubEndpoint correctly.
-				//    				 */
-				//    				String originalTopic = getTopic(session);
-				//    				if (originalTopic != null) {
-				//	    		    	String encodedTopic = URLEncoder.encode(originalTopic, StandardCharsets.UTF_8.toString());
-				//	    		    	String forwardUri = getUrl(encodedTopic);
-				//	    		    	authenticatedRequest.setServletPath(forwardUri);
-				//    				}
-
-
+				
 			} catch (NotFoundException e) {
-				session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "not found: " + e.getMessage()));
-				//response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-				return;
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "not found: " + e.getMessage());
+				
 			} catch (ForbiddenException e) {
-				session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "forbidden: " + e.getMessage()));
-				//    		response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
-				return;
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "forbidden: " + e.getMessage());
+				
 			} catch (jakarta.ws.rs.NotAuthorizedException e) {
-				session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "not authorized: " + e.getMessage()));
-				//    		response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
-				return;
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "not authorized: " + e.getMessage());
+				
 			} catch (Exception e) {
 				logger.error("error in websocket authentication", e);
-				session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, "internal server error"));
-				//    		response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "failed to retrieve the token");
-				return;
+				throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION, "internal server error");
 			}
+
+			if (principal == null) {
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "access denied");
+			}
+
+			// get topic from path params    
+			String topic = getTopic(session);
+
+			boolean isAuthorized = this.server.isTopicAuthorized(principal, topic);
+
+			if (!isAuthorized) {
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "token not accepted");
+			}
+
+			// authentication ok
+			logger.debug("authentication ok");
 
 			// store topic to user properties, because we need it when we unsubscribe
 			session.getUserProperties().put(TOPIC_KEY, topic);
@@ -157,8 +134,13 @@ public class PubSubEndpoint {
 			if (messageHandler != null) {
 				session.addMessageHandler(messageHandler);
 			}
-		} catch (IOException e) {
-			logger.error("opening websocket failed", e);
+
+		} catch (WebSocketClosedException e) {
+			try {
+				session.close(e.getCloseReason());
+			} catch (IOException e2) {
+				logger.warn("websocket close failed", e2);
+			}
 		}
 	}
 
@@ -171,24 +153,13 @@ public class PubSubEndpoint {
 		if (topic == null) {
 			return null;
 		}
-		// why jetty decodes the url (and consequently doesn't match the WebsocketEndpoint)
-		// if the slash is decoded just once?
-		String decodedOnce;
+		// the topic is url encoded to allow slash characters
 		try {
-			decodedOnce = URLDecoder.decode(topic, StandardCharsets.UTF_8.toString());
-			String decodedTwice = URLDecoder.decode(decodedOnce, StandardCharsets.UTF_8.toString());
-			return decodedTwice;
+			String decoded = URLDecoder.decode(topic, StandardCharsets.UTF_8.toString());
+			return decoded;
 
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException("topic decode failed", e);
-		}
-	}
-
-	private void close(Session session, CloseCodes closeCode, String reason) {
-		try {
-			session.close(new CloseReason(closeCode, reason));
-		} catch (IOException ex) {
-			logger.error("failed to close websocket", ex);
 		}
 	}
 

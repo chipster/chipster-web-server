@@ -12,14 +12,6 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.websocket.MessageHandler;
-import jakarta.websocket.RemoteEndpoint.Basic;
-import jakarta.websocket.server.ServerEndpointConfig;
-import jakarta.ws.rs.NotAuthorizedException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Server;
@@ -27,20 +19,16 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
-//import org.eclipse.jetty.websocket.server.JettyWebSocketServerContainer;
-//import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
-//import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
-//import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
-//import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer.Configurator;
-
-import fi.csc.chipster.auth.model.Role;
-
-//import com.mchange.rmi.NotAuthorizedException;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.rest.token.PubSubTokenServletFilter;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletException;
+import jakarta.websocket.MessageHandler;
+import jakarta.websocket.RemoteEndpoint.Basic;
+import jakarta.websocket.server.ServerEndpointConfig;
+import jakarta.ws.rs.NotAuthorizedException;
 
 public class PubSubServer implements StatusSource {
 	
@@ -110,40 +98,26 @@ public class PubSubServer implements StatusSource {
         logger.debug("context path " + contextPath);
         context.setContextPath(contextPath);
 
-        PubSubTokenServletFilter filter = new PubSubTokenServletFilter(topicConfig, contextPath + path);
+        PubSubNotFoundServletFilter filter = new PubSubNotFoundServletFilter();
         context.addFilter(new FilterHolder(filter), "/*",  EnumSet.of(DispatcherType.REQUEST));
 
         server.setHandler(context);
 		
-        /* configureContext() is deprecated, but the recommended alternative method configure() doesn't return the ServerContainer.
-         * How do we then configure the user properties? 
-         */
         // Initialize javax.websocket layer
 		JakartaWebSocketServletContainerInitializer.configure(context, (servletContext, wsContainer) -> {
 			
 			// This lambda will be called at the appropriate place in the
             // ServletContext initialization phase where you can initialize
             // and configure  your websocket container.
-			
-//			wsContainer.addMapping("/" + path, PubSubEndpoint.class);
-			
-	        // add this instance to user properties, so that we can call it from the PubSubEndpoint
+						
+	        // give this instance to the PubSubConfigurator, so that it can pass it to the PubSubEndpoint
 	        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder
 	        		.create(PubSubEndpoint.class, "/" + path)
 	        		.configurator(new PubSubConfigurator(this)).build();
-	        
-//	        serverConfig.getUserProperties().put(this.getClass().getName(), this);
-	        
+	        	        
 	        // Add WebSocket endpoint to javax.websocket layer
-//		        try {
-//					container.addEndpoint(serverConfig);
-				wsContainer.addEndpoint(serverConfig);
-//				} catch (javax.websocket.DeploymentException e) {
-//					throw new RuntimeException("websocket deployment failed", e);
-//				}				
-		});       
-
-
+			wsContainer.addEndpoint(serverConfig);
+		});
 	}
 
 	public void publish(Object obj) {

@@ -46,7 +46,11 @@ public class TestServerLauncher {
 		
 		if (quiet) {
 			webSocketLoggingLevel = Config.getLoggingLevel(PubSubServer.class.getPackage().getName());
-			// hide messages about websocket connection status
+			/*
+			 *  WebSocket tests create ugly logs
+			 * 
+			 *  We could hide them, but that would make debugging more difficult.
+			 */
 			//Config.setLoggingLevel(PubSubServer.class.getPackage().getName(), Level.OFF);
 		}
 		
