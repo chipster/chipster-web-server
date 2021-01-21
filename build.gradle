@@ -29,7 +29,7 @@ distTar {
 
 // option to set java version on command line
 // ./gradlew -P javaVersion=8
-ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '15'
+ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '11'
 sourceCompatibility = javaVersion
 targetCompatibility = javaVersion
 

@@ -132,7 +132,7 @@ public class ToolboxService {
 
 		// found tools zip
 		else {
-			FileSystem fs = FileSystems.newFileSystem(foundPath);
+			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
 			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
 			box = new Toolbox(toolsPath, toolsBin);
 
