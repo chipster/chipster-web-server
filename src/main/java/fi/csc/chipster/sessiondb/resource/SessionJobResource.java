@@ -51,7 +51,6 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class SessionJobResource {
 	
-	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
 	final private UUID sessionId;

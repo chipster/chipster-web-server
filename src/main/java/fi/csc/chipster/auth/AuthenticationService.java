@@ -41,7 +41,6 @@ public class AuthenticationService {
 	
 	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
 	
-	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
 
 	private static HibernateUtil hibernate;

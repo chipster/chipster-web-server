@@ -35,7 +35,6 @@ public class AdminResource {
 	
 	public static final String PATH_STATUS = "status";
 
-	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;

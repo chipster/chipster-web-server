@@ -1,7 +1,6 @@
 package fi.csc.chipster.comp;
 
 
-@SuppressWarnings("serial")
 public class FileBrokerException extends Exception {
 
 	public FileBrokerException() {

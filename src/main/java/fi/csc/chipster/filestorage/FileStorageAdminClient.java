@@ -23,7 +23,6 @@ import fi.csc.chipster.rest.exception.NotAuthorizedException;
 @Path("admin")
 public class FileStorageAdminClient {
 
-	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	private CredentialsProvider credentials;
