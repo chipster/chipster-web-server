@@ -219,8 +219,11 @@ auth-oidc-required-userinfo-claim-error: "Chipster login is not allowed for this
 comp-max-jobs: 5
 # time after which a scheduled job is removed if there is no response from the scheduler
 comp-schedule-timeout: 10
-# delay before sending the job offer message, multiplied by number of scheduled jobs, milliseconds
-comp-offer-delay: 100
+# delay before sending the job offer message, multiplied by number of running and scheduled jobs, milliseconds
+comp-offer-delay-running-slots: 100
+# fixed delay before sending the job offer message for specific job size, milliseconds
+# append a dash and slot count to configure a delay for different job sizes 
+comp-offer-delay-requested-slots: 0
 # should job specific temporary directory be sweeped after job execution
 comp-sweep-work-dir: true
 # schedule timeout check interval, milliseconds
@@ -247,7 +250,7 @@ comp-runtimes-path: ""
 # max time for comps to decide if it can run the job, seconds
 scheduler-wait-timeout: 5
 # max time for new job to wait for available comp, seconds
-scheduler-wait-runnable-timeout: 600
+scheduler-wait-runnable-timeout: 604800 # a week
 # how soon the job can be rescheduled, seconds
 scheduler-schedule-timeout: 1
 # how long to wait for job heartbeats before giving up, seconds
