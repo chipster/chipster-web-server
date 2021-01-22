@@ -276,12 +276,12 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 
 			case UPDATE:
 				job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-
+				
 				// when the comp has finished the job, we can forget it
 				if (job.getState().isFinishedByComp()) {
 					logger.info("job " + jobIdPair + " finished by comp");
 					jobs.remove(jobIdPair);
-				}
+				}				
 
 				// job has been cancelled, inform comps and remove from scheduler
 				else if (job.getState() == JobState.CANCELLED) {
@@ -538,10 +538,8 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 			jobs.remove(idPair);
 		}
 
-		if (!JobState.valueOf(stateString).isFinished()) {
-			JobCommand cmd = new JobCommand(idPair.getSessionId(), idPair.getJobId(), null, Command.CANCEL);
-			pubSubServer.publish(cmd);
-		}
+		JobCommand cmd = new JobCommand(idPair.getSessionId(), idPair.getJobId(), null, Command.CANCEL);
+		pubSubServer.publish(cmd);
 	}
 
 	/**

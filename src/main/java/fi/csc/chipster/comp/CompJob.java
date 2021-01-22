@@ -166,8 +166,9 @@ public abstract class CompJob implements Runnable {
 	
 	public synchronized void updateState(JobState newState, String stateDetail) {
 
-		// ignore if jos is cancelled already
+		// ignore if job is cancelled already
 		if (this.state == JobState.CANCELLED) {
+			logger.info("job tried to change it's state to " + newState.toString() + ", but it's already cancelled");
 			return;
 		}
 		
