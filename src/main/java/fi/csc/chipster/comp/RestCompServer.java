@@ -232,29 +232,6 @@ public class RestCompServer
 		logger.info("[mem: " + SystemMonitorUtil.getMemInfo() + "]");
 	}
 
-	private static HashMap<Integer, Long> getOfferDelayRequestedSlots(Config config) {
-		
-		HashMap<Integer, Long> parsedEntries = new HashMap<Integer, Long>();
-		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS).entrySet()) {
-			String slotsString = entry.getKey();
-			String confKey = PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS + slotsString;
-			int slots;
-			try {						
-				slots = Integer.parseInt(slotsString);
-			} catch (NumberFormatException e) {
-				logger.warn("cannot parse slot count from configuration key " + confKey);
-				continue;
-			}
-			try {
-				long delay = Long.parseLong(entry.getValue());
-				parsedEntries.put(slots, delay);
-			} catch (NumberFormatException e) {
-				logger.warn("cannot parse delay. configuration key: " + confKey + ", value: " + entry.getValue());
-			}
-		}
-		return parsedEntries;
-	}
-
 	public String getName() {
 		return "comp";
 	}
@@ -636,6 +613,31 @@ public class RestCompServer
 			logger.error("unable to send " + cmd.getCommand() + " message", e);
 		}
 	}
+	
+	private static HashMap<Integer, Long> getOfferDelayRequestedSlots(Config config) {
+		
+		HashMap<Integer, Long> parsedEntries = new HashMap<Integer, Long>();
+		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS).entrySet()) {
+			String slotsString = entry.getKey();
+			String confKey = PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS + slotsString;
+			int slots;
+			try {						
+				slots = Integer.parseInt(slotsString);
+			} catch (NumberFormatException e) {
+				logger.warn("cannot parse slot count from configuration key " + confKey);
+				continue;
+			}
+			try {
+				long delay = Long.parseLong(entry.getValue());
+				parsedEntries.put(slots, delay);
+				logger.info("comp is configured to wait " + delay + " ms for jobs of " + slots + " slot(s)");
+			} catch (NumberFormatException e) {
+				logger.warn("cannot parse delay. configuration key: " + confKey + ", value: " + entry.getValue());
+			}
+		}
+		return parsedEntries;
+	}
+
 
 	/**
 	 * The order of the jobs in the receivedJobs and scheduledJobs is FIFO. Because
