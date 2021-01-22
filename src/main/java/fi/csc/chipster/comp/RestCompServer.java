@@ -368,7 +368,7 @@ public class RestCompServer
 					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
-					hostname + delimiter + ProcessUtils.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
+					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}

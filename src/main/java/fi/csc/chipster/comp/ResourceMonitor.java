@@ -9,7 +9,7 @@ import java.util.TimerTask;
 
 import org.apache.log4j.Logger;
 
-import fi.csc.chipster.comp.ProcessUtils.ProcessResourceMonitor;
+import fi.csc.chipster.comp.ProcessMonitoring.ProcessResourceMonitor;
 
 /**
  * <h1>Monitor resource usage of unix-like processes</h1>

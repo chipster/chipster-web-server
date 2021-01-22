@@ -1,6 +1,5 @@
 package fi.csc.chipster.comp;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -16,9 +15,9 @@ import org.apache.log4j.Logger;
  * @author klemela
  *
  */
-public class ProcessUtils {
+public class ProcessMonitoring {
 	
-	static final Logger logger = Logger.getLogger(ProcessUtils.class);
+	static final Logger logger = Logger.getLogger(ProcessMonitoring.class);
 	
 	/**
 	 * Some examples for quick tests
@@ -100,7 +99,7 @@ public class ProcessUtils {
 		
 		public void update() throws IOException {
 			if (pid == null) {
-				this.pid = ProcessUtils.getPid(javaProcess);
+				this.pid = ProcessMonitoring.getPid(javaProcess);
 				allPids.add(pid);
 			}
 			
@@ -213,24 +212,14 @@ public class ProcessUtils {
 		if (process == null) {
 			return null;
 		}
-		Class<?> clazz = process.getClass();
+		
 		try {
-			logger.info("process class " + clazz.getName());
-			// UNIXProcess in Java 8, ProcessImpl since then. There is a API for this since Java 9, but the
-			// old Chipster is still using Java 8
-			if (clazz.getName().equals("java.lang.UNIXProcess") || clazz.getName().equals("java.lang.ProcessImpl")) {
-				Field pidField = clazz.getDeclaredField("pid");
-				pidField.setAccessible(true);
-				Object value = pidField.get(process);
-				if (value instanceof Integer) {
-					return ((Integer) value).longValue();
-				}
-			} else {
-				logger.info("unkonwn process class " + clazz.getName() + ". Process monitoring is disabled");
-			}
-		} catch (SecurityException | NoSuchFieldException | IllegalArgumentException | IllegalAccessException e) {
-			logger.error("failed to get the pid of the process", e);
+			return process.pid();
+			
+		} catch (UnsupportedOperationException e) {
+			
+			logger.warn("process resource monitoring disabled: " + e.getMessage());
+			return null;
 		}
-		return null;
 	}
 }
