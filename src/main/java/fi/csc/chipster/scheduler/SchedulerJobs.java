@@ -42,7 +42,13 @@ public class SchedulerJobs {
 	public int getNewSlots(String userId) {
 		return getSlots(getNewJobs().values(), userId);
 	}
-		
+
+	public static int getSlots(Collection<JobSchedulingState> jobs) {
+		return jobs.stream()
+				.mapToInt(j -> j.getSlots())
+				.sum();
+	}
+	
 	public int getSlots(Collection<JobSchedulingState> jobs, String userId) {
 		return jobs.stream()
 				.filter(j -> userId.equals(j.getUserId()))

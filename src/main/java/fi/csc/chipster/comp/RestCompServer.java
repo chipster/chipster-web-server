@@ -754,6 +754,9 @@ public class RestCompServer
 		synchronized (jobsLock) {
 			status.put("runningJobCount", runningJobs.size());
 			status.put("scheduledJobCount", scheduledJobs.size());
+			
+			status.put("runningSlotCount", getSlotSum(runningJobs.values()));
+			status.put("scheduledSlotCount", getSlotSum(scheduledJobs.values()));
 		}
 
 		status.put("memoryJobTotal", this.resourceMonitor.getCurrentMem());

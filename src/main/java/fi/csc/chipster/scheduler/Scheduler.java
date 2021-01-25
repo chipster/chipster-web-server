@@ -583,6 +583,11 @@ public class Scheduler implements SessionEventListener, MessageHandler.Whole<Str
 		status.put("newJobCount", jobs.getNewJobs().size());
 		status.put("runningJobCount", jobs.getRunningJobs().size());
 		status.put("scheduledJobCount", jobs.getScheduledJobs().size());
+		
+		status.put("newSlotCount", SchedulerJobs.getSlots(jobs.getNewJobs().values()));
+		status.put("runningSlotCount", SchedulerJobs.getSlots(jobs.getRunningJobs().values()));
+		status.put("scheduledSlotCount", SchedulerJobs.getSlots(jobs.getScheduledJobs().values()));		
+		
 		return status;
 	}
 }
