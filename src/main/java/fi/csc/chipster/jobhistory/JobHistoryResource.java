@@ -1,8 +1,10 @@
 package fi.csc.chipster.jobhistory;
 
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.query.Query;
+import org.hibernate.type.DateType;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
@@ -39,7 +42,10 @@ public class JobHistoryResource extends AdminResource {
 	private static final String PARAM_GREATER_THAN = ">";
 	private static final String PARAM_LESS_THAN = "<";
 	private static final String PARAM_NOT_EQUAL = "!";
-	
+
+	private static final String SQL_COUNT_USERS_BEGIN = "select count(distinct createdby) from jobhistory where starttime >= :starttime and starttime < :endtime";
+	private static final String SQL_COUNT_JOBS_BEGIN = "select count(*) from jobhistory where starttime >= :starttime and starttime < :endtime";
+
 	@SuppressWarnings("unused")
 	private Config config;
 	private HibernateUtil hibernate;
@@ -65,7 +71,7 @@ public class JobHistoryResource extends AdminResource {
 		int pageSize = 200;
 
 		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
-		
+
 		Map<String, ArrayList<String>> params = getModifiable(queryParams);
 
 		if (params.get(FILTER_ATTRIBUTE_PAGE) != null) {
@@ -105,7 +111,7 @@ public class JobHistoryResource extends AdminResource {
 	public Response getJobHistoryRowCount(@Context UriInfo uriInfo) {
 
 		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
-		
+
 		Map<String, ArrayList<String>> params = getModifiable(queryParams);
 
 		params.remove(FILTER_ATTRIBUTE_PAGE);
@@ -135,18 +141,87 @@ public class JobHistoryResource extends AdminResource {
 		return Response.ok().build();
 	}
 
+	@GET
+	@Path("jobhistory/statistics")
+	@RolesAllowed({ Role.ADMIN })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getJobHistoryStatistics(@Context UriInfo uriInfo) {
+		// TODO figure out date time zones
+
+		MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters();
+
+		// TODO what to do if year not there
+		String startYear = queryParams.get("year").get(0);
+		String endYear = String.valueOf(Integer.parseInt(startYear) + 1);
+		Date startDate = Date.from(Instant.parse(startYear + "-01-01T00:00:00.000Z"));
+		Date endDate = Date.from(Instant.parse(endYear + "-01-01T00:00:00.000Z"));
+
+		List<String> ignoreUsers = queryParams.get("ignoreUsers");
+
+		Query userCountQuery = getFilteredQuery(SQL_COUNT_USERS_BEGIN, startDate, endDate, ignoreUsers);
+		logger.info(userCountQuery.getQueryString());
+		BigInteger userCount = (BigInteger) userCountQuery.getSingleResult();
+		logger.info(userCount);
+
+		Query jobCountQuery = getFilteredQuery(SQL_COUNT_JOBS_BEGIN, startDate, endDate, ignoreUsers);
+		logger.info(jobCountQuery.getQueryString());
+		BigInteger jobCount = (BigInteger) jobCountQuery.getSingleResult();
+		logger.info(jobCount);
+
+		HashMap<String, Object> resultMap = new HashMap<String, Object>();
+		resultMap.put("userCount", userCount);
+		resultMap.put("jobCount", jobCount);
+		return Response.ok(resultMap).build();
+	}
+
+	private Query getFilteredQuery(String select, Date startTime, Date endTime, List<String> ignoreUsers) {
+		String sql = select;
+		if (ignoreUsers != null) {
+			sql += getUserFilterSql(ignoreUsers);
+		}
+		sql = sql + " ;";
+
+		Query query = hibernate.session().createNativeQuery(sql);
+
+		query = query.setParameter("starttime", startTime, DateType.INSTANCE).setParameter("endtime", endTime,
+				DateType.INSTANCE);
+
+		if (ignoreUsers != null) {
+			for (int i = 0; i < ignoreUsers.size(); i++) {
+				query = query.setParameter("ignoreuser" + i, ignoreUsers.get(i));
+			}
+		}
+		return query;
+	}
+
+	private String getUserFilterSql(List<String> ignoreUsers) {
+		String sql = "";
+		if (ignoreUsers != null && ignoreUsers.size() > 0) {
+			sql += " and createdby not in (select distinct createdby from jobhistory where ";
+			for (int i = 0; i < ignoreUsers.size(); i++) {
+				sql += "createdby like :ignoreuser" + i;
+				if (i < ignoreUsers.size() - 1) {
+					sql += " or ";
+				}
+			}
+			sql += ")";
+		}
+		return sql;
+	}
+
 	private Map<String, ArrayList<String>> getModifiable(MultivaluedMap<String, String> inMap) {
-		
+
 		Map<String, ArrayList<String>> outMap = new HashMap<>();
-		
-		for (String key : inMap.keySet()) {			
+
+		for (String key : inMap.keySet()) {
 			ArrayList<String> values = new ArrayList<>();
 			for (String value : inMap.get(key)) {
 				values.add(value);
 			}
 			outMap.put(key, values);
 		}
-		
+
 		return outMap;
 	}
 
@@ -186,18 +261,17 @@ public class JobHistoryResource extends AdminResource {
 			for (String httpValue : params.get(key)) {
 				String stringValue = null;
 				Instant instantValue = null;
-				
-				if (httpValue.startsWith(PARAM_GREATER_THAN) 
-						|| httpValue.startsWith(PARAM_LESS_THAN) 
+
+				if (httpValue.startsWith(PARAM_GREATER_THAN) || httpValue.startsWith(PARAM_LESS_THAN)
 						|| httpValue.startsWith(PARAM_NOT_EQUAL)) {
-					
+
 					stringValue = httpValue.substring(1);
 				} else {
 					stringValue = httpValue;
 				}
-				
+
 				boolean isTime = FILTER_ATTRIBUTE_TIME.equals(key);
-				
+
 				if (isTime) {
 					try {
 						instantValue = Instant.parse(stringValue);
@@ -206,21 +280,21 @@ public class JobHistoryResource extends AdminResource {
 						throw new BadRequestException("unable to parse " + stringValue);
 					}
 				}
-								
+
 				if (httpValue.startsWith(PARAM_GREATER_THAN)) {
 					if (isTime) {
 						predicate.add(builder.greaterThan(root.get(key), instantValue));
 					} else {
 						predicate.add(builder.greaterThan(root.get(key), stringValue));
 					}
-					
+
 				} else if (httpValue.startsWith(PARAM_LESS_THAN)) {
 					if (isTime) {
 						predicate.add(builder.lessThan(root.get(key), instantValue));
 					} else {
 						predicate.add(builder.lessThan(root.get(key), stringValue));
 					}
-					
+
 				} else if (httpValue.startsWith(PARAM_NOT_EQUAL)) {
 					if (isTime) {
 						predicate.add(builder.notEqual(root.get(key), instantValue));
