@@ -49,42 +49,46 @@ export default class Benchmark {
   }
 
   parseCommand() {
+
+    const version = "Chipster server benchmark version 0.2.0";
+
     const parser = new ArgumentParser({
-      version: "0.0.1",
-      addHelp: true,
+      add_help: true,
       description: "Chipster server benchmark"
     });
 
-    parser.addArgument(["URL"], { help: "url of the app server" });
-    parser.addArgument(["--username", "-u"], {
+    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+
+    parser.add_argument("URL", { help: "url of the app server" });
+    parser.add_argument("--username", "-u", {
       help: "username for the Chipster server"
     });
-    parser.addArgument(["--password", "-p"], {
+    parser.add_argument("--password", "-p", {
       help: "password for the Chipster server"
     });
-    parser.addArgument(["--influx"], { help: "url of the influxdb" });
-    parser.addArgument(["--debug", "-d"], {
+    parser.add_argument("--influx", { help: "url of the influxdb" });
+    parser.add_argument("--debug", "-d", {
       help: "do not delete the test session",
-      action: "storeTrue"
+      action: "store_true"
     });
-    parser.addArgument(["--quiet", "-q"], {
+    parser.add_argument("--quiet", "-q", {
       help: "do not print job state changes",
-      action: "storeTrue"
+      action: "store_true"
     });
-    parser.addArgument(["--post"], {
+    parser.add_argument("--post", {
       help: "only create db rows to allow tests with larger databases",
-      action: "storeTrue"
+      action: "store_true"
     });
-    parser.addArgument(["--requests", "-r"], {
+    parser.add_argument("--requests", "-r", {
       help: "max number of requests for each test",
-      defaultValue: 100
+      default: 100
     });
-    parser.addArgument(["--time", "-t"], {
+    parser.add_argument("--time", "-t", {
       help: "max test duration in milliseconds",
-      defaultValue: 1000
+      default: 1000
     });
 
-    const args = parser.parseArgs();
+    const args = parser.parse_args();
 
     this.onlyPost = args.post;
     this.maxRequestCount = args.requests;

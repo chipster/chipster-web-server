@@ -25,6 +25,7 @@ export default class WsClient {
   sessionId: string;
   wsEvents$ = new Subject<WsEvent>();
   ws;
+  closing = false;
 
   static readonly failedStates = [
     "FAILED",
@@ -64,13 +65,17 @@ export default class WsClient {
 
       if (!quiet) {
         this.ws.on("close", (code, reason) => {
-          if (code === 1001) {
+          if (this.closing) {
+            // closed by us
+            this.wsEvents$.complete();
+            
+          } else if (code === 1001) {
             // idle timeout
             logger.info("websocket " + reason + ", reconnecting...");
             this.connect(sessionId, quiet);
           } else {
             logger.info("websocket closed " + code + reason);
-            +this.wsEvents$.error("websocket closed: " + code + " " + reason);
+            this.wsEvents$.error("websocket closed: " + code + " " + reason);
           }
         });
 
@@ -181,6 +186,7 @@ export default class WsClient {
 
   disconnect() {
     if (this.ws != null) {
+      this.closing = true;      
       this.ws.close();
     }
   }

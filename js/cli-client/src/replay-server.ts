@@ -26,46 +26,50 @@ export default class ReplayServer {
   }
 
   parseCommand(): void {
+
+    const version = "Chipster session replay server version 0.2.0";
+
     const parser = new ArgumentParser({
-      version: "0.0.1",
-      addHelp: true,
+      add_help: true,
       description: "Chipster session replay server"
     });
 
-    parser.addArgument(["URL"], { help: "url of the app server" });
-    parser.addArgument(["--username", "-u"], {
+    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+
+    parser.add_argument("URL", { help: "url of the app server" });
+    parser.add_argument("--username", "-u", {
       help: "username for the server"
     });
-    parser.addArgument(["--password", "-p"], {
+    parser.add_argument("--password", "-p", {
       help: "password for the server"
     });
-    parser.addArgument(["--resultsRoot"], {
+    parser.add_argument("--resultsRoot", {
       help: "root directory for results"
     });
-    parser.addArgument(["--resultName"], {
+    parser.add_argument("--resultName", {
       help: "name for the result directory, goes under resultsRoot"
     });
-    parser.addArgument(["--skipFilterAsResultName"], {
+    parser.add_argument("--skipFilterAsResultName", {
       help: "don't use the filter string as the name of the result dir",
-      action: "storeTrue"
+      action: "store_true"
     });
-    parser.addArgument(["--tempRoot", "-t"], {
+    parser.add_argument("--tempRoot", "-t", {
       help: "root directory for temp files"
     });
-    parser.addArgument(["--schedule", "-s"], {
+    parser.add_argument("--schedule", "-s", {
       help:
         "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...][:PARALLEL_JOBS][:JOB_TIMEOUT_SECONDS]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
       action: "append"
     });
-    parser.addArgument(["--influxdb", "-i"], {
+    parser.add_argument("--influxdb", "-i", {
       help: "influxdb url for statistics, e.g. http://influxdb:8086/write?db=db"
     });
-    parser.addArgument(["--port", "-P"], {
+    parser.add_argument("--port", "-P", {
       help: "HTTP port for serving the result files",
-      defaultValue: "9000"
+      default: "9000"
     });
 
-    const args = parser.parseArgs();
+    const args = parser.parse_args();
 
     const resultsRoot =
       args.resultsRoot != null

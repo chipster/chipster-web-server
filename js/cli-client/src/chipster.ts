@@ -3,18 +3,21 @@ import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-
 import { Logger, RestClient } from "chipster-nodejs-core";
 import * as _ from 'lodash';
 import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf, Observable, of } from 'rxjs';
-import { map, mergeMap, tap, toArray, catchError } from 'rxjs/operators';
+import { map, mergeMap, tap, toArray, catchError, finalize, filter } from 'rxjs/operators';
 import ChipsterUtils from "./chipster-utils";
 import CliEnvironment from "./cli-environment";
 import WsClient from "./ws-client";
+import { VError } from "verror";
 
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
 const logger = Logger.getLogger(__filename);
 export default class CliClient {
 
-	private restClient = new RestClient(true);
+	private restClient: RestClient;
   private env = new CliEnvironment();
+
+  private isQuiet = false;
 
 	constructor() {
 	  this.parseCommand();
@@ -22,141 +25,147 @@ export default class CliClient {
 
 	parseCommand() {
 
+    const version = 'Chipster CLI version 0.2.0';
+
     let parser = new ArgumentParser({
-      version: '0.1.5',
-      addHelp:true,
+      add_help: true,
       description: 'Chipster command line client for the version 4 and upwards',
     });
 
-    parser.addArgument(['--quiet', '-q'], { nargs: 0, help: 'suppress all extra status info' });
+    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
 
-    let subparsers = parser.addSubparsers({
+    parser.add_argument('-q', '--quiet', { action: 'store_true', help: 'suppress all extra status info' });
+
+    let subparsers = parser.add_subparsers({
       title:'commands',
       dest:"command"
     });
 
-    let sessionSubparsers = subparsers.addParser('session').addSubparsers({
+    let sessionSubparsers = subparsers.add_parser('session').add_subparsers({
       title:'session subcommands',
       dest:"subcommand"
     });
 
 
-    let sessionListSubparser = sessionSubparsers.addParser('list');
+    let sessionListSubparser = sessionSubparsers.add_parser('list');
 
-    let sessionGetSubparser = sessionSubparsers.addParser('get');
-    sessionGetSubparser.addArgument([ 'name' ], { help: 'session name or id' });
+    let sessionGetSubparser = sessionSubparsers.add_parser('get');
+    sessionGetSubparser.add_argument('name', { help: 'session name or id' });
 
-    let sessionOpenSubparser = sessionSubparsers.addParser('open');
-    sessionOpenSubparser.addArgument([ 'name' ], { help: 'session name or id' });
+    let sessionOpenSubparser = sessionSubparsers.add_parser('open');
+    sessionOpenSubparser.add_argument('name', { help: 'session name or id' });
 
-    let sessionDeleteSubparser = sessionSubparsers.addParser('delete');
-    sessionDeleteSubparser.addArgument([ 'name' ], { help: 'session name or id' });
+    let sessionDeleteSubparser = sessionSubparsers.add_parser('delete');
+    sessionDeleteSubparser.add_argument('name', { help: 'session name or id' });
 
-    let sessionCreateSubparser = sessionSubparsers.addParser('create');
-    sessionCreateSubparser.addArgument([ 'name' ], { help: 'session name'});
+    let sessionCreateSubparser = sessionSubparsers.add_parser('create');
+    sessionCreateSubparser.add_argument('name', { help: 'session name'});
 
-    let sessionUploadSubparser = sessionSubparsers.addParser('upload');
-    sessionUploadSubparser.addArgument([ 'file' ], { help: 'session file to upload or - for stdin'});
-    sessionUploadSubparser.addArgument([ '--name' ], { help: 'session name (affects only the old session format)'});
+    let sessionUploadSubparser = sessionSubparsers.add_parser('upload');
+    sessionUploadSubparser.add_argument('file', { help: 'session file to upload or - for stdin'});
+    sessionUploadSubparser.add_argument('--name', { help: 'session name (affects only the old session format)'});
 
-    let sessionDownloadSubparser = sessionSubparsers.addParser('download');
-    sessionDownloadSubparser.addArgument(['name'], {help: 'session name or id'});
-    sessionDownloadSubparser.addArgument(['--file'], {help: 'file to write or - for stdout'});
+    let sessionDownloadSubparser = sessionSubparsers.add_parser('download');
+    sessionDownloadSubparser.add_argument('name', {help: 'session name or id'});
+    sessionDownloadSubparser.add_argument('--file', {help: 'file to write or - for stdout'});
 
-    let datasetSubparsers = subparsers.addParser('dataset').addSubparsers({
+    let datasetSubparsers = subparsers.add_parser('dataset').add_subparsers({
       title:'dataset subcommands',
       dest:"subcommand"
     });
 
-    let datasetListSubparser = datasetSubparsers.addParser('list');
+    let datasetListSubparser = datasetSubparsers.add_parser('list');
 
-    let datasetGetSubparser = datasetSubparsers.addParser('get');
-    datasetGetSubparser.addArgument(['name'], {help: 'dataset name or id'});
+    let datasetGetSubparser = datasetSubparsers.add_parser('get');
+    datasetGetSubparser.add_argument('name', {help: 'dataset name or id'});
 
-    let datasetDeleteSubparser = datasetSubparsers.addParser('delete');
-    datasetDeleteSubparser.addArgument(['name'], {help: 'dataset name or id'});
+    let datasetDeleteSubparser = datasetSubparsers.add_parser('delete');
+    datasetDeleteSubparser.add_argument('name', {help: 'dataset name or id'});
 
-    let datasetCreateSubparser = datasetSubparsers.addParser('upload');
-    datasetCreateSubparser.addArgument(['file'], {help: 'file to read or - for stdin'});
-    datasetCreateSubparser.addArgument(['--name'], {help: 'dataset name'});
+    let datasetCreateSubparser = datasetSubparsers.add_parser('upload');
+    datasetCreateSubparser.add_argument('file', {help: 'file to read or - for stdin'});
+    datasetCreateSubparser.add_argument('--name', {help: 'dataset name'});
 
-    let datasetDownloadSubparser = datasetSubparsers.addParser('download');
-    datasetDownloadSubparser.addArgument(['name'], {help: 'dataset name or id'});
-    datasetDownloadSubparser.addArgument(['--file'], {help: 'file to write or - for stdout'});
+    let datasetDownloadSubparser = datasetSubparsers.add_parser('download');
+    datasetDownloadSubparser.add_argument('name', {help: 'dataset name or id'});
+    datasetDownloadSubparser.add_argument('--file', {help: 'file to write or - for stdout'});
 
 
-    let jobSubparsers = subparsers.addParser('job').addSubparsers({
+    let jobSubparsers = subparsers.add_parser('job').add_subparsers({
       title:'job subcommands',
       dest:"subcommand"
     });
 
-    let jobListSubparser = jobSubparsers.addParser('list');
+    let jobListSubparser = jobSubparsers.add_parser('list');
 
-    let jobGetSubparser = jobSubparsers.addParser('get');
-    jobGetSubparser.addArgument(['name'], { help: 'job name or id' });
+    let jobGetSubparser = jobSubparsers.add_parser('get');
+    jobGetSubparser.add_argument('name', { help: 'job name or id' });
     
-    let jobRunSubparser = jobSubparsers.addParser('run');
-    jobRunSubparser.addArgument(['tool'], { help: 'tool name or id' });
-    jobRunSubparser.addArgument(['--input', '-i'], { help: 'INPUT_NAME=DATASET_NAME_OR_ID', action: 'append' });
-    jobRunSubparser.addArgument(['--parameter', '-p'], { help: 'PARAMETER_NAME=VALUE', action: 'append' });
-    jobRunSubparser.addArgument(['--background', '-b'], {help: 'do not wait'});
+    let jobRunSubparser = jobSubparsers.add_parser('run');
+    jobRunSubparser.add_argument('tool', { help: 'tool name or id' });
+    jobRunSubparser.add_argument('--input', '-i', { help: 'INPUT_NAME=DATASET_NAME_OR_ID', action: 'append' });
+    jobRunSubparser.add_argument('--parameter', '-p', { help: 'PARAMETER_NAME=VALUE', action: 'append' });
+    jobRunSubparser.add_argument('--background', '-b', {help: 'do not wait'});
 
-    let jobDeleteSubparser = jobSubparsers.addParser('delete');
-    jobDeleteSubparser.addArgument(['name'], { help: 'job name or id' });
+    let jobDeleteSubparser = jobSubparsers.add_parser('delete');
+    jobDeleteSubparser.add_argument('name', { help: 'job name or id' });
     
 
-    let toolSubparsers = subparsers.addParser('tool').addSubparsers({
+    let toolSubparsers = subparsers.add_parser('tool').add_subparsers({
       title:'tool subcommands',
       dest:"subcommand"
     });
 
-    let toolListSubparser = toolSubparsers.addParser('list');
+    let toolListSubparser = toolSubparsers.add_parser('list');
 
-    let toolGetSubparser = toolSubparsers.addParser('get');
-    toolGetSubparser.addArgument(['name'], {help: 'tool name or id'});
-
-
-    let loginSubparser = subparsers.addParser('login');
+    let toolGetSubparser = toolSubparsers.add_parser('get');
+    toolGetSubparser.add_argument('name', {help: 'tool name or id'});
 
 
-    let ruleSubparsers = subparsers.addParser('rule').addSubparsers({
+    let loginSubparser = subparsers.add_parser('login');
+
+
+    let ruleSubparsers = subparsers.add_parser('rule').add_subparsers({
       title:'access subcommands',
       dest:"subcommand"
     });
 
-    let ruleListSubparser = ruleSubparsers.addParser('list');
+    let ruleListSubparser = ruleSubparsers.add_parser('list');
 
-    let ruleCreateSubparser = ruleSubparsers.addParser('create');
-    ruleCreateSubparser.addArgument(['username'], {help: 'username'});
-    ruleCreateSubparser.addArgument(['--mode'], {help: 'r for read-only, rw for read-write (default)'});
+    let ruleCreateSubparser = ruleSubparsers.add_parser('create');
+    ruleCreateSubparser.add_argument('username', {help: 'username'});
+    ruleCreateSubparser.add_argument('--mode', {help: 'r for read-only, rw for read-write (default)'});
 
-    let ruleDeleteSubparser = ruleSubparsers.addParser('delete');
-    ruleDeleteSubparser.addArgument(['username'], {help: 'username'});
+    let ruleDeleteSubparser = ruleSubparsers.add_parser('delete');
+    ruleDeleteSubparser.add_argument('username', {help: 'username'});
 
 
-    let serviceSubparsers = subparsers.addParser('service').addSubparsers({
+    let serviceSubparsers = subparsers.add_parser('service').add_subparsers({
       title: 'service admin subcommnads',
       dest: 'subcommand'
     });
 
-    let serviceListSubparser = serviceSubparsers.addParser('list');
+    let serviceListSubparser = serviceSubparsers.add_parser('list');
 
-    let serviceGetSubparser = serviceSubparsers.addParser('get');
-    serviceGetSubparser.addArgument(['name'], { nargs: '?', help: 'service name or id'});
+    let serviceGetSubparser = serviceSubparsers.add_parser('get');
+    serviceGetSubparser.add_argument('name', { nargs: '?', help: 'service name or id'});
 
 
-    loginSubparser.addArgument(['URL'], { nargs: '?', help: 'url of the API server'});
-    loginSubparser.addArgument(['--username', '-u'], { help: 'username for the server'});
-    loginSubparser.addArgument(['--password', '-p'], { help: 'password for the server' });
-    loginSubparser.addArgument(["--app", "-a"], {
+    loginSubparser.add_argument('URL', { nargs: '?', help: 'url of the API server'});
+    loginSubparser.add_argument('--username', '-u', { help: 'username for the server'});
+    loginSubparser.add_argument('--password', '-p', { help: 'password for the server' });
+    loginSubparser.add_argument("--app", "-a", {
       help: "application name"
     });
 
-    subparsers.addParser('logout');
+    subparsers.add_parser('logout');
 
-    let args = parser.parseArgs();
+    let args = parser.parse_args();
 
     logger.debug(args);
+
+    this.isQuiet = args.quiet;
+    this.restClient = new RestClient(true, null, null, this.isQuiet);
 
     this.printLoginStatus(args).pipe(
       mergeMap(() => this.runCommand(args)))
@@ -226,6 +235,8 @@ export default class CliClient {
     } else if (args.command === 'logout') {
       return this.logout().pipe(
         mergeMap(() => this.printLoginStatus(null)));
+    } else {
+      throw new Error("command not given, see --help");      
     }
   }
 
@@ -531,20 +542,38 @@ export default class CliClient {
         return ChipsterUtils.jobRun(this.restClient, sessionId, tool, paramMap, inputMap);
       }),
       tap(id => jobId = id),
-      tap(() => {
-        wsClient.getJobState$(jobId).subscribe(job => {
-          console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
-        }, err => {
-          console.error('failed to get the job state', err);
-        }, () => {
-          wsClient.disconnect();
-        });
+      mergeMap(() => {
+
+        const jobState$ = wsClient.getJobState$(jobId).pipe(
+          filter((job: Job) => {
+            console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
+            if (WsClient.failedStates.includes(job.state)) {
+              throw new VError(job, "job failed");
+            }
+            // filter events until the job finishes            
+            return false;
+          }),
+          catchError(err => {
+            throw new VError(err, 'failed to get the job state');
+          }),
+          finalize(() => {
+            wsClient.disconnect();
+          }),
+        )
+
         wsClient.getJobScreenOutput$(jobId).subscribe(output => {
           process.stdout.write(output);
+        }, err => {
+          console.log("screen output error", err);
         });
+
         wsClient.getJobOutputDatasets$(jobId).subscribe(dataset => {
           console.log('* dataset created: ' + dataset.name.padEnd(24) + dataset.datasetId);
+        }, err => {
+          console.log("output dataset error", err);
         });
+
+        return jobState$;
       }),
     );      
   }

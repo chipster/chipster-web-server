@@ -71,53 +71,57 @@ export default class ReplaySession {
   stats = new Map<string, number>();
 
   parseCommand(): void {
+
+    const version = "Chipster session replay test version 0.1.0";
+
     const parser = new ArgumentParser({
-      version: "0.0.1",
-      addHelp: true,
+      add_help: true,
       description: "Chipster session replay test"
     });
 
-    parser.addArgument(["URL"], { help: "url of the app server" });
-    parser.addArgument(["--username", "-u"], {
+    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+
+    parser.add_argument("URL", { help: "url of the app server" });
+    parser.add_argument("--username", "-u", {
       help: "username for the server"
     });
-    parser.addArgument(["--password", "-p"], {
+    parser.add_argument("--password", "-p", {
       help: "password for the server"
     });
-    parser.addArgument(["--debug", "-d"], {
+    parser.add_argument("--debug", "-d", {
       help: "do not delete the test session",
-      action: "storeTrue"
+      action: "store_true"
     });
-    parser.addArgument(["--parallel", "-P"], {
+    parser.add_argument("--parallel", "-P", {
       help: "how many jobs to run in parallel (>1 implies --quiet)"
     });
-    parser.addArgument(["--jobTimeout", "-J"], {
+    parser.add_argument("--jobTimeout", "-J", {
       help: "cancel job if it takes longer than this, in seconds"
     });
-    parser.addArgument(["--quiet", "-q"], {
+    parser.add_argument("--quiet", "-q", {
       help: "do not print job state changes",
-      action: "storeTrue"
+      action: "store_true"
     });
-    parser.addArgument(["--resultsRoot"], {
+    parser.add_argument("--resultsRoot", {
       help: "root directory for results"
     });
-    parser.addArgument(["--resultName"], {
+    parser.add_argument("--resultName", {
       help: "name for the result directory, goes under resultsRoot"
     });
-    parser.addArgument(["--tempRoot", "-t"], {
+    parser.add_argument("--tempRoot", "-t", {
       help: "root directory for temp files"
     });
-    parser.addArgument(["--filter", "-F"], {
+    parser.add_argument("--filter", "-F", {
       help:
         "replay all sessions stored on the server starting with this string",
       action: "append"
     });
-    parser.addArgument(["session"], {
+    parser.add_argument("session", {
       help: "session file or dir to replay",
       nargs: "?"
     });
 
-    const args = parser.parseArgs();
+    const args = parser.parse_args();
 
     // check that user gives either session or filter
     if (args.filter == null && args.session == null) {
