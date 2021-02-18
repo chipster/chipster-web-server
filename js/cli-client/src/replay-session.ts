@@ -544,8 +544,13 @@ export default class ReplaySession {
           // run only jobs whose output files exist
           // and don't care about failed or orphan jobs
           .filter(j => jobSet.has(j.jobId))
-          // run only jobs that still have at least one input file in the session
+          
           .filter(j => {
+            // job didn't have any inputs, run it
+            if (j.inputs.length === 0) {
+              return true;
+            }
+            // job did have inputs. run only jobs that still have at least one input file in the session
             for (const i of j.inputs) {
               if (datasetIdSet.has((i as any).datasetId)) {
                 return true;
