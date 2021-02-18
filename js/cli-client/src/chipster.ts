@@ -9,6 +9,7 @@ import CliEnvironment from "./cli-environment";
 import WsClient from "./ws-client";
 import { VError } from "verror";
 
+const YAML = require('yamljs');
 const path = require('path');
 const ArgumentParser = require('argparse').ArgumentParser;
 const logger = Logger.getLogger(__filename);
@@ -18,6 +19,7 @@ export default class CliClient {
   private env = new CliEnvironment();
 
   private isQuiet = false;
+  private output: string;
 
 	constructor() {
 	  this.parseCommand();
@@ -35,6 +37,8 @@ export default class CliClient {
     parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
 
     parser.add_argument('-q', '--quiet', { action: 'store_true', help: 'suppress all extra status info' });
+
+    parser.add_argument('-o', '--output', { choices: ['default', 'json', 'yaml'], help: 'output format. json and yaml enable --quiet'});
 
     let subparsers = parser.add_subparsers({
       title:'commands',
@@ -165,6 +169,12 @@ export default class CliClient {
     logger.debug(args);
 
     this.isQuiet = args.quiet;
+    this.output = args.output;
+
+    if (this.output === 'json' || this.output === 'yaml') {
+      this.isQuiet = true;
+    }
+
     this.restClient = new RestClient(true, null, null, this.isQuiet);
 
     this.printLoginStatus(args).pipe(
@@ -242,7 +252,7 @@ export default class CliClient {
 
   printLoginStatus(args) {
 
-    if (args && (args.command === 'login' || args.command === 'logout' || args.quiet)) {
+    if (args && (args.command === 'login' || args.command === 'logout' || this.isQuiet)) {
       return observableOf(null);
     } else {
 
@@ -360,7 +370,7 @@ export default class CliClient {
     let datasetId;
 
     return this.checkLogin().pipe(
-      mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !args.quiet)),
+      mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !this.isQuiet)),
       mergeMap(sessionId => this.setOpenSession(sessionId)),
     );
   }
@@ -389,14 +399,35 @@ export default class CliClient {
           return allSessions;
         }),
         tap((sessions: Array<Session>) => {
-          sessions.forEach(s => console.log(s.name.padEnd(50), s.sessionId))
+          const sessionArray = sessions.map(s => [s.name, s.sessionId]);
+          this.formatArray(sessions, ['name', 'sessionId'], [50]);
       }));
   }
 
   sessionGet(args) {
     return this.getSessionByNameOrId(args.name).pipe(
-      tap(session => console.log(session))
+      tap(session => this.formatOutput(session))
     );
+  }
+
+  formatOutput(object) {
+    if (this.output === 'json') {
+      console.log(JSON.stringify(object, null, 4));
+    } else if (this.output === 'yaml') {
+      console.log(YAML.stringify(object, 4));
+    } else {
+      console.log(object);
+    }
+  }
+
+  formatArray(array, keys: string[], widths: number[]) {
+    if (this.output === 'json') {
+      console.log(JSON.stringify(array, null, 4));
+    } else if (this.output === 'yaml') {
+      console.log(YAML.stringify(array, 4));
+    } else {
+      array.forEach(item => ChipsterUtils.printTable(item, keys, widths));
+    }
   }
 
   sessionOpen(args) {
@@ -413,7 +444,7 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getRules(sessionId)),
-      tap(list => console.log(list)),
+      tap(list => this.formatOutput(list)),
     );
   }
 
@@ -441,7 +472,7 @@ export default class CliClient {
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getDatasets(sessionId)),
       tap((datasets: Array<Dataset>) => {
-        datasets.forEach(d => console.log(d.name.padEnd(50), d.datasetId))
+        this.formatArray(datasets, ['name', 'datasetId'], [50]);
       }),
     );
   }
@@ -452,7 +483,7 @@ export default class CliClient {
 
   datasetGet(args) {
     return this.getDatasetByNameOrId(args.name).pipe(
-      tap(dataset => console.log(dataset))
+      tap(dataset => this.formatOutput(dataset))
     );
   }
 
@@ -502,14 +533,14 @@ export default class CliClient {
       mergeMap(() => this.getSessionId()),
       mergeMap(sessionId => this.restClient.getJobs(sessionId)),
       tap((jobs: Array<Job>) => {
-        jobs.forEach(j => ChipsterUtils.printTable(j, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]));
+        this.formatArray(jobs, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]);        
       }),
     );
   }
 
   jobGet(args) {
     return this.getJobByNameOrId(args.name).pipe(
-      tap(job => console.log(job))
+      tap(job => this.formatOutput(job))
     );
   }
 
@@ -593,20 +624,26 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getTools())).pipe(
         tap((modules: Array<Module>) => {
-          modules.forEach(module => {
-            module.categories.forEach(category => {
-              category.tools.forEach(tool => {
-                console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
+          if (this.output === 'json' || this.output === 'yaml') {
+            // the original objects for structured outputs
+            this.formatOutput(modules);
+          } else {
+            // format here, because formatArray() doesn't handle nested references
+            modules.forEach(module => {
+              module.categories.forEach(category => {
+                category.tools.forEach(tool => {
+                  console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
+                });
               });
             });
-          });
+          }
         }),
       );
   }
 
   toolGet(args) {
     return this.getToolByNameOrId(args.name).pipe(
-      tap(tool => console.log(JSON.stringify(tool, null, 2))),
+      tap(tool => this.formatOutput(tool)),
     );
   }
 
@@ -682,7 +719,7 @@ export default class CliClient {
   serviceList() {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getServices()),
-      tap(services => console.log(services)),
+      tap(services => this.formatOutput(services)),
     );
   }
 
