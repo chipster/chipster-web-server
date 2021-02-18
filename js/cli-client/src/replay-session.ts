@@ -1005,7 +1005,7 @@ export default class ReplaySession {
                   ChipsterUtils.toHumanReadable(d2.size) +
                   ")"
               );
-            } else if (Math.abs(sizeDiff) < 30) {
+            } else if (sizeDiff >= -90 && sizeDiff <= 900) {
               // percent
               messages.push(
                 'the size of the dataset "' +
