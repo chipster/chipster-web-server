@@ -220,8 +220,7 @@ export default class ReplaySession {
         ? options.resultsRoot
         : ReplaySession.resultsRootDefault;
 
-    const id = new Date().toISOString() + "_" + ChipsterUtils.uuidv4();
-    const testSet = this.filterArrayToStringfilter(filter) + "/" + id;
+    const testSet = this.filterArrayToStringfilter(filter);
     const resultsPath =
       options != null && options.resultName != null
         ? resultsRoot + path.sep + options.resultName
@@ -366,12 +365,12 @@ export default class ReplaySession {
         (tools: Module[]) =>
           (allTools = tools.filter(m => m.name !== "Kielipankki"))
       ),
-      // mergeMap(() =>
-      //   this.deleteOldSessions(
-      //     this.uploadSessionPrefix,
-      //     this.replaySessionPrefix
-      //   )
-      // ),
+      mergeMap(() =>
+        this.deleteOldSessions(
+          this.uploadSessionPrefix,
+          this.replaySessionPrefix
+        )
+      ),
       mergeMap(() => this.writeResults([], [], false, null, testSet, allTools)),
       mergeMap(() =>
         fileSessionPlans$.pipe(
@@ -478,6 +477,7 @@ export default class ReplaySession {
   }
 
   deleteOldSessions(nameStart1, nameStart2) {
+    logger.info("delete sessions starting with " + nameStart1 + " or " + nameStart2);
     return this.restClient.getSessions().pipe(
       map((sessions: Session[]) => {
         return sessions.filter(s => {
