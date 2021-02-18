@@ -522,6 +522,7 @@ export default class ReplaySession {
     let jobSet;
     const datasetIdSet = new Set<string>();
     let replaySessionId: string;
+    let filteredJobs: Job[];
 
     const originalSessionId = originalSession.sessionId;
 
@@ -529,25 +530,6 @@ export default class ReplaySession {
       this.replaySessionPrefix + path.basename(originalSession.name);
 
     return of(null).pipe(
-      tap(() => {
-        if (!quiet) {
-          logger.info("create a new session");
-        }
-      }),
-      mergeMap(() =>
-        ChipsterUtils.sessionCreate(this.restClient, replaySessionName)
-      ),
-      tap((id: string) => {
-        replaySessionId = id;
-        logger.info(
-          "created temp session",
-          replaySessionName,
-          replaySessionId,
-          "original was",
-          originalSession.name,
-          originalSessionId
-        );
-      }),
       mergeMap(() => this.restClient.getDatasets(originalSessionId)),
       map((datasets: Dataset[]) => {
         // collect the list of datasets' sourceJobs
@@ -558,7 +540,7 @@ export default class ReplaySession {
       }),
       mergeMap(() => this.restClient.getJobs(originalSessionId)),
       map((jobs: Job[]) => {
-        const jobPlans = jobs
+        return jobs
           // run only jobs whose output files exist
           // and don't care about failed or orphan jobs
           .filter(j => jobSet.has(j.jobId))
@@ -571,23 +553,54 @@ export default class ReplaySession {
             }
           })
           // a dummy job of the old Java client
-          .filter(j => !ReplaySession.ignoreJobIds.includes(j.toolId))
-          .map(j => {
-            return {
-              originalSessionId: originalSessionId,
-              replaySessionId: replaySessionId,
-              job: j,
-              originalSession: originalSession
-            };
-          });
+          .filter(j => !ReplaySession.ignoreJobIds.includes(j.toolId));
+      }),
+      mergeMap((jobs: Job[]) => {
+
         logger.info(
           "session " +
             originalSession.name +
             " has " +
-            jobPlans.length +
+            jobs.length +
             " jobs"
         );
-        return jobPlans;
+
+        if (jobs.length === 0) {
+          // don't create session if there was nothing to run
+          return of([]);
+        } else {
+          return of(null).pipe(
+            mergeMap(() => {
+              if (!quiet) {
+                logger.info("create a new session");
+              }
+              return ChipsterUtils.sessionCreate(this.restClient, replaySessionName)
+            }),
+            map((id: string) => {
+              replaySessionId = id;
+              logger.info(
+                "created temp session",
+                replaySessionName,
+                replaySessionId,
+                "original was",
+                originalSession.name,
+                originalSessionId
+              );
+
+              const jobPlans = jobs
+              .map(j => {
+                return {
+                  originalSessionId: originalSessionId,
+                  replaySessionId: replaySessionId,
+                  job: j,
+                  originalSession: originalSession
+                };
+              });
+
+              return jobPlans;
+            }),
+          );
+        }
       })
     );
   }
