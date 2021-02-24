@@ -69,6 +69,9 @@ public class XmlSession {
 			Map<UUID, Job> jobMap = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
 			Map<String, String> screenOutputMap = new HashMap<>();
+			
+			ArrayList<String> warnings = new ArrayList<>();
+	    	ArrayList<String> errors = new ArrayList<>();
 
 			/*
 			 * The default zip implementation can't read from InputStream over 4 GB files
@@ -101,7 +104,7 @@ public class XmlSession {
 							convertJobIds(sessionType);
 
 							session = getSession(sessionType);
-							datasetMap = getDatasets(sessionType.getData());
+							datasetMap = getDatasets(sessionType.getData(), warnings);
 							jobMap = getJobs(sessionType.getOperation());
 
 							// the session name isn't saved inside the xml session, so let's use whatever
@@ -157,7 +160,7 @@ public class XmlSession {
 
 			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap);
 
-			return new ExtractedSession(session, datasetMap, jobMap);
+			return new ExtractedSession(session, datasetMap, jobMap, warnings, errors);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
@@ -374,7 +377,41 @@ public class XmlSession {
 		return inputTypes.stream().map(XmlSession::getInput).collect(Collectors.toCollection(ArrayList::new));
 	}
 
-	private static Map<UUID, Dataset> getDatasets(List<DataType> dataTypes) {
+	private static Map<UUID, Dataset> getDatasets(List<DataType> dataTypes, ArrayList<String> warnings) {
+		
+		/*
+		 * A few customer sessions have had duplicate dataIds. Created by session merge perhaps?
+		 */
+		List<String> duplicateIds = dataTypes.stream()
+			.collect(Collectors.groupingBy(DataType::getDataId, Collectors.counting()))
+			.entrySet()
+			.stream()
+				.filter(e -> e.getValue() > 1)
+				.map(Map.Entry::getKey)
+				.collect(Collectors.toList());			
+		
+		if (!duplicateIds.isEmpty()) {
+			
+			for (String dataId : duplicateIds) {				
+				
+				List<DataType> duplicates = dataTypes.stream()
+					.filter(d -> dataId.equals(d.getDataId()))
+					.collect(Collectors.toList());
+				
+				List<String> duplicateNames = duplicates.stream()
+						.map(d ->  d.getName())
+						.collect(Collectors.toList());
+								
+				dataTypes.removeAll(duplicates);
+				dataTypes.add(duplicates.get(0));
+				
+				String warning = "merged datasets: " + String.join(", ", duplicateNames) + " because those had the same dataId";
+				
+				logger.warn(warning + " " + dataId);
+				warnings.add(warning);
+			}			
+		}
+		
 		return dataTypes.stream().map(XmlSession::getDataset).collect(Collectors.toMap(Dataset::getDatasetId, d -> d));
 	}
 

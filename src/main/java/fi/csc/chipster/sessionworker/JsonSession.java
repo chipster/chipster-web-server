@@ -150,6 +150,9 @@ public class JsonSession {
 		Session session;
 		List<Job> jobs;
 		
+		ArrayList<String> warnings = new ArrayList<>();
+		ArrayList<String> errors = new ArrayList<>();
+		
 		// so far we have been able to use the latest classes to parse all object versions
 		session = RestUtils.parseJson(Session.class, jsonSession);
 		jobs = RestUtils.parseJson(List.class, Job.class, jsonJobs);
@@ -174,7 +177,7 @@ public class JsonSession {
 		
 		Map<UUID, Job> jobMap = jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j));
 		
-		return new ExtractedSession(session, datasetMap, jobMap);
+		return new ExtractedSession(session, datasetMap, jobMap, warnings, errors);
 	}
 
 	private static boolean isCompatible(String entryName) {
