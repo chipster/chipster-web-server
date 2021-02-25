@@ -283,7 +283,7 @@ public class ZipSessionServlet extends HttpServlet {
 						logger.error("error in keep-alive thread", e);
 					}
 				}
-			}).start();
+			}, "session-worker-response-keep-alive").start();
     		
     		ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
 		
@@ -293,7 +293,11 @@ public class ZipSessionServlet extends HttpServlet {
     		
     		if (sessionData == null) {
     			throw new BadRequestException("unrecognized file format");
-    		}
+    		}    		
+    		
+    		// extraction warnings
+    		warnings.addAll(sessionData.getWarnings());
+    		errors.addAll(sessionData.getErrors());
     		
     		warnings.addAll(updateSession(sessionDb, sessionId, sessionData));
     		

@@ -265,6 +265,11 @@ public class SessionJobResource {
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job doesn't exist");
 		}
+		
+		if (dbJob.getState().isFinished()) {
+			throw new ForbiddenException("job is already in finished state: " + dbJob.getState());
+		}
+		
 		// make sure a hostile client doesn't change the createdBy username
 		requestJob.setCreatedBy(dbJob.getCreatedBy());
 		// make sure a hostile client doesn't change the created timestamp

@@ -47,17 +47,6 @@ public class Config {
 	public static final String KEY_SESSION_DB_MAX_SHARE_COUNT = "session-db-max-share-count";
 	
 	public static final String KEY_WEB_SERVER_WEB_ROOT_PATH = "web-server-web-root-path";
-	
-	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
-	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
-	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay";
-	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
-	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
-	public static final String KEY_COMP_STATUS_INTERVAL = "comp-status-interval";
-	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
-	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
-	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
-	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
 
 	
 	public static final String KEY_SCHEDULER_WAIT_TIMEOUT = "scheduler-wait-timeout";

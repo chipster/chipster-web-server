@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -43,6 +44,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
+import jakarta.websocket.MessageHandler;
 
 /**
  * Executes analysis jobs and handles input&output. Uses multithreading and
@@ -53,10 +55,23 @@ import fi.csc.chipster.toolbox.ToolboxTool;
 public class RestCompServer
 		implements ResultCallback, MessageHandler.Whole<String>, ProcessProvider, StatusSource {
 
+	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
+	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
+	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
+	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
+	public static final String KEY_COMP_STATUS_INTERVAL = "comp-status-interval";
+	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
+	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
+	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
+	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
+	
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
 	
 	private static final String KEY_COMP_RUNTIMES_PATH = "comp-runtimes-path";
+	
+	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay-running-slots";
+	private static final String PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS = "comp-offer-delay-requested-slots-";
 
 	/**
 	 * Loggers.
@@ -66,8 +81,7 @@ public class RestCompServer
 	/**
 	 * Directory for storing input and output files.
 	 */
-	private int scheduleTimeout;
-	private int offerDelay;
+	private int scheduleTimeout;	
 	private int timeoutCheckInterval;
 	private int compStatusInterval;
 	private boolean sweepWorkDir;
@@ -117,6 +131,9 @@ public class RestCompServer
 	private int monitoringInterval;
 	private HttpServer adminServer;
 	private String hostname;
+	
+	private int offerDelayRunningSlots;
+	private HashMap<Integer, Long> offerDelayRequestedSlots;
 
 	/**
 	 * 
@@ -131,22 +148,23 @@ public class RestCompServer
 	public void startServer()
 			throws CompException, IOException, InterruptedException, WebSocketErrorException, WebSocketClosedException {
 
+		logger = Logger.getLogger(RestCompServer.class);
+		
 		// Initialise instance variables
-		this.scheduleTimeout = config.getInt(Config.KEY_COMP_SCHEDULE_TIMEOUT);
-		this.offerDelay = config.getInt(Config.KEY_COMP_OFFER_DELAY);
-		this.timeoutCheckInterval = config.getInt(Config.KEY_COMP_TIMEOUT_CHECK_INTERVAL);
-		this.compStatusInterval = config.getInt(Config.KEY_COMP_STATUS_INTERVAL);
-		this.sweepWorkDir = config.getBoolean(Config.KEY_COMP_SWEEP_WORK_DIR);
-		this.maxJobs = config.getInt(Config.KEY_COMP_MAX_JOBS);
+		this.scheduleTimeout = config.getInt(KEY_COMP_SCHEDULE_TIMEOUT);
+		this.offerDelayRunningSlots = config.getInt(KEY_COMP_OFFER_DELAY);
+		this.timeoutCheckInterval = config.getInt(KEY_COMP_TIMEOUT_CHECK_INTERVAL);
+		this.compStatusInterval = config.getInt(KEY_COMP_STATUS_INTERVAL);
+		this.sweepWorkDir = config.getBoolean(KEY_COMP_SWEEP_WORK_DIR);
+		this.maxJobs = config.getInt(KEY_COMP_MAX_JOBS);
 		// this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp",
 		// "local-filebroker-user-data-path"));
-		this.moduleFilterName = config.getString(Config.KEY_COMP_MODULE_FILTER_NAME);
-		this.moduleFilterMode = config.getString(Config.KEY_COMP_MODULE_FILTER_MODE);
-		this.monitoringInterval = config.getInt(Config.KEY_COMP_RESOURCE_MONITORING_INTERVAL);
-		this.jobTimeout = config.getInt(Config.KEY_COMP_JOB_TIMEOUT);
-
-		// why here?
-		logger = LogManager.getLogger();
+		this.moduleFilterName = config.getString(KEY_COMP_MODULE_FILTER_NAME);
+		this.moduleFilterMode = config.getString(KEY_COMP_MODULE_FILTER_MODE);
+		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
+		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
+		
+		this.offerDelayRequestedSlots = getOfferDelayRequestedSlots(config); 				
 
 		// initialize working directory
 		logger.info("starting compute service...");
@@ -329,7 +347,7 @@ public class RestCompServer
 					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
-					hostname + delimiter + ProcessUtils.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
+					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}
@@ -497,7 +515,7 @@ public class RestCompServer
 					+ requestedSlots);
 			if (runningSlots + schedSlots + requestedSlots <= maxJobs) {
 				// could run it now
-				scheduleJob(job, msg);
+				scheduleJob(job, msg, runningSlots, schedSlots, requestedSlots);
 
 			} else {
 				// no slot to run it now, ignore it
@@ -516,7 +534,7 @@ public class RestCompServer
 		return slots;
 	}
 
-	private void scheduleJob(final CompJob job, final JobCommand cmd) {
+	private void scheduleJob(final CompJob job, final JobCommand cmd, int runningSlots, int scheduledSlots, int requestedSlots) {
 		synchronized (jobsLock) {
 			job.setScheduleTime(new Date());
 			scheduledJobs.put(job.getId(), job);
@@ -524,7 +542,15 @@ public class RestCompServer
 
 		// delaying sending of the offer message can be used for
 		// prioritising comp instances
-		int delay = offerDelay * (runningJobs.size() + scheduledJobs.size() - 1);
+		long delay = offerDelayRunningSlots * (runningSlots + scheduledSlots);
+		
+		// comp can avoid jobs of certain size		
+		Long slotDelay = offerDelayRequestedSlots.get((Integer)requestedSlots);
+		
+		if (slotDelay != null) {
+			delay = delay + slotDelay;
+		}
+		
 		if (delay > 0) {
 			Timer timer = new Timer("offer-delay-timer", true);
 			timer.schedule(new TimerTask() {
@@ -589,6 +615,31 @@ public class RestCompServer
 			logger.error("unable to send " + cmd.getCommand() + " message", e);
 		}
 	}
+	
+	private static HashMap<Integer, Long> getOfferDelayRequestedSlots(Config config) {
+		
+		HashMap<Integer, Long> parsedEntries = new HashMap<Integer, Long>();
+		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS).entrySet()) {
+			String slotsString = entry.getKey();
+			String confKey = PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS + slotsString;
+			int slots;
+			try {						
+				slots = Integer.parseInt(slotsString);
+			} catch (NumberFormatException e) {
+				logger.warn("cannot parse slot count from configuration key " + confKey);
+				continue;
+			}
+			try {
+				long delay = Long.parseLong(entry.getValue());
+				parsedEntries.put(slots, delay);
+				logger.info("comp is configured to wait " + delay + " ms for jobs of " + slots + " slot(s)");
+			} catch (NumberFormatException e) {
+				logger.warn("cannot parse delay. configuration key: " + confKey + ", value: " + entry.getValue());
+			}
+		}
+		return parsedEntries;
+	}
+
 
 	/**
 	 * The order of the jobs in the receivedJobs and scheduledJobs is FIFO. Because
@@ -705,6 +756,9 @@ public class RestCompServer
 		synchronized (jobsLock) {
 			status.put("runningJobCount", runningJobs.size());
 			status.put("scheduledJobCount", scheduledJobs.size());
+			
+			status.put("runningSlotCount", getSlotSum(runningJobs.values()));
+			status.put("scheduledSlotCount", getSlotSum(scheduledJobs.values()));
 		}
 
 		status.put("memoryJobTotal", this.resourceMonitor.getCurrentMem());
