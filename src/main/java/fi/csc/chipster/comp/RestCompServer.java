@@ -18,9 +18,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import jakarta.websocket.MessageHandler;
-import jakarta.ws.rs.core.UriBuilder;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
@@ -45,6 +42,7 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import jakarta.websocket.MessageHandler;
+import jakarta.ws.rs.core.UriBuilder;
 
 /**
  * Executes analysis jobs and handles input&output. Uses multithreading and
@@ -148,7 +146,7 @@ public class RestCompServer
 	public void startServer()
 			throws CompException, IOException, InterruptedException, WebSocketErrorException, WebSocketClosedException {
 
-		logger = Logger.getLogger(RestCompServer.class);
+		logger = LogManager.getLogger();
 		
 		// Initialise instance variables
 		this.scheduleTimeout = config.getInt(KEY_COMP_SCHEDULE_TIMEOUT);

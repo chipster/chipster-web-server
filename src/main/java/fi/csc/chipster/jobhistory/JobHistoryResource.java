@@ -159,11 +159,13 @@ public class JobHistoryResource extends AdminResource {
 
 		List<String> ignoreUsers = queryParams.get("ignoreUsers");
 
+		@SuppressWarnings("rawtypes")
 		Query userCountQuery = getFilteredQuery(SQL_COUNT_USERS_BEGIN, startDate, endDate, ignoreUsers);
 		logger.info(userCountQuery.getQueryString());
 		BigInteger userCount = (BigInteger) userCountQuery.getSingleResult();
 		logger.info(userCount);
 
+		@SuppressWarnings("rawtypes")
 		Query jobCountQuery = getFilteredQuery(SQL_COUNT_JOBS_BEGIN, startDate, endDate, ignoreUsers);
 		logger.info(jobCountQuery.getQueryString());
 		BigInteger jobCount = (BigInteger) jobCountQuery.getSingleResult();
@@ -175,6 +177,7 @@ public class JobHistoryResource extends AdminResource {
 		return Response.ok(resultMap).build();
 	}
 
+	@SuppressWarnings("rawtypes")
 	private Query getFilteredQuery(String select, Date startTime, Date endTime, List<String> ignoreUsers) {
 		String sql = select;
 		if (ignoreUsers != null) {
