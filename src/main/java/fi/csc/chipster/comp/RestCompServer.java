@@ -769,6 +769,9 @@ public class RestCompServer
 
 		try {
 			server.startServer();
+			
+			RestUtils.waitForShutdown("comp service", server.adminServer);
+			
 		} catch (Exception e) {
 			System.err.println("comp startup failed, exiting");
 			e.printStackTrace(System.err);

@@ -602,67 +602,54 @@ public class RestUtils {
 	 */
 	public static void configureGrizzlyThreads(HttpServer server, String name, boolean isAdminAPI) {
 		
-		//TODO check thread pool defaults more closely 
-		/* 
-		 * c3p0 connection pool filled up after this was added. It could be also unrelated, 
-		 * jetty was updated to version 11 and websocket authentication was changed at the same time.
+		if (server.isStarted()) {
+			/* 
+			 * It's possible to reconfigure running instances like this:
+			 *  
+			 * GrizzlyExecutorService workerPool = (GrizzlyExecutorService) listener.getTransport().getWorkerThreadPool();
+			 * workerPool.reconfigure(workerConfig);
+			 * 
+			 * But that doesn't seem to get rid of old kernel/selector pools.
+			 */
+			throw new IllegalStateException("grizzly " + name + " shouldn't be running when configuring threads");
+		}
+		
+		// two threads should still reveal simplest concurrency issues
+		int adminWorkerThreads = 2;
+		int adminKernelThreads = 2;
+		
+		NetworkListener listener = server.getListeners().iterator().next();
+		TCPNIOTransport transport = listener.getTransport();		
+		
+		ThreadPoolConfig workerConfig = transport.getWorkerThreadPoolConfig();
+		workerConfig.setPoolName("grizzly-worker-" + name);
+		/*
+		 * Reset the thread factory
 		 * 
-		 * Anyway, let's keep the default thread pool for the main api servers for now to see if this 
-		 * fixes the c3p0 problem.
+		 * The default worker config has a thread factory which has its own thread names.
+		 * When it's set to null the thread names are created from the pool name.
 		 */
+		workerConfig.setThreadFactory(null);
 		
 		if (isAdminAPI) {
-
-			// two threads should still reveal simplest concurrency issues
-			int adminWorkerThreads = 2;
-			int adminKernelThreads = 2;
-
-			// less threads for admin API to avoid exhausting OS limits 
-			ThreadPoolConfig workerConfig = ThreadPoolConfig.defaultConfig()
-					.setPoolName("grizzly-http-server-" + name);
-
-			ThreadPoolConfig kernelConfig = ThreadPoolConfig.defaultConfig()
-					.setPoolName("grizzly-nio-kernel-" + name);        
-
-			if (server.isStarted()) {
-				/* 
-				 * It's possible to reconfigure running instances like this:
-				 *  
-				 * GrizzlyExecutorService workerPool = (GrizzlyExecutorService) listener.getTransport().getWorkerThreadPool();
-				 * workerPool.reconfigure(workerConfig);
-				 * 
-				 * But that doesn't seem to get rid of old kernel/selector pools.
-				 */
-				throw new IllegalStateException("grizzly " + name + " shouldn't be running when configuring threads");
-			}
-
-			if (isAdminAPI) {
-				workerConfig.setCorePoolSize(adminWorkerThreads);
-				kernelConfig.setCorePoolSize(adminKernelThreads);
-			}
-
-			NetworkListener listener = server.getListeners().iterator().next();
-			TCPNIOTransport transport = listener.getTransport();
-
-			// TODO it looks like the default Grizzly thread pool is non-daemon (e.g. Comp keeps running without other threads),
-			// when this method isn't called at all.
-			// But the one from ThreadPoolConfig.defaultConfig() has daemon threads, i.e the comp exits immediately. Find out what
-			// were are doing wrong.
-			workerConfig.setDaemon(false);
-			transport.setWorkerThreadPoolConfig(workerConfig);
-
-			// set the thread name
-			transport.setKernelThreadPoolConfig(kernelConfig);
-
-			if (isAdminAPI) {
-				// why the pool size is overridden without this?
-				transport.setSelectorRunnersCount(adminKernelThreads);
-			}
-
-			logger.info(name + " configured to use "
-					+ kernelConfig.getCorePoolSize() + " selector threads and "
-					+ workerConfig.getCorePoolSize() + "-" + workerConfig.getMaxPoolSize() + " worker threads");
+			workerConfig.setCorePoolSize(adminWorkerThreads);			
 		}
+		
+		transport.setWorkerThreadPoolConfig(workerConfig);
+		
+		// use the default, because transport.getKernelThreadPoolConfig() is null until the server is started
+		int kernelThreads = isAdminAPI ? adminKernelThreads : transport.getSelectorRunnersCount();
+		ThreadPoolConfig kernelConfig = ThreadPoolConfig.defaultConfig();
+		kernelConfig.setCorePoolSize(kernelThreads);
+		kernelConfig.setMaxPoolSize(kernelThreads);
+		kernelConfig.setPoolName("grizzly-kernel-" + name); 
+		
+		transport.setSelectorRunnersCount(adminKernelThreads);
+		transport.setKernelThreadPoolConfig(kernelConfig);
+		
+		logger.info(name + " configured to use "
+				+ kernelConfig.getCorePoolSize() + " selector threads and "
+				+ workerConfig.getCorePoolSize() + "-" + workerConfig.getMaxPoolSize() + " worker threads");
 	}
 
 	public static void configureGrizzlyRequestLog(HttpServer httpServer, String name) {
