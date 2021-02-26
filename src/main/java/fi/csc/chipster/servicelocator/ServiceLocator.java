@@ -104,6 +104,7 @@ public class ServiceLocator {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         RestUtils.configureGrizzlyThreads(this.httpServer, Role.SERVICE_LOCATOR, false);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SERVICE_LOCATOR);
                 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

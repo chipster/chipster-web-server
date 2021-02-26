@@ -35,6 +35,7 @@ import org.eclipse.jetty.util.thread.ThreadPool;
 import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.grizzly.http.server.NetworkListener;
+import org.glassfish.grizzly.http.server.accesslog.AccessLogBuilder;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.threadpool.ThreadPoolConfig;
 import org.glassfish.jersey.CommonProperties;
@@ -397,6 +398,7 @@ public class RestUtils {
         HttpServer server = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         
         configureGrizzlyThreads(server, role + "-admin", true);
+        RestUtils.configureGrizzlyRequestLog(server, role + "-admin");
         
         server.start();
         
@@ -599,50 +601,78 @@ public class RestUtils {
 	 * @param isAdminAPI
 	 */
 	public static void configureGrizzlyThreads(HttpServer server, String name, boolean isAdminAPI) {
-				
-		// two threads should still reveal simplest concurrency issues
-		int adminWorkerThreads = 2;
-		int adminKernelThreads = 2;
-			
-		// less threads for admin API to avoid exhausting OS limits 
-        ThreadPoolConfig workerConfig = ThreadPoolConfig.defaultConfig()
-        		.setPoolName("grizzly-http-server-" + name);        
-            
-        ThreadPoolConfig kernelConfig = ThreadPoolConfig.defaultConfig()
-        		.setPoolName("grizzly-nio-kernel-" + name);        
-        
-        if (server.isStarted()) {
-        	/* 
-        	 * It's possible to reconfigure running instances like this:
-        	 *  
-        	 * GrizzlyExecutorService workerPool = (GrizzlyExecutorService) listener.getTransport().getWorkerThreadPool();
-        	 * workerPool.reconfigure(workerConfig);
-        	 * 
-        	 * But that doesn't seem to get rid of old kernel/selector pools.
-        	 */
-        	throw new IllegalStateException("grizzly " + name + " shouldn't be running when configuring threads");
-        }
-        
-        if (isAdminAPI) {
-            workerConfig.setCorePoolSize(adminWorkerThreads);
-            kernelConfig.setCorePoolSize(adminKernelThreads);
-        }
-        
-        NetworkListener listener = server.getListeners().iterator().next();
-        TCPNIOTransport transport = listener.getTransport();
-        
-        transport.setWorkerThreadPoolConfig(workerConfig);
-        
-        // set the thread name
-        transport.setKernelThreadPoolConfig(kernelConfig);
-        
-        if (isAdminAPI) {
-    	// why the pool size is overridden without this?
-        	transport.setSelectorRunnersCount(adminKernelThreads);
-        }
-    	
-    	logger.info(name + " configured to use "
-    			+ kernelConfig.getCorePoolSize() + " selector threads and "
-    			+ workerConfig.getCorePoolSize() + "-" + workerConfig.getMaxPoolSize() + " worker threads");
+		
+		//TODO check thread pool defaults more closely 
+		/* 
+		 * c3p0 connection pool filled up after this was added. It could be also unrelated, 
+		 * jetty was updated to version 11 and websocket authentication was changed at the same time.
+		 * 
+		 * Anyway, let's keep the default thread pool for the main api servers for now to see if this 
+		 * fixes the c3p0 problem.
+		 */
+		
+		if (isAdminAPI) {
+
+			// two threads should still reveal simplest concurrency issues
+			int adminWorkerThreads = 2;
+			int adminKernelThreads = 2;
+
+			// less threads for admin API to avoid exhausting OS limits 
+			ThreadPoolConfig workerConfig = ThreadPoolConfig.defaultConfig()
+					.setPoolName("grizzly-http-server-" + name);
+
+			ThreadPoolConfig kernelConfig = ThreadPoolConfig.defaultConfig()
+					.setPoolName("grizzly-nio-kernel-" + name);        
+
+			if (server.isStarted()) {
+				/* 
+				 * It's possible to reconfigure running instances like this:
+				 *  
+				 * GrizzlyExecutorService workerPool = (GrizzlyExecutorService) listener.getTransport().getWorkerThreadPool();
+				 * workerPool.reconfigure(workerConfig);
+				 * 
+				 * But that doesn't seem to get rid of old kernel/selector pools.
+				 */
+				throw new IllegalStateException("grizzly " + name + " shouldn't be running when configuring threads");
+			}
+
+			if (isAdminAPI) {
+				workerConfig.setCorePoolSize(adminWorkerThreads);
+				kernelConfig.setCorePoolSize(adminKernelThreads);
+			}
+
+			NetworkListener listener = server.getListeners().iterator().next();
+			TCPNIOTransport transport = listener.getTransport();
+
+			// TODO it looks like the default Grizzly thread pool is non-daemon (e.g. Comp keeps running without other threads),
+			// when this method isn't called at all.
+			// But the one from ThreadPoolConfig.defaultConfig() has daemon threads, i.e the comp exits immediately. Find out what
+			// were are doing wrong.
+			workerConfig.setDaemon(false);
+			transport.setWorkerThreadPoolConfig(workerConfig);
+
+			// set the thread name
+			transport.setKernelThreadPoolConfig(kernelConfig);
+
+			if (isAdminAPI) {
+				// why the pool size is overridden without this?
+				transport.setSelectorRunnersCount(adminKernelThreads);
+			}
+
+			logger.info(name + " configured to use "
+					+ kernelConfig.getCorePoolSize() + " selector threads and "
+					+ workerConfig.getCorePoolSize() + "-" + workerConfig.getMaxPoolSize() + " worker threads");
+		}
+	}
+
+	public static void configureGrizzlyRequestLog(HttpServer httpServer, String name) {
+		try {			
+			AccessLogBuilder builder = new AccessLogBuilder("logs/" + name + "-request.log");
+			builder.rotatedDaily();
+			builder.rotationPattern("yyyy-MM-dd");
+			builder.instrument(httpServer.getServerConfiguration());
+		} catch (Exception e) {
+			logger.error("failed to setup access log", e);
+		}
 	}
 }

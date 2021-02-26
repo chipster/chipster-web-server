@@ -45,6 +45,7 @@ public class HibernateUtil {
 
 	private static final int DB_WARNING_DELAY = 1; // seconds
 	private static final String CONF_DB_C3P0_MIN_SIZE = "db-c3p0-min-size";
+	private static final String CONF_DB_C3P0_MAX_SIZE = "db-c3p0-max-size";
 	private static final String CONF_DB_SHOW_SQL = "db-show-sql";
 	private static final String CONF_DB_DIALECT = "db-dialect";
 	private static final String CONF_DB_DRIVER = "db-driver";
@@ -169,14 +170,13 @@ public class HibernateUtil {
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
 		hibernateConf.setProperty(Environment.JDBC_TIME_ZONE, "UTC");
 		hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
+		hibernateConf.setProperty("hibernate.c3p0.max_size", config.getString(CONF_DB_C3P0_MAX_SIZE, role));
 		hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately
 																				// in startup
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		// following two for debugging connection leaks
-		// hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces",
-		// "true");
-		// hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout",
-		// "30");
+//		hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces", "true");
+//		hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout", "30");
 
 		for (Class<?> c : hibernateClasses) {
 			hibernateConf.addAnnotatedClass(c);

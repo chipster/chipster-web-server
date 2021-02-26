@@ -97,6 +97,7 @@ use-external-addresses: false
 
 db-show-sql: false
 db-c3p0-min-size: ""
+db-c3p0-max-size: ""
 db-dialect: org.hibernate.dialect.PostgreSQLDialect
 db-driver: org.postgresql.Driver
 db-user: user

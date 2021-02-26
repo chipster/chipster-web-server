@@ -78,6 +78,7 @@ public class FileBroker {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         RestUtils.configureGrizzlyThreads(this.httpServer, Role.FILE_BROKER, false);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.FILE_BROKER);
                 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

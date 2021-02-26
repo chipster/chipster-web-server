@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.grizzly.http.server.accesslog.AccessLogBuilder;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
@@ -130,7 +131,7 @@ public class SessionDb {
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(datasetTokenResource)
 				.register(ruleTable).register(sessionResource).register(globalJobResource).register(userResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
-				// .register(RestUtils.getLoggingFeature("session-db"))
+//				.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
@@ -142,12 +143,13 @@ public class SessionDb {
 
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false);
-
+		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SESSION_DB);
+		
 		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 
 		httpServer.start();
 
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService, this.serviceLocator);
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService, this.serviceLocator);		
 	}
 
 	public PubSubServer getPubSubServer() {

@@ -112,6 +112,7 @@ public class AuthenticationService {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         RestUtils.configureGrizzlyThreads(httpServer, Role.AUTH, false);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.AUTH);
 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

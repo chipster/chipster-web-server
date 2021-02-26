@@ -86,12 +86,16 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(new HibernateRequestFilter(hibernate))
-				.register(new HibernateResponseFilter(hibernate)).register(tokenRequestFilter);
+		// TODO why does this even have this public api server, when all resources are in the admin api server?
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
+				.register(new HibernateRequestFilter(hibernate))
+				.register(new HibernateResponseFilter(hibernate))
+				.register(tokenRequestFilter);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(this.httpServer, Role.JOB_HISTORY, false);
+		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.JOB_HISTORY);
 		httpServer.start();
 
 		// Starting the Job History Admin Server

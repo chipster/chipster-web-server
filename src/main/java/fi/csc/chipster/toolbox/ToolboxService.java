@@ -229,6 +229,7 @@ public class ToolboxService {
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(httpServer, Role.TOOLBOX, false);
+		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.TOOLBOX);
 
 		if (enableStatsAndAdminServer) {
 			jerseyStatisticsSource.collectConnectionStatistics(httpServer);

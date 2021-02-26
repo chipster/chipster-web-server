@@ -6,16 +6,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import jakarta.annotation.security.RolesAllowed;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,6 +16,15 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.model.File;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 
 public class SessionDbAdminResource extends AdminResource {
 	
@@ -46,9 +45,7 @@ public class SessionDbAdminResource extends AdminResource {
 	private HibernateUtil hibernate;
 
 	private PubSubServer pubSubServer;
-
-	private List<Class<?>> hibernateClasses;
-
+	
 	/**
 	 * @param hibernate
 	 * @param jerseyStats
@@ -56,10 +53,9 @@ public class SessionDbAdminResource extends AdminResource {
 	 * @param classes as an array, because Jersey doesn't like wildcard types (produces a log warning "Not resolvable to a concrete type"). We don't care about it, because we instantiate the class ourselves.
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes) {
-		super(jerseyStats, pubSubServer);
+		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
-		this.hibernateClasses = Arrays.asList(classes);
 	}
 	
 	@GET
@@ -69,14 +65,7 @@ public class SessionDbAdminResource extends AdminResource {
 	@Transaction
 	public HashMap<String, Object> getStatus(@Context SecurityContext sc) {
 		
-		HashMap<String, Object> status = super.getStatus(sc);		
-			
-		for (Class<?> table : hibernateClasses) {				
-			
-			long rowCount = getRowCount(table, hibernate);
-					
-			status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
-		}			
+		HashMap<String, Object> status = super.getStatus(sc);
 	
 		return status;
 		

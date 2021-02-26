@@ -51,6 +51,10 @@ public class AdminResource {
 			this.statusSources = Arrays.asList(stats);
 		}
 		this.fileSystems.put("root", new File("."));
+		
+		if (this.hibernate != null) {
+			hibernate.getSessionFactory().getStatistics().setStatisticsEnabled(true);
+		}
 	}
 
 	public AdminResource(StatusSource... stats) {
@@ -82,6 +86,14 @@ public class AdminResource {
 					
 			status.put(table.getSimpleName().toLowerCase() + "Count", rowCount);
 			
+		}
+		
+		if (this.hibernate != null) {
+			long openCount = hibernate.getSessionFactory().getStatistics().getSessionOpenCount();
+			long closeCount = hibernate.getSessionFactory().getStatistics().getSessionCloseCount();
+			status.put("dbSessionOpenCount", openCount);
+			status.put("dbSessionCloseCount", closeCount);
+			status.put("dbSessionsOpen", openCount - closeCount);
 		}
 		
 		if (statusSources != null) {
