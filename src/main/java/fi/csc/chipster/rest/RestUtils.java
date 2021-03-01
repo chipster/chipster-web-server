@@ -659,7 +659,7 @@ public class RestUtils {
 			AccessLogBuilder builder = new AccessLogBuilder("logs/" + name + ".request.log");
 			builder.rotatedDaily();
 			builder.rotationPattern("yyyy-MM-dd");
-			builder.format(ApacheLogFormat.COMBINED_FORMAT + " %{" + PubSubConfigurator.X_FORWARDED_FOR + "}");
+			builder.format(ApacheLogFormat.COMBINED_FORMAT + " \"%{" + PubSubConfigurator.X_FORWARDED_FOR + "}i\"");
 			builder.instrument(httpServer.getServerConfiguration());
 		} catch (Exception e) {
 			logger.error("failed to setup access log", e);
