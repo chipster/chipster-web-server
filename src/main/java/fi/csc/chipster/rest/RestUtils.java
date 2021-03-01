@@ -36,6 +36,7 @@ import org.glassfish.grizzly.GrizzlyFuture;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.grizzly.http.server.NetworkListener;
 import org.glassfish.grizzly.http.server.accesslog.AccessLogBuilder;
+import org.glassfish.grizzly.http.server.accesslog.ApacheLogFormat;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.threadpool.ThreadPoolConfig;
 import org.glassfish.jersey.CommonProperties;
@@ -63,6 +64,7 @@ import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.pretty.JsonPrettyPrintQueryParamContainerResponseFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.rest.websocket.PubSubConfigurator;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -654,9 +656,10 @@ public class RestUtils {
 
 	public static void configureGrizzlyRequestLog(HttpServer httpServer, String name) {
 		try {			
-			AccessLogBuilder builder = new AccessLogBuilder("logs/" + name + "-request.log");
+			AccessLogBuilder builder = new AccessLogBuilder("logs/" + name + ".request.log");
 			builder.rotatedDaily();
 			builder.rotationPattern("yyyy-MM-dd");
+			builder.format(ApacheLogFormat.COMBINED_FORMAT + " %{" + PubSubConfigurator.X_FORWARDED_FOR + "}");
 			builder.instrument(httpServer.getServerConfiguration());
 		} catch (Exception e) {
 			logger.error("failed to setup access log", e);
