@@ -367,7 +367,7 @@ public class RuleResourceTest {
 		
 		Session session1 = RestUtils.getRandomSession();
 		Dataset dataset = RestUtils.getRandomDataset();
-		Job job = RestUtils.getRandomCompletedJob();
+		Job job = RestUtils.getRandomRunningJob();
 		
 		UUID sessionId1 = user1Client.createSession(session1);
 		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
@@ -411,7 +411,7 @@ public class RuleResourceTest {
 		
 		Session session1 = RestUtils.getRandomSession();
 		Dataset dataset = RestUtils.getRandomDataset();
-		Job job = RestUtils.getRandomCompletedJob();
+		Job job = RestUtils.getRandomRunningJob();
 		
 		UUID sessionId1 = user1Client.createSession(session1);
 		UUID datasetId = user1Client.createDataset(sessionId1, dataset);

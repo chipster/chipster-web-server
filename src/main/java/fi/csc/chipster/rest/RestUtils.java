@@ -222,9 +222,9 @@ public class RestUtils {
 		return j;
 	}
 	
-	public static Job getRandomCompletedJob() {
+	public static Job getRandomRunningJob() {
 		Job j = getRandomJob();
-		j.setState(JobState.COMPLETED);
+		j.setState(JobState.RUNNING);
 		return j;
 	}
 
