@@ -5,12 +5,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 
+import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -39,10 +42,17 @@ public class Backup {
 
 	private AuthenticationClient authService;
 
+	private Config config;
+
+	@SuppressWarnings("unused")
+	private Timer backupTimer;
+
 	public Backup(Config config) throws IOException {
 		
+		this.config = config;
+		
 		String username = Role.BACKUP;
-    	String password = config.getPassword(username);    	
+    	String password = config.getPassword(username);
     	
     	this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
@@ -75,10 +85,26 @@ public class Backup {
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.BACKUP, config, authService, serviceLocator);
 	}
 
-	public void start() {
-		dbBackups.stream().forEach(b -> {	
-			b.scheduleBackups();
-		});			
+	public void start() {	
+				
+		this.backupTimer = BackupUtils.startBackupTimer(new TimerTask() {			
+			@Override
+			public void run() {
+				try {
+										
+					dbBackups.stream().forEach(b -> {	
+						b.cleanUpAndBackup();
+					});
+					
+				} catch (Exception e) {
+					logger.error("backup error", e);
+				}
+			}
+		}, config);		
+		
+		dbBackups.stream().forEach(b -> {
+			logger.info("save " + b.getRole() + " backups to bucket:  " + BackupUtils.getBackupBucket(config, b.getRole()));
+		});
 	}
 	
 	public static void main(String[] args) throws Exception {

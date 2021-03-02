@@ -210,10 +210,10 @@ public class BackupUtils {
 		return config.getString(CONF_BACKUP_BUCKET, role);
 	}
 
-	public static Timer startBackupTimer(TimerTask timerTask, String role, Config config) {
+	public static Timer startBackupTimer(TimerTask timerTask, Config config) {
 		
-		int backupInterval = Integer.parseInt(config.getString(CONF_BACKUP_INTERVAL, role));
-		String backupTimeString = config.getString(CONF_BACKUP_TIME, role);	    
+		int backupInterval = Integer.parseInt(config.getString(CONF_BACKUP_INTERVAL));
+		String backupTimeString = config.getString(CONF_BACKUP_TIME);	    
     	
     	int startHour = Integer.parseInt(backupTimeString.split(":")[0]);
 	    int startMinute = Integer.parseInt(backupTimeString.split(":")[1]);
@@ -227,8 +227,7 @@ public class BackupUtils {
     	firstBackupTime.set(Calendar.MINUTE, startMinute);
     	firstBackupTime.set(Calendar.SECOND, 0);
     	firstBackupTime.set(Calendar.MILLISECOND, 0);
-    	logger.info("next " + role + " backup is scheduled at " + firstBackupTime.getTime().toString());
-    	logger.info("save " + role + " backups to bucket:  " + BackupUtils.getBackupBucket(config, role));
+    	logger.info("next backup is scheduled at " + firstBackupTime.getTime().toString());    	
     	
 		Timer backupTimer = new Timer();
 		backupTimer.scheduleAtFixedRate(timerTask, firstBackupTime.getTime(), backupInterval * 60 * 60 * 1000);
