@@ -12,6 +12,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -78,7 +79,7 @@ public class FileBroker {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         RestUtils.configureGrizzlyThreads(this.httpServer, Role.FILE_BROKER, false);
-        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.FILE_BROKER);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.FILE_BROKER, LogType.API);
                 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

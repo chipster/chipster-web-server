@@ -27,6 +27,7 @@ import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -112,7 +113,7 @@ public class AuthenticationService {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         RestUtils.configureGrizzlyThreads(httpServer, Role.AUTH, false);
-        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.AUTH);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.AUTH, LogType.API);
 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

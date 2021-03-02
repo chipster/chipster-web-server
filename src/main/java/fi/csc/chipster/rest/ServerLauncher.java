@@ -88,18 +88,18 @@ public class ServerLauncher {
 		toolbox = new ToolboxService(config);
 		toolbox.startServer();
 		
-		if (verbose) {
-			logger.info("starting scheduler");
-		}
-		scheduler = new Scheduler(config);
-		scheduler.startServer();
+//		if (verbose) {
+//			logger.info("starting scheduler");
+//		}
+//		scheduler = new Scheduler(config);
+//		scheduler.startServer();
 
 
-		if (verbose) {
-			logger.info("starting comp");
-		}
-		comp = new RestCompServer(null, config);
-		comp.startServer();
+//		if (verbose) {
+//			logger.info("starting comp");
+//		}
+//		comp = new RestCompServer(null, config);
+//		comp.startServer();
 
 		if (verbose) {
 			logger.info("starting web server");

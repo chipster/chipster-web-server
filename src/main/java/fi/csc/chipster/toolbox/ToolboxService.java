@@ -36,6 +36,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
@@ -229,7 +230,7 @@ public class ToolboxService {
 		URI baseUri = URI.create(this.url);
 		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(httpServer, Role.TOOLBOX, false);
-		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.TOOLBOX);
+		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.TOOLBOX, LogType.API);
 
 		if (enableStatsAndAdminServer) {
 			jerseyStatisticsSource.collectConnectionStatistics(httpServer);

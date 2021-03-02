@@ -400,7 +400,7 @@ public class RestUtils {
         HttpServer server = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         
         configureGrizzlyThreads(server, role + "-admin", true);
-        RestUtils.configureGrizzlyRequestLog(server, role + "-admin");
+        RestUtils.configureGrizzlyRequestLog(server, role, LogType.ADMIN);
         
         server.start();
         
@@ -654,9 +654,9 @@ public class RestUtils {
 				+ workerConfig.getCorePoolSize() + "-" + workerConfig.getMaxPoolSize() + " worker threads");
 	}
 
-	public static void configureGrizzlyRequestLog(HttpServer httpServer, String name) {
+	public static void configureGrizzlyRequestLog(HttpServer httpServer, String name, LogType type) {
 		try {			
-			AccessLogBuilder builder = new AccessLogBuilder("logs/" + name + ".request.log");
+			AccessLogBuilder builder = new AccessLogBuilder("logs/" + name + "." + type.getType() + ".request.log");
 			builder.rotatedDaily();
 			builder.rotationPattern("yyyy-MM-dd");
 			builder.format(ApacheLogFormat.COMBINED_FORMAT + " \"%{" + PubSubConfigurator.X_FORWARDED_FOR + "}i\"");

@@ -16,6 +16,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.resource.Service;
@@ -104,7 +105,7 @@ public class ServiceLocator {
     	URI baseUri = URI.create(this.config.getBindUrl(Role.SERVICE_LOCATOR));
         this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
         RestUtils.configureGrizzlyThreads(this.httpServer, Role.SERVICE_LOCATOR, false);
-        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SERVICE_LOCATOR);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SERVICE_LOCATOR, LogType.API);
                 
         jerseyStatisticsSource.collectConnectionStatistics(httpServer);
         

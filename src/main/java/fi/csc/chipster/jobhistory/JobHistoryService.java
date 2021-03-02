@@ -21,6 +21,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
@@ -95,7 +96,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(this.httpServer, Role.JOB_HISTORY, false);
-		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.JOB_HISTORY);
+		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.JOB_HISTORY, LogType.API);
 		httpServer.start();
 
 		// Starting the Job History Admin Server
