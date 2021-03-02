@@ -16,8 +16,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -51,8 +49,7 @@ public class DbBackup implements StatusSource {
 
 	private Config config;
 	private String role;	
-	@SuppressWarnings("unused")
-	private Timer backupTimer;
+
 	private String url;
 	private String user;
 	private String password;
@@ -104,19 +101,6 @@ public class DbBackup implements StatusSource {
 			logger.error(role + " db backups disabled: " + e.getMessage());
 		}
 	}
-		
-	public void scheduleBackups() {		
-		this.backupTimer = BackupUtils.startBackupTimer(new TimerTask() {			
-			@Override
-			public void run() {
-				try {
-					cleanUpAndBackup();
-				} catch (Exception e) {
-					logger.error("backup error", e);
-				}
-			}
-		}, role, config);		
-	}
 	
 	public void cleanUpAndBackup() {
 		stats.clear();
@@ -144,7 +128,11 @@ public class DbBackup implements StatusSource {
 		ProcessUtils.run(null, null, env, true, new String[] { "vacuumlo", "-U", this.user, dbUrl});
     }
     
-	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {			
+	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
+		
+		if (this.sessionFactory == null) {
+			throw new IllegalStateException("no backup configuration for " + role);
+		}
 		
 		printTableStats();
 		
