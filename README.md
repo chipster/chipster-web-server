@@ -1,4 +1,4 @@
 # chipster-web-server
 
-Chipster web backend.
+Chipster web app backend.
 
