@@ -27,10 +27,10 @@ public class TsvSorter {
 			// Leave prefix as it is
 			
 			// Remove postfix, if present
-			String SEPARATOR = ".";
-			if (chromosomeName.contains(SEPARATOR)) {
-				chromosomeName = chromosomeName.substring(0, chromosomeName.indexOf(SEPARATOR));
-			}
+//			String SEPARATOR = ".";
+//			if (chromosomeName.contains(SEPARATOR)) {
+//				chromosomeName = chromosomeName.substring(0, chromosomeName.indexOf(SEPARATOR));
+//			}
 			
 			return chromosomeName;
 		}
