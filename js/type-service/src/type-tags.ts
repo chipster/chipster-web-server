@@ -127,7 +127,8 @@ export class TypeTags {
       typeTags[Tags.COLUMN_TITLES.id] =
         "seqname\tsource\tfeature\tstart\tend\tscore\tstrand\tframe\tattribute";
         // this is now set also for .gtf.gz, whether that's good or bad
-        typeTags[Tags.SKIP_LINES.id] = "#!";
+        // our Ensembl GTF uses '#!', GFF3 uses '##'
+        typeTags[Tags.SKIP_LINES.id] = "#";
     }
 
     if (Tags.BED.id in typeTags) {
