@@ -220,7 +220,12 @@ export default class ReplaySession {
         ? options.resultsRoot
         : ReplaySession.resultsRootDefault;
 
-    const testSet = this.filterArrayToStringfilter(filter);
+    let testSet: string;
+    if (filter) {
+      testSet = this.filterArrayToStringfilter(filter);
+    } else {
+      testSet = path.basename(sessionPath);
+    }
     const resultsPath =
       options != null && options.resultName != null
         ? resultsRoot + path.sep + options.resultName
@@ -244,10 +249,6 @@ export default class ReplaySession {
     might be running at the same time. Most likely the user uses different result directories for
     different test sets, so it's a good value for grouping these temporaray sessions too.
     */
-
-    // TODO basename not needed anymore?
-    // const testSet = path.basename(resultsPath);
-
     logger.info(
       "start replay test " +
         testSet +
@@ -281,7 +282,7 @@ export default class ReplaySession {
     let results = [];
     const tempSessionsToDelete: Set<string> = new Set();
 
-    const fileSessionPlans$ = of(null).pipe(
+    const fileSessions$ = of(null).pipe(
       mergeMap(() => {
         if (sessionPath != null) {
           return from(this.getSessionFiles(sessionPath));
@@ -292,9 +293,7 @@ export default class ReplaySession {
       mergeMap(
         (s: string) => {
           return this.uploadSession(s, quiet).pipe(
-            mergeMap((session: Session) => {
-              return this.getSessionJobPlans(session, quiet);
-            }),
+            tap((session: Session) => tempSessionsToDelete.add(session.sessionId)),
             catchError(err => {
               // unexpected technical problems
               logger.error(new VError(err, "session import error"));
@@ -311,7 +310,7 @@ export default class ReplaySession {
       )
     );
 
-    const serverSessionPlans$ = of(null).pipe(
+    const serverSessions$ = of(null).pipe(
       mergeMap(() => this.restClient.getSessions()),
       map((sessions: Session[]) => {
         const filtered = [];
@@ -329,12 +328,11 @@ export default class ReplaySession {
         return filtered;
       }),
       mergeMap((sessions: Session[]) => from(sessions)),
-      mergeMap((session: Session) => this.getSessionJobPlans(session, quiet))
     );
 
-    const exampleSessionPlans$ = of(null).pipe(
+    const exampleSessions$ = of(null).pipe(
       mergeMap(() => {
-        if (filter.includes("example-sessions")) {
+        if (filter?.includes("example-sessions")) {
           return this.restClient.getExampleSessions("chipster");
         } else {
           return of([]);
@@ -343,11 +341,10 @@ export default class ReplaySession {
       mergeMap((sessions: Session[]) => {
         return from(sessions);
       }),
-      mergeMap((session: Session) => this.getSessionJobPlans(session, quiet))
     );
 
     let jobPlanCount = 0;
-    let allTools;
+    let allTools: Module[];
 
     logger.info("login as " + username);
     this.restClient = new RestClient(true, null, null);
@@ -373,11 +370,12 @@ export default class ReplaySession {
       ),
       mergeMap(() => this.writeResults([], [], false, null, testSet, allTools)),
       mergeMap(() =>
-        fileSessionPlans$.pipe(
-          merge(serverSessionPlans$),
-          merge(exampleSessionPlans$)
+        fileSessions$.pipe(
+          merge(serverSessions$),
+          merge(exampleSessions$)
         )
       ),
+      mergeMap((session: Session) => this.getSessionJobPlans(session, quiet, allTools)),
       tap((jobPlans: JobPlan[]) => {
         jobPlanCount += jobPlans.length;
       }),
@@ -440,10 +438,6 @@ export default class ReplaySession {
       mergeMap(() => {
         // TODO should be done after all jobs for session have been run, not in the end like this
         return this.deleteTempSessions(Array.from(tempSessionsToDelete));
-        // return this.deleteOldSessions(
-        //   this.uploadSessionPrefix,
-        //   this.replaySessionPrefix
-        // );
       }),
       tap(() => {
         this.restClient = null;
@@ -517,12 +511,23 @@ export default class ReplaySession {
 
   getSessionJobPlans(
     originalSession: Session,
-    quiet: boolean
+    quiet: boolean,
+    allTools: Module[]
   ): Observable<JobPlan[]> {
     let jobSet;
     const datasetIdSet = new Set<string>();
     let replaySessionId: string;
     let filteredJobs: Job[];
+
+    const toolsMap = new Map<string, Tool>();
+
+    allTools.forEach(module => {
+      module.categories.forEach(category => {
+        category.tools.forEach(tool => {
+          toolsMap.set(tool.name.id, tool);
+        })
+      })
+    })
 
     const originalSessionId = originalSession.sessionId;
 
@@ -543,19 +548,38 @@ export default class ReplaySession {
         return jobs
           // run only jobs whose output files exist
           // and don't care about failed or orphan jobs
-          .filter(j => jobSet.has(j.jobId))
+          .filter(j => {
+            console.log("job", j.toolId, "results found", jobSet.has(j.jobId));
+            return jobSet.has(j.jobId);
+          })
           
           .filter(j => {
-            // job didn't have any inputs, run it
-            if (j.inputs.length === 0) {
+            // check inputs from the current tool, because the database doesn't store
+            // inputs of deleted datasets
+            if (toolsMap.has(j.toolId)) {
+              const mandatoryInputs = toolsMap.get(j.toolId).inputs
+              .filter(input => !input.optional);
+              if (mandatoryInputs.length === 0) {
+                // tool doesn't have any mandatory inputs, run it
+                console.log("tool", j.toolId, "has no mandatory inputs");
+                return true;
+              }
+            } else {
+              /* Tool not found. Let it run to show an error in the results to get 
+              the session updated or removed. */
+              console.log("cannot check inputs of tool " + j.toolId + " because it doesn't exist");
               return true;
             }
-            // job did have inputs. run only jobs that still have at least one input file in the session
+
+            /* Tool has mandatory inputs. Run only jobs that still have at least one 
+            input file in the session */
             for (const i of j.inputs) {
               if (datasetIdSet.has((i as any).datasetId)) {
+                console.log("job", j.toolId, "input found");
                 return true;
               }
             }
+            console.log("job", j.toolId, "input not found");
           })
           // a dummy job of the old Java client
           .filter(j => !ReplaySession.ignoreJobIds.includes(j.toolId));
