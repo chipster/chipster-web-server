@@ -125,11 +125,11 @@ public class ZipSessionServlet extends HttpServlet {
 		}		
 
 		UUID sessionId = UUID.fromString(path[1]);
-	
-    	    
-    	// we only allowed to get the public URI with client credentials
+	    	    
+		// use client creds for the actual file operations (to check the access rights)
+		// but use the server creds (stored in serviceLocator) to get the internal addresses 
     	RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
-		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.CLIENT);
+		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 				
 		ArrayList<InputStreamEntry> entries = new ArrayList<>();
 		
