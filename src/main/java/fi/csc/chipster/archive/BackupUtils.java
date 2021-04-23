@@ -87,11 +87,17 @@ public class BackupUtils {
 		}
 		
 		for (Path packageFilePath : files) {
+						
+			Path packagePath = null;
 			
-			Path packageGpgPath = getPackageGpgPath(packageFilePath);
+			if (recipient != null || gpgPassphrase != null) {
+				packagePath = getPackageGpgPath(packageFilePath);				
+			} else {
+				packagePath = getPackageLz4Path(packageFilePath);
+			}
 			
 			Path localFilePath = storage.resolve(packageFilePath);		
-			Path localGpgPath = backupDir.resolve(packageGpgPath);
+			Path localPackagePath = backupDir.resolve(packagePath);
 
 			long fileSize;
 			String sha512;
@@ -113,49 +119,49 @@ public class BackupUtils {
 			// compress and encrypt
 			// file read and written once, cpu bound (shell pipe saves one write and read)
 			String cmd = "";
-			cmd += ProcessUtils.getPath("lz4") + " -q " + localFilePath.toString();			
-			cmd += " | " + getGpgProgram(config) + " --output - --compress-algo none --no-tty ";
+			Map<String, String> env = new HashMap<String, String>();
+
+			cmd += ProcessUtils.getPath("lz4") + " -q -c " + localFilePath.toString();
 			
-			Map<String, String> env = new HashMap<String, String>() {{
-				put(ENV_GPG_PASSPHRASE, gpgPassphrase);
-			}};
-			
-			if (recipient != null && !recipient.isEmpty()) {
-				// asymmetric encryption
-				cmd += "--recipient " + recipient + " --always-trust --encrypt -";
-			} else if (gpgPassphrase != null && !gpgPassphrase.isEmpty()) {
-				/* 
-				 * Symmetric encryption
-				 * 
-				 * Try to hide the passphrase from the process list in case this runs in multiuser 
-				 * system (container is safe anyway).
-				 * - echo is not visible in the process list because it's a builtin
-				 * - process substitution <() creates a anonymous pipe, where the content is not visible in the process list
-				*/
-				cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") ";
-				cmd += "--pinentry-mode loopback ";				
-				cmd += "--symmetric -";
-			} else {
-				throw new IllegalArgumentException("neither " + CONF_BACKUP_GPG_PUBLIC_KEY + " or " + CONF_BACKUP_GPG_PASSPHRASE + " is configured");
+			if (recipient != null || gpgPassphrase != null) {
+				cmd += " | " + getGpgProgram(config) + " --output - --compress-algo none --no-tty ";
+				
+				env.put(ENV_GPG_PASSPHRASE, gpgPassphrase);
+				
+				if (recipient != null) {
+					// asymmetric encryption
+					cmd += "--recipient " + recipient + " --always-trust --encrypt -";
+				} else if (gpgPassphrase != null) {
+					/* 
+					 * Symmetric encryption
+					 * 
+					 * Try to hide the passphrase from the process list in case this runs in multiuser 
+					 * system (container is safe anyway).
+					 * - echo is not visible in the process list because it's a builtin
+					 * - process substitution <() creates a anonymous pipe, where the content is not visible in the process list
+					*/
+					cmd += "--passphrase-file <(echo $" + ENV_GPG_PASSPHRASE + ") ";
+					cmd += "--pinentry-mode loopback ";				
+					cmd += "--symmetric -";
+				}
 			}
 			
-			
-			Files.createDirectories(localGpgPath.getParent());
-			ProcessUtils.run(null, localGpgPath.toFile(), env, false, "bash", "-c", cmd);
+			Files.createDirectories(localPackagePath.getParent());
+			ProcessUtils.run(null, localPackagePath.toFile(), env, false, "bash", "-c", cmd);
 					
-			long gpgFileSize = Files.size(localGpgPath);			
+			long gpgFileSize = Files.size(localPackagePath);			
 			
 			// checksum of the compressed and encrypted file to monitor bit rot on the backup server
 			// file read and written once, cpu bound 
-			String gpgSha512 = parseChecksumLine(ProcessUtils.runStdoutToString(null, "shasum", "-a", "512", localGpgPath.toString()));
+			String gpgSha512 = parseChecksumLine(ProcessUtils.runStdoutToString(null, "shasum", "-a", "512", localPackagePath.toString()));
 			
-			// use --directory to "relativize" paths
+			// use --directory to convert paths to relative
 			// file read and written once, io bound. Unfortunately tar can't read the file data from stdin
-			ProcessUtils.run(null, null, "tar", "-f", tarPath.toString(), "--directory", backupDir.toString(), "--append", getPackageGpgPath(packageFilePath).toString());
+			ProcessUtils.run(null, null, "tar", "-f", tarPath.toString(), "--directory", backupDir.toString(), "--append", packagePath.toString());
 			
-			Files.delete(localGpgPath);
+			Files.delete(localPackagePath);
 			
-			String line = new InfoLine(packageFilePath, fileSize, sha512, packageGpgPath, gpgFileSize, gpgSha512, backupName).toLine();
+			String line = new InfoLine(packageFilePath, fileSize, sha512, packagePath, gpgFileSize, gpgSha512, backupName).toLine();
 			Files.write(backupInfoPath, Collections.singleton(line), Charset.defaultCharset(), 
 					StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 		}
@@ -175,6 +181,10 @@ public class BackupUtils {
 	
 	public static Path getPackageGpgPath(Path packageFilePath) {
 		return Paths.get(packageFilePath.toString() + ".lz4.gpg");
+	}
+	
+	public static Path getPackageLz4Path(Path packageFilePath) {
+		return Paths.get(packageFilePath.toString() + ".lz4");
 	}
 	
 	private static String parseChecksumLine(String line) throws IOException {

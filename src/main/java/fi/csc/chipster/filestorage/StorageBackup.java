@@ -76,6 +76,15 @@ public class StorageBackup implements StatusSource {
 		
 		this.transferManager = BackupUtils.getTransferManager(config, role);
 		
+		// easier to check later
+		if (this.gpgPassphrase == null || this.gpgPassphrase.isBlank()) { 
+			this.gpgPassphrase = null;
+		}
+		
+		if (this.gpgRecipient == null || this.gpgRecipient.isBlank()) {
+			this.gpgRecipient = null;
+		}
+		
 		if (bucket.isEmpty()) {
 			logger.warn("no backup configuration for " + role);
 			return;
@@ -96,12 +105,17 @@ public class StorageBackup implements StatusSource {
 	
 	public void backupNow() {
 		
+		// disabling scheduled backups shuts down the executor
+		if (this.executor.isShutdown()) {
+			this.initExecutor();
+		}
+		
     	this.manualBackup = this.executor.submit(new Runnable() {
 			@Override
 			public void run() {
 				try {
 					backup();
-				} catch (IOException | InterruptedException e) {
+				} catch (Exception e) {
 					logger.error("backup error", e);
 				}
 			}    		
@@ -430,8 +444,17 @@ public class StorageBackup implements StatusSource {
 		long smallFilesTotal = smallFiles.values().stream().mapToLong(l -> l).sum();
 		long mediumFilesTotal = mediumFiles.values().stream().mapToLong(l -> l).sum();
 		long largeFilesTotal = largeFiles.values().stream().mapToLong(l -> l).sum();	
+				
+		String groupInfo = "";
 		
-		String groupInfo = "encrypt group " + (groupIndex + 1) + "/" + groupCount;
+		if (this.gpgPassphrase != null || this.gpgRecipient != null) {
+			groupInfo += "encrypt";
+		} else {
+			groupInfo += "package";
+			logger.info("encryption disabled: neither " + BackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY + " or " + BackupUtils.CONF_BACKUP_GPG_PASSPHRASE + " is configured");
+		}
+		
+		groupInfo += " group " + (groupIndex + 1) + "/" + groupCount;
 		
 		logger.info(groupInfo + ", files starting with '" + prefix + "'");
 				
