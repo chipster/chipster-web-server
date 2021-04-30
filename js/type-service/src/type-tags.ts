@@ -78,6 +78,8 @@ const TEXT_TYPES = new Set([
   Tags.MOTHUR_NAMES,
   Tags.MOTHUR_OLIGOS,
   Tags.MOTHUR_STABILITY,
+  Tags.MOTHUR_SHARED,
+  Tags.MOTHUR_TAXONOMY,
   Tags.LOG,
   Tags.SEQ,
   Tags.WEE,
@@ -97,7 +99,7 @@ export class TypeTags {
       // for-in to iterate object keys
       for (let extension of Tags[tagKey].extensions) {
         // for-of to iterate array items
-        if (name) {
+        if (name) {          
           // check extension, also possibly add TEXT tag
           if (name.toLowerCase().endsWith(extension.toLowerCase())) {
             typeTags[tagKey] = null;
