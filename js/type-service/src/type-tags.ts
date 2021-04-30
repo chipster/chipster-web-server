@@ -10,18 +10,12 @@ export class Tag {
 export const Tags = {
   // simple types are recognized with the file extension
 
-  // TODO refactor this so that other types can be references to avoid replicating multiple extension
-  // for example .fastq .fq for FASTQ
-  TEXT: new Tag("TEXT", [
-    ".txt",
-    ".dat",
-    ".wee",
-    ".seq",
-    ".log",
-    ".sam",
-    ".fastq",
-    ".fq"
-  ]),
+  // list for other text types below
+  TEXT: new Tag("TEXT", [".txt"]),
+  DAT: new Tag("DAT", [".dat"]),
+  WEE: new Tag("WEE", [".wee"]),
+  SEQ: new Tag("SEQ", [".seq"]),
+  LOG: new Tag("LOG", [".log"]),
   TSV: new Tag("TSV", [".tsv"]),
   CSV: new Tag("CSV", [".csv"]),
   PNG: new Tag("PNG", [".png"]),
@@ -46,10 +40,10 @@ export const Tags = {
   MOTHUR_GROUPS: new Tag("MOTHUR_GROUPS", [".groups"]),
   MOTHUR_STABILITY: new Tag("MOTHUR_STABILITY", [".files"]),
   MOTHUR_COUNT: new Tag("MOTHUR_COUNT", [".count_table"]),
+  MOTHUR_SHARED: new Tag("MOTHUR_SHARED", [".shared"]),
+  MOTHUR_TAXONOMY: new Tag("MOTHUR_TAXONOMY", [".taxonomy"]),
   SFF: new Tag("SFF", [".sff"]),
-  // phyloseq .shared files
-  PHYLOSEQ_SHARED: new Tag("PHYLOSEQ_SHARED", [".shared"]),
-  // RData format used in phyloseq tools
+    // RData format used in phyloseq tools
   R_RDA: new Tag("R_RDA", [".Rda"]),
 
   // complex types are defined here for autocompletion, but have to be checked separately
@@ -83,10 +77,12 @@ const TEXT_TYPES = new Set([
   Tags.MOTHUR_GROUPS,
   Tags.MOTHUR_NAMES,
   Tags.MOTHUR_OLIGOS,
-  Tags.MOTHUR_STABILITY
+  Tags.MOTHUR_STABILITY,
+  Tags.LOG,
+  Tags.SEQ,
+  Tags.WEE,
+  Tags.DAT,
   ]);
-
-
 
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
