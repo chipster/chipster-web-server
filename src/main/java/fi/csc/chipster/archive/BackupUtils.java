@@ -126,9 +126,13 @@ public class BackupUtils {
 			if (recipient != null || gpgPassphrase != null) {
 				cmd += " | " + getGpgProgram(config) + " --output - --compress-algo none --no-tty ";
 				
-				env.put(ENV_GPG_PASSPHRASE, gpgPassphrase);
+				// don't set null value, because the map returned by ProcessBuilder.getEnvironment() won't tolerate it
+				if (gpgPassphrase != null) {
+					env.put(ENV_GPG_PASSPHRASE, gpgPassphrase);
+				}
 				
 				if (recipient != null) {
+					
 					// asymmetric encryption
 					cmd += "--recipient " + recipient + " --always-trust --encrypt -";
 				} else if (gpgPassphrase != null) {
