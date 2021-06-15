@@ -158,7 +158,7 @@ public static String runStdoutToString(File stdinFile, String... cmdArray) throw
 		return String.join("\n", stdoutLines);
 	}
 
-	private static Thread readLines(InputStream inputStream, Consumer<String> f) {
+	public static Thread readLines(InputStream inputStream, Consumer<String> f) {
 		Thread thread = new Thread(new Runnable() {
 			@Override
 			public void run() {

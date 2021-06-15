@@ -3,17 +3,17 @@ package fi.csc.chipster.scheduler;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-public class JobSchedulingState {
+public class SchedulerJob {
 	
 		private Instant newTimestamp;
 		private Instant scheduleTimestamp;
 		private Instant runningTimestamp;
-		private Instant runnableTimestamp;
+//		private Instant runnableTimestamp;
 		private String userId;
-		private Instant userLimitReachedTimestamp;
+//		private Instant userLimitReachedTimestamp;
 		private int slots;
 		
-		public JobSchedulingState(String userId, int slots) {
+		public SchedulerJob(String userId, int slots) {
 			setNewTimestamp();
 			this.userId = userId;
 			this.slots = slots;
@@ -40,14 +40,14 @@ public class JobSchedulingState {
 		public void setRunningTimestamp() {
 			this.runningTimestamp = Instant.now();
 		}		
-		
-		public void setUserLimitReachedTimestamp(boolean isReached) {
-			if (isReached) {
-				this.userLimitReachedTimestamp = Instant.now();
-			} else {
-				this.userLimitReachedTimestamp = null;
-			}
-		}
+//		
+//		public void setUserLimitReachedTimestamp(boolean isReached) {
+//			if (isReached) {
+//				this.userLimitReachedTimestamp = Instant.now();
+//			} else {
+//				this.userLimitReachedTimestamp = null;
+//			}
+//		}
 		
 		public boolean isScheduled() {
 			return scheduleTimestamp != null && runningTimestamp == null;
@@ -62,7 +62,7 @@ public class JobSchedulingState {
 		}
 
 		public boolean isNew() {
-			return scheduleTimestamp == null && runningTimestamp == null;
+			return runningTimestamp == null;
 		}
 		
 		public long getTimeSinceNew() {
@@ -72,22 +72,22 @@ public class JobSchedulingState {
 		public long getTimeSinceScheduled() {
 			return scheduleTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
 		}
-
-		public long getTimeSinceLastHeartbeat() {
-			return runningTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
-		}
-
-		public void setRunnableTimestamp() {
-			runnableTimestamp = Instant.now();
-		}
-
-		public boolean isRunnable() {
-			return runnableTimestamp != null;
-		}
+//
+//		public long getTimeSinceLastHeartbeat() {
+//			return runningTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
+//		}
+//
+//		public void setRunnableTimestamp() {
+//			runnableTimestamp = Instant.now();
+//		}
+//
+//		public boolean isRunnable() {
+//			return runnableTimestamp != null;
+//		}
 		
-		public boolean isUserLimitReached() {
-			return userLimitReachedTimestamp != null;
-		}
+//		public boolean isUserLimitReached() {
+//			return userLimitReachedTimestamp != null;
+//		}
 
 		public String getUserId() {
 			return userId;

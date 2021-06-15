@@ -215,9 +215,6 @@ public class RestCompServer
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
 
-//		// create keep-alive thread and register shutdown hook
-//		KeepAliveShutdownHandler.init(this);
-
 		logger.info("starting the admin rest server");
 
 		AdminResource adminResource = new AdminResource(this);
@@ -385,6 +382,8 @@ public class RestCompServer
 			return;
 		}
 
+		CompJob compJob = null;
+		
 		try {
 			JobCommand jobCommand = ((RestJobMessage) jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
@@ -403,13 +402,21 @@ public class RestCompServer
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
 			
-			CompJob compJob = this.runningJobs.get(jobMessage.getJobId());
+			compJob = this.runningJobs.get(jobMessage.getJobId());
 			if (compJob != null) {
 				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem(compJob.getProcess()));
 			}
-			
+						
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
+			
 		} catch (RestException e) {
+			if (e.getResponse().getStatus() == 403) {
+				logger.warn("unable to update job, cancel it (" + e.getMessage() + ")");
+				// call the job directly, because updating session-db will fail
+				if (compJob != null) {
+					compJob.cancelRequested();
+				}
+			}
 			logger.error("could not update the job", e);
 		}
 
@@ -606,7 +613,7 @@ public class RestCompServer
 		try {
 			// don't fill logs with heartbeats
 			if (cmd.getCommand() != Command.AVAILABLE) {
-				logger.info("send " + cmd.getCommand() + " message");
+				logger.debug("send " + cmd.getCommand() + " message");
 			}
 			this.schedulerClient.sendText(RestUtils.asJson(cmd));
 		} catch (IOException | InterruptedException e) {
@@ -686,7 +693,7 @@ public class RestCompServer
 	public class CompStatusTask extends TimerTask {
 
 		@Override
-		public void run() {
+		public void run() {			
 			try {
 				synchronized (jobsLock) {
 					for (CompJob job : runningJobs.values()) {
