@@ -1,5 +1,6 @@
 package fi.csc.chipster.scheduler;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
@@ -32,7 +33,6 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	private Timer jobTimer;
 
 	private long jobTimerInterval;
-	private long heartbeatLostTimeout;
 
 	private long waitTimeout;
 	
@@ -42,7 +42,6 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 		
 		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
 		this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;		
-		this.heartbeatLostTimeout = config.getLong(Config.KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT);
 		
 		this.jobTimer = new Timer("websocket job timer", true);
 		this.jobTimer.schedule(new TimerTask() {
@@ -67,7 +66,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 	
 	@Override
-	public void scheduleJob(UUID sessionId, UUID jobId) {
+	public void scheduleJob(UUID sessionId, UUID jobId, int slots) {
 		
 		synchronized (jobs) {
 						
@@ -128,17 +127,6 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 
 	private void handleJobTimer() {
 		synchronized (jobs) {
-
-			// if the the running job hasn't sent heartbeats for some time, something
-			// unexpected has happened for the
-			// comp and the job is lost
-
-			for (IdPair jobIdPair : jobs.getHeartbeatJobs().keySet()) {
-				if (jobs.get(jobIdPair).getTimeSinceLastHeartbeat() > heartbeatLostTimeout) {
-					jobs.remove(jobIdPair);
-					scheduler.expire(jobIdPair, "heartbeat lost");
-				}
-			}
 			
 			// fast timeout for jobs that are not runnable
 
@@ -263,7 +251,8 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	public Map<String, Object> getStatus() {
 		
 		HashMap<String, Object> status = new HashMap<>();
-		status.put("scheduledJobCount", jobs.getScheduledJobs().size());
+		status.put("offerJobSchedulerScheduledJobCount", jobs.getScheduledJobs().size());
+		status.put("offerJobSchedulerHeartbeatJobCount", jobs.getHeartbeatJobs().size());
 		
 		return status;
 	}
@@ -272,6 +261,13 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	public void removeFinishedJob(UUID sessionId, UUID jobId) {
 		synchronized (jobs) {
 			jobs.remove(new IdPair(sessionId, jobId));
+		}
+	}
+
+	@Override
+	public Instant getLastHeartbeat(UUID sessionId, UUID jobId) {
+		synchronized (jobs) {
+			return jobs.get(new IdPair(sessionId, jobId)).getHeartbeatTimestamp();
 		}
 	}
 }

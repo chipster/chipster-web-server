@@ -121,7 +121,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	@Override
 	public void onEvent(SessionEvent e) {
-		logger.info("received a job event: " + e.getResourceType() + " " + e.getType());
+//		logger.info("received a job event: " + e.getResourceType() + " " + e.getType());
 		try {
 			if (e.getResourceType() == ResourceType.JOB) {
 				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()), JobState.valueOf(e.getState()));

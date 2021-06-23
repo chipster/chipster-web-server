@@ -62,7 +62,7 @@ public class SchedulerJob {
 		}
 
 		public boolean isNew() {
-			return runningTimestamp == null;
+			return runningTimestamp == null && scheduleTimestamp == null;
 		}
 		
 		public long getTimeSinceNew() {

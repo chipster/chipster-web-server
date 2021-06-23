@@ -2,6 +2,7 @@ package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	private BashJobScheduler bashJobScheduler;
 	private OfferJobScheduler offerJobScheduler;
 
+	private long heartbeatLostTimeout;
+
 
 	public Scheduler(Config config) {
 		this.config = config;
@@ -74,6 +77,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 		this.waitRunnableTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT);
 		this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
+		this.heartbeatLostTimeout = config.getLong(Config.KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT);
 		this.maxScheduledAndRunningSlotsPerUser = config
 				.getInt(Config.KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
 		this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
@@ -236,6 +240,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 * @throws RestException
 	 */
 	private void handleDbEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
+		
 		synchronized (jobs) {
 			switch (e.getType()) {
 			case CREATE:
@@ -278,12 +283,18 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				// job has been cancelled, inform comps and remove from scheduler
 				else if (job.getState() == JobState.CANCELLED) {
 					cancelJob(jobIdPair);
+					
+				} else if (job.getState() == JobState.EXPIRED_WAITING) {
+					logger.info("received event, job " + jobIdPair + " was set to " + JobState.EXPIRED_WAITING);
+					
 				} else {
 									
 					SchedulerJob schedulerJob = jobs.get(jobIdPair);
 					
-					// comp is updating the job, so it's alive
-					schedulerJob.setRunningTimestamp();
+					if (schedulerJob == null) {
+						
+						logger.warn("job " + jobIdPair + " was updated, but scheduler doesn't know about it (is there multiple schedulers?");
+					}
 				}
 				break;
 			case DELETE:
@@ -326,7 +337,50 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 							"There was no computing resources available to run this job, please try again later");
 				}
 			}
+			
+			// check if scheduled job is actually running already
+
+			for (IdPair jobIdPair : jobs.getScheduledJobs().keySet()) {
+				JobScheduler jobScheduler = this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				
+				if (lastHeartbeat == null) {
+					
+					
+//					jobs.get(jobIdPair).getTimeSinceScheduled()
+					// not running yet					
+					
+					//TODO check max scheduled time?
+					
+				} else {
+					
+					logger.info("scheduled job " + jobIdPair + " has heartbeat, change it to running state");
+					jobs.get(jobIdPair).setRunningTimestamp();
+				}
+			}
+			
+			// if the the running job hasn't sent heartbeats for some time, something
+			// unexpected has happened for the
+			// comp and the job is lost
+
+			for (IdPair jobIdPair : jobs.getRunningJobs().keySet()) {
+				JobScheduler jobScheduler = this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				
+				if (lastHeartbeat == null) {
+					
+					jobs.remove(jobIdPair);
+					expire(jobIdPair, "no heartbeat");
+					
+				} else if (lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout) {
+					
+					jobs.remove(jobIdPair);
+					expire(jobIdPair, "heartbeat lost");
+				}
+			}
 		}
+		
+//		logger.info(RestUtils.asJson(this.getStatus(), false));
 	}
 
 	private void schedule(IdPair jobIdPair, SchedulerJob jobState) {
@@ -354,6 +408,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 						+ ") reached by user " + jobState.getUserId());
 				// user's slot quota is full
 				// keep the job in queue and try again later
+				
+				this.updateJob(jobIdPair, JobState.NEW, "waiting for user's current jobs to end");
 				return;
 			}
 
@@ -373,10 +429,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			// set the schedule timestamp to be able to calculate user's slot quota when many jobs are started at the same time
 			jobState.setScheduleTimestamp();
 			
-			this.updateJob(jobIdPair, JobState.SCHEDULED, "");
+			this.updateJob(jobIdPair, JobState.NEW, "waiting for free server");
 
 			this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId())
-				.scheduleJob(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				.scheduleJob(jobIdPair.getSessionId(), jobIdPair.getJobId(), jobState.getSlots());
 		}
 	}
 
@@ -389,7 +445,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 * @param reason
 	 */
 	public void expire(IdPair jobId, String reason) {
-		logger.warn("max wait time reached for job " + jobId);
+		logger.warn("expire job " + jobId + ": " + reason);
 		endJob(jobId, JobState.EXPIRED_WAITING, reason);
 	}
 
@@ -430,7 +486,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			job.setStateDetail("Job state " + jobState + " (" + reason + ")");
 			sessionDbClient.updateJob(jobId.getSessionId(), job);
 		} catch (RestException e) {
-			logger.error("could not set an old job " + jobId + " to " + jobState, e);
+			logger.error("could not set a job " + jobId + " to " + jobState, e);
 		}
 	}
 
@@ -448,11 +504,14 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		HashMap<String, Object> status = new HashMap<>();
 		status.put("newJobCount", jobs.getNewJobs().size());
 		status.put("runningJobCount", jobs.getRunningJobs().size());
+		status.put("scheduledJobCount", jobs.getScheduledJobs().size());
 				
 		status.put("newSlotCount", SchedulerJobs.getSlots(jobs.getNewJobs().values()));
 		status.put("runningSlotCount", SchedulerJobs.getSlots(jobs.getRunningJobs().values()));
+		status.put("scheduledSlotCount", SchedulerJobs.getSlots(jobs.getScheduledJobs().values()));
 		
 		status.putAll(this.offerJobScheduler.getStatus());
+		status.putAll(this.bashJobScheduler.getStatus());
 		
 		return status;
 	}
@@ -483,6 +542,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					schedule(idPair, jobState);
 				}
 			}
+		}
+	}
+
+	@Override
+	public void busy(IdPair idPair) {
+		synchronized (jobs) {
+			jobs.get(idPair).removeScheduled();
 		}
 	}
 }
