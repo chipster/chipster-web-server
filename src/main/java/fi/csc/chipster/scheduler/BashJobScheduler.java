@@ -32,6 +32,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_HEARTBEAT_SCRIPT = "scheduler-bash-heartbeat-script";
 	private static final String CONF_BASH_JOB_TIMER_INTERVAL = "scheduler-bash-job-timer-interval";
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
+	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT= "scheduler-bash-heartbeat-lost-timeout";
 	
 	Executor executor;
 	
@@ -46,7 +47,8 @@ public class BashJobScheduler implements JobScheduler {
 	private String heartbeatScript;
 	
 	private BashJobs jobs = new BashJobs();
-	private int maxSlots; 
+	private int maxSlots;
+	private long heartbeatLostTimeout; 
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, Config config) {
 		this.scheduler = scheduler;
@@ -58,7 +60,8 @@ public class BashJobScheduler implements JobScheduler {
 		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);
 		this.maxSlots = config.getInt(CONF_BASH_MAX_SLOTS);
 		
-		this.bashJobTimerInterval = config.getLong(CONF_BASH_JOB_TIMER_INTERVAL) * 1000;		
+		this.bashJobTimerInterval = config.getLong(CONF_BASH_JOB_TIMER_INTERVAL) * 1000;
+		this.heartbeatLostTimeout = config.getLong(CONF_BASH_HEARTBEAT_LOST_TIMEOUT);
 		
 		this.bashJobTimer = new Timer("bash-job-scheduler-timer", true);
 		this.bashJobTimer.schedule(new TimerTask() {
@@ -80,7 +83,11 @@ public class BashJobScheduler implements JobScheduler {
 		this.executor.execute(() -> {
 			
 			IdPair idPair = new IdPair(sessionId, jobId);
+			
+			boolean run = false;
 			boolean isBusy = false;
+			
+			long t = System.currentTimeMillis();
 			
 			// set first heartbeat so that Scheduler will count this job to be running
 			// set it here in the executor thread, because otherwise jobs could timeout while waiting for the 
@@ -98,8 +105,7 @@ public class BashJobScheduler implements JobScheduler {
 					
 					jobs.addJob(idPair, slots);
 			
-					// use the conf key as a name in logs
-					this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, sessionId, jobId);
+					run = true;
 					
 				} else {
 					
@@ -109,8 +115,13 @@ public class BashJobScheduler implements JobScheduler {
 				}
 			}
 			
+			// don't keep the this.jobs locked
+			if (run) {
+				// use the conf key as a name in logs
+				this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, sessionId, jobId);
+			}
+			
 			if (isBusy) {
-				// don't keep the this.jobs locked
 				this.scheduler.busy(idPair);
 			}
 		});
@@ -119,12 +130,16 @@ public class BashJobScheduler implements JobScheduler {
 	@Override
 	public void cancelJob(UUID sessionId, UUID jobId) {
 		
+		synchronized (jobs) {
+			this.jobs.remove(new IdPair(sessionId, jobId));
+		}
 		// use the conf key as a name in logs
 		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, sessionId, jobId);
 	}
 	
 	@Override
 	public Instant getLastHeartbeat(UUID sessionId, UUID jobId) {
+
 		synchronized (jobs) {
 			BashJob job = this.jobs.get(new IdPair(sessionId, jobId));
 			if (job == null) {
@@ -153,7 +168,7 @@ public class BashJobScheduler implements JobScheduler {
 				logger.info("job check was unsuccessful " + idPair + " but job cannot be found anymore. Probably it just finished");
 				
 			} else if (job.getHeartbeatTimestamp() != null 
-					&& job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS) < 30) {
+					&& job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS) < this.heartbeatLostTimeout) {
 
 				// the process may have just completed but we just haven't received the event yet
 				logger.info("job check was unsuccessful " + idPair + " let's wait a bit more");
@@ -169,6 +184,7 @@ public class BashJobScheduler implements JobScheduler {
 	private void handleBashJobTimer() {
 		
 		HashSet<IdPair> jobKeys = null;
+		
 		synchronized (this.jobs) {
 			
 			// create copy of the keySet to be able to remove jobs from the original
@@ -237,13 +253,12 @@ public class BashJobScheduler implements JobScheduler {
 
 	@Override
 	public void removeFinishedJob(UUID sessionId, UUID jobId) {
+
 		synchronized (jobs) {	
 			IdPair idPair = new IdPair(sessionId, jobId);
 			logger.info("remove finished job " + idPair);
 			this.jobs.remove(idPair);
-		}
-		
-		scheduler.newResourcesAvailable();
+		}		
 	}
 
 	public Map<String, Object> getStatus() {

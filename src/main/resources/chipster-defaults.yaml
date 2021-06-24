@@ -282,6 +282,8 @@ scheduler-bash-heartbeat-script: |
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
 
+scheduler-bash-heartbeat-lost-timeout: 30
+
 # session-db 
     
 # allow sharing to everyone only for one username, empty allows for everybody

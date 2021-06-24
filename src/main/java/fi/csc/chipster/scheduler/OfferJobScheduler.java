@@ -2,6 +2,7 @@ package fi.csc.chipster.scheduler;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -126,6 +127,9 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 
 	private void handleJobTimer() {
+		
+		HashSet<IdPair> runnableButBusyJobs = new HashSet<>();
+		
 		synchronized (jobs) {
 			
 			// fast timeout for jobs that are not runnable
@@ -133,11 +137,29 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 			for (IdPair jobIdPair : jobs.getScheduledJobs().keySet()) {
 				OfferJob jobState = jobs.get(jobIdPair);
 
-				if (jobState.getTimeSinceLastScheduled() > waitTimeout && !jobState.isRunnable()) {
-					jobs.remove(jobIdPair);
-					scheduler.expire(jobIdPair,
-							"There was no computing server available to run this job, please inform server maintainers");
+				if (jobState.getTimeSinceLastScheduled() > waitTimeout) {
+					if (jobState.isRunnable()) {
+						runnableButBusyJobs.add(jobIdPair);	
+					} else {
+						jobs.remove(jobIdPair);
+						scheduler.expire(jobIdPair,
+								"There was no computing server available to run this job, please inform server maintainers");
+					}
 				}
+			}
+		}
+		
+		// don't keep the lock while waiting scheduler to do its job
+		for (IdPair idPair : runnableButBusyJobs) {
+			this.scheduler.busy(idPair);
+		}
+		
+		// remove here only after removed from the scheduler first to avoid calls to getLastHeartbeat()
+		if (!runnableButBusyJobs.isEmpty()) {
+			synchronized (jobs) {
+				for (IdPair idPair : runnableButBusyJobs) {
+					jobs.remove(idPair);
+				}	
 			}
 		}
 	}
