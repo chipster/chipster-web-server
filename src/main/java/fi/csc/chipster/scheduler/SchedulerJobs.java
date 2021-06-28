@@ -55,18 +55,18 @@ public class SchedulerJobs {
 				.sum();
 	}
 
-	public void remove(IdPair jobId) {
-		jobs.remove(jobId);	
+	public SchedulerJob remove(IdPair jobId) {
+		return jobs.remove(jobId);	
 	}
 
-	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots) {
-		SchedulerJob jobState = new SchedulerJob(userId, slots);
+	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, String image) {
+		SchedulerJob jobState = new SchedulerJob(userId, slots, image);
 		jobs.put(idPair, jobState);
 		return jobState;
 	}
 	
-	public void addRunningJob(IdPair idPair, String userId, int slots) {
-		SchedulerJob job = new SchedulerJob(userId, slots);
+	public void addRunningJob(IdPair idPair, String userId, int slots, String image) {
+		SchedulerJob job = new SchedulerJob(userId, slots, image);
 		job.setRunningTimestamp();
 		jobs.put(idPair, job);
 	}
@@ -74,10 +74,4 @@ public class SchedulerJobs {
 	public SchedulerJob get(IdPair jobIdPair) {
 		return jobs.get(jobIdPair);
 	}
-
-//	public boolean containsJobId(UUID jobId) {
-//		return jobs.keySet().stream()
-//				.map(p -> p.getJobId())
-//				.anyMatch(id -> jobId.equals(id));
-//	}
 }

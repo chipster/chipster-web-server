@@ -266,7 +266,8 @@ scheduler-bash-threads: 4
 scheduler-bash-max-slots: 5
 
 scheduler-bash-run-script: |
-  ~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID > logs/SingleShotComp-run.log 2<&1 &
+  echo "run in process, slots: $SLOTS, image: $IMAGE"
+  ~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID > logs/SingleShotComp-run.log 2>&1 &
 
 scheduler-bash-cancel-script: |
   pid=$(ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID | tr -s ' ' | cut -d ' ' -f 2)

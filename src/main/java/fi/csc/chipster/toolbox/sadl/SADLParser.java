@@ -128,7 +128,7 @@ public class SADLParser {
 		// read possible runtime
 		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_RUNTIME)) {
 			skip(tokens, SADLSyntax.KEYWORD_RUNTIME);
-			String runtime = parseRuntime(tokens);
+			String runtime = parseString(tokens);
 			description.setRuntime(runtime);
 		}
 
@@ -137,6 +137,13 @@ public class SADLParser {
 			skip(tokens, SADLSyntax.KEYWORD_SLOTS);
 			int slotCount = parseInt(tokens);
 			description.setSlotCount(slotCount);
+		}
+		
+		// read possible image name
+		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_IMAGE)) {
+			skip(tokens, SADLSyntax.KEYWORD_IMAGE);
+			String image = parseString(tokens);
+			description.setImage(image);
 		}
 
 		// check that no trailing content was left behind
@@ -185,7 +192,7 @@ public class SADLParser {
 		return name;
 	}
 
-	private String parseRuntime(SADLTokeniser tokens) throws ParseException {
+	private String parseString(SADLTokeniser tokens) throws ParseException {
 		return tokens.next();
 	}
 

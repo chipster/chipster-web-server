@@ -1,10 +1,12 @@
-package fi.csc.chipster.scheduler;
+package fi.csc.chipster.scheduler.bash;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import fi.csc.chipster.scheduler.IdPair;
 
 public class BashJobs {
 	

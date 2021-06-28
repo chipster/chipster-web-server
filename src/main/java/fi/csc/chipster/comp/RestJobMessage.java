@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
-import fi.csc.chipster.scheduler.JobCommand;
+import fi.csc.chipster.scheduler.offer.JobCommand;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;

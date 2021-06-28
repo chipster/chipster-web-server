@@ -1,4 +1,4 @@
-package fi.csc.chipster.scheduler;
+package fi.csc.chipster.scheduler.offer;
 
 import java.util.UUID;
 

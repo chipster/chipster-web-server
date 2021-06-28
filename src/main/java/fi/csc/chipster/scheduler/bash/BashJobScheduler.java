@@ -1,4 +1,4 @@
-package fi.csc.chipster.scheduler;
+package fi.csc.chipster.scheduler.bash;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -20,11 +19,16 @@ import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
+import fi.csc.chipster.scheduler.IdPair;
+import fi.csc.chipster.scheduler.JobScheduler;
+import fi.csc.chipster.scheduler.JobSchedulerCallback;
 
 public class BashJobScheduler implements JobScheduler {
 	
 	private static final String ENV_SESSION_ID = "SESSION_ID";
 	private static final String ENV_JOB_ID = "JOB_ID";
+	private static final String ENV_SLOTS = "SLOTS";
+	private static final String ENV_IMAGE = "IMAGE";
 	
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_RUN_SCRIPT = "scheduler-bash-run-script";
@@ -34,11 +38,10 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT= "scheduler-bash-heartbeat-lost-timeout";
 	
-	Executor executor;
+	private Executor executor;
 	
 	private Logger logger = LogManager.getLogger();
 	
-	@SuppressWarnings("unused")
 	private JobSchedulerCallback scheduler;
 	private String runScript;
 	private String cancelScript;
@@ -78,17 +81,13 @@ public class BashJobScheduler implements JobScheduler {
 	}
 
 	@Override
-	public void scheduleJob(UUID sessionId, UUID jobId, int slots) {
+	public void scheduleJob(IdPair idPair, int slots, String image) {
 		
 		this.executor.execute(() -> {
 			
-			IdPair idPair = new IdPair(sessionId, jobId);
-			
 			boolean run = false;
 			boolean isBusy = false;
-			
-			long t = System.currentTimeMillis();
-			
+						
 			// set first heartbeat so that Scheduler will count this job to be running
 			// set it here in the executor thread, because otherwise jobs could timeout while waiting for the 
 			// free executor thread
@@ -118,7 +117,7 @@ public class BashJobScheduler implements JobScheduler {
 			// don't keep the this.jobs locked
 			if (run) {
 				// use the conf key as a name in logs
-				this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, sessionId, jobId);
+				this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image);
 			}
 			
 			if (isBusy) {
@@ -128,20 +127,20 @@ public class BashJobScheduler implements JobScheduler {
 	}
 	
 	@Override
-	public void cancelJob(UUID sessionId, UUID jobId) {
+	public void cancelJob(IdPair idPair) {
 		
 		synchronized (jobs) {
-			this.jobs.remove(new IdPair(sessionId, jobId));
+			this.jobs.remove(idPair);
 		}
 		// use the conf key as a name in logs
-		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, sessionId, jobId);
+		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null);
 	}
 	
 	@Override
-	public Instant getLastHeartbeat(UUID sessionId, UUID jobId) {
+	public Instant getLastHeartbeat(IdPair idPair) {
 
 		synchronized (jobs) {
-			BashJob job = this.jobs.get(new IdPair(sessionId, jobId));
+			BashJob job = this.jobs.get(idPair);
 			if (job == null) {
 				return null;
 			}
@@ -149,14 +148,12 @@ public class BashJobScheduler implements JobScheduler {
 		}		
 	}
 		
-	public void checkJob(UUID sessionId, UUID jobId) {
-		
-		IdPair idPair = new IdPair(sessionId, jobId);
+	public void checkJob(IdPair idPair) {
 		
 		try {
 			// use the conf key as a name in logs
 			// wait for the bash process and handle the exception, don't use the executor
-			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, sessionId, jobId);
+			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null);
 			jobs.get(idPair).setHeartbeatTimestamp();
 			
 		} catch (Exception e) {
@@ -193,17 +190,17 @@ public class BashJobScheduler implements JobScheduler {
 		}
 		
 		for (IdPair idPair : jobKeys) {
-			this.checkJob(idPair.getSessionId(), idPair.getJobId());
+			this.checkJob(idPair);
 		}
 	}
 	
-	private void runSchedulerBashInExecutor(String bashCommand, String name, UUID sessionId, UUID jobId) {
+	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image) {
 		this.executor.execute(() -> {
-			this.runSchedulerBash(bashCommand, name, sessionId, jobId);
+			this.runSchedulerBash(bashCommand, name, idPair, slots, image);
 		});
 	}
 	
-	private void runSchedulerBash(String bashCommand, String name, UUID sessionId, UUID jobId) {			
+	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image) {			
 		
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 				
@@ -211,26 +208,20 @@ public class BashJobScheduler implements JobScheduler {
 		
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		
-		pb.environment().put(ENV_SESSION_ID, sessionId.toString());
-		pb.environment().put(ENV_JOB_ID, jobId.toString());
+		pb.environment().put(ENV_SESSION_ID, idPair.getSessionId().toString());
+		pb.environment().put(ENV_JOB_ID, idPair.getJobId().toString());
+		pb.environment().put(ENV_SLOTS, "" + slots);
+		pb.environment().put(ENV_IMAGE, image);
 		
 		try {
 			Process process = pb.start();
 
-			Thread printStdoutThread = null;
-			printStdoutThread = ProcessUtils.readLines(process.getInputStream(), line -> logger.info(name + " stdout: " + line));	
-
-			// stderr to logger.error
-			Thread stderrThread = ProcessUtils.readLines(process.getErrorStream(), line -> logger.error(name + " stderr: " + line));
-				
-//			printStdoutThread.join();
-//			stderrThread.join();
+			ProcessUtils.readLines(process.getInputStream(), line -> logger.info(name + " stdout: " + line));	
+			ProcessUtils.readLines(process.getErrorStream(), line -> logger.error(name + " stderr: " + line));
 
 			Instant bashStart = Instant.now();
 			
-//			logger.info("wait for the process " + process.pid());
 			int exitCode = process.waitFor();
-//			logger.info("process finished " + process.pid());
 			
 			long bashDuration = bashStart.until(Instant.now(), ChronoUnit.SECONDS);
 			
@@ -252,10 +243,9 @@ public class BashJobScheduler implements JobScheduler {
 	}
 
 	@Override
-	public void removeFinishedJob(UUID sessionId, UUID jobId) {
+	public void removeFinishedJob(IdPair idPair) {
 
 		synchronized (jobs) {	
-			IdPair idPair = new IdPair(sessionId, jobId);
 			logger.info("remove finished job " + idPair);
 			this.jobs.remove(idPair);
 		}		

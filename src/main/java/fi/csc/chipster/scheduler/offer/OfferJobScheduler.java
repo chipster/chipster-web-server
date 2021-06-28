@@ -1,4 +1,4 @@
-package fi.csc.chipster.scheduler;
+package fi.csc.chipster.scheduler.offer;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,7 +16,11 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.PubSubServer;
-import fi.csc.chipster.scheduler.JobCommand.Command;
+import fi.csc.chipster.scheduler.IdPair;
+import fi.csc.chipster.scheduler.JobScheduler;
+import fi.csc.chipster.scheduler.JobSchedulerCallback;
+import fi.csc.chipster.scheduler.Scheduler;
+import fi.csc.chipster.scheduler.offer.JobCommand.Command;
 import jakarta.servlet.ServletException;
 import jakarta.websocket.MessageHandler;
 
@@ -67,22 +70,19 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 	
 	@Override
-	public void scheduleJob(UUID sessionId, UUID jobId, int slots) {
+	public void scheduleJob(IdPair idPair, int slots, String image) {
 		
 		synchronized (jobs) {
-						
-			IdPair idPair = new IdPair(sessionId, jobId);
 			
 			OfferJob previousOfferJob = jobs.get(idPair);
 					
 			// current comp probably doesn't support non-unique jobIds, but this shouldn't
 			// be problem
 			// in practice when only finished jobs are copied
-			if (jobs.containsJobId(jobId)) {
+			if (jobs.containsJobId(idPair.getJobId())) {
 				if (previousOfferJob == null) {					
-					IdPair jobIdPair = new IdPair(sessionId, jobId);
-					logger.info("received a new job " + jobIdPair + ", but non-unique jobIds are not supported");
-					scheduler.expire(jobIdPair, "non-unique jobId");
+					logger.info("received a new job " + idPair + ", but non-unique jobIds are not supported");
+					scheduler.expire(idPair, "non-unique jobId");
 					return;
 				}
 				// else the same job is being scheduled again which is fine
@@ -94,9 +94,9 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 			} else {
 				logger.info("schedule job " + idPair);
 				
-				jobs.addScheduledJob(new IdPair(sessionId, jobId));
+				jobs.addScheduledJob(idPair);
 				
-				JobCommand cmd = new JobCommand(sessionId, jobId, null,  Command.SCHEDULE);
+				JobCommand cmd = new JobCommand(idPair.getSessionId(), idPair.getJobId(), null,  Command.SCHEDULE);
 				
 				pubSubServer.publish(cmd);
 			}
@@ -112,17 +112,15 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	 * @param jobId
 	 */
 	@Override
-	public void cancelJob(UUID sessionId, UUID jobId) {
+	public void cancelJob(IdPair idPair) {
 
-		JobCommand cmd = new JobCommand(sessionId, jobId, null, Command.CANCEL);
+		JobCommand cmd = new JobCommand(idPair.getSessionId(), idPair.getJobId(), null, Command.CANCEL);
 		pubSubServer.publish(cmd);
-		
-		IdPair jobIdPair = new IdPair(sessionId, jobId);
 		
 		synchronized (jobs) {
 
-			logger.info("cancel job " + jobIdPair);
-			jobs.remove(jobIdPair);
+			logger.info("cancel job " + idPair);
+			jobs.remove(idPair);
 		}
 	}
 
@@ -224,7 +222,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 			// in another thread, if there are jobs in the queue
 
 			logger.debug("comp available " + Scheduler.asShort(compMsg.getCompId()));
-			scheduler.newResourcesAvailable();
+			scheduler.newResourcesAvailable(this);
 			break;
 
 		case RUNNING:
@@ -280,16 +278,16 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 
 	@Override
-	public void removeFinishedJob(UUID sessionId, UUID jobId) {
+	public void removeFinishedJob(IdPair idPair) {
 		synchronized (jobs) {
-			jobs.remove(new IdPair(sessionId, jobId));
+			jobs.remove(idPair);
 		}
 	}
 
 	@Override
-	public Instant getLastHeartbeat(UUID sessionId, UUID jobId) {
+	public Instant getLastHeartbeat(IdPair idPair) {
 		synchronized (jobs) {
-			return jobs.get(new IdPair(sessionId, jobId)).getHeartbeatTimestamp();
+			return jobs.get(idPair).getHeartbeatTimestamp();
 		}
 	}
 }

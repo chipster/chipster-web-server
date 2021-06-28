@@ -8,15 +8,15 @@ public class SchedulerJob {
 		private Instant newTimestamp;
 		private Instant scheduleTimestamp;
 		private Instant runningTimestamp;
-//		private Instant runnableTimestamp;
 		private String userId;
-//		private Instant userLimitReachedTimestamp;
 		private int slots;
+		private String image;
 		
-		public SchedulerJob(String userId, int slots) {
+		public SchedulerJob(String userId, int slots, String image) {
 			setNewTimestamp();
 			this.userId = userId;
 			this.slots = slots;
+			this.image = image;
 		}
 		
 		public Instant getNewTimestamp() {
@@ -40,14 +40,6 @@ public class SchedulerJob {
 		public void setRunningTimestamp() {
 			this.runningTimestamp = Instant.now();
 		}		
-//		
-//		public void setUserLimitReachedTimestamp(boolean isReached) {
-//			if (isReached) {
-//				this.userLimitReachedTimestamp = Instant.now();
-//			} else {
-//				this.userLimitReachedTimestamp = null;
-//			}
-//		}
 		
 		public boolean isScheduled() {
 			return scheduleTimestamp != null && runningTimestamp == null;
@@ -72,22 +64,6 @@ public class SchedulerJob {
 		public long getTimeSinceScheduled() {
 			return scheduleTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
 		}
-//
-//		public long getTimeSinceLastHeartbeat() {
-//			return runningTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
-//		}
-//
-//		public void setRunnableTimestamp() {
-//			runnableTimestamp = Instant.now();
-//		}
-//
-//		public boolean isRunnable() {
-//			return runnableTimestamp != null;
-//		}
-		
-//		public boolean isUserLimitReached() {
-//			return userLimitReachedTimestamp != null;
-//		}
 
 		public String getUserId() {
 			return userId;
@@ -95,5 +71,13 @@ public class SchedulerJob {
 
 		public int getSlots() {
 			return slots;
+		}
+
+		public String getImage() {
+			return image;
+		}
+
+		public void setImage(String image) {
+			this.image = image;
 		}
 	}

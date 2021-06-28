@@ -30,6 +30,7 @@ public class SADLDescription {
 	private LinkedList<Output> outputs = new LinkedList<Output>();
 	private LinkedList<Parameter> parameters = new LinkedList<Parameter>();
 	private Integer slotCount;
+	private String image;
 
 	public SADLDescription() {
 		// for Jackson
@@ -465,5 +466,13 @@ public class SADLDescription {
 	
 	public Integer getSlotCount() {
 		return this.slotCount;
+	}
+
+	public void setImage(String image) {
+		this.image = image;
+	}
+	
+	public String getImage() {
+		return this.image;
 	}
 }

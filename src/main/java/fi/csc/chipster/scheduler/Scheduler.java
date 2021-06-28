@@ -22,6 +22,8 @@ import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.scheduler.bash.BashJobScheduler;
+import fi.csc.chipster.scheduler.offer.OfferJobScheduler;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -35,7 +37,6 @@ import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import jakarta.servlet.ServletException;
 import jakarta.websocket.DeploymentException;
-import jakarta.ws.rs.ProcessingException;
 
 public class Scheduler implements SessionEventListener, StatusSource, JobSchedulerCallback {
 
@@ -59,11 +60,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	private SchedulerJobs jobs = new SchedulerJobs();
 	private HttpServer adminServer;
 
-	@SuppressWarnings("unused")
 	private BashJobScheduler bashJobScheduler;
 	private OfferJobScheduler offerJobScheduler;
 
 	private long heartbeatLostTimeout;
+
+	private long waitTimeout;
 
 
 	public Scheduler(Config config) {
@@ -82,6 +84,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.maxScheduledAndRunningSlotsPerUser = config
 				.getInt(Config.KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
 		this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
+		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
@@ -119,9 +122,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		logger.info("scheduler is up and running");
 	}
 	
-	private JobScheduler getJobScheduler(UUID sessionId, UUID jobId) {
-//		return bashJobScheduler;
-		return offerJobScheduler;
+	private JobScheduler getJobScheduler(SchedulerJob job) {
+		
+		if (job.getImage() == null) {
+			return offerJobScheduler;			
+		} else {
+			return bashJobScheduler;
+		}
 	}
 
 	/**
@@ -142,10 +149,11 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				for (IdPair idPair : newDbJobs) {
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
+						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
 						jobs.addNewJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								getSlots(job));
-					} catch (RestException e) {
-						logger.error("could not get a job " + asShort(idPair.getJobId()) + " from session-db", e);
+								getSlots(job, tool), getImage(job, tool));
+					} catch (RestException | IOException e) {
+						logger.error("could not add a new job " + asShort(idPair.getJobId()), e);
 					}
 				}
 			}
@@ -156,36 +164,47 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				for (IdPair idPair : runningDbJobs) {
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
+						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
 						jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								getSlots(job));
-					} catch (RestException e) {
-						logger.error("could not get a job " + asShort(idPair.getJobId()) + " from session-db", e);
+								getSlots(job, tool), getImage(job, tool));
+					} catch (RestException | IOException e) {
+						logger.error("could add a running job " + asShort(idPair.getJobId()), e);
 					}
 				}
 			}
 		}
 	}
 
-	private int getSlots(Job job) {
+	private int getSlots(Job job, ToolboxTool tool) {
 
-		try {
-			ToolboxTool tool = this.toolbox.getTool(job.getToolId());
-			if (tool == null) {
-				logger.info("tried to get the slot count of tool " + job.getToolId()
-						+ " from toolbox but the tool was not found, default to 1");
-				return 1;
-			}
-			Integer slots = tool.getSadlDescription().getSlotCount();
-			if (slots == null) {
-				logger.info("tool " + job.getToolId() + " slots is null, default to 1");
-				return 1;
-			}
-			return slots;
-		} catch (ProcessingException | IOException e) {
-			logger.warn("toolbox error when getting the slot count of tool " + job.getToolId() + ", default to 1", e);
+		if (tool == null) {
+			logger.info("tried to get the slot count of tool " + job.getToolId()
+					+ " from toolbox but the tool was not found, default to 1");
 			return 1;
 		}
+		Integer slots = tool.getSadlDescription().getSlotCount();
+		if (slots == null) {
+			logger.info("tool " + job.getToolId() + " slots is null, default to 1");
+			return 1;
+		}
+		return slots;
 	}
+	
+	private String getImage(Job job, ToolboxTool tool) {
+
+		if (tool == null) {
+			logger.info("tried to get the container image of tool " + job.getToolId()
+					+ " from toolbox but the tool was not found, default to null");
+			return null;
+		}
+		String image = tool.getSadlDescription().getImage();
+		if (image == null) {
+			logger.info("tool " + job.getToolId() + " image is null");
+			return null;
+		}
+		return image;
+	}
+
 
 	/**
 	 * Main method.
@@ -242,8 +261,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 */
 	private void handleDbEvent(SessionEvent e, IdPair jobIdPair) throws RestException {
 		
-		// get the job before taking the lock
+		// get the job and tool before taking the lock
 		Job job = null;
+		ToolboxTool tool = null;
 		
 		if (EventType.CREATE == e.getType() || EventType.UPDATE == e.getType()) {
 			try {
@@ -255,7 +275,15 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			}
 		}
 		
-		long t = System.currentTimeMillis();
+		if (EventType.CREATE == e.getType()) {
+			try {
+				tool = this.toolbox.getTool(job.getToolId());
+			} catch (IOException e1) {
+				logger.error("cannot schedule new job " + jobIdPair + ": failed to get the tool from toolbox", e);
+				return;
+			}
+		}
+		
 		synchronized (jobs) {
 			switch (e.getType()) {
 			case CREATE:
@@ -265,7 +293,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 					// when a client adds a new job, try to schedule it immediately
 					logger.info("received a new job " + jobIdPair + ", trying to schedule it");
-					SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job));
+					SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job, tool), getImage(job, tool));
 					schedule(jobIdPair, jobState);
 
 					break;
@@ -280,12 +308,16 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				if (job.getState().isFinishedByComp()) {
 					logger.info("job " + jobIdPair + " finished by comp");
 					
-					jobs.remove(jobIdPair);
+					SchedulerJob removedJob = jobs.remove(jobIdPair);
 					
-					this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId())
-						.removeFinishedJob(jobIdPair.getSessionId(), jobIdPair.getJobId());
-					
-					newResourcesAvailable();
+					if (removedJob != null) {
+						JobScheduler jobScheduler = this.getJobScheduler(removedJob);
+						jobScheduler.removeFinishedJob(jobIdPair);
+						
+						newResourcesAvailable(jobScheduler);
+					} else {
+						logger.error("job not found");
+					}
 				}
 
 				// job has been cancelled, inform comps and remove from scheduler
@@ -312,21 +344,22 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				break;
 			}
 		}
-		
-		long dt = System.currentTimeMillis() - t;
-		logger.warn("handleDbEvent took " + dt + " ms, " + " " + RestUtils.asJson(e));
 	}	
 
 	private void cancelJob(IdPair jobIdPair) {
 		
+		SchedulerJob removedJob = null;
+		
 		synchronized (jobs) {
 
 			logger.info("cancel job " + jobIdPair);
-			jobs.remove(jobIdPair);
+			removedJob = jobs.remove(jobIdPair);
 		}
 		
-		this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId())
-			.cancelJob(jobIdPair.getSessionId(), jobIdPair.getJobId());
+		if (removedJob != null) {
+			this.getJobScheduler(removedJob)
+				.cancelJob(jobIdPair);
+		}
 	}
 
 	/**
@@ -353,16 +386,18 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			// check if scheduled job is actually running already
 
 			for (IdPair jobIdPair : jobs.getScheduledJobs().keySet()) {
-				JobScheduler jobScheduler = this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId());
-				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				JobScheduler jobScheduler = this.getJobScheduler(jobs.get(jobIdPair));
+				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair);
 				
 				if (lastHeartbeat == null) {
 					
-					
-//					jobs.get(jobIdPair).getTimeSinceScheduled()
 					// not running yet					
 					
-					//TODO check max scheduled time?
+					if (jobs.get(jobIdPair).getTimeSinceScheduled() > this.waitTimeout * 5) {
+						// JobSchedule should have call busy() already
+						logger.warn("JobScheduler has kept " + jobIdPair + " in scheduled state too long, timeout");
+						this.busy(jobIdPair);
+					}
 					
 				} else {
 					
@@ -377,8 +412,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			// comp and the job is lost
 
 			for (IdPair jobIdPair : jobs.getRunningJobs().keySet()) {
-				JobScheduler jobScheduler = this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId());
-				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair.getSessionId(), jobIdPair.getJobId());
+				JobScheduler jobScheduler = this.getJobScheduler(jobs.get(jobIdPair));
+				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair);
 				
 				if (lastHeartbeat == null) {
 					
@@ -396,9 +431,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 //		logger.info(RestUtils.asJson(this.getStatus(), false));
 	}
 
-	private void schedule(IdPair jobIdPair, SchedulerJob jobState) {
+	private void schedule(IdPair idPair, SchedulerJob jobState) {
 		
-		long t = System.currentTimeMillis();
 		synchronized (jobs) {
 
 			int userNewCount = jobs.getNewSlots(jobState.getUserId());
@@ -408,7 +442,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			// check if user is allowed to run jobs of this size
 			if (jobState.getSlots() > this.maxScheduledAndRunningSlotsPerUser) {
 				logger.info("user " + jobState.getUserId() + " doesn't have enough slots for the tool");
-				IdPair idPair = new IdPair(jobIdPair.getSessionId(), jobIdPair.getJobId());
 				this.jobs.remove(idPair);
 				this.endJob(idPair, JobState.ERROR,
 						"Not enough job slots. The tool requires " + jobState.getSlots()
@@ -423,8 +456,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 						+ ") reached by user " + jobState.getUserId());
 				// user's slot quota is full
 				// keep the job in queue and try again later
-				
-//				this.updateJob(jobIdPair, JobState.NEW, "waiting for user's current jobs to end");
 				return;
 			}
 
@@ -432,7 +463,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			if (userNewCount + jobState.getSlots() > this.maxNewSlotsPerUser) {
 				logger.info("max job count of new jobs (" + this.maxNewSlotsPerUser + ") reached by user "
 						+ jobState.getUserId());
-				IdPair idPair = new IdPair(jobIdPair.getSessionId(), jobIdPair.getJobId());
+
 				this.jobs.remove(idPair);
 				this.endJob(idPair, JobState.ERROR,
 						"Maximum number of new jobs per user (" + this.maxNewSlotsPerUser + ") reached.");
@@ -443,15 +474,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			
 			// set the schedule timestamp to be able to calculate user's slot quota when many jobs are started at the same time
 			jobState.setScheduleTimestamp();
-			
-//			this.updateJob(jobIdPair, JobState.NEW, "waiting for free server");
 
-			this.getJobScheduler(jobIdPair.getSessionId(), jobIdPair.getJobId())
-				.scheduleJob(jobIdPair.getSessionId(), jobIdPair.getJobId(), jobState.getSlots());
+			this.getJobScheduler(jobState)
+				.scheduleJob(idPair, jobState.getSlots(), jobState.getImage());
 		}
-		
-		long dt = System.currentTimeMillis() - t;
-		logger.warn("schedule() took " + dt + " ms");
 	}
 
 	
@@ -488,26 +514,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		}
 	}
 	
-	/**
-	 * Set dbState in the session-db
-	 * 
-	 * This should be used only when anything else isn't updating the job, e.g. NEW
-	 * or EXPIRED_WAITING jobs.
-	 * 
-	 * @param jobId
-	 * @param reason
-	 */
-	private void updateJob(IdPair jobId, JobState jobState, String reason) {
-		try {
-			Job job = sessionDbClient.getJob(jobId.getSessionId(), jobId.getJobId());
-			job.setState(jobState);
-			job.setStateDetail("Job state " + jobState + " (" + reason + ")");
-			sessionDbClient.updateJob(jobId.getSessionId(), job);
-		} catch (RestException e) {
-			logger.error("could not set a job " + jobId + " to " + jobState, e);
-		}
-	}
-
 	/**
 	 * First 4 letters of the UUID for log messages
 	 * 
@@ -546,20 +552,22 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 * @throws RestException
 	 */
 	@Override
-	public void newResourcesAvailable() {
+	public void newResourcesAvailable(JobScheduler jobScheduler) {
 		
 		List<IdPair> newJobs = null;
 		synchronized (jobs) {
 			
 			newJobs = jobs.getNewJobs().entrySet().stream()
+					.filter(e -> getJobScheduler(jobs.get(e.getKey())) == jobScheduler)
 					.sorted((e1, e2) -> e1.getValue().getNewTimestamp().compareTo(e2.getValue().getNewTimestamp()))
 					.map(e -> e.getKey()).collect(Collectors.toList());
 		}
 		
 		if (newJobs.size() > 0) {
-			logger.info("rescheduling " + newJobs.size() + " waiting jobs");
+			logger.info("rescheduling " + newJobs.size() + " waiting jobs in " + jobScheduler.getClass().getSimpleName());
 			for (IdPair idPair : newJobs) {
 				SchedulerJob jobState = jobs.get(idPair);
+				
 				schedule(idPair, jobState);
 			}
 		}

@@ -19,7 +19,7 @@ import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.scheduler.JobCommand;
+import fi.csc.chipster.scheduler.offer.JobCommand;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
