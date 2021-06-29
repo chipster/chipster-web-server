@@ -95,7 +95,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");
 		
+		logger.info("start " + BashJobScheduler.class.getSimpleName());
 		this.bashJobScheduler = new BashJobScheduler(this, config);
+		logger.info("start " + OfferJobScheduler.class.getSimpleName());
 		this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
 		
 		logger.info("getting unfinished jobs from the session-db");
@@ -475,8 +477,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			// set the schedule timestamp to be able to calculate user's slot quota when many jobs are started at the same time
 			jobState.setScheduleTimestamp();
 
-			this.getJobScheduler(jobState)
-				.scheduleJob(idPair, jobState.getSlots(), jobState.getImage());
+			JobScheduler jobScheduler = this.getJobScheduler(jobState);
+			logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName()+ ", image: " + jobState.getImage());
+			jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getImage());
 		}
 	}
 
