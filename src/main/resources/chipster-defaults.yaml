@@ -278,7 +278,72 @@ scheduler-bash-cancel-script: |
   fi
   
 scheduler-bash-heartbeat-script: |
-  ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID  > logs/SingleShotComp-heartbeat.log 2<&1 &		
+  ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID  > logs/SingleShotComp-heartbeat.log 2<&1 &
+  
+scheduler-bash-max-slots: "100"
+# scheduler-bash-run-script: |
+#   echo "start container, slots: $SLOTS, image: $IMAGE, sessionId: $SESSION_ID, jobId: $JOB_ID"
+#   job_id=$(echo $SESSION_ID-$JOB_ID | cut -c 1-50)
+#   memory=$(( SLOTS*8 ))Gi
+#   cpu=$(( SLOTS*2 ))
+#   job_json=$(cat << EOF
+#   apiVersion: batch/v1
+#   kind: Job
+#   metadata:
+#     name: comp-job-$job_id
+#   spec:
+#     template:
+#       spec:
+#         containers:
+#         - name: comp-job
+#           image: $IMAGE
+#           imagePullPolicy: IfNotPresent
+#           command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp", "$SESSION_ID", "$JOB_ID"]
+#           # resources:
+#           #   limits:
+#           #     cpu: $cpu
+#           #     memory: $memory
+#           #   requests:
+#           #     cpu: $cpu
+#           #     memory: $memory
+#           volumeMounts:
+#           - mountPath: /opt/chipster/conf
+#             name: conf
+#             readOnly: true
+#           - mountPath: /opt/chipster/tools
+#             name: tools-bin
+#             readOnly: true
+#           - mountPath: /opt/chipster/jobs-data
+#             name: jobs-data
+#         volumes:
+#         - name: conf
+#           secret:
+#             defaultMode: 420
+#             secretName: comp
+#         - hostPath:
+#             path: /mnt/tools-bin
+#             type: Directory
+#           name: tools-bin
+#         - emptyDir: {}
+#           name: jobs-data  
+#         restartPolicy: Never
+#     backoffLimit: 0
+#   EOF
+#   )
+#   #echo "$job_json"
+#   echo "$job_json" | kubectl --kubeconfig conf/kubeconfig apply -f -
+
+# scheduler-bash-cancel-script: |
+#   job_id=$(echo $SESSION_ID-$JOB_ID | cut -c 1-50)
+#   kubectl --kubeconfig conf/kubeconfig delete job $job_id
+
+# scheduler-bash-heartbeat-script: |
+#   json=$(kubectl -kubeconfig conf/kubeconfig get job comp-job-7303cc4c-f084-4105-aa86-bbec13bf9b44-96eff85d-b0e7 -o json)
+#   if [ -n "$json" ]; then
+#     [ $( echo $json | jq .status.active == 1 ]
+#   else
+#     exit 1
+#   fi
 
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
