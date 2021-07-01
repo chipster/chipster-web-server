@@ -33,6 +33,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_RUN_SCRIPT = "scheduler-bash-run-script";
 	private static final String CONF_BASH_CANCEL_SCRIPT = "scheduler-bash-cancel-script";
+	private static final String CONF_BASH_FINISHED_SCRIPT = "scheduler-bash-finished-script";
 	private static final String CONF_BASH_HEARTBEAT_SCRIPT = "scheduler-bash-heartbeat-script";
 	private static final String CONF_BASH_JOB_TIMER_INTERVAL = "scheduler-bash-job-timer-interval";
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
@@ -51,7 +52,8 @@ public class BashJobScheduler implements JobScheduler {
 	
 	private BashJobs jobs = new BashJobs();
 	private int maxSlots;
-	private long heartbeatLostTimeout; 
+	private long heartbeatLostTimeout;
+	private String finishedScript; 
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, Config config) {
 		this.scheduler = scheduler;
@@ -60,6 +62,7 @@ public class BashJobScheduler implements JobScheduler {
 		
 		this.runScript = config.getString(CONF_BASH_RUN_SCRIPT);
 		this.cancelScript = config.getString(CONF_BASH_CANCEL_SCRIPT);
+		this.finishedScript = config.getString(CONF_BASH_FINISHED_SCRIPT);
 		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);
 		this.maxSlots = config.getInt(CONF_BASH_MAX_SLOTS);
 		
@@ -254,7 +257,9 @@ public class BashJobScheduler implements JobScheduler {
 		synchronized (jobs) {	
 			logger.info("remove finished job " + idPair);
 			this.jobs.remove(idPair);
-		}		
+		}
+		
+		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null);
 	}
 
 	public Map<String, Object> getStatus() {

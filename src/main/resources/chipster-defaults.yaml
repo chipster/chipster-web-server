@@ -279,6 +279,9 @@ scheduler-bash-cancel-script: |
     kill $pid
   fi
   
+scheduler-bash-finished-script: |
+  echo "nothing to do"
+  
 scheduler-bash-heartbeat-script: |
   ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID  > logs/SingleShotComp-heartbeat.log 2<&1 &
   
