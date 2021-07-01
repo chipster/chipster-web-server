@@ -41,6 +41,8 @@ import jakarta.websocket.DeploymentException;
 public class Scheduler implements SessionEventListener, StatusSource, JobSchedulerCallback {
 
 	private Logger logger = LogManager.getLogger();
+	
+	private static final String CONF_IMAGE_DEFAULT = "scheduler-image-default";
 
 	@SuppressWarnings("unused")
 	private String serviceId;
@@ -67,6 +69,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private long waitTimeout;
 
+	private String imageDefault;
+
 
 	public Scheduler(Config config) {
 		this.config = config;
@@ -85,6 +89,15 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				.getInt(Config.KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
 		this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
 		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
+		this.imageDefault = config.getString(CONF_IMAGE_DEFAULT);
+		
+		logger.info("runnable jobs can wait " + waitRunnableTimeout + " seconds in queue");
+		logger.info("check jobs every " + jobTimerInterval/1000 + " second(s)");
+		logger.info("remove job if heartbeat is lost for " + heartbeatLostTimeout + " seconds");
+		logger.info("max scheduled and running slots: " + maxScheduledAndRunningSlotsPerUser);
+		logger.info("max slots in queue per user: " + maxNewSlotsPerUser);
+		logger.info("job can be rescheduled after: " + waitTimeout + " seconds");
+		logger.info("default image: " + imageDefault);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
@@ -124,9 +137,20 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		logger.info("scheduler is up and running");
 	}
 	
+	private String getImage(SchedulerJob job) {
+		if (job.getImage() != null) {
+			return job.getImage();
+		} else if (this.imageDefault != null && !this.imageDefault.isEmpty()) {
+			return this.imageDefault;
+		}
+		return null;
+	}
 	private JobScheduler getJobScheduler(SchedulerJob job) {
+		return this.getJobScheduler(job, getImage(job));
+	}
+	private JobScheduler getJobScheduler(SchedulerJob job, String image) {
 		
-		if (job.getImage() == null) {
+		if (image == null) {
 			return offerJobScheduler;			
 		} else {
 			return bashJobScheduler;
@@ -477,9 +501,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			// set the schedule timestamp to be able to calculate user's slot quota when many jobs are started at the same time
 			jobState.setScheduleTimestamp();
 
-			JobScheduler jobScheduler = this.getJobScheduler(jobState);
-			logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName()+ ", image: " + jobState.getImage());
-			jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getImage());
+			String image = this.getImage(jobState);
+			JobScheduler jobScheduler = this.getJobScheduler(jobState, image);
+			logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName()+ ", image: " + image);
+			jobScheduler.scheduleJob(idPair, jobState.getSlots(), image);
 		}
 	}
 

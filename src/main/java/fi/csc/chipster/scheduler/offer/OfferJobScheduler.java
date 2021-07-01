@@ -287,7 +287,12 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	@Override
 	public Instant getLastHeartbeat(IdPair idPair) {
 		synchronized (jobs) {
-			return jobs.get(idPair).getHeartbeatTimestamp();
+			OfferJob job = jobs.get(idPair);
+			if (job != null) {
+				return job.getHeartbeatTimestamp();
+			}
+			logger.warn("scheduler asked for the last heartbeat of " + idPair + " but there is no such job");
+			return null;
 		}
 	}
 }

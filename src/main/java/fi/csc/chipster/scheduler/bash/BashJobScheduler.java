@@ -210,8 +210,14 @@ public class BashJobScheduler implements JobScheduler {
 		
 		pb.environment().put(ENV_SESSION_ID, idPair.getSessionId().toString());
 		pb.environment().put(ENV_JOB_ID, idPair.getJobId().toString());
-		pb.environment().put(ENV_SLOTS, "" + slots);
-		pb.environment().put(ENV_IMAGE, image);
+		
+		if (slots > 0) {
+			pb.environment().put(ENV_SLOTS, "" + slots);
+		}
+		
+		if (image != null) {
+			pb.environment().put(ENV_IMAGE, image);
+		}
 		
 		try {
 			Process process = pb.start();

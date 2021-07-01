@@ -260,6 +260,8 @@ scheduler-job-timer-interval: 1
 scheduler-max-scheduled-and-running-slots-per-user: 10
 # how many job (slots) can be waiting for the free running slots (per user limit)
 scheduler-max-new-slots-per-user: 1000
+# what container image to use (in BashJobScheduler) for tools that doesn't specify it in SADL. OfferJobScheduler will be used when the image is not set
+scheduler-image-default: ""
 # number of threads for BashJobScheduler
 scheduler-bash-threads: 4
 # max number of slots to run simultaneously in BashJobScheduler
