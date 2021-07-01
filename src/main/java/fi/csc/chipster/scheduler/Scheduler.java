@@ -428,7 +428,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				} else {
 					
 					// running in scheduler, comp will change the state in db and client later
-					logger.info("scheduled job " + jobIdPair + " has heartbeat, change it to running state");
+					logger.info("scheduled job " + jobIdPair + " has heartbeat, set a running timestamp");
 					jobs.get(jobIdPair).setRunningTimestamp();
 				}
 			}

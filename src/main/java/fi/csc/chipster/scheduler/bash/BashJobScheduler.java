@@ -175,8 +175,9 @@ public class BashJobScheduler implements JobScheduler {
 				
 			} else {
 				logger.warn("job check was unsuccessful " + idPair + ", seconds since last heartbeat: " + job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS));
-				// remove our job, scheduler will eventually notices this and remove its own
-				this.jobs.remove(idPair);
+				// remove our job, scheduler will soon notice this and remove its own
+				// this will remove it from this.jobs and the cancellation script can do its own clean-up
+				this.cancelJob(idPair);
 			}
 		}		
 	}
