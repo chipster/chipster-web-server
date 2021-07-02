@@ -314,7 +314,7 @@ public class SessionDbClient {
 		return RestMethods.getList(getSessionDbTarget().path("jobs").queryParam("state", state.toString()), IdPair.class);
 	}
 	
-	public String createSessionToken(UUID sessionId, Integer validSeconds) throws RestException {
+	public String createSessionToken(UUID sessionId, Long validSeconds) throws RestException {
 		WebTarget target = getDatasetTokenTarget()
 		.path("sessions").path(sessionId.toString());
 		

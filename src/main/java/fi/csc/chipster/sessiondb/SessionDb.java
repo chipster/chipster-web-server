@@ -108,7 +108,9 @@ public class SessionDb {
 
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 		// allow access with SessionDbTokens
-		this.tokenRequestFilter.addAllowedRole(Role.SESSION_DB_TOKEN);
+		this.tokenRequestFilter.addAllowedRole(Role.SESSION_DB_TOKEN);		
+		// allow access with SingleShotComp tokens
+		this.tokenRequestFilter.addAllowedRole(Role.SINGLE_SHOT_COMP);
 
 		SessionDbTokens datasetTokenTable = new SessionDbTokens(hibernate, config);
 

@@ -49,6 +49,8 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			// CORS preflight checks require unauthenticated OPTIONS
 			return;
 		}
+		
+//		logger.info(requestContext.getUriInfo().getRequestUri());
 
 		String authHeader = requestContext.getHeaderString(HEADER_AUTHORIZATION);
 		// allow token to be sent also as a query parameter, because JS EventSource
@@ -109,6 +111,17 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 					}
 				};
 				// DatasetTokens have to be passed through
+				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, password, roles),
+						requestContext.getSecurityContext()));
+				return;	
+				
+			} else if (allowedRoles.contains(Role.SINGLE_SHOT_COMP)) {
+				HashSet<String> roles = new HashSet<String>() {
+					{
+						add(Role.SINGLE_SHOT_COMP);
+					}
+				};
+				// SessionDbTokens have to be passed through
 				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, password, roles),
 						requestContext.getSecurityContext()));
 				return;	

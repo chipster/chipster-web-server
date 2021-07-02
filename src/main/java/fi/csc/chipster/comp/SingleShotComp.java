@@ -13,12 +13,12 @@ import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.scheduler.offer.JobCommand;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -92,7 +92,7 @@ public class SingleShotComp
 
 	private ServiceLocatorClient serviceLocator;
 	
-	private AuthenticationClient authClient;
+//	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
 
 	private ResourceMonitor resourceMonitor;
@@ -102,9 +102,10 @@ public class SingleShotComp
 	/**
 	 * 
 	 * @param config
+	 * @param chipsterToken 
 	 * @throws Exception
 	 */
-	public SingleShotComp(String configURL, Config config) throws Exception {
+	public SingleShotComp(String configURL, Config config, String chipsterToken) throws Exception {
 
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
@@ -132,13 +133,12 @@ public class SingleShotComp
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir, runtimesStream, config);
 
-		//FIXME which account to use?
-		String username = Role.COMP;
-		String password = config.getPassword(username);
+//		String username = Role.SINGLE_SHOT_COMP;
 
 		serviceLocator = new ServiceLocatorClient(config);
-		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-		serviceLocator.setCredentials(authClient.getCredentials());
+//		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+		StaticCredentials credentials = new StaticCredentials("token", chipsterToken);
+		serviceLocator.setCredentials(credentials);
 
 		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
 
@@ -148,8 +148,8 @@ public class SingleShotComp
 
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 
-		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
-		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
+		sessionDbClient = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
+		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, credentials);
 		
 		this.hostname = InetAddress.getLocalHost().getHostName();
 
@@ -159,24 +159,26 @@ public class SingleShotComp
 	
 	public static void main(String[] args) {
 		
-		try {
-			SingleShotComp comp = new SingleShotComp(null, new Config());
+		try {			
 
-			if (args.length != 2) {
+			if (args.length != 3) {
 				logger.error("wrong number of arguments");
-				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID");
+				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID CHIPSTER_TOKEN");
 				System.exit(1);
 			}
 
 			UUID sessionId = UUID.fromString(args[0]);
 			UUID jobId = UUID.fromString(args[1]);
+			String chipsterToken = args[2];
+			
+			SingleShotComp comp = new SingleShotComp(null, new Config(), chipsterToken);
 					
 			CompJob compJob = comp.getCompJob(sessionId, jobId);
 			
 			comp.runJob(compJob);
 			
 		} catch (Exception e) {
-			logger.error("error in comp when handling a scheduler message", e);
+			logger.error("error in comp launch", e);
 		}
 	}
 

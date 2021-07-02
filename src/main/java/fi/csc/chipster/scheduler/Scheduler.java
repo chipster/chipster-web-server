@@ -109,7 +109,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");
 		
 		logger.info("start " + BashJobScheduler.class.getSimpleName());
-		this.bashJobScheduler = new BashJobScheduler(this, config);
+		this.bashJobScheduler = new BashJobScheduler(this, this.sessionDbClient, config);
 		logger.info("start " + OfferJobScheduler.class.getSimpleName());
 		this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
 		
@@ -500,12 +500,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			
 			// set the schedule timestamp to be able to calculate user's slot quota when many jobs are started at the same time
 			jobState.setScheduleTimestamp();
-
-			String image = this.getImage(jobState);
-			JobScheduler jobScheduler = this.getJobScheduler(jobState, image);
-			logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName()+ ", image: " + image);
-			jobScheduler.scheduleJob(idPair, jobState.getSlots(), image);
 		}
+		
+		String image = this.getImage(jobState);
+		JobScheduler jobScheduler = this.getJobScheduler(jobState, image);
+		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName() + ", image: " + image);
+		jobScheduler.scheduleJob(idPair, jobState.getSlots(), image);
 	}
 
 	
@@ -583,6 +583,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	public void newResourcesAvailable(JobScheduler jobScheduler) {
 		
 		List<IdPair> newJobs = null;
+		
 		synchronized (jobs) {
 			
 			newJobs = jobs.getNewJobs().entrySet().stream()

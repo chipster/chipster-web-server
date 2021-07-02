@@ -266,10 +266,13 @@ scheduler-image-default: ""
 scheduler-bash-threads: 4
 # max number of slots to run simultaneously in BashJobScheduler
 scheduler-bash-max-slots: 5
+# max valid time of the session tokens for the SingleShotComp, days
+scheduler-bash-token-valid-time: 14
 
 scheduler-bash-run-script: |
   echo "run in process, slots: $SLOTS, image: $IMAGE"
-  ~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID > logs/SingleShotComp-run.log 2>&1 &
+  #~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $CHIPSTER_TOKEN > logs/SingleShotComp-run.log 2>&1 &
+  ~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $CHIPSTER_TOKEN
 
 scheduler-bash-cancel-script: |
   pid=$(ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID | tr -s ' ' | cut -d ' ' -f 2)
@@ -283,73 +286,77 @@ scheduler-bash-finished-script: |
   echo "nothing to do"
   
 scheduler-bash-heartbeat-script: |
-  ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID  > logs/SingleShotComp-heartbeat.log 2<&1 &
+  ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID  > logs/SingleShotComp-heartbeat.log 2>&1 &
   
 scheduler-bash-max-slots: "100"
-# scheduler-bash-run-script: |
-#   echo "start container, slots: $SLOTS, image: $IMAGE, sessionId: $SESSION_ID, jobId: $JOB_ID"
-#   job_id=$(echo $SESSION_ID-$JOB_ID | cut -c 1-50)
-#   memory=$(( SLOTS*8 ))Gi
-#   cpu=$(( SLOTS*2 ))
-#   job_json=$(cat << EOF
-#   apiVersion: batch/v1
-#   kind: Job
-#   metadata:
-#     name: comp-job-$job_id
-#   spec:
-#     template:
-#       spec:
-#         containers:
-#         - name: comp-job
-#           image: $IMAGE
-#           imagePullPolicy: IfNotPresent
-#           command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp", "$SESSION_ID", "$JOB_ID"]
-#           # resources:
-#           #   limits:
-#           #     cpu: $cpu
-#           #     memory: $memory
-#           #   requests:
-#           #     cpu: $cpu
-#           #     memory: $memory
-#           volumeMounts:
-#           - mountPath: /opt/chipster/conf
-#             name: conf
-#             readOnly: true
-#           - mountPath: /opt/chipster/tools
-#             name: tools-bin
-#             readOnly: true
-#           - mountPath: /opt/chipster/jobs-data
-#             name: jobs-data
-#         volumes:
-#         - name: conf
-#           secret:
-#             defaultMode: 420
-#             secretName: comp
-#         - hostPath:
-#             path: /mnt/tools-bin
-#             type: Directory
-#           name: tools-bin
-#         - emptyDir: {}
-#           name: jobs-data  
-#         restartPolicy: Never
-#     backoffLimit: 0
-#   EOF
-#   )
-#   #echo "$job_json"
-#   echo "$job_json" | kubectl --kubeconfig conf/kubeconfig apply -f -
+      # scheduler-bash-run-script: |
+      #   echo "start container, slots: $SLOTS, image: $IMAGE, sessionId: $SESSION_ID, jobId: $JOB_ID"
+      #   job_id=$(echo comp-job-$SESSION_ID-$JOB_ID | cut -c 1-63)
+      #   memory=$(( SLOTS*8 ))Gi
+      #   cpu=$(( SLOTS*2 ))
+      #   job_json=$(cat << EOF
+      #   apiVersion: batch/v1
+      #   kind: Job
+      #   metadata:
+      #     name: $job_id
+      #   spec:
+      #     template:
+      #       spec:
+      #         containers:
+      #         - name: comp-job
+      #           image: $IMAGE
+      #           imagePullPolicy: IfNotPresent
+      #           command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp", "$SESSION_ID", "$JOB_ID"]
+      #           # resources:
+      #           #   limits:
+      #           #     cpu: $cpu
+      #           #     memory: $memory
+      #           #   requests:
+      #           #     cpu: $cpu
+      #           #     memory: $memory
+      #           volumeMounts:
+      #           - mountPath: /opt/chipster/conf
+      #             name: conf
+      #             readOnly: true
+      #           - mountPath: /opt/chipster/tools
+      #             name: tools-bin
+      #             readOnly: true
+      #           - mountPath: /opt/chipster/jobs-data
+      #             name: jobs-data
+      #         volumes:
+      #         - name: conf
+      #           secret:
+      #             defaultMode: 420
+      #             secretName: comp
+      #         - hostPath:
+      #             path: /mnt/tools-bin
+      #             type: Directory
+      #           name: tools-bin
+      #         - emptyDir: {}
+      #           name: jobs-data  
+      #         restartPolicy: Never
+      #     backoffLimit: 0
+      #   EOF
+      #   )
+      #   #echo "$job_json"
+      #   echo "$job_json" | kubectl --kubeconfig conf/kubeconfig apply -f -
+      # scheduler-bash-cancel-script: |
+      #   job_id=$(echo comp-job-$SESSION_ID-$JOB_ID | cut -c 1-63)
+      #   kubectl --kubeconfig conf/kubeconfig delete job $job_id
 
-# scheduler-bash-cancel-script: |
-#   job_id=$(echo $SESSION_ID-$JOB_ID | cut -c 1-50)
-#   kubectl --kubeconfig conf/kubeconfig delete job $job_id
+      # scheduler-bash-finished-script: |
+      #   job_id=$(echo comp-job-$SESSION_ID-$JOB_ID | cut -c 1-63)
+      #   kubectl --kubeconfig conf/kubeconfig delete job $job_id
 
-# scheduler-bash-heartbeat-script: |
-#   json=$(kubectl -kubeconfig conf/kubeconfig get job comp-job-7303cc4c-f084-4105-aa86-bbec13bf9b44-96eff85d-b0e7 -o json)
-#   if [ -n "$json" ]; then
-#     [ $( echo $json | jq .status.active == 1 ]
-#   else
-#     exit 1
-#   fi
-
+      # scheduler-bash-heartbeat-script: |
+      #   job_id=$(echo comp-job-$SESSION_ID-$JOB_ID | cut -c 1-63)
+      #   json=$(kubectl --kubeconfig conf/kubeconfig get job $job_id -o json)
+      #   if [ -n "$json" ]; then
+      #     [ $(echo $json | jq .status.active) == 1 ]
+      #   else
+      #     exit 1
+      #   fi
+      
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
 

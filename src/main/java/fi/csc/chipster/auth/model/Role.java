@@ -30,4 +30,5 @@ public class Role {
 	public static final String BACKUP="backup";
 	public static final String OIDC = "oidc";
 	public static final String SESSION_DB_TOKEN = "session-db-token";
+	public static final String SINGLE_SHOT_COMP = "single-shot-comp";
 }	

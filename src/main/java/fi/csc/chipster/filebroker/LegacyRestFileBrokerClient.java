@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
@@ -23,6 +24,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.FileBrokerException;
 import fi.csc.chipster.comp.PhenodataUtils;
+import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -49,11 +51,20 @@ public class LegacyRestFileBrokerClient {
 	private AuthenticationClient authClient;
 
 	private ServiceLocatorClient serviceLocator;
+	private CredentialsProvider credentials;
 
 	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient2, ServiceLocatorClient serviceLocator,
 			AuthenticationClient authClient) {
 		this.sessionDbClient = sessionDbClient2;
 		this.authClient = authClient;
+		this.serviceLocator = serviceLocator;
+	}
+
+	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator,
+			CredentialsProvider credentials) {
+		
+		this.sessionDbClient = sessionDbClient;
+		this.credentials = credentials;
 		this.serviceLocator = serviceLocator;
 	}
 
@@ -148,6 +159,15 @@ public class LegacyRestFileBrokerClient {
 	}
 
 	private WebTarget getFileBrokerTarget() {
-		return authClient.getAuthenticatedClient().target(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
+		
+		Client authenticatedClient;
+		
+		if (authClient != null) {
+			authenticatedClient = authClient.getAuthenticatedClient();
+		} else {
+			authenticatedClient = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true);
+		}
+		
+		return authenticatedClient.target(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
 	}
 }

@@ -116,7 +116,7 @@ public class SessionDbTokenTest {
 	@Test
     public void sessionTokenWrongUser() throws RestException, IOException {
 		try {
-			user2Client.createSessionToken(sessionId1, 1);
+			user2Client.createSessionToken(sessionId1, 1l);
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());
@@ -159,7 +159,7 @@ public class SessionDbTokenTest {
 	
 	@Test
     public void sessionTokenExpire() throws RestException, IOException, InterruptedException {
-		String sessionToken = user1Client.createSessionToken(sessionId1, 1);
+		String sessionToken = user1Client.createSessionToken(sessionId1, 1l);
 		Thread.sleep(1000);
 		try {
 			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
@@ -291,7 +291,7 @@ public class SessionDbTokenTest {
 	
 	@Test
     public void sessionTokenProhibited() throws RestException, IOException, InterruptedException {
-		String sessionToken = user1Client.createSessionToken(sessionId1, 1);
+		String sessionToken = user1Client.createSessionToken(sessionId1, 1l);
 		SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
 		
 		// SessionToken is for read-only operations

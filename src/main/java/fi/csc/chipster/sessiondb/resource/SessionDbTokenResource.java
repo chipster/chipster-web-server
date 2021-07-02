@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -48,13 +49,17 @@ public class SessionDbTokenResource {
 	}
 	
 	@POST
-	@RolesAllowed(Role.CLIENT)
+	@RolesAllowed({ Role.CLIENT, Role.SCHEDULER })
     @Path("sessions/{sessionId}")
 	@Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response post(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
     	
 		String username = sc.getUserPrincipal().getName();
+		
+		if (((AuthPrincipal)sc.getUserPrincipal()).getRoles().contains(Role.SCHEDULER)) {
+			username = Role.SINGLE_SHOT_COMP;
+		}
 			
 		// check that the user is allowed to access the session (with auth token)
 		Session session = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);

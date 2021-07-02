@@ -22,6 +22,8 @@ import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.scheduler.JobScheduler;
 import fi.csc.chipster.scheduler.JobSchedulerCallback;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
 
 public class BashJobScheduler implements JobScheduler {
 	
@@ -29,6 +31,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_JOB_ID = "JOB_ID";
 	private static final String ENV_SLOTS = "SLOTS";
 	private static final String ENV_IMAGE = "IMAGE";
+	private static final String ENV_CHIPSTER_TOKEN = "CHIPSTER_TOKEN";
 	
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_RUN_SCRIPT = "scheduler-bash-run-script";
@@ -38,6 +41,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_JOB_TIMER_INTERVAL = "scheduler-bash-job-timer-interval";
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT= "scheduler-bash-heartbeat-lost-timeout";
+	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	
 	private Executor executor;
 	
@@ -53,12 +57,15 @@ public class BashJobScheduler implements JobScheduler {
 	private BashJobs jobs = new BashJobs();
 	private int maxSlots;
 	private long heartbeatLostTimeout;
-	private String finishedScript; 
+	private String finishedScript;
+	private SessionDbClient sessionDbClient;
+	private long tokenValidTime; 
 
-	public BashJobScheduler(JobSchedulerCallback scheduler, Config config) {
+	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, Config config) {
 		this.scheduler = scheduler;
+		this.sessionDbClient = sessionDbClient;
 		
-		executor = Executors.newFixedThreadPool(config.getInt(CONF_BASH_THREADS), new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d").build());
+		this.executor = Executors.newFixedThreadPool(config.getInt(CONF_BASH_THREADS), new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d").build());
 		
 		this.runScript = config.getString(CONF_BASH_RUN_SCRIPT);
 		this.cancelScript = config.getString(CONF_BASH_CANCEL_SCRIPT);
@@ -68,6 +75,7 @@ public class BashJobScheduler implements JobScheduler {
 		
 		this.bashJobTimerInterval = config.getLong(CONF_BASH_JOB_TIMER_INTERVAL) * 1000;
 		this.heartbeatLostTimeout = config.getLong(CONF_BASH_HEARTBEAT_LOST_TIMEOUT);
+		this.tokenValidTime = config.getLong(CONF_TOKEN_VALID_TIME);
 		
 		this.bashJobTimer = new Timer("bash-job-scheduler-timer", true);
 		this.bashJobTimer.schedule(new TimerTask() {
@@ -119,8 +127,17 @@ public class BashJobScheduler implements JobScheduler {
 			
 			// don't keep the this.jobs locked
 			if (run) {
-				// use the conf key as a name in logs
-				this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image);
+				
+				try {
+					String sessionToken = sessionDbClient.createSessionToken(idPair.getSessionId(), this.tokenValidTime * 24 * 60 * 60);
+					
+					// use the conf key as a name in logs
+					this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken);
+					
+				} catch (RestException e) {
+					logger.error("failed to get the session token for the job " + idPair, e);
+				}
+				
 			}
 			
 			if (isBusy) {
@@ -136,7 +153,18 @@ public class BashJobScheduler implements JobScheduler {
 			this.jobs.remove(idPair);
 		}
 		// use the conf key as a name in logs
-		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null);
+		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null);
+	}
+	
+	@Override
+	public void removeFinishedJob(IdPair idPair) {
+
+		synchronized (jobs) {	
+			logger.info("remove finished job " + idPair);
+			this.jobs.remove(idPair);
+		}
+		
+		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null);
 	}
 	
 	@Override
@@ -156,7 +184,7 @@ public class BashJobScheduler implements JobScheduler {
 		try {
 			// use the conf key as a name in logs
 			// wait for the bash process and handle the exception, don't use the executor
-			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null);
+			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null);
 			jobs.get(idPair).setHeartbeatTimestamp();
 			
 		} catch (Exception e) {
@@ -198,13 +226,13 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 	
-	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image) {
+	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image, String token) {
 		this.executor.execute(() -> {
-			this.runSchedulerBash(bashCommand, name, idPair, slots, image);
+			this.runSchedulerBash(bashCommand, name, idPair, slots, image, token);
 		});
 	}
 	
-	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image) {			
+	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image, String token) {			
 		
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 				
@@ -221,6 +249,10 @@ public class BashJobScheduler implements JobScheduler {
 		
 		if (image != null) {
 			pb.environment().put(ENV_IMAGE, image);
+		}
+		
+		if (token != null) {
+			pb.environment().put(ENV_CHIPSTER_TOKEN, token);
 		}
 		
 		try {
@@ -250,17 +282,6 @@ public class BashJobScheduler implements JobScheduler {
 		} catch (InterruptedException | IOException e) {
 			logger.error("unexpecter error when executing: " + cmdString, e);
 		}
-	}
-
-	@Override
-	public void removeFinishedJob(IdPair idPair) {
-
-		synchronized (jobs) {	
-			logger.info("remove finished job " + idPair);
-			this.jobs.remove(idPair);
-		}
-		
-		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null);
 	}
 
 	public Map<String, Object> getStatus() {

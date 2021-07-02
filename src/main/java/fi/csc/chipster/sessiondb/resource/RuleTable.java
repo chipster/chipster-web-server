@@ -358,7 +358,7 @@ public class RuleTable {
 		
 		Set<String> roles = ((AuthPrincipal)sc.getUserPrincipal()).getRoles();
 		
-		if (roles.contains(Role.SESSION_DB_TOKEN)) {
+		if (roles.contains(Role.SESSION_DB_TOKEN) || roles.contains(Role.SINGLE_SHOT_COMP)) {
 			String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();		
 			// read access to a specific session is possible with a DatasetToken
 			return datasetTokenTable.checkSessionAuthorization(token, sessionId).getSession();

@@ -90,6 +90,9 @@ public class ServiceLocator {
     	tokenRequestFilter.addAllowedRole(Role.UNAUTHENTICATED);
     	// servers need to get the internal services with username and password to find the auth address and get a token
     	tokenRequestFilter.addAllowedRole(Role.PASSWORD);
+    	// SingleShotComp needs the internal addresses
+    	tokenRequestFilter.addAllowedRole(Role.SINGLE_SHOT_COMP);
+    	
     	
     	ServiceLocatorClient client = new LocalServiceLocatorClient(publicServices, allServices, config);
     	        
