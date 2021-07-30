@@ -14,12 +14,6 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Root;
-import jakarta.ws.rs.ForbiddenException;
-import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
-import jakarta.ws.rs.core.StreamingOutput;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,7 +33,12 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.model.SessionDbToken;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.core.StreamingOutput;
 
 public class RuleTable {	
 	
@@ -114,6 +113,13 @@ public class RuleTable {
 	 * @return
 	 */
 	public Session checkAuthorization(AuthPrincipal principal, UUID sessionId, boolean requireReadWrite, org.hibernate.Session hibernateSession, boolean allowAdmin) {
+		
+		if (principal.getRoles().contains(Role.SESSION_DB_TOKEN)) {
+
+			return datasetTokenTable.checkSessionAuthorization(principal.getTokenKey(), sessionId, requireReadWrite);
+		}
+		
+		// authenticated with an auth token
 		
 		String username = principal.getName();
 
@@ -316,14 +322,13 @@ public class RuleTable {
 	 */
 	public Dataset checkAuthorizationForDataset(SecurityContext sc, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
 		
-		Set<String> roles = ((AuthPrincipal)sc.getUserPrincipal()).getRoles();
 		
-		if (!requireReadWrite && roles.contains(Role.SESSION_DB_TOKEN)) {
-			String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();
-			SessionDbToken datasetToken = datasetTokenTable.checkAuthorization(token, sessionId, datasetId);
-			
-			return datasetToken.getDataset();
-		} 
+		AuthPrincipal principal = (AuthPrincipal)sc.getUserPrincipal();
+		
+		if (principal.getRoles().contains(Role.SESSION_DB_TOKEN)) {
+
+			return datasetTokenTable.checkAuthorization(principal.getTokenKey(), sessionId, datasetId, requireReadWrite);
+		}
 		
 		// check that the user has an Rule which allows access to the session		
 		Session session = checkAuthorization(sc.getUserPrincipal().getName(), sessionId, requireReadWrite);
@@ -355,15 +360,6 @@ public class RuleTable {
 	 * @return
 	 */
 	public Session checkAuthorizationForSessionRead(SecurityContext sc, UUID sessionId, boolean allowAdmin) {
-		
-		Set<String> roles = ((AuthPrincipal)sc.getUserPrincipal()).getRoles();
-		
-		if (roles.contains(Role.SESSION_DB_TOKEN) || roles.contains(Role.SINGLE_SHOT_COMP)) {
-			String token = ((AuthPrincipal) sc.getUserPrincipal()).getTokenKey();		
-			// read access to a specific session is possible with a DatasetToken
-			return datasetTokenTable.checkSessionAuthorization(token, sessionId).getSession();
-		}
-			// authenticated with an auth token
 		return checkAuthorizationForSession((AuthPrincipal)sc.getUserPrincipal(), sessionId, false, allowAdmin);		
 	}
 	

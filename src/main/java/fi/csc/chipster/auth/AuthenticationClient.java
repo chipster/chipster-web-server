@@ -153,7 +153,7 @@ public class AuthenticationClient {
 			 */
 			return authenticationServiceUri;
 		} else {
-			if(Role.SERVER.equals(this.role)) {
+			if(Role.SERVER.equals(this.role) || Role.SINGLE_SHOT_COMP.equals(this.role)) {
 				logger.info("get auth address from the service-locator using username and password");
 				ServiceLocatorClient passwordClient = new ServiceLocatorClient(this.serviceLocator.getBaseUri());
 				passwordClient.setCredentials(new StaticCredentials(username, password));
@@ -172,7 +172,7 @@ public class AuthenticationClient {
 		if (authenticationServiceUri != null) {
 			return authenticationServiceUri;
 		} else {
-			if(Role.SERVER.equals(this.role)) {
+			if(Role.SERVER.equals(this.role) || Role.SINGLE_SHOT_COMP.equals(this.role)) {
 				return this.serviceLocator.getInternalService(Role.AUTH).getUri();
 			} else {
 				// unit tests use this as client
@@ -376,6 +376,8 @@ public class AuthenticationClient {
 
 	public PublicKey getJwtPublicKey() throws PEMException {
 		String authUri = getAuth(username, password);
+		
+		logger.info("get JWT public key from " + authUri + " for " + username);
 
 		String pem = getAuthenticatedClient()
 				.target(authUri)

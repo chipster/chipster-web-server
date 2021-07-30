@@ -17,6 +17,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionDbToken;
+import fi.csc.chipster.sessiondb.model.SessionDbToken.Access;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jws;
@@ -53,6 +54,7 @@ public class SessionDbTokens {
 	
 	public static final String CLAIM_KEY_SESSION_ID = "sessionId";
 	public static final String CLAIM_KEY_DATASET_ID = "datasetId";
+	public static final String CLAIM_KEY_ACCESS = "readWrite";
 
 	private KeyPair jwsKeyPair;
 	private SignatureAlgorithm signatureAlgorithm;
@@ -66,15 +68,21 @@ public class SessionDbTokens {
 		this.jwsKeyPair = JwsUtils.getOrGenerateKeyPair(config, Role.SESSION_DB, signatureAlgorithm);
 	}
 	
-	public SessionDbToken checkAuthorization(String tokenKey, UUID sessionId, UUID datasetId) {
-    	return checkDatasetAuthorization(tokenKey, sessionId, datasetId, hibernate.session());
+	public Dataset checkAuthorization(String jwsString, UUID sessionId, UUID datasetId, boolean requireReadWrite) {
+		
+		SessionDbToken token = validate(jwsString);
+		
+    	return checkDatasetAuthorization(token, sessionId, datasetId, requireReadWrite, hibernate.session());
     }
 	
-	public SessionDbToken checkSessionAuthorization(String jwsString, UUID requestSessionId) {
-		return checkSessionAuthorization(jwsString, requestSessionId, hibernate.session());
+	public Session checkSessionAuthorization(String jwsString, UUID requestSessionId, boolean requireReadWrite) {
+		
+		SessionDbToken token = validate(jwsString);
+		
+		return checkSessionAuthorization(token, requestSessionId, requireReadWrite, hibernate.session());
 	}
 	
-	public SessionDbToken checkSessionAuthorization(String jwsString, UUID requestSessionId, org.hibernate.Session hibernateSession) {
+	public SessionDbToken validate(String jwsString) {
 		
 		try {
 			Jws<Claims> jws = Jwts.parserBuilder()
@@ -86,25 +94,16 @@ public class SessionDbTokens {
 
 		    UUID jwsSessionId = UUID.fromString(jws.getBody().get(CLAIM_KEY_SESSION_ID, String.class));
 		    // null if this token is for the whole session
-		    String jwsDatasetId = jws.getBody().get(CLAIM_KEY_DATASET_ID, String.class);
-			
-			Session session = hibernateSession.get(Session.class, requestSessionId);
-			
-			//TODO wouldn't these come anyway from the SessionResource?
-			if (session == null) {
-				throw new NotFoundException("session not found");
-			}
+		    String jwsDatasetIdString = jws.getBody().get(CLAIM_KEY_DATASET_ID, String.class);
+		    UUID jwsDatasetId = null;
+		    if (jwsDatasetIdString != null) {
+		    	jwsDatasetId = UUID.fromString(jwsDatasetIdString);
+		    }
+		    
+		    String accessString = jws.getBody().get(CLAIM_KEY_ACCESS, String.class);
+		    Access access = Access.valueOf(accessString);
 						
-			if (!requestSessionId.equals(jwsSessionId)) {
-				throw new ForbiddenException("token not valid for this session");
-			}
-			
-			if (jwsDatasetId != null) {
-				// this token is only for single dataset
-				throw new NotAuthorizedException("not a session token");
-			}
-			
-			return new SessionDbToken(jwsString, jws.getBody().getSubject(), session, null, jws.getBody().getExpiration().toInstant());		     	    
+			return new SessionDbToken(jwsString, jws.getBody().getSubject(), jwsSessionId, jwsDatasetId, jws.getBody().getExpiration().toInstant(), access);		     	    
 		    
 		} catch (ExpiredJwtException e) {
 			// 401 https://stackoverflow.com/questions/45153773/correct-http-code-for-authentication-token-expiry-401-or-403
@@ -124,80 +123,115 @@ public class SessionDbTokens {
 		    throw new NotAuthorizedException("token not valid");
 		}
 	}
+	
+	/**
+	 * Check that the SessionDbToken is valid for requested session
+	 * 
+	 * This assumes that the JWT has been already safely parsed and validated to a SessionDbToken.
+	 * 
+	 * @param token
+	 * @param requestSessionId
+	 * @param requireReadWrite 
+	 * @param hibernateSession
+	 * @return 
+	 */
+	public Session checkSessionAuthorization(SessionDbToken token, UUID requestSessionId, boolean requireReadWrite, org.hibernate.Session hibernateSession) {
+
+	    UUID jwsSessionId = token.getSessionId();
+	    // null if this token is for the whole session
+	    UUID jwsDatasetId = token.getDatasetId();
+		
+		Session session = hibernateSession.get(Session.class, requestSessionId);
+		
+		// sanity check although SessionResoure probably has checked this already
+		if (session == null) {
+			throw new NotFoundException("session not found");
+		}
+					
+		if (!requestSessionId.equals(jwsSessionId)) {
+			throw new ForbiddenException("token not valid for this session");
+		}
+		
+		if (jwsDatasetId != null) {
+			// this token is only for single dataset
+			throw new NotAuthorizedException("not a session token");
+		}
+		
+		if (requireReadWrite && Access.READ_WRITE != token.getAccess()) {
+			throw new ForbiddenException("no read-write access with this token");
+		}
+		
+		return session;
+	}
 
 	
-	public SessionDbToken checkDatasetAuthorization(String jwsString, UUID requestSessionId, UUID requestDatasetId, org.hibernate.Session hibernateSession) {
+	/**
+	 * 
+	 * Check that the SessionDbToken is valid for requested session and dataset
+	 * 
+	 * This assumes that the JWT has been already safely parsed and validated to a SessionDbToken.
+	 * 
+	 * @param token
+	 * @param requestSessionId
+	 * @param requestDatasetId
+	 * @param requireReadWrite 
+	 * @param hibernateSession
+	 * @return 
+	 */
+	public Dataset checkDatasetAuthorization(SessionDbToken token, UUID requestSessionId, UUID requestDatasetId, boolean requireReadWrite, org.hibernate.Session hibernateSession) {
 		
-		try {
-			Jws<Claims> jws = Jwts.parserBuilder()
-					.setSigningKey(jwsKeyPair.getPublic())
-					.build()
-					.parseClaimsJws(jwsString);
+		UUID jwsSessionId = token.getSessionId();
+		// null if this token is for the whole session
+		UUID jwsDatasetId = token.getDatasetId();
 
-			// now we can safely trust the JWT
-
-		    UUID jwsSessionId = UUID.fromString(jws.getBody().get(CLAIM_KEY_SESSION_ID, String.class));
-		    // null if this token is for the whole session
-		    String jwsDatasetId = jws.getBody().get(CLAIM_KEY_DATASET_ID, String.class);
-		    
-		    if (jwsDatasetId == null) {
-		    	// this is a token for the whole session
-		    	return checkSessionAuthorization(jwsString, requestSessionId, hibernateSession);
-		    }
+		Session session = null;
+		if (jwsDatasetId == null) {
+			// this is a token for the whole session
+			session = checkSessionAuthorization(token, requestSessionId, requireReadWrite, hibernateSession);
 			
-			Session session = hibernateSession.get(Session.class, requestSessionId);
+		} else {
+		
+			if (requireReadWrite) {
+				// no need for the writing with dataset tokens so far
+				throw new ForbiddenException("dataset tokens are read-only");
+			}
+	
+			session = hibernateSession.get(Session.class, requestSessionId);
 			
-			//TODO wouldn't these come anyway from the SessionResource?
+			// sanity check although SessionResoure probably has checked this already
 			if (session == null) {
 				throw new NotFoundException("session not found");
 			}
 			
-			Dataset dataset = SessionDatasetResource.getDataset(requestSessionId, requestDatasetId, hibernateSession);
-			
-			if (dataset == null) {
-				throw new NotFoundException("dataset not found");
-			}
-			
-			if (!requestSessionId.equals(jwsSessionId)) {
-				throw new ForbiddenException("token not valid for this session");
-			}
-						
-			if (!requestDatasetId.equals(UUID.fromString(jwsDatasetId))) {
+			if (!requestDatasetId.equals(jwsDatasetId)) {
 				throw new ForbiddenException("token not valid for this dataset");			
 			}
-			
-			return new SessionDbToken(jwsString, jws.getBody().getSubject(), session, dataset, jws.getBody().getExpiration().toInstant());		     	    
-		    
-		} catch (ExpiredJwtException e) {
-			// 401 https://stackoverflow.com/questions/45153773/correct-http-code-for-authentication-token-expiry-401-or-403
-			throw new NotAuthorizedException("token expired");
-			
-		} catch (SignatureException e) {
-			throw new ForbiddenException("invalid token signature");
-			
-		} catch (IllegalArgumentException e) {
-			throw new NotAuthorizedException("token is null, empty or only whitespace");
-			
-		} catch (MalformedJwtException e) {
-			throw new NotAuthorizedException("invalid token: " + e.getMessage());		    		    
-		    
-		} catch (JwtException e) {
-		    logger.warn("jws validation failed", e.getMessage());
-		    throw new NotAuthorizedException("token not valid");
 		}
+
+		Dataset dataset = SessionDatasetResource.getDataset(requestSessionId, requestDatasetId, hibernateSession);
+
+		if (dataset == null) {
+			throw new NotFoundException("dataset not found");
+		}
+
+		if (!requestSessionId.equals(jwsSessionId)) {
+			throw new ForbiddenException("token not valid for this session");
+		}
+		
+		return dataset;
 	}
 
-	public SessionDbToken createTokenForSession(String username, Session session, Instant valid) {
+	public SessionDbToken createTokenForSession(String username, Session session, Instant valid, Access access) {
 		
 		if (session.getSessionId() == null) {
 			throw new IllegalArgumentException("cannot create token for null session");
 		}
 		
 		// null datasetId means access to the whole session
-		return createToken(username, session, null, valid);
+		return createToken(username, session.getSessionId(), null, valid, access);
 	}
 		
-	public SessionDbToken createTokenForDataset(String username, Session session, Dataset dataset, Instant valid) {
+	public SessionDbToken createTokenForDataset(String username, Session session, Dataset dataset, Instant valid, Access access) {
 	
 		if (session.getSessionId() == null) {
 			throw new IllegalArgumentException("cannot create token for null session");
@@ -207,14 +241,12 @@ public class SessionDbTokens {
 			throw new IllegalArgumentException("cannot create token for null dataset");
 		}
 	
-		return createToken(username, session, dataset, valid);
+		return createToken(username, session.getSessionId(), dataset.getDatasetId(), valid, access);
 	}
 	
-	private SessionDbToken createToken(String username, Session session, Dataset dataset, Instant valid) {
+	private SessionDbToken createToken(String username, UUID sessionId, UUID datasetId, Instant valid, Access access) {
 		
 		Instant now = Instant.now();
-		
-		UUID datasetId = dataset != null ? dataset.getDatasetId() : null;
 		
 		String jws = Jwts.builder()
 			    .setIssuer(Role.SESSION_DB)
@@ -224,12 +256,12 @@ public class SessionDbTokens {
 			    .setNotBefore(Date.from(now))
 			    .setIssuedAt(Date.from(now))
 			    .setId(UUID.randomUUID().toString())
-			    .claim(CLAIM_KEY_SESSION_ID, session.getSessionId())
+			    .claim(CLAIM_KEY_SESSION_ID, sessionId)
 			    .claim(CLAIM_KEY_DATASET_ID, datasetId)
+			    .claim(CLAIM_KEY_ACCESS, access.name())
 			    .signWith(jwsKeyPair.getPrivate(), signatureAlgorithm)			  
 			    .compact();
 		
-		//TODO wouldn't sessionId and datasetId be enough?
-		return new SessionDbToken(jws, username, session, dataset, valid);
+		return new SessionDbToken(jws, username, sessionId, datasetId, valid, access);
 	}
 }

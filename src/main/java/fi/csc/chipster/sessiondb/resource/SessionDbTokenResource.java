@@ -27,6 +27,7 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionDbToken;
+import fi.csc.chipster.sessiondb.model.SessionDbToken.Access;
 
 @Path("tokens")
 public class SessionDbTokenResource {	
@@ -55,10 +56,14 @@ public class SessionDbTokenResource {
     @Transaction
     public Response post(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
     	
+		// client can create read-only tokens for session-worker
 		String username = sc.getUserPrincipal().getName();
+		Access access = Access.READ_ONLY;
 		
+		// scheduler can create read-write tokens for jobs
 		if (((AuthPrincipal)sc.getUserPrincipal()).getRoles().contains(Role.SCHEDULER)) {
 			username = Role.SINGLE_SHOT_COMP;
+			access = Access.READ_WRITE;
 		}
 			
 		// check that the user is allowed to access the session (with auth token)
@@ -66,7 +71,7 @@ public class SessionDbTokenResource {
 		
 		Instant valid = parseValid(validString, TOKEN_FOR_SESSION_VALID_DEFAULT);		
 		// null datasetId means access to whole session
-		SessionDbToken datasetToken = sessionDbTokens.createTokenForSession(username, session, valid);		
+		SessionDbToken datasetToken = sessionDbTokens.createTokenForSession(username, session, valid, access);		
 		
     	return Response.ok(datasetToken).build();
     }
@@ -85,7 +90,7 @@ public class SessionDbTokenResource {
 		Session session = authorizationResource.getSession(dataset.getSessionId());
 		
 		Instant valid = parseValid(validString, TOKEN_FOR_DATASET_VALID_DEFAULT);
-		SessionDbToken datasetToken = sessionDbTokens.createTokenForDataset(sc.getUserPrincipal().getName(), session, dataset, valid);		
+		SessionDbToken datasetToken = sessionDbTokens.createTokenForDataset(sc.getUserPrincipal().getName(), session, dataset, valid, Access.READ_ONLY);		
 		
     	return Response.ok(datasetToken).build();
     }

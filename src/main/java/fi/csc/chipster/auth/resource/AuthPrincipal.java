@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import fi.csc.chipster.sessiondb.model.SessionDbToken;
+
 public class AuthPrincipal implements Principal {
 	
 	String username;
@@ -14,19 +16,25 @@ public class AuthPrincipal implements Principal {
 	private String tokenKey;
 	private String remoteAddress;
 	private Map<String, String> details = new HashMap<>();
+	private SessionDbToken sessionDbToken;
 
 	public AuthPrincipal(String username, String role) {
-		this(username, null, new HashSet<String>(Arrays.asList(role)));
+		this(username, null, new HashSet<String>(Arrays.asList(role)), null);
 	}
 	
 	public AuthPrincipal(String username, Set<String> roles) {
-		this(username, null, roles);
+		this(username, null, roles, null);
+	}
+	
+	public AuthPrincipal(String username, String tokenKey, Set<String> roles) {
+		this(username, tokenKey, roles, null);
 	}
 
-	public AuthPrincipal(String username, String tokenKey, Set<String> roles) {
+	public AuthPrincipal(String username, String tokenKey, Set<String> roles, SessionDbToken sessionDbToken) {
 		this.username = username;
 		this.roles = roles;
 		this.tokenKey = tokenKey;
+		this.sessionDbToken = sessionDbToken;
 	}
 
 	@Override
@@ -64,5 +72,13 @@ public class AuthPrincipal implements Principal {
 
 	public void setDetails(Map<String, String> details) {
 		this.details = details;
+	}
+
+	public SessionDbToken getSessionDbToken() {
+		return sessionDbToken;
+	}
+
+	public void setSessionDbToken(SessionDbToken sessionDbToken) {
+		this.sessionDbToken = sessionDbToken;
 	}
 }

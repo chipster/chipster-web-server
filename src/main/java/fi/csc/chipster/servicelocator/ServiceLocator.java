@@ -83,7 +83,7 @@ public class ServiceLocator {
     			intServices.get(service), 
     			extServices.get(service), 
     			adminServices.get(service)));    		    		
-    	}    
+    	}
     	
     	TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
     	// clients can get the public services without authentication

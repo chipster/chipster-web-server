@@ -113,14 +113,15 @@ public class LegacyRestFileBrokerClient {
 
 	private void upload(UUID sessionId, String dataId, InputStream inputStream, long size) throws IOException {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
-		WebTarget datasetTarget = getFileBrokerTarget().path(datasetPath);
+		WebTarget datasetTarget = getFileBrokerTarget()
+				.path(datasetPath)
+				.queryParam(FileBrokerResource.FLOW_TOTAL_SIZE, size);
 
 		// Use chunked encoding to disable buffering. HttpUrlConnector in
 		// Jersey buffers the whole file before sending it by default, which
 		// won't work with big files.
 		datasetTarget.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
 		Response response = datasetTarget.request()
-				.header(FileBrokerResource.FLOW_TOTAL_SIZE, size)
 				.put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			logger.warn("upload failed: " + response.getStatus() + " " + response.readEntity(String.class) + " "

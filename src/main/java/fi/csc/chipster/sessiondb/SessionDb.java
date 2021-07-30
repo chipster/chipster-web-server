@@ -105,17 +105,14 @@ public class SessionDb {
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
-
+		
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 		// allow access with SessionDbTokens
-		this.tokenRequestFilter.addAllowedRole(Role.SESSION_DB_TOKEN);		
-		// allow access with SingleShotComp tokens
-		this.tokenRequestFilter.addAllowedRole(Role.SINGLE_SHOT_COMP);
+		this.tokenRequestFilter.addAllowedRole(Role.SESSION_DB_TOKEN);
 
-		SessionDbTokens datasetTokenTable = new SessionDbTokens(hibernate, config);
-
-		this.ruleTable = new RuleTable(hibernate, datasetTokenTable);
-		this.datasetTokenResource = new SessionDbTokenResource(datasetTokenTable, ruleTable);
+		SessionDbTokens sessionDbTokens = new SessionDbTokens(hibernate, config);
+		this.ruleTable = new RuleTable(hibernate, sessionDbTokens);
+		this.datasetTokenResource = new SessionDbTokenResource(sessionDbTokens, ruleTable);
 		this.sessionResource = new SessionResource(hibernate, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);

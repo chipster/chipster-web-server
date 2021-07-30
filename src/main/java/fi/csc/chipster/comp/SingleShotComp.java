@@ -13,12 +13,14 @@ import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.scheduler.offer.JobCommand;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -98,6 +100,7 @@ public class SingleShotComp
 	private ResourceMonitor resourceMonitor;
 	private int monitoringInterval;
 	private String hostname;
+	private AuthenticationClient authClient;
 
 	/**
 	 * 
@@ -133,12 +136,15 @@ public class SingleShotComp
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir, runtimesStream, config);
 
-//		String username = Role.SINGLE_SHOT_COMP;
+		String username = Role.SINGLE_SHOT_COMP;
+		String password = config.getPassword(username);
 
 		serviceLocator = new ServiceLocatorClient(config);
-//		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-		StaticCredentials credentials = new StaticCredentials("token", chipsterToken);
-		serviceLocator.setCredentials(credentials);
+		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SINGLE_SHOT_COMP);
+		StaticCredentials credentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, chipsterToken);
+//		serviceLocator.setCredentials(credentials);
+		
+		serviceLocator.setCredentials(authClient.getCredentials());
 
 		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
 

@@ -69,7 +69,7 @@ public class SessionJobResource {
     // CRUD
     @GET
     @Path("{id}")    
-    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SINGLE_SHOT_COMP }) // don't allow Role.UNAUTHENTICATED
+    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN }) // don't allow Role.UNAUTHENTICATED
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
@@ -248,7 +248,7 @@ public class SessionJobResource {
 
 	@PUT
 	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SINGLE_SHOT_COMP }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN }) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Job requestJob, @PathParam("id") UUID jobId, @Context SecurityContext sc) {

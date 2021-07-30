@@ -144,7 +144,7 @@ public class SessionDatasetResource {
 	}
 
 	@POST
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN }) // don't allow Role.UNAUTHENTICATED
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction

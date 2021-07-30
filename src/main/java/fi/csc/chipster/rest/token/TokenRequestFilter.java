@@ -4,13 +4,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import jakarta.annotation.Priority;
-import jakarta.ws.rs.ForbiddenException;
-import jakarta.ws.rs.Priorities;
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.container.ContainerRequestFilter;
-import jakarta.ws.rs.ext.Provider;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,6 +14,12 @@ import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
+import jakarta.annotation.Priority;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.Priorities;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.ext.Provider;
 
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
@@ -50,7 +49,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			return;
 		}
 		
-//		logger.info(requestContext.getUriInfo().getRequestUri());
+//		logger.info(requestContext.getMethod() + " " + requestContext.getUriInfo().getRequestUri());
 
 		String authHeader = requestContext.getHeaderString(HEADER_AUTHORIZATION);
 		// allow token to be sent also as a query parameter, because JS EventSource
@@ -103,29 +102,18 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			requestContext.setSecurityContext(new AuthSecurityContext(principal, requestContext.getSecurityContext()));
 
 		} catch (ForbiddenException e) {
-
+			
 			if (allowedRoles.contains(Role.SESSION_DB_TOKEN)) {
 				HashSet<String> roles = new HashSet<String>() {
 					{
 						add(Role.SESSION_DB_TOKEN);
 					}
 				};
-				// DatasetTokens have to be passed through
-				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, password, roles),
-						requestContext.getSecurityContext()));
-				return;	
 				
-			} else if (allowedRoles.contains(Role.SINGLE_SHOT_COMP)) {
-				HashSet<String> roles = new HashSet<String>() {
-					{
-						add(Role.SINGLE_SHOT_COMP);
-					}
-				};
 				// SessionDbTokens have to be passed through
 				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, password, roles),
 						requestContext.getSecurityContext()));
 				return;	
-				
 			} else {				
 				throw new ForbiddenException(e);
 			}
@@ -135,7 +123,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 	private AuthPrincipal passwordAuthentication(String username, String password) {
 		// throws if fails
 		AuthenticationClient passwordAuthClient = new AuthenticationClient(
-				this.authService.getAuth(), username, password, Role.SERVER, false);
+				this.authService.getAuth(), username, password, null, false);
 		
 		String tokenKey = passwordAuthClient.getToken();
 		

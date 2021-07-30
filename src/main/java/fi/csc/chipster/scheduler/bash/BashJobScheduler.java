@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,7 +44,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT= "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	
-	private Executor executor;
+	private ThreadPoolExecutor executor;
 	
 	private Logger logger = LogManager.getLogger();
 	
@@ -65,7 +66,9 @@ public class BashJobScheduler implements JobScheduler {
 		this.scheduler = scheduler;
 		this.sessionDbClient = sessionDbClient;
 		
-		this.executor = Executors.newFixedThreadPool(config.getInt(CONF_BASH_THREADS), new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d").build());
+		ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d").build();
+		int executorThreads = config.getInt(CONF_BASH_THREADS);
+		this.executor = (ThreadPoolExecutor)Executors.newFixedThreadPool(executorThreads, threadFactory);
 		
 		this.runScript = config.getString(CONF_BASH_RUN_SCRIPT);
 		this.cancelScript = config.getString(CONF_BASH_CANCEL_SCRIPT);
@@ -93,57 +96,54 @@ public class BashJobScheduler implements JobScheduler {
 
 	@Override
 	public void scheduleJob(IdPair idPair, int slots, String image) {
-		
-		this.executor.execute(() -> {
-			
-			boolean run = false;
-			boolean isBusy = false;
 						
-			// set first heartbeat so that Scheduler will count this job to be running
-			// set it here in the executor thread, because otherwise jobs could timeout while waiting for the 
-			// free executor thread
-			synchronized (jobs) {
-				
-				int heartbeatSlots = BashJobs.getSlots(jobs.getHeartbeatJobs().values());
-				
-				
-				logger.info("slots running: " + heartbeatSlots + ", job: " + slots + ", max: " + maxSlots );
-				
-				if (heartbeatSlots + slots <= this.maxSlots) {
+		boolean run = false;
+		boolean isBusy = false;
 					
+		// set first heartbeat so that Scheduler will count this job to be running
+		// set it here in the executor thread, because otherwise jobs could timeout while waiting for the 
+		// free executor thread
+		synchronized (jobs) {
+			
+			int heartbeatSlots = BashJobs.getSlots(jobs.getHeartbeatJobs().values());
+			
+			
+			logger.info("slots running: " + heartbeatSlots + ", job: " + slots + ", max: " + maxSlots );
+			
+			if (heartbeatSlots + slots <= this.maxSlots) {
+				
 //					logger.info("job " + idPair + " can run now");
-					
-					jobs.addJob(idPair, slots);
-			
-					run = true;
-					
-				} else {
-					
-					logger.info("job " + idPair + " must wait, scheduler max slots reached: " + maxSlots);
-					
-					isBusy = true;
-				}
-			}
-			
-			// don't keep the this.jobs locked
-			if (run) {
 				
-				try {
-					String sessionToken = sessionDbClient.createSessionToken(idPair.getSessionId(), this.tokenValidTime * 24 * 60 * 60);
-					
-					// use the conf key as a name in logs
-					this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken);
-					
-				} catch (RestException e) {
-					logger.error("failed to get the session token for the job " + idPair, e);
-				}
+				jobs.addJob(idPair, slots);
+		
+				run = true;
 				
+			} else {
+				
+				logger.info("job " + idPair + " must wait, scheduler max slots reached: " + maxSlots);
+				
+				isBusy = true;
+			}
+		}
+		
+		// don't keep the this.jobs locked
+		if (run) {
+			
+			try {
+				String sessionToken = sessionDbClient.createSessionToken(idPair.getSessionId(), this.tokenValidTime * 24 * 60 * 60);
+				
+				// use the conf key as a name in logs
+				this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken);
+				
+			} catch (RestException e) {
+				logger.error("failed to get the session token for the job " + idPair, e);
 			}
 			
-			if (isBusy) {
-				this.scheduler.busy(idPair);
-			}
-		});
+		}
+		
+		if (isBusy) {
+			this.scheduler.busy(idPair);
+		}
 	}
 	
 	@Override
@@ -189,7 +189,7 @@ public class BashJobScheduler implements JobScheduler {
 			
 		} catch (Exception e) {
 			
-			// we don't the this.jobs lock, so anything can happen
+			// we don't have the this.jobs lock, so anything can happen
 			BashJob job = jobs.get(idPair);
 			
 			if (job == null) {

@@ -195,7 +195,11 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		roles.add(Role.PASSWORD);
 		
 		if (serviceAccounts.keySet().contains(username)) {
-			roles.add(Role.SERVER);
+			
+			// minimal access rights for SingleShotComp
+			if (!Role.SINGLE_SHOT_COMP.equals(username)) {
+				roles.add(Role.SERVER);
+			}
 			roles.add(username);
 			
 		} else if (monitoringAccounts.containsKey(username)) {
