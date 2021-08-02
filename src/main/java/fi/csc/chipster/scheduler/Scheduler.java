@@ -109,7 +109,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");
 		
 		logger.info("start " + BashJobScheduler.class.getSimpleName());
-		this.bashJobScheduler = new BashJobScheduler(this, this.sessionDbClient, config);
+		this.bashJobScheduler = new BashJobScheduler(this, this.sessionDbClient, this.serviceLocator, config);
 		logger.info("start " + OfferJobScheduler.class.getSimpleName());
 		this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
 		
@@ -455,7 +455,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			}
 		}
 		
-		logger.info(RestUtils.asJson(this.getStatus(), false));
+//		logger.info(RestUtils.asJson(this.getStatus(), false));
 	}
 
 	private void schedule(IdPair idPair, SchedulerJob jobState) {

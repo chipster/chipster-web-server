@@ -272,8 +272,8 @@ scheduler-bash-token-valid-time: 14
 
 scheduler-bash-run-script: |
   echo "run in process, slots: $SLOTS, image: $IMAGE"
-  #~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $CHIPSTER_TOKEN > logs/SingleShotComp-run.log 2>&1 &
-  ~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $CHIPSTER_TOKEN
+  ~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $SESSION_TOKEN $COMP_TOKEN> logs/SingleShotComp-run.log 2>&1 &
+  #~/.sdkman/candidates/java/current/bin/java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $SESSION_TOKEN $COMP_TOKEN
 
 scheduler-bash-cancel-script: |
   pid=$(ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID | tr -s ' ' | cut -d ' ' -f 2)

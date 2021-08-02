@@ -13,7 +13,6 @@ import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
@@ -94,28 +93,26 @@ public class SingleShotComp
 
 	private ServiceLocatorClient serviceLocator;
 	
-//	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
 
 	private ResourceMonitor resourceMonitor;
 	private int monitoringInterval;
 	private String hostname;
-	private AuthenticationClient authClient;
 
 	/**
 	 * 
 	 * @param config
-	 * @param chipsterToken 
+	 * @param sessionToken 
+	 * @param compToken 
 	 * @throws Exception
 	 */
-	public SingleShotComp(String configURL, Config config, String chipsterToken) throws Exception {
+	public SingleShotComp(String configURL, Config config, String sessionToken, String compToken) throws Exception {
 
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
 		
 		// initialize working directory
-		logger.info("starting compute service...");
 		this.workDir = new File("jobs-data", compId.toString());
 		if (!this.workDir.mkdirs()) {
 			throw new IllegalStateException("creating working directory " + this.workDir.getAbsolutePath() + " failed");
@@ -136,15 +133,12 @@ public class SingleShotComp
 		// initialize runtime and tools
 		this.runtimeRepository = new RuntimeRepository(this.workDir, runtimesStream, config);
 
-		String username = Role.SINGLE_SHOT_COMP;
-		String password = config.getPassword(username);
-
 		serviceLocator = new ServiceLocatorClient(config);
-		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SINGLE_SHOT_COMP);
-		StaticCredentials credentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, chipsterToken);
-//		serviceLocator.setCredentials(credentials);
+
+		StaticCredentials serviceLocatorCredentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, compToken);
+		StaticCredentials sessionDbCredentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, sessionToken);
 		
-		serviceLocator.setCredentials(authClient.getCredentials());
+		serviceLocator.setCredentials(serviceLocatorCredentials);
 
 		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
 
@@ -154,30 +148,28 @@ public class SingleShotComp
 
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 
-		sessionDbClient = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
-		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, credentials);
+		sessionDbClient = new SessionDbClient(serviceLocator, sessionDbCredentials, Role.SERVER);
+		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, sessionDbCredentials);
 		
 		this.hostname = InetAddress.getLocalHost().getHostName();
-
-		logger.info("comp is up and running");
-		logger.info("[mem: " + SystemMonitorUtil.getMemInfo() + "]");
 	}
 	
 	public static void main(String[] args) {
 		
 		try {			
 
-			if (args.length != 3) {
+			if (args.length != 4) {
 				logger.error("wrong number of arguments");
-				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID CHIPSTER_TOKEN");
+				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID SESSION_TOKEN COMP_TOKEN");
 				System.exit(1);
 			}
 
 			UUID sessionId = UUID.fromString(args[0]);
 			UUID jobId = UUID.fromString(args[1]);
-			String chipsterToken = args[2];
+			String sessionToken = args[2];
+			String compToken = args[3];
 			
-			SingleShotComp comp = new SingleShotComp(null, new Config(), chipsterToken);
+			SingleShotComp comp = new SingleShotComp(null, new Config(), sessionToken, compToken);
 					
 			CompJob compJob = comp.getCompJob(sessionId, jobId);
 			
@@ -197,7 +189,7 @@ public class SingleShotComp
 			
 			// run the job
 			executorService.execute(job);
-			logger.info("Executing job " + job.getToolDescription().getDisplayName() + "("
+			logger.info("executing job " + job.getToolDescription().getDisplayName() + "("
 					+ job.getToolDescription().getID() + ")" + ", " + job.getId() + ", "
 					+ job.getInputMessage().getUsername());
 		}
@@ -353,15 +345,13 @@ public class SingleShotComp
 	}
 
 	public void shutdown() {
-		logger.info("shutdown requested");
-
 		try {
 			sessionDbClient.close();
 		} catch (Exception e) {
 			logger.warn("failed to shutdown session-db client: " + e.getMessage());
 		}
-
-		logger.info("shutting down");
+		
+		logger.info(this.getClass().getSimpleName() + " is done");
 	}
 
 	@Override

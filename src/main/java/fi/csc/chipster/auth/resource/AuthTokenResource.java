@@ -108,7 +108,7 @@ public class AuthTokenResource {
 
 	@POST
 	@Path("refresh")
-	@RolesAllowed({Role.CLIENT, Role.SERVER})
+	@RolesAllowed({Role.CLIENT, Role.SERVER, Role.SINGLE_SHOT_COMP})
 	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction // getName() uses the db
 	public Response refreshToken(@Context SecurityContext sc) {

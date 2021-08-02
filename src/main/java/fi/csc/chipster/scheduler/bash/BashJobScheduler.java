@@ -18,11 +18,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
+import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.scheduler.JobScheduler;
 import fi.csc.chipster.scheduler.JobSchedulerCallback;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
@@ -32,7 +35,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_JOB_ID = "JOB_ID";
 	private static final String ENV_SLOTS = "SLOTS";
 	private static final String ENV_IMAGE = "IMAGE";
-	private static final String ENV_CHIPSTER_TOKEN = "CHIPSTER_TOKEN";
+	private static final String ENV_SESSION_TOKEN = "SESSION_TOKEN";
+	private static final String ENV_COMP_TOKEN = "COMP_TOKEN";
 	
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_RUN_SCRIPT = "scheduler-bash-run-script";
@@ -60,11 +64,18 @@ public class BashJobScheduler implements JobScheduler {
 	private long heartbeatLostTimeout;
 	private String finishedScript;
 	private SessionDbClient sessionDbClient;
-	private long tokenValidTime; 
+	private long tokenValidTime;
+	private AuthenticationClient compAuthClient; 
 
-	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, Config config) {
+	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator, Config config) {
 		this.scheduler = scheduler;
 		this.sessionDbClient = sessionDbClient;
+		
+		// there is a 0.5 second delay in the password authentication. Keep a fresh copy of the SingleShotComp token to avoid that delay in job startup 
+		String compUsername = Role.SINGLE_SHOT_COMP;
+		String compPassword = config.getPassword(compUsername);
+
+		compAuthClient = new AuthenticationClient(serviceLocator, compUsername, compPassword, Role.SINGLE_SHOT_COMP);
 		
 		ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d").build();
 		int executorThreads = config.getInt(CONF_BASH_THREADS);
@@ -132,8 +143,10 @@ public class BashJobScheduler implements JobScheduler {
 			try {
 				String sessionToken = sessionDbClient.createSessionToken(idPair.getSessionId(), this.tokenValidTime * 24 * 60 * 60);
 				
+				String compToken = compAuthClient.getToken();
+				
 				// use the conf key as a name in logs
-				this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken);
+				this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken, compToken);
 				
 			} catch (RestException e) {
 				logger.error("failed to get the session token for the job " + idPair, e);
@@ -153,7 +166,7 @@ public class BashJobScheduler implements JobScheduler {
 			this.jobs.remove(idPair);
 		}
 		// use the conf key as a name in logs
-		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null);
+		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null);
 	}
 	
 	@Override
@@ -164,7 +177,7 @@ public class BashJobScheduler implements JobScheduler {
 			this.jobs.remove(idPair);
 		}
 		
-		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null);
+		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null);
 	}
 	
 	@Override
@@ -184,7 +197,7 @@ public class BashJobScheduler implements JobScheduler {
 		try {
 			// use the conf key as a name in logs
 			// wait for the bash process and handle the exception, don't use the executor
-			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null);
+			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null);
 			jobs.get(idPair).setHeartbeatTimestamp();
 			
 		} catch (Exception e) {
@@ -226,13 +239,13 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 	
-	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image, String token) {
+	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image, String sessionToken, String compToken) {
 		this.executor.execute(() -> {
-			this.runSchedulerBash(bashCommand, name, idPair, slots, image, token);
+			this.runSchedulerBash(bashCommand, name, idPair, slots, image, sessionToken, compToken);
 		});
 	}
 	
-	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image, String token) {			
+	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image, String sessionToken, String compToken) {			
 		
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 				
@@ -251,8 +264,12 @@ public class BashJobScheduler implements JobScheduler {
 			pb.environment().put(ENV_IMAGE, image);
 		}
 		
-		if (token != null) {
-			pb.environment().put(ENV_CHIPSTER_TOKEN, token);
+		if (sessionToken != null) {
+			pb.environment().put(ENV_SESSION_TOKEN, sessionToken);
+		}
+		
+		if (compToken != null) {
+			pb.environment().put(ENV_COMP_TOKEN, compToken);
 		}
 		
 		try {
