@@ -293,6 +293,9 @@ public class SchedulerTest {
         assertEquals(true, latch.await(1, TimeUnit.SECONDS));        
         JobCommand cmd = RestUtils.parseJson(JobCommand.class, messages.get(0));
         
+        // tell scheduler that we can run this tool (which doesn't exist in reality)
+        client.sendText(RestUtils.asJson(new JobCommand(sessionId, jobId, compId, Command.BUSY)));
+        
         // without comp's response, the job should go back to the queue after some time
         Thread.sleep((new Config().getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT) + 2) * 1000);
         

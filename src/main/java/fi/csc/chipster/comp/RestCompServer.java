@@ -416,8 +416,9 @@ public class RestCompServer
 				if (compJob != null) {
 					compJob.cancelRequested();
 				}
+			} else {
+				logger.error("could not update the job", e);
 			}
-			logger.error("could not update the job", e);
 		}
 
 		logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");

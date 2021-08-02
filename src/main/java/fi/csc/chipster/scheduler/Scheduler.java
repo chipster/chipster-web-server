@@ -403,7 +403,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				if (jobState.getTimeSinceNew() > waitRunnableTimeout) {
 					
 					// server full
-					jobs.remove(jobIdPair);
 					expire(jobIdPair,
 							"There was no computing resources available to run this job, please try again later");
 				}
@@ -443,18 +442,20 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				
 				if (lastHeartbeat == null) {
 					
-					jobs.remove(jobIdPair);
+					// not really finished, but lost, but let's try to clean up anyway 
+					jobScheduler.removeFinishedJob(jobIdPair);
 					expire(jobIdPair, "no heartbeat");
 					
 				} else if (lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout) {
 					
-					jobs.remove(jobIdPair);
+					// not really finished, but lost, but let's try to clean up anyway
+					jobScheduler.removeFinishedJob(jobIdPair);
 					expire(jobIdPair, "heartbeat lost");
 				}
 			}
 		}
 		
-//		logger.info(RestUtils.asJson(this.getStatus(), false));
+		logger.info(RestUtils.asJson(this.getStatus(), false));
 	}
 
 	private void schedule(IdPair idPair, SchedulerJob jobState) {
@@ -518,6 +519,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 */
 	public void expire(IdPair jobId, String reason) {
 		logger.warn("expire job " + jobId + ": " + reason);
+		jobs.remove(jobId);
 		endJob(jobId, JobState.EXPIRED_WAITING, reason);
 	}
 

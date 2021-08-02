@@ -41,9 +41,10 @@ import jakarta.ws.rs.NotFoundException;
  * this dataset URL without realizing that the token gives access to user's all
  * sessions.
  *
- * We can Use these limited tokens instead that are valid only for read-only operation either
+ * We can use these limited tokens instead that are valid only for read-only operation either
  * for one session or one dataset and only for a limited time.
  * 
+ * Those are used also to give read-write access to one session for SingleShotComp. 
  * 
  * @author klemela
  *
@@ -154,7 +155,7 @@ public class SessionDbTokens {
 		
 		if (jwsDatasetId != null) {
 			// this token is only for single dataset
-			throw new NotAuthorizedException("not a session token");
+			throw new ForbiddenException("not a session token");
 		}
 		
 		if (requireReadWrite && Access.READ_WRITE != token.getAccess()) {

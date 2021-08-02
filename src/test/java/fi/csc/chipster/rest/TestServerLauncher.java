@@ -274,6 +274,12 @@ public class TestServerLauncher {
 		client.setCredentials(this.getAdminToken());
 		return client;
 	}
+	
+	public ServiceLocatorClient getServiceLocatorForScheduler() throws IOException {
+		ServiceLocatorClient client = new ServiceLocatorClient(config);
+		client.setCredentials(this.getSchedulerToken());
+		return client;
+	}
 
 	public Client getAdminClient() {
 		return AuthenticationClient.getClient("admin", "admin", true);
