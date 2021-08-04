@@ -220,7 +220,12 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 						js.setState(job.getState().toString());
 						js.setStateDetail(job.getStateDetail());
 						js.setMemoryUsage(job.getMemoryUsage());
-						js.setComp(job.getComp());						
+						js.setComp(job.getComp());
+						
+						if (js.getStateDetail().length() > 255) {
+							logger.warn("cutting too long state detail: " + js.getStateDetail());
+							js.setStateDetail(js.getStateDetail().substring(0, 255));
+						}
 						
 						HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
 						

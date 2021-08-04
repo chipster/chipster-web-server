@@ -139,19 +139,31 @@ public class BashJobScheduler implements JobScheduler {
 		
 		// don't keep the this.jobs locked
 		if (run) {
+
+			String sessionToken = null;
 			
 			try {
-				String sessionToken = sessionDbClient.createSessionToken(idPair.getSessionId(), this.tokenValidTime * 24 * 60 * 60);
-				
-				String compToken = compAuthClient.getToken();
-				
-				// use the conf key as a name in logs
-				this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken, compToken);
-				
+				/* Scheduler can create session token to any session
+				 * 
+				 * If the user was allowed to create the job in the first place, we can give access to the whole session too.
+				 * In the current security model the job creation required read-write access to the whole session anyway.
+				 * 				
+				 * If users are able to edit tool scripts in the future, they can get this token from the comp.
+				 */
+				sessionToken = sessionDbClient.createSessionToken(idPair.getSessionId(), this.tokenValidTime * 24 * 60 * 60);
 			} catch (RestException e) {
 				logger.error("failed to get the session token for the job " + idPair, e);
+				synchronized (jobs) {
+					jobs.remove(idPair);
+				}
+				this.scheduler.expire(idPair, "failed to get the session token");
+				return;
 			}
 			
+			String compToken = compAuthClient.getToken();				
+			
+			// use the conf key as a name in logs
+			this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken, compToken);	
 		}
 		
 		if (isBusy) {

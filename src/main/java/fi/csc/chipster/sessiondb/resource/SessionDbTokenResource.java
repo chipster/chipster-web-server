@@ -71,9 +71,9 @@ public class SessionDbTokenResource {
 		
 		Instant valid = parseValid(validString, TOKEN_FOR_SESSION_VALID_DEFAULT);		
 		// null datasetId means access to whole session
-		SessionDbToken datasetToken = sessionDbTokens.createTokenForSession(username, session, valid, access);		
+		SessionDbToken sessionDbToken = sessionDbTokens.createTokenForSession(username, session, valid, access);		
 		
-    	return Response.ok(datasetToken).build();
+    	return Response.ok(sessionDbToken).build();
     }
 	
 	@POST
