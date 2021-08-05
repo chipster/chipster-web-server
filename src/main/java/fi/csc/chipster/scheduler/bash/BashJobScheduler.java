@@ -1,6 +1,8 @@
 package fi.csc.chipster.scheduler.bash;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -39,6 +41,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_COMP_TOKEN = "COMP_TOKEN";
 	
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
+	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
 	private static final String CONF_BASH_RUN_SCRIPT = "scheduler-bash-run-script";
 	private static final String CONF_BASH_CANCEL_SCRIPT = "scheduler-bash-cancel-script";
 	private static final String CONF_BASH_FINISHED_SCRIPT = "scheduler-bash-finished-script";
@@ -65,9 +68,10 @@ public class BashJobScheduler implements JobScheduler {
 	private String finishedScript;
 	private SessionDbClient sessionDbClient;
 	private long tokenValidTime;
-	private AuthenticationClient compAuthClient; 
+	private AuthenticationClient compAuthClient;
+	private String scriptDirInJar; 
 
-	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator, Config config) {
+	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator, Config config) throws IOException {
 		this.scheduler = scheduler;
 		this.sessionDbClient = sessionDbClient;
 		
@@ -85,6 +89,24 @@ public class BashJobScheduler implements JobScheduler {
 		this.cancelScript = config.getString(CONF_BASH_CANCEL_SCRIPT);
 		this.finishedScript = config.getString(CONF_BASH_FINISHED_SCRIPT);
 		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);
+		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
+		
+		if (this.runScript.isEmpty()) {
+			this.runScript = readJarFile(scriptDirInJar + "/run.bash");
+		}
+		
+		if (this.cancelScript.isEmpty()) {
+			this.cancelScript = readJarFile(scriptDirInJar + "/cancel.bash");
+		}
+		
+		if (this.finishedScript.isEmpty()) {
+			this.finishedScript = readJarFile(scriptDirInJar + "/finished.bash");
+		}
+		
+		if (this.heartbeatScript.isEmpty()) {
+			this.heartbeatScript = readJarFile(scriptDirInJar + "/heartbeat.bash");
+		}
+		
 		this.maxSlots = config.getInt(CONF_BASH_MAX_SLOTS);
 		
 		this.bashJobTimerInterval = config.getLong(CONF_BASH_JOB_TIMER_INTERVAL) * 1000;
@@ -103,6 +125,13 @@ public class BashJobScheduler implements JobScheduler {
 				}
 			}
 		}, bashJobTimerInterval, bashJobTimerInterval);
+	}
+	
+	public String readJarFile(String path) throws IOException {
+		
+		InputStream is = this.getClass().getClassLoader().getResourceAsStream(path);
+		 
+		return new String(is.readAllBytes(), StandardCharsets.UTF_8);
 	}
 
 	@Override

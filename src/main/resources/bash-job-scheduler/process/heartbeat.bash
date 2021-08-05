@@ -1,0 +1,1 @@
+ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID
