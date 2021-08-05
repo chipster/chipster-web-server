@@ -249,12 +249,14 @@ public class BashJobScheduler implements JobScheduler {
 			if (job == null) {
 				logger.info("job check was unsuccessful " + idPair + " but job cannot be found anymore. Probably it just finished");
 				
-			} else if (job.getHeartbeatTimestamp() != null 
-					&& job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS) < this.heartbeatLostTimeout) {
+			} else if (job.getHeartbeatTimestamp() == null) {
+				logger.info("job check was unsuccessful " + idPair + ", let's wait for heartbeat");
+				
+			} else if (job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS) < this.heartbeatLostTimeout) {
 
 				// the process may have just completed but we just haven't received the event yet
 				logger.info("job check was unsuccessful " + idPair + " let's wait a bit more");
-				
+								
 			} else {
 				logger.warn("job check was unsuccessful " + idPair + ", seconds since last heartbeat: " + job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS));
 				// remove our job, scheduler will soon notice this and remove its own

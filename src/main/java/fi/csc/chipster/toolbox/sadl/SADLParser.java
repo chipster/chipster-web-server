@@ -125,6 +125,13 @@ public class SADLParser {
 			description.addParameter(parameter);
 		}
 
+		// read possible image name
+		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_IMAGE)) {
+			skip(tokens, SADLSyntax.KEYWORD_IMAGE);
+			String image = parseString(tokens);
+			description.setImage(image);
+		}
+		
 		// read possible runtime
 		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_RUNTIME)) {
 			skip(tokens, SADLSyntax.KEYWORD_RUNTIME);
@@ -137,13 +144,6 @@ public class SADLParser {
 			skip(tokens, SADLSyntax.KEYWORD_SLOTS);
 			int slotCount = parseInt(tokens);
 			description.setSlotCount(slotCount);
-		}
-		
-		// read possible image name
-		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_IMAGE)) {
-			skip(tokens, SADLSyntax.KEYWORD_IMAGE);
-			String image = parseString(tokens);
-			description.setImage(image);
 		}
 
 		// check that no trailing content was left behind
