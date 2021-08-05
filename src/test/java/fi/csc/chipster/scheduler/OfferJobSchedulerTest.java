@@ -29,7 +29,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
 import jakarta.websocket.CloseReason.CloseCodes;
 
-public class SchedulerTest {
+public class OfferJobSchedulerTest {
 	
 	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();

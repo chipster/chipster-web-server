@@ -35,7 +35,6 @@ public class BashJobs {
 
 	public BashJob addJob(IdPair idPair, int slots) {
 		BashJob jobState = new BashJob(slots);
-		jobState.setHeartbeatTimestamp();
 		jobs.put(idPair, jobState);
 		return jobState;
 	}
