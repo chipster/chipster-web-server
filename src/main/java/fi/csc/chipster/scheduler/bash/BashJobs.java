@@ -35,6 +35,13 @@ public class BashJobs {
 
 	public BashJob addJob(IdPair idPair, int slots) {
 		BashJob jobState = new BashJob(slots);
+		
+		/* Set first heartbeat to change this job from the state scheduled to running
+		 * 
+		 * Jobs are allowed to stay in the scheduled state only momentarily (a second or so), but we 
+		 * cannot rely on heartbeat script to change the state, because it's not run frequently enough. 
+		 */
+		jobState.setHeartbeatTimestamp();
 		jobs.put(idPair, jobState);
 		return jobState;
 	}

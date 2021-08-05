@@ -6,12 +6,12 @@ job_json=$(cat << EOF
 apiVersion: batch/v1
 kind: Job
 metadata:
-    name: $job_id
+  name: $job_id
 spec:
-    template:
+  template:
     spec:
-        containers:
-        - name: comp-job
+      containers:
+      - name: comp-job
         image: $IMAGE
         imagePullPolicy: IfNotPresent
         command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp", "$SESSION_ID", "$JOB_ID", "$SESSION_TOKEN", "$COMP_TOKEN"]
@@ -24,26 +24,26 @@ spec:
         #     memory: $memory
         volumeMounts:
         - mountPath: /opt/chipster/conf
-            name: conf
-            readOnly: true
+          name: conf
+          readOnly: true
         - mountPath: /opt/chipster/tools
-            name: tools-bin
-            readOnly: true
+          name: tools-bin
+          readOnly: true
         - mountPath: /opt/chipster/jobs-data
-            name: jobs-data
-        volumes:
-        - name: conf
+          name: jobs-data
+      volumes:
+      - name: conf
         secret:
-            defaultMode: 420
-            secretName: single-shot-comp
-        - hostPath:
-            path: /mnt/tools-bin
-            type: Directory
+          defaultMode: 420
+          secretName: single-shot-comp
+      - hostPath:
+          path: /mnt/tools-bin
+          type: Directory
         name: tools-bin
-        - emptyDir: {}
+      - emptyDir: {}
         name: jobs-data  
-        restartPolicy: Never
-    backoffLimit: 0
+      restartPolicy: Never
+  backoffLimit: 0
 EOF
 )
 #echo "$job_json"
