@@ -37,6 +37,8 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -257,12 +259,15 @@ public class SessionJobResource {
 		// malicious client has changed it
 		requestJob.setJobIdPair(sessionId, jobId);
 		
+		// allow admin to cancel jobs
+		boolean allowAdmin = JobState.CANCELLED.equals(requestJob.getState());
+
 		/*
 		 * Checks that
 		 * - user has write authorization for the session
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkAuthorizationForSession((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, allowAdmin);
 		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job doesn't exist");
