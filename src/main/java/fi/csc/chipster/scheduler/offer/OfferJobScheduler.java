@@ -307,6 +307,14 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 		 * changed anyway.
 		 */
  
-		return this.config.getInt(RestCompServer.KEY_COMP_STATUS_INTERVAL);
+		return this.config.getInt(RestCompServer.KEY_COMP_HEARTBEAT_INTERVAL);
+	}
+
+	@Override
+	public void addRunningJob(IdPair idPair, int slots) {
+		synchronized (jobs) { 
+			this.jobs.addScheduledJob(idPair);
+			this.jobs.get(idPair).setRunnableTimestamp();
+		}
 	}
 }

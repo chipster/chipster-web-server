@@ -65,10 +65,11 @@ public class SchedulerJobs {
 		return jobState;
 	}
 	
-	public void addRunningJob(IdPair idPair, String userId, int slots, String image) {
+	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, String image) {
 		SchedulerJob job = new SchedulerJob(userId, slots, image);
 		job.setRunningTimestamp();
 		jobs.put(idPair, job);
+		return job;
 	}
 
 	public SchedulerJob get(IdPair jobIdPair) {

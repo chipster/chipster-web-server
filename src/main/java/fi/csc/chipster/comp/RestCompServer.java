@@ -58,6 +58,7 @@ public class RestCompServer
 	public static final String KEY_COMP_SWEEP_WORK_DIR = "comp-sweep-work-dir";
 	public static final String KEY_COMP_TIMEOUT_CHECK_INTERVAL = "comp-timeout-check-interval";
 	public static final String KEY_COMP_STATUS_INTERVAL = "comp-status-interval";
+	public static final String KEY_COMP_HEARTBEAT_INTERVAL = "comp-heartbeat-interval";
 	public static final String KEY_COMP_MODULE_FILTER_NAME = "comp-module-filter-name";
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
@@ -108,7 +109,7 @@ public class RestCompServer
 	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
 	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
 	private Timer timeoutTimer;
-	private Timer compStatusTimer;
+	private Timer compAvailableTimer;
 	@SuppressWarnings("unused")
 	private String localFilebrokerPath;
 	@SuppressWarnings("unused")
@@ -132,6 +133,8 @@ public class RestCompServer
 	
 	private int offerDelayRunningSlots;
 	private HashMap<Integer, Long> offerDelayRequestedSlots;
+	private Timer heartbeatTimer;
+	private int compHeartbeatInterval;
 
 	/**
 	 * 
@@ -153,6 +156,7 @@ public class RestCompServer
 		this.offerDelayRunningSlots = config.getInt(KEY_COMP_OFFER_DELAY);
 		this.timeoutCheckInterval = config.getInt(KEY_COMP_TIMEOUT_CHECK_INTERVAL);
 		this.compStatusInterval = config.getInt(KEY_COMP_STATUS_INTERVAL);
+		this.compHeartbeatInterval = config.getInt(KEY_COMP_HEARTBEAT_INTERVAL);
 		this.sweepWorkDir = config.getBoolean(KEY_COMP_SWEEP_WORK_DIR);
 		this.maxJobs = config.getInt(KEY_COMP_MAX_JOBS);
 		// this.localFilebrokerPath = nullIfEmpty(configuration.getString("comp",
@@ -204,8 +208,15 @@ public class RestCompServer
 		timeoutTimer = new Timer("timeout timer", true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
 
-		compStatusTimer = new Timer(true);
-		compStatusTimer.schedule(new CompStatusTask(), compStatusInterval, compStatusInterval);
+		/* Send heartbeats frequently enough (every 10 seconds) to be able timeout soon
+		 * when something goes wrong (30 seconds).
+		 */
+		heartbeatTimer = new Timer(true);
+		heartbeatTimer.schedule(new HeartbeatTask(), compHeartbeatInterval, compHeartbeatInterval);
+		
+		// send comp available messages only every 30 seconds, because rescheduling all waiting jobs is quite messy
+		compAvailableTimer = new Timer(true);
+		compAvailableTimer.schedule(new CompAvailableTask(), compStatusInterval, compStatusInterval);
 
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 
@@ -691,7 +702,7 @@ public class RestCompServer
 		}
 	}
 
-	public class CompStatusTask extends TimerTask {
+	public class HeartbeatTask extends TimerTask {
 
 		@Override
 		public void run() {			
@@ -701,6 +712,20 @@ public class RestCompServer
 						sendJobCommand(new JobCommand(job.getInputMessage().getSessionId(),
 								UUID.fromString(job.getId()), compId, Command.RUNNING));
 					}
+				}
+			} catch (Exception e) {
+				logger.warn("failed to report the status to scheduler", e);
+			}
+		}
+	}
+	
+	public class CompAvailableTask extends TimerTask {
+
+		@Override
+		public void run() {			
+			try {
+				synchronized (jobsLock) {
+					
 					if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
 						sendCompAvailable();
 					}
@@ -711,12 +736,14 @@ public class RestCompServer
 		}
 	}
 
+
 	public void shutdown() {
 		logger.info("shutdown requested");
 
 		RestUtils.shutdown("comp-admin", adminServer);
 
-		compStatusTimer.cancel();
+		compAvailableTimer.cancel();
+		heartbeatTimer.cancel();
 		timeoutTimer.cancel();
 
 		try {

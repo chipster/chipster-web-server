@@ -199,8 +199,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
 						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
-						jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								getSlots(job, tool), getImage(job, tool));
+						int slots = getSlots(job, tool);
+						SchedulerJob schedulerJob = jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
+								slots, getImage(job, tool));
+						this.getJobScheduler(schedulerJob).addRunningJob(idPair, slots);
 					} catch (RestException | IOException e) {
 						logger.error("could add a running job " + asShort(idPair.getJobId()), e);
 					}

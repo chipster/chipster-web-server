@@ -133,6 +133,13 @@ public class BashJobScheduler implements JobScheduler {
 		 
 		return new String(is.readAllBytes(), StandardCharsets.UTF_8);
 	}
+	
+	@Override
+	public void addRunningJob(IdPair idPair, int slots) {
+		synchronized (jobs) {
+			jobs.addJob(idPair, slots);
+		}
+	}
 
 	@Override
 	public void scheduleJob(IdPair idPair, int slots, String image) {

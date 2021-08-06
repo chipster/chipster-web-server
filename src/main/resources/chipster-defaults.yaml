@@ -230,6 +230,8 @@ comp-offer-delay-requested-slots: 0
 comp-sweep-work-dir: true
 # schedule timeout check interval, milliseconds
 comp-timeout-check-interval: 1000
+# how of to send a job heartbeat messages, milliseconds
+comp-heartbeat-interval: 10000
 # how of to send a comp available message, milliseconds
 comp-status-interval: 30000
 # name of the module to enable or disable
@@ -254,7 +256,7 @@ scheduler-wait-timeout: 1
 # max time for new job to wait for available comp, seconds
 scheduler-wait-runnable-timeout: 604800 # a week
 # how long to wait for job heartbeats before giving up, seconds
-scheduler-heartbeat-lost-timeout: 90
+scheduler-heartbeat-lost-timeout: 30
 # how often to check job timeouts, seconds
 scheduler-job-timer-interval: 1
 # max number of scheduled and running job slots per user
