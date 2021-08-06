@@ -11,4 +11,6 @@ public interface JobScheduler {
 	public void removeFinishedJob(IdPair idPair);
 
 	public Instant getLastHeartbeat(IdPair idPair);
+	
+	public long getHeartbeatInterval();
 }

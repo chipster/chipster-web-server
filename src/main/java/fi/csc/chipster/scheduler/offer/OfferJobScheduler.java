@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
@@ -39,9 +40,12 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	private long jobTimerInterval;
 
 	private long waitTimeout;
+
+	private Config config;
 	
 	public OfferJobScheduler(Config config, AuthenticationClient authService, JobSchedulerCallback scheduler) throws ServletException {
 		
+		this.config = config;
 		this.scheduler = scheduler;
 		
 		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
@@ -294,5 +298,15 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 			logger.warn("scheduler asked for the last heartbeat of " + idPair + " but there is no such job");
 			return null;
 		}
+	}
+
+	@Override
+	public long getHeartbeatInterval() {
+		/* It's not great that this would have to be configured in two services, at least in theory.
+		 * However, this shouldn't be an issue, because it's only used in the scheduler restarts and rarely 
+		 * changed anyway.
+		 */
+ 
+		return this.config.getInt(RestCompServer.KEY_COMP_STATUS_INTERVAL);
 	}
 }

@@ -340,12 +340,12 @@ public class BashJobScheduler implements JobScheduler {
 				throw new RuntimeException(cmdString + " failed with exit code " + exitCode);
 			}
 		} catch (InterruptedException | IOException e) {
-			logger.error("unexpecter error when executing: " + cmdString, e);
+			logger.error("unexpected error when executing: " + cmdString, e);
 		}
 	}
 
 	public Map<String, Object> getStatus() {
-		
+	
 		HashMap<String, Object> status = new HashMap<>();
 		
 		synchronized (jobs) {			
@@ -353,5 +353,10 @@ public class BashJobScheduler implements JobScheduler {
 		}
 		
 		return status;
+	}
+
+	@Override
+	public long getHeartbeatInterval() {
+		return this.bashJobTimerInterval;		
 	}
 }

@@ -115,6 +115,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		
 		logger.info("getting unfinished jobs from the session-db");
 		getStateFromDb();
+		
+		// start checking job timeouts only after all running jobs have had a chance to
+		// report their heartbeat (when scheduler is restarted)
+		long jobTimerStartDelay = Math.max(
+				this.jobTimerInterval, 
+				Math.max(this.bashJobScheduler.getHeartbeatInterval(), 
+						this.offerJobScheduler.getHeartbeatInterval())) + 1000;
 
 		this.jobTimer = new Timer("job timer", true);
 		this.jobTimer.schedule(new TimerTask() {
@@ -127,7 +134,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					logger.error("error in job timer", e);
 				}
 			}
-		}, jobTimerInterval, jobTimerInterval);
+		}, jobTimerStartDelay, jobTimerInterval);
 
 		logger.info("starting the admin rest server");
 
@@ -176,8 +183,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
 						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
-						jobs.addNewJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
+						SchedulerJob schedulerJob = jobs.addNewJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
 								getSlots(job, tool), getImage(job, tool));
+						schedule(idPair, schedulerJob);
 					} catch (RestException | IOException e) {
 						logger.error("could not add a new job " + asShort(idPair.getJobId()), e);
 					}
