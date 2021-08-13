@@ -163,7 +163,7 @@ public class FileStorageClient {
 				throw new ForbiddenException(connection.getResponseMessage());
 			
 			} else {
-				logger.error("upload failed: unknwon response code", connection.getResponseCode() + " " + connection.getResponseMessage());
+				logger.error("upload failed: unknown response code", connection.getResponseCode() + " " + connection.getResponseMessage());
 				throw new InternalServerErrorException("upload failed");
 			}
 			
