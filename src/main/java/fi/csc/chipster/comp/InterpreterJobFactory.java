@@ -30,7 +30,8 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 	private Config config;
 
-
+	public static final String CONF_CHIPSTER_ROOT_DIR = "comp-chipster-root-dir";
+	
 	public InterpreterJobFactory(HashMap<String, String> parameters, Config config) throws IOException {
 		
 		this.config = config;
@@ -88,7 +89,8 @@ public abstract class InterpreterJobFactory implements JobFactory {
 		
 		File chipsterRootDir;
 		try {
-			chipsterRootDir = new File("../").getCanonicalFile();
+			String configChipsterRootDir = config.getString(CONF_CHIPSTER_ROOT_DIR);
+			chipsterRootDir = new File(configChipsterRootDir).getCanonicalFile();
 		} catch (IOException e) {
 			logger.warn("failed to get base dir, using default");
 			chipsterRootDir = new File("/opt/chipster");

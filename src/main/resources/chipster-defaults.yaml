@@ -248,6 +248,7 @@ comp-job-threads-max: 4
 comp-job-memory-max: 8192
 # path to a custom runtimes.xml file. src/main/resources/runtimes.xml is used when this is not set.
 comp-runtimes-path: ""
+comp-chipster-root-dir: "../"
 
 # scheduler
 
