@@ -50,6 +50,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT= "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
+	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
 	
 	private ThreadPoolExecutor executor;
 	
@@ -69,7 +70,8 @@ public class BashJobScheduler implements JobScheduler {
 	private SessionDbClient sessionDbClient;
 	private long tokenValidTime;
 	private AuthenticationClient compAuthClient;
-	private String scriptDirInJar; 
+	private String scriptDirInJar;
+	private String imageRepository; 
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator, Config config) throws IOException {
 		this.scheduler = scheduler;
@@ -90,6 +92,7 @@ public class BashJobScheduler implements JobScheduler {
 		this.finishedScript = config.getString(CONF_BASH_FINISHED_SCRIPT);
 		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
+		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
 		
 		if (this.runScript.isEmpty()) {
 			this.runScript = readJarFile(scriptDirInJar + "/run.bash");
@@ -196,10 +199,12 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 			
-			String compToken = compAuthClient.getToken();				
+			String compToken = compAuthClient.getToken();			
+			
+			String longImage = this.imageRepository + image;
 			
 			// use the conf key as a name in logs
-			this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, image, sessionToken, compToken);	
+			this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, longImage, sessionToken, compToken);	
 		}
 		
 		if (isBusy) {
