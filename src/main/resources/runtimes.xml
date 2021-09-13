@@ -23,7 +23,34 @@
 
 
 <runtimes>
-
+	<runtime>
+		<name>R-4.1.1</name>
+		<handler>
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
+			<parameter>
+				<name>command</name>
+				<value>/opt/chipster/tools/R-4.1.1/bin/R</value>
+			</parameter>
+			<parameter>
+				<name>commandParameters</name>
+				<value>--vanilla --quiet</value>
+			</parameter>
+		</handler>
+	</runtime>
+		<runtime>
+		<name>R-4.1.1-single-cell</name>
+		<handler>
+			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
+			<parameter>
+				<name>command</name>
+				<value>/opt/chipster/tools/R-4.1.1-single-cell/bin/R</value>
+			</parameter>
+			<parameter>
+				<name>commandParameters</name>
+				<value>--vanilla --quiet</value>
+			</parameter>
+		</handler>
+	</runtime>
 	<runtime>
 		<name>R-3.6.1</name>
 		<handler>
