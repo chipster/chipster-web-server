@@ -143,7 +143,7 @@ export default class ReplaySession {
       resultsRoot: args.resultsRoot,
       resultName: args.resultName,
       tempRoot: args.tempRoot,
-      jobTimeout: args.jobtimeout != null ? parseInt(args.jobtimeout) : null
+      jobTimeout: args.jobTimeout != null ? parseInt(args.jobTimeout) : null
     };
 
     const replay$ =
@@ -259,7 +259,9 @@ export default class ReplaySession {
         ", tempPath " +
         tempPath +
         ", parallel jobs " +
-        parallel
+        parallel + 
+        ", jobTimeout " + 
+        jobTimeout
     );
 
     this.uploadSessionPrefix = "zip-upload/" + testSet + "/";
