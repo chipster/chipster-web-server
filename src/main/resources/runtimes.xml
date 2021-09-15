@@ -38,12 +38,12 @@
 		</handler>
 	</runtime>
 		<runtime>
-		<name>R-4.1.1-single-cell</name>
+		<name>R-4.1.0-single-cell</name>
 		<handler>
 			<class>fi.csc.chipster.comp.r.RJobFactory</class> 
 			<parameter>
 				<name>command</name>
-				<value>/opt/chipster/tools/R-4.1.1-single-cell/bin/R</value>
+				<value>/opt/chipster/tools/R-4.1.0-single-cell/bin/R</value>
 			</parameter>
 			<parameter>
 				<name>commandParameters</name>
