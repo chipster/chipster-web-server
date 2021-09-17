@@ -1,0 +1,41 @@
+# example template for development
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ""
+  labels:
+    comp-job: ""
+spec:
+  containers:
+  - name: comp-job
+    image: ""
+    imagePullPolicy: IfNotPresent
+    command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp"]
+    resources:
+      limits:
+        cpu: ""
+        memory: ""
+      requests:
+        cpu: ""
+        memory: ""
+    volumeMounts:
+    - mountPath: /opt/chipster/conf
+      name: conf
+      readOnly: true
+    - mountPath: /opt/chipster/tools
+      name: tools-bin
+      readOnly: true
+    - mountPath: /opt/chipster/jobs-data
+      name: jobs-data
+  volumes:
+  - name: conf
+    secret:
+      defaultMode: 420
+      secretName: single-shot-comp
+  - hostPath:
+      path: /mnt/tools-bin
+      type: Directory
+    name: tools-bin
+  - emptyDir: {}
+    name: jobs-data  
+  restartPolicy: Never
