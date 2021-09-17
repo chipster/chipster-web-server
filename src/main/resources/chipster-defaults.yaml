@@ -288,6 +288,8 @@ scheduler-bash-run-script: ""
 scheduler-bash-cancel-script: ""
 scheduler-bash-finished-script: ""
 scheduler-bash-heartbeat-script: ""
+
+scheduler-bash-run-script-stdin-file: ""
   
 scheduler-bash-max-slots: "100"
       
