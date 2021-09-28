@@ -288,6 +288,7 @@ scheduler-bash-run-script: ""
 scheduler-bash-cancel-script: ""
 scheduler-bash-finished-script: ""
 scheduler-bash-heartbeat-script: ""
+scheduler-bash-log-script: ""
 
 scheduler-bash-run-script-stdin-file: ""
   

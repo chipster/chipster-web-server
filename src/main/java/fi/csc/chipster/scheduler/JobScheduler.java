@@ -15,4 +15,6 @@ public interface JobScheduler {
 	public long getHeartbeatInterval();
 
 	public void addRunningJob(IdPair idPair, int slots);
+
+	public String getLog(IdPair jobIdPair);
 }

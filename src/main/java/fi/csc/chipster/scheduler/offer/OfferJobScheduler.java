@@ -86,7 +86,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 			if (jobs.containsJobId(idPair.getJobId())) {
 				if (previousOfferJob == null) {					
 					logger.info("received a new job " + idPair + ", but non-unique jobIds are not supported");
-					scheduler.expire(idPair, "non-unique jobId");
+					scheduler.expire(idPair, "non-unique jobId", null);
 					return;
 				}
 				// else the same job is being scheduled again which is fine
@@ -145,7 +145,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 					} else {
 						jobs.remove(jobIdPair);
 						scheduler.expire(jobIdPair,
-								"There was no computing server available to run this job, please inform server maintainers");
+								"There was no computing server available to run this job, please inform server maintainers", null);
 					}
 				}
 			}
@@ -316,5 +316,11 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 			this.jobs.addScheduledJob(idPair);
 			this.jobs.get(idPair).setRunnableTimestamp();
 		}
+	}
+
+	@Override
+	public String getLog(IdPair jobIdPair) {
+		// admin can check comp logs
+		return null;
 	}
 }

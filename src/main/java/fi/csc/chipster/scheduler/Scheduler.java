@@ -414,7 +414,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					
 					// server full
 					expire(jobIdPair,
-							"There was no computing resources available to run this job, please try again later");
+							"There was no computing resources available to run this job, please try again later", null);
 				}
 			}
 			
@@ -452,15 +452,22 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				
 				if (lastHeartbeat == null) {
 					
+					// the job never really started. Probably comp startup failed because of missing runtime or something.
+					// let's collect the comp logs to show to reason
+					String compLog = jobScheduler.getLog(jobIdPair);
+					
 					// not really finished, but lost, but let's try to clean up anyway 
 					jobScheduler.removeFinishedJob(jobIdPair);
-					expire(jobIdPair, "no heartbeat");
+					expire(jobIdPair, "no heartbeat", compLog);
 					
 				} else if (lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout) {
 					
+					// the comp pod may have had heartbeat for a moment even when the startup fails
+					String compLog = jobScheduler.getLog(jobIdPair);
+					
 					// not really finished, but lost, but let's try to clean up anyway
 					jobScheduler.removeFinishedJob(jobIdPair);
-					expire(jobIdPair, "heartbeat lost");
+					expire(jobIdPair, "heartbeat lost", compLog);
 				}
 			}
 		}
@@ -483,7 +490,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				this.endJob(idPair, JobState.ERROR,
 						"Not enough job slots. The tool requires " + jobState.getSlots()
 								+ " slots but your user account can have only "
-								+ this.maxScheduledAndRunningSlotsPerUser + " slots running.");
+								+ this.maxScheduledAndRunningSlotsPerUser + " slots running.", null);
 				return;
 			}
 			
@@ -503,7 +510,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 				this.jobs.remove(idPair);
 				this.endJob(idPair, JobState.ERROR,
-						"Maximum number of new jobs per user (" + this.maxNewSlotsPerUser + ") reached.");
+						"Maximum number of new jobs per user (" + this.maxNewSlotsPerUser + ") reached.", null);
 				return;
 			}
 
@@ -526,11 +533,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 * 
 	 * @param jobId
 	 * @param reason
+	 * @param screenOutput 
 	 */
-	public void expire(IdPair jobId, String reason) {
+	public void expire(IdPair jobId, String reason, String screenOutput) {
 		logger.warn("expire job " + jobId + ": " + reason);
 		jobs.remove(jobId);
-		endJob(jobId, JobState.EXPIRED_WAITING, reason);
+		endJob(jobId, JobState.EXPIRED_WAITING, reason, screenOutput);
 	}
 
 	/**
@@ -542,12 +550,21 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 * @param jobId
 	 * @param reason
 	 */
-	private void endJob(IdPair jobId, JobState jobState, String reason) {
+	private void endJob(IdPair jobId, JobState jobState, String reason, String screenOutput) {
 		try {
 			Job job = sessionDbClient.getJob(jobId.getSessionId(), jobId.getJobId());
 			job.setEndTime(Instant.now());
 			job.setState(jobState);
 			job.setStateDetail("Job state " + jobState + " (" + reason + ")");
+			
+			if (screenOutput != null) {
+				if (job.getScreenOutput() != null && job.getScreenOutput().isEmpty()) {
+					// we set screen output only for jobs that shouldn't have even started, at least for now
+					// otherwise we need to decide which one to keep
+					logger.warn("job " + jobId + " already had screen output");
+				}
+				job.setScreenOutput(screenOutput);
+			}
 			sessionDbClient.updateJob(jobId.getSessionId(), job);
 		} catch (RestException e) {
 			logger.error("could not set an old job " + jobId + " to " + jobState, e);

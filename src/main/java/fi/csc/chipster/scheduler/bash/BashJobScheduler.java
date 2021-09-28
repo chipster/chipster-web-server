@@ -51,6 +51,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_CANCEL_SCRIPT = "scheduler-bash-cancel-script";
 	private static final String CONF_BASH_FINISHED_SCRIPT = "scheduler-bash-finished-script";
 	private static final String CONF_BASH_HEARTBEAT_SCRIPT = "scheduler-bash-heartbeat-script";
+	private static final String CONF_BASH_LOG_SCRIPT = "scheduler-bash-log-script";
 	private static final String CONF_BASH_RUN_SCRIPT_STDIN_FILE = "scheduler-bash-run-script-stdin-file";
 	private static final String CONF_BASH_JOB_TIMER_INTERVAL = "scheduler-bash-job-timer-interval";
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
@@ -79,7 +80,8 @@ public class BashJobScheduler implements JobScheduler {
 	private String scriptDirInJar;
 	private String imageRepository;
 	private String runScriptStdin;
-	private Config config; 
+	private Config config;
+	private String logScript; 
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator, Config config) throws IOException {
 		this.config = config;
@@ -99,7 +101,8 @@ public class BashJobScheduler implements JobScheduler {
 		this.runScript = config.getString(CONF_BASH_RUN_SCRIPT);
 		this.cancelScript = config.getString(CONF_BASH_CANCEL_SCRIPT);
 		this.finishedScript = config.getString(CONF_BASH_FINISHED_SCRIPT);
-		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);		
+		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);
+		this.logScript = config.getString(CONF_BASH_LOG_SCRIPT);
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
 		
@@ -117,6 +120,10 @@ public class BashJobScheduler implements JobScheduler {
 		
 		if (this.heartbeatScript.isEmpty()) {
 			this.heartbeatScript = readJarFile(scriptDirInJar + "/heartbeat.bash");
+		}
+		
+		if (this.logScript.isEmpty()) {
+			this.logScript = readJarFile(scriptDirInJar + "/log.bash");
 		}
 		
 		this.maxSlots = config.getInt(CONF_BASH_MAX_SLOTS);
@@ -234,7 +241,7 @@ public class BashJobScheduler implements JobScheduler {
 				synchronized (jobs) {
 					jobs.remove(idPair);
 				}
-				this.scheduler.expire(idPair, "failed to get the session token");
+				this.scheduler.expire(idPair, "failed to get the session token", null);
 				return;
 			}
 			
@@ -245,7 +252,7 @@ public class BashJobScheduler implements JobScheduler {
 			// use the conf key as a name in logs
 			this.runSchedulerBashInExecutor(
 					this.runScript, CONF_BASH_RUN_SCRIPT, 
-					idPair, slots, longImage, sessionToken, compToken, this.runScriptStdin);	
+					idPair, slots, longImage, sessionToken, compToken, this.runScriptStdin, null);	
 		}
 		
 		if (isBusy) {
@@ -260,7 +267,7 @@ public class BashJobScheduler implements JobScheduler {
 			this.jobs.remove(idPair);
 		}
 		// use the conf key as a name in logs
-		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null);
+		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null, null);
 	}
 	
 	@Override
@@ -271,7 +278,7 @@ public class BashJobScheduler implements JobScheduler {
 			this.jobs.remove(idPair);
 		}
 		
-		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null, null);
+		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null, null, null);
 	}
 	
 	@Override
@@ -291,7 +298,7 @@ public class BashJobScheduler implements JobScheduler {
 		try {
 			// use the conf key as a name in logs
 			// wait for the bash process and handle the exception, don't use the executor
-			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null, null);
+			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null, null, null);
 			jobs.get(idPair).setHeartbeatTimestamp();
 			
 		} catch (Exception e) {
@@ -311,10 +318,13 @@ public class BashJobScheduler implements JobScheduler {
 				logger.info("job check was unsuccessful " + idPair + " let's wait a bit more");
 								
 			} else {
-				logger.warn("job check was unsuccessful " + idPair + ", seconds since last heartbeat: " + job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS));
-				// remove our job, scheduler will soon notice this and remove its own
-				// this will remove it from this.jobs and the cancellation script can do its own clean-up
-				this.cancelJob(idPair);
+				logger.warn("job check was unsuccessful " + idPair + ", seconds since last heartbeat: "
+						+ job.getHeartbeatTimestamp().until(Instant.now(),  ChronoUnit.SECONDS));
+				
+				// remove our job, scheduler will soon notice this, remove its own and call removeFinishedJob()
+				synchronized (jobs) {	
+					this.jobs.remove(idPair);
+				}
 			}
 		}		
 	}
@@ -335,13 +345,13 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 	
-	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image, String sessionToken, String compToken, String stdin) {
+	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image, String sessionToken, String compToken, String stdin, StringBuffer stdout) {
 		this.executor.execute(() -> {
-			this.runSchedulerBash(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin);
+			this.runSchedulerBash(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin, stdout);
 		});
 	}
 	
-	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image, String sessionToken, String compToken, String stdin) {			
+	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image, String sessionToken, String compToken, String stdin, StringBuffer stdout) {			
 		
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 				
@@ -371,7 +381,12 @@ public class BashJobScheduler implements JobScheduler {
 		try {
 			Process process = pb.start();
 
-			ProcessUtils.readLines(process.getInputStream(), line -> logger.info(name + " stdout: " + line));	
+			if (stdout != null) {
+				ProcessUtils.readLines(process.getInputStream(), line -> stdout.append(line + "\n"));
+			} else {				
+				ProcessUtils.readLines(process.getInputStream(), line -> logger.info(name + " stdout: " + line));	
+			}
+			
 			ProcessUtils.readLines(process.getErrorStream(), line -> logger.error(name + " stderr: " + line));
 
 			Instant bashStart = Instant.now();
@@ -421,5 +436,12 @@ public class BashJobScheduler implements JobScheduler {
 	@Override
 	public long getHeartbeatInterval() {
 		return this.bashJobTimerInterval;		
+	}
+
+	@Override
+	public String getLog(IdPair idPair) {
+		StringBuffer logStdout = new StringBuffer();
+		this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, idPair, -1, null, null, null, null, logStdout);
+		return logStdout.toString();
 	}
 }
