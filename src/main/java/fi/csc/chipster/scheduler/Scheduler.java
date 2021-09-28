@@ -43,6 +43,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	private Logger logger = LogManager.getLogger();
 	
 	private static final String CONF_IMAGE_DEFAULT = "scheduler-image-default";
+	private static final String CONF_IMAGE_DEFAULT_PYTHON = "scheduler-image-default-python";
+	private static final String CONF_IMAGE_DEFAULT_R = "scheduler-image-default-R";
 
 	@SuppressWarnings("unused")
 	private String serviceId;
@@ -71,6 +73,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private String imageDefault;
 
+	private String imageDefaultPython;
+
+	private String imageDefaultR;
+
 
 	public Scheduler(Config config) {
 		this.config = config;
@@ -90,6 +96,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
 		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
 		this.imageDefault = config.getString(CONF_IMAGE_DEFAULT);
+		this.imageDefaultPython = config.getString(CONF_IMAGE_DEFAULT_PYTHON);
+		this.imageDefaultR = config.getString(CONF_IMAGE_DEFAULT_R);
 		
 		logger.info("runnable jobs can wait " + waitRunnableTimeout + " seconds in queue");
 		logger.info("check jobs every " + jobTimerInterval/1000 + " second(s)");
@@ -144,17 +152,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		logger.info("scheduler is up and running");
 	}
 	
-	private String getImage(SchedulerJob job) {
-		if (job.getImage() != null) {
-			return job.getImage();
-		} else if (this.imageDefault != null && !this.imageDefault.isEmpty()) {
-			return this.imageDefault;
-		}
-		return null;
-	}
 	private JobScheduler getJobScheduler(SchedulerJob job) {
-		return this.getJobScheduler(job, getImage(job));
+		return this.getJobScheduler(job, job.getImage());
 	}
+	
 	private JobScheduler getJobScheduler(SchedulerJob job, String image) {
 		
 		if (image == null) {
@@ -226,18 +227,62 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		return slots;
 	}
 	
+	private boolean isRTool(ToolboxTool tool) {
+		return tool.getRuntime().equals("R") || tool.getRuntime().startsWith("R-");
+	}
+	
+	private boolean isPythonTool(ToolboxTool tool) {
+		return tool.getRuntime().startsWith("python");
+	}
+	
+	private String getImageDefaultR() {
+		if (this.imageDefaultR != null && !this.imageDefaultR.isEmpty()) {
+			return this.imageDefaultR;
+		}
+		return null;
+	}
+	
+	private String getImageDefaultPython() {
+		if (this.imageDefaultPython != null && !this.imageDefaultPython.isEmpty()) {
+			return this.imageDefaultPython;
+		}
+		return null;
+	}
+	
+	private String getImageDefault() {
+		if (this.imageDefault != null && !this.imageDefault.isEmpty()) {
+			return this.imageDefault;
+		}
+		return null;
+	}
+	
 	private String getImage(Job job, ToolboxTool tool) {
 
-		if (tool == null) {
-			logger.info("tried to get the container image of tool " + job.getToolId()
-					+ " from toolbox but the tool was not found, default to null");
-			return null;
+		String image = null;
+		if (tool != null) {			
+		
+			image = tool.getSadlDescription().getImage();
+		
+			if (image == null) {
+				logger.info("tool " + job.getToolId() + " image is null");
+	
+				if (this.isRTool(tool)) {
+					image = this.getImageDefaultR();
+				}
+				
+				if (this.isPythonTool(tool)) {
+					image = this.getImageDefaultPython();
+				}
+			}
+		} else {
+			logger.warn("tried to get the container image of tool " + job.getToolId()
+			+ " from toolbox but the tool was not found");
 		}
-		String image = tool.getSadlDescription().getImage();
+		
 		if (image == null) {
-			logger.info("tool " + job.getToolId() + " image is null");
-			return null;
+			image = this.getImageDefault();
 		}
+			
 		return image;
 	}
 
@@ -520,9 +565,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			jobState.setScheduleTimestamp();
 		}
 		
-		String image = this.getImage(jobState);
-		JobScheduler jobScheduler = this.getJobScheduler(jobState, image);
-		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName() + ", image: " + image);
+		String image = jobState.getImage();
+		JobScheduler jobScheduler = this.getJobScheduler(jobState, jobState.getImage());
+		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName() + ", image: " + jobState.getImage());
 		jobScheduler.scheduleJob(idPair, jobState.getSlots(), image);
 	}
 
