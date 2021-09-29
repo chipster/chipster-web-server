@@ -31,10 +31,9 @@ spec:
     secret:
       defaultMode: 420
       secretName: single-shot-comp
-  - hostPath:
-      path: /mnt/tools-bin
-      type: Directory
-    name: tools-bin
+  - name: tools-bin
+    persistentVolumeClaim:
+      claimName: tools-bin-chipster-3.16.6
   - emptyDir: {}
     name: jobs-data  
   restartPolicy: Never
