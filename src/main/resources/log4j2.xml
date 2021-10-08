@@ -81,6 +81,9 @@ developing, without having to worry about committing them accidentally.
     <!-- [2021-01-12 09:17:02,152] WARN: A provider fi.csc.chipster.backup.BackupAdminResource registered in SERVER runtime does not implement any provider interfaces applicable in the SERVER runtime. Due to constraint configuration problems the provider fi.csc.chipster.backup.BackupAdminResource will be ignored.  (in Providers:497) -->    
     <Logger name="org.glassfish.jersey.internal.inject.Providers" level="error" />
     
+    <!--  show logs from LdapExtLoginModule -->
+    <Logger name="org.jboss.security" level="debug" />
+    
     <!--  default level for our code -->
     <Logger name="fi.csc.chipster" level="info" additivity="false">
     	<AppenderRef ref="chipster"/>

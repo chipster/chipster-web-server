@@ -7,9 +7,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -26,6 +29,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 public class Config {
 	
+	private static final String SYS_PROP_LOG4J2_CONFIGURATION_FILE = "log4j2.configurationFile";
+	private static final String LOG4J2_PATH = "conf/log4j2.xml";
 	private static final String DB_URL_PREFIX = "db-url-";
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
@@ -83,7 +88,7 @@ public class Config {
 
 	private static HashMap<String, HashMap<String, String>> confFileCache = new HashMap<>();
 	
-	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);	
+	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
 	
 	private static Logger logger;
 	
@@ -95,6 +100,20 @@ public class Config {
 	}
 
 	public void configureLog4j() {
+		
+		// load log config from file if it exists
+		if (Files.isRegularFile(Path.of(LOG4J2_PATH))) {
+			
+			Properties props = System.getProperties();
+			
+			if (props.contains(SYS_PROP_LOG4J2_CONFIGURATION_FILE)) {
+				// keep current configuration
+				// show only once in ServerLauncher
+			} else {
+				System.out.println("configuring log4j2 from: " + LOG4J2_PATH);
+			}
+			props.setProperty(SYS_PROP_LOG4J2_CONFIGURATION_FILE, LOG4J2_PATH);
+		}
 		
 		// send everything from java.util.logging (JUL) to log4j
 	    String cn = "org.apache.logging.log4j.jul.LogManager";
