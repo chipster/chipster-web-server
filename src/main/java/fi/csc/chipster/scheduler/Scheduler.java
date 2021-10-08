@@ -121,8 +121,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		logger.info("start " + OfferJobScheduler.class.getSimpleName());
 		this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
 		
-		logger.info("getting unfinished jobs from the session-db");
-		getStateFromDb();
+//		logger.info("getting unfinished jobs from the session-db");
+//		getStateFromDb();
 		
 		// start checking job timeouts only after all running jobs have had a chance to
 		// report their heartbeat (when scheduler is restarted)
