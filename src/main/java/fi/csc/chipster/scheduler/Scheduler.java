@@ -495,31 +495,43 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				JobScheduler jobScheduler = this.getJobScheduler(jobs.get(jobIdPair));
 				Instant lastHeartbeat = jobScheduler.getLastHeartbeat(jobIdPair);
 				
-				if (lastHeartbeat == null) {
+				
+				// the job never really started. Probably comp startup failed because of missing runtime or something.
+				boolean noHeartbeat = (lastHeartbeat == null);
+				
+				// not really finished, but lost, but let's try to clean up anyway					
+				// the comp pod may have had heartbeat for a moment even when the startup fails
+				boolean heartbeatLost = lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout;
+				
+				if (noHeartbeat || heartbeatLost) {
 					
-					// the job never really started. Probably comp startup failed because of missing runtime or something.
-					// let's collect the comp logs to show to reason
-					String compLog = jobScheduler.getLog(jobIdPair);
+					String expirationMessage = "heartbeat lost";;
 					
-					// not really finished, but lost, but let's try to clean up anyway 
+					if (noHeartbeat) {						
+						expirationMessage = "no heartbeat";
+					}			
+				
+					// let's try collect the comp logs to show to reason				
+					String compLog = null;
+					
+					try {
+						compLog = jobScheduler.getLog(jobIdPair);
+						
+					} catch (Exception e) {
+						logger.error("failed to get comp logs", e);
+						compLog = "failed to get comp logs";
+					}
+						 
+					// try to clean-up in any case
 					jobScheduler.removeFinishedJob(jobIdPair);
-					expire(jobIdPair, "no heartbeat", compLog);
-					
-				} else if (lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout) {
-					
-					// the comp pod may have had heartbeat for a moment even when the startup fails
-					String compLog = jobScheduler.getLog(jobIdPair);
-					
-					// not really finished, but lost, but let's try to clean up anyway
-					jobScheduler.removeFinishedJob(jobIdPair);
-					expire(jobIdPair, "heartbeat lost", compLog);
+					expire(jobIdPair, expirationMessage, compLog);
 				}
 			}
 		}
 		
 //		logger.info(RestUtils.asJson(this.getStatus(), false));
 	}
-
+	
 	private void schedule(IdPair idPair, SchedulerJob jobState) {
 		
 		synchronized (jobs) {

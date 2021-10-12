@@ -1,1 +1,1 @@
-echo "nothing to do"
+rm cat logs/SingleShotComp-run-${SESSION_ID}_${JOB_ID}.log || true
