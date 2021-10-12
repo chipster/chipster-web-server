@@ -45,6 +45,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	private static final String CONF_IMAGE_DEFAULT = "scheduler-image-default";
 	private static final String CONF_IMAGE_DEFAULT_PYTHON = "scheduler-image-default-python";
 	private static final String CONF_IMAGE_DEFAULT_R = "scheduler-image-default-R";
+	private static final String CONF_GET_JOBS_FROM_DB = "scheduler-get-jobs-from-db";
 
 	@SuppressWarnings("unused")
 	private String serviceId;
@@ -77,6 +78,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private String imageDefaultR;
 
+	private boolean getJobsFromDb;
+
 
 	public Scheduler(Config config) {
 		this.config = config;
@@ -98,6 +101,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.imageDefault = config.getString(CONF_IMAGE_DEFAULT);
 		this.imageDefaultPython = config.getString(CONF_IMAGE_DEFAULT_PYTHON);
 		this.imageDefaultR = config.getString(CONF_IMAGE_DEFAULT_R);
+		this.getJobsFromDb = config.getBoolean(CONF_GET_JOBS_FROM_DB);
 		
 		logger.info("runnable jobs can wait " + waitRunnableTimeout + " seconds in queue");
 		logger.info("check jobs every " + jobTimerInterval/1000 + " second(s)");
@@ -121,8 +125,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		logger.info("start " + OfferJobScheduler.class.getSimpleName());
 		this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
 		
-//		logger.info("getting unfinished jobs from the session-db");
-//		getStateFromDb();
+		if (this.getJobsFromDb) {
+			logger.info("getting unfinished jobs from the session-db");
+			getStateFromDb();
+		} else {
+			logger.info("getting unfinished jobs from the session-db is disabled");
+		}
+			
 		
 		// start checking job timeouts only after all running jobs have had a chance to
 		// report their heartbeat (when scheduler is restarted)
