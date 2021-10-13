@@ -510,7 +510,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				
 				// not really finished, but lost, but let's try to clean up anyway					
 				// the comp pod may have had heartbeat for a moment even when the startup fails
-				boolean heartbeatLost = lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout;
+				boolean heartbeatLost = lastHeartbeat != null && lastHeartbeat.until(Instant.now(), ChronoUnit.SECONDS) > heartbeatLostTimeout;
 				
 				if (noHeartbeat || heartbeatLost) {
 					
