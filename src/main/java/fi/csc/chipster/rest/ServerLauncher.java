@@ -95,11 +95,11 @@ public class ServerLauncher {
 		scheduler.startServer();
 
 
-		if (verbose) {
-			logger.info("starting comp");
-		}
-		comp = new RestCompServer(null, config);
-		comp.startServer();
+//		if (verbose) {
+//			logger.info("starting comp");
+//		}
+//		comp = new RestCompServer(null, config);
+//		comp.startServer();
 
 		if (verbose) {
 			logger.info("starting web server");

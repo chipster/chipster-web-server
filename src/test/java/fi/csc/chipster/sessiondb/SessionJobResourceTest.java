@@ -14,6 +14,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
@@ -209,6 +210,31 @@ public class SessionJobResourceTest {
     }
 	
 	/**
+	 * Updating a job must be allowed (for example to cancel it) even if the inputs have been deleted
+	 * 
+	 * @throws RestException
+	 */
+	@Test
+    public void updateJobWitMissingInputs() throws RestException {
+        
+		Job job = RestUtils.getRandomJob();
+		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+				
+		ArrayList<Input> i = new ArrayList<>();
+		i.add(RestUtils.getRandomInput(datasetId));
+		job.setInputs(i);
+		
+		user1Client.createJob(sessionId1, job);
+		
+		user1Client.deleteDataset(sessionId1, datasetId);
+		
+		job.setState(JobState.CANCELLED);
+		
+		user1Client.updateJob(sessionId1, job);
+    }
+	
+		
+	/**
 	 * Updating a job isn't allowed if we don't have access rights to its inputs
 	 * 
 	 * @throws RestException
@@ -227,6 +253,7 @@ public class SessionJobResourceTest {
 		
 		testUpdateJob(403, sessionId1, job, user1Client);
     }
+
 	
 	public static void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
 		try {

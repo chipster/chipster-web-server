@@ -48,6 +48,10 @@ public class AdminResourceTest {
 				// the backup service doesn't offer status information
 				continue;
 			}
+			if (Role.COMP.equals(role)) {
+				// comp is not started anymore
+				continue;
+			}
 			getStatus(role);
 		}
 	}
@@ -55,6 +59,12 @@ public class AdminResourceTest {
 	@Test
 	public void getAlive() throws IOException {
 		for (String role : getRolesWithAdminUrl()) {
+			
+			if (Role.COMP.equals(role)) {
+				// comp is not started anymore
+				continue;
+			}
+			
 			System.out.println(role);
 			// doesn't require authentication
 			assertEquals(200, getAdminResponse(launcher.getNoAuthClient(), role, "alive").getStatus());
@@ -66,6 +76,11 @@ public class AdminResourceTest {
 		for (String role : getRolesWithAdminUrl()) {
 			if (Role.TYPE_SERVICE.equals(role)) {
 				// FXIME type service doesn't authenticate
+				continue;
+			}
+			
+			if (Role.COMP.equals(role)) {
+				// comp is not started anymore
 				continue;
 			}
 

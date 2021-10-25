@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -198,7 +199,7 @@ public class SessionJobResource {
 			
 			job.setCreatedBy(sc.getUserPrincipal().getName());
 			
-			this.checkInputAccessRights(session, job);
+			this.checkNewInputs(session, job);
 	
 			create(job, getHibernate().session());
 		}
@@ -211,6 +212,34 @@ public class SessionJobResource {
     }
 
 	/**
+	 * Check that inputs are not modified
+	 * 
+	 * We'll assume that the inputs were checked when the Job was created. There
+	 * should be no reason to modify those later, so we'll just check that those were
+	 * not modified. We are interested only about the datasetId, see checkNewInputs() 
+	 * for longer explanation.
+	 *  
+	 */
+	private void checkOldInputs(Job requestJob, Job dbJob) {
+			
+		// if this a job modification, check that inputs were not modified
+		Set<String> requestInputIds = requestJob.getInputs().stream()
+				.map(i -> i.getDatasetId()).collect(Collectors.toSet()); 
+
+		Set<String> dbInputIds = dbJob.getInputs().stream()
+				.map(i -> i.getDatasetId()).collect(Collectors.toSet());
+
+		if (requestInputIds.containsAll(dbInputIds)
+				&& dbInputIds.containsAll(requestInputIds)) {
+
+			return;
+		} else {
+
+			throw new ForbiddenException("modification of job inputs is not allowed");
+		}
+	}
+	
+	/**
 	 * Check that the user is allowed to access all input datasets
 	 * 
 	 * Comp is allowed to get any datasetId with its credentials. This check makes sure that
@@ -222,14 +251,21 @@ public class SessionJobResource {
 	 * case needs a better support in the future, we could either: 
 	 * - implement more thorough access right checks here
 	 * - implement the user interface for making it easier to copy individual datasets between sessions without 
-	 * really copying or moving the file content (server side implementation should be there already)       
+	 * really copying or moving the file content (server side implementation should be there already)
+	 * 
+	 * This check may not be strictly needed now when only BashJobScheduler is used.
+	 * It uses SessionTokens which effectively prevents the use of datasets from other
+	 * sessions. Nevertheless, let's keep this check here at least as long the RestCompServer 
+	 * remains in the code base. 
 	 * 
 	 * @param session All datasets in this session are assumed to be ok
-	 * @param job Job to test
+	 * @param requestJob Job to test
+	 * @param dbJob 
 	 */
-	private void checkInputAccessRights(Session session, Job job) {
+	private void checkNewInputs(Session session, Job requestJob) {
 		
-		for (Input input : job.getInputs()) {
+		// if this a new job, check that all datasets are in the session
+		for (Input input : requestJob.getInputs()) {
 			UUID datasetId = UUID.fromString(input.getDatasetId());
 			Dataset dataset = SessionDatasetResource.getDataset(session.getSessionId(), datasetId, getHibernate().session());
 						
@@ -262,11 +298,7 @@ public class SessionJobResource {
 		// allow admin to cancel jobs
 		boolean allowAdmin = JobState.CANCELLED.equals(requestJob.getState());
 
-		/*
-		 * Checks that
-		 * - user has write authorization for the session
-		 * - the session contains this dataset
-		 */
+		// check that user has write authorization for the session
 		Session session = sessionResource.getRuleTable().checkAuthorizationForSession((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, allowAdmin);
 		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
@@ -282,7 +314,8 @@ public class SessionJobResource {
 		// make sure a hostile client doesn't change the created timestamp
 		requestJob.setCreated(dbJob.getCreated());
 		
-		this.checkInputAccessRights(session, requestJob);
+		// check that inputs (datasetIds to be precise) were not modified
+		this.checkOldInputs(requestJob, dbJob);
 		
 		update(requestJob, getHibernate().session());
 		
