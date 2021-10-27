@@ -1,5 +1,4 @@
-job_id=$(echo comp-job-$SESSION_ID-$JOB_ID | cut -c 1-63)
-json=$(kubectl get pod $job_id -o json | jq .status)
+json=$(kubectl get pod $POD_NAME -o json | jq .status)
 short_name=$(echo $JOB_ID | cut -c 1-4)
 
 if [ "$json" == null ]; then
