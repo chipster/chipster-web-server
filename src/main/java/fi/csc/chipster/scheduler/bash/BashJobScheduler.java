@@ -409,17 +409,22 @@ public class BashJobScheduler implements JobScheduler {
 		pb.environment().put(ENV_SESSION_ID, idPair.getSessionId().toString());
 		pb.environment().put(ENV_JOB_ID, idPair.getJobId().toString());
 
-		String podName = "comp-job_" + idPair.getJobId().toString() + "_" + toolId;
+		String podName = "comp-job-" + idPair.getJobId().toString() + "-" + toolId;
 
 		// max pod name length in Kubernetes
 		if (podName.length() > POD_NAME_MAX_LENGTH) {
 			podName = podName.substring(0, POD_NAME_MAX_LENGTH);
 		}
 		
-		// remove the last character if it's a dot, because that looks like something is broken
-		if (podName.endsWith(".")) {
-			podName = podName.substring(0, podName.length() - 1);
-		}
+		// podname must be in lower case
+		podName = podName.toLowerCase();
+		
+		// replace all special characters (except - and .) with a dash
+		podName = podName.replaceAll("[^a-z0-9.-]", "-");
+		
+		// remove any non-alphanumeric characters from the start and end 
+		podName = podName.replaceAll("^[^a-z0-9]*", "");				
+		podName = podName.replaceAll("[^a-z0-9]*$", "");
 		
 		pb.environment().put(ENV_POD_NAME, podName);
 
