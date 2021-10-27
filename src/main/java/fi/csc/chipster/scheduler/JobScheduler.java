@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public interface JobScheduler {
 	
-	public void scheduleJob(IdPair idPair, int slots, String image);
+	public void scheduleJob(IdPair idPair, int slots, String image, String toolId);
 	
 	public void cancelJob(IdPair idPair);
 
@@ -14,7 +14,7 @@ public interface JobScheduler {
 	
 	public long getHeartbeatInterval();
 
-	public void addRunningJob(IdPair idPair, int slots);
+	public void addRunningJob(IdPair idPair, int slots, String toolId);
 
 	public String getLog(IdPair jobIdPair);
 }

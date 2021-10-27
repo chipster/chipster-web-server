@@ -193,8 +193,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
 						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
-						SchedulerJob schedulerJob = jobs.addNewJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								getSlots(job, tool), getImage(job, tool));
+						SchedulerJob schedulerJob = jobs.addNewJob(
+								new IdPair(idPair.getSessionId(), idPair.getJobId()), 
+								job.getCreatedBy(),
+								getSlots(job, tool), 
+								getImage(job, tool),
+								tool.getId());
 						schedule(idPair, schedulerJob);
 					} catch (RestException | IOException e) {
 						logger.error("could not add a new job " + asShort(idPair.getJobId()), e);
@@ -211,8 +215,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
 						int slots = getSlots(job, tool);
 						SchedulerJob schedulerJob = jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								slots, getImage(job, tool));
-						this.getJobScheduler(schedulerJob).addRunningJob(idPair, slots);
+								slots, getImage(job, tool), tool.getId());
+						this.getJobScheduler(schedulerJob).addRunningJob(idPair, slots, tool.getId());
 					} catch (RestException | IOException e) {
 						logger.error("could add a running job " + asShort(idPair.getJobId()), e);
 					}
@@ -383,7 +387,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 					// when a client adds a new job, try to schedule it immediately
 					logger.info("received a new job " + jobIdPair + ", trying to schedule it");
-					SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job, tool), getImage(job, tool));
+					SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job, tool), getImage(job, tool), tool.getId());
 					schedule(jobIdPair, jobState);
 
 					break;
@@ -586,10 +590,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			jobState.setScheduleTimestamp();
 		}
 		
-		String image = jobState.getImage();
 		JobScheduler jobScheduler = this.getJobScheduler(jobState, jobState.getImage());
 		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName() + ", image: " + jobState.getImage());
-		jobScheduler.scheduleJob(idPair, jobState.getSlots(), image);
+		jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getImage(), jobState.getToolId());
 	}
 
 	

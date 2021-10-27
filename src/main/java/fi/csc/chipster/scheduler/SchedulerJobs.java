@@ -59,14 +59,14 @@ public class SchedulerJobs {
 		return jobs.remove(jobId);	
 	}
 
-	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, String image) {
-		SchedulerJob jobState = new SchedulerJob(userId, slots, image);
+	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, String image, String toolId) {
+		SchedulerJob jobState = new SchedulerJob(userId, slots, image, toolId);
 		jobs.put(idPair, jobState);
 		return jobState;
 	}
 	
-	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, String image) {
-		SchedulerJob job = new SchedulerJob(userId, slots, image);
+	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, String image, String toolId) {
+		SchedulerJob job = new SchedulerJob(userId, slots, image, toolId);
 		job.setRunningTimestamp();
 		jobs.put(idPair, job);
 		return job;

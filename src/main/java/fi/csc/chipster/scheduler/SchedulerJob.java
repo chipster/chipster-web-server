@@ -11,12 +11,14 @@ public class SchedulerJob {
 		private String userId;
 		private int slots;
 		private String image;
+		private String toolId;
 		
-		public SchedulerJob(String userId, int slots, String image) {
+		public SchedulerJob(String userId, int slots, String image, String toolId) {
 			setNewTimestamp();
 			this.userId = userId;
 			this.slots = slots;
 			this.image = image;
+			this.toolId = toolId;
 		}
 		
 		public Instant getNewTimestamp() {
@@ -79,5 +81,13 @@ public class SchedulerJob {
 
 		public void setImage(String image) {
 			this.image = image;
+		}
+
+		public String getToolId() {
+			return toolId;
+		}
+
+		public void setToolId(String toolId) {
+			this.toolId = toolId;
 		}
 	}

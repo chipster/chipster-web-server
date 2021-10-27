@@ -1,1 +1,1 @@
-ps aux | grep SingleShotComp | grep $SESSION_ID | grep $JOB_ID
+ps aux | grep SingleShotComp | grep -v grep | grep $POD_NAME

@@ -1,1 +1,1 @@
-rm cat logs/SingleShotComp-run-${SESSION_ID}_${JOB_ID}.log || true
+rm logs/SingleShotComp-run-${POD_NAME}.log || true

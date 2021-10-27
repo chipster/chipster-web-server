@@ -1,1 +1,1 @@
-cat logs/SingleShotComp-run-${SESSION_ID}_${JOB_ID}.log
+cat logs/SingleShotComp-run-${POD_NAME}.log

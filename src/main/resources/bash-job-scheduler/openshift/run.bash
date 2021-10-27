@@ -19,4 +19,9 @@ jq_patch=".metadata.name=\"$job_id\" |
 
 job_json=$(echo "$stdin" | yq e - -o=json | jq "$jq_patch")
 
+
+echo env length:   $(env | wc -l) bytes
+echo stdin length: $(echo "$stdin" | wc -l) bytes
+echo json length:  $(echo "$job_json" | wc -l) bytes
+
 echo "$job_json" | kubectl apply -f -

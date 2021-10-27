@@ -74,7 +74,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 	
 	@Override
-	public void scheduleJob(IdPair idPair, int slots, String image) {
+	public void scheduleJob(IdPair idPair, int slots, String image, String toolId) {
 		
 		synchronized (jobs) {
 			
@@ -311,7 +311,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 
 	@Override
-	public void addRunningJob(IdPair idPair, int slots) {
+	public void addRunningJob(IdPair idPair, int slots, String toolId) {
 		synchronized (jobs) { 
 			this.jobs.addScheduledJob(idPair);
 			this.jobs.get(idPair).setRunnableTimestamp();
