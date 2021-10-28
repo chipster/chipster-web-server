@@ -15,7 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -61,7 +64,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
 	private static final int POD_NAME_MAX_LENGTH = 63;
 
-	private ThreadPoolExecutor executor;
+	private ThreadPoolExecutor bashExecutor;
 
 	private Logger logger = LogManager.getLogger();
 
@@ -84,6 +87,7 @@ public class BashJobScheduler implements JobScheduler {
 	private String runScriptStdin;
 	private Config config;
 	private String logScript;
+	private ExecutorService javaExecutor;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -101,7 +105,9 @@ public class BashJobScheduler implements JobScheduler {
 		ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d")
 				.build();
 		int executorThreads = config.getInt(CONF_BASH_THREADS);
-		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(executorThreads, threadFactory);
+		
+		// limited pool for bash scripts to avoid running out of memory and overloading other systems 
+		this.bashExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(executorThreads, threadFactory);
 
 		this.runScript = config.getString(CONF_BASH_RUN_SCRIPT);
 		this.cancelScript = config.getString(CONF_BASH_CANCEL_SCRIPT);
@@ -259,7 +265,7 @@ public class BashJobScheduler implements JobScheduler {
 			String longImage = this.imageRepository + image;
 
 			// use the conf key as a name in logs
-			this.runSchedulerBashInExecutor(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, longImage,
+			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, longImage,
 					sessionToken, compToken, this.runScriptStdin, null, toolId);
 		}
 
@@ -283,7 +289,7 @@ public class BashJobScheduler implements JobScheduler {
 		}
 		
 		// use the conf key as a name in logs
-		this.runSchedulerBashInExecutor(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null,
+		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null,
 				null, job.getToolId());
 	}
 
@@ -302,7 +308,7 @@ public class BashJobScheduler implements JobScheduler {
 			return;
 		}
 
-		this.runSchedulerBashInExecutor(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null,
+		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null,
 				null, null, job.getToolId());
 	}
 
@@ -334,9 +340,12 @@ public class BashJobScheduler implements JobScheduler {
 			}
 			
 			// use the conf key as a name in logs
-			// wait for the bash process and handle the exception, don't use the executor
-			this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null, null,
+			// run in executor to limit the number of external processes
+			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null, null,
 					null, job.getToolId());
+			
+			// wait for the bash process
+			future.get();
 			
 			jobs.get(idPair).setHeartbeatTimestamp();
 
@@ -388,17 +397,15 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 
-	private void runSchedulerBashInExecutor(String bashCommand, String name, IdPair idPair, int slots, String image,
+	private Future<?> runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image,
 			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
-		this.executor.execute(() -> {
-			this.runSchedulerBash(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin, stdout, toolId);
+		return this.bashExecutor.submit(() -> {
+			this.runSchedulerBashWithoutExecutor(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin, stdout, toolId);
 		});
 	}
 
-	private void runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image,
+	private void runSchedulerBashWithoutExecutor(String bashCommand, String name, IdPair idPair, int slots, String image,
 			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
-		
-		logger.info("command length: " + bashCommand.length() + " bytes");
 
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 
@@ -518,7 +525,17 @@ public class BashJobScheduler implements JobScheduler {
 		}
 		
 		StringBuffer logStdout = new StringBuffer();
-		this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, idPair, -1, null, null, null, null, logStdout, job.getToolId());
+		
+		// run in executor to limit the amount of external processes
+		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, idPair, -1, null, null, null, null, logStdout, job.getToolId());
+		
+		try {
+			future.get();
+		} catch (InterruptedException | ExecutionException e) {
+			logger.error("unable to get the log", e);
+			return null;
+		}
+		
 		return logStdout.toString();
 	}
 }
