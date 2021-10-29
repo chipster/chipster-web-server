@@ -9,6 +9,10 @@ memory=$(( SLOTS*8 ))Gi
 cpu_limit=$(( SLOTS*2 ))
 cpu_request=$SLOTS
 
+# openshift doesn't allow the limit to be larger than the quota
+max_cpu_limit=8
+cpu_limit=$(( cpu_limit <= max_cpu_limit ? cpu_limit : max_cpu_limit))
+
 jq_patch=".metadata.name=\"$POD_NAME\" |
   .spec.containers[0].image=\"$IMAGE\" |
   .spec.containers[0].command += [\"$SESSION_ID\", \"$JOB_ID\", \"$SESSION_TOKEN\", \"$COMP_TOKEN\"] |

@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
@@ -87,7 +86,6 @@ public class BashJobScheduler implements JobScheduler {
 	private String runScriptStdin;
 	private Config config;
 	private String logScript;
-	private ExecutorService javaExecutor;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -399,7 +397,21 @@ public class BashJobScheduler implements JobScheduler {
 
 	private Future<?> runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image,
 			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
+				
+		Instant startInstant = Instant.now();
+		
 		return this.bashExecutor.submit(() -> {
+			
+			long waitTime = startInstant.until(Instant.now(), ChronoUnit.SECONDS);
+			
+			if (waitTime >= 1) {
+				/* It's not easy to fill the pool now, apparently the code is too single threaded.
+				 * Let's keep this check anyway, because a full pool would cause random timeouts 
+				 * and would be difficult to recognize.
+				 */
+				logger.warn("waited " + waitTime + " second(s) for the executor. Is more executor threads needed?");
+			}
+			
 			this.runSchedulerBashWithoutExecutor(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin, stdout, toolId);
 		});
 	}
