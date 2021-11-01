@@ -193,6 +193,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
 						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
+						
+						if (tool == null) {
+							logger.warn("cannot schedule job " + idPair + ", tool not found: " + job.getToolId());
+							this.expire(idPair, "tool not found", null);
+							continue;
+						}
 						SchedulerJob schedulerJob = jobs.addNewJob(
 								new IdPair(idPair.getSessionId(), idPair.getJobId()), 
 								job.getCreatedBy(),
@@ -213,6 +219,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 					try {
 						Job job = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
 						ToolboxTool tool = this.toolbox.getTool(job.getToolId());
+						
+						if (tool == null) {
+							logger.warn("cannot schedule job " + idPair + ", tool not found: " + job.getToolId());
+							this.expire(idPair, "tool not found", null);
+							continue;
+						}
+						
 						int slots = getSlots(job, tool);
 						SchedulerJob schedulerJob = jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
 								slots, getImage(job, tool), tool.getId());
