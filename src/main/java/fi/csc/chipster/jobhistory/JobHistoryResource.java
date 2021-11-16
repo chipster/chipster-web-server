@@ -9,11 +9,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.hibernate.query.Query;
+import org.hibernate.type.DateType;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.Transaction;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -26,17 +37,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.hibernate.query.Query;
-import org.hibernate.type.DateType;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.AdminResource;
-import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.hibernate.Transaction;
 
 public class JobHistoryResource extends AdminResource {
 	private static final String PARAM_GREATER_THAN = ">";
@@ -157,16 +157,18 @@ public class JobHistoryResource extends AdminResource {
 		Date startDate = Date.from(Instant.parse(startYear + "-01-01T00:00:00.000Z"));
 		Date endDate = Date.from(Instant.parse(endYear + "-01-01T00:00:00.000Z"));
 
+		String module = queryParams.get("module").get(0);
+
 		List<String> ignoreUsers = queryParams.get("ignoreUsers");
 
 		@SuppressWarnings("rawtypes")
-		Query userCountQuery = getFilteredQuery(SQL_COUNT_USERS_BEGIN, startDate, endDate, ignoreUsers);
+		Query userCountQuery = getFilteredQuery(SQL_COUNT_USERS_BEGIN, startDate, endDate, module, ignoreUsers);
 		logger.info(userCountQuery.getQueryString());
 		BigInteger userCount = (BigInteger) userCountQuery.getSingleResult();
 		logger.info(userCount);
 
 		@SuppressWarnings("rawtypes")
-		Query jobCountQuery = getFilteredQuery(SQL_COUNT_JOBS_BEGIN, startDate, endDate, ignoreUsers);
+		Query jobCountQuery = getFilteredQuery(SQL_COUNT_JOBS_BEGIN, startDate, endDate, module, ignoreUsers);
 		logger.info(jobCountQuery.getQueryString());
 		BigInteger jobCount = (BigInteger) jobCountQuery.getSingleResult();
 		logger.info(jobCount);
@@ -178,8 +180,15 @@ public class JobHistoryResource extends AdminResource {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Query getFilteredQuery(String select, Date startTime, Date endTime, List<String> ignoreUsers) {
+	private Query getFilteredQuery(String select, Date startTime, Date endTime, String module,
+			List<String> ignoreUsers) {
 		String sql = select;
+
+		boolean useModuleFilter = module != null && !module.equals("all") && !module.equals("");
+		if (useModuleFilter) {
+			sql += " and module like :module";
+		}
+
 		if (ignoreUsers != null) {
 			sql += getUserFilterSql(ignoreUsers);
 		}
@@ -189,6 +198,10 @@ public class JobHistoryResource extends AdminResource {
 
 		query = query.setParameter("starttime", startTime, DateType.INSTANCE).setParameter("endtime", endTime,
 				DateType.INSTANCE);
+
+		if (useModuleFilter) {
+			query = query.setParameter("module", module);
+		}
 
 		if (ignoreUsers != null) {
 			for (int i = 0; i < ignoreUsers.size(); i++) {
