@@ -71,8 +71,11 @@ export default class ReplaySession {
   tempPath: string;
   stats = new Map<string, number>();
 
-  parseCommand(): void {
+  constructor() {
+    log.setDefaultLevel(log.levels.INFO);
+  }
 
+  parseCommand(): void {
     const version = "Chipster session replay test version 0.1.0";
 
     const parser = new ArgumentParser({

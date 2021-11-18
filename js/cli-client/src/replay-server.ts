@@ -9,9 +9,10 @@ import express = require("express");
 import path = require("path");
 import v8 = require("v8");
 import morgan = require("morgan");
+import log from "loglevel";
 
 const fs = require("fs");
-const rfs = require ("rotating-file-stream");
+const rfs = require("rotating-file-stream");
 const ArgumentParser = require("argparse").ArgumentParser;
 const logger = Logger.getLogger(__filename, "logs/chipster.log");
 
@@ -21,12 +22,12 @@ export default class ReplayServer {
   restClient: RestClient;
 
   constructor() {
+    log.setDefaultLevel(log.levels.INFO);
     Logger.addLogFile();
     this.parseCommand();
   }
 
   parseCommand(): void {
-
     const version = "Chipster session replay server version 0.2.0";
 
     const parser = new ArgumentParser({
@@ -34,7 +35,11 @@ export default class ReplayServer {
       description: "Chipster session replay server"
     });
 
-    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+    parser.add_argument("-v", "--version", {
+      action: "version",
+      version: version,
+      help: "show program's version nubmer and exit"
+    });
 
     parser.add_argument("URL", { help: "url of the app server" });
     parser.add_argument("--username", "-u", {
@@ -83,7 +88,7 @@ export default class ReplayServer {
       resultsRoot
     );
 
-    fs.mkdirSync(resultsRoot, {recursive:true})
+    fs.mkdirSync(resultsRoot, { recursive: true });
 
     const accessLogStream = rfs.createStream("access.log", {
       interval: "1d", // rotate daily
