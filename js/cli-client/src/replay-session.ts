@@ -259,8 +259,8 @@ export default class ReplaySession {
         ", tempPath " +
         tempPath +
         ", parallel jobs " +
-        parallel + 
-        ", jobTimeout " + 
+        parallel +
+        ", jobTimeout " +
         jobTimeout
     );
 
@@ -551,10 +551,10 @@ export default class ReplaySession {
           // run only jobs whose output files exist
           // and don't care about failed or orphan jobs
           .filter(j => {
-            console.log("job", j.toolId, "results found", jobSet.has(j.jobId));
+            // console.log("job", j.toolId, "results found", jobSet.has(j.jobId));
             return jobSet.has(j.jobId);
           })
-          
+
           .filter(j => {
             // check inputs from the current tool, because the database doesn't store
             // inputs of deleted datasets
@@ -567,17 +567,17 @@ export default class ReplaySession {
                 return true;
               }
             } else {
-              /* Tool not found. Let it run to show an error in the results to get 
+              /* Tool not found. Let it run to show an error in the results to get
               the session updated or removed. */
               console.log("cannot check inputs of tool " + j.toolId + " because it doesn't exist");
               return true;
             }
 
-            /* Tool has mandatory inputs. Run only jobs that still have at least one 
+            /* Tool has mandatory inputs. Run only jobs that still have at least one
             input file in the session */
             for (const i of j.inputs) {
               if (datasetIdSet.has((i as any).datasetId)) {
-                console.log("job", j.toolId, "input found");
+                // console.log("job", j.toolId, "input found");
                 return true;
               }
             }
