@@ -78,7 +78,7 @@ export default class ReplaySession {
       description: "Chipster session replay test"
     });
 
-    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version number and exit' })
 
     parser.add_argument("URL", { help: "url of the app server" });
     parser.add_argument("--username", "-u", {
