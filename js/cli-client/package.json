@@ -24,7 +24,6 @@
     "chipster-nodejs-core": "^0.3.5",
     "express": "^4.17.1",
     "lodash": "^4.17.20",
-    "loglevel": "^1.7.1",
     "morgan": "^1.10.0",
     "node-schedule": "^2.0.0",
     "read": "^1.0.7",

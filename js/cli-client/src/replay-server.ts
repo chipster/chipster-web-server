@@ -9,7 +9,6 @@ import express = require("express");
 import path = require("path");
 import v8 = require("v8");
 import morgan = require("morgan");
-import log from "loglevel";
 
 const fs = require("fs");
 const rfs = require("rotating-file-stream");
@@ -22,7 +21,6 @@ export default class ReplayServer {
   restClient: RestClient;
 
   constructor() {
-    log.setDefaultLevel(log.levels.INFO);
     Logger.addLogFile();
     this.parseCommand();
   }

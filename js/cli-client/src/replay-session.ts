@@ -8,7 +8,6 @@ import { catchError, finalize, map, merge, mergeMap, takeUntil, tap, toArray } f
 import { VError } from "verror";
 import ChipsterUtils, { missingInputError } from "./chipster-utils";
 import WsClient from "./ws-client";
-import log from "loglevel";
 
 const ArgumentParser = require("argparse").ArgumentParser;
 import fs = require("fs");
@@ -70,10 +69,6 @@ export default class ReplaySession {
   replaySessionPrefix: string;
   tempPath: string;
   stats = new Map<string, number>();
-
-  constructor() {
-    log.setDefaultLevel(log.levels.INFO);
-  }
 
   parseCommand(): void {
     const version = "Chipster session replay test version 0.1.0";
@@ -267,22 +262,6 @@ export default class ReplaySession {
         ", jobTimeout " +
         jobTimeout
     );
-    log.info(
-      "start replay test " +
-        testSet +
-        ", server " +
-        URL +
-        ", resultsPath " +
-        resultsPath +
-        ", tempPath " +
-        tempPath +
-        ", parallel jobs " +
-        parallel +
-        ", jobTimeout " +
-        jobTimeout
-    );
-
-
 
 
     this.uploadSessionPrefix = "zip-upload/" + testSet + "/";
