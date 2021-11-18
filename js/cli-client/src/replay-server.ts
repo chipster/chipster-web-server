@@ -184,6 +184,7 @@ export default class ReplayServer {
         resultName = testSetName;
       }
 
+      const startTime = performance.now();
       const replayNow = () => {
         new ReplaySession()
           .replayFilter(args.URL, args.username, args.password, filters, {
@@ -210,7 +211,14 @@ export default class ReplayServer {
               logger.error(
                 new VError(err, "session replay " + testSetName + " error")
               ),
-            () => logger.info("session replay " + testSetName + " completed")
+            () =>
+              logger.info(
+                "session replay " +
+                  testSetName +
+                  " completed in " +
+                  (performance.now() - startTime) +
+                  " ms"
+              )
           );
       };
 
