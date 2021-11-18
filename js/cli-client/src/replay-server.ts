@@ -14,6 +14,7 @@ const fs = require("fs");
 const rfs = require("rotating-file-stream");
 const ArgumentParser = require("argparse").ArgumentParser;
 const logger = Logger.getLogger(__filename, "logs/chipster.log");
+const humanizeDuration = require("humanize-duration");
 
 export default class ReplayServer {
   resultsPath: string;
@@ -216,8 +217,7 @@ export default class ReplayServer {
                 "session replay " +
                   testSetName +
                   " completed in " +
-                  (performance.now() - startTime) +
-                  " ms"
+                  humanizeDuration(performance.now() - startTime)
               )
           );
       };
