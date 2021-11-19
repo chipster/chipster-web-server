@@ -8,6 +8,7 @@ import { catchError, finalize, map, merge, mergeMap, takeUntil, tap, toArray } f
 import { VError } from "verror";
 import ChipsterUtils, { missingInputError } from "./chipster-utils";
 import WsClient from "./ws-client";
+const humanizeDuration = require("humanize-duration");
 
 const ArgumentParser = require("argparse").ArgumentParser;
 import fs = require("fs");
@@ -166,7 +167,7 @@ export default class ReplaySession {
     replay$.subscribe(
       () => logger.info("session replay done"),
       err => logger.error(new VError(err, "session replay error")),
-      () => logger.info("session replay completed")
+      // () => logger.info("session replay completed")
     );
   }
 
@@ -442,6 +443,7 @@ export default class ReplaySession {
         return this.deleteTempSessions(Array.from(tempSessionsToDelete));
       }),
       tap(() => {
+        logger.info("test set " + testSet + "took " + humanizeDuration(Date.now() - this.startTime.getMilliseconds()));
         this.restClient = null;
       }),
       map(() => this.stats)
