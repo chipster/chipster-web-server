@@ -242,6 +242,7 @@ export default class ReplaySession {
 
     this.startTime = new Date();
 
+
     /* Session prefixes for recognizing old sessions produced by this job
 
     Failing cronjobs create easily lots of sessions. We want to delete all old sessions
@@ -443,7 +444,7 @@ export default class ReplaySession {
         return this.deleteTempSessions(Array.from(tempSessionsToDelete));
       }),
       tap(() => {
-        logger.info("test set " + testSet + "took " + humanizeDuration(Date.now() - this.startTime.getMilliseconds()));
+        logger.info("test set " + testSet + " took " + humanizeDuration(Date.now() - this.startTime.getTime()));
         this.restClient = null;
       }),
       map(() => this.stats)
