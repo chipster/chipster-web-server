@@ -267,7 +267,7 @@ scheduler-max-new-slots-per-user: 1000
 # get running jobs from the database in startup
 scheduler-get-jobs-from-db: true
 # what container image to use (in BashJobScheduler) for tools that doesn't specify it in SADL. OfferJobScheduler will be used when the image is not set
-scheduler-image-default: ""
+scheduler-image-default: "comp-16.04"
 scheduler-image-default-R: ""
 scheduler-image-default-python: ""
 # image repository, prefix for all image names
