@@ -96,7 +96,7 @@ public abstract class InterpreterJobFactory implements JobFactory {
 			chipsterRootDir = new File("/opt/chipster");
 		}
 
-		File javaLibsDir = new File(chipsterRootDir, "shared/lib");
+		File javaLibsDir = new File(chipsterRootDir, "lib");
 		File externalToolsDir = new File(chipsterRootDir, "tools");
 		
 		String vns = getVariableNameSeparator();
