@@ -323,70 +323,57 @@ toolbox-tools-bin-path: /opt/chipster/tools
 
 # default values for runtimes
 toolbox-runtime-job-factory: fi.csc.chipster.comp.r.RJobFactory
-toolbox-runtime-command-parameters: "--vanilla --quiet"
+toolbox-runtime-parameters: "--vanilla --quiet"
 toolbox-runtime-image: comp-16.04
-toolbox-runtime-tools-bin: tools-bin-chipster-3.5.1
+toolbox-runtime-tools-bin-volume: tools-bin-chipster-3.5.1
 toolbox-runtime-tools-bin-path: /opt/chipster/tools
 
-# add other runtimes by inventing a name for each runtime configuration and appending 
-# a dash and the name to each config (e.g. "-R-4.1.1") 
-toolbox-runtime-name-R-4.1.1: R-4.1.1
+# add other runtimes by appending 
+# a dash and the runtime name to each config (e.g. "-R-4.1.1") 
 toolbox-runtime-command-R-4.1.1: /opt/chipster/tools/R-4.1.1/bin/R
 toolbox-runtime-image-R-4.1.1: comp-20.04-r-deps
 
-toolbox-runtime-name-R-4.1.1-statistics: R-4.1.1-statistics
 toolbox-runtime-command-R-4.1.1-statistics: /opt/chipster/tools/R-4.1.1-statistics/bin/R
 toolbox-runtime-image-R-4.1.1-statistics: comp-20.04-r-deps
 
-toolbox-runtime-name-R-4.1.0-single-cell: R-4.1.0-single-cell
 toolbox-runtime-command-R-4.1.0-single-cell: /opt/chipster/tools/R-4.1.0-single-cell/bin/R
 toolbox-runtime-image-R-4.1.0-single-cell: comp-20.04-r-deps
 
-toolbox-runtime-name-R-3.6.1-single-cell: R-3.6.1-single-cell
 toolbox-runtime-command-R-3.6.1-single-cell: /opt/chipster/tools/R-3.6.1-single-cell/bin/R
 
-toolbox-runtime-name-R-3.6.1-phyloseq: R-3.6.1-phyloseq
 toolbox-runtime-command-R-3.6.1-phyloseq: /opt/chipster/tools/R-3.6.1-phyloseq/bin/R
 
-toolbox-runtime-name-R-3.4.3: R-3.4.3
 toolbox-runtime-command-R-3.4.3: /opt/chipster/tools/R-3.4.3/bin/R
 
-toolbox-runtime-name-R-3.3.2: R-3.3.2
 toolbox-runtime-command-R-3.3.2: /opt/chipster/tools/R-3.3.2/bin/R
 
-toolbox-runtime-name-R: R
 toolbox-runtime-command-R: /opt/chipster/tools/R-3.2.3/bin/R
 
-toolbox-runtime-name-java: java
 toolbox-runtime-job-factory-java: fi.csc.chipster.comp.java.JavaJobFactory
 toolbox-runtime-command-java: ""
-toolbox-runtime-command-parameters-java: ""
+toolbox-runtime-parameters-java: ""
 toolbox-runtime-image-java: comp-16.04
 
-toolbox-runtime-name-python: python
 toolbox-runtime-job-factory-python: fi.csc.chipster.comp.python.PythonJobFactory
 toolbox-runtime-command-python: python
-toolbox-runtime-command-parameters-python: "-u"
+toolbox-runtime-parameters-python: "-u"
 toolbox-runtime-image-python: comp-16.04
 
-toolbox-runtime-name-python3: python3
 toolbox-runtime-job-factory-python3: fi.csc.chipster.comp.python.PythonJobFactory
 toolbox-runtime-command-python3: python3
-toolbox-runtime-command-parameters-python3: ""
+toolbox-runtime-parameters-python3: ""
 toolbox-runtime-image-python3: comp-16.04
 
-# toolbox-runtime-name-R-mylly: R-mylly
 # toolbox-runtime-command-R-mylly: /opt/chipster/tools/R-3.2.3/bin/R
 # toolbox-runtime-image-R-mylly: comp-16.04-mylly
-# toolbox-runtime-tools-bin-R-mylly: tools-bin-mylly
+# toolbox-runtime-tools-bin-volume-R-mylly: tools-bin-mylly
 # toolbox-runtime-tools-bin-path-R-mylly: /appl
 
-# toolbox-runtime-name-python3-mylly: python3-mylly
 # toolbox-runtime-job-factory-python3-mylly: fi.csc.chipster.comp.python.PythonJobFactory
 # toolbox-runtime-command-python3-mylly: python3
-# toolbox-runtime-command-parameters-python3-mylly: ""
+# toolbox-runtime-parameters-python3-mylly: ""
 # toolbox-runtime-image-python3-mylly: comp-16.04-mylly
-# toolbox-runtime-tools-bin-python3-mylly: tools-bin-mylly
+# toolbox-runtime-tools-bin-volume-python3-mylly: tools-bin-mylly
 # toolbox-runtime-tools-bin-path-python3-mylly: /appl
 
 # set default runtimes for different file types

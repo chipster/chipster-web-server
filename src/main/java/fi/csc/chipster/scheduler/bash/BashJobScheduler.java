@@ -49,7 +49,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_SESSION_TOKEN = "SESSION_TOKEN";
 	private static final String ENV_COMP_TOKEN = "COMP_TOKEN";
 	private static final String ENV_POD_NAME = "POD_NAME";
-	private static final String ENV_TOOLS_BIN = "TOOLS_BIN";
+	private static final String ENV_TOOLS_BIN_VOLUME = "TOOLS_BIN_VOLUME";
 	private static final String ENV_TOOLS_BIN_PATH = "TOOLS_BIN_PATH";
 	private static final String ENV_STORAGE = "STORAGE";
 
@@ -327,10 +327,10 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_IMAGE, this.imageRepository + image);
 		}
 		
-		String toolsBin = runtime.getToolsBin();
+		String toolsBin = runtime.getToolsBinVolume();
 		
 		if (toolsBin != null) {
-			env.put(ENV_TOOLS_BIN, toolsBin);
+			env.put(ENV_TOOLS_BIN_VOLUME, toolsBin);
 		}
 		
 		String toolsBinPath = runtime.getToolsBinPath();

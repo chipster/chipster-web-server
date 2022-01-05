@@ -4,6 +4,7 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -22,17 +23,16 @@ public class RuntimeRepository {
 	public static final String TOOL_DIR_R = "R";
 	public static final String TOOL_DIR_PYTHON = "python";
 	
-	private static final String CONF_RUNTIME_NAME = "toolbox-runtime-name";
 	private static final String CONF_RUNTIME_COMMAND = "toolbox-runtime-command";
-	private static final String CONF_RUNTIME_COMMAND_PARAMETERS = "toolbox-runtime-command-parameters";
+	private static final String CONF_RUNTIME_PARAMETERS = "toolbox-runtime-parameters";
 	private static final String CONF_RUNTIME_IMAGE = "toolbox-runtime-image";
 	private static final String CONF_RUNTIME_JOB_FACTORY = "toolbox-runtime-job-factory";
-	private static final String CONF_RUNTIME_TOOLS_BIN = "toolbox-runtime-tools-bin";
+	private static final String CONF_RUNTIME_TOOLS_BIN_VOLUME = "toolbox-runtime-tools-bin-volume";
 	private static final String CONF_RUNTIME_TOOLS_BIN_PATH = "toolbox-runtime-tools-bin-path";
 	
-	private static final String CONF_MAPPING_RUNTIME = "toolbox-default-runtime-name";
-	private static final String CONF_MAPPING_MODULE = "toolbox-default-runtime-module";
-	private static final String CONF_MAPPING_FILE_EXTENSION = "toolbox-default-runtime-file-extension";
+	private static final String CONF_DEFAULT_RUNTIME_NAME = "toolbox-default-runtime-name";
+	private static final String CONF_DEFAULT_RUNTIME_MODULE = "toolbox-default-runtime-module";
+	private static final String CONF_DEFAULT_RUNTIME_FILE_EXTENSION = "toolbox-default-runtime-file-extension";
 	private List<Runtime> runtimes;
 	private List<RuntimeMapping> runtimeMappings;
 	
@@ -45,16 +45,28 @@ public class RuntimeRepository {
 		
 		ArrayList<Runtime> runtimes = new ArrayList<>();
 		
-		for (String runtimeKey : config.getConfigEntries(CONF_RUNTIME_NAME + "-").keySet()) {
+		HashSet<String> runtimeNames = new HashSet<>();
+		
+		// collect all runtime names, because admin can create a new runtime by changing any of these
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_COMMAND + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_PARAMETERS + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_JOB_FACTORY + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_VOLUME + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_PATH + "-").keySet());
+		
+		for (String runtimeName : runtimeNames) {
 			Runtime runtime = new Runtime();
 			
-			runtime.setName(config.getString(CONF_RUNTIME_NAME, runtimeKey));
-			runtime.setCommand(config.getString(CONF_RUNTIME_COMMAND, runtimeKey));
-			runtime.setCommandParameters(config.getString(CONF_RUNTIME_COMMAND_PARAMETERS, runtimeKey));
-			runtime.setImage(config.getString(CONF_RUNTIME_IMAGE, runtimeKey));
-			runtime.setJobFactory(config.getString(CONF_RUNTIME_JOB_FACTORY, runtimeKey));
-			runtime.setToolsBin(config.getString(CONF_RUNTIME_TOOLS_BIN, runtimeKey));
-			runtime.setToolsBinPath(config.getString(CONF_RUNTIME_TOOLS_BIN_PATH, runtimeKey));
+			runtime.setName(runtimeName);
+			
+			logger.info("configure runtime " + runtimeName);
+			runtime.setCommand(config.getString(CONF_RUNTIME_COMMAND, runtimeName));
+			runtime.setParameters(config.getString(CONF_RUNTIME_PARAMETERS, runtimeName));
+			runtime.setImage(config.getString(CONF_RUNTIME_IMAGE, runtimeName));
+			runtime.setJobFactory(config.getString(CONF_RUNTIME_JOB_FACTORY, runtimeName));
+			runtime.setToolsBinVolume(config.getString(CONF_RUNTIME_TOOLS_BIN_VOLUME, runtimeName));
+			runtime.setToolsBinPath(config.getString(CONF_RUNTIME_TOOLS_BIN_PATH, runtimeName));
 			
 			runtimes.add(runtime);
 		}
@@ -66,16 +78,16 @@ public class RuntimeRepository {
 		
 		List<RuntimeMapping> mappings = new ArrayList<>();
 	
-		for (String mappingKey : config.getConfigEntries(CONF_MAPPING_RUNTIME + "-").keySet()) {
+		for (String mappingKey : config.getConfigEntries(CONF_DEFAULT_RUNTIME_NAME + "-").keySet()) {
 			RuntimeMapping mapping = new RuntimeMapping();
 			
-			mapping.setRuntime(config.getString(CONF_MAPPING_RUNTIME, mappingKey));
+			mapping.setRuntime(config.getString(CONF_DEFAULT_RUNTIME_NAME, mappingKey));
 			
-			if (config.hasKey(CONF_MAPPING_MODULE + "-" + mappingKey)) {
-				mapping.setModule(config.getString(CONF_MAPPING_MODULE, mappingKey));
+			if (config.hasKey(CONF_DEFAULT_RUNTIME_MODULE + "-" + mappingKey)) {
+				mapping.setModule(config.getString(CONF_DEFAULT_RUNTIME_MODULE, mappingKey));
 			} else {
 				// throws IllegalArgumentExeption, if neither of module or file-extension is set 
-				mapping.setFileExtension(config.getString(CONF_MAPPING_FILE_EXTENSION, mappingKey));
+				mapping.setFileExtension(config.getString(CONF_DEFAULT_RUNTIME_FILE_EXTENSION, mappingKey));
 			}
 			
 			mappings.add(mapping);
@@ -161,7 +173,7 @@ public class RuntimeRepository {
 
 		// parameters from config
 		parameters.put("command", runtime.getCommand());
-		parameters.put("commandParameters", runtime.getCommandParameters());
+		parameters.put("commandParameters", runtime.getParameters());
 
 		// instantiate job factory
 		JobFactory jobFactory;
