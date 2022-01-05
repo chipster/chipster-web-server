@@ -383,6 +383,9 @@ file-broker-storage-null: ""
 # how many percentages of the total space must remain empty after an upload (to allow other parallel uploads)
 file-storage-preserve-space: 1.0
 
+# when checking if there is enough space for a file and backups are enabled, multiply the file size with this number to make sure there is enough space for the backup processing
+file-storage-backup-preserve-space: 3.0
+
 # file-storage storageId. Hostname is used if this is not set. If set incorrectly, orphan removal will delete all files on this file-storage
 file-storage-id: ""
 

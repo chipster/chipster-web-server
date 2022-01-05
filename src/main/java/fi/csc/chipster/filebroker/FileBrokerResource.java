@@ -193,7 +193,7 @@ public class FileBrokerResource {
 				// not synchronized, may fail when storage is lost
 				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
 				
-				logger.info("PUT new file to storage '" + storageId  + "'");
+				logger.info("PUT new file to storage '" + storageId  + "' " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
 				try {					
 					storageClient.checkIfUploadAllowed(queryParams);
 					fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
