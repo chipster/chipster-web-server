@@ -248,7 +248,7 @@ export default class ReplaySession {
     Failing cronjobs create easily lots of sessions. We want to delete all old sessions
     created by this cronjob or test set, but don't want to disturb other test sets that
     might be running at the same time. Most likely the user uses different result directories for
-    different test sets, so it's a good value for grouping these temporaray sessions too.
+    different test sets, so it's a good value for grouping these temporary sessions too.
     */
     logger.info(
       "start replay test " +

@@ -3,6 +3,9 @@ package fi.csc.chipster.scheduler;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
+
 public class SchedulerJob {
 	
 		private Instant newTimestamp;
@@ -10,15 +13,15 @@ public class SchedulerJob {
 		private Instant runningTimestamp;
 		private String userId;
 		private int slots;
-		private String image;
-		private String toolId;
+		private ToolboxTool tool;
+		private Runtime runtime;
 		
-		public SchedulerJob(String userId, int slots, String image, String toolId) {
+		public SchedulerJob(String userId, int slots, ToolboxTool tool, Runtime runtime) {
 			setNewTimestamp();
 			this.userId = userId;
 			this.slots = slots;
-			this.image = image;
-			this.toolId = toolId;
+			this.tool = tool;
+			this.runtime = runtime;
 		}
 		
 		public Instant getNewTimestamp() {
@@ -75,19 +78,19 @@ public class SchedulerJob {
 			return slots;
 		}
 
-		public String getImage() {
-			return image;
+		public ToolboxTool getTool() {
+			return tool;
 		}
 
-		public void setImage(String image) {
-			this.image = image;
+		public void setTool(ToolboxTool tool) {
+			this.tool = tool;
 		}
 
-		public String getToolId() {
-			return toolId;
+		public Runtime getRuntime() {
+			return runtime;
 		}
 
-		public void setToolId(String toolId) {
-			this.toolId = toolId;
+		public void setRuntime(Runtime runtime) {
+			this.runtime = runtime;
 		}
 	}

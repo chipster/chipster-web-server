@@ -1,8 +1,6 @@
 package fi.csc.chipster.comp;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.util.Date;
 import java.util.HashSet;
@@ -27,6 +25,8 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
+import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
 
 /**
  * Executes analysis jobs and handles input&output. 
@@ -55,8 +55,6 @@ public class SingleShotComp
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
 	
-	private static final String KEY_COMP_RUNTIMES_PATH = "comp-runtimes-path";
-	
 	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay-running-slots";
 
 	/**
@@ -73,7 +71,6 @@ public class SingleShotComp
 
 	private File workDir;
 
-	private RuntimeRepository runtimeRepository;
 	private ToolboxClientComp toolboxClient;
 
 	private LegacyRestFileBrokerClient fileBroker;
@@ -98,6 +95,7 @@ public class SingleShotComp
 	private ResourceMonitor resourceMonitor;
 	private int monitoringInterval;
 	private String hostname;
+	private Config config;
 
 	/**
 	 * 
@@ -107,6 +105,8 @@ public class SingleShotComp
 	 * @throws Exception
 	 */
 	public SingleShotComp(String configURL, Config config, String sessionToken, String compToken) throws Exception {
+		
+		this.config = config;
 
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
@@ -120,18 +120,6 @@ public class SingleShotComp
 
 		// initialize executor service
 		this.executorService = Executors.newCachedThreadPool();
-		
-		String runtimesPath = config.getString(KEY_COMP_RUNTIMES_PATH);
-		InputStream runtimesStream = null;
-		
-		if (runtimesPath.isEmpty()) {
-			runtimesStream = this.getClass().getClassLoader().getResourceAsStream("runtimes.xml"); 
-		} else {
-			runtimesStream = new FileInputStream(new File(runtimesPath));
-		}
-
-		// initialize runtime and tools
-		this.runtimeRepository = new RuntimeRepository(this.workDir, runtimesStream, config);
 
 		serviceLocator = new ServiceLocatorClient(config);
 
@@ -309,15 +297,17 @@ public class SingleShotComp
 			return null;
 		}
 
-		// ... and the runtime from runtime repo
-		ToolRuntime runtime = runtimeRepository.getRuntime(toolboxTool.getRuntime());
-		if (runtime == null) {
-			logger.warn(String.format("runtime %s for tool %s not found, ignoring job message",
-					toolboxTool.getRuntime(), dbJob.getToolId()));
+		// get runtime
+		Runtime runtime;
+		try {
+			runtime = toolboxClient.getRuntime(toolboxTool.getRuntime());
+		} catch (RestException e1) {
+			logger.warn("failed to get the runtime " + toolboxTool.getRuntime() + " from toolbox", e1);
 			return null;
 		}
-		if (runtime.isDisabled()) {
-			logger.warn(String.format("runtime %s for tool %s is disabled, ignoring job message",
+
+		if (runtime == null) {
+			logger.warn(String.format("runtime %s for tool %s not found, ignoring job message",
 					toolboxTool.getRuntime(), dbJob.getToolId()));
 			return null;
 		}
@@ -328,7 +318,8 @@ public class SingleShotComp
 		RestJobMessage jobMessage = new RestJobMessage(jobCommand, dbJob);
 
 		try {
-			job = runtime.getJobFactory().createCompJob(jobMessage, toolboxTool, this, jobTimeout);
+			JobFactory jobFactory = RuntimeRepository.getJobFactory(runtime, config, this.workDir, toolId);
+			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout);
 
 		} catch (CompException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);

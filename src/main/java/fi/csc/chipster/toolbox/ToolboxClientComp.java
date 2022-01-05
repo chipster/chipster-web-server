@@ -12,7 +12,9 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -20,16 +22,20 @@ import java.util.zip.ZipInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+
+import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.rest.RestMethods;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.toolbox.resource.RuntimeResource;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
-
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-
-import fi.csc.chipster.rest.RestUtils;
 
 public class ToolboxClientComp {
 
@@ -172,4 +178,21 @@ public class ToolboxClientComp {
 		}
 	}
 
+	public HashMap<String, Runtime> getRuntimes() throws RestException {
+		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path(RuntimeResource.PATH_RUNTIMES);
+		
+		List<Runtime> runtimeList = RestMethods.getList(serviceTarget, Runtime.class);
+		
+		HashMap<String, Runtime> map = new HashMap<>();
+		
+		for (Runtime runtime : runtimeList) {
+			map.put(runtime.getName(), runtime);
+		}
+
+		return map;
+	}
+	
+	public Runtime getRuntime(String runtimeName) throws RestException {
+		return getRuntimes().get(runtimeName);
+	}
 }

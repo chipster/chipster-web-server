@@ -31,6 +31,7 @@ public class SADLDescription {
 	private LinkedList<Parameter> parameters = new LinkedList<Parameter>();
 	private Integer slotCount;
 	private String image;
+	private Integer storage;
 
 	public SADLDescription() {
 		// for Jackson
@@ -474,5 +475,13 @@ public class SADLDescription {
 	
 	public String getImage() {
 		return this.image;
+	}
+
+	public Integer getStorage() {
+		return storage;
+	}
+
+	public void setStorage(Integer storage) {
+		this.storage = storage;
 	}
 }

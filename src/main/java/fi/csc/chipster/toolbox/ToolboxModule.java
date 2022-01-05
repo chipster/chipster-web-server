@@ -26,12 +26,14 @@ import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
+import fi.csc.chipster.toolbox.runtime.ToolLoadException;
+import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
 import fi.csc.chipster.toolbox.sadl.SADLDescription;
-import fi.csc.chipster.toolbox.sadl.SADLGenerator;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Input;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Output;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
+import fi.csc.chipster.toolbox.sadl.SADLGenerator;
 import fi.csc.chipster.toolbox.sadl.SADLParser.ParseException;
 import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
 import fi.csc.chipster.toolbox.toolpartsparser.ToolPartsParser;
@@ -61,6 +63,8 @@ public class ToolboxModule {
 	private String moduleName = null;
 
 	private SADLReplacements sadlReplacements;
+
+	private RuntimeRepository runtimeRepository;
 
 	public static class ToolboxCategory {
 		private String name;
@@ -96,11 +100,12 @@ public class ToolboxModule {
 
 	}
 
-	public ToolboxModule(Path moduleDir, Path moduleFile, File toolsBin)
+	public ToolboxModule(Path moduleDir, Path moduleFile, File toolsBin, RuntimeRepository runtimeRepository)
 			throws ParserConfigurationException, FileNotFoundException, SAXException, IOException {
 		this.moduleFile = moduleFile;
 		this.moduleDir = moduleDir;
 		this.sadlReplacements = new SADLReplacements(toolsBin);
+		this.runtimeRepository = runtimeRepository;
 		load();
 	}
 
@@ -294,16 +299,7 @@ public class ToolboxModule {
 							+ " " + toolIdFromSadl);
 					continue;
 				}
-
-				// get runtime from sadl or use default
-				String runtimeName = sadlDescription.getRuntime();
-				if (runtimeName == null) {
-					runtimeName = Toolbox.getDefaultRuntime(toolId);
-				}
-				if (runtimeName == null) {
-					logger.warn("not loading " + toolId + " could not get runtime name");
-				}
-
+				
 				// Check that filenames are unique. Overwriting input files is a bad idea when
 				// the input file is
 				// only a symlink to the original file
@@ -369,6 +365,17 @@ public class ToolboxModule {
 					logger.warn("not loading " + toolId + ": ", e);
 					continue;
 				}
+				
+				String runtimeName = null;
+				try {
+					// get runtime from sadl or defaults
+					runtimeName = this.runtimeRepository.getRuntime(sadlDescription, moduleName);
+					
+				} catch (ToolLoadException e) {
+					logger.warn("not loading " + toolId + ": " + e.getMessage());
+					continue;
+				}
+
 
 				// Register the tool, override existing
 				ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, generatedSadl, parsedScript.code,
@@ -386,6 +393,7 @@ public class ToolboxModule {
 					hiddenCount++;
 				}
 
+				// list tools that had the runtime defined in SADL
 				if (sadlDescription.getRuntime() != null) {
 					toolsWithCustomRuntime.add(toolboxTool);
 				}

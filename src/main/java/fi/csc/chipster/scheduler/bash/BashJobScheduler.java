@@ -37,6 +37,8 @@ import fi.csc.chipster.scheduler.JobSchedulerCallback;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 
 public class BashJobScheduler implements JobScheduler {
 
@@ -47,6 +49,9 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_SESSION_TOKEN = "SESSION_TOKEN";
 	private static final String ENV_COMP_TOKEN = "COMP_TOKEN";
 	private static final String ENV_POD_NAME = "POD_NAME";
+	private static final String ENV_TOOLS_BIN = "TOOLS_BIN";
+	private static final String ENV_TOOLS_BIN_PATH = "TOOLS_BIN_PATH";
+	private static final String ENV_STORAGE = "STORAGE";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -62,6 +67,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
 	private static final int POD_NAME_MAX_LENGTH = 63;
+
 
 	private ThreadPoolExecutor bashExecutor;
 
@@ -200,7 +206,7 @@ public class BashJobScheduler implements JobScheduler {
 	}
 
 	@Override
-	public void scheduleJob(IdPair idPair, int slots, String image, String toolId) {
+	public void scheduleJob(IdPair idPair, int slots, ToolboxTool tool, Runtime runtime) {
 
 		boolean run = false;
 		boolean isBusy = false;
@@ -219,7 +225,7 @@ public class BashJobScheduler implements JobScheduler {
 
 //					logger.info("job " + idPair + " can run now");
 
-				jobs.addJob(idPair, slots, toolId);
+				jobs.addJob(idPair, slots, tool.getId());
 
 				run = true;
 
@@ -259,17 +265,116 @@ public class BashJobScheduler implements JobScheduler {
 			}
 
 			String compToken = compAuthClient.getToken();
-
-			String longImage = this.imageRepository + image;
+			
+			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken, compToken);
 
 			// use the conf key as a name in logs
-			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, longImage,
-					sessionToken, compToken, this.runScriptStdin, null, toolId);
+			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, this.runScriptStdin, null);
 		}
 
 		if (isBusy) {
 			this.scheduler.busy(idPair);
 		}
+	}
+	
+	/**
+	 * Get minimal env, enough for pod monitoring and deletion
+	 * 
+	 * 
+	 * @param toolId
+	 * @param idPair
+	 * @return
+	 */
+	private HashMap<String, String> getEnv(String toolId, IdPair idPair) {
+		HashMap<String, String> env = new HashMap<>();
+		
+		env.put(ENV_SESSION_ID, idPair.getSessionId().toString());
+		env.put(ENV_JOB_ID, idPair.getJobId().toString());
+
+		String podName = getPodName(idPair, toolId);
+		
+		env.put(ENV_POD_NAME, podName);
+		
+		return env;
+	}
+
+	/**
+	 * Get the full env, needed for the pod launch
+	 * 
+	 * @param tool
+	 * @param runtime
+	 * @param idPair
+	 * @param slots
+	 * @param sessionToken
+	 * @param compToken
+	 * @return
+	 */
+	private HashMap<String, String> getEnv(ToolboxTool tool, Runtime runtime, IdPair idPair, int slots, String sessionToken, String compToken) {
+		
+		HashMap<String, String> env = getEnv(tool.getId(), idPair);
+		
+		if (slots > 0) {
+			env.put(ENV_SLOTS, "" + slots);
+		}
+
+		String image = tool.getSadlDescription().getImage();
+		
+		if (image == null) {
+			image = runtime.getImage();
+		}
+		
+		if (image != null) {
+			env.put(ENV_IMAGE, this.imageRepository + image);
+		}
+		
+		String toolsBin = runtime.getToolsBin();
+		
+		if (toolsBin != null) {
+			env.put(ENV_TOOLS_BIN, toolsBin);
+		}
+		
+		String toolsBinPath = runtime.getToolsBinPath();
+		
+		if (toolsBinPath != null) {
+			env.put(ENV_TOOLS_BIN_PATH, toolsBinPath);
+		}
+		
+		Integer storage = tool.getSadlDescription().getStorage();
+		
+		if (storage != null) {
+			env.put(ENV_STORAGE, "" + storage);
+		}
+
+		if (sessionToken != null) {
+			env.put(ENV_SESSION_TOKEN, sessionToken);
+		}
+
+		if (compToken != null) {
+			env.put(ENV_COMP_TOKEN, compToken);
+		}
+		
+		return env;
+	}
+	
+	public String getPodName(IdPair idPair, String toolId) {
+		String podName = "comp-job-" + idPair.getJobId().toString() + "-" + toolId;
+
+		// max pod name length in Kubernetes
+		if (podName.length() > POD_NAME_MAX_LENGTH) {
+			podName = podName.substring(0, POD_NAME_MAX_LENGTH);
+		}
+		
+		// podname must be in lower case
+		podName = podName.toLowerCase();
+		
+		// replace all special characters (except - and .) with a dash
+		podName = podName.replaceAll("[^a-z0-9.-]", "-");
+		
+		// remove any non-alphanumeric characters from the start and end 
+		podName = podName.replaceAll("^[^a-z0-9]*", "");				
+		podName = podName.replaceAll("[^a-z0-9]*$", "");
+
+		return podName;
 	}
 
 	@Override
@@ -286,9 +391,10 @@ public class BashJobScheduler implements JobScheduler {
 			return;
 		}
 		
+		HashMap<String, String> env = getEnv(job.getToolId(), idPair);
+		
 		// use the conf key as a name in logs
-		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null,
-				null, job.getToolId());
+		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, env, null, null);
 	}
 
 	@Override
@@ -305,9 +411,10 @@ public class BashJobScheduler implements JobScheduler {
 			logger.warn("unable to remove finished job, not found: " + idPair);
 			return;
 		}
+		
+		HashMap<String, String> env = getEnv(job.getToolId(), idPair);
 
-		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null,
-				null, null, job.getToolId());
+		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, env, null, null);
 	}
 
 	@Override
@@ -337,10 +444,11 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 			
+			HashMap<String, String> env = getEnv(job.getToolId(), idPair);
+			
 			// use the conf key as a name in logs
 			// run in executor to limit the number of external processes
-			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null, null,
-					null, job.getToolId());
+			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, env, null, null);
 			
 			// wait for the bash process
 			future.get();
@@ -395,8 +503,7 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 
-	private Future<?> runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image,
-			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
+	private Future<?> runSchedulerBash(String bashCommand, String name, Map<String, String> env, String stdin, StringBuffer stdout) {
 				
 		Instant startInstant = Instant.now();
 		
@@ -412,55 +519,20 @@ public class BashJobScheduler implements JobScheduler {
 				logger.warn("waited " + waitTime + " second(s) for the executor. Is more executor threads needed?");
 			}
 			
-			this.runSchedulerBashWithoutExecutor(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin, stdout, toolId);
+			this.runSchedulerBashWithoutExecutor(bashCommand, name, env, stdin, stdout);
 		});
 	}
 
-	private void runSchedulerBashWithoutExecutor(String bashCommand, String name, IdPair idPair, int slots, String image,
-			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
+	private void runSchedulerBashWithoutExecutor(String bashCommand, String name, Map<String, String> env, String stdin, StringBuffer stdout) {
 
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 
 		String cmdString = String.join(" ", cmd);
 
 		ProcessBuilder pb = new ProcessBuilder(cmd);
-
-		pb.environment().put(ENV_SESSION_ID, idPair.getSessionId().toString());
-		pb.environment().put(ENV_JOB_ID, idPair.getJobId().toString());
-
-		String podName = "comp-job-" + idPair.getJobId().toString() + "-" + toolId;
-
-		// max pod name length in Kubernetes
-		if (podName.length() > POD_NAME_MAX_LENGTH) {
-			podName = podName.substring(0, POD_NAME_MAX_LENGTH);
-		}
 		
-		// podname must be in lower case
-		podName = podName.toLowerCase();
-		
-		// replace all special characters (except - and .) with a dash
-		podName = podName.replaceAll("[^a-z0-9.-]", "-");
-		
-		// remove any non-alphanumeric characters from the start and end 
-		podName = podName.replaceAll("^[^a-z0-9]*", "");				
-		podName = podName.replaceAll("[^a-z0-9]*$", "");
-		
-		pb.environment().put(ENV_POD_NAME, podName);
-
-		if (slots > 0) {
-			pb.environment().put(ENV_SLOTS, "" + slots);
-		}
-
-		if (image != null) {
-			pb.environment().put(ENV_IMAGE, image);
-		}
-
-		if (sessionToken != null) {
-			pb.environment().put(ENV_SESSION_TOKEN, sessionToken);
-		}
-
-		if (compToken != null) {
-			pb.environment().put(ENV_COMP_TOKEN, compToken);
+		for (String variableName : env.keySet()) {
+			pb.environment().put(variableName, env.get(variableName));
 		}
 
 		try {
@@ -538,8 +610,10 @@ public class BashJobScheduler implements JobScheduler {
 		
 		StringBuffer logStdout = new StringBuffer();
 		
+		HashMap<String, String> env = getEnv(job.getToolId(), idPair);
+		
 		// run in executor to limit the amount of external processes
-		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, idPair, -1, null, null, null, null, logStdout, job.getToolId());
+		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, env, null, logStdout);
 		
 		try {
 			future.get();

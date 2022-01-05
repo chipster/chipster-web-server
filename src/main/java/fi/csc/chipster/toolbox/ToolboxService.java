@@ -40,7 +40,9 @@ import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
+import fi.csc.chipster.toolbox.resource.RuntimeResource;
 import fi.csc.chipster.toolbox.resource.ToolResource;
+import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
 
 /**
  * Toolbox rest service.
@@ -70,6 +72,8 @@ public class ToolboxService {
 	private ServiceLocatorClient serviceLocator;
 	private AuthenticationClient authService;
 	private HttpServer adminServer;
+	private RuntimeRepository runtimeRepository;
+	private RuntimeResource runtimeResource;
 
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
@@ -99,6 +103,8 @@ public class ToolboxService {
 			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBin.getPath()
 					+ " doesn't exist");
 		}
+		
+		this.runtimeRepository = new RuntimeRepository(this.config);
 
 		// load toolbox
 		Toolbox newToolbox = loadToolbox();
@@ -119,7 +125,7 @@ public class ToolboxService {
 
 		Toolbox box;
 		if (Files.isDirectory(foundPath)) {
-			box = new Toolbox(foundPath, toolsBin);
+			box = new Toolbox(foundPath, toolsBin, this.runtimeRepository);
 
 			Path tempDir = Files.createTempDirectory(TOOLS_DIR_NAME);
 			Path tempZipFile = tempDir.resolve(TOOLS_ZIP_NAME);
@@ -135,7 +141,7 @@ public class ToolboxService {
 		else {
 			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
 			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
-			box = new Toolbox(toolsPath, toolsBin);
+			box = new Toolbox(toolsPath, toolsBin, runtimeRepository);
 
 			byte[] zipContents = Files.readAllBytes(foundPath);
 			box.setZipContents(zipContents);
@@ -200,6 +206,7 @@ public class ToolboxService {
 	private void startServer(boolean enableStatsAndAdminServer) throws IOException, URISyntaxException {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
+		this.runtimeResource = new RuntimeResource(toolbox);
 
 		JerseyStatisticsSource jerseyStatisticsSource = null;
 
@@ -213,8 +220,10 @@ public class ToolboxService {
 			this.serviceLocator.setCredentials(authService.getCredentials());
 		}
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(this.toolResource)
-				.register(moduleResource);
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
+				.register(this.toolResource)
+				.register(moduleResource)
+				.register(runtimeResource);
 		// .register(new LoggingFilter())
 
 		// don't start these in the old Chipster

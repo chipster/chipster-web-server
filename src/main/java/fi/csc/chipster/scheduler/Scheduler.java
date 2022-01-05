@@ -35,16 +35,16 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 import jakarta.servlet.ServletException;
 import jakarta.websocket.DeploymentException;
 
 public class Scheduler implements SessionEventListener, StatusSource, JobSchedulerCallback {
 
+
 	private Logger logger = LogManager.getLogger();
 	
-	private static final String CONF_IMAGE_DEFAULT = "scheduler-image-default";
-	private static final String CONF_IMAGE_DEFAULT_PYTHON = "scheduler-image-default-python";
-	private static final String CONF_IMAGE_DEFAULT_R = "scheduler-image-default-R";
+	private static final String CONF_SCHEDULER_BASH_ENABLED = "scheduler-bash-enabled";
 	private static final String CONF_GET_JOBS_FROM_DB = "scheduler-get-jobs-from-db";
 
 	@SuppressWarnings("unused")
@@ -72,13 +72,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private long waitTimeout;
 
-	private String imageDefault;
-
-	private String imageDefaultPython;
-
-	private String imageDefaultR;
-
 	private boolean getJobsFromDb;
+
+	private boolean bashJobSchedulerEnabled;
 
 
 	public Scheduler(Config config) {
@@ -98,10 +94,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				.getInt(Config.KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
 		this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
 		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
-		this.imageDefault = config.getString(CONF_IMAGE_DEFAULT);
-		this.imageDefaultPython = config.getString(CONF_IMAGE_DEFAULT_PYTHON);
-		this.imageDefaultR = config.getString(CONF_IMAGE_DEFAULT_R);
 		this.getJobsFromDb = config.getBoolean(CONF_GET_JOBS_FROM_DB);
+		this.bashJobSchedulerEnabled = config.getBoolean(CONF_SCHEDULER_BASH_ENABLED);
 		
 		logger.info("runnable jobs can wait " + waitRunnableTimeout + " seconds in queue");
 		logger.info("check jobs every " + jobTimerInterval/1000 + " second(s)");
@@ -109,7 +103,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		logger.info("max scheduled and running slots: " + maxScheduledAndRunningSlotsPerUser);
 		logger.info("max slots in queue per user: " + maxNewSlotsPerUser);
 		logger.info("job can be rescheduled after: " + waitTimeout + " seconds");
-		logger.info("default image: " + imageDefault);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
@@ -162,18 +155,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	}
 	
 	private JobScheduler getJobScheduler(SchedulerJob job) {
-		return this.getJobScheduler(job, job.getImage());
-	}
-	
-	private JobScheduler getJobScheduler(SchedulerJob job, String image) {
-		
-		if (image == null) {
-			return offerJobScheduler;			
-		} else {
+		if (this.bashJobSchedulerEnabled) {
 			return bashJobScheduler;
+		} else {
+			return offerJobScheduler;
 		}
 	}
-
+	
 	/**
 	 * Get unfinished jobs from the session-db
 	 * 
@@ -199,12 +187,21 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 							this.expire(idPair, "tool not found", null);
 							continue;
 						}
+						
+						Runtime runtime = this.toolbox.getRuntime(tool.getRuntime());
+						
+						if (runtime == null) {
+							logger.warn("cannot schedule job " + idPair + ", runtime not found: " + tool.getRuntime());
+							this.expire(idPair, "runtime not found", null);
+							continue;
+						}
+
 						SchedulerJob schedulerJob = jobs.addNewJob(
 								new IdPair(idPair.getSessionId(), idPair.getJobId()), 
 								job.getCreatedBy(),
 								getSlots(job, tool), 
-								getImage(job, tool),
-								tool.getId());
+								tool,
+								runtime);
 						schedule(idPair, schedulerJob);
 					} catch (RestException | IOException e) {
 						logger.error("could not add a new job " + asShort(idPair.getJobId()), e);
@@ -226,9 +223,17 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 							continue;
 						}
 						
+						Runtime runtime = this.toolbox.getRuntime(tool.getRuntime());
+						
+						if (runtime == null) {
+							logger.warn("cannot schedule job " + idPair + ", runtime not found: " + tool.getRuntime());
+							this.expire(idPair, "runtime not found", null);
+							continue;
+						}
+						
 						int slots = getSlots(job, tool);
 						SchedulerJob schedulerJob = jobs.addRunningJob(new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								slots, getImage(job, tool), tool.getId());
+								slots, tool, runtime);
 						this.getJobScheduler(schedulerJob).addRunningJob(idPair, slots, tool.getId());
 					} catch (RestException | IOException e) {
 						logger.error("could add a running job " + asShort(idPair.getJobId()), e);
@@ -252,66 +257,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		}
 		return slots;
 	}
-	
-	private boolean isRTool(ToolboxTool tool) {
-		return tool.getRuntime().equals("R") || tool.getRuntime().startsWith("R-");
-	}
-	
-	private boolean isPythonTool(ToolboxTool tool) {
-		return tool.getRuntime().startsWith("python");
-	}
-	
-	private String getImageDefaultR() {
-		if (this.imageDefaultR != null && !this.imageDefaultR.isEmpty()) {
-			return this.imageDefaultR;
-		}
-		return null;
-	}
-	
-	private String getImageDefaultPython() {
-		if (this.imageDefaultPython != null && !this.imageDefaultPython.isEmpty()) {
-			return this.imageDefaultPython;
-		}
-		return null;
-	}
-	
-	private String getImageDefault() {
-		if (this.imageDefault != null && !this.imageDefault.isEmpty()) {
-			return this.imageDefault;
-		}
-		return null;
-	}
-	
-	private String getImage(Job job, ToolboxTool tool) {
-
-		String image = null;
-		if (tool != null) {			
-		
-			image = tool.getSadlDescription().getImage();
-		
-			if (image == null) {
-				logger.info("tool " + job.getToolId() + " image is null");
-	
-				if (this.isRTool(tool)) {
-					image = this.getImageDefaultR();
-				}
-				
-				if (this.isPythonTool(tool)) {
-					image = this.getImageDefaultPython();
-				}
-			}
-		} else {
-			logger.warn("tried to get the container image of tool " + job.getToolId()
-			+ " from toolbox but the tool was not found");
-		}
-		
-		if (image == null) {
-			image = this.getImageDefault();
-		}
-			
-		return image;
-	}
-
 
 	/**
 	 * Main method.
@@ -371,6 +316,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		// get the job and tool before taking the lock
 		Job job = null;
 		ToolboxTool tool = null;
+		Runtime runtime = null;
 		
 		if (EventType.CREATE == e.getType() || EventType.UPDATE == e.getType()) {
 			try {
@@ -386,7 +332,20 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			try {
 				tool = this.toolbox.getTool(job.getToolId());
 			} catch (IOException e1) {
-				logger.error("cannot schedule new job " + jobIdPair + ": failed to get the tool from toolbox", e);
+				logger.error("cannot schedule new job " + jobIdPair + ": failed to get the tool from toolbox", e1);
+				return;
+			}
+			
+			try {
+				runtime = this.toolbox.getRuntime(tool.getRuntime());
+				
+			} catch (RestException e1) {
+				logger.error("cannot schedule new job " + jobIdPair + ": failed to get the runtime from toolbox", e);
+				return;
+			}
+			
+			if (runtime == null) {
+				logger.error("cannot schedule new job " + jobIdPair + ", runtime not found: " + tool.getRuntime());
 				return;
 			}
 		}
@@ -400,7 +359,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 					// when a client adds a new job, try to schedule it immediately
 					logger.info("received a new job " + jobIdPair + ", trying to schedule it");
-					SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job, tool), getImage(job, tool), tool.getId());
+					SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job, tool), tool, runtime);
 					schedule(jobIdPair, jobState);
 
 					break;
@@ -603,9 +562,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			jobState.setScheduleTimestamp();
 		}
 		
-		JobScheduler jobScheduler = this.getJobScheduler(jobState, jobState.getImage());
-		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName() + ", image: " + jobState.getImage());
-		jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getImage(), jobState.getToolId());
+		JobScheduler jobScheduler = this.getJobScheduler(jobState);
+		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName());
+		jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getTool(), jobState.getRuntime());
 	}
 
 	

@@ -13,6 +13,8 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.toolbox.runtime.Runtime;
+import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
 import fi.csc.chipster.toolbox.toolpartsparser.HeaderAsCommentParser;
 import fi.csc.chipster.toolbox.toolpartsparser.JavaParser;
 import fi.csc.chipster.toolbox.toolpartsparser.ToolPartsParser;
@@ -24,17 +26,22 @@ public class Toolbox {
 	private List<ToolboxModule> modules = new LinkedList<ToolboxModule>();
 	private byte[] zipContents;
 
+	private List<Runtime> runtimes;	
+
 	/**
 	 * Loads tools.
 	 * 
 	 * @param modulesDir
 	 * @param toolsBin
+	 * @param runtimeRepository 
+	 * @param config 
 	 * @throws IOException
 	 */
-	public Toolbox(final Path modulesDir, File toolsBin) throws IOException {
-
+	public Toolbox(final Path modulesDir, File toolsBin, RuntimeRepository runtimeRepository) throws IOException {
+		
 		// load tools
-		this.modules.addAll(loadModuleDescriptions(modulesDir, toolsBin));
+		this.modules.addAll(loadModuleDescriptions(modulesDir, toolsBin, runtimeRepository));
+		this.runtimes = runtimeRepository.getRuntimes();
 	}
 
 	public ToolboxTool getTool(String id) {
@@ -90,12 +97,13 @@ public class Toolbox {
 
 	/**
 	 * Load all the tool modules in this toolbox. Put them to the modules list.
+	 * @param runtimeRepository 
 	 * 
 	 * @param toolsBin2
 	 * 
 	 * @throws IOException
 	 */
-	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, File toolsBin) throws IOException {
+	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, File toolsBin, RuntimeRepository runtimeRepository) throws IOException {
 
 		// Iterate over all module directories, and over all module files inside
 		// them
@@ -121,7 +129,7 @@ public class Toolbox {
 							ToolboxModule module;
 							String summary;
 							try {
-								module = new ToolboxModule(moduleDir, moduleFile, toolsBin);
+								module = new ToolboxModule(moduleDir, moduleFile, toolsBin, runtimeRepository);
 								summary = module.getSummary();
 							} catch (Exception e) {
 								logger.warn("loading " + moduleFile + " failed", e);
@@ -186,34 +194,21 @@ public class Toolbox {
 			return null;
 		}
 
-		String defaultRuntime = getDefaultRuntime(toolId);
-		if (defaultRuntime == null) {
-			return null;
-		}
-
-		if (defaultRuntime.startsWith("python")) {
-			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(defaultRuntime));
-		} else if (defaultRuntime.startsWith("java")) {
+		if (toolId.endsWith(".py")) {
+			return new HeaderAsCommentParser("#", RuntimeRepository.TOOL_DIR_PYTHON);
+			
+		} else if (toolId.endsWith(".java")) {
 			return new JavaParser();
 
 			// add non-R stuff starting with R before this
-		} else if (defaultRuntime.startsWith("R")) {
-			return new HeaderAsCommentParser("#", RuntimeUtils.getToolDirFromRuntimeName(defaultRuntime));
+		} else if (toolId.endsWith(".R")) {
+			return new HeaderAsCommentParser("#", RuntimeRepository.TOOL_DIR_R);
 		} else {
 			return null;
 		}
 	}
 
-	static String getDefaultRuntime(String toolId) {
-		if (toolId == null || toolId.isEmpty()) {
-			return null;
-		} else if (toolId.endsWith(".R")) {
-			return "R";
-		} else if (toolId.endsWith(".py")) {
-			return "python";
-		} else if (toolId.endsWith(".java")) {
-			return "java";
-		}
-		return null;
+	public List<Runtime> getRuntimes() {
+		return this.runtimes;
 	}
 }

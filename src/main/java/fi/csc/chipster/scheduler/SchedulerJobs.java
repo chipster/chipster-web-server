@@ -5,6 +5,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
+
 public class SchedulerJobs {
 	
 	HashMap<IdPair, SchedulerJob> jobs = new HashMap<>();
@@ -59,14 +62,14 @@ public class SchedulerJobs {
 		return jobs.remove(jobId);	
 	}
 
-	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, String image, String toolId) {
-		SchedulerJob jobState = new SchedulerJob(userId, slots, image, toolId);
+	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, ToolboxTool tool, Runtime runtime) {
+		SchedulerJob jobState = new SchedulerJob(userId, slots, tool, runtime);
 		jobs.put(idPair, jobState);
 		return jobState;
 	}
 	
-	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, String image, String toolId) {
-		SchedulerJob job = new SchedulerJob(userId, slots, image, toolId);
+	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, ToolboxTool tool, Runtime runtime) {
+		SchedulerJob job = new SchedulerJob(userId, slots, tool, runtime);
 		job.setRunningTimestamp();
 		jobs.put(idPair, job);
 		return job;

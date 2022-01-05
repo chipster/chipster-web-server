@@ -22,4 +22,8 @@ public class CompException extends Exception {
 	public CompException() {
 		super();
 	}
+
+	public CompException(String message, Exception cause) {
+		super(message, cause);
+	}
 }

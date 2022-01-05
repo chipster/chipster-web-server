@@ -246,8 +246,6 @@ comp-job-timeout: 604800 # a week
 comp-job-threads-max: 4
 # max memory that single job should use, megabytes
 comp-job-memory-max: 8192
-# path to a custom runtimes.xml file. src/main/resources/runtimes.xml is used when this is not set.
-comp-runtimes-path: ""
 comp-chipster-root-dir: "../"
 
 # scheduler
@@ -266,10 +264,6 @@ scheduler-max-scheduled-and-running-slots-per-user: 10
 scheduler-max-new-slots-per-user: 1000
 # get running jobs from the database in startup
 scheduler-get-jobs-from-db: true
-# what container image to use (in BashJobScheduler) for tools that doesn't specify it in SADL. OfferJobScheduler will be used when the image is not set
-scheduler-image-default: "comp-16.04"
-scheduler-image-default-R: ""
-scheduler-image-default-python: ""
 # image repository, prefix for all image names
 scheduler-bash-image-repository: ""
 # number of threads for BashJobScheduler
@@ -278,6 +272,8 @@ scheduler-bash-threads: 4
 scheduler-bash-max-slots: 5
 # max valid time of the session tokens for the SingleShotComp, days
 scheduler-bash-token-valid-time: 14
+# enable BashJobScheduler
+scheduler-bash-enabled: true
 
 # load default bash-job-scheduler scripts from the jar package. Change to "bash-job-scheduler/k3s" if running in K3s
 scheduler-bash-script-dir-in-jar: "bash-job-scheduler/process"
@@ -324,6 +320,94 @@ web-server-web-root-path: web-root
 # toolbox
 
 toolbox-tools-bin-path: /opt/chipster/tools
+
+# default values for runtimes
+toolbox-runtime-job-factory: fi.csc.chipster.comp.r.RJobFactory
+toolbox-runtime-command-parameters: "--vanilla --quiet"
+toolbox-runtime-image: comp-16.04
+toolbox-runtime-tools-bin: tools-bin-chipster-3.5.1
+toolbox-runtime-tools-bin-path: /opt/chipster/tools
+
+# add other runtimes by inventing a name for each runtime configuration and appending 
+# a dash and the name to each config (e.g. "-R-4.1.1") 
+toolbox-runtime-name-R-4.1.1: R-4.1.1
+toolbox-runtime-command-R-4.1.1: /opt/chipster/tools/R-4.1.1/bin/R
+toolbox-runtime-image-R-4.1.1: comp-20.04-r-deps
+
+toolbox-runtime-name-R-4.1.1-statistics: R-4.1.1-statistics
+toolbox-runtime-command-R-4.1.1-statistics: /opt/chipster/tools/R-4.1.1-statistics/bin/R
+toolbox-runtime-image-R-4.1.1-statistics: comp-20.04-r-deps
+
+toolbox-runtime-name-R-4.1.0-single-cell: R-4.1.0-single-cell
+toolbox-runtime-command-R-4.1.0-single-cell: /opt/chipster/tools/R-4.1.0-single-cell/bin/R
+toolbox-runtime-image-R-4.1.0-single-cell: comp-20.04-r-deps
+
+toolbox-runtime-name-R-3.6.1-single-cell: R-3.6.1-single-cell
+toolbox-runtime-command-R-3.6.1-single-cell: /opt/chipster/tools/R-3.6.1-single-cell/bin/R
+
+toolbox-runtime-name-R-3.6.1-phyloseq: R-3.6.1-phyloseq
+toolbox-runtime-command-R-3.6.1-phyloseq: /opt/chipster/tools/R-3.6.1-phyloseq/bin/R
+
+toolbox-runtime-name-R-3.4.3: R-3.4.3
+toolbox-runtime-command-R-3.4.3: /opt/chipster/tools/R-3.4.3/bin/R
+
+toolbox-runtime-name-R-3.3.2: R-3.3.2
+toolbox-runtime-command-R-3.3.2: /opt/chipster/tools/R-3.3.2/bin/R
+
+toolbox-runtime-name-R: R
+toolbox-runtime-command-R: /opt/chipster/tools/R-3.2.3/bin/R
+
+toolbox-runtime-name-java: java
+toolbox-runtime-job-factory-java: fi.csc.chipster.comp.java.JavaJobFactory
+toolbox-runtime-command-java: ""
+toolbox-runtime-command-parameters-java: ""
+toolbox-runtime-image-java: comp-16.04
+
+toolbox-runtime-name-python: python
+toolbox-runtime-job-factory-python: fi.csc.chipster.comp.python.PythonJobFactory
+toolbox-runtime-command-python: python
+toolbox-runtime-command-parameters-python: "-u"
+toolbox-runtime-image-python: comp-16.04
+
+toolbox-runtime-name-python3: python3
+toolbox-runtime-job-factory-python3: fi.csc.chipster.comp.python.PythonJobFactory
+toolbox-runtime-command-python3: python3
+toolbox-runtime-command-parameters-python3: ""
+toolbox-runtime-image-python3: comp-16.04
+
+# toolbox-runtime-name-R-mylly: R-mylly
+# toolbox-runtime-command-R-mylly: /opt/chipster/tools/R-3.2.3/bin/R
+# toolbox-runtime-image-R-mylly: comp-16.04-mylly
+# toolbox-runtime-tools-bin-R-mylly: tools-bin-mylly
+# toolbox-runtime-tools-bin-path-R-mylly: /appl
+
+# toolbox-runtime-name-python3-mylly: python3-mylly
+# toolbox-runtime-job-factory-python3-mylly: fi.csc.chipster.comp.python.PythonJobFactory
+# toolbox-runtime-command-python3-mylly: python3
+# toolbox-runtime-command-parameters-python3-mylly: ""
+# toolbox-runtime-image-python3-mylly: comp-16.04-mylly
+# toolbox-runtime-tools-bin-python3-mylly: tools-bin-mylly
+# toolbox-runtime-tools-bin-path-python3-mylly: /appl
+
+# set default runtimes for different file types
+toolbox-default-runtime-name-r: R
+toolbox-default-runtime-file-extension-r: .R
+
+toolbox-default-runtime-name-java: java
+toolbox-default-runtime-file-extension-java: .java
+
+toolbox-default-runtime-name-python: python
+toolbox-default-runtime-file-extension-python: .py
+
+# set custom runtimes for file types in a specific module
+# toolbox-default-runtime-module-mylly-r: Kielipankki
+# toolbox-default-runtime-name-mylly-r: R
+# toolbox-default-runtime-file-extension-mylly-r: .R
+
+# toolbox-default-runtime-module-mylly-python: Kielipankki
+# toolbox-default-runtime-name-mylly-python: python3-mylly
+# toolbox-default-runtime-file-extension-mylly-python: .py
+
 
 # file-broker
 

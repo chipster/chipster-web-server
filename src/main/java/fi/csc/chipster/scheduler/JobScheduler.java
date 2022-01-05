@@ -2,9 +2,12 @@ package fi.csc.chipster.scheduler;
 
 import java.time.Instant;
 
+import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
+
 public interface JobScheduler {
 	
-	public void scheduleJob(IdPair idPair, int slots, String image, String toolId);
+	public void scheduleJob(IdPair idPair, int slots, ToolboxTool toolboxTool, Runtime toolboxRuntime);
 	
 	public void cancelJob(IdPair idPair);
 

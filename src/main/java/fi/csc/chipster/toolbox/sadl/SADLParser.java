@@ -145,6 +145,13 @@ public class SADLParser {
 			int slotCount = parseInt(tokens);
 			description.setSlotCount(slotCount);
 		}
+		
+		// read possible storage requirements
+		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_STORAGE)) {
+			skip(tokens, SADLSyntax.KEYWORD_STORAGE);
+			int storage = parseInt(tokens);
+			description.setStorage(storage);
+		}
 
 		// check that no trailing content was left behind
 		if (tokens.hasNext() && !nextTokenIs(tokens, SADLSyntax.KEYWORD_TOOL)) {

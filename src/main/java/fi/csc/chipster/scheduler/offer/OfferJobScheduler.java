@@ -22,6 +22,8 @@ import fi.csc.chipster.scheduler.JobScheduler;
 import fi.csc.chipster.scheduler.JobSchedulerCallback;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.scheduler.offer.JobCommand.Command;
+import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 import jakarta.servlet.ServletException;
 import jakarta.websocket.MessageHandler;
 
@@ -74,7 +76,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 	
 	@Override
-	public void scheduleJob(IdPair idPair, int slots, String image, String toolId) {
+	public void scheduleJob(IdPair idPair, int slots, ToolboxTool tool, Runtime runtime) {
 		
 		synchronized (jobs) {
 			
