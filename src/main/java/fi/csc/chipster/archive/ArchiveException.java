@@ -6,4 +6,8 @@ public class ArchiveException extends Exception {
 		super(message);
 	}
 
+	public ArchiveException(String message, Exception cause) {
+		super(message, cause);
+	}
+
 }

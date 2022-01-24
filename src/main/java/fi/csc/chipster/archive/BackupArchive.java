@@ -71,6 +71,8 @@ public class BackupArchive {
 		
 		//TODO make prefix configurable
 		for (String backupPrefix : findStorageBackups("file-storage", "_", Role.FILE_STORAGE)) {
+			
+			
 			archiveAndCleanUp(Role.FILE_STORAGE, BackupType.INCREMENTAL, backupPrefix);		
 		}
 	}
@@ -134,7 +136,7 @@ public class BackupArchive {
 			
 			cleanUpS3(transferManager, backupPrefix, role, bucket);
 		} catch (ArchiveException e) {
-			// hopefully this is enough if the archiving takes longer than 24 hours to protect aagins multiple processes moving the files
+			// hopefully this is enough if the archiving takes longer than 24 hours to protect against multiple processes moving the files
 			// at the same time
 			logger.error("archive error, skip all " + backupPrefix, e);
 		} finally {

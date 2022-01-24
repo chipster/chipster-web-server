@@ -27,9 +27,12 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
+import fi.csc.chipster.archive.ArchiveException;
 import fi.csc.chipster.archive.BackupArchive;
 import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.archive.InfoLine;
@@ -176,7 +179,7 @@ public class StorageBackup implements StatusSource {
     			backupInterval * 60 * 60 * 1000, TimeUnit.MILLISECONDS);
 	}
 	
-	public void backup() throws IOException, InterruptedException {						
+	public void backup() throws IOException, InterruptedException, AmazonServiceException, AmazonClientException, ArchiveException {						
 		
 		stats.clear();
 		long startTime = System.currentTimeMillis();		
@@ -352,8 +355,8 @@ public class StorageBackup implements StatusSource {
 				filesToBackup.put(filePath, currentFileInfo);
 				
 			} else if (!BackupUtils.getPackageGpgPath(filePath).equals(archiveFileInfo.getGpgPath())) {
-					logger.warn("package paths have changed");
-					filesToBackup.put(filePath, currentFileInfo);
+				logger.warn("package paths have changed");
+				filesToBackup.put(filePath, currentFileInfo);
 					
 			} else if (currentFileInfo.getSize() != archiveFileInfo.getSize()) {
 				logger.warn("file " + filePath + " size has changed: " + archiveFileInfo.getSize() + ", " + currentFileInfo.getSize());
@@ -363,7 +366,7 @@ public class StorageBackup implements StatusSource {
 				
 			} else {
 				// file was found from the archive and the path and size are fine
-				// we could also ocheck the checksum, but it would take a lot of time
+				// we could also check the checksum, but it would take a lot of time
 				
 				// archiver needs to now that it's still needed and where to find it (archiveName)			
 				Files.write(backupInfoPath, Collections.singleton(archiveFileInfo.toLine()), Charset.defaultCharset(), 
