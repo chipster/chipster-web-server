@@ -103,15 +103,17 @@ public class StorageBackup implements StatusSource {
 	}
 	
 	private void initExecutor() {
-		executor = Executors.newScheduledThreadPool(1);
+		if (executor == null || executor.isShutdown()) {
+			
+			logger.info("create new executor");
+			executor = Executors.newScheduledThreadPool(1);
+		}
 	}
 	
 	public void backupNow() {
 		
 		// disabling scheduled backups shuts down the executor
-		if (this.executor.isShutdown()) {
-			this.initExecutor();
-		}
+		this.initExecutor();
 		
     	this.manualBackup = this.executor.submit(new Runnable() {
 			@Override
@@ -174,9 +176,19 @@ public class StorageBackup implements StatusSource {
     
     	this.initExecutor();
     	
-    	this.scheduledBackup = this.executor.scheduleAtFixedRate(
-    			timerTask, nextBackupTime.getTimeInMillis() - Calendar.getInstance().getTimeInMillis(), 
-    			backupInterval * 60 * 60 * 1000, TimeUnit.MILLISECONDS);
+    	/* Make sure we don't schedule multiple backups
+    	 * 
+    	 * Client disables the button too, but it can have stale state.
+    	 */
+    	if (this.scheduledBackup == null || this.scheduledBackup.isCancelled()) {
+    		
+	    	this.scheduledBackup = this.executor.scheduleAtFixedRate(
+	    			timerTask, nextBackupTime.getTimeInMillis() - Calendar.getInstance().getTimeInMillis(), 
+	    			backupInterval * 60 * 60 * 1000, TimeUnit.MILLISECONDS);
+    	} else {
+    		
+    		logger.warn("cannot enable scheduled backups, because those are enabled already");
+    	}
 	}
 	
 	public void backup() throws IOException, InterruptedException, AmazonServiceException, AmazonClientException, ArchiveException {						
