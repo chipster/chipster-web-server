@@ -54,18 +54,23 @@ public class BackupUtils {
 	public static final String CONF_BACKUP_GPG_PUBLIC_KEY = "backup-gpg-public-key";
 	public static final String CONF_BACKUP_GPG_PROGRAM = "backup-gpg-program";
 
-	public static Map<Path, InfoLine> infoFileToMap(TransferManager transferManager, String bucket, String key, Path tempDir) throws AmazonServiceException, AmazonClientException, InterruptedException, IOException {
+	public static Map<Path, InfoLine> infoFileToMap(TransferManager transferManager, String bucket, String key, Path tempDir) throws AmazonServiceException, AmazonClientException, InterruptedException, IOException, ArchiveException {
 						
 		Path infoPath = tempDir.resolve(key);
 		Download download = transferManager.download(bucket, key, infoPath.toFile());
 		download.waitForCompletion();
 					
-		Map<Path, InfoLine> map = (HashMap<Path, InfoLine>) Files.lines(infoPath)
-				.map(line -> InfoLine.parseLine(line))
-				.collect(Collectors.toMap(info -> info.getPath(), info -> info));
-		Files.delete(infoPath);
-		
-		return map;
+		try {
+			Map<Path, InfoLine> map = (HashMap<Path, InfoLine>) Files.lines(infoPath)
+					.map(line -> InfoLine.parseLine(line))
+					.collect(Collectors.toMap(info -> info.getPath(), info -> info));
+			Files.delete(infoPath);
+			
+			return map;
+			
+		} catch (IllegalStateException e) {
+			throw new ArchiveException("failed to parse " + bucket + "/" + key, e);
+		}
 	}
 	
 	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir, TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient, String gpgPassphrase, Config config) throws IOException, InterruptedException {
