@@ -333,7 +333,14 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
 		
 		if (logRest) {
-			logger.info("PUT " + request.getRequestURI() + " totalSize: " + FileUtils.byteCountToDisplaySize(totalSize) + ", chunkNumber: " + chunkNumber);
+			
+			String displaySize = "-";
+			
+			if (totalSize != null) {
+				displaySize = FileUtils.byteCountToDisplaySize(totalSize);
+			}
+			
+			logger.info("PUT " + request.getRequestURI() + " totalSize: " + displaySize + ", chunkNumber: " + chunkNumber);
 		}
 
 		allowOnlyFileBroker(request);
