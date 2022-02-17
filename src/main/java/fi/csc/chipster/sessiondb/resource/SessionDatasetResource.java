@@ -82,10 +82,10 @@ public class SessionDatasetResource {
 			@Context SecurityContext sc) {
 
 		// checks authorization
-		/* Client can't require write permissions if it wants to make sure a modification is allowed later.
+		/* Client can require write permissions if it wants to make sure a modification is allowed later.
 		 * This assumes that there are no Rules that would allow only write but not read access. 
 		 */
-		sessionResource.getRuleTable().checkAuthorizationForDatasetRead(sc, sessionId, datasetId);
+		sessionResource.getRuleTable().checkAuthorizationForDataset(sc, sessionId, datasetId, requireReadWrite);
 
 		Dataset result = getDataset(sessionId, datasetId, getHibernate().session());
 

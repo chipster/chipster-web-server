@@ -247,7 +247,7 @@ public class SessionDbTokenTest {
 	@Test
     public void datasetTokenUpload() throws RestException, IOException, InterruptedException {
 		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
-		String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
+		String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId, 60);
 		try {
 			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
 					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);

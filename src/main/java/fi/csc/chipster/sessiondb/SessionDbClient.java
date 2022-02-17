@@ -256,7 +256,7 @@ public class SessionDbClient {
 	public Dataset getDataset(UUID sessionId, UUID datasetId, boolean requireReadWrite) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
 		if (requireReadWrite) {
-			target.queryParam(SessionDatasetResource.QUERY_PARAM_READ_WRITE, requireReadWrite);
+			target = target.queryParam(SessionDatasetResource.QUERY_PARAM_READ_WRITE, requireReadWrite);
 		}
 		return RestMethods.get(target, Dataset.class);		
 	}
