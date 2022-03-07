@@ -27,8 +27,6 @@ import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
 import com.nimbusds.jose.util.IOUtils;
 
-import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.scheduler.IdPair;
@@ -45,7 +43,6 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_SLOTS = "SLOTS";
 	private static final String ENV_IMAGE = "IMAGE";
 	private static final String ENV_SESSION_TOKEN = "SESSION_TOKEN";
-	private static final String ENV_COMP_TOKEN = "COMP_TOKEN";
 	private static final String ENV_POD_NAME = "POD_NAME";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
@@ -80,7 +77,7 @@ public class BashJobScheduler implements JobScheduler {
 	private String finishedScript;
 	private SessionDbClient sessionDbClient;
 	private long tokenValidTime;
-	private AuthenticationClient compAuthClient;
+
 	private String scriptDirInJar;
 	private String imageRepository;
 	private String runScriptStdin;
@@ -92,13 +89,6 @@ public class BashJobScheduler implements JobScheduler {
 		this.config = config;
 		this.scheduler = scheduler;
 		this.sessionDbClient = sessionDbClient;
-
-		// there is a 0.5 second delay in the password authentication. Keep a fresh copy
-		// of the SingleShotComp token to avoid that delay in job startup
-		String compUsername = Role.SINGLE_SHOT_COMP;
-		String compPassword = config.getPassword(compUsername);
-
-		compAuthClient = new AuthenticationClient(serviceLocator, compUsername, compPassword, Role.SINGLE_SHOT_COMP);
 
 		ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d")
 				.build();
@@ -258,13 +248,11 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 
-			String compToken = compAuthClient.getToken();
-
 			String longImage = this.imageRepository + image;
 
 			// use the conf key as a name in logs
 			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, idPair, slots, longImage,
-					sessionToken, compToken, this.runScriptStdin, null, toolId);
+					sessionToken, this.runScriptStdin, null, toolId);
 		}
 
 		if (isBusy) {
@@ -287,8 +275,7 @@ public class BashJobScheduler implements JobScheduler {
 		}
 		
 		// use the conf key as a name in logs
-		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null,
-				null, job.getToolId());
+		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, idPair, -1, null, null, null, null, job.getToolId());
 	}
 
 	@Override
@@ -307,7 +294,7 @@ public class BashJobScheduler implements JobScheduler {
 		}
 
 		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, idPair, -1, null, null, null,
-				null, null, job.getToolId());
+				null, job.getToolId());
 	}
 
 	@Override
@@ -340,7 +327,7 @@ public class BashJobScheduler implements JobScheduler {
 			// use the conf key as a name in logs
 			// run in executor to limit the number of external processes
 			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, idPair, -1, null, null, null, null,
-					null, job.getToolId());
+					job.getToolId());
 			
 			// wait for the bash process
 			future.get();
@@ -396,7 +383,7 @@ public class BashJobScheduler implements JobScheduler {
 	}
 
 	private Future<?> runSchedulerBash(String bashCommand, String name, IdPair idPair, int slots, String image,
-			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
+			String sessionToken, String stdin, StringBuffer stdout, String toolId) {
 				
 		Instant startInstant = Instant.now();
 		
@@ -412,12 +399,12 @@ public class BashJobScheduler implements JobScheduler {
 				logger.warn("waited " + waitTime + " second(s) for the executor. Is more executor threads needed?");
 			}
 			
-			this.runSchedulerBashWithoutExecutor(bashCommand, name, idPair, slots, image, sessionToken, compToken, stdin, stdout, toolId);
+			this.runSchedulerBashWithoutExecutor(bashCommand, name, idPair, slots, image, sessionToken, stdin, stdout, toolId);
 		});
 	}
 
 	private void runSchedulerBashWithoutExecutor(String bashCommand, String name, IdPair idPair, int slots, String image,
-			String sessionToken, String compToken, String stdin, StringBuffer stdout, String toolId) {
+			String sessionToken, String stdin, StringBuffer stdout, String toolId) {
 
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 
@@ -457,10 +444,6 @@ public class BashJobScheduler implements JobScheduler {
 
 		if (sessionToken != null) {
 			pb.environment().put(ENV_SESSION_TOKEN, sessionToken);
-		}
-
-		if (compToken != null) {
-			pb.environment().put(ENV_COMP_TOKEN, compToken);
 		}
 
 		try {
@@ -539,7 +522,7 @@ public class BashJobScheduler implements JobScheduler {
 		StringBuffer logStdout = new StringBuffer();
 		
 		// run in executor to limit the amount of external processes
-		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, idPair, -1, null, null, null, null, logStdout, job.getToolId());
+		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, idPair, -1, null, null, null, logStdout, job.getToolId());
 		
 		try {
 			future.get();

@@ -27,9 +27,13 @@ import io.jsonwebtoken.security.Keys;
 
 public class TestServerLauncher {
 	
+
 	// this must not be static, otherwise logging configuration fails
 	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
+	
+	public static final String UNIT_TEST_USER1 = "unitTestUser1";
+	public static final String UNIT_TEST_USER2 = "unitTestUser2";
 	
 	private ServiceLocatorClient serviceLocatorClient;
 	private ServerLauncher serverLauncher;
@@ -81,11 +85,11 @@ public class TestServerLauncher {
 	}
 	
 	public Client getUser1Client() {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword", Role.CLIENT).getAuthenticatedClient();
+		return new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getAuthenticatedClient();
 	}
 
 	public Client getUser2Client() {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password", Role.CLIENT).getAuthenticatedClient();
+		return new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER2, "client2Password", Role.CLIENT).getAuthenticatedClient();
 	}
 	
 	public Client getMonitoringClient() {
@@ -134,7 +138,7 @@ public class TestServerLauncher {
 	}
 	
 	public Client getAuthFailClient() {
-		return AuthenticationClient.getClient("client", "clientPassword", true);
+		return AuthenticationClient.getClient(UNIT_TEST_USER1, "clientPassword", true);
 	}
 
 	public Client getNoAuthClient() {
@@ -146,11 +150,11 @@ public class TestServerLauncher {
 	}
 	
 	public CredentialsProvider getUser1Token() {
-		return new AuthenticationClient(serviceLocatorClient, "client", "clientPassword", Role.CLIENT).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getCredentials();
 	}
 
 	public CredentialsProvider getUser2Token() {
-		return new AuthenticationClient(serviceLocatorClient, "client2", "client2Password", Role.CLIENT).getCredentials();
+		return new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER2, "client2Password", Role.CLIENT).getCredentials();
 	}
 	
 	public CredentialsProvider getSchedulerToken() {
@@ -180,11 +184,60 @@ public class TestServerLauncher {
 	public CredentialsProvider getUnparseableToken() {
 		return new StaticCredentials("token", "unparseableToken");
 	}
+	
+	/**
+	 * Get token without signature at all
+	 * 
+	 * Without signature the user could create any kind of token for himself/herself.
+	 * 
+	 * @return
+	 */
+	public CredentialsProvider getUnsignedToken() {
+		CredentialsProvider userToken = new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getCredentials();
+		String tokenKey = userToken.getPassword();
+		
+		String jwt = AuthTokens.jwsToJwt(tokenKey);
+		
+		return new StaticCredentials("token", jwt);
+	}
+	
+	/**
+	 * Replace the token signature with a signature of another (valid) token
+	 * 
+	 * Obviously these tokens shouldn't be allowed. Tokens have different usernames 
+	 * and thus the signature of other token shouldn't work for this token.
+	 * 
+	 * @return
+	 */
+	public CredentialsProvider getSignatureFailToken() {
+		CredentialsProvider userToken1 = new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getCredentials();
+		CredentialsProvider userToken2 = new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER2, "client2Password", Role.CLIENT).getCredentials();
+		String tokenKey1 = userToken1.getPassword();
+		String tokenKey2 = userToken2.getPassword();
+		
+		String jwt1 = AuthTokens.jwsToJwt(tokenKey1);
+		
+		if (!jwt1.endsWith(".")) {
+			// I'm not sure whether jwsToJwt() should return the last dot or not, but
+			// let's check this test gets fixed if this is changed someday
+			throw new IllegalStateException("jwsToJwt did not return the last period. You should fix this test to add it.");
+		}
+		String signature2 = getSignature(tokenKey2);
+		
+		String signatureFailToken = jwt1 + signature2;
+		
+		return new StaticCredentials("token", signatureFailToken);
+	}
+	
+	public static String getSignature(String jws) {
+		String signature = jws.substring(jws.lastIndexOf(".") + 1);
+		return signature;
+	}
 		
 	public static CredentialsProvider getWrongKeyToken() {
 		
-		String token = AuthTokens.createToken(
-				"client", 
+		String token = AuthTokens.createUserToken(
+				UNIT_TEST_USER1, 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 
 				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512, "John Doe");
@@ -194,8 +247,8 @@ public class TestServerLauncher {
 	
 	public CredentialsProvider getExpiredToken() {
 		
-		String token = AuthTokens.createToken(
-				"client", 
+		String token = AuthTokens.createUserToken(
+				UNIT_TEST_USER1, 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now().minus(60, ChronoUnit.DAYS), 
 				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512, "John Doe");
@@ -215,7 +268,7 @@ public class TestServerLauncher {
 		
 		String jws = Jwts.builder()
 			    .setIssuer("chipster")
-			    .setSubject("client")
+			    .setSubject(UNIT_TEST_USER1)
 			    .setAudience("chipster")
 			    .setExpiration(Date.from(Instant.now().plus(1, ChronoUnit.HOURS)))
 			    .setNotBefore(Date.from(Instant.now())) 
@@ -243,8 +296,8 @@ public class TestServerLauncher {
 		
 		SecretKeySpec symmetricKey = new SecretKeySpec(publicKey, SignatureAlgorithm.HS512.getJcaName());
 		
-		String token = AuthTokens.createToken(
-				"client", 
+		String token = AuthTokens.createUserToken(
+				UNIT_TEST_USER1, 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 
 				symmetricKey, SignatureAlgorithm.HS512, "John Doe");
@@ -253,11 +306,11 @@ public class TestServerLauncher {
 	}	
 	
 	public CredentialsProvider getUser1Credentials() {
-		return new StaticCredentials("jaas/client", "clientPassword");
+		return new StaticCredentials("jaas/" + TestServerLauncher.UNIT_TEST_USER1, "clientPassword");
 	}
 	
 	public CredentialsProvider getUser2Credentials() {
-		return new StaticCredentials("jaas/client2", "client2Password");
+		return new StaticCredentials("jaas/" + TestServerLauncher.UNIT_TEST_USER2, "client2Password");
 	}
 	
 

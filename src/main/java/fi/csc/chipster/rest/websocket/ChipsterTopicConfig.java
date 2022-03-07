@@ -1,7 +1,7 @@
 package fi.csc.chipster.rest.websocket;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 
 public abstract class ChipsterTopicConfig implements TopicConfig {
@@ -15,10 +15,10 @@ public abstract class ChipsterTopicConfig implements TopicConfig {
 	@Override
 	public AuthPrincipal getUserPrincipal(String token) {
 
-		ParsedToken validToken = authService.validate(token);
+		UserToken validToken = authService.validateUserToken(token);
 		
 		if (validToken != null) {    		
-			return new AuthPrincipal(validToken.getUsername(), validToken.getRoles());
+			return new AuthPrincipal(validToken, token);
 		} else {
 			return null;
 		}    		

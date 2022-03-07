@@ -1,13 +1,23 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.SessionToken.Access;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.auth.resource.AuthTokens;
+import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
-import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -18,60 +28,68 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.resource.AuthPrincipal;
-import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.model.SessionDbToken;
-import fi.csc.chipster.sessiondb.model.SessionDbToken.Access;
-
+/**
+ * Create dataset and session tokens
+ * 
+ * Check that user is allowed to access the requested resources and then get 
+ * the token from the auth service. 
+ * 
+ * @author klemela
+ *
+ */
 @Path("tokens")
 public class SessionDbTokenResource {	
 	
-	private static final long TOKEN_FOR_DATASET_VALID_DEFAULT = 60; // seconds
-	
-	// session downloads may take several hours
-	private static final long TOKEN_FOR_SESSION_VALID_DEFAULT = 60 * 60 * 24; // seconds
-
+	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
-	private SessionDbTokens sessionDbTokens;
+	private RuleTable ruleTable;
 
-	private RuleTable authorizationResource;
+	private AuthenticationClient authService;
 
 
-	public SessionDbTokenResource(SessionDbTokens datasetTokenTable, RuleTable authorizationResource) {
-		this.sessionDbTokens = datasetTokenTable;
-		this.authorizationResource = authorizationResource;
+	public SessionDbTokenResource(RuleTable ruleTable, AuthenticationClient authService) {
+		this.ruleTable = ruleTable;
+		this.authService = authService;
 	}
 	
 	@POST
 	@RolesAllowed({ Role.CLIENT, Role.SCHEDULER })
     @Path("sessions/{sessionId}")
-	@Produces(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.TEXT_PLAIN)
     @Transaction
-    public Response post(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
+    public Response postSessionToken(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
+		
+		AuthPrincipal authPrincipal = (AuthPrincipal)sc.getUserPrincipal();
     	
 		// client can create read-only tokens for session-worker
 		String username = sc.getUserPrincipal().getName();
 		Access access = Access.READ_ONLY;
 		
 		// scheduler can create read-write tokens for jobs
-		if (((AuthPrincipal)sc.getUserPrincipal()).getRoles().contains(Role.SCHEDULER)) {
+		if (authPrincipal.getRoles().contains(Role.SCHEDULER)) {
 			username = Role.SINGLE_SHOT_COMP;
 			access = Access.READ_WRITE;
 		}
+		
+		boolean requireReadWrite = access == Access.READ_WRITE;
 			
 		// check that the user is allowed to access the session (with auth token)
-		Session session = authorizationResource.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
+		Session session = ruleTable.checkSessionAuthorization(sc, sessionId, requireReadWrite, false);
 		
-		Instant valid = parseValid(validString, TOKEN_FOR_SESSION_VALID_DEFAULT);		
-		// null datasetId means access to whole session
-		SessionDbToken sessionDbToken = sessionDbTokens.createTokenForSession(username, session, valid, access);		
+		Instant valid = AuthTokens.parseValid(validString);
+				
+		if (session.getSessionId() == null) {
+			throw new IllegalArgumentException("cannot create token for null session");
+		}
+		
+		String sessionDbToken;
+		try {
+			sessionDbToken = authService.createSessionToken(username, sessionId, valid, access);
+			
+		} catch (RestException e) {
+			throw new InternalServerErrorException("failed to get restricted token from auth", e);
+		}		
 		
     	return Response.ok(sessionDbToken).build();
     }
@@ -79,33 +97,36 @@ public class SessionDbTokenResource {
 	@POST
 	@RolesAllowed(Role.CLIENT)
     @Path("sessions/{sessionId}/datasets/{datasetId}")
-	@Produces(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.TEXT_PLAIN)
     @Transaction
-    public Response post(@PathParam("sessionId") UUID sessionId, @PathParam("datasetId") UUID datasetId, @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
+    public Response postDatasetToken(@PathParam("sessionId") UUID sessionId, @PathParam("datasetId") UUID datasetId, @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
     	
 		// check that the user is allowed to access the session (with auth token)
 		// read-only access is enough, because this doesn't change the session (and is needed for example sessions)
-		Dataset dataset = authorizationResource.checkAuthorizationForDatasetRead(sc, sessionId, datasetId);
+		Dataset dataset = ruleTable.checkDatasetReadAuthorization(sc, sessionId, datasetId);
 		
-		Session session = authorizationResource.getSession(dataset.getSessionId());
+		Session session = ruleTable.getSession(dataset.getSessionId());
 		
-		Instant valid = parseValid(validString, TOKEN_FOR_DATASET_VALID_DEFAULT);
-		SessionDbToken datasetToken = sessionDbTokens.createTokenForDataset(sc.getUserPrincipal().getName(), session, dataset, valid, Access.READ_ONLY);		
+		Instant valid = AuthTokens.parseValid(validString);
+		
+		String username = sc.getUserPrincipal().getName();
+		
+		if (session.getSessionId() == null) {
+			throw new IllegalArgumentException("cannot create token for null session");
+		}
+		
+		if (dataset.getDatasetId() == null) {
+			throw new IllegalArgumentException("cannot create token for null dataset");
+		}
+		
+		String datasetToken = null;
+		try {
+			datasetToken = authService.createDatasetToken(username, sessionId, datasetId, valid);
+			
+		} catch (RestException e) {
+			throw new InternalServerErrorException("failed to get restricted token from auth");
+		}		
 		
     	return Response.ok(datasetToken).build();
     }
-
-	private Instant parseValid(String validString, long defaultSeconds) {
-
-		if (validString == null) {
-			return Instant.now().plus(Duration.ofSeconds(defaultSeconds));
-		} else {
-			try {
-				return Instant.parse(validString);
-			} catch (DateTimeParseException e) {
-				logger.error("query parameter 'valid' can't be parsed to Instant", e);
-				throw new BadRequestException("query parameter 'valid' can't be parsed to Instant");
-			}
-		}
-	}
 }

@@ -26,7 +26,7 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 
 import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FileBrokerResource;
 import fi.csc.chipster.rest.Config;
@@ -296,7 +296,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	private void allowOnlyFileBroker(HttpServletRequest request) {
 		// user's token set by TokenServletFilter
 		String tokenString = ServletUtils.getToken(request);
-		ParsedToken token = authService.validate(tokenString);
+		UserToken token = authService.validateUserToken(tokenString);
 		
 		// check authorization
 		if (!token.getRoles().contains(Role.FILE_BROKER)) {

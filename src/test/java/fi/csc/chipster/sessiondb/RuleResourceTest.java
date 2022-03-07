@@ -316,7 +316,7 @@ public class RuleResourceTest {
     	rule2.setRuleId(rule.getRuleId());
     	rule2.setCreated(Instant.now());
     	rule2.setReadWrite(!rule.isReadWrite());    	
-    	rule2.setUsername("client2");    	
+    	rule2.setUsername(TestServerLauncher.UNIT_TEST_USER2);    	
     	user1Client.updateRule(sessionId, rule2);
     	Rule serverRule = user1Client.getRule(sessionId, rule.getRuleId());
     	assertEquals(rule.getCreated(), serverRule.getCreated());

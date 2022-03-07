@@ -155,7 +155,7 @@ public class SessionDbTokenTest {
 	@Test
     public void sessionTokenForClientWrongSession() throws RestException, IOException {
 		
-		String sessionToken = user1Client.createSessionToken(sessionId1, 1l);
+		String sessionToken = user1Client.createSessionToken(sessionId1, 60l);
 		SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
 		
 		try {
@@ -170,7 +170,7 @@ public class SessionDbTokenTest {
 	@Test
     public void sessionTokenForCompWrongSession() throws RestException, IOException {
 		
-		String sessionToken = schedulerClient.createSessionToken(sessionId1, 1l);
+		String sessionToken = schedulerClient.createSessionToken(sessionId1, 60l);
 		SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
 		
 		try {
@@ -185,7 +185,7 @@ public class SessionDbTokenTest {
 	@Test
     public void datasetTokenWrongSession() throws RestException, IOException {
 		try {
-			user1Client.createDatasetToken(sessionId2, datasetId1, 1);
+			user1Client.createDatasetToken(sessionId2, datasetId1, 60);
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());
@@ -195,7 +195,7 @@ public class SessionDbTokenTest {
 	@Test
     public void datasetTokenWrongDataset() throws RestException, IOException {
 		try {
-			user1Client.createDatasetToken(sessionId1, datasetId2, 1);
+			user1Client.createDatasetToken(sessionId1, datasetId2, 60);
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(404, e.getResponse().getStatus());
@@ -204,11 +204,17 @@ public class SessionDbTokenTest {
 	
 	@Test
     public void datasetTokenExpire() throws RestException, IOException, InterruptedException {
-		String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 1);
-		Thread.sleep(1000);
+		String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 2);
+		
+		RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+				launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);
+		
+		// now this should work
+		fileBroker.download(sessionId1, datasetId1);
+		
+		Thread.sleep(2000);
 		try {
-			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
-					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);
+			// and now the token should have expired
 			fileBroker.download(sessionId1, datasetId1);
 			assertEquals(true, false);
 		} catch (RestException e) {
@@ -380,7 +386,7 @@ public class SessionDbTokenTest {
 		String sessionToken = user1Client.createSessionToken(sessionId1, 60l);
 		SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
 		
-		// SessionToken is for read-only operations
+		// client SessionToken is for read-only operations
 		
 		// dataset changes
 		
@@ -462,7 +468,7 @@ public class SessionDbTokenTest {
 	
 	@Test
     public void sessionTokenForCompProhibited() throws RestException, IOException, InterruptedException {
-		String sessionToken = schedulerClient.createSessionToken(sessionId1, 1l);
+		String sessionToken = schedulerClient.createSessionToken(sessionId1, 60l);
 		SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
 		
 		// these could be allowed, but haven't been needed

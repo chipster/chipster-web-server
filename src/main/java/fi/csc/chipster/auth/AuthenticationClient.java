@@ -10,6 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,10 +19,12 @@ import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.hibernate.service.spi.ServiceException;
 
-import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.ChipsterToken;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.SessionToken.Access;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.resource.AuthTokenResource;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.AuthUserResource;
@@ -34,6 +37,8 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
@@ -57,6 +62,7 @@ public class AuthenticationClient {
 	private String authenticationServiceUri;
 	
 	private Timer tokenRefreshTimer;
+	
 	private Duration TOKEN_REFRESH_INTERVAL = Duration.of(1, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER
 	
 	private DynamicCredentials dynamicCredentials = new DynamicCredentials();
@@ -93,7 +99,7 @@ public class AuthenticationClient {
 		this.username = username;
 		this.password = password;
 		
-		setToken(getTokenFromAuth());
+		setToken(getUserTokenFromAuth());
 		
 		if (startTokenRefreshTimer) {
 			// schedule token refresh
@@ -118,7 +124,7 @@ public class AuthenticationClient {
 	 * 
 	 * @return
 	 */
-	private String getTokenFromAuth() {
+	private String getUserTokenFromAuth() {
 
 		String authUri = getAuth(username, password);
 
@@ -140,7 +146,7 @@ public class AuthenticationClient {
 	}
 
 	/**
-	 * Get Auth's URI in the initialization when don't yet have a token
+	 * Get Auth's URI in the initialization when we don't yet have a token
 	 * 
 	 * In the initialization (or after failures) we have to use username and password to authenticate to the
 	 * service-locator. Normally we would authenticate with a token, but we need 
@@ -153,7 +159,7 @@ public class AuthenticationClient {
 			 */
 			return authenticationServiceUri;
 		} else {
-			if(Role.SERVER.equals(this.role) || Role.SINGLE_SHOT_COMP.equals(this.role)) {
+			if(Role.SERVER.equals(this.role)) {
 				logger.info("get auth address from the service-locator using username and password");
 				ServiceLocatorClient passwordClient = new ServiceLocatorClient(this.serviceLocator.getBaseUri());
 				passwordClient.setCredentials(new StaticCredentials(username, password));
@@ -172,7 +178,7 @@ public class AuthenticationClient {
 		if (authenticationServiceUri != null) {
 			return authenticationServiceUri;
 		} else {
-			if(Role.SERVER.equals(this.role) || Role.SINGLE_SHOT_COMP.equals(this.role)) {
+			if(Role.SERVER.equals(this.role)) {
 				return this.serviceLocator.getInternalService(Role.AUTH).getUri();
 			} else {
 				// unit tests use this as client
@@ -242,13 +248,13 @@ public class AuthenticationClient {
 					.post(Entity.json(""), String.class);
 
 			if (serverToken != null) {
-				ParsedToken parsedToken = setToken(serverToken); 
+				UserToken parsedToken = setToken(serverToken); 
 				
 				// if token is expiring before refresh interval * 2, get a new token
 				if (parsedToken.getValidUntil().isBefore(Instant.now().plus(TOKEN_REFRESH_INTERVAL.multipliedBy(2)))) {
 					logger.info("refreshed token expiring soon, getting a new one (" + this.username + ")");
 					try {
-						parsedToken = setToken(getTokenFromAuth());
+						parsedToken = setToken(getUserTokenFromAuth());
 						logger.info("new token valid until " + parsedToken.getValidUntil() + " (" + this.username + ")");
 					} catch (Exception e) {
 						logger.warn("getting new token to replace soon expiring token failed (" + this.username + ")", e);
@@ -264,7 +270,7 @@ public class AuthenticationClient {
 		} catch (ForbiddenException fe) {
 			logger.info("got forbidden when refreshing token, getting new one (" + this.username + ")");
 			try {
-				ParsedToken parsedToken = setToken(getTokenFromAuth());
+				UserToken parsedToken = setToken(getUserTokenFromAuth());
 				logger.info("new token valid until " + parsedToken.getValidUntil() + " (" + this.username + ")");
 				return;
 			} catch (Exception e) {
@@ -279,15 +285,15 @@ public class AuthenticationClient {
 		logger.warn("refresh token failing (" + this.username + ")");
 	}
 
-	private ParsedToken setToken(String token) {
+	private UserToken setToken(String token) {
 		this.token = token;
 		this.dynamicCredentials.setCredentials(TokenRequestFilter.TOKEN_USER, this.token);
 		
 		if (Role.SERVER.equals(this.role)) {
 			// public key is visible only for the servers for now 
-			return validate(token);
+			return validateUserToken(token);
 		} else {
-			return AuthTokens.decode(token);
+			return AuthTokens.decodeUserToken(token);
 		}
 	}
 
@@ -304,12 +310,12 @@ public class AuthenticationClient {
 			@Override
 			public String getPassword() {
 				
-				ParsedToken parsedToken = null;
+				UserToken parsedToken = null;
 				
 				if (Role.SERVER.equals(role)) {
-					parsedToken = validate(token);
+					parsedToken = validateUserToken(token);
 				} else {
-					parsedToken = AuthTokens.decode(token);
+					parsedToken = AuthTokens.decodeUserToken(token);
 				}
 				
 				// refresh token if the laptop has been sleeping or something
@@ -349,7 +355,7 @@ public class AuthenticationClient {
 			.path(AuthUserResource.USERS), User.class);
 	}
 	
-	public ParsedToken validate(String token) {
+	public UserToken validateUserToken(String token) {
 		
 		// validation is possible only for servers
 		if (!Role.SERVER.equals(this.role)) {
@@ -357,23 +363,24 @@ public class AuthenticationClient {
 			throw new IllegalStateException("only servers can validate tokens");
 		}
 		
-		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
-		// to make this safe and relatively fast for multi-thread usage
-		if (this.jwtPublicKey == null) {
-			synchronized (this) {
-				if (this.jwtPublicKey == null) {
-					try {
-						this.jwtPublicKey = this.getJwtPublicKey();
-					} catch (PEMException e) {
-						throw new RuntimeException("unable to get the public key", e);
-					}
-				}
-			}
+		PublicKey jwtPublicKey = getJwtPublicKeyCached();
+		
+		return AuthTokens.validateUserToken(token, jwtPublicKey);
+	}
+	
+	public Jws<Claims> validateTokenSignature(String token) {
+		
+		// validation is possible only for servers
+		if (!Role.SERVER.equals(this.role)) {
+			// public key is visible only for the servers for now 
+			throw new IllegalStateException("only servers can validate tokens");
 		}
 		
-		return AuthTokens.validate(token, this.jwtPublicKey);
+		PublicKey jwtPublicKey = getJwtPublicKeyCached();
+		
+		return AuthTokens.validateSignature(token, jwtPublicKey);
 	}
-
+	
 	public PublicKey getJwtPublicKey() throws PEMException {
 		String authUri = getAuth(username, password);
 		
@@ -388,5 +395,92 @@ public class AuthenticationClient {
 		
 		return JwsUtils.pemToPublicKey(pem);
 	}
+	
+	public PublicKey getJwtPublicKeyCached() {
+		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
+		// to make this safe and relatively fast for multi-thread usage
+		if (this.jwtPublicKey == null) {
+			synchronized (this) {
+				if (this.jwtPublicKey == null) {
+					try {
+						this.jwtPublicKey = this.getJwtPublicKey();						
+					} catch (PEMException e) {
+						throw new RuntimeException("unable to get the public key", e);
+					}
+				}
+			}
+		}
+		
+		return this.jwtPublicKey;
+	}
+	
+	public String createSessionToken(String username, UUID sessionId, Instant valid, Access access) throws RestException {
+		
+		String authUri = getAuth();
+		
+		WebTarget target = getAuthenticatedClient()
+		.target(authUri)
+		.path(AuthTokenResource.PATH_TOKENS)
+		.path(AuthTokenResource.PATH_SESSION_TOKEN);
+		
+		if (username != null) { 
+			target = target.queryParam(AuthTokenResource.QP_USERNAME, username);
+		}
+	
+		if (sessionId != null) {
+			target = target.queryParam(AuthTokenResource.QP_SESSION_ID, sessionId.toString());
+		}
+		
+		if (valid != null) {
+			target = target.queryParam(AuthTokenResource.QP_VALID, valid.toString());
+		}
+		
+		if (access != null) {
+			target = target.queryParam(AuthTokenResource.QP_ACCESS, access.name());
+		}
+		
+		String datasetToken = target
+				.request(MediaType.TEXT_PLAIN)
+				.post(Entity.json(""), String.class);
+		
+		return datasetToken;
+	}
+	
+	public String createDatasetToken(String username, UUID sessionId, UUID datasetId, Instant valid) throws RestException {
+		
+		String authUri = getAuth();
+		
+		WebTarget target = getAuthenticatedClient()
+		.target(authUri)
+		.path(AuthTokenResource.PATH_TOKENS)
+		.path(AuthTokenResource.PATH_DATASET_TOKEN);
+		
+		if (username != null) { 
+			target = target.queryParam(AuthTokenResource.QP_USERNAME, username);
+		}
+	
+		if (sessionId != null) {
+			target = target.queryParam(AuthTokenResource.QP_SESSION_ID, sessionId.toString());
+		}
+		
+		if (datasetId != null) {
+			target = target.queryParam(AuthTokenResource.QP_DATASET_ID, datasetId.toString());
+		}
+		
+		if (valid != null) {
+			target = target.queryParam(AuthTokenResource.QP_VALID, valid.toString());
+		}
+		
+		String datasetToken = target
+				.request(MediaType.TEXT_PLAIN)
+				.post(Entity.json(""), String.class);
+		
+		return datasetToken;
+	}
+
+	public <T extends ChipsterToken> boolean isTokenClass(Claims claims, Class<T> tokenClass) {
+		return AuthTokens.isTokenClass(claims, tokenClass);
+	}
+
 }
 

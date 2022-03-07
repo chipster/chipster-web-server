@@ -99,7 +99,12 @@ public class WebSocketClientTest {
 		server.stop();
 		
 		try {
-			client.ping();
+			try {
+				client.ping();
+			} catch (TimeoutException te) {
+				// try again
+				client.ping();
+			}
 			Assert.fail();
 		} catch (IllegalStateException e) {			
 		}

@@ -9,10 +9,30 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import jakarta.annotation.security.RolesAllowed;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Input;
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.JobIdPair;
+import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -30,27 +50,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.core.UriInfo;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.resource.AuthPrincipal;
-import fi.csc.chipster.comp.JobState;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.Input;
-import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.JobIdPair;
-import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.model.SessionEvent;
-import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
-import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
 public class SessionJobResource {
 	
@@ -72,7 +71,7 @@ public class SessionJobResource {
     // CRUD
     @GET
     @Path("{id}")    
-    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN }) // don't allow Role.UNAUTHENTICATED
+    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
@@ -80,7 +79,7 @@ public class SessionJobResource {
 //    	logger.info(sc.getUserPrincipal().getName());
     	
     	// checks authorization
-    	Session session = sessionResource.getRuleTable().checkAuthorizationForSessionRead(sc, sessionId, true);    	
+    	Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId, true);    	
     	
     	Job result = getJob(sessionId, jobId, getHibernate().session());
     	    	
@@ -97,13 +96,13 @@ public class SessionJobResource {
     }
     
 	@GET
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN})
     @Produces(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response getAll(@Context SecurityContext sc) {
 		
 		// checks authorization
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionRead(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId);
 		
 		List<Job> result = getJobs(getHibernate().session(), session);
 
@@ -193,7 +192,7 @@ public class SessionJobResource {
 			}
 		}		
 		
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 		
 		for (Job job : jobs) {
 			
@@ -286,7 +285,7 @@ public class SessionJobResource {
 
 	@PUT
 	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
     @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
     public Response put(Job requestJob, @PathParam("id") UUID jobId, @Context SecurityContext sc) {
@@ -299,7 +298,8 @@ public class SessionJobResource {
 		boolean allowAdmin = JobState.CANCELLED.equals(requestJob.getState());
 
 		// check that user has write authorization for the session
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSession((AuthPrincipal)sc.getUserPrincipal(), sessionId, true, allowAdmin);
+		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId, allowAdmin);
+		
 		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("job doesn't exist");
@@ -337,7 +337,7 @@ public class SessionJobResource {
     public Response delete(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 		Job dbJob = getJob(sessionId, jobId, getHibernate().session());
 		
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {

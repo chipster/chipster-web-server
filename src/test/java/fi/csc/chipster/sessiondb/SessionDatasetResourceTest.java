@@ -136,7 +136,7 @@ public class SessionDatasetResourceTest {
         
         // wrong session
 		testGetDataset(403, sessionId2, datasetId, user1Client);
-		testGetDataset(404, sessionId2, datasetId, user2Client);	
+		testGetDataset(404, sessionId2, datasetId, user2Client);
     }
 	
 	public static void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {

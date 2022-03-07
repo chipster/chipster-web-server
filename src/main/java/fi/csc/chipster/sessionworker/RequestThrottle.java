@@ -26,6 +26,8 @@ public class RequestThrottle {
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	
+	public static final String HEADER_RETRY_AFTER = "Retry-After";
+	
 	HashMap<String, LinkedList<Instant>> usernameMap = new HashMap<>();
 	private Duration durationLimit;
 	private long requestLimit;

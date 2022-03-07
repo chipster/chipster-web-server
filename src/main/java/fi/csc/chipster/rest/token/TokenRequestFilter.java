@@ -8,12 +8,17 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.ChipsterToken;
+import fi.csc.chipster.auth.model.DatasetToken;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.SessionToken;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.auth.resource.AuthSecurityContext;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import jakarta.annotation.Priority;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.Priorities;
@@ -21,6 +26,17 @@ import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.ext.Provider;
 
+/**
+ * Validate Chipster tokens
+ * 
+ * Validate Chipster tokens and parse claims to AuthPrincipal.
+ * After this resource methods can limit their access by setting
+ * @RolesAllowed annotation and by comparing the other information in 
+ * AuthPrincipal. 
+ * 
+ * @author klemela
+ *
+ */
 @Provider
 @Priority(Priorities.AUTHENTICATION) // execute this filter before others
 public class TokenRequestFilter implements ContainerRequestFilter {
@@ -71,7 +87,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		if (password == null) {
 			if (allowedRoles.contains(Role.UNAUTHENTICATED)) {
 				// this filter is configured to pass non-authenticated users through
-				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED),
+				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(Role.UNAUTHENTICATED),
 						requestContext.getSecurityContext()));
 				return;
 				
@@ -93,31 +109,35 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 				throw new NotAuthorizedException("only tokens allowed");
 			}
 		}
-
-		try {
-			// throws an exception if fails
-			AuthPrincipal principal = tokenAuthentication(password);
-
-			// login ok
-			requestContext.setSecurityContext(new AuthSecurityContext(principal, requestContext.getSecurityContext()));
-
-		} catch (ForbiddenException e) {
+		
+		// throws if not valid
+		Jws<Claims> jws = authService.validateTokenSignature(password);
+		Claims jwsBody = jws.getBody();
+		
+		// now we can trust that these claims were signed by auth
+		
+		ChipsterToken token = null;
+		
+		if (authService.isTokenClass(jwsBody, UserToken.class)) {
+						
+			UserToken userToken = AuthTokens.claimsToUserToken(jws.getBody(), password);
+			token = userToken;
 			
-			if (allowedRoles.contains(Role.SESSION_DB_TOKEN)) {
-				HashSet<String> roles = new HashSet<String>() {
-					{
-						add(Role.SESSION_DB_TOKEN);
-					}
-				};
-				
-				// SessionDbTokens have to be passed through
-				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, password, roles),
-						requestContext.getSecurityContext()));
-				return;	
-			} else {				
-				throw new ForbiddenException(e);
-			}
+		} else if (authService.isTokenClass(jwsBody, SessionToken.class)) {
+			
+			token = AuthTokens.claimsToSessionToken(jws.getBody(), password);
+			
+		} else if (authService.isTokenClass(jwsBody, DatasetToken.class)) {
+			
+			token = AuthTokens.claimsToDatasetToken(jws.getBody(), password);
+			
+		} else {
+			throw new ForbiddenException("unknown token type");
 		}
+				
+		// login ok
+		AuthPrincipal principal = new AuthPrincipal(token, password);			
+		requestContext.setSecurityContext(new AuthSecurityContext(principal, requestContext.getSecurityContext()));
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {
@@ -128,20 +148,13 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		String tokenKey = passwordAuthClient.getToken();
 		
 		// we can trust the token that we got from auth, decoding is enough
-		 ParsedToken parsedToken = AuthTokens.decode(tokenKey);
+		 UserToken parsedToken = AuthTokens.decodeUserToken(tokenKey);
 		 
 		 return new AuthPrincipal(parsedToken.getUsername(), tokenKey, parsedToken.getRoles());
 	}
 
-	public AuthPrincipal tokenAuthentication(String clientTokenKey) {
-
-		ParsedToken validToken = authService.validate(clientTokenKey);
-
-		return new AuthPrincipal(validToken.getUsername(), clientTokenKey, validToken.getRoles());
-	}
-
 	/**
-	 * Allow Role.UNAUTHENTICATED or Role.SESSION_DB_TOKEN to pass this filter.
+	 * Allow Role.UNAUTHENTICATED to pass this filter.
 	 * By default those produce an authentication error.
 	 *  
 	 */

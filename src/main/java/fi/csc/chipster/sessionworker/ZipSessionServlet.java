@@ -37,7 +37,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
@@ -209,7 +209,7 @@ public class ZipSessionServlet extends HttpServlet {
 		StaticCredentials credentials = getUserCredentials(request);
 				
 		// don't allow SessionDbTokens
-		ParsedToken parsedToken = this.authService.validate(credentials.getPassword());
+		UserToken parsedToken = this.authService.validateUserToken(credentials.getPassword());
 		rolesAllowed(parsedToken, Role.CLIENT, Role.SERVER);
 		
 		String pathInfo = request.getPathInfo();
@@ -327,7 +327,7 @@ public class ZipSessionServlet extends HttpServlet {
     }
 
 	
-	private void rolesAllowed(ParsedToken parsedToken, String... roles) throws NotAuthorizedException {
+	private void rolesAllowed(UserToken parsedToken, String... roles) throws NotAuthorizedException {
 
 		for (String allowedRole : Arrays.asList(roles)) {
 			if (parsedToken.getRoles().contains(allowedRole)) {

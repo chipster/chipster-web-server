@@ -75,7 +75,7 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 			@Override
 			public Boolean run(org.hibernate.Session hibernateSession) {
 				try {
-					Session session = sessionResource.getRuleTable().checkAuthorization(principal, sessionId, false, hibernateSession, false);
+					Session session = sessionResource.getRuleTable().checkSessionAuthorization(principal.getToken(), sessionId, false, hibernateSession, false);
 					return session != null;
 				} catch (fi.csc.chipster.rest.exception.NotAuthorizedException
 						|jakarta.ws.rs.NotFoundException

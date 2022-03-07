@@ -1,32 +1,35 @@
 package fi.csc.chipster.auth.resource;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import jakarta.annotation.Priority;
-import jakarta.ws.rs.ForbiddenException;
-import jakarta.ws.rs.Priorities;
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.container.ContainerRequestFilter;
-import jakarta.ws.rs.ext.Provider;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 
 import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
-import fi.csc.chipster.auth.model.ParsedToken;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
+import fi.csc.chipster.rest.exception.TooManyRequestsException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.token.BasicAuthParser;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.sessionworker.RequestThrottle;
+import jakarta.annotation.Priority;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.Priorities;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * @author klemela
@@ -37,7 +40,14 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 
+
 	private static final Logger logger = LogManager.getLogger();
+
+	private static final String CONF_PASSWORD_THROTTLE_PERIOD = "auth-password-throttle-period";
+	private static final String CONF_PASSWORD_THROTTLE_REQEUST_COUNT = "auth-password-throttle-request-count";	
+	private static final String CONF_SERVER_PASSWORD_THROTTLE_PERIOD = "auth-server-password-throttle-period";
+	private static final String CONF_SERVER_PASSWORD_THROTTLE_REQEUST_COUNT = "auth-server-password-throttle-request-count";	
+	private static final String CONF_SERVER_PASSWORD_THROTTLE_LIST = "auth-server-password-throttle-list";
 
 	private HibernateUtil hibernate;
 	
@@ -56,6 +66,12 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 	private AuthTokens tokenTable;
 
+	private RequestThrottle passwordThrottle;
+
+	private HashSet<String> serverThrottleList;
+
+	private RequestThrottle serverPasswordThrottle;
+
 	public AuthenticationRequestFilter(HibernateUtil hibernate, Config config, UserTable userTable, AuthTokens tokenTable, JaasAuthenticationProvider jaasAuthProvider) throws IOException {
 		this.hibernate = hibernate;
 		this.config = config;
@@ -73,6 +89,20 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		}
 		
 		monitoringAccounts = new HashMap<String, String>() {{ put(Role.MONITORING, monitoringPassword); }};
+		
+		/* Each replica counts its own request counts
+		 * 
+		 * This is probably fine for small number of replicas. With dozens of replicas
+		 * you would need a centralized storage for this.
+		 */
+		int throttlePeriod = config.getInt(CONF_PASSWORD_THROTTLE_PERIOD);
+		int throttleRequestCount = config.getInt(CONF_PASSWORD_THROTTLE_REQEUST_COUNT);
+		int serverThrottlePeriod = config.getInt(CONF_SERVER_PASSWORD_THROTTLE_PERIOD);
+		int serverThrottleRequestCount = config.getInt(CONF_SERVER_PASSWORD_THROTTLE_REQEUST_COUNT);
+		serverThrottleList = new HashSet<String>(Arrays.asList(config.getString(CONF_SERVER_PASSWORD_THROTTLE_LIST).split(" ")));
+			
+		this.passwordThrottle = new RequestThrottle(Duration.ofSeconds(throttlePeriod), throttleRequestCount);
+		this.serverPasswordThrottle = new RequestThrottle(Duration.ofSeconds(serverThrottlePeriod), serverThrottleRequestCount);
 	}
 
 	@Override
@@ -86,7 +116,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 
 		if (authHeader == null) {
 			// OidcResource needs unauthenticated access
-			requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(null, Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
+			requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(Role.UNAUTHENTICATED), requestContext.getSecurityContext()));
 			return;
 		}
 
@@ -114,18 +144,37 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 	public AuthPrincipal tokenAuthentication(String jwsString) {
 		
 		// throws if fails
-		ParsedToken token = tokenTable.validateToken(jwsString);				
+		UserToken token = tokenTable.validateUserToken(jwsString);				
 
 		return new AuthPrincipal(token.getUsername(), jwsString, token.getRoles());
 	}
 
-	private AuthPrincipal passwordAuthentication(String username, String password) {
+	private AuthPrincipal passwordAuthentication(String username, String password) {		
 
-		// a small delay to slow down brute force attacks
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
-			logger.warn(e);
+		/* 
+		 * Slow down brute force attacks
+		 * 
+		 * It could be possible to exhaust memory by trying different usernames. 
+		 * Maybe add another throttle based on IP address. Finally,
+		 * respond with CONF_PASSWORD_THROTTLE_PERIOD to everyone after the list size grows 
+		 * really large.  
+		 */				
+		Duration retryAfter = null;
+		
+		// throttle less server accounts and unit test accounts 
+		if (serverThrottleList.contains(username) || serviceAccounts.containsKey(username)) {
+			// we can trust that servers have proper passwords
+			retryAfter = serverPasswordThrottle.throttle(username);
+		} else {			
+			retryAfter = passwordThrottle.throttle(username);
+		}
+
+		if (!retryAfter.isZero()) {
+			// + 1 to round up
+			long ceilSeconds = retryAfter.getSeconds() + 1;
+
+			logger.warn("throttling password requests for username '" + username + "'");
+			throw new TooManyRequestsException(ceilSeconds);			
 		}
 
 		// check that there is no extra white space in the username, because if authenticationProvider accepts it,
@@ -196,7 +245,7 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		
 		if (serviceAccounts.keySet().contains(username)) {
 			
-			// minimal access rights for SingleShotComp
+			// minimal access rights if SingleShotComp service account is used someday
 			if (!Role.SINGLE_SHOT_COMP.equals(username)) {
 				roles.add(Role.SERVER);
 			}

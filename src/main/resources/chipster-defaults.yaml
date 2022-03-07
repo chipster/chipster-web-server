@@ -8,7 +8,6 @@ service-password-session-db: session-db
 service-password-service-locator: service-locator
 service-password-scheduler: scheduler
 service-password-comp: comp
-service-password-single-shot-comp: single-shot-comp
 service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-web-server: web-server
@@ -213,6 +212,20 @@ auth-oidc-required-userinfo-claim-value-comparison: "string"
 auth-oidc-required-userinfo-claim-error: "Chipster login is not allowed for this account"
 
 
+# throttle password request for one username after too many requests during this time, seconds 
+auth-password-throttle-period: 120
+
+# throttle password request for one username after this many tries 
+auth-password-throttle-request-count: 20
+
+# user server throttle settings for these accounts, separated by space. If any real account is put here, it must have a proper password
+auth-server-password-throttle-list: "unitTestUser1 unitTestUser2"
+
+# throttle server password request for one username after too many requests during this time, seconds
+auth-server-password-throttle-period: 60
+
+# throttle server password request for one username after this many tries 
+auth-server-password-throttle-request-count: 100
 
  
 # comp
