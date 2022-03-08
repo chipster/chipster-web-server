@@ -219,7 +219,7 @@ auth-password-throttle-period: 120
 auth-password-throttle-request-count: 20
 
 # user server throttle settings for these accounts, separated by space. If any real account is put here, it must have a proper password
-auth-server-password-throttle-list: "unitTestUser1 unitTestUser2"
+auth-server-password-throttle-list: "unitTestUser1 unitTestUser2 monitoring"
 
 # throttle server password request for one username after too many requests during this time, seconds
 auth-server-password-throttle-period: 60
