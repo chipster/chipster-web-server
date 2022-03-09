@@ -97,13 +97,13 @@ public class SessionResource {
     // CRUD
     @GET
     @Path("{id}")
-    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
+    @RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN})
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response get(@PathParam("id") UUID sessionId, @Context SecurityContext sc, @QueryParam(QUERY_PARAM_PREVIEW) String preview) throws IOException {    
     	    
 		// checks authorization
-		Session dbSession = ruleTable.checkAuthorizationForSessionRead(sc, sessionId);
+		Session dbSession = ruleTable.checkSessionReadAuthorization(sc, sessionId);
 		
     	
     	if (dbSession == null) {
@@ -265,7 +265,7 @@ public class SessionResource {
 		requestSession.setSessionId(sessionId);
 		
 		// checks the authorization and verifies that the session exists
-		Session dbSession = ruleTable.checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session dbSession = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
 		
 		// get the state before this object is updated
 		SessionState dbSessionState = dbSession.getState();
@@ -312,7 +312,7 @@ public class SessionResource {
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		// check authorization
-		Session session = ruleTable.checkAuthorizationForSessionReadWrite(sc, id);
+		Session session = ruleTable.checkSessionReadWriteAuthorization(sc, id);
 		
 		this.deleteSession(session, getHibernate().session());
 

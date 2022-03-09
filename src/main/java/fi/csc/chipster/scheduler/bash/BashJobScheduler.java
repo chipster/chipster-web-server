@@ -27,8 +27,6 @@ import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
 import com.nimbusds.jose.util.IOUtils;
 
-import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.scheduler.IdPair;
@@ -47,7 +45,6 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_SLOTS = "SLOTS";
 	private static final String ENV_IMAGE = "IMAGE";
 	private static final String ENV_SESSION_TOKEN = "SESSION_TOKEN";
-	private static final String ENV_COMP_TOKEN = "COMP_TOKEN";
 	private static final String ENV_POD_NAME = "POD_NAME";
 	private static final String ENV_TOOLS_BIN_VOLUME = "TOOLS_BIN_VOLUME";
 	private static final String ENV_TOOLS_BIN_PATH = "TOOLS_BIN_PATH";
@@ -86,7 +83,7 @@ public class BashJobScheduler implements JobScheduler {
 	private String finishedScript;
 	private SessionDbClient sessionDbClient;
 	private long tokenValidTime;
-	private AuthenticationClient compAuthClient;
+
 	private String scriptDirInJar;
 	private String imageRepository;
 	private String runScriptStdin;
@@ -98,13 +95,6 @@ public class BashJobScheduler implements JobScheduler {
 		this.config = config;
 		this.scheduler = scheduler;
 		this.sessionDbClient = sessionDbClient;
-
-		// there is a 0.5 second delay in the password authentication. Keep a fresh copy
-		// of the SingleShotComp token to avoid that delay in job startup
-		String compUsername = Role.SINGLE_SHOT_COMP;
-		String compPassword = config.getPassword(compUsername);
-
-		compAuthClient = new AuthenticationClient(serviceLocator, compUsername, compPassword, Role.SINGLE_SHOT_COMP);
 
 		ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("bash-job-scheduler-executor-%d")
 				.build();
@@ -264,9 +254,7 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 
-			String compToken = compAuthClient.getToken();
-			
-			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken, compToken);
+			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken);
 
 			// use the conf key as a name in logs
 			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, this.runScriptStdin, null);
@@ -309,7 +297,7 @@ public class BashJobScheduler implements JobScheduler {
 	 * @param compToken
 	 * @return
 	 */
-	private HashMap<String, String> getEnv(ToolboxTool tool, Runtime runtime, IdPair idPair, int slots, String sessionToken, String compToken) {
+	private HashMap<String, String> getEnv(ToolboxTool tool, Runtime runtime, IdPair idPair, int slots, String sessionToken) {
 		
 		HashMap<String, String> env = getEnv(tool.getId(), idPair);
 		
@@ -347,10 +335,6 @@ public class BashJobScheduler implements JobScheduler {
 
 		if (sessionToken != null) {
 			env.put(ENV_SESSION_TOKEN, sessionToken);
-		}
-
-		if (compToken != null) {
-			env.put(ENV_COMP_TOKEN, compToken);
 		}
 		
 		return env;

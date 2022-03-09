@@ -1,46 +1,45 @@
 package fi.csc.chipster.auth.model;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Set;
 
 import jakarta.xml.bind.annotation.XmlRootElement;
 
+/**
+ * Super class for all Chipster tokens
+ * 
+ * @author klemela
+ *
+ */
 @XmlRootElement // json
-public class ParsedToken {
-		
-	private String tokenKey;
+public class ChipsterToken {
+	
 	private String username;
-	private Instant	validUntil, created;
+	private Instant	validUntil;
 	private Set<String> roles;
-	private String name;
 
-	public ParsedToken() {
+	public ChipsterToken() {
 		// JAX-B needs this
 	}
 	
-	public ParsedToken(String username, String token,
-			Instant validUntil, Instant created, Set<String> roles) {
+	public ChipsterToken(String username,
+			Instant validUntil, Set<String> roles) {
 		this.username = username;
-		this.tokenKey = token;
 		this.validUntil = validUntil;
-		this.created = created;
 		this.roles = roles;
 	}
 	
+	public ChipsterToken(String username, Instant valid, String role) {
+		this(username, valid, new HashSet<String>() {{ add(role); }});
+	}
+
 	public String getUsername() {
 		return username;
 	}
 	
 	public void setUsername(String username) {
 		this.username = username;
-	}
-	
-	public String getTokenKey() {
-		return tokenKey;
-	}
-	
-	public void setTokenKey(String token) {
-		this.tokenKey = token;
 	}
 
 	public Instant getValidUntil() {
@@ -49,22 +48,6 @@ public class ParsedToken {
 
 	public void setValidUntil(Instant validUntil) {
 		this.validUntil = validUntil;
-	}
-	
-	public Instant getCreated() {
-		return created;
-	}
-
-	public void setCreated(Instant created) {
-		this.created = created;
-	}
-		
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
 	}
 
 	public Set<String> getRoles() {

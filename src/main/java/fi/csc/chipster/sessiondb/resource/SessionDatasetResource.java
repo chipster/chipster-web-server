@@ -75,17 +75,17 @@ public class SessionDatasetResource {
 	// CRUD
 	@GET
 	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN, Role.DATASET_TOKEN})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response get(@PathParam("id") UUID datasetId, @QueryParam(QUERY_PARAM_READ_WRITE) boolean requireReadWrite,
 			@Context SecurityContext sc) {
 
 		// checks authorization
-		/* Client can't require write permissions if it wants to make sure a modification is allowed later.
+		/* Client can require write permissions if it wants to make sure a modification is allowed later.
 		 * This assumes that there are no Rules that would allow only write but not read access. 
 		 */
-		sessionResource.getRuleTable().checkAuthorizationForDatasetRead(sc, sessionId, datasetId);
+		sessionResource.getRuleTable().checkDatasetAuthorization(sc, sessionId, datasetId, requireReadWrite);
 
 		Dataset result = getDataset(sessionId, datasetId, getHibernate().session());
 
@@ -96,19 +96,35 @@ public class SessionDatasetResource {
 		return Response.ok(result).build();
 	}
 
+	/**
+	 * Get requested dataset
+	 * 
+	 * This must return only dataset if it really is in the session of sesssionId.
+	 * Having the both IDs in the query verifies this in the current DB schema. 
+	 * RuleTable.checkDatasetAuthorization() trusts this.
+	 * 
+	 * Junit test in SessionDatasetResourceTest.get() follows that this assumption
+	 * is not broken by accident. 		
+	 * 
+	 * @param sessionId
+	 * @param datasetId
+	 * @param hibernateSession
+	 * @return
+	 */
 	public static Dataset getDataset(UUID sessionId, UUID datasetId, org.hibernate.Session hibernateSession) {
+		
 		Dataset dataset = hibernateSession.get(Dataset.class, new DatasetIdPair(sessionId, datasetId));
 		return dataset;
 	}
 
 	@GET
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN, Role.DATASET_TOKEN})
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionRead(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId);
 		
 		List<Dataset> result = getDatasets(getHibernate().session(), session);
 
@@ -144,7 +160,7 @@ public class SessionDatasetResource {
 	}
 
 	@POST
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_DB_TOKEN }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -177,7 +193,7 @@ public class SessionDatasetResource {
 		}
 
 		// check authorization
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 
 		for (Dataset dataset : datasets) {
 			if (dataset.getCreated() == null) {
@@ -253,7 +269,7 @@ public class SessionDatasetResource {
 		 * - user has write authorization for the session 
 		 * - the session contains this dataset
 		 */
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 
 		HashMap<UUID, Dataset> dbDatasets = new HashMap<>();
 
@@ -314,7 +330,7 @@ public class SessionDatasetResource {
 	public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
 
 		// checks authorization
-		Session session = sessionResource.getRuleTable().checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 		Dataset dataset = getDataset(sessionId, datasetId, sessionResource.getHibernate().session());
 
 		if (dataset == null || !dataset.getSessionId().equals(session.getSessionId())) {

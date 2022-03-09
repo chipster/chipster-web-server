@@ -75,6 +75,13 @@ public class SessionJobResourceTest {
     }
 	
 	@Test
+    public void postWrongUser() throws RestException {
+		Job job = RestUtils.getRandomJob();
+		job.setJobIdPair(sessionId2, RestUtils.createUUID());
+		testCreateJob(403, sessionId2, job, user1Client);
+    }
+	
+	@Test
     public void postWithWrongId() throws RestException {
 		Job job = RestUtils.getRandomJob();
 		job.setJobIdPair(sessionId2, RestUtils.createUUID());

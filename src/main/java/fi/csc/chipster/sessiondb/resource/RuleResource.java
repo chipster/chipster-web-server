@@ -65,7 +65,7 @@ public class RuleResource {
     @Transaction
     public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
     	
-		ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);
+		ruleTable.checkSessionReadAuthorization(sc, sessionId);
 		Rule result = ruleTable.getRule(authorizationId, hibernate.session());
     	if (result == null) {
     		throw new NotFoundException();
@@ -78,8 +78,7 @@ public class RuleResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Transaction
     public Response getBySession(@Context SecurityContext sc) {
-    	    	
-		ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, false);    
+		ruleTable.checkSessionReadAuthorization(sc, sessionId);    
     	List<Rule> rules = getRules(sessionId);    	
     	return Response.ok(rules).build();	       
     }
@@ -104,7 +103,7 @@ public class RuleResource {
 			}
 		}
     	
-		Session session = ruleTable.checkAuthorizationForSessionReadWrite(sc, sessionId);
+		Session session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
 
 		// don't allow client to set this
 		newRule.setSharedBy(sc.getUserPrincipal().getName());
@@ -222,7 +221,7 @@ public class RuleResource {
     	
     	if (!(isOwnRule || isSharedBy)) {
     		// others need read-write permissions
-    		session = ruleTable.checkAuthorization(sc.getUserPrincipal().getName(), sessionId, true);
+    		session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
     	}    	    	
  
     	delete(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);

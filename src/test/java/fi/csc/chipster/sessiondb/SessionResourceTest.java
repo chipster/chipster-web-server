@@ -31,6 +31,8 @@ public class SessionResourceTest {
 	private static SessionDbClient authFailClient;
 	private static SessionDbClient noAuthClient;
 	private static SessionDbClient sessionWorkerClient;
+	private static SessionDbClient signatureFailClient;
+	private static SessionDbClient unsignedTokenClient;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -44,6 +46,8 @@ public class SessionResourceTest {
 		compClient 				= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getCompToken(), Role.SERVER);
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), TestServerLauncher.getWrongKeyToken(), Role.CLIENT);
+		signatureFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSignatureFailToken(), Role.CLIENT);
+		unsignedTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnsignedToken(), Role.CLIENT);
 		expiredTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getExpiredToken(), Role.CLIENT);
 		noneTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getNoneToken(), Role.CLIENT);
 		symmetricTokenClient	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSymmetricToken(), Role.CLIENT);
@@ -103,13 +107,15 @@ public class SessionResourceTest {
 		// auth tests
 		testGetSession(401, sessionId1, unparseableTokenClient);
 		testGetSession(403, sessionId1, tokenFailClient);
+		testGetSession(403, sessionId1, signatureFailClient);
+		testGetSession(401, sessionId1, unsignedTokenClient);
 		testGetSession(403, sessionId1, expiredTokenClient);
 		testGetSession(401, sessionId1, noneTokenClient);
 		testGetSession(401, sessionId1, symmetricTokenClient);
 		testGetSession(401, sessionId1, authFailClient);
 		testGetSession(401, sessionId1, noAuthClient);
     }
-		
+			
 	@Test
     public void getSharesErrors() throws IOException, RestException {				
 		

@@ -10,11 +10,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import jakarta.websocket.MessageHandler.Whole;
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriBuilder;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,15 +31,20 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.model.SessionDbToken;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
+import jakarta.websocket.MessageHandler.Whole;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 
 public class SessionDbClient {
 	
+	private static final String QUERY_PARAM_ALLOW_INTERNAL_ADDRESSES = "allowInternalAddresses";
+
 	public interface SessionEventListener {
 		void onEvent(SessionEvent e);
 	}
@@ -256,7 +256,7 @@ public class SessionDbClient {
 	public Dataset getDataset(UUID sessionId, UUID datasetId, boolean requireReadWrite) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
 		if (requireReadWrite) {
-			target.queryParam(SessionDatasetResource.QUERY_PARAM_READ_WRITE, requireReadWrite);
+			target = target.queryParam(SessionDatasetResource.QUERY_PARAM_READ_WRITE, requireReadWrite);
 		}
 		return RestMethods.get(target, Dataset.class);		
 	}
@@ -315,6 +315,10 @@ public class SessionDbClient {
 	}
 	
 	public String createSessionToken(UUID sessionId, Long validSeconds) throws RestException {
+		return this.createSessionToken(sessionId, validSeconds, false);
+	}
+	
+	public String createSessionToken(UUID sessionId, Long validSeconds, boolean allowInternalAddresses) throws RestException {
 		WebTarget target = getDatasetTokenTarget()
 		.path("sessions").path(sessionId.toString());
 		
@@ -322,9 +326,13 @@ public class SessionDbClient {
 			target = target.queryParam("valid", Instant.now().plus(Duration.ofSeconds(validSeconds)).toString());
 		}
 		
-		SessionDbToken datasetToken = RestMethods.postWithObjectResponse(target, null, SessionDbToken.class);
+		if (allowInternalAddresses) {
+			target = target.queryParam(QUERY_PARAM_ALLOW_INTERNAL_ADDRESSES, true);
+		}
 		
-		return datasetToken.getTokenKey();
+		String sessionToken = RestMethods.postWithObjectResponse(target, null, String.class);
+		
+		return sessionToken;
 	}
 	
 	public String createDatasetToken(UUID sessionId, UUID datasetId, Integer validSeconds) throws RestException {
@@ -336,9 +344,9 @@ public class SessionDbClient {
 			target = target.queryParam("valid", Instant.now().plus(Duration.ofSeconds(validSeconds)).toString());
 		}
 		
-		SessionDbToken datasetToken = RestMethods.postWithObjectResponse(target, null, SessionDbToken.class);
+		String datasetToken = RestMethods.postWithObjectResponse(target, null, String.class);
 		
-		return datasetToken.getTokenKey();
+		return datasetToken;
 	}
 	
 	/**

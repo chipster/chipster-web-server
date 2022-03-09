@@ -21,14 +21,13 @@ public class Role {
 	public static final String TOOLBOX = "toolbox";
 	public static final String ADMIN = "admin";
 	public static final String MONITORING = "monitoring";
-	public static final String PROXY = "proxy";
 	public static final String SESSION_WORKER = "session-worker";
 	public static final String TYPE_SERVICE = "type-service";
 	public static final String WEB_SERVER = "web-server";
-	public static final String PROXY_ADMIN = "proxy-admin";
 	public static final String JOB_HISTORY="job-history";
 	public static final String BACKUP="backup";
 	public static final String OIDC = "oidc";
-	public static final String SESSION_DB_TOKEN = "session-db-token";
+	public static final String SESSION_TOKEN = "session-token";
+	public static final String DATASET_TOKEN = "dataset-token";
 	public static final String SINGLE_SHOT_COMP = "single-shot-comp";
 }	

@@ -15,7 +15,7 @@ cpu_limit=$(( cpu_limit <= max_cpu_limit ? cpu_limit : max_cpu_limit))
 
 jq_patch=".metadata.name=\"$POD_NAME\" |
   .spec.containers[0].image=\"$IMAGE\" |
-  .spec.containers[0].command += [\"$SESSION_ID\", \"$JOB_ID\", \"$SESSION_TOKEN\", \"$COMP_TOKEN\"] |
+  .spec.containers[0].command += [\"$SESSION_ID\", \"$JOB_ID\", \"$SESSION_TOKEN\"] |
   .spec.containers[0].resources.limits.cpu=\"$cpu_limit\" | 
   .spec.containers[0].resources.limits.memory=\"$memory\" |
   .spec.containers[0].resources.requests.cpu=\"$cpu_request\" | 

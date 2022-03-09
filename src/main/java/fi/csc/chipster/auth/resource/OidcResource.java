@@ -61,7 +61,7 @@ public class OidcResource {
 	
 	public static final String CONF_DEBUG = "auth-oidc-debug";
 		
-	private AuthTokens tokenTable;
+	private AuthTokens authTokens;
 	private UserTable userTable;
 
 	private boolean isDebug;
@@ -73,8 +73,8 @@ public class OidcResource {
 	}
 
 
-	public void init(AuthTokens tokenTable, UserTable userTable, Config config) throws URISyntaxException, IOException {
-		this.tokenTable = tokenTable;
+	public void init(AuthTokens authTokens, UserTable userTable, Config config) throws URISyntaxException, IOException {
+		this.authTokens = authTokens;
 		this.userTable = userTable;
 		this.isDebug = config.getBoolean(CONF_DEBUG);
 	}		
@@ -165,7 +165,7 @@ public class OidcResource {
 		userTable.addOrUpdate(user);
 
 		HashSet<String> roles = Stream.of(Role.CLIENT, Role.OIDC).collect(Collectors.toCollection(HashSet::new));
-		String token = tokenTable.createNewToken(userId.toUserIdString(), roles, user.getName());
+		String token = authTokens.createNewUserToken(userId.toUserIdString(), roles, user.getName());
 
 		return token;	
 	}

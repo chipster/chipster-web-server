@@ -86,13 +86,13 @@ public class AuthenticationService {
     	// init Hibernate
     	hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);    	
     	UserTable userTable = new UserTable(hibernate);
-    	AuthTokens tokenTable = new AuthTokens(config);
+    	AuthTokens authTokens = new AuthTokens(config);
     	
-    	AuthTokenResource tokenResource = new AuthTokenResource(tokenTable, userTable);
-    	OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(tokenTable, userTable, config));
-    	oidcResource.init(tokenTable, userTable, config);
+    	AuthTokenResource tokenResource = new AuthTokenResource(authTokens, userTable);
+    	OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(authTokens, userTable, config));
+    	oidcResource.init(authTokens, userTable, config);
     	AuthUserResource userResource = new AuthUserResource(userTable);
-    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, tokenTable, jaasAuthProvider);
+    	AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable, authTokens, jaasAuthProvider);
     	
     	ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 

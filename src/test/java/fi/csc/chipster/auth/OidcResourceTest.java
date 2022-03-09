@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,6 +34,11 @@ import com.nimbusds.jwt.PlainJWT;
 import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.resource.AuthTokens;
+import fi.csc.chipster.auth.resource.OidcConfig;
+import fi.csc.chipster.auth.resource.OidcProviders;
+import fi.csc.chipster.auth.resource.OidcResource;
+import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;

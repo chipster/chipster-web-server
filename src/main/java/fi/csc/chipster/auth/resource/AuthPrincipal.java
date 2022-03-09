@@ -7,16 +7,25 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import fi.csc.chipster.auth.model.ChipsterToken;
+import fi.csc.chipster.auth.model.UserToken;
+
+/**
+ * Wrapper for Chipster tokens to be passed through Java authentication APIs
+ * 
+ * @author klemela
+ *
+ */
 public class AuthPrincipal implements Principal {
 	
-	String username;
-	private Set<String> roles;
-	private String tokenKey;
+	// are remoteAddress and details used anymore?
 	private String remoteAddress;
 	private Map<String, String> details = new HashMap<>();
+	private ChipsterToken token;
+	private String tokenKey;
 
-	public AuthPrincipal(String username, String role) {
-		this(username, null, new HashSet<String>(Arrays.asList(role)));
+	public AuthPrincipal(String role) {
+		this(null, null, new HashSet<String>(Arrays.asList(role)));
 	}
 	
 	public AuthPrincipal(String username, Set<String> roles) {
@@ -24,31 +33,27 @@ public class AuthPrincipal implements Principal {
 	}
 	
 	public AuthPrincipal(String username, String tokenKey, Set<String> roles) {
+		
+		this(new UserToken(username, null, null, roles), tokenKey);
+	}
 
-		this.username = username;
-		this.roles = roles;
+	public AuthPrincipal(ChipsterToken token, String tokenKey) {
+		
+		this.token = token;
 		this.tokenKey = tokenKey;
 	}
 
 	@Override
 	public String getName() {
-		return username;
+		return token.getUsername();
 	}
 
 	public Set<String> getRoles() {
-		return roles;
-	}
-
-	public void setRoles(HashSet<String> roles) {
-		this.roles = roles;
+		return token.getRoles();
 	}
 
 	public String getTokenKey() {
 		return tokenKey;
-	}
-
-	public void setTokenKey(String tokenKey) {
-		this.tokenKey = tokenKey;
 	}
 
 	public void setRemoteAddress(String remoteAddr) {
@@ -65,5 +70,9 @@ public class AuthPrincipal implements Principal {
 
 	public void setDetails(Map<String, String> details) {
 		this.details = details;
+	}
+
+	public ChipsterToken getToken() {
+		return token;
 	}
 }

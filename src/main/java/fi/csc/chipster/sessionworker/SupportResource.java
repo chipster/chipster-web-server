@@ -146,7 +146,7 @@ public class SupportResource {
 			long ceilSeconds = retryAfter.getSeconds() + 1;
 			return Response
 					.status(HttpStatus.TOO_MANY_REQUESTS_429)
-					.header("Retry-After", ceilSeconds)
+					.header(RequestThrottle.HEADER_RETRY_AFTER, ceilSeconds)
 					.build();
 		}
     }

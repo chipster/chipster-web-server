@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +18,8 @@ import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
+import fi.csc.chipster.auth.resource.OidcConfig;
+import fi.csc.chipster.auth.resource.OidcProviders;
 import fi.csc.chipster.rest.RestUtils;
 
 public class OidcProvidersMock implements OidcProviders {

@@ -14,16 +14,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.servlet.AsyncEvent;
-import jakarta.servlet.AsyncListener;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.InternalServerErrorException;
-import jakarta.ws.rs.NotFoundException;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -34,8 +24,9 @@ import org.eclipse.jetty.server.InclusiveByteRange;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
+import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.ParsedToken;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FileBrokerResource;
 import fi.csc.chipster.rest.Config;
@@ -48,6 +39,15 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.util.IOUtils;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.NotFoundException;
 
 /**
  * <p>
@@ -65,8 +65,10 @@ import fi.csc.chipster.util.IOUtils;
  */
 public class FileServlet extends DefaultServlet implements SessionEventListener {
 
+
 	public static final String PATH_PUT_ALLOWED = "putAllowed";
 
+	private static final String CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE = "file-storage-backup-preserve-space";
 	private static final String CONF_KEY_FILE_STORAGE_PRESERVE_SPACE = "file-storage-preserve-space";
 
 	public static final String PATH_FILES = "files";
@@ -87,12 +89,18 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 	private float preserveSpace;
 
+	private float backupPreserveSpace;
+
+	private boolean isBackupEnabled;
+
 	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
 		this.storageRoot = storageRoot;
 		this.authService = authService;
 		
 		this.preserveSpace = config.getFloat(CONF_KEY_FILE_STORAGE_PRESERVE_SPACE);
+		this.backupPreserveSpace = config.getFloat(CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE);
+		this.isBackupEnabled = !BackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);
@@ -288,7 +296,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	private void allowOnlyFileBroker(HttpServletRequest request) {
 		// user's token set by TokenServletFilter
 		String tokenString = ServletUtils.getToken(request);
-		ParsedToken token = authService.validate(tokenString);
+		UserToken token = authService.validateUserToken(tokenString);
 		
 		// check authorization
 		if (!token.getRoles().contains(Role.FILE_BROKER)) {
@@ -316,10 +324,6 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	protected void doPut(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		
-		if (logRest) {
-			logger.info("PUT " + request.getRequestURI());
-		}
-		
 		// get query parameters
 		Long chunkNumber = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_NUMBER);
 		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
@@ -327,6 +331,17 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_CHUNKS);
 		@SuppressWarnings("unused")
 		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
+		
+		if (logRest) {
+			
+			String displaySize = "-";
+			
+			if (totalSize != null) {
+				displaySize = FileUtils.byteCountToDisplaySize(totalSize);
+			}
+			
+			logger.info("PUT " + request.getRequestURI() + " totalSize: " + displaySize + ", chunkNumber: " + chunkNumber);
+		}
 
 		allowOnlyFileBroker(request);
 		
@@ -449,6 +464,10 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 		
 		long preserveBytes = (long) (storageRoot.getTotalSpace() * this.preserveSpace / 100);
+		
+		if (isBackupEnabled) {
+			size = (long) (size * this.backupPreserveSpace);
+		}
 		
 		if (size + preserveBytes > storageRoot.getUsableSpace()) {
 			throw new InsufficientStorageException("insufficient storage");

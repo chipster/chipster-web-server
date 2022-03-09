@@ -104,10 +104,10 @@ public class SingleShotComp
 	 * @param compToken 
 	 * @throws Exception
 	 */
-	public SingleShotComp(String configURL, Config config, String sessionToken, String compToken) throws Exception {
+	public SingleShotComp(String configURL, Config config, String sessionToken) throws Exception {
 		
 		this.config = config;
-
+			
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
@@ -121,12 +121,11 @@ public class SingleShotComp
 		// initialize executor service
 		this.executorService = Executors.newCachedThreadPool();
 
-		serviceLocator = new ServiceLocatorClient(config);
-
-		StaticCredentials serviceLocatorCredentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, compToken);
-		StaticCredentials sessionDbCredentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, sessionToken);
+		StaticCredentials sessionTokenCredentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, sessionToken);
 		
-		serviceLocator.setCredentials(serviceLocatorCredentials);
+		// Role.SESSION_TOKEN has access to internal addresses
+		serviceLocator = new ServiceLocatorClient(config);
+		serviceLocator.setCredentials(sessionTokenCredentials);
 
 		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
 
@@ -136,8 +135,8 @@ public class SingleShotComp
 
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 
-		sessionDbClient = new SessionDbClient(serviceLocator, sessionDbCredentials, Role.SERVER);
-		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, sessionDbCredentials);
+		sessionDbClient = new SessionDbClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
+		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, sessionTokenCredentials);
 		
 		this.hostname = InetAddress.getLocalHost().getHostName();
 	}
@@ -146,18 +145,17 @@ public class SingleShotComp
 		
 		try {			
 
-			if (args.length != 4) {
+			if (args.length != 3) {
 				logger.error("wrong number of arguments");
-				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID SESSION_TOKEN COMP_TOKEN");
+				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID SESSION_TOKEN");
 				System.exit(1);
 			}
 
 			UUID sessionId = UUID.fromString(args[0]);
 			UUID jobId = UUID.fromString(args[1]);
 			String sessionToken = args[2];
-			String compToken = args[3];
 			
-			SingleShotComp comp = new SingleShotComp(null, new Config(), sessionToken, compToken);
+			SingleShotComp comp = new SingleShotComp(null, new Config(), sessionToken);
 					
 			CompJob compJob = comp.getCompJob(sessionId, jobId);
 			
