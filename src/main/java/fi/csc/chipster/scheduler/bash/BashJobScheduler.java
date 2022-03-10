@@ -48,6 +48,9 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_POD_YAML = "POD_YAML";
 	private static final String ENV_PVC_YAML = "PVC_YAML";
 	private static final String ENV_STORAGE_CLASS = "STORAGE_CLASS";
+	private static final String ENV_POD_MEMORY = "POD_MEMORY";
+	private static final String ENV_POD_CPU = "POD_CPU";
+	private static final String ENV_ENABLE_RESOURCE_LIMITS = "ENABLE_RESOURCE_LIMITS";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -64,8 +67,10 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
+	private static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
+	private static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
+	private static final String CONF_BASH_ENABLE_RESOURCE_LIMITS = "scheduler-bash-enable-resource-limits";
 	private static final int POD_NAME_MAX_LENGTH = 63;
-
 
 	private ThreadPoolExecutor bashExecutor;
 
@@ -92,6 +97,9 @@ public class BashJobScheduler implements JobScheduler {
 	private String podYaml;
 	private String pvcYaml;
 	private String storageClass;
+	private int slotMemory;
+	private int slotCpu;
+	private boolean enableResourceLimits;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -114,6 +122,9 @@ public class BashJobScheduler implements JobScheduler {
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
+		this.slotMemory = config.getInt(CONF_BASH_SLOT_MEMORY);
+		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);
+		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
 
 		if (this.runScript.isEmpty()) {
 			this.runScript = readJarFile(scriptDirInJar + "/run.bash");
@@ -308,8 +319,12 @@ public class BashJobScheduler implements JobScheduler {
 		
 		HashMap<String, String> env = getEnv(tool.getId(), idPair);
 		
+		env.put(ENV_ENABLE_RESOURCE_LIMITS, "" + this.enableResourceLimits);
+		
 		if (slots > 0) {
 			env.put(ENV_SLOTS, "" + slots);
+			env.put(ENV_POD_MEMORY, "" + slots * this.slotMemory);
+			env.put(ENV_POD_CPU, "" + slots * this.slotCpu);
 		}
 
 		String image = tool.getSadlDescription().getImage();

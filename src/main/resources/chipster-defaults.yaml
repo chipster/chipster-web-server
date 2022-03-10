@@ -309,7 +309,15 @@ scheduler-bash-log-script: ""
 scheduler-bash-pod: ""
 scheduler-bash-pvc: ""
 
+# kubernetes storage class for the job volume
 scheduler-bash-storage-class: ""
+# how many GiB of memory for each job slot
+scheduler-bash-slot-memory: 8
+# how many cpu-cores for each job slot
+scheduler-bash-slot-cpu: 2
+# enable resource limits
+scheduler-bash-enable-resource-limits: true
+
   
 scheduler-bash-max-slots: "100"
       
