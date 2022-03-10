@@ -27,10 +27,12 @@ if [ -z $STORAGE ]; then
 else
   echo "use PVC for working directory: $STORAGE GiB"
 
-  pod_patch="$jq_patch |
+  pod_patch="$pod_patch |
     .spec.volumes[2]={\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}"
 
-  pvc_patch=".spec.resources.requests.storage=\"${STORAGE}Gi\""
+  pvc_patch=".metadata.name=\"$POD_NAME\" |
+    .spec.resources.requests.storage=\"${STORAGE}Gi\" |
+    .spec.storageClassName=\"standard-rwo\""
 
   pvc_json=$(echo "$PVC_YAML" | yq e - -o=json | jq "$pvc_patch")
 
