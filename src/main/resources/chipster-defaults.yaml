@@ -305,8 +305,11 @@ scheduler-bash-log-script: ""
 
 # use a custom bash-job-scheduler objects
 # use yaml multiline string format
+# the default can be found from src/main/resources/bash-job-scheduler/*/ files pod.yaml and pvc.yaml
 scheduler-bash-pod: ""
 scheduler-bash-pvc: ""
+
+scheduler-bash-storage-class: ""
   
 scheduler-bash-max-slots: "100"
       

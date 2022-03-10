@@ -47,6 +47,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_STORAGE = "STORAGE";
 	private static final String ENV_POD_YAML = "POD_YAML";
 	private static final String ENV_PVC_YAML = "PVC_YAML";
+	private static final String ENV_STORAGE_CLASS = "STORAGE_CLASS";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -62,6 +63,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT = "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
+	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
 	private static final int POD_NAME_MAX_LENGTH = 63;
 
 
@@ -89,6 +91,7 @@ public class BashJobScheduler implements JobScheduler {
 	private String logScript;
 	private String podYaml;
 	private String pvcYaml;
+	private String storageClass;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -110,6 +113,7 @@ public class BashJobScheduler implements JobScheduler {
 		this.logScript = config.getString(CONF_BASH_LOG_SCRIPT);
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
+		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
 
 		if (this.runScript.isEmpty()) {
 			this.runScript = readJarFile(scriptDirInJar + "/run.bash");
@@ -342,6 +346,7 @@ public class BashJobScheduler implements JobScheduler {
 		
 		env.put(ENV_POD_YAML, this.podYaml);
 		env.put(ENV_PVC_YAML, this.pvcYaml);
+		env.put(ENV_STORAGE_CLASS, this.storageClass);
 		
 		return env;
 	}

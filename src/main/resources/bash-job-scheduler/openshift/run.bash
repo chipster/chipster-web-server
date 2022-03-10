@@ -32,7 +32,7 @@ else
 
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |
-    .spec.storageClassName=\"standard-rwo\""
+    .spec.storageClassName=\"$STORAGE_CLASS\""
 
   pvc_json=$(echo "$PVC_YAML" | yq e - -o=json | jq "$pvc_patch")
 
