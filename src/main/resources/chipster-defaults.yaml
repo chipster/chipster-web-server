@@ -377,18 +377,6 @@ toolbox-runtime-command-python3: python3
 toolbox-runtime-parameters-python3: ""
 toolbox-runtime-image-python3: comp-16.04
 
-# toolbox-runtime-command-R-mylly: /opt/chipster/tools/R-3.2.3/bin/R
-# toolbox-runtime-image-R-mylly: comp-16.04-mylly
-# toolbox-runtime-tools-bin-volume-R-mylly: tools-bin-mylly
-# toolbox-runtime-tools-bin-path-R-mylly: /appl
-
-# toolbox-runtime-job-factory-python3-mylly: fi.csc.chipster.comp.python.PythonJobFactory
-# toolbox-runtime-command-python3-mylly: python3
-# toolbox-runtime-parameters-python3-mylly: ""
-# toolbox-runtime-image-python3-mylly: comp-16.04-mylly
-# toolbox-runtime-tools-bin-volume-python3-mylly: tools-bin-mylly
-# toolbox-runtime-tools-bin-path-python3-mylly: /appl
-
 # set default runtimes for different file types
 toolbox-default-runtime-name-r: R
 toolbox-default-runtime-file-extension-r: .R
@@ -398,16 +386,6 @@ toolbox-default-runtime-file-extension-java: .java
 
 toolbox-default-runtime-name-python: python
 toolbox-default-runtime-file-extension-python: .py
-
-# set custom runtimes for file types in a specific module
-# toolbox-default-runtime-module-mylly-r: Kielipankki
-# toolbox-default-runtime-name-mylly-r: R
-# toolbox-default-runtime-file-extension-mylly-r: .R
-
-# toolbox-default-runtime-module-mylly-python: Kielipankki
-# toolbox-default-runtime-name-mylly-python: python3-mylly
-# toolbox-default-runtime-file-extension-mylly-python: .py
-
 
 # file-broker
 

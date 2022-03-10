@@ -55,18 +55,26 @@ public class RuntimeRepository {
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_VOLUME + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_PATH + "-").keySet());
 		
+		logger.info("------ loading runtimes ------");
+		
 		for (String runtimeName : runtimeNames) {
 			Runtime runtime = new Runtime();
 			
+			logger.info("load runtime " + runtimeName);
 			runtime.setName(runtimeName);
-			
-			logger.info("configure runtime " + runtimeName);
 			runtime.setCommand(config.getString(CONF_RUNTIME_COMMAND, runtimeName));
 			runtime.setParameters(config.getString(CONF_RUNTIME_PARAMETERS, runtimeName));
 			runtime.setImage(config.getString(CONF_RUNTIME_IMAGE, runtimeName));
 			runtime.setJobFactory(config.getString(CONF_RUNTIME_JOB_FACTORY, runtimeName));
 			runtime.setToolsBinVolume(config.getString(CONF_RUNTIME_TOOLS_BIN_VOLUME, runtimeName));
 			runtime.setToolsBinPath(config.getString(CONF_RUNTIME_TOOLS_BIN_PATH, runtimeName));
+			
+			logger.info("  command:          " + runtime.getCommand());
+			logger.info("  parameters:       " + runtime.getParameters());
+			logger.info("  image:            " + runtime.getImage());
+			logger.info("  job factory:      " + runtime.getJobFactory());
+			logger.info("  tools-bin volume: " + runtime.getToolsBinVolume());
+			logger.info("  tools-bin path:   " + runtime.getToolsBinPath());
 			
 			runtimes.add(runtime);
 		}
@@ -77,20 +85,49 @@ public class RuntimeRepository {
 	private List<RuntimeMapping> loadRuntimeMappings(Config config) {
 		
 		List<RuntimeMapping> mappings = new ArrayList<>();
+		
+		logger.info("------ loading runtime mappings ------");
 	
 		for (String mappingKey : config.getConfigEntries(CONF_DEFAULT_RUNTIME_NAME + "-").keySet()) {
 			RuntimeMapping mapping = new RuntimeMapping();
 			
 			mapping.setRuntime(config.getString(CONF_DEFAULT_RUNTIME_NAME, mappingKey));
 			
-			if (config.hasKey(CONF_DEFAULT_RUNTIME_MODULE + "-" + mappingKey)) {
+			boolean hasModule = config.hasKey(CONF_DEFAULT_RUNTIME_MODULE + "-" + mappingKey);
+			boolean hasFileExtension = config.hasKey(CONF_DEFAULT_RUNTIME_FILE_EXTENSION + "-" + mappingKey);
+			
+			if (hasModule) {
 				mapping.setModule(config.getString(CONF_DEFAULT_RUNTIME_MODULE, mappingKey));
-			} else {
+			} 
+			
+			if (hasFileExtension) {
 				// throws IllegalArgumentExeption, if neither of module or file-extension is set 
 				mapping.setFileExtension(config.getString(CONF_DEFAULT_RUNTIME_FILE_EXTENSION, mappingKey));
 			}
 			
-			mappings.add(mapping);
+			if (hasModule && hasFileExtension) {
+				
+				logger.info("use runtime " + mapping.getRuntime() + " for module " + mapping.getModule() + " and file extension " + mapping.getFileExtension());
+				
+			} else if (hasModule) {
+				
+				logger.info("use runtime " + mapping.getRuntime() + " for module " + mapping.getModule());
+				
+			} else if (hasFileExtension) {
+				
+				logger.info("use runtime " + mapping.getRuntime() + " for file extension " + mapping.getFileExtension());				
+			}
+			
+			if (hasModule || hasFileExtension) {
+				
+				mappings.add(mapping);
+				
+			} else {
+				
+				// or should we throw an exception and prevent starting?
+				logger.warn("skipping runtime mapping " + mappingKey + " because no module or file extension was configured");
+			}
+			
 		}
 		
 		return mappings;

@@ -19,7 +19,9 @@ jq_patch=".metadata.name=\"$POD_NAME\" |
   .spec.containers[0].resources.limits.cpu=\"$cpu_limit\" | 
   .spec.containers[0].resources.limits.memory=\"$memory\" |
   .spec.containers[0].resources.requests.cpu=\"$cpu_request\" | 
-  .spec.containers[0].resources.requests.memory=\"$memory\""
+  .spec.containers[0].resources.requests.memory=\"$memory\" |
+  .spec.containers[0].volumeMounts[1].mountPath=\"$TOOLS_BIN_PATH\" |
+  .spec.volumes[1]={\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"$TOOLS_BIN_NAME\"}}"
 
 job_json=$(echo "$stdin" | yq e - -o=json | jq "$jq_patch")
 
