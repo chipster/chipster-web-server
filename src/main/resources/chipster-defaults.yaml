@@ -303,7 +303,10 @@ scheduler-bash-finished-script: ""
 scheduler-bash-heartbeat-script: ""
 scheduler-bash-log-script: ""
 
-scheduler-bash-run-script-stdin-file: ""
+# use a custom bash-job-scheduler objects
+# use yaml multiline string format
+scheduler-bash-pod: ""
+scheduler-bash-pvc: ""
   
 scheduler-bash-max-slots: "100"
       

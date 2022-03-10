@@ -1,10 +1,8 @@
 package fi.csc.chipster.scheduler.bash;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -24,8 +22,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
-
-import com.nimbusds.jose.util.IOUtils;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
@@ -49,6 +45,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_TOOLS_BIN_VOLUME = "TOOLS_BIN_VOLUME";
 	private static final String ENV_TOOLS_BIN_PATH = "TOOLS_BIN_PATH";
 	private static final String ENV_STORAGE = "STORAGE";
+	private static final String ENV_POD_YAML = "POD_YAML";
+	private static final String ENV_PVC_YAML = "PVC_YAML";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -57,7 +55,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_FINISHED_SCRIPT = "scheduler-bash-finished-script";
 	private static final String CONF_BASH_HEARTBEAT_SCRIPT = "scheduler-bash-heartbeat-script";
 	private static final String CONF_BASH_LOG_SCRIPT = "scheduler-bash-log-script";
-	private static final String CONF_BASH_RUN_SCRIPT_STDIN_FILE = "scheduler-bash-run-script-stdin-file";
+	private static final String CONF_BASH_POD = "scheduler-bash-pod";
+	private static final String CONF_BASH_PVC = "scheduler-bash-pvc";
 	private static final String CONF_BASH_JOB_TIMER_INTERVAL = "scheduler-bash-job-timer-interval";
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT = "scheduler-bash-heartbeat-lost-timeout";
@@ -86,9 +85,10 @@ public class BashJobScheduler implements JobScheduler {
 
 	private String scriptDirInJar;
 	private String imageRepository;
-	private String runScriptStdin;
 	private Config config;
 	private String logScript;
+	private String podYaml;
+	private String pvcYaml;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -133,7 +133,8 @@ public class BashJobScheduler implements JobScheduler {
 
 		this.maxSlots = config.getInt(CONF_BASH_MAX_SLOTS);
 
-		this.runScriptStdin = this.getScriptStdin(CONF_BASH_RUN_SCRIPT_STDIN_FILE, this.scriptDirInJar);
+		this.podYaml = this.getFromJarOrConf(CONF_BASH_POD, this.scriptDirInJar, "pod.yaml");
+		this.pvcYaml = this.getFromJarOrConf(CONF_BASH_PVC, this.scriptDirInJar, "pvc.yaml");
 
 		this.bashJobTimerInterval = config.getLong(CONF_BASH_JOB_TIMER_INTERVAL) * 1000;
 		this.heartbeatLostTimeout = config.getLong(CONF_BASH_HEARTBEAT_LOST_TIMEOUT);
@@ -153,28 +154,30 @@ public class BashJobScheduler implements JobScheduler {
 		}, bashJobTimerInterval, bashJobTimerInterval);
 	}
 
-	private String getScriptStdin(String confKey, String scriptDirInJar) throws IOException {
+	private String getFromJarOrConf(String confKey, String dirInJar, String filename) throws IOException {
 
-		String stdinPath = config.getString(confKey);
+		String confValue = config.getString(confKey);
 
-		if (stdinPath.isEmpty()) {
-			File jarStdinFile = new File(scriptDirInJar + "/run-stdin.yaml");
+		if (!confValue.isEmpty()) {
 
-			String stdinFromJar = this.readJarFile(jarStdinFile.getPath());
+			logger.info("read " + confKey + " from conf");
+			return confValue;
+			
+		} else {	
+			
+			File jarFile = new File(scriptDirInJar, filename);
 
-			if (stdinFromJar != null) {
-				logger.info("read " + confKey + " from jar path " + jarStdinFile);
-				return stdinFromJar;
+			String jarFileContents = this.readJarFile(jarFile.getPath());
+
+			if (jarFileContents != null) {
+				logger.info("read jar path " + jarFile);
+				return jarFileContents;
 			}
 
-			logger.info("no " + confKey + " from jar path " + jarStdinFile + " was found");
+			logger.info("no " + confKey + " or jar path " + jarFile + " was found");
 			return null;
 
-		} else {
-
-			logger.info("read " + confKey + " from path " + stdinPath);
-			return IOUtils.readFileToString(new File(stdinPath));
-		}
+		} 
 	}
 
 	public String readJarFile(String path) throws IOException {
@@ -257,7 +260,7 @@ public class BashJobScheduler implements JobScheduler {
 			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken);
 
 			// use the conf key as a name in logs
-			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, this.runScriptStdin, null);
+			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, null);
 		}
 
 		if (isBusy) {
@@ -337,6 +340,9 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_SESSION_TOKEN, sessionToken);
 		}
 		
+		env.put(ENV_POD_YAML, this.podYaml);
+		env.put(ENV_PVC_YAML, this.pvcYaml);
+		
 		return env;
 	}
 	
@@ -378,7 +384,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getToolId(), idPair);
 		
 		// use the conf key as a name in logs
-		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, env, null, null);
+		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, env, null);
 	}
 
 	@Override
@@ -398,7 +404,7 @@ public class BashJobScheduler implements JobScheduler {
 		
 		HashMap<String, String> env = getEnv(job.getToolId(), idPair);
 
-		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, env, null, null);
+		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, env, null);
 	}
 
 	@Override
@@ -432,7 +438,7 @@ public class BashJobScheduler implements JobScheduler {
 			
 			// use the conf key as a name in logs
 			// run in executor to limit the number of external processes
-			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, env, null, null);
+			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, env, null);
 			
 			// wait for the bash process
 			future.get();
@@ -487,7 +493,7 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 
-	private Future<?> runSchedulerBash(String bashCommand, String name, Map<String, String> env, String stdin, StringBuffer stdout) {
+	private Future<?> runSchedulerBash(String bashCommand, String name, Map<String, String> env, StringBuffer stdout) {
 				
 		Instant startInstant = Instant.now();
 		
@@ -503,11 +509,11 @@ public class BashJobScheduler implements JobScheduler {
 				logger.warn("waited " + waitTime + " second(s) for the executor. Is more executor threads needed?");
 			}
 			
-			this.runSchedulerBashWithoutExecutor(bashCommand, name, env, stdin, stdout);
+			this.runSchedulerBashWithoutExecutor(bashCommand, name, env, stdout);
 		});
 	}
 
-	private void runSchedulerBashWithoutExecutor(String bashCommand, String name, Map<String, String> env, String stdin, StringBuffer stdout) {
+	private void runSchedulerBashWithoutExecutor(String bashCommand, String name, Map<String, String> env, StringBuffer stdout) {
 
 		List<String> cmd = Arrays.asList("/bin/bash", "-c", bashCommand);
 
@@ -531,16 +537,6 @@ public class BashJobScheduler implements JobScheduler {
 			ProcessUtils.readLines(process.getErrorStream(), line -> logger.error(name + " stderr: " + line));
 
 			Instant bashStart = Instant.now();
-
-			// the bash script should read the stdin only if a stdin file is provided
-			// otherwise it will wait indefinitely
-			if (stdin != null) {
-				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
-				// writing everything at once, these shouldn't be very big
-				writer.write(stdin);
-				writer.flush();
-				writer.close();
-			}
 
 			int exitCode = process.waitFor();
 
@@ -597,7 +593,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getToolId(), idPair);
 		
 		// run in executor to limit the amount of external processes
-		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, env, null, logStdout);
+		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, env, logStdout);
 		
 		try {
 			future.get();
