@@ -2,15 +2,17 @@ package fi.csc.chipster.scheduler.bash;
 
 import java.time.Instant;
 
+import fi.csc.chipster.toolbox.ToolboxTool;
+
 public class BashJob {
 
 	private Instant heartbeatTimestamp;
 	private int slots;
-	private String toolId;
+	private ToolboxTool tool;
 
-	public BashJob(int slots, String toolId) {
+	public BashJob(int slots, ToolboxTool tool) {
 		this.slots = slots;
-		this.toolId = toolId;
+		this.tool = tool;
 	}
 	
 	public Instant getHeartbeatTimestamp() {
@@ -29,11 +31,11 @@ public class BashJob {
 		return slots;
 	}
 
-	public String getToolId() {
-		return toolId;
+	public ToolboxTool getTool() {
+		return tool;
 	}
 
-	public void setToolId(String toolId) {
-		this.toolId = toolId;
+	public void setTool(ToolboxTool tool) {
+		this.tool = tool;
 	}
 }

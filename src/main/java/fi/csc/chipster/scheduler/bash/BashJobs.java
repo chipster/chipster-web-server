@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import fi.csc.chipster.scheduler.IdPair;
+import fi.csc.chipster.toolbox.ToolboxTool;
 
 public class BashJobs {
 	
@@ -33,8 +34,8 @@ public class BashJobs {
 		return jobs.remove(jobId);	
 	}
 
-	public BashJob addJob(IdPair idPair, int slots, String toolId) {
-		BashJob jobState = new BashJob(slots, toolId);
+	public BashJob addJob(IdPair idPair, int slots, ToolboxTool tool) {
+		BashJob jobState = new BashJob(slots, tool);
 		
 		/* Set first heartbeat to change this job from the state scheduled to running
 		 * 

@@ -10,13 +10,6 @@ spec:
     image: ""
     imagePullPolicy: Always
     command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp"]
-    resources:
-      limits:
-        cpu: ""
-        memory: ""
-      requests:
-        cpu: ""
-        memory: ""
     volumeMounts:
     - mountPath: /opt/chipster/conf
       name: conf

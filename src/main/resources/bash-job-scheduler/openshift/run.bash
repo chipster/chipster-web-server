@@ -23,10 +23,7 @@ else
   echo "resource limits are disabled"
 fi
 
-if [ -z $STORAGE ]; then
-  echo "use emptyDir for working directory"
-
-else
+if [ -n $STORAGE ]; then
   echo "use PVC for working directory: $STORAGE GiB"
 
   pod_patch="$pod_patch |
