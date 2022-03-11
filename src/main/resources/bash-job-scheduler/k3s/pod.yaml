@@ -8,15 +8,8 @@ spec:
   containers:
   - name: comp-job
     image: ""
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
     command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp"]
-    resources:
-      limits:
-        cpu: ""
-        memory: ""
-      requests:
-        cpu: ""
-        memory: ""
     volumeMounts:
     - mountPath: /opt/chipster/conf
       name: conf
@@ -31,10 +24,9 @@ spec:
     secret:
       defaultMode: 420
       secretName: single-shot-comp
-  - hostPath:
-      path: /mnt/tools-bin
-      type: Directory
-    name: tools-bin
+  - name: tools-bin
+    persistentVolumeClaim:
+      claimName: tools-bin-chipster-3.16.6
   - emptyDir: {}
     name: jobs-data  
   restartPolicy: Never
