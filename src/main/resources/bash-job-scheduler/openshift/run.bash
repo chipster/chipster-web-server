@@ -23,7 +23,7 @@ else
   echo "resource limits are disabled"
 fi
 
-if [ -n $STORAGE ]; then
+if [ -n "$STORAGE" ]; then
   echo "use PVC for working directory: $STORAGE GiB"
 
   pod_patch="$pod_patch |
