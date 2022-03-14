@@ -32,6 +32,7 @@ public class SADLDescription {
 	private Integer slotCount;
 	private String image;
 	private Integer storage;
+	private String toolsBin;
 
 	public SADLDescription() {
 		// for Jackson
@@ -483,5 +484,13 @@ public class SADLDescription {
 
 	public void setStorage(Integer storage) {
 		this.storage = storage;
+	}
+
+	public String getToolsBin() {
+		return toolsBin;
+	}
+
+	public void setToolsBin(String toolsBin) {
+		this.toolsBin = toolsBin;
 	}
 }

@@ -14,9 +14,6 @@ spec:
     - mountPath: /opt/chipster/conf
       name: conf
       readOnly: true
-    - mountPath: /opt/chipster/tools
-      name: tools-bin
-      readOnly: true
     - mountPath: /opt/chipster/jobs-data
       name: jobs-data
   volumes:
@@ -24,9 +21,6 @@ spec:
     secret:
       defaultMode: 420
       secretName: single-shot-comp
-  - name: tools-bin
-    persistentVolumeClaim:
-      claimName: tools-bin-chipster-3.16.6
   - emptyDir: {}
     name: jobs-data  
   restartPolicy: Never

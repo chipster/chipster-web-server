@@ -51,6 +51,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_POD_MEMORY = "POD_MEMORY";
 	private static final String ENV_POD_CPU = "POD_CPU";
 	private static final String ENV_ENABLE_RESOURCE_LIMITS = "ENABLE_RESOURCE_LIMITS";
+	private static final String ENV_TOOLS_BIN_HOST_MOUNT_PATH = "TOOLS_BIN_HOST_MOUNT_PATH";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -70,7 +71,9 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
 	private static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
 	private static final String CONF_BASH_ENABLE_RESOURCE_LIMITS = "scheduler-bash-enable-resource-limits";
+	private static final String CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH = "scheduler-bash-tools-bin-host-mount-path";
 	private static final int POD_NAME_MAX_LENGTH = 63;
+	
 
 	private ThreadPoolExecutor bashExecutor;
 
@@ -100,6 +103,7 @@ public class BashJobScheduler implements JobScheduler {
 	private int slotMemory;
 	private int slotCpu;
 	private boolean enableResourceLimits;
+	private String toolsBinHostMountPath;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -125,6 +129,7 @@ public class BashJobScheduler implements JobScheduler {
 		this.slotMemory = config.getInt(CONF_BASH_SLOT_MEMORY);
 		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);
 		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
+		this.toolsBinHostMountPath = config.getString(CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH);
 
 		if (this.runScript.isEmpty()) {
 			this.runScript = readJarFile(scriptDirInJar + "/run.bash");
@@ -344,7 +349,11 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_IMAGE, this.imageRepository + image);
 		}
 		
-		String toolsBin = runtime.getToolsBinVolume();
+		String toolsBin = tool.getSadlDescription().getToolsBin();
+		
+		if (toolsBin == null) {
+			toolsBin = runtime.getToolsBinVolume();
+		}
 		
 		if (toolsBin != null) {
 			env.put(ENV_TOOLS_BIN_VOLUME, toolsBin);
@@ -354,7 +363,11 @@ public class BashJobScheduler implements JobScheduler {
 		
 		if (toolsBinPath != null) {
 			env.put(ENV_TOOLS_BIN_PATH, toolsBinPath);
-		}		
+		}
+		
+		if (toolsBinHostMountPath != null) {
+			env.put(ENV_TOOLS_BIN_HOST_MOUNT_PATH, toolsBinHostMountPath);
+		}
 
 		if (sessionToken != null) {
 			env.put(ENV_SESSION_TOKEN, sessionToken);

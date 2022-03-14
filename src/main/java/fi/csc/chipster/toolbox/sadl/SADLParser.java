@@ -146,6 +146,13 @@ public class SADLParser {
 			description.setSlotCount(slotCount);
 		}
 		
+		// read possible special tools-bin version
+		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_TOOLS_BIN)) {
+			skip(tokens, SADLSyntax.KEYWORD_TOOLS_BIN);
+			String toolsBin = parseString(tokens);
+			description.setToolsBin(toolsBin);
+		}
+		
 		// read possible storage requirements
 		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_STORAGE)) {
 			skip(tokens, SADLSyntax.KEYWORD_STORAGE);

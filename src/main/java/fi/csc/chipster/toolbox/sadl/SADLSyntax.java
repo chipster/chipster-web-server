@@ -94,6 +94,7 @@ public class SADLSyntax {
 	public static final String KEYWORD_SLOTS = "SLOTS";
 	public static final String KEYWORD_IMAGE = "IMAGE";
 	public static final String KEYWORD_STORAGE = "STORAGE";
+	public static final String KEYWORD_TOOLS_BIN = "TOOLS_BIN";
 
 	public static final String NAME_SET_DESIGNATOR = "{...}";
 	public static final String NAME_SEPARATOR = ":";

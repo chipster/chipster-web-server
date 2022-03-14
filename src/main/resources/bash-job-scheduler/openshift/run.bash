@@ -6,9 +6,24 @@ fi
 
 pod_patch=".metadata.name=\"$POD_NAME\" |
   .spec.containers[0].image=\"$IMAGE\" |
-  .spec.containers[0].command += [\"$SESSION_ID\", \"$JOB_ID\", \"$SESSION_TOKEN\"] |
-  .spec.containers[0].volumeMounts[1].mountPath=\"$TOOLS_BIN_PATH\" |
-  .spec.volumes[1]={\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"$TOOLS_BIN_VOLUME\"}}"
+  .spec.containers[0].command += [\"$SESSION_ID\", \"$JOB_ID\", \"$SESSION_TOKEN\"]"
+
+if [ -n "$TOOLS_BIN_VOLUME" ]; then  
+  pod_patch="$pod_patch |
+    .spec.containers[0].volumeMounts[+]={\"name\": \"tools-bin\", \"readOnly\": true, \"mountPath\": \"$TOOLS_BIN_PATH\"}"
+    
+  if [ -n "$TOOLS_BIN_HOST_MOUNT_PATH" ]; then
+    echo "mount tools-bin from hostPath $TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_VOLUME to $TOOLS_BIN_PATH"
+    pod_patch="$pod_patch |
+      .spec.volumes[+]={\"name\": \"tools-bin\", \"hostPath\": { \"path\": \"$TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_VOLUME\", \"type\": \"Directory\"}}"
+  else
+    echo "mount tools-bin from PVC $TOOLS_BIN_VOLUME to $TOOLS_BIN_PATH"
+    pod_patch="$pod_patch |
+      .spec.volumes[+]={\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"$TOOLS_BIN_VOLUME\"}}"
+  fi
+else
+  echo "do not mount tools-bin for this tool"
+fi
 
 if [[ $ENABLE_RESOURCE_LIMITS == "true" ]]; then
   echo "cpu $POD_CPU, memory ${POD_MEMORY}Gi"
@@ -17,8 +32,7 @@ if [[ $ENABLE_RESOURCE_LIMITS == "true" ]]; then
     .spec.containers[0].resources.limits.cpu=\"$POD_CPU\" | 
     .spec.containers[0].resources.limits.memory=\"${POD_MEMORY}Gi\" |
     .spec.containers[0].resources.requests.cpu=\"$POD_CPU\" | 
-    .spec.containers[0].resources.requests.memory=\"${POD_MEMORY}Gi\" |
-    .spec.containers[0].volumeMounts[1].mountPath=\"$TOOLS_BIN_PATH\""
+    .spec.containers[0].resources.requests.memory=\"${POD_MEMORY}Gi\""
 else
   echo "resource limits are disabled"
 fi

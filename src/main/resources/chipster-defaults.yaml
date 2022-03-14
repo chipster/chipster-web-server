@@ -317,6 +317,8 @@ scheduler-bash-slot-memory: 8
 scheduler-bash-slot-cpu: 2
 # enable resource limits
 scheduler-bash-enable-resource-limits: true
+# use hostMount instead of PVC for the tools-bin data
+scheduler-bash-tools-bin-host-mount-path: ""
 
   
 scheduler-bash-max-slots: "100"
