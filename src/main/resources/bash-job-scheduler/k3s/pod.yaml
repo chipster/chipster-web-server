@@ -21,6 +21,4 @@ spec:
     secret:
       defaultMode: 420
       secretName: single-shot-comp
-  - emptyDir: {}
-    name: jobs-data  
   restartPolicy: Never

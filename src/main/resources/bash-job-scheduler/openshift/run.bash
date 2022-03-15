@@ -10,16 +10,16 @@ pod_patch=".metadata.name=\"$POD_NAME\" |
 
 if [ -n "$TOOLS_BIN_VOLUME" ]; then  
   pod_patch="$pod_patch |
-    .spec.containers[0].volumeMounts[+]={\"name\": \"tools-bin\", \"readOnly\": true, \"mountPath\": \"$TOOLS_BIN_PATH\"}"
+    .spec.containers[0].volumeMounts += [{\"name\": \"tools-bin\", \"readOnly\": true, \"mountPath\": \"$TOOLS_BIN_PATH\"}]"
     
   if [ -n "$TOOLS_BIN_HOST_MOUNT_PATH" ]; then
     echo "mount tools-bin from hostPath $TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_VOLUME to $TOOLS_BIN_PATH"
     pod_patch="$pod_patch |
-      .spec.volumes[+]={\"name\": \"tools-bin\", \"hostPath\": { \"path\": \"$TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_VOLUME\", \"type\": \"Directory\"}}"
+      .spec.volumes += [{\"name\": \"tools-bin\", \"hostPath\": { \"path\": \"$TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_VOLUME\", \"type\": \"Directory\"}}]"
   else
     echo "mount tools-bin from PVC $TOOLS_BIN_VOLUME to $TOOLS_BIN_PATH"
     pod_patch="$pod_patch |
-      .spec.volumes[+]={\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"$TOOLS_BIN_VOLUME\"}}"
+      .spec.volumes += [{\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"$TOOLS_BIN_VOLUME\"}}]"
   fi
 else
   echo "do not mount tools-bin for this tool"
@@ -41,7 +41,7 @@ if [ -n "$STORAGE" ]; then
   echo "use PVC for working directory: $STORAGE GiB"
 
   pod_patch="$pod_patch |
-    .spec.volumes[2]={\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}"
+    .spec.volumes += [{\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}]"
 
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |
@@ -50,6 +50,12 @@ if [ -n "$STORAGE" ]; then
   pvc_json=$(echo "$PVC_YAML" | yq e - -o=json | jq "$pvc_patch")
 
   echo "$pvc_json" | kubectl apply -f -
+
+else
+
+  echo "use emptyDir for working directory"
+  pod_patch="$pod_patch |
+    .spec.volumes += [{\"name\": \"jobs-data\", \"emptyDir\": {}}]"
 fi
 
 job_json=$(echo "$POD_YAML"    | yq e - -o=json | jq "$pod_patch")
