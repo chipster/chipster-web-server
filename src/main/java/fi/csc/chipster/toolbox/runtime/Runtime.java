@@ -15,7 +15,7 @@ public class Runtime {
 	private String jobFactory;
 	private String command;
 	private String parameters;
-	private String toolsBinVolume;
+	private String toolsBinName;
 	private String toolsBinPath;
 	private String image;
 	
@@ -43,11 +43,11 @@ public class Runtime {
 	public void setParameters(String commandParameters) {
 		this.parameters = commandParameters;
 	}
-	public String getToolsBinVolume() {
-		return toolsBinVolume;
+	public String getToolsBinName() {
+		return toolsBinName;
 	}
-	public void setToolsBinVolume(String toolsBin) {
-		this.toolsBinVolume = toolsBin;
+	public void setToolsBinName(String toolsBin) {
+		this.toolsBinName = toolsBin;
 	}
 	public String getToolsBinPath() {
 		return toolsBinPath;

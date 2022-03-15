@@ -27,7 +27,7 @@ public class RuntimeRepository {
 	private static final String CONF_RUNTIME_PARAMETERS = "toolbox-runtime-parameters";
 	private static final String CONF_RUNTIME_IMAGE = "toolbox-runtime-image";
 	private static final String CONF_RUNTIME_JOB_FACTORY = "toolbox-runtime-job-factory";
-	private static final String CONF_RUNTIME_TOOLS_BIN_VOLUME = "toolbox-runtime-tools-bin-volume";
+	private static final String CONF_RUNTIME_TOOLS_BIN_NAME = "toolbox-runtime-tools-bin-name";
 	private static final String CONF_RUNTIME_TOOLS_BIN_PATH = "toolbox-runtime-tools-bin-path";
 	
 	private static final String CONF_DEFAULT_RUNTIME_NAME = "toolbox-default-runtime-name";
@@ -52,7 +52,7 @@ public class RuntimeRepository {
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_PARAMETERS + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_JOB_FACTORY + "-").keySet());
-		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_VOLUME + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_NAME + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_PATH + "-").keySet());
 		
 		logger.info("------ loading runtimes ------");
@@ -66,14 +66,14 @@ public class RuntimeRepository {
 			runtime.setParameters(config.getString(CONF_RUNTIME_PARAMETERS, runtimeName));
 			runtime.setImage(config.getString(CONF_RUNTIME_IMAGE, runtimeName));
 			runtime.setJobFactory(config.getString(CONF_RUNTIME_JOB_FACTORY, runtimeName));
-			runtime.setToolsBinVolume(config.getString(CONF_RUNTIME_TOOLS_BIN_VOLUME, runtimeName));
+			runtime.setToolsBinName(config.getString(CONF_RUNTIME_TOOLS_BIN_NAME, runtimeName));
 			runtime.setToolsBinPath(config.getString(CONF_RUNTIME_TOOLS_BIN_PATH, runtimeName));
 			
 			logger.info("  command:          " + runtime.getCommand());
 			logger.info("  parameters:       " + runtime.getParameters());
 			logger.info("  image:            " + runtime.getImage());
 			logger.info("  job factory:      " + runtime.getJobFactory());
-			logger.info("  tools-bin volume: " + runtime.getToolsBinVolume());
+			logger.info("  tools-bin name:   " + runtime.getToolsBinName());
 			logger.info("  tools-bin path:   " + runtime.getToolsBinPath());
 			
 			runtimes.add(runtime);
