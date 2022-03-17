@@ -354,7 +354,7 @@ toolbox-tools-bin-path: /opt/chipster/tools
 toolbox-runtime-job-factory: fi.csc.chipster.comp.r.RJobFactory
 toolbox-runtime-parameters: "--vanilla --quiet"
 toolbox-runtime-image: comp-16.04
-toolbox-runtime-tools-bin-volume: tools-bin-chipster-3.5.1
+toolbox-runtime-tools-bin-name: chipster-3.5.1
 toolbox-runtime-tools-bin-path: /opt/chipster/tools
 
 # add other runtimes by appending 
