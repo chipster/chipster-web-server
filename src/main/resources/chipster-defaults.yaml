@@ -259,7 +259,7 @@ comp-job-timeout: 604800 # a week
 comp-job-threads-max: 4
 # max memory that single job should use, megabytes
 comp-job-memory-max: 8192
-comp-chipster-root-dir: "../"
+comp-chipster-root-dir: "."
 
 # scheduler
 
