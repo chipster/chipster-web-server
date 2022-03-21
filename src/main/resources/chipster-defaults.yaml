@@ -7,7 +7,6 @@ service-password-auth: auth
 service-password-session-db: session-db
 service-password-service-locator: service-locator
 service-password-scheduler: scheduler
-service-password-comp: comp
 service-password-file-broker: file-broker
 service-password-session-worker: session-worker
 service-password-web-server: web-server
@@ -54,7 +53,6 @@ url-admin-ext-file-broker: http://{{admin-ip}}:8107
 url-admin-ext-toolbox: http://{{admin-ip}}:8108
 url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
-url-admin-ext-comp: http://{{admin-ip}}:8111
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
 # this is really url-admin-int and accessed only through file-broker, but we don't yet hanle it differently in deployment scripts
@@ -85,7 +83,6 @@ url-admin-bind-file-broker: http://{{admin-bind-ip}}:8107
 url-admin-bind-toolbox: http://{{admin-bind-ip}}:8108
 url-admin-bind-session-worker: http://{{admin-bind-ip}}:8109
 url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
-url-admin-bind-comp: http://{{admin-bind-ip}}:8111
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 url-admin-bind-file-storage: http://{{bind-ip}}:8116

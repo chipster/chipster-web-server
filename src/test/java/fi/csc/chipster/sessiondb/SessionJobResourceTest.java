@@ -30,7 +30,7 @@ public class SessionJobResourceTest {
 
 	private static SessionDbClient user1Client;
 	private static SessionDbClient user2Client;
-	private static SessionDbClient compClient;
+	private static SessionDbClient schedulerClient;
 
 	private static UUID sessionId1;
 	private static UUID sessionId2;
@@ -42,7 +42,7 @@ public class SessionJobResourceTest {
     	
     	user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
-		compClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getCompToken(), Role.CLIENT);
+		schedulerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSchedulerToken(), Role.CLIENT);
 		    	
 		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
@@ -114,7 +114,7 @@ public class SessionJobResourceTest {
         
 		UUID jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
 		assertEquals(true, user1Client.getJob(sessionId1, jobId) != null);
-		assertEquals(true, compClient.getJob(sessionId1, jobId) != null);
+		assertEquals(true, schedulerClient.getJob(sessionId1, jobId) != null);
 		
 		// wrong user
 		testGetJob(403, sessionId1, jobId, user2Client);
@@ -173,7 +173,7 @@ public class SessionJobResourceTest {
 		// comp
 		job.setToolName("new name2");
 		user1Client.updateJob(sessionId1, job);
-		assertEquals("new name2", compClient.getJob(sessionId1, jobId).getToolName());
+		assertEquals("new name2", schedulerClient.getJob(sessionId1, jobId).getToolName());
 
 		// wrong user
 		testUpdateJob(403, sessionId1, job, user2Client);

@@ -22,7 +22,6 @@ public class SessionResourceTest {
 	private static SessionDbClient user1Client;
 	private static SessionDbClient user2Client;
 	private static SessionDbClient schedulerClient;
-	private static SessionDbClient compClient;
 	private static SessionDbClient unparseableTokenClient;
 	private static SessionDbClient tokenFailClient;
 	private static SessionDbClient expiredTokenClient;
@@ -43,7 +42,6 @@ public class SessionResourceTest {
 		user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 		schedulerClient 		= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getSchedulerToken(), Role.SERVER);
-		compClient 				= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getCompToken(), Role.SERVER);
 		unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
 		tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), TestServerLauncher.getWrongKeyToken(), Role.CLIENT);
 		signatureFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSignatureFailToken(), Role.CLIENT);
@@ -98,7 +96,7 @@ public class SessionResourceTest {
 		assertEquals(true, user2Client.getSession(sessionId2) != null);
 		// servers can read any session
 		assertEquals(true, schedulerClient.getSession(sessionId1) != null);
-		assertEquals(true, compClient.getSession(sessionId1) != null);
+		assertEquals(true, sessionWorkerClient.getSession(sessionId1) != null);
 		
 		// wrong user
 		testGetSession(403, sessionId2, user1Client);
@@ -215,7 +213,7 @@ public class SessionResourceTest {
 		assertEquals("new name2", user1Client.getSession(sessionId1).getName());
 		
 		session1.setName("new name3");
-		compClient.updateSession(session1);
+		sessionWorkerClient.updateSession(session1);
 		assertEquals("new name3", user1Client.getSession(sessionId1).getName());
 		
 		

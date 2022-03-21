@@ -161,10 +161,6 @@ public class TestServerLauncher {
 		return new AuthenticationClient(serviceLocatorClient, Role.SCHEDULER, Role.SCHEDULER, Role.SERVER).getCredentials();
 	}
 	
-	public CredentialsProvider getCompToken() {
-		return new AuthenticationClient(serviceLocatorClient, Role.COMP, Role.COMP, Role.SERVER).getCredentials();
-	}
-	
 	public CredentialsProvider getSessionWorkerToken() {
 		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_WORKER, Role.SESSION_WORKER, Role.SERVER).getCredentials();
 	}

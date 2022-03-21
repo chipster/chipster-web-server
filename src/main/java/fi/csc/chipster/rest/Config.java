@@ -208,7 +208,8 @@ public class Config {
 	}
 	
 	private static String getFromFile(String confFilePath, String key) {
-		return readFile(confFilePath).get(key);
+		HashMap<String, String> conf = readFile(confFilePath);
+		return conf.get(key);
 	}
 	
 	private static HashMap<String, String> readFile(String confFilePath) {
@@ -216,7 +217,8 @@ public class Config {
 			confFileCache.put(confFilePath, readFileUncached(confFilePath));
 		}
 		
-		return confFileCache.get(confFilePath);
+		// create copy of the map to protect the original from accidental changes 
+		return new HashMap<>(confFileCache.get(confFilePath));
 	}
 		
 	private static HashMap<String, String> readFileUncached(String confFilePath) {
