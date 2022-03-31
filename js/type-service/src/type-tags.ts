@@ -1,4 +1,3 @@
-
 import { Logger } from "chipster-nodejs-core";
 const logger = Logger.getLogger(__filename);
 
@@ -43,7 +42,7 @@ export const Tags = {
   MOTHUR_SHARED: new Tag("MOTHUR_SHARED", [".shared"]),
   MOTHUR_TAXONOMY: new Tag("MOTHUR_TAXONOMY", [".taxonomy"]),
   SFF: new Tag("SFF", [".sff"]),
-    // RData format used in phyloseq tools
+  // RData format used in phyloseq tools
   R_RDA: new Tag("R_RDA", [".Rda"]),
 
   // complex types are defined here for autocompletion, but have to be checked separately
@@ -55,11 +54,17 @@ export const Tags = {
   PVALUE_AND_FOLD_CHANGE: new Tag("PVALUE_AND_FOLD_CHANGE", []),
   COLUMN_TITLES: new Tag("COLUMN_TITLES", []),
   SKIP_LINES: new Tag("SKIP_LINES", []),
-  NO_TITLE_ROW: new Tag("NO_TITLE_ROW", [])
+  NO_TITLE_ROW: new Tag("NO_TITLE_ROW", []),
 };
 
 // types that are tagged even if they are gzipped, for example .fasta.gz -> Tags.FASTA
-const GZIP_SUPPORTED_TYPES = new Set([Tags.FASTA, Tags.MOTHUR_COUNT, Tags.MOTHUR_GROUPS, Tags.GTF]);
+const GZIP_SUPPORTED_TYPES = new Set([
+  Tags.FASTA,
+  Tags.FASTQ,
+  Tags.MOTHUR_COUNT,
+  Tags.MOTHUR_GROUPS,
+  Tags.GTF,
+]);
 
 const TEXT_TYPES = new Set([
   Tags.TSV,
@@ -84,7 +89,7 @@ const TEXT_TYPES = new Set([
   Tags.SEQ,
   Tags.WEE,
   Tags.DAT,
-  ]);
+]);
 
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
@@ -99,7 +104,7 @@ export class TypeTags {
       // for-in to iterate object keys
       for (let extension of Tags[tagKey].extensions) {
         // for-of to iterate array items
-        if (name) {          
+        if (name) {
           // check extension, also possibly add TEXT tag
           if (name.toLowerCase().endsWith(extension.toLowerCase())) {
             typeTags[tagKey] = null;
@@ -109,13 +114,14 @@ export class TypeTags {
             }
           }
           // check extension with gz, never add TEXT tag
-          else if (TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey])) {
+          else if (
+            TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey])
+          ) {
             typeTags[tagKey] = null;
           }
         }
       }
     }
-
 
     if (Tags.VCF.id in typeTags) {
       typeTags[Tags.SKIP_LINES.id] = "##";
@@ -124,9 +130,9 @@ export class TypeTags {
     if (Tags.GTF.id in typeTags) {
       typeTags[Tags.COLUMN_TITLES.id] =
         "seqname\tsource\tfeature\tstart\tend\tscore\tstrand\tframe\tattribute";
-        // this is now set also for .gtf.gz, whether that's good or bad
-        // our Ensembl GTF uses '#!', GFF3 uses '##'
-        typeTags[Tags.SKIP_LINES.id] = "#";
+      // this is now set also for .gtf.gz, whether that's good or bad
+      // our Ensembl GTF uses '#!', GFF3 uses '##'
+      typeTags[Tags.SKIP_LINES.id] = "#";
     }
 
     if (Tags.BED.id in typeTags) {
@@ -180,7 +186,7 @@ export class TypeTags {
       slowTags[Tags.GENELIST.id] = null;
     }
 
-    if (headers.filter(header => header.startsWith("chip.")).length > 0) {
+    if (headers.filter((header) => header.startsWith("chip.")).length > 0) {
       slowTags[Tags.GENE_EXPRS.id] = null;
     }
 
@@ -197,21 +203,32 @@ export class TypeTags {
 
   static parseTsv(data: string): string[][] {
     let rows = data.split("\n", 2);
-    return rows.map(row => row.split("\t"));
+    return rows.map((row) => row.split("\t"));
   }
 
   static pValueAndFoldChangeCompatible(headers: string[]) {
     return (
-      PVALUE_HEADERS.some(pValueHeader =>
-        headers.some(header => header.startsWith(pValueHeader))
+      PVALUE_HEADERS.some((pValueHeader) =>
+        headers.some((header) => header.startsWith(pValueHeader))
       ) &&
-      FOLD_CHANGE_HEADERS.some(foldChangeHeader =>
-        headers.some(header => header.startsWith(foldChangeHeader))
+      FOLD_CHANGE_HEADERS.some((foldChangeHeader) =>
+        headers.some((header) => header.startsWith(foldChangeHeader))
       )
     );
   }
 
-  static endsWithExtensionAndGzip(filename: string, extension: string, tag: Tag): boolean {
-    return GZIP_SUPPORTED_TYPES.has(tag) && Tags.GZIP.extensions.some(gzipExtension => filename.toLowerCase().endsWith(extension.toLowerCase() + gzipExtension.toLowerCase()))
+  static endsWithExtensionAndGzip(
+    filename: string,
+    extension: string,
+    tag: Tag
+  ): boolean {
+    return (
+      GZIP_SUPPORTED_TYPES.has(tag) &&
+      Tags.GZIP.extensions.some((gzipExtension) =>
+        filename
+          .toLowerCase()
+          .endsWith(extension.toLowerCase() + gzipExtension.toLowerCase())
+      )
+    );
   }
 }

@@ -3,16 +3,17 @@ package fi.csc.chipster.toolbox;
 import fi.csc.chipster.toolbox.sadl.SADLSyntax.InputType;
 
 public class ChipsterInputTypes {
-	
-	public static final InputType CDNA = new InputType("CDNA");	
-	public static final InputType AFFY = new InputType("AFFY");	
-	public static final InputType GENE_EXPRS = new InputType("GENE_EXPRS");	
-	public static final InputType GENELIST = new InputType("GENELIST");	
-	public static final InputType PHENODATA = new InputType("PHENODATA");	
-	public static final InputType BAM = new InputType("BAM");	
-	public static final InputType FASTA = new InputType("FASTA");	
-	public static final InputType GTF = new InputType("GTF");	
-	public static final InputType MOTHUR_OLIGOS = new InputType("MOTHUR_OLIGOS");	
+
+	public static final InputType CDNA = new InputType("CDNA");
+	public static final InputType AFFY = new InputType("AFFY");
+	public static final InputType GENE_EXPRS = new InputType("GENE_EXPRS");
+	public static final InputType GENELIST = new InputType("GENELIST");
+	public static final InputType PHENODATA = new InputType("PHENODATA");
+	public static final InputType BAM = new InputType("BAM");
+	public static final InputType FASTA = new InputType("FASTA");
+	public static final InputType FASTQ = new InputType("FASTQ");
+	public static final InputType GTF = new InputType("GTF");
+	public static final InputType MOTHUR_OLIGOS = new InputType("MOTHUR_OLIGOS");
 	public static final InputType MOTHUR_NAMES = new InputType("MOTHUR_NAMES");
 	public static final InputType MOTHUR_GROUPS = new InputType("MOTHUR_GROUPS");
 	public static final InputType MOTHUR_STABILITY = new InputType("MOTHUR_STABILITY");
