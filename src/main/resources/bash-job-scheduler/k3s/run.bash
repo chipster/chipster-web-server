@@ -26,6 +26,7 @@ else
 fi
 
 if [[ $ENABLE_RESOURCE_LIMITS == "true" ]]; then
+
   echo "cpu $POD_CPU, memory ${POD_MEMORY}Gi"
   pod_patch="$pod_patch |
     .metadata.name=\"$POD_NAME\" |
@@ -45,7 +46,7 @@ if [ -n "$STORAGE" ]; then
 
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |
-    .spec.storageClassName=\"$STORAGE_CLASS\""
+    .metadata.annotations.\"volume.beta.kubernetes.io/storage-class\"=\"$STORAGE_CLASS\""
 
   pvc_json=$(echo "$PVC_YAML" | yq e - -o=json | jq "$pvc_patch")
 
@@ -61,3 +62,4 @@ fi
 job_json=$(echo "$POD_YAML"    | yq e - -o=json | jq "$pod_patch")
 
 echo "$job_json" | kubectl apply -f -
+
