@@ -8,7 +8,7 @@ spec:
   containers:
   - name: comp-job
     image: ""
-    imagePullPolicy: Always
+    imagePullPolicy: ""
     command: ["java",  "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp"]
     volumeMounts:
     - mountPath: /opt/chipster/conf

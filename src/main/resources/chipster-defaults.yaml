@@ -276,6 +276,8 @@ scheduler-max-new-slots-per-user: 1000
 scheduler-get-jobs-from-db: true
 # image repository, prefix for all image names
 scheduler-bash-image-repository: ""
+# image pull policy for jobs, for example local images need pull policy "Never"
+scheduler-bash-image-pull-policy: "Always"
 # number of threads for BashJobScheduler
 scheduler-bash-threads: 4
 # max number of slots to run simultaneously in BashJobScheduler

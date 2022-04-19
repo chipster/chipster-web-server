@@ -40,6 +40,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_JOB_ID = "JOB_ID";
 	private static final String ENV_SLOTS = "SLOTS";
 	private static final String ENV_IMAGE = "IMAGE";
+	private static final String ENV_IMAGE_PULL_POLICY = "IMAGE_PULL_POLICY";
 	private static final String ENV_SESSION_TOKEN = "SESSION_TOKEN";
 	private static final String ENV_POD_NAME = "POD_NAME";
 	private static final String ENV_TOOLS_BIN_NAME = "TOOLS_BIN_NAME";
@@ -67,6 +68,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT = "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
+	private static final String CONF_BASH_IMAGE_PULL_POLICY = "scheduler-bash-image-pull-policy";
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
 	private static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
 	private static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
@@ -108,6 +110,7 @@ public class BashJobScheduler implements JobScheduler {
 	private String toolsBinHostMountPath;
 	private Integer maxMemory;
 	private Integer maxCpu;
+	private String imagePullPolicy;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -129,6 +132,7 @@ public class BashJobScheduler implements JobScheduler {
 		this.logScript = config.getString(CONF_BASH_LOG_SCRIPT);
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
+		this.imagePullPolicy = config.getString(CONF_BASH_IMAGE_PULL_POLICY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
 		this.slotMemory = config.getInt(CONF_BASH_SLOT_MEMORY);
 		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);		
@@ -381,6 +385,10 @@ public class BashJobScheduler implements JobScheduler {
 		
 		if (image != null) {
 			env.put(ENV_IMAGE, this.imageRepository + image);
+		}
+		
+		if (this.imagePullPolicy != null) {
+			env.put(ENV_IMAGE_PULL_POLICY, this.imagePullPolicy);
 		}
 		
 		String toolsBinName = tool.getSadlDescription().getToolsBin();

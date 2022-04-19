@@ -6,6 +6,7 @@ fi
 
 pod_patch=".metadata.name=\"$POD_NAME\" |
   .spec.containers[0].image=\"$IMAGE\" |
+  .spec.containers[0].imagePullPolicy=\"$IMAGE_PULL_POLICY\" |
   .spec.containers[0].command += [\"$SESSION_ID\", \"$JOB_ID\", \"$SESSION_TOKEN\"]"
 
 if [ -n "$TOOLS_BIN_NAME" ]; then  
