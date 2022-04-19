@@ -70,6 +70,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
 	private static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
 	private static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
+	private static final String CONF_BASH_MAX_MEMORY = "scheduler-bash-max-memory";
+	private static final String CONF_BASH_MAX_CPU = "scheduler-bash-max-cpu";
 	private static final String CONF_BASH_ENABLE_RESOURCE_LIMITS = "scheduler-bash-enable-resource-limits";
 	private static final String CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH = "scheduler-bash-tools-bin-host-mount-path";
 	private static final int POD_NAME_MAX_LENGTH = 63;
@@ -104,6 +106,8 @@ public class BashJobScheduler implements JobScheduler {
 	private int slotCpu;
 	private boolean enableResourceLimits;
 	private String toolsBinHostMountPath;
+	private Integer maxMemory;
+	private Integer maxCpu;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -127,9 +131,20 @@ public class BashJobScheduler implements JobScheduler {
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
 		this.slotMemory = config.getInt(CONF_BASH_SLOT_MEMORY);
-		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);
+		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);		
 		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
 		this.toolsBinHostMountPath = config.getString(CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH);
+		
+		String maxMemoryString = config.getString(CONF_BASH_MAX_MEMORY);
+		String maxCpuString = config.getString(CONF_BASH_MAX_CPU);
+		
+		if (!maxMemoryString.isEmpty()) {
+			this.maxMemory = Integer.parseInt(maxMemoryString);
+		}
+		
+		if (!maxCpuString.isEmpty()) {
+			this.maxCpu = Integer.parseInt(maxCpuString);
+		}
 
 		if (this.runScript.isEmpty()) {
 			this.runScript = readJarFile(scriptDirInJar + "/run.bash");
@@ -280,7 +295,7 @@ public class BashJobScheduler implements JobScheduler {
 			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken);
 
 			// use the conf key as a name in logs
-			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, null);
+			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, null, true);
 		}
 
 		if (isBusy) {
@@ -335,8 +350,27 @@ public class BashJobScheduler implements JobScheduler {
 		
 		if (slots > 0) {
 			env.put(ENV_SLOTS, "" + slots);
-			env.put(ENV_POD_MEMORY, "" + slots * this.slotMemory);
-			env.put(ENV_POD_CPU, "" + slots * this.slotCpu);
+			
+			int memory = this.slotMemory * slots;
+			int cpu = this.slotCpu * slots;
+			
+			/*
+			 * Allow limiting of cpu or memory
+			 * 
+			 * The pod won't start if the pod's resource limits are higher than the quota in OpenShift.
+			 * For example, if the cpu quota is 8 and memory quota is 40 GiB, we have to limit 
+			 * the cpu to 8 when running 5 slot jobs. 
+			 */
+			if (this.maxMemory != null && memory > this.maxMemory) {
+				memory = this.maxMemory;
+			}
+			
+			if (this.maxCpu != null && cpu > this.maxCpu) {
+				cpu = this.maxCpu;
+			}
+			
+			env.put(ENV_POD_MEMORY, "" + memory);
+			env.put(ENV_POD_CPU, "" + cpu);
 		}
 
 		String image = tool.getSadlDescription().getImage();
@@ -373,9 +407,17 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_SESSION_TOKEN, sessionToken);
 		}
 		
-		env.put(ENV_POD_YAML, this.podYaml);
-		env.put(ENV_PVC_YAML, this.pvcYaml);
-		env.put(ENV_STORAGE_CLASS, this.storageClass);
+		if (this.podYaml != null) {
+			env.put(ENV_POD_YAML, this.podYaml);
+		}
+		
+		if (this.pvcYaml != null) {
+			env.put(ENV_PVC_YAML, this.pvcYaml);
+		}
+		
+		if (this.storageClass != null) {
+			env.put(ENV_STORAGE_CLASS, this.storageClass);
+		}
 		
 		return env;
 	}
@@ -418,7 +460,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getTool(), idPair);
 		
 		// use the conf key as a name in logs
-		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, env, null);
+		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, env, null, true);
 	}
 
 	@Override
@@ -438,7 +480,7 @@ public class BashJobScheduler implements JobScheduler {
 		
 		HashMap<String, String> env = getEnv(job.getTool(), idPair);
 
-		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, env, null);
+		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, env, null, true);
 	}
 
 	@Override
@@ -472,7 +514,14 @@ public class BashJobScheduler implements JobScheduler {
 			
 			// use the conf key as a name in logs
 			// run in executor to limit the number of external processes
-			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, env, null);
+			/* 
+			 * Find better way to communicate if the job is alive
+			 * 
+			 * Now the exit value is used. Zero is returned when the job is 
+			 * alive and anything else when it isn't. This prevents us from 
+			 * noticing (or even logging) any errors. 
+			 */
+			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, env, null, false);
 			
 			// wait for the bash process
 			future.get();
@@ -527,23 +576,33 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 
-	private Future<?> runSchedulerBash(String bashCommand, String name, Map<String, String> env, StringBuffer stdout) {
+	private Future<?> runSchedulerBash(String bashCommand, String name, Map<String, String> env, StringBuffer stdout, boolean logErrors) {
 				
 		Instant startInstant = Instant.now();
 		
 		return this.bashExecutor.submit(() -> {
 			
-			long waitTime = startInstant.until(Instant.now(), ChronoUnit.SECONDS);
+			try {
 			
-			if (waitTime >= 1) {
-				/* It's not easy to fill the pool now, apparently the code is too single threaded.
-				 * Let's keep this check anyway, because a full pool would cause random timeouts 
-				 * and would be difficult to recognize.
-				 */
-				logger.warn("waited " + waitTime + " second(s) for the executor. Is more executor threads needed?");
+				long waitTime = startInstant.until(Instant.now(), ChronoUnit.SECONDS);
+				
+				if (waitTime >= 1) {
+					/* It's not easy to fill the pool now, apparently the code is too single threaded.
+					 * Let's keep this check anyway, because a full pool would cause random timeouts 
+					 * and would be difficult to recognize.
+					 */
+					logger.warn("waited " + waitTime + " second(s) for the executor. Is more executor threads needed?");
+				}
+				
+				this.runSchedulerBashWithoutExecutor(bashCommand, name, env, stdout);
+				
+			} catch (Throwable e) {
+				
+				if (logErrors) {
+					// log errors, otherwise executor swallows them
+					logger.error("unexpected error in  " + name, e);
+				}
 			}
-			
-			this.runSchedulerBashWithoutExecutor(bashCommand, name, env, stdout);
 		});
 	}
 
@@ -627,7 +686,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getTool(), idPair);
 		
 		// run in executor to limit the amount of external processes
-		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, env, logStdout);
+		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, env, logStdout, true);
 		
 		try {
 			future.get();

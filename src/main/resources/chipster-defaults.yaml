@@ -310,8 +310,12 @@ scheduler-bash-pvc: ""
 scheduler-bash-storage-class: ""
 # how many GiB of memory for each job slot
 scheduler-bash-slot-memory: 8
+# maximum memory of one job in GiB
+scheduler-bash-max-memory: ""
 # how many cpu-cores for each job slot
 scheduler-bash-slot-cpu: 2
+# maximum number of cpu cores for one job
+scheduler-bash-max-cpu: ""
 # enable resource limits
 scheduler-bash-enable-resource-limits: true
 # use hostMount instead of PVC for the tools-bin data
