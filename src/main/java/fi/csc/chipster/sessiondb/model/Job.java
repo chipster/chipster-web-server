@@ -45,6 +45,7 @@ public class Job {
 	@Lob
 	private String stateDetail;
 	private Long memoryUsage;
+	private Long storageUsage;
 
 	private String createdBy;
 	private String comp;
@@ -229,5 +230,13 @@ public class Job {
 
 	public void setComp(String comp) {
 		this.comp = comp;
+	}
+
+	public Long getStorageUsage() {
+		return storageUsage;
+	}
+
+	public void setStorageUsage(Long storageUsage) {
+		this.storageUsage = storageUsage;
 	}
 }

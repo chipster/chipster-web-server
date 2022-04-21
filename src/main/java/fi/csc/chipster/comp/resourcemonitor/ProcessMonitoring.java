@@ -1,4 +1,4 @@
-package fi.csc.chipster.comp;
+package fi.csc.chipster.comp.resourcemonitor;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -80,42 +80,6 @@ public class ProcessMonitoring {
 		}
 	}
 	
-	public static class ProcessResourceMonitor {
-		private Long pid;
-		private HashSet<Long> allPids = new HashSet<>();
-		private Long maxMem;
-		private Long currentMem;
-		private Process javaProcess;
-		
-		public ProcessResourceMonitor(Process javaProcess) {
-			this.javaProcess = javaProcess;
-		}
-		public Long getMaxMem() {
-			return maxMem;
-		}
-
-		public Long getCurrentMem() {
-			return currentMem;
-		}
-		
-		public void update() throws IOException {
-			if (pid == null) {
-				this.pid = ProcessMonitoring.getPid(javaProcess);
-				allPids.add(pid);
-			}
-			
-			if (pid != null) {
-				// remember all pids, even if child process ends and grandchild's ppid will be set to 1
-				allPids.addAll(getChildren(pid, true));
-				currentMem = getTotalMemory(allPids);
-				if (this.maxMem == null || currentMem > this.maxMem) {
-					this.maxMem = currentMem;
-				}
-				logger.debug("pid " + pid + " mem " + maxMem + " pid count " + allPids.size());
-			}
-		}
-	}
-	
 	public static long getTotalMemory(Collection<Long> pids) {
 		return pids.stream().mapToLong(childPid -> getMemoryWithoutException(childPid)).sum();
 	}
@@ -181,7 +145,7 @@ public class ProcessMonitoring {
 		return lines[1].trim();
 	}
 	
-	private static List<Long> getChildren(long pid, boolean recursive) throws IOException {
+	public static List<Long> getChildren(long pid, boolean recursive) throws IOException {
 		String pidLines = execCmd("pgrep", "-P", "" + pid);
 		List<Long> pids = new ArrayList<>();
 		for (String pidString : pidLines.split("\n")) {

@@ -22,7 +22,9 @@ import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
+import fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring;
+import fi.csc.chipster.comp.resourcemonitor.legacy.ResourceMonitor;
+import fi.csc.chipster.comp.resourcemonitor.legacy.ResourceMonitor.ProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;

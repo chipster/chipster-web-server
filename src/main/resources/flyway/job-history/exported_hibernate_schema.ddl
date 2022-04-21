@@ -1,21 +1,21 @@
 
-    drop table if exists JobHistoryModel cascade;
+    drop table if exists JobHistory cascade;
 
-    create table JobHistoryModel (
+    create table JobHistory (
        jobId uuid not null,
         sessionId uuid not null,
-        compName varchar(255),
+        comp varchar(255),
         created timestamp,
+        createdBy varchar(255),
         endTime timestamp,
-        jobStatus varchar(255),
-        jobStatusDetail varchar(255),
         memoryUsage int8,
-        output text,
+        module varchar(255),
+        screenOutput oid,
         startTime timestamp,
-        timeDuration varchar(255),
+        state varchar(255),
+        stateDetail varchar(255),
         toolId varchar(255),
         toolName varchar(255),
-        userName varchar(255),
         primary key (jobId, sessionId)
     );
-create index job_history_created_index on JobHistoryModel (created desc);
+create index job_history_created_index on JobHistory (created desc);

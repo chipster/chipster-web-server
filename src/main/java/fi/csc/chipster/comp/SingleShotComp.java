@@ -3,7 +3,6 @@ package fi.csc.chipster.comp;
 import java.io.File;
 import java.net.InetAddress;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -12,7 +11,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.comp.ResourceMonitor.ProcessProvider;
+import fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring;
+import fi.csc.chipster.comp.resourcemonitor.singleshot.SingleShotResourceMonitor;
+import fi.csc.chipster.comp.resourcemonitor.singleshot.SingleShotResourceMonitor.SingleShotProcessProvider;
 import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -40,7 +41,7 @@ import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
  * java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp
  */
 public class SingleShotComp
-		implements ResultCallback, ProcessProvider {
+		implements ResultCallback, SingleShotProcessProvider {
 
 	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
 	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
@@ -92,7 +93,7 @@ public class SingleShotComp
 	
 	private SessionDbClient sessionDbClient;
 
-	private ResourceMonitor resourceMonitor;
+	private SingleShotResourceMonitor resourceMonitor;
 	private int monitoringInterval;
 	private String hostname;
 	private Config config;
@@ -133,7 +134,7 @@ public class SingleShotComp
 		this.toolboxClient = new ToolboxClientComp(toolboxUrl);
 		logger.info("toolbox client connecting to: " + toolboxUrl);
 
-		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
+		resourceMonitor = new SingleShotResourceMonitor(this, monitoringInterval);
 
 		sessionDbClient = new SessionDbClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, sessionTokenCredentials);
@@ -175,6 +176,7 @@ public class SingleShotComp
 			
 			// run the job
 			executorService.execute(job);
+			
 			logger.info("executing job " + job.getToolDescription().getDisplayName() + "("
 					+ job.getToolDescription().getID() + ")" + ", " + job.getId() + ", "
 					+ job.getInputMessage().getUsername());
@@ -198,7 +200,7 @@ public class SingleShotComp
 					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
-					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
+					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem()));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}
@@ -247,7 +249,8 @@ public class SingleShotComp
 			
 			CompJob compJob = this.job;
 			if (compJob != null) {
-				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem(compJob.getProcess()));
+				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
+				dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
 			}
 			
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
@@ -344,15 +347,23 @@ public class SingleShotComp
 	}
 
 	@Override
-	public HashSet<Process> getRunningJobProcesses() {
+	public Process getJobProcess() {
 		synchronized (jobsLock) {
-			HashSet<Process> jobProcesses = new HashSet<>();
 
 			if (this.job != null && this.job.getProcess() != null) {
-				jobProcesses.add(this.job.getProcess());
+				return this.job.getProcess();
 			}
 
-			return jobProcesses;
+			return null;
 		}
+	}
+	
+	@Override
+	public File getJobDataDir() {
+		if (this.job != null && this.job instanceof OnDiskCompJobBase) {
+			return ((OnDiskCompJobBase)this.job).getJobDataDir();
+		}
+		
+		return null;
 	}
 }

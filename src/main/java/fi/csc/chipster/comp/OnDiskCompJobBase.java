@@ -284,4 +284,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
 	    
 	    return dir.listFiles(new RegexFileFilter(regex));
 	}
+	
+	public File getJobDataDir() {
+		return this.jobDataDir;
+	}
 }
