@@ -44,6 +44,8 @@ public class SingleShotResourceMonitor {
 		public Process getJobProcess();
 		
 		public File getJobDataDir();
+
+		void maxStorageChanged(long maxStorage);
 	}
 
 	private static Logger logger = LogManager.getLogger();
@@ -56,6 +58,7 @@ public class SingleShotResourceMonitor {
 	private StorageResourceMonitor storageMonitor;
 
 	public SingleShotResourceMonitor(SingleShotProcessProvider processProvider, int monitoringInterval) {
+		
 		if (monitoringInterval >= 0) {
 			
 			this.processProvider = processProvider;
@@ -115,7 +118,7 @@ public class SingleShotResourceMonitor {
 		File jobDataDir = processProvider.getJobDataDir();
 		
 		if (jobDataDir != null && storageMonitor == null) {
-			storageMonitor = new StorageResourceMonitor(jobDataDir);					
+			storageMonitor = new StorageResourceMonitor(jobDataDir, this.processProvider);					
 		}
 			
 		if (storageMonitor != null) {
@@ -123,6 +126,7 @@ public class SingleShotResourceMonitor {
 		}
 
 		long dt = (System.currentTimeMillis() - t);
+		
 		if (dt > 500) {
 			logger.warn("storage monitoring took " + (System.currentTimeMillis() - t) + "ms");
 		}

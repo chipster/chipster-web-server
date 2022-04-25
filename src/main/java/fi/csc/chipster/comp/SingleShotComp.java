@@ -52,6 +52,7 @@ public class SingleShotComp
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
 	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
+	public static final String KEY_COMP_MAX_STORAGE = "comp-max-storage";
 	
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
@@ -97,6 +98,7 @@ public class SingleShotComp
 	private int monitoringInterval;
 	private String hostname;
 	private Config config;
+	private Long storageLimit;
 
 	/**
 	 * 
@@ -112,6 +114,21 @@ public class SingleShotComp
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
+		
+		
+		if (config.getString(KEY_COMP_MAX_STORAGE).isEmpty()) {
+			
+			logger.info("storage limit is disabled");
+			
+		} else {
+			
+			long storageLimitGB = config.getLong(KEY_COMP_MAX_STORAGE);
+			
+			logger.info("storage limit is " + storageLimitGB + " GB");
+			
+			// convert gigabytes to bytes
+			this.storageLimit = storageLimitGB * 1024 * 1024 * 1024;
+		}
 		
 		// initialize working directory
 		this.workDir = new File("jobs-data", compId.toString());
@@ -247,11 +264,8 @@ public class SingleShotComp
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
 			
-			CompJob compJob = this.job;
-			if (compJob != null) {
-				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
-				dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
-			}
+			dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
+			dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
 			
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 		} catch (RestException e) {
@@ -365,5 +379,29 @@ public class SingleShotComp
 		}
 		
 		return null;
+	}
+	
+	@Override
+	public void maxStorageChanged(long maxStorage) {
+				
+		if (this.storageLimit != null && maxStorage > this.storageLimit) {
+			
+			String hfMaxStorage = ProcessMonitoring.humanFriendly(maxStorage);
+			String hfStorageLimit = ProcessMonitoring.humanFriendly(storageLimit);
+			
+			String message = "storage usage " + hfMaxStorage + " exceeds limit " + hfStorageLimit;
+			
+			logger.warn("cancel job: " + message);
+			
+			if (this.job != null) {
+
+				// this should trigger scheduler to delete the pod
+				job.setErrorMessage(message);
+				job.updateState(JobState.ERROR, "storage usage exceeded");
+
+			} else {
+				logger.error("storage limit exceeded, but the job is null");
+			}
+		}		
 	}
 }

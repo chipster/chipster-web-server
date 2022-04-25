@@ -299,7 +299,7 @@ public class BashJobScheduler implements JobScheduler {
 			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken);
 
 			// use the conf key as a name in logs
-			this.runSchedulerBash(this.runScript, CONF_BASH_RUN_SCRIPT, env, null, true);
+			this.runSchedulerBash(this.runScript, "run", env, null, true);
 		}
 
 		if (isBusy) {
@@ -468,7 +468,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getTool(), idPair);
 		
 		// use the conf key as a name in logs
-		this.runSchedulerBash(this.cancelScript, CONF_BASH_CANCEL_SCRIPT, env, null, true);
+		this.runSchedulerBash(this.cancelScript, "cancel", env, null, true);
 	}
 
 	@Override
@@ -488,7 +488,7 @@ public class BashJobScheduler implements JobScheduler {
 		
 		HashMap<String, String> env = getEnv(job.getTool(), idPair);
 
-		this.runSchedulerBash(this.finishedScript, CONF_BASH_FINISHED_SCRIPT, env, null, true);
+		this.runSchedulerBash(this.finishedScript, "finished", env, null, true);
 	}
 
 	@Override
@@ -529,7 +529,7 @@ public class BashJobScheduler implements JobScheduler {
 			 * alive and anything else when it isn't. This prevents us from 
 			 * noticing (or even logging) any errors. 
 			 */
-			Future<?> future = this.runSchedulerBash(this.heartbeatScript, CONF_BASH_HEARTBEAT_SCRIPT, env, null, false);
+			Future<?> future = this.runSchedulerBash(this.heartbeatScript, "heartbeat", env, null, false);
 			
 			// wait for the bash process
 			future.get();
@@ -644,7 +644,7 @@ public class BashJobScheduler implements JobScheduler {
 			long bashDuration = bashStart.until(Instant.now(), ChronoUnit.SECONDS);
 
 			if (bashDuration > 10) {
-				logger.warn("bash script took " + bashDuration + " seconds (" + cmdString + ")");
+				logger.warn("bash script '" + name + "' took " + bashDuration + " seconds");
 			}
 
 			if (exitCode == 128 + 9) {
@@ -694,7 +694,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getTool(), idPair);
 		
 		// run in executor to limit the amount of external processes
-		Future<?> future = this.runSchedulerBash(this.logScript, CONF_BASH_LOG_SCRIPT, env, logStdout, true);
+		Future<?> future = this.runSchedulerBash(this.logScript, "log", env, logStdout, true);
 		
 		try {
 			future.get();

@@ -257,6 +257,8 @@ comp-job-threads-max: 4
 # max memory that single job should use, megabytes
 comp-job-memory-max: 8192
 comp-chipster-root-dir: "."
+# cancel job if its storage usage grows larger than this, in gigabytes. Empty string "" disables the limit
+comp-max-storage: 100
 
 # scheduler
 
@@ -391,7 +393,8 @@ toolbox-runtime-image-python: comp-16.04
 
 toolbox-runtime-job-factory-python3: fi.csc.chipster.comp.python.PythonJobFactory
 toolbox-runtime-command-python3: python3
-toolbox-runtime-parameters-python3: ""
+# unbuffered stdout to see screen output immediately
+toolbox-runtime-parameters-python3: "-u"
 toolbox-runtime-image-python3: comp-16.04
 
 # set default runtimes for different file types

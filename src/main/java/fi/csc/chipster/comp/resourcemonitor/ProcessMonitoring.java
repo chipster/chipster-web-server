@@ -96,7 +96,20 @@ public class ProcessMonitoring {
 		if (l == null) {
 			return null;
 		}
-		return "" + l/1024/1024 + "MB";
+		
+		if (l < 1024 * 1024) {
+			return "" + l/1024 + " kiB";
+		}
+		
+		if (l < 1024 * 1024 * 1024) {
+			return "" + l/1024/1024 + " MiB";
+		}
+		
+		if (l < 1024 * 1024 * 1024 * 1024) {
+			return "" + l/1024/1024/1024 + " GiB";
+		}
+		
+		return "" + l/1024/1024/1024/1024 + " TiB";
 	}
 	
 	private static Long getParent(long pid) throws IOException {
