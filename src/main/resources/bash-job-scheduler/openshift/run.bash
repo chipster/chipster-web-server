@@ -43,12 +43,13 @@ if [ -n "$STORAGE" ]; then
   echo "use PVC for working directory: $STORAGE GiB"
 
   pod_patch="$pod_patch |
-    .spec.volumes += [{\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}]"
+    .spec.volumes += [{\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}] |
+    .spec.env += [{\"name\": \"comp_max_storage\", \"value\": \"\" }]"
 
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |
-    .metadata.annotations.\"volume.beta.kubernetes.io/storage-class\"=\"$STORAGE_CLASS\" |
-    .spec.env += [{\"name\": \"comp_max_storage\", \"value\": \"\" }]"
+    .metadata.annotations.\"volume.beta.kubernetes.io/storage-class\"=\"$STORAGE_CLASS\""
+    
 
   pvc_json=$(echo "$PVC_YAML" | yq e - -o=json | jq "$pvc_patch")
 
