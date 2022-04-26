@@ -44,7 +44,7 @@ if [ -n "$STORAGE" ]; then
 
   pod_patch="$pod_patch |
     .spec.volumes += [{\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}] |
-    .spec.env += [{\"name\": \"comp_max_storage\", \"value\": \"\" }]"
+    .spec.containers[0].env += [{\"name\": \"comp_max_storage\", \"value\": \"\" }]"
 
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |
