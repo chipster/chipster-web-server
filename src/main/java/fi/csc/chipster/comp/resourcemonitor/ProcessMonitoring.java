@@ -29,7 +29,6 @@ public class ProcessMonitoring {
 	 */
 	public static void main(String args[]) throws IOException, InterruptedException {
 		
-		
 		// plain command line
 		//ProcessBuilder builder = new ProcessBuilder("bash", "-c", "yes | tr \\\\n x | head -c " + 500*1024*1024 + " | grep n");
 		
@@ -96,16 +95,21 @@ public class ProcessMonitoring {
 		if (l == null) {
 			return null;
 		}
+				
+		if (l < 1024l) {
+			return "" + l + " B";
+		}
 		
-		if (l < 1024 * 1024) {
+		if (l < 1024l * 1024) {
 			return "" + l/1024 + " kiB";
 		}
 		
-		if (l < 1024 * 1024 * 1024) {
+		if (l < 1024l * 1024 * 1024) {
 			return "" + l/1024/1024 + " MiB";
 		}
 		
-		if (l < 1024 * 1024 * 1024 * 1024) {
+		// one of the numbers must be long, otherwise it will overflow
+		if (l < 1024l * 1024 * 1024 * 1024) {
 			return "" + l/1024/1024/1024 + " GiB";
 		}
 		
