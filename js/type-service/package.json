@@ -29,13 +29,13 @@
   "devDependencies": {
     "@types/chai": "^4.2.15",
     "@types/lodash": "^4.14.168",
-    "@types/mocha": "^8.2.0",
+    "@types/mocha": "^9.1.1",
     "@types/node": "^14.14.28",
     "@types/restify-errors": "^4.3.2",
     "chai": "^4.3.0",
-    "mocha": "^8.3.0",
+    "mocha": "^10.0.0",
     "nodemon": "^2.0.7",
-    "ts-node": "^9.1.1",
-    "typescript": "4.1.5"
+    "ts-node": "^10.7.0",
+    "typescript": "4.6.4"
   }
 }
