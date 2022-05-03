@@ -258,7 +258,7 @@ comp-job-threads-max: 4
 comp-job-memory-max: 8192
 comp-chipster-root-dir: "."
 # cancel job if its storage usage grows larger than this, in gigabytes. Empty string "" disables the limit
-comp-max-storage: 100
+comp-max-storage: 200
 
 # scheduler
 
