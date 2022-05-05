@@ -97,12 +97,12 @@ public class SessionDb {
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
-		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
-				Job.class, File.class);
+		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class, Job.class,
+				File.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
-		
+
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 
 		this.ruleTable = new RuleTable(hibernate);
@@ -129,7 +129,8 @@ public class SessionDb {
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer, hibernateClasses.toArray(new Class[0]));
+		this.adminResource = new SessionDbAdminResource(hibernate, ruleTable, jerseyStatisticsSource, pubSubServer,
+				hibernateClasses.toArray(new Class[0]));
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -138,12 +139,13 @@ public class SessionDb {
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false);
 		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SESSION_DB, LogType.API);
-		
+
 		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 
 		httpServer.start();
 
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService, this.serviceLocator);		
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService,
+				this.serviceLocator);
 	}
 
 	public PubSubServer getPubSubServer() {

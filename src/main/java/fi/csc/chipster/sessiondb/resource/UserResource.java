@@ -7,16 +7,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import jakarta.annotation.security.RolesAllowed;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,6 +18,15 @@ import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 
 @Path(UserResource.PATH_USERS)
 public class UserResource {
@@ -73,7 +72,8 @@ public class UserResource {
 				.flatMap(session -> SessionDatasetResource.getDatasets(hibernate.session(), session).stream())
 				.collect(Collectors.toList());
 
-		// in case of duplicate IDs, pick any of them. They all should come from the same DB row even if there are multiple Java objects
+		// in case of duplicate IDs, pick any of them. They all should come from the
+		// same DB row even if there are multiple Java objects
 		Map<UUID, File> uniqueFiles = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
 				.collect(Collectors.toMap(file -> file.getFileId(), file -> file, (f1, f2) -> f1));
 
@@ -145,4 +145,5 @@ public class UserResource {
 
 		return Response.ok(sessionSizes).build();
 	}
+
 }
