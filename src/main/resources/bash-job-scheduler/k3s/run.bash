@@ -33,8 +33,8 @@ if [[ $ENABLE_RESOURCE_LIMITS == "true" ]]; then
     .metadata.name=\"$POD_NAME\" |
     .spec.containers[0].resources.limits.cpu=\"$POD_CPU\" | 
     .spec.containers[0].resources.limits.memory=\"${POD_MEMORY}Gi\" |
-    .spec.containers[0].resources.requests.cpu=\"$POD_CPU\" | 
-    .spec.containers[0].resources.requests.memory=\"${POD_MEMORY}Gi\""
+    .spec.containers[0].resources.requests.cpu=\"$POD_CPU_REQUEST\" | 
+    .spec.containers[0].resources.requests.memory=\"${POD_MEMORY_REQUEST}Gi\""
 else
   echo "resource limits are disabled"
 fi

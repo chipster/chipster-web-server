@@ -51,6 +51,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_STORAGE_CLASS = "STORAGE_CLASS";
 	private static final String ENV_POD_MEMORY = "POD_MEMORY";
 	private static final String ENV_POD_CPU = "POD_CPU";
+	private static final String ENV_POD_MEMORY_REQUEST = "POD_MEMORY_REQUEST";
+	private static final String ENV_POD_CPU_REQUEST = "POD_CPU_REQUEST";
 	private static final String ENV_ENABLE_RESOURCE_LIMITS = "ENABLE_RESOURCE_LIMITS";
 	private static final String ENV_TOOLS_BIN_HOST_MOUNT_PATH = "TOOLS_BIN_HOST_MOUNT_PATH";
 
@@ -72,6 +74,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
 	private static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
 	private static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
+	private static final String CONF_BASH_SLOT_MEMORY_REQUEST = "scheduler-bash-slot-memory-request";
+	private static final String CONF_BASH_SLOT_CPU_REQUEST = "scheduler-bash-slot-cpu-request";
 	private static final String CONF_BASH_MAX_MEMORY = "scheduler-bash-max-memory";
 	private static final String CONF_BASH_MAX_CPU = "scheduler-bash-max-cpu";
 	private static final String CONF_BASH_ENABLE_RESOURCE_LIMITS = "scheduler-bash-enable-resource-limits";
@@ -106,6 +110,8 @@ public class BashJobScheduler implements JobScheduler {
 	private String storageClass;
 	private int slotMemory;
 	private int slotCpu;
+	private int slotMemoryRequest;
+	private int slotCpuRequest;
 	private boolean enableResourceLimits;
 	private String toolsBinHostMountPath;
 	private Integer maxMemory;
@@ -135,7 +141,9 @@ public class BashJobScheduler implements JobScheduler {
 		this.imagePullPolicy = config.getString(CONF_BASH_IMAGE_PULL_POLICY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
 		this.slotMemory = config.getInt(CONF_BASH_SLOT_MEMORY);
-		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);		
+		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);
+		this.slotMemoryRequest = config.getInt(CONF_BASH_SLOT_MEMORY_REQUEST);
+		this.slotCpuRequest = config.getInt(CONF_BASH_SLOT_CPU_REQUEST);
 		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
 		this.toolsBinHostMountPath = config.getString(CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH);
 		
@@ -358,6 +366,9 @@ public class BashJobScheduler implements JobScheduler {
 			int memory = this.slotMemory * slots;
 			int cpu = this.slotCpu * slots;
 			
+			int memoryRequest = this.slotMemoryRequest * slots;
+			int cpuRequest = this.slotCpuRequest * slots;
+			
 			/*
 			 * Allow limiting of cpu or memory
 			 * 
@@ -365,16 +376,22 @@ public class BashJobScheduler implements JobScheduler {
 			 * For example, if the cpu quota is 8 and memory quota is 40 GiB, we have to limit 
 			 * the cpu to 8 when running 5 slot jobs. 
 			 */
-			if (this.maxMemory != null && memory > this.maxMemory) {
-				memory = this.maxMemory;
+			if (this.maxMemory != null) {
+				
+				memory = Math.min(memory, this.maxMemory);
+				memoryRequest = Math.min(memoryRequest, this.maxMemory);
 			}
 			
-			if (this.maxCpu != null && cpu > this.maxCpu) {
-				cpu = this.maxCpu;
+			if (this.maxCpu != null) {
+				
+				cpu = Math.min(cpu, this.maxCpu);
+				cpuRequest = Math.min(cpuRequest, this.maxCpu);
 			}
 			
 			env.put(ENV_POD_MEMORY, "" + memory);
 			env.put(ENV_POD_CPU, "" + cpu);
+			env.put(ENV_POD_MEMORY_REQUEST, "" + memoryRequest);
+			env.put(ENV_POD_CPU_REQUEST, "" + cpuRequest);
 		}
 
 		String image = tool.getSadlDescription().getImage();

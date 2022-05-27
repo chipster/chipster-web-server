@@ -312,18 +312,23 @@ scheduler-bash-pvc: ""
 
 # kubernetes storage class for the job volume
 scheduler-bash-storage-class: ""
-# how many GiB of memory for each job slot
+# memory limit for each job slot, in GiB
 scheduler-bash-slot-memory: 8
+# memory request for each job slot, in GiB
+scheduler-bash-slot-memory-request: 4
 # maximum memory of one job in GiB
 scheduler-bash-max-memory: ""
-# how many cpu-cores for each job slot
+# cpu core limit for each job slot
 scheduler-bash-slot-cpu: 2
+# cpu core request for each job slot
+scheduler-bash-slot-cpu-request: 1
 # maximum number of cpu cores for one job
 scheduler-bash-max-cpu: ""
 # enable resource limits
 scheduler-bash-enable-resource-limits: true
 # use hostMount instead of PVC for the tools-bin data
 scheduler-bash-tools-bin-host-mount-path: ""
+
 
   
 scheduler-bash-max-slots: "100"
