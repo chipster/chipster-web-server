@@ -144,6 +144,13 @@ public class SADLParser {
 			skip(tokens, SADLSyntax.KEYWORD_SLOTS);
 			int slotCount = parseInt(tokens);
 			description.setSlotCount(slotCount);
+		}		
+		
+		// read possible storage requirements
+		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_STORAGE)) {
+			skip(tokens, SADLSyntax.KEYWORD_STORAGE);
+			int storage = parseInt(tokens);
+			description.setStorage(storage);
 		}
 		
 		// read possible special tools-bin version
@@ -151,13 +158,6 @@ public class SADLParser {
 			skip(tokens, SADLSyntax.KEYWORD_TOOLS_BIN);
 			String toolsBin = parseString(tokens);
 			description.setToolsBin(toolsBin);
-		}
-		
-		// read possible storage requirements
-		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_STORAGE)) {
-			skip(tokens, SADLSyntax.KEYWORD_STORAGE);
-			int storage = parseInt(tokens);
-			description.setStorage(storage);
 		}
 
 		// check that no trailing content was left behind
