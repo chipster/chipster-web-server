@@ -108,8 +108,6 @@ public class BashJobScheduler implements JobScheduler {
 	private String podYaml;
 	private String pvcYaml;
 	private String storageClass;
-	private int slotMemory;
-	private int slotCpu;
 	private int slotMemoryRequest;
 	private int slotCpuRequest;
 	private boolean enableResourceLimits;
@@ -140,8 +138,6 @@ public class BashJobScheduler implements JobScheduler {
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
 		this.imagePullPolicy = config.getString(CONF_BASH_IMAGE_PULL_POLICY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
-		this.slotMemory = config.getInt(CONF_BASH_SLOT_MEMORY);
-		this.slotCpu = config.getInt(CONF_BASH_SLOT_CPU);
 		this.slotMemoryRequest = config.getInt(CONF_BASH_SLOT_MEMORY_REQUEST);
 		this.slotCpuRequest = config.getInt(CONF_BASH_SLOT_CPU_REQUEST);
 		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
@@ -363,28 +359,20 @@ public class BashJobScheduler implements JobScheduler {
 		if (slots > 0) {
 			env.put(ENV_SLOTS, "" + slots);
 			
-			int memory = this.slotMemory * slots;
-			int cpu = this.slotCpu * slots;
+			int memory = getMemoryLimit(slots, config);
+			int cpu = getCpuLimit(slots, config);
 			
 			int memoryRequest = this.slotMemoryRequest * slots;
 			int cpuRequest = this.slotCpuRequest * slots;
 			
-			/*
-			 * Allow limiting of cpu or memory
-			 * 
-			 * The pod won't start if the pod's resource limits are higher than the quota in OpenShift.
-			 * For example, if the cpu quota is 8 and memory quota is 40 GiB, we have to limit 
-			 * the cpu to 8 when running 5 slot jobs. 
-			 */
+			// memory and cpu are already limited
 			if (this.maxMemory != null) {
 				
-				memory = Math.min(memory, this.maxMemory);
 				memoryRequest = Math.min(memoryRequest, this.maxMemory);
 			}
 			
 			if (this.maxCpu != null) {
 				
-				cpu = Math.min(cpu, this.maxCpu);
 				cpuRequest = Math.min(cpuRequest, this.maxCpu);
 			}
 			
@@ -446,6 +434,63 @@ public class BashJobScheduler implements JobScheduler {
 		
 		return env;
 	}
+	
+	/**
+	 * Calculate memory limit
+	 * 
+	 * Calculate memory limit in a separate method so that this can be used also in comp.
+	 * 
+	 * @param slots
+	 * @param config
+	 * @return
+	 */
+	public static int getMemoryLimit(int slots, Config config) {
+		
+		int memory = config.getInt(CONF_BASH_SLOT_MEMORY) * slots;
+
+		/*
+		 * Allow limiting of memory
+		 */
+		
+		String maxMemoryString = config.getString(CONF_BASH_MAX_MEMORY);
+		if (!maxMemoryString.isEmpty()) {
+			
+			memory = Math.min(memory, Integer.parseInt(maxMemoryString));
+		}
+		
+		return memory;
+	}
+	
+	/**
+	 * Calculate cpu limit
+	 * 
+	 * Calculate cpu limit in a separate method so that this can be used also in comp.
+	 * 
+	 * @param slots
+	 * @param config
+	 * @return
+	 */
+	public static int getCpuLimit(int slots, Config config) {
+		
+		int cpu = config.getInt(CONF_BASH_SLOT_CPU) * slots;
+
+		/*
+		 * Allow limiting of cpu
+		 * 
+		 * The pod won't start if the pod's resource limits are higher than the quota in OpenShift.
+		 * For example, if the cpu quota is 8 and memory quota is 40 GiB, we have to limit 
+		 * the cpu to 8 when running 5 slot jobs. 
+		 */
+		
+		String maxString = config.getString(CONF_BASH_MAX_CPU);
+		if (!maxString.isEmpty()) {
+			
+			cpu = Math.min(cpu, Integer.parseInt(maxString));
+		}
+		
+		return cpu;
+	}
+
 	
 	public String getPodName(IdPair idPair, ToolboxTool tool) {
 		String podName = "comp-job-" + idPair.getJobId().toString() + "-" + tool.getId();

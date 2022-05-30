@@ -86,8 +86,8 @@ public abstract class InterpreterJobFactory implements JobFactory {
 		}
 		
 		// if the default value is changed, these variables have to be configured both for scheduler and comp 
-		int slotMemory = config.getInt(BashJobScheduler.CONF_BASH_SLOT_MEMORY);
-		int slotCpu = config.getInt(BashJobScheduler.CONF_BASH_SLOT_CPU);
+		int slotMemory = BashJobScheduler.getMemoryLimit(slots, config);
+		int slotCpu = BashJobScheduler.getCpuLimit(slots, config);
 		
 		// configuration is in GiB, variable in MiB
 		int memoryMax = slotMemory * 1024 * slots;
