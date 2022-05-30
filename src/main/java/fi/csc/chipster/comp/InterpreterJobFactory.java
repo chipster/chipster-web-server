@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.scheduler.bash.BashJobScheduler;
 import fi.csc.chipster.toolbox.ToolboxTool;
 
 /**
@@ -77,11 +78,22 @@ public abstract class InterpreterJobFactory implements JobFactory {
 		ad.setImplementation(tool.getSource()); // include headers
 		ad.setSourceCode(tool.getSource());
 
+		// calculate variables for max threads and memory
+		Integer slots = tool.getSadlDescription().getSlotCount();
+		
+		if (slots == null) {
+			slots = 1;
+		}
+		
+		// if the default value is changed, these variables have to be configured both for scheduler and comp 
+		int slotMemory = config.getInt(BashJobScheduler.CONF_BASH_SLOT_MEMORY);
+		int slotCpu = config.getInt(BashJobScheduler.CONF_BASH_SLOT_CPU);
+		
+		// configuration is in GiB, variable in MiB
+		int memoryMax = slotMemory * 1024 * slots;
+		int threadsMax = slotCpu * slots;
+
 		// tool and script locations and other variables
-		int threadsMax = config.getInt("comp-job-threads-max");
-
-		int memoryMax = config.getInt("comp-job-memory-max");		
-
 		// toolbox tools dir relative to job data dir
 		File toolsRootDir = new File("../toolbox/tools");
 		File commonScriptDir = new File(toolsRootDir, "common/" + toolDir);

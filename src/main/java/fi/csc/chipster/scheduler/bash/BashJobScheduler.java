@@ -72,8 +72,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
 	private static final String CONF_BASH_IMAGE_PULL_POLICY = "scheduler-bash-image-pull-policy";
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
-	private static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
-	private static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
+	public static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
+	public static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
 	private static final String CONF_BASH_SLOT_MEMORY_REQUEST = "scheduler-bash-slot-memory-request";
 	private static final String CONF_BASH_SLOT_CPU_REQUEST = "scheduler-bash-slot-cpu-request";
 	private static final String CONF_BASH_MAX_MEMORY = "scheduler-bash-max-memory";
