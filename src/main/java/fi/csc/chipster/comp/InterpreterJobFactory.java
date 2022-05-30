@@ -85,14 +85,11 @@ public abstract class InterpreterJobFactory implements JobFactory {
 			slots = 1;
 		}
 		
-		// if the default value is changed, these variables have to be configured both for scheduler and comp 
-		int slotMemory = BashJobScheduler.getMemoryLimit(slots, config);
-		int slotCpu = BashJobScheduler.getCpuLimit(slots, config);
+		// if the default value is changed, these variables have to be configured both for scheduler and comp
+		// configuration is in GiB, variable in MiB		
+		int memoryMax = BashJobScheduler.getMemoryLimit(slots, config) * 1024;
+		int threadsMax = BashJobScheduler.getCpuLimit(slots, config);
 		
-		// configuration is in GiB, variable in MiB
-		int memoryMax = slotMemory * 1024 * slots;
-		int threadsMax = slotCpu * slots;
-
 		// tool and script locations and other variables
 		// toolbox tools dir relative to job data dir
 		File toolsRootDir = new File("../toolbox/tools");
