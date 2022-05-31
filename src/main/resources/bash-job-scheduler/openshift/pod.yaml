@@ -9,13 +9,15 @@ spec:
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: comp-job-anti-affinity
-            operator: In
-            values:
-            - True
-        topologyKey: "kubernetes.io/hostname"
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: comp-job-anti-affinity
+              operator: In
+              values:
+              - True
+          topologyKey: "kubernetes.io/hostname"
   containers:
   - name: comp-job
     image: ""
