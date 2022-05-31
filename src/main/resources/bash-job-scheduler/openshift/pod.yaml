@@ -4,7 +4,7 @@ metadata:
   name: ""
   labels:
     comp-job: ""
-    comp-job-anti-affinity: True
+    comp-job-anti-affinity: yes
 spec:
   affinity:
     podAntiAffinity:
@@ -16,7 +16,7 @@ spec:
             - key: comp-job-anti-affinity
               operator: In
               values:
-              - True
+              - yes
           topologyKey: "kubernetes.io/hostname"
   containers:
   - name: comp-job

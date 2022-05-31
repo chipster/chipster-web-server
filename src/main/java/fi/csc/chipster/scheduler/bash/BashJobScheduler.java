@@ -524,7 +524,7 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_STORAGE_CLASS, this.storageClass);
 		}
 		
-		env.put(ENV_POD_ANTI_AFFINITY, this.podAntiAffinity ? "True" : "False");
+		env.put(ENV_POD_ANTI_AFFINITY, this.podAntiAffinity ? "yes" : "no");
 		
 		return env;
 	}
