@@ -48,6 +48,7 @@ if [ -n "$STORAGE" ]; then
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |
     .metadata.annotations.\"volume.beta.kubernetes.io/storage-class\"=\"$STORAGE_CLASS\""
+    
 
   pvc_json=$(echo "$PVC_YAML" | yq e - -o=json | jq "$pvc_patch")
 
@@ -59,6 +60,9 @@ else
   pod_patch="$pod_patch |
     .spec.volumes += [{\"name\": \"jobs-data\", \"emptyDir\": {}}]"
 fi
+
+pod_patch="$pod_patch |
+    .metadata.labels.comp-job-anti-affinity=\"$POD_ANTI_AFFINITY\""
 
 job_json=$(echo "$POD_YAML"    | yq e - -o=json | jq "$pod_patch")
 

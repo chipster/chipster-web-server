@@ -57,6 +57,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_POD_CPU_REQUEST = "POD_CPU_REQUEST";
 	private static final String ENV_ENABLE_RESOURCE_LIMITS = "ENABLE_RESOURCE_LIMITS";
 	private static final String ENV_TOOLS_BIN_HOST_MOUNT_PATH = "TOOLS_BIN_HOST_MOUNT_PATH";
+	private static final String ENV_POD_ANTI_AFFINITY = "POD_ANTI_AFFINITY";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -82,6 +83,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_MAX_CPU = "scheduler-bash-max-cpu";
 	private static final String CONF_BASH_ENABLE_RESOURCE_LIMITS = "scheduler-bash-enable-resource-limits";
 	private static final String CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH = "scheduler-bash-tools-bin-host-mount-path";
+	private static final String CONF_BASH_POD_ANTI_AFFINITY = "scheduler-bash-pod-anti-affinity";
 	private static final int POD_NAME_MAX_LENGTH = 63;
 	
 
@@ -119,6 +121,7 @@ public class BashJobScheduler implements JobScheduler {
 	private String imagePullPolicy;
 	private int slotCpuLimit;
 	private int slotMemoryLimit;
+	private boolean podAntiAffinity;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -146,6 +149,7 @@ public class BashJobScheduler implements JobScheduler {
 		this.slotCpuRequest = config.getInt(CONF_BASH_SLOT_CPU_REQUEST);
 		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
 		this.toolsBinHostMountPath = config.getString(CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH);
+		this.podAntiAffinity = config.getBoolean(CONF_BASH_POD_ANTI_AFFINITY);
 		
 		String slotMemoryLimitString = config.getString(CONF_BASH_SLOT_MEMORY);
 		String slotCpuLimitString = config.getString(CONF_BASH_SLOT_CPU);
@@ -519,6 +523,8 @@ public class BashJobScheduler implements JobScheduler {
 		if (this.storageClass != null) {
 			env.put(ENV_STORAGE_CLASS, this.storageClass);
 		}
+		
+		env.put(ENV_POD_ANTI_AFFINITY, this.podAntiAffinity ? "True" : "False");
 		
 		return env;
 	}

@@ -4,6 +4,7 @@ metadata:
   name: ""
   labels:
     comp-job: ""
+    comp-job-anti-affinity: True
 spec:
   containers:
   - name: comp-job
@@ -16,6 +17,16 @@ spec:
       readOnly: true
     - mountPath: /opt/chipster/jobs-data
       name: jobs-data
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: comp-job-anti-affinity
+              operator: In
+              values:
+              - True
+          topologyKey: "kubernetes.io/hostname"
   volumes:
   - name: conf
     secret:
