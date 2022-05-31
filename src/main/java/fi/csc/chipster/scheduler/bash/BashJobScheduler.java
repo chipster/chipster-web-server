@@ -524,6 +524,7 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_STORAGE_CLASS, this.storageClass);
 		}
 		
+		// kubernetes wants a string for the value of labelSelector
 		env.put(ENV_POD_ANTI_AFFINITY, this.podAntiAffinity ? "yes" : "no");
 		
 		return env;
