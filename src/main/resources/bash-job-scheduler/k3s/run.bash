@@ -62,7 +62,7 @@ else
 fi
 
 pod_patch="$pod_patch |
-    .metadata.labels.comp-job-anti-affinity=\"$POD_ANTI_AFFINITY\""
+    .metadata.labels.\"comp-job-anti-affinity\"=\"$POD_ANTI_AFFINITY\""
 
 job_json=$(echo "$POD_YAML"    | yq e - -o=json | jq "$pod_patch")
 
