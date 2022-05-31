@@ -175,7 +175,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	private void getStateFromDb() throws RestException {
 		synchronized (jobs) {
 
+			// all these need to be rescheduled
 			List<IdPair> newDbJobs = sessionDbClient.getJobs(JobState.NEW);
+			List<IdPair> waitingDbJobs = sessionDbClient.getJobs(JobState.WAITING);
+			
+			newDbJobs.addAll(waitingDbJobs);
+			
 			if (!newDbJobs.isEmpty()) {
 				logger.info("found " + newDbJobs.size() + " waiting jobs from the session-db");
 				for (IdPair idPair : newDbJobs) {
@@ -210,7 +215,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				}
 			}
 
+			// these should be scheduled already. Wait to complete (or timeout)
+			List<IdPair> scheduledDbJobs = sessionDbClient.getJobs(JobState.SCHEDULED);
 			List<IdPair> runningDbJobs = sessionDbClient.getJobs(JobState.RUNNING);
+			
+			runningDbJobs.addAll(scheduledDbJobs);
+			
 			if (!runningDbJobs.isEmpty()) {
 				logger.info("found " + runningDbJobs.size() + " running jobs from the session-db");
 				for (IdPair idPair : runningDbJobs) {
