@@ -13,6 +13,7 @@ import fi.csc.chipster.comp.InterpreterJobFactory;
 import fi.csc.chipster.comp.ResultCallback;
 import fi.csc.chipster.comp.ToolDescription;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
 
 public class RJobFactory extends InterpreterJobFactory {
@@ -27,9 +28,9 @@ public class RJobFactory extends InterpreterJobFactory {
 
 	@Override
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout) throws CompException {
+			int jobTimeout, Job dbJob) throws CompException {
 
-		ToolDescription description = createToolDescription(tool);
+		ToolDescription description = createToolDescription(tool, dbJob);
 		
 		RCompJob analysisJob = new RCompJob();
 		analysisJob.construct(message, description, resultHandler, jobTimeout);

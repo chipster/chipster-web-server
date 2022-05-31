@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -519,6 +520,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	
 	private void schedule(IdPair idPair, SchedulerJob jobState) {
 		
+		boolean slotsPerUserReached = false;
+		
 		synchronized (jobs) {
 
 			int userNewCount = jobs.getNewSlots(jobState.getUserId());
@@ -536,15 +539,6 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				return;
 			}
 			
-			// keep in queue if normal personal limit of running jobs is reached
-			if (userRunningCount + userScheduledCount + jobState.getSlots() > this.maxScheduledAndRunningSlotsPerUser) {
-				logger.info("max job count of running jobs (" + this.maxScheduledAndRunningSlotsPerUser
-						+ ") reached by user " + jobState.getUserId());
-				// user's slot quota is full
-				// keep the job in queue and try again later
-				return;
-			}
-
 			// fail the job immediately if user has created thousands of new jobs
 			if (userNewCount + jobState.getSlots() > this.maxNewSlotsPerUser) {
 				logger.info("max job count of new jobs (" + this.maxNewSlotsPerUser + ") reached by user "
@@ -555,16 +549,48 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 						"Maximum number of new jobs per user (" + this.maxNewSlotsPerUser + ") reached.", null);
 				return;
 			}
+			
+			// keep in queue if normal personal limit of running jobs is reached
+			if (userRunningCount + userScheduledCount + jobState.getSlots() > this.maxScheduledAndRunningSlotsPerUser) {
+				logger.info("max job count of running jobs (" + this.maxScheduledAndRunningSlotsPerUser
+						+ ") reached by user " + jobState.getUserId());
+				// user's slot quota is full
+				// keep the job in queue and try again later
+				slotsPerUserReached = true;
+			}
+
+
 
 			// schedule
 			
 			// set the schedule timestamp to be able to calculate user's slot quota when many jobs are started at the same time
-			jobState.setScheduleTimestamp();
+			if (!slotsPerUserReached) {
+				jobState.setScheduleTimestamp();
+			}
 		}
 		
-		JobScheduler jobScheduler = this.getJobScheduler(jobState);
-		logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName());
-		jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getTool(), jobState.getRuntime());
+		if (slotsPerUserReached) {
+			
+			// update job after releasing the this.jobs lock
+			HashSet<JobState> allowedStates = new HashSet<>() {{ 
+				add(JobState.NEW); 
+				add(JobState.WAITING); 
+			}};
+			
+			try {
+				this.bashJobScheduler.updateDbJob(idPair, JobState.WAITING, "max job count reached", null, allowedStates);
+				
+			} catch (IllegalStateException | RestException e) {
+				logger.error("failed to update job " + idPair.toString(), e);
+				return;
+			}			
+			
+		} else {
+		
+			JobScheduler jobScheduler = this.getJobScheduler(jobState);
+			logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName());
+			jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getTool(), jobState.getRuntime());
+		}
 	}
 
 	

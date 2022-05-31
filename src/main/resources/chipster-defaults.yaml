@@ -327,7 +327,7 @@ scheduler-bash-tools-bin-host-mount-path: ""
 
 
   
-scheduler-bash-max-slots: "100"
+scheduler-bash-max-slots: 100
       
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10

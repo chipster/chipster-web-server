@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.scheduler.IdPair;
@@ -31,6 +32,7 @@ import fi.csc.chipster.scheduler.JobSchedulerCallback;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.chipster.toolbox.runtime.Runtime;
 
@@ -115,6 +117,8 @@ public class BashJobScheduler implements JobScheduler {
 	private Integer maxMemory;
 	private Integer maxCpu;
 	private String imagePullPolicy;
+	private int slotCpuLimit;
+	private int slotMemoryLimit;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -137,14 +141,24 @@ public class BashJobScheduler implements JobScheduler {
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
 		this.imagePullPolicy = config.getString(CONF_BASH_IMAGE_PULL_POLICY);
-		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);
+		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);		
 		this.slotMemoryRequest = config.getInt(CONF_BASH_SLOT_MEMORY_REQUEST);
 		this.slotCpuRequest = config.getInt(CONF_BASH_SLOT_CPU_REQUEST);
 		this.enableResourceLimits = config.getBoolean(CONF_BASH_ENABLE_RESOURCE_LIMITS);
 		this.toolsBinHostMountPath = config.getString(CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH);
 		
+		String slotMemoryLimitString = config.getString(CONF_BASH_SLOT_MEMORY);
+		String slotCpuLimitString = config.getString(CONF_BASH_SLOT_CPU);
 		String maxMemoryString = config.getString(CONF_BASH_MAX_MEMORY);
 		String maxCpuString = config.getString(CONF_BASH_MAX_CPU);
+		
+		if (!slotMemoryLimitString.isEmpty()) {
+			this.slotMemoryLimit = Integer.parseInt(slotMemoryLimitString);
+		}
+		
+		if (!slotCpuLimitString.isEmpty()) {
+			this.slotCpuLimit = Integer.parseInt(slotCpuLimitString);
+		}
 		
 		if (!maxMemoryString.isEmpty()) {
 			this.maxMemory = Integer.parseInt(maxMemoryString);
@@ -275,6 +289,31 @@ public class BashJobScheduler implements JobScheduler {
 
 		// don't keep the this.jobs locked
 		if (run) {
+						
+			try {
+				// change job state to SCHEDULED for the client and
+				// update resource limits for the comp
+				
+				HashSet<JobState> allowedStates = new HashSet<>() {{ 
+					add(JobState.NEW); 
+					add(JobState.WAITING); 
+				}};
+				
+				DbJobUpdate limits = (dbJob) -> {
+					dbJob.setMemoryLimit((long)this.getMemoryLimit(slots) * 1024 * 1024 * 1024);
+					dbJob.setCpuLimit(this.getCpuLimit(slots));
+				};
+				
+				this.updateDbJob(idPair, JobState.SCHEDULED, "job scheduled", limits, allowedStates);
+								
+			} catch (RestException e1) {
+				logger.error("failed to change job state to SCHEDULED " + idPair, e1);
+				synchronized (jobs) {
+					jobs.remove(idPair);
+				}
+				this.scheduler.expire(idPair, "failed to change job state to SCHEDULED", null);
+				return;
+			}
 
 			String sessionToken = null;
 
@@ -308,7 +347,56 @@ public class BashJobScheduler implements JobScheduler {
 
 		if (isBusy) {
 			this.scheduler.busy(idPair);
+			
+			// update job state to WAITING for the client
+			try {
+				
+				HashSet<JobState> allowedStates = new HashSet<>() {{ 
+					add(JobState.NEW); 
+					add(JobState.WAITING); 
+				}};
+				
+				this.updateDbJob(idPair, JobState.WAITING, "server max job count reached, please wait", null, allowedStates); 
+				
+			} catch (RestException e1) {
+				logger.error("failed to change job state to WAITING " + idPair, e1);
+				synchronized (jobs) {
+					jobs.remove(idPair);
+				}
+				this.scheduler.expire(idPair, "failed to change job state to WAITING", null);
+				return;
+			}
 		}
+	}
+	
+	public interface DbJobUpdate {
+		public void update(Job job);
+	}
+	
+	
+	public void updateDbJob(IdPair idPair, JobState targetState, String stateDetail, DbJobUpdate update, HashSet<JobState> allowedCurrentStates) throws RestException, IllegalStateException {
+
+		Job dbJob = sessionDbClient.getJob(idPair.getSessionId(), idPair.getJobId());
+		
+		if (allowedCurrentStates != null && !allowedCurrentStates.contains(dbJob.getState())) {
+			throw new IllegalStateException("illegal job state: " + dbJob.getState());
+		}
+		
+		if (dbJob.getState() == targetState ) {
+			
+			logger.info("job " + idPair.toString() + " is already in state " + targetState);
+			return;
+		}
+		
+		dbJob.setState(targetState);
+		dbJob.setStateDetail(stateDetail);
+		
+		// possible updates to other fields
+		if (update != null) {
+			update.update(dbJob);
+		}
+		
+		sessionDbClient.updateJob(idPair.getSessionId(), dbJob);
 	}
 	
 	/**
@@ -359,8 +447,8 @@ public class BashJobScheduler implements JobScheduler {
 		if (slots > 0) {
 			env.put(ENV_SLOTS, "" + slots);
 			
-			int memory = getMemoryLimit(slots, config);
-			int cpu = getCpuLimit(slots, config);
+			int memory = getMemoryLimit(slots);
+			int cpu = getCpuLimit(slots);
 			
 			int memoryRequest = this.slotMemoryRequest * slots;
 			int cpuRequest = this.slotCpuRequest * slots;
@@ -438,24 +526,20 @@ public class BashJobScheduler implements JobScheduler {
 	/**
 	 * Calculate memory limit
 	 * 
-	 * Calculate memory limit in a separate method so that this can be used also in comp.
-	 * 
 	 * @param slots
 	 * @param config
 	 * @return
 	 */
-	public static int getMemoryLimit(int slots, Config config) {
+	public int getMemoryLimit(int slots) {
 		
-		int memory = config.getInt(CONF_BASH_SLOT_MEMORY) * slots;
+		int memory = this.slotMemoryLimit * slots;
 
 		/*
 		 * Allow limiting of memory
 		 */
-		
-		String maxMemoryString = config.getString(CONF_BASH_MAX_MEMORY);
-		if (!maxMemoryString.isEmpty()) {
+		if (this.maxMemory != null) {
 			
-			memory = Math.min(memory, Integer.parseInt(maxMemoryString));
+			memory = Math.min(memory, this.maxMemory);
 		}
 		
 		return memory;
@@ -464,15 +548,13 @@ public class BashJobScheduler implements JobScheduler {
 	/**
 	 * Calculate cpu limit
 	 * 
-	 * Calculate cpu limit in a separate method so that this can be used also in comp.
-	 * 
 	 * @param slots
 	 * @param config
 	 * @return
 	 */
-	public static int getCpuLimit(int slots, Config config) {
+	public int getCpuLimit(int slots) {
 		
-		int cpu = config.getInt(CONF_BASH_SLOT_CPU) * slots;
+		int cpu = this.slotCpuLimit * slots;
 
 		/*
 		 * Allow limiting of cpu
@@ -481,11 +563,9 @@ public class BashJobScheduler implements JobScheduler {
 		 * For example, if the cpu quota is 8 and memory quota is 40 GiB, we have to limit 
 		 * the cpu to 8 when running 5 slot jobs. 
 		 */
-		
-		String maxString = config.getString(CONF_BASH_MAX_CPU);
-		if (!maxString.isEmpty()) {
+		if (this.maxCpu != null) {
 			
-			cpu = Math.min(cpu, Integer.parseInt(maxString));
+			cpu = Math.min(cpu, this.maxCpu);
 		}
 		
 		return cpu;

@@ -222,7 +222,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 						js.setMemoryUsage(job.getMemoryUsage());
 						js.setComp(job.getComp());
 						
-						if (js.getStateDetail().length() > 255) {
+						if (js.getStateDetail() != null && js.getStateDetail().length() > 255) {
 							logger.warn("cutting too long state detail: " + js.getStateDetail());
 							js.setStateDetail(js.getStateDetail().substring(0, 255));
 						}

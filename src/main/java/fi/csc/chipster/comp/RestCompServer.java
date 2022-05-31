@@ -495,7 +495,7 @@ public class RestCompServer
 
 		try {
 			JobFactory jobFactory = RuntimeRepository.getJobFactory(runtime, config, workDir, toolId);
-			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout);
+			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob);
 
 		} catch (CompException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);

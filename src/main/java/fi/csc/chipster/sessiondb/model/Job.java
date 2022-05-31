@@ -46,6 +46,8 @@ public class Job {
 	private String stateDetail;
 	private Long memoryUsage;
 	private Long storageUsage;
+	private Long memoryLimit;
+	private Integer cpuLimit;
 
 	private String createdBy;
 	private String comp;
@@ -238,5 +240,21 @@ public class Job {
 
 	public void setStorageUsage(Long storageUsage) {
 		this.storageUsage = storageUsage;
+	}
+
+	public Long getMemoryLimit() {
+		return memoryLimit;
+	}
+
+	public void setMemoryLimit(Long memoryLimit) {
+		this.memoryLimit = memoryLimit;
+	}
+
+	public Integer getCpuLimit() {
+		return cpuLimit;
+	}
+
+	public void setCpuLimit(Integer cpuLimit) {
+		this.cpuLimit = cpuLimit;
 	}
 }

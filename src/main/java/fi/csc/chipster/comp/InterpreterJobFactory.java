@@ -8,7 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.scheduler.bash.BashJobScheduler;
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
 
 /**
@@ -60,12 +60,12 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 	@Override
 	public abstract CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, 
-			ResultCallback resultHandler, int jobTimeout) throws CompException;
+			ResultCallback resultHandler, int jobTimeout, Job dbJob) throws CompException;
 
 	protected abstract String getStringDelimeter();
 	protected abstract String getVariableNameSeparator();
 
-	protected ToolDescription createToolDescription(ToolboxTool tool) throws CompException {
+	protected ToolDescription createToolDescription(ToolboxTool tool, Job dbJob) throws CompException {
 
 		File moduleDir = new File(tool.getModule());
 		
@@ -78,17 +78,10 @@ public abstract class InterpreterJobFactory implements JobFactory {
 		ad.setImplementation(tool.getSource()); // include headers
 		ad.setSourceCode(tool.getSource());
 
-		// calculate variables for max threads and memory
-		Integer slots = tool.getSadlDescription().getSlotCount();
-		
-		if (slots == null) {
-			slots = 1;
-		}
-		
-		// if the default value is changed, these variables have to be configured both for scheduler and comp
-		// configuration is in GiB, variable in MiB		
-		int memoryMax = BashJobScheduler.getMemoryLimit(slots, config) * 1024;
-		int threadsMax = BashJobScheduler.getCpuLimit(slots, config);
+		// variables for max threads and memory
+		// convert bytes to MiB
+		long memoryMax = dbJob.getMemoryLimit() / 1024 / 1024;
+		int threadsMax = dbJob.getCpuLimit();
 		
 		// tool and script locations and other variables
 		// toolbox tools dir relative to job data dir
