@@ -326,6 +326,9 @@ scheduler-bash-enable-resource-limits: true
 scheduler-bash-tools-bin-host-mount-path: ""
 # try to schedule job pods to different nodes
 scheduler-bash-pod-anti-affinity: true
+# set environment variables for the job containers. Replace "1" with an unique value for each name/value pair.
+scheduler-bash-env-name-1: ""
+scheduler-bash-env-value-1: ""
 
 
   

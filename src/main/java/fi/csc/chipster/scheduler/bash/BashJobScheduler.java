@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -58,6 +59,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String ENV_ENABLE_RESOURCE_LIMITS = "ENABLE_RESOURCE_LIMITS";
 	private static final String ENV_TOOLS_BIN_HOST_MOUNT_PATH = "TOOLS_BIN_HOST_MOUNT_PATH";
 	private static final String ENV_POD_ANTI_AFFINITY = "POD_ANTI_AFFINITY";
+	private static final String ENV_ENV_PREFIX = "ENV_PREFIX";
 
 	private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
 	private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -84,6 +86,8 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_ENABLE_RESOURCE_LIMITS = "scheduler-bash-enable-resource-limits";
 	private static final String CONF_BASH_TOOLS_BIN_HOST_MOUNT_PATH = "scheduler-bash-tools-bin-host-mount-path";
 	private static final String CONF_BASH_POD_ANTI_AFFINITY = "scheduler-bash-pod-anti-affinity";
+	private static final String CONF_BASH_ENV_NAME = "scheduler-bash-env-name";
+	private static final String CONF_BASH_ENV_VALUE = "scheduler-bash-env-value";
 	private static final int POD_NAME_MAX_LENGTH = 63;
 	
 
@@ -122,6 +126,7 @@ public class BashJobScheduler implements JobScheduler {
 	private int slotCpuLimit;
 	private int slotMemoryLimit;
 	private boolean podAntiAffinity;
+	private HashMap<String, String> environmentVariables;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -190,6 +195,24 @@ public class BashJobScheduler implements JobScheduler {
 
 		if (this.logScript.isEmpty()) {
 			this.logScript = readJarFile(scriptDirInJar + "/log.bash");
+		}
+		
+		// parse configuration for environment variables
+		Set<String> envKeys = config.getConfigEntries(CONF_BASH_ENV_NAME + "-").keySet();
+		
+		this.environmentVariables = new HashMap<String, String>();
+		
+		for (String key : envKeys) {
+			
+			String name = config.getString(CONF_BASH_ENV_NAME + "-" + key);
+			String value = config.getString(CONF_BASH_ENV_VALUE + "-" + key);
+			
+			// skip the empty default configuration
+			if (!name.isEmpty()) {
+	
+				logger.info("job environment variable " + name + "=" + value);
+				this.environmentVariables.put(name, value);
+			}
 		}
 
 		this.maxSlots = config.getInt(CONF_BASH_MAX_SLOTS);
@@ -526,6 +549,11 @@ public class BashJobScheduler implements JobScheduler {
 		
 		// kubernetes wants a string for the value of labelSelector
 		env.put(ENV_POD_ANTI_AFFINITY, this.podAntiAffinity ? "yes" : "no");
+		
+		for (String name : this.environmentVariables.keySet()) {
+			// add a prefix to each variable name to be able to iterate these in bash
+			env.put(ENV_ENV_PREFIX + "_" + name, this.environmentVariables.get(name));
+		}
 		
 		return env;
 	}
