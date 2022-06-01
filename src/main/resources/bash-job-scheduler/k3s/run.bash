@@ -64,6 +64,14 @@ fi
 pod_patch="$pod_patch |
     .metadata.labels.\"comp-job-anti-affinity\"=\"$POD_ANTI_AFFINITY\""
 
+# configure environment variables
+for prefixed_name in $(env | grep "ENV_PREFIX_" | cut -d "=" -f 1); do
+    name="$(echo "$prefixed_name" | sed s/ENV_PREFIX_//)"
+    value="${!prefixed_name}"
+    pod_patch="$pod_patch |
+      .spec.containers[0].env += [{\"name\": \"$name\", \"value\": \"$value\"}]"
+done
+
 job_json=$(echo "$POD_YAML"    | yq e - -o=json | jq "$pod_patch")
 
 echo "$job_json" | kubectl apply -f -
