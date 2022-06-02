@@ -24,6 +24,7 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -32,6 +33,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.SecurityContext;
 
 public class SessionDbAdminResource extends AdminResource {
@@ -51,6 +53,8 @@ public class SessionDbAdminResource extends AdminResource {
 	private final static String SQL_ORPHAN_RULES = "from rule r    where not exists ( select from session s where r.sessionid = s.sessionid)";
 
 	private HibernateUtil hibernate;
+	private RuleTable ruleTable;
+	private SessionDbApi sessionDbApi;
 
 	private PubSubServer pubSubServer;
 
@@ -63,10 +67,13 @@ public class SessionDbAdminResource extends AdminResource {
 	 *                     type"). We don't care about it, because we instantiate
 	 *                     the class ourselves.
 	 */
-	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
-			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes) {
+	public SessionDbAdminResource(SessionDbApi sessionDbApi, RuleTable ruleTable, HibernateUtil hibernate,
+			JerseyStatisticsSource jerseyStats, PubSubServer pubSubServer,
+			@SuppressWarnings("rawtypes") Class[] classes) {
 		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
+		this.sessionDbApi = sessionDbApi;
+		this.ruleTable = ruleTable;
 		this.pubSubServer = pubSubServer;
 	}
 
@@ -277,6 +284,77 @@ public class SessionDbAdminResource extends AdminResource {
 		}
 
 		return Response.ok(sessionSizes).build();
+	}
+
+	@DELETE
+	@Path("users/{userId}/sessions/{sessionId}/rules")
+	@RolesAllowed({ Role.ADMIN })
+	@Transaction
+	public Response delete(@PathParam("userId") String userId, @PathParam("sessionId") UUID sessionId,
+			@Context SecurityContext sc) {
+
+		if (userId == null) {
+			return Response.status(Status.BAD_REQUEST).build();
+		}
+
+		Session session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId, true);
+		sessionDbApi.deleteRulesForUser(session, userId);
+		return Response.noContent().build();
+	}
+
+	// FIXME CONTINUE HERE, IMPLEMENT THIS AND UNIT TEST FOR THIS AND THE ONE ABOVE
+	@DELETE
+	@Path("users/{userId}/sessions")
+	@RolesAllowed({ Role.ADMIN })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response deleteSessions(@PathParam("userId") String userId, @Context SecurityContext sc) {
+
+//		@SuppressWarnings("unchecked")
+//		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username")
+//				.setParameter("username", userId).list();
+//
+//		List<Rule> rulesOwn = ruleTable.getRulesOwn(userId);
+//
+//		List<Session> sessions = rules.stream().map(rule -> rule.getSession()).collect(Collectors.toList());
+//
+//		logger.info("userId has " + sessions.size() + " sessions");
+
+		// FIXME implement this
+
+//		logger.info("user " + username + " has " + sessions.size() + " sessions");
+//		List<HashMap<String, Object>> sessionSizes = new ArrayList<>();
+//
+//		for (Session session : sessions) {
+//
+//			List<Dataset> datasets = SessionDatasetResource.getDatasets(hibernate.session(), session);
+//			List<Job> jobs = SessionJobResource.getJobs(hibernate.session(), session);
+//
+//			long sessionSize = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
+//					.collect(Collectors.toMap(file -> file.getFileId(), file -> file)).values().stream()
+//					.collect(Collectors.summingLong(file -> file.getSize()));
+//
+//			long datasetsCount = datasets.size();
+//			long jobCount = jobs.size();
+//			long inputCount = jobs.stream().flatMap(job -> job.getInputs().stream()).count();
+//			long parameterCount = jobs.stream().flatMap(job -> job.getParameters().stream()).count();
+//			long metadataCount = datasets.stream().flatMap(dataset -> dataset.getMetadataFiles().stream()).count();
+//
+//			sessionSizes.add(new HashMap<String, Object>() {
+//				{
+//					put("sessionId", session.getSessionId());
+//					put("name", session.getName());
+//					put("size", sessionSize);
+//					put("datasetCount", datasetsCount);
+//					put("jobCount", jobCount);
+//					put("inputCount", inputCount);
+//					put("parameterCount", parameterCount);
+//					put("metadataFileCount", metadataCount);
+//				}
+//			});
+//		}
+
+		return Response.ok().build();
 	}
 
 }

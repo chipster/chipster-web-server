@@ -47,9 +47,19 @@ public class SessionDbApi {
 
 	}
 
+	public void deleteRulesForUser(Session session, String userId) {
+		ruleTable.getRules(session.getSessionId()).stream().filter(rule -> userId.equals(rule.getUsername()))
+				.forEach((ruleToDelete -> {
+					deleteRule(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
+				}));
+
+		if (session != null) {
+			sessionModified(session, hibernate.session());
+		}
+	}
+
 	public void deleteRule(Session session, Rule rule, org.hibernate.Session hibernateSession,
 			boolean deleteSessionIfLastRule) {
-
 		ruleTable.delete(session.getSessionId(), rule, hibernate.session());
 
 		// why session.getRules() complains: failed to lazily initialize a collection,
@@ -61,7 +71,6 @@ public class SessionDbApi {
 		if (deleteSessionIfLastRule) {
 			deleteSessionIfOrphan(session);
 		}
-
 	}
 
 	public void publishRuleEvent(UUID sessionId, Collection<Rule> sessionRules, Rule rule, EventType eventType) {

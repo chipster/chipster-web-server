@@ -132,8 +132,8 @@ public class SessionDb {
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
-				hibernateClasses.toArray(new Class[0]));
+		this.adminResource = new SessionDbAdminResource(sessionDbApi, ruleTable, hibernate, jerseyStatisticsSource,
+				pubSubServer, hibernateClasses.toArray(new Class[0]));
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
