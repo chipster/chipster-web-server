@@ -22,6 +22,7 @@ import org.hibernate.cfg.Environment;
 import org.hibernate.context.internal.ManagedSessionContext;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
 import org.hibernate.usertype.UserType;
+import org.postgresql.Driver;
 import org.postgresql.util.PSQLException;
 
 import fi.csc.chipster.rest.Config;
@@ -91,7 +92,7 @@ public class HibernateUtil {
 			this.dbSchema = new DbSchema(role);
 
 			if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
-				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName(), Driver.class.getName(), url);
 			}
 
 			this.dbSchema.migrate(url, user, password);
@@ -125,7 +126,7 @@ public class HibernateUtil {
 		} catch (SchemaManagementException e) {
 
 			this.dbSchema.printSchemaError(e);
-			this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role));
+			this.dbSchema.export(hibernateClasses, config.getString(CONF_DB_DIALECT, role), config.getString(CONF_DB_DRIVER, role), config.getString(CONF_DB_URL, role));
 			throw e;
 		}
 	}
@@ -246,6 +247,7 @@ public class HibernateUtil {
 				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
 				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
 						new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
+//				put(Notification.NOTIFICATION_CONTENT_JSON_TYPE, new JsonType<Notification>(!isPostgres, Notification.class));
 			}
 		};
 	}
