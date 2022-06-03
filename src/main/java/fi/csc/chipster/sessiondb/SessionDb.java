@@ -31,6 +31,7 @@ import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
+import fi.csc.chipster.sessiondb.resource.SessionDbApi;
 import fi.csc.chipster.sessiondb.resource.SessionDbTokenResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
@@ -64,6 +65,7 @@ public class SessionDb {
 	private SessionResource sessionResource;
 
 	private RuleTable ruleTable;
+	private SessionDbApi sessionDbApi;
 
 	private SessionDbAdminResource adminResource;
 
@@ -97,17 +99,18 @@ public class SessionDb {
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
-		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
-				Job.class, File.class);
+		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class, Job.class,
+				File.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
-		
+
 		this.tokenRequestFilter = new TokenRequestFilter(authService);
 
 		this.ruleTable = new RuleTable(hibernate);
+		this.sessionDbApi = new SessionDbApi(hibernate, ruleTable);
 		this.datasetTokenResource = new SessionDbTokenResource(ruleTable, authService);
-		this.sessionResource = new SessionResource(hibernate, ruleTable, config);
+		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
 
@@ -120,7 +123,7 @@ public class SessionDb {
 		this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
 		this.pubSubServer.start();
 
-		sessionResource.setPubSubServer(pubSubServer);
+		sessionDbApi.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator).register(datasetTokenResource)
 				.register(ruleTable).register(sessionResource).register(globalJobResource).register(userResource)
@@ -129,7 +132,8 @@ public class SessionDb {
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer, hibernateClasses.toArray(new Class[0]));
+		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
+				hibernateClasses.toArray(new Class[0]));
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -138,12 +142,13 @@ public class SessionDb {
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false);
 		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SESSION_DB, LogType.API);
-		
+
 		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 
 		httpServer.start();
 
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService, this.serviceLocator);		
+		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService,
+				this.serviceLocator);
 	}
 
 	public PubSubServer getPubSubServer() {

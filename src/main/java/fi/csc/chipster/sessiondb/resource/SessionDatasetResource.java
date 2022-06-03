@@ -9,15 +9,22 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Root;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
-import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
@@ -33,25 +40,6 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.core.UriInfo;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
-import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.DatasetIdPair;
-import fi.csc.chipster.sessiondb.model.File;
-import fi.csc.chipster.sessiondb.model.Session;
-import fi.csc.chipster.sessiondb.model.SessionEvent;
-import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
-import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
-
 public class SessionDatasetResource {
 
 	public static final String QUERY_PARAM_READ_WRITE = "read-write";
@@ -62,87 +50,57 @@ public class SessionDatasetResource {
 	final private UUID sessionId;
 
 	private SessionResource sessionResource;
+	private SessionDbApi sessionDbApi;
 
 	public SessionDatasetResource() {
 		sessionId = null;
 	}
 
-	public SessionDatasetResource(SessionResource sessionResource, UUID id) {
+	public SessionDatasetResource(SessionResource sessionResource, UUID id, SessionDbApi sessionDbApi) {
 		this.sessionResource = sessionResource;
 		this.sessionId = id;
+		this.sessionDbApi = sessionDbApi;
 	}
 
 	// CRUD
 	@GET
 	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN, Role.DATASET_TOKEN})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN, Role.DATASET_TOKEN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response get(@PathParam("id") UUID datasetId, @QueryParam(QUERY_PARAM_READ_WRITE) boolean requireReadWrite,
 			@Context SecurityContext sc) {
 
 		// checks authorization
-		/* Client can require write permissions if it wants to make sure a modification is allowed later.
-		 * This assumes that there are no Rules that would allow only write but not read access. 
+		/*
+		 * Client can require write permissions if it wants to make sure a modification
+		 * is allowed later. This assumes that there are no Rules that would allow only
+		 * write but not read access.
 		 */
 		sessionResource.getRuleTable().checkDatasetAuthorization(sc, sessionId, datasetId, requireReadWrite);
 
-		Dataset result = getDataset(sessionId, datasetId, getHibernate().session());
+		Dataset result = SessionDbApi.getDataset(sessionId, datasetId, getHibernate().session());
 
 		if (result == null || !result.getSessionId().equals(sessionId)) {
 			throw new NotFoundException();
 		}
-		
+
 		return Response.ok(result).build();
 	}
 
-	/**
-	 * Get requested dataset
-	 * 
-	 * This must return only dataset if it really is in the session of sesssionId.
-	 * Having the both IDs in the query verifies this in the current DB schema. 
-	 * RuleTable.checkDatasetAuthorization() trusts this.
-	 * 
-	 * Junit test in SessionDatasetResourceTest.get() follows that this assumption
-	 * is not broken by accident. 		
-	 * 
-	 * @param sessionId
-	 * @param datasetId
-	 * @param hibernateSession
-	 * @return
-	 */
-	public static Dataset getDataset(UUID sessionId, UUID datasetId, org.hibernate.Session hibernateSession) {
-		
-		Dataset dataset = hibernateSession.get(Dataset.class, new DatasetIdPair(sessionId, datasetId));
-		return dataset;
-	}
-
 	@GET
-	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN, Role.DATASET_TOKEN})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN, Role.DATASET_TOKEN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId);
-		
-		List<Dataset> result = getDatasets(getHibernate().session(), session);
+
+		List<Dataset> result = SessionDbApi.getDatasets(getHibernate().session(), session);
 
 		// if nothing is found, just return 200 (OK) and an empty list
 		return Response.ok(toJaxbList(result)).build();
-	}
-
-	public static List<Dataset> getDatasets(org.hibernate.Session hibernateSession, Session session) {
-
-		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
-		CriteriaQuery<Dataset> c = cb.createQuery(Dataset.class);
-		Root<Dataset> r = c.from(Dataset.class);
-		r.fetch("file", JoinType.LEFT);
-		c.select(r);
-		c.where(cb.equal(r.get("datasetIdPair").get("sessionId"), session.getSessionId()));
-		List<Dataset> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();
-
-		return datasets;
 	}
 
 	@POST
@@ -176,7 +134,7 @@ public class SessionDatasetResource {
 		return Response.created(uri).entity(json).build();
 	}
 
-	public List<UUID> postList(List<Dataset> datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+	private List<UUID> postList(List<Dataset> datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		for (Dataset dataset : datasets) {
 			// client's are allowed to set the datasetId to preserve the object references
 			// within the session
@@ -200,40 +158,12 @@ public class SessionDatasetResource {
 				dataset.setCreated(Instant.now());
 			}
 
-			create(dataset, getHibernate().session());
+			sessionDbApi.createDataset(dataset, sessionId, getHibernate().session());
 		}
 
-		sessionResource.sessionModified(session, getHibernate().session());
+		sessionDbApi.sessionModified(session, getHibernate().session());
 
 		return datasets.stream().map(d -> d.getDatasetId()).collect(Collectors.toList());
-	}
-
-	public void create(Dataset dataset, org.hibernate.Session hibernateSession) {
-
-		checkFileModification(dataset, hibernateSession);
-
-		if (dataset.getFile() != null) {
-			// why CascadeType.PERSIST isn't enough?
-			HibernateUtil.persist(dataset.getFile(), hibernateSession);
-		}
-		HibernateUtil.persist(dataset, hibernateSession);
-		sessionResource.publish(sessionId.toString(),
-				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE),
-				hibernateSession);
-	}
-
-	private void checkFileModification(Dataset dataset, org.hibernate.Session hibernateSession) {
-		// if the file exists, don't allow it to be modified
-		if (dataset.getFile() == null || dataset.getFile().isEmpty()) {
-			return;
-		}
-		File dbFile = hibernateSession.get(File.class, dataset.getFile().getFileId());
-		if (dbFile != null) {
-			if (!dbFile.equals(dataset.getFile())) {
-				throw new ForbiddenException("modification of existing file is forbidden");
-			}
-			dataset.setFile(dbFile);
-		}
 	}
 
 	@PUT
@@ -262,12 +192,11 @@ public class SessionDatasetResource {
 		return Response.noContent().build();
 	}
 
-	public void putList(List<Dataset> requestDatasets, @Context SecurityContext sc) {
+	private void putList(List<Dataset> requestDatasets, @Context SecurityContext sc) {
 
 		/*
-		 * Checks that 
-		 * - user has write authorization for the session 
-		 * - the session contains this dataset
+		 * Checks that - user has write authorization for the session - the session
+		 * contains this dataset
 		 */
 		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 
@@ -275,7 +204,7 @@ public class SessionDatasetResource {
 
 		for (Dataset requestDataset : requestDatasets) {
 			UUID datasetId = requestDataset.getDatasetId();
-			Dataset dbDataset = getDataset(sessionId, datasetId, getHibernate().session());
+			Dataset dbDataset = SessionDbApi.getDataset(sessionId, datasetId, getHibernate().session());
 
 			if (dbDataset == null || !dbDataset.getSessionId().equals(session.getSessionId())) {
 				throw new NotFoundException("dataset doesn't exist");
@@ -286,7 +215,7 @@ public class SessionDatasetResource {
 
 		for (Dataset requestDataset : requestDatasets) {
 			if (!sc.isUserInRole(Role.FILE_BROKER)) {
-				checkFileModification(requestDataset, getHibernate().session());
+				sessionDbApi.checkFileModification(requestDataset, getHibernate().session());
 			}
 
 			if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
@@ -297,30 +226,16 @@ public class SessionDatasetResource {
 			// make sure a hostile client doesn't set the session
 			requestDataset.setDatasetIdPair(session.getSessionId(), requestDataset.getDatasetId());
 
-			// the created timestamp needs to be overridden with a value from the client when openig a zip session
+			// the created timestamp needs to be overridden with a value from the client
+			// when openig a zip session
 		}
 
 		for (Dataset requestDataset : requestDatasets) {
-			update(requestDataset, dbDatasets.get(requestDataset.getDatasetId()), getHibernate().session());
+			this.sessionDbApi.updateDataset(requestDataset, dbDatasets.get(requestDataset.getDatasetId()), sessionId,
+					getHibernate().session());
 		}
 
-		sessionResource.sessionModified(session, getHibernate().session());
-	}
-
-	public void update(Dataset newDataset, Dataset dbDataset, org.hibernate.Session hibernateSession) {
-
-		if (newDataset.getFile() != null) {
-			if (dbDataset.getFile() == null) {
-				HibernateUtil.persist(newDataset.getFile(), hibernateSession);
-			} else {
-				HibernateUtil.update(newDataset.getFile(), newDataset.getFile().getFileId(), hibernateSession);
-			}
-		}
-
-		HibernateUtil.update(newDataset, newDataset.getDatasetIdPair(), hibernateSession);
-		sessionResource.publish(sessionId.toString(),
-				new SessionEvent(sessionId, ResourceType.DATASET, newDataset.getDatasetId(), EventType.UPDATE),
-				hibernateSession);
+		sessionDbApi.sessionModified(session, getHibernate().session());
 	}
 
 	@DELETE
@@ -331,48 +246,17 @@ public class SessionDatasetResource {
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
-		Dataset dataset = getDataset(sessionId, datasetId, sessionResource.getHibernate().session());
+		Dataset dataset = SessionDbApi.getDataset(sessionId, datasetId, sessionResource.getHibernate().session());
 
 		if (dataset == null || !dataset.getSessionId().equals(session.getSessionId())) {
 			throw new NotFoundException("dataset not found");
 		}
 
-		deleteDataset(dataset, getHibernate().session());
+		this.sessionDbApi.deleteDataset(dataset, sessionId, getHibernate().session());
 
-		sessionResource.sessionModified(session, getHibernate().session());
+		sessionDbApi.sessionModified(session, getHibernate().session());
 
 		return Response.noContent().build();
-	}
-
-	public void deleteDataset(Dataset dataset, org.hibernate.Session hibernateSession) {
-
-		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), getHibernate().session());
-
-		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
-			UUID fileId = dataset.getFile().getFileId();
-
-			@SuppressWarnings("unchecked")
-			List<Dataset> fileDatasets = hibernateSession.createQuery("from Dataset where file=:file")
-					.setParameter("file", dataset.getFile()).list();
-
-			// don't care about the dataset that is being deleted
-			// why do we still see it?
-			fileDatasets.remove(dataset);
-
-			// there isn't anymore anyone using this file and the file-broker
-			// can delete it
-			if (fileDatasets.isEmpty()) {
-				// remove from file-broker
-				sessionResource.publish(SessionDbTopicConfig.FILES_TOPIC,
-						new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
-				// remove from db
-				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernateSession);
-			}
-
-		}
-		sessionResource.publish(sessionId.toString(),
-				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE),
-				hibernateSession);
 	}
 
 	/**
