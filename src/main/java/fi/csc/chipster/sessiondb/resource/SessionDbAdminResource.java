@@ -303,7 +303,7 @@ public class SessionDbAdminResource extends AdminResource {
 	@Transaction
     public Response post(News news, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		
-		// curl 'http://127.0.0.1:8104/admin/news' -H 'Accept-Language: en-GB,en-US;q=0.9,en;q=0.8'   -H "Authorization: Basic $TOKEN" -H 'Content-Type: application/json' -d '{"contents": "{}"}' -X POST
+		// curl 'http://127.0.0.1:8104/admin/news' -H "Authorization: Basic $TOKEN" -H 'Content-Type: application/json' -d '{"contents": "{}"}' -X POST
 
 		// decide sessionId on the server
 		if (news.getNewsId() != null) {
