@@ -11,6 +11,8 @@
 
     drop table if exists Job cascade;
 
+    drop table if exists News cascade;
+
     drop table if exists Rule cascade;
 
     drop table if exists Session cascade;
@@ -42,10 +44,12 @@
        jobId uuid not null,
         sessionId uuid not null,
         comp varchar(255),
+        cpuLimit int4,
         created timestamp,
         createdBy varchar(255),
         endTime timestamp,
         inputs jsonb,
+        memoryLimit int8,
         memoryUsage int8,
         metadataFiles jsonb,
         module varchar(255),
@@ -61,6 +65,14 @@
         toolId varchar(255),
         toolName varchar(255),
         primary key (jobId, sessionId)
+    );
+
+    create table News (
+       newsId uuid not null,
+        contents jsonb,
+        created timestamp,
+        modified timestamp,
+        primary key (newsId)
     );
 
     create table Rule (

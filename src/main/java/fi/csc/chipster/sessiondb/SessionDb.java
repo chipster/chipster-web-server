@@ -26,11 +26,12 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.Notification;
+import fi.csc.chipster.sessiondb.model.News;
+import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
-import fi.csc.chipster.sessiondb.resource.NotificationResource;
+import fi.csc.chipster.sessiondb.resource.NewsResource;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbApi;
@@ -81,7 +82,7 @@ public class SessionDb {
 
 	private UserResource userResource;
 
-	private NotificationResource notificationResource;
+	private NewsResource notificationResource;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -104,7 +105,7 @@ public class SessionDb {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
-				Job.class, File.class, Notification.class);
+				Job.class, File.class, News.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
@@ -117,7 +118,7 @@ public class SessionDb {
 		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
-//		this.notificationResource = new NotificationResource(hibernate);
+		this.notificationResource = new NewsResource(hibernate);
 
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
@@ -129,7 +130,7 @@ public class SessionDb {
 		this.pubSubServer.start();
 
 		sessionDbApi.setPubSubServer(pubSubServer);
-//		notificationResource.setPubSubServer(pubSubServer);
+		notificationResource.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(datasetTokenResource)
@@ -137,7 +138,7 @@ public class SessionDb {
 				.register(sessionResource)
 				.register(globalJobResource)
 				.register(userResource)
-//				.register(notificationResource)
+				.register(notificationResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
 //				.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);

@@ -61,10 +61,19 @@ public class DbSchema {
 	 * @throws IOException 
 	 * @throws SQLException 
      */
-    public void exportHibernateSchema(List<Class<?>> hibernateClasses, String file, String dialect, String driver, String url) {
+    public void exportHibernateSchema(List<Class<?>> hibernateClasses, String file, String dialect) {
+    	
+    	logger.info("export hibernate schema " + dialect + " to " + file);
     	
     	Map<String, String> settings = new HashMap<>();
 		settings.put(Environment.DIALECT, dialect);
+
+		/* Do not start connection pool
+		 * 
+		 * Schema export shouldn't try to connect to the real database, but it does, at least in 
+		 * Hibernate 5.4.25. This magic configuration in JdbcEnvironmentInitiator seems to disable it. 
+		 */
+		settings.put("hibernate.temp.use_jdbc_metadata_defaults", "false");
  
         MetadataSources metadata = new MetadataSources(
         		new StandardServiceRegistryBuilder()
@@ -95,9 +104,9 @@ public class DbSchema {
     }
 
 
-	public void export(List<Class<?>> hibernateClasses, String dialect, String driver, String url) {
+	public void export(List<Class<?>> hibernateClasses, String dialect) {
     	String exportFile = getExportFile();
-    	this.exportHibernateSchema(hibernateClasses, exportFile, dialect, driver, url);
+    	this.exportHibernateSchema(hibernateClasses, exportFile, dialect);
 	}
 
 	private String getExportFile() {

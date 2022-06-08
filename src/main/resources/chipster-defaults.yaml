@@ -95,7 +95,7 @@ use-external-addresses: false
 db-show-sql: false
 db-c3p0-min-size: ""
 db-c3p0-max-size: ""
-db-dialect: org.hibernate.dialect.PostgreSQLDialect
+db-dialect: fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect
 db-driver: org.postgresql.Driver
 db-user: user
 # This is just a placeholder, because it wouldn't make sense to try to restore all the databaes from the same file. Set this for individual role 

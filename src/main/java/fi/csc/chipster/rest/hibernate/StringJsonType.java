@@ -10,28 +10,35 @@ import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.usertype.UserType;
 
-import fi.csc.chipster.rest.RestUtils;
-
 /**
- * Hibernate UserType for storing an object as a json blob
+ * Hibernate UserType for storing a String as a json blob
+ * 
+ * Type jsonb is used in Postgres and clob in H2 database. The jsonb must be registered in
+ * the constructor of Postgres dialect:
+ * <pre>
+ * this.registerColumnType(Types.JAVA_OBJECT, "jsonb");
+ * </pre>
+ * 
+ * And the type must be registered for the Hibernate:
+ * <pre>
+ * hibernateConf.put(StringJsonType.STRING_JSON_TYPE, new StringJsonType());
+ * </pre>
+ * 
+ * Then you can use this type in the data model classes:
+ * <pre>
+ * {@literal @}Column
+ * {@literal @}Type(type = StringJsonType.STRING_JSON_TYPE)
+ * private String contents;
+ * </pre>
  * 
  * @author klemela
  *
  * @param <T>
  */
-public class JsonType<T extends DeepCopyable> implements UserType { 
+public class StringJsonType implements UserType { 
 	
-    private boolean fallbackToClob;
-	private Class<T> innerType;
-    
-	/**
-	 * @param fallbackToClob
-	 * @param innerType There is no generic type available in runtime, so we it has to be given also here
-	 */
-	public JsonType(boolean fallbackToClob, Class<T> innerType) {
-    	this.fallbackToClob = fallbackToClob;
-    	this.innerType = innerType;
-	}
+    public static final String STRING_JSON_TYPE = "StringJsonType";
+	private boolean fallbackToClob;
 
 	@Override
     public int[] sqlTypes() {
@@ -41,14 +48,9 @@ public class JsonType<T extends DeepCopyable> implements UserType {
         return new int[]{Types.JAVA_OBJECT};
     }
 
-    @SuppressWarnings("unchecked")
 	@Override
-    public Class<? extends Class<T>> returnedClass() {
-        return (Class<? extends Class<T>>) innerType.getClass();
-    }
-    
-    public Class<T> returnedClassInner() {
-        return innerType;
+    public Class<? extends String> returnedClass() {
+        return String.class;
     }
     
     @Override
@@ -59,7 +61,7 @@ public class JsonType<T extends DeepCopyable> implements UserType {
             return null;
         }
         
-		return RestUtils.parseJson(returnedClass(), cellContent);
+		return cellContent;
 	}
 
 	@Override
@@ -71,19 +73,17 @@ public class JsonType<T extends DeepCopyable> implements UserType {
 		if (value == null) {
             ps.setObject(idx, null, type);
         } else {
-		
-	    	String json = RestUtils.asJson(value);	    	
-	        ps.setObject(idx, json, type);
+			    	
+	        ps.setObject(idx, value, type);
         }
 	}
 
-    @SuppressWarnings("unchecked")
 	@Override
     public Object deepCopy(final Object value) throws HibernateException {
 		if (value == null) {
 			return null;
 		}
-    	return ((T)value).deepCopy();    	
+    	return new String((String)value); 	
     }
 
     @Override
