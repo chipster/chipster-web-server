@@ -31,6 +31,7 @@ import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.GlobalJobResource;
+import fi.csc.chipster.sessiondb.resource.NewsApi;
 import fi.csc.chipster.sessiondb.resource.NewsResource;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
@@ -82,7 +83,9 @@ public class SessionDb {
 
 	private UserResource userResource;
 
-	private NewsResource notificationResource;
+	private NewsResource newsResource;
+
+	private NewsApi newsApi;
 
 	public SessionDb(Config config) {
 		this.config = config;
@@ -118,7 +121,8 @@ public class SessionDb {
 		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
-		this.notificationResource = new NewsResource(hibernate);
+		this.newsApi = new NewsApi(hibernate);
+		this.newsResource = new NewsResource(newsApi);
 
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
@@ -130,7 +134,7 @@ public class SessionDb {
 		this.pubSubServer.start();
 
 		sessionDbApi.setPubSubServer(pubSubServer);
-		notificationResource.setPubSubServer(pubSubServer);
+		newsApi.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(datasetTokenResource)
@@ -138,14 +142,14 @@ public class SessionDb {
 				.register(sessionResource)
 				.register(globalJobResource)
 				.register(userResource)
-				.register(notificationResource)
+				.register(newsResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
 //				.register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
-				hibernateClasses.toArray(new Class[0]));
+				hibernateClasses.toArray(new Class[0]), newsApi);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

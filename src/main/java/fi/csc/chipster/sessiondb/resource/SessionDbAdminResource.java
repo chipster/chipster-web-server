@@ -1,6 +1,8 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.math.BigInteger;
+import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -12,20 +14,29 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -33,6 +44,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.core.UriInfo;
 
 public class SessionDbAdminResource extends AdminResource {
 
@@ -54,6 +66,8 @@ public class SessionDbAdminResource extends AdminResource {
 
 	private PubSubServer pubSubServer;
 
+	private NewsApi newsApi;
+
 	/**
 	 * @param hibernate
 	 * @param jerseyStats
@@ -62,12 +76,14 @@ public class SessionDbAdminResource extends AdminResource {
 	 *                     (produces a log warning "Not resolvable to a concrete
 	 *                     type"). We don't care about it, because we instantiate
 	 *                     the class ourselves.
+	 * @param newsApi 
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
-			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes) {
+			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi) {
 		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
+		this.newsApi = newsApi;
 	}
 
 	@GET
@@ -279,4 +295,66 @@ public class SessionDbAdminResource extends AdminResource {
 		return Response.ok(sessionSizes).build();
 	}
 
+	@POST
+	@Path("news")
+	@RolesAllowed({ Role.ADMIN})
+    @Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+    public Response post(News news, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+		
+		// curl 'http://127.0.0.1:8104/admin/news' -H 'Accept-Language: en-GB,en-US;q=0.9,en;q=0.8'   -H "Authorization: Basic $TOKEN" -H 'Content-Type: application/json' -d '{"contents": "{}"}' -X POST
+
+		// decide sessionId on the server
+		if (news.getNewsId() != null) {
+			throw new BadRequestException("session already has an id, post not allowed");
+		}
+
+		UUID id = RestUtils.createUUID();
+		news.setNewsId(id);
+		news.setCreated(Instant.now());
+		
+		this.newsApi.save(news);
+		
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
+		
+		ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("notificationId", id.toString());
+		
+		return Response.created(uri).entity(json).build();
+    }
+	
+	@PUT
+	@Path("news/{id}")
+	@RolesAllowed({ Role.ADMIN }) // don't allow Role.UNAUTHENTICATED
+    @Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
+    public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
+		
+				    				
+		// override the url in json with the id in the url, in case a 
+		// malicious client has changed it
+		requestNews.setNewsId(newsId);
+		requestNews.setModified(Instant.now());
+		
+		// check the notification exists (is this needed?)
+		News dbNotification = this.newsApi.getNews(newsId);
+		
+		requestNews.setCreated(dbNotification.getCreated());
+		
+		this.newsApi.update(requestNews);
+				
+		return Response.noContent().build();
+    }	
+	
+	@DELETE
+    @Path("news/{id}")
+	@RolesAllowed({ Role.ADMIN })
+	@Transaction
+    public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
+
+		this.newsApi.delete(id);
+		
+		return Response.noContent().build();
+    }
 }
