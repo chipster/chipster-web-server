@@ -29,10 +29,12 @@ import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.TableStats;
+import fi.csc.chipster.sessiondb.resource.NewsResource;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
@@ -166,6 +168,14 @@ public class SessionDbClient {
 	
 	private WebTarget getRuleTarget(UUID sessionId, UUID authorizationId) {
 		return getRulesTarget(sessionId).path(authorizationId.toString());
+	}
+	
+	private WebTarget getNewsTarget() {
+		return getSessionDbTarget().path(NewsResource.PATH_NEWS);
+	}
+	
+	private WebTarget getNewsTarget(UUID id) {
+		return getNewsTarget().path(id.toString());
 	}
 
 	// sessions
@@ -423,5 +433,13 @@ public class SessionDbClient {
 
 	public List<String> getUsers() throws RestException {
 		return RestMethods.getList(getSessionDbTarget().path(UserResource.PATH_USERS), String.class);		
+	}
+
+	public List<News> getNews() throws RestException {
+		return RestMethods.getList(getSessionDbTarget().path(NewsResource.PATH_NEWS), News.class);
+	}
+
+	public void updateNews(News news) throws RestException {
+		RestMethods.put(getNewsTarget(news.getNewsId()), news);
 	}
 }

@@ -14,9 +14,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
-@Path("news")
+@Path(NewsResource.PATH_NEWS)
 public class NewsResource {
 	
+	public static final String PATH_NEWS = "news";
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 	private NewsApi newsApi;

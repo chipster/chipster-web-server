@@ -14,7 +14,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -47,8 +49,11 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -162,6 +167,12 @@ public class RestUtils {
 			logger.error("json parsing failed", e);
 			throw new InternalServerErrorException();
 		}
+	}
+	
+	public static HashMap<String, Object> parseJsonToMap(String json) throws JsonMappingException, JsonProcessingException {
+		ObjectReader reader = new ObjectMapper().readerFor(Map.class);
+
+		return reader.readValue(json);
 	}
 
 	public static String createId() {
