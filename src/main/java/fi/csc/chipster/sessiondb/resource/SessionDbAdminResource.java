@@ -76,7 +76,7 @@ public class SessionDbAdminResource extends AdminResource {
 	 *                     (produces a log warning "Not resolvable to a concrete
 	 *                     type"). We don't care about it, because we instantiate
 	 *                     the class ourselves.
-	 * @param newsApi 
+	 * @param newsApi
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
 			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi) {
@@ -297,13 +297,14 @@ public class SessionDbAdminResource extends AdminResource {
 
 	@POST
 	@Path("news")
-	@RolesAllowed({ Role.ADMIN})
-    @Consumes(MediaType.APPLICATION_JSON)
+	@RolesAllowed({ Role.ADMIN })
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response post(News news, @Context UriInfo uriInfo, @Context SecurityContext sc) {
-		
-		// curl 'http://127.0.0.1:8104/admin/news' -H "Authorization: Basic $TOKEN" -H 'Content-Type: application/json' -d '{"contents": "{}"}' -X POST
+	public Response post(News news, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+
+		// curl 'http://127.0.0.1:8104/admin/news' -H "Authorization: Basic $TOKEN" -H
+		// 'Content-Type: application/json' -d '{"contents": "{}"}' -X POST
 
 		// decide sessionId on the server
 		if (news.getNewsId() != null) {
@@ -327,34 +328,33 @@ public class SessionDbAdminResource extends AdminResource {
 	@PUT
 	@Path("news/{id}")
 	@RolesAllowed({ Role.ADMIN }) // don't allow Role.UNAUTHENTICATED
-    @Consumes(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
-		
-				    				
-		// override the url in json with the id in the url, in case a 
+	public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
+
+		// override the url in json with the id in the url, in case a
 		// malicious client has changed it
 		requestNews.setNewsId(newsId);
 		requestNews.setModified(Instant.now());
-		
+
 		// check the notification exists (is this needed?)
 		News dbNotification = this.newsApi.getNews(newsId);
-		
+
 		requestNews.setCreated(dbNotification.getCreated());
-		
+
 		this.newsApi.update(requestNews);
-				
+
 		return Response.noContent().build();
-    }	
-	
+	}
+
 	@DELETE
-    @Path("news/{id}")
+	@Path("news/{id}")
 	@RolesAllowed({ Role.ADMIN })
 	@Transaction
-    public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
+	public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		this.newsApi.delete(id);
-		
+
 		return Response.noContent().build();
-    }
+	}
 }
