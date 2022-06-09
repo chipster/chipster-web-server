@@ -320,7 +320,7 @@ public class SessionDbAdminResource extends AdminResource {
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 
 		ObjectNode json = new JsonNodeFactory(false).objectNode();
-		json.put("notificationId", id.toString());
+		json.put("newsId", id.toString());
 		
 		return Response.created(uri).entity(json).build();
 	}
