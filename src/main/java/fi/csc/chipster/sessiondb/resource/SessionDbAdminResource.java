@@ -318,43 +318,44 @@ public class SessionDbAdminResource extends AdminResource {
 		this.newsApi.create(news);
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
-		
+
 		ObjectNode json = new JsonNodeFactory(false).objectNode();
 		json.put("notificationId", id.toString());
 		
 		return Response.created(uri).entity(json).build();
-    }
-	
+	}
+
 	@PUT
 	@Path("news/{id}")
 	@RolesAllowed({ Role.ADMIN }) // don't allow Role.UNAUTHENTICATED
-	@Consumes(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
-
-		// override the url in json with the id in the url, in case a
+    public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
+		
+				    				
+		// override the url in json with the id in the url, in case a 
 		// malicious client has changed it
 		requestNews.setNewsId(newsId);
 		requestNews.setModified(Instant.now());
-
+		
 		// check the notification exists (is this needed?)
 		News dbNotification = this.newsApi.getNews(newsId);
-
+		
 		requestNews.setCreated(dbNotification.getCreated());
-
+		
 		this.newsApi.update(requestNews);
-
+				
 		return Response.noContent().build();
-	}
-
+    }	
+	
 	@DELETE
-	@Path("news/{id}")
+    @Path("news/{id}")
 	@RolesAllowed({ Role.ADMIN })
 	@Transaction
-	public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
+    public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		this.newsApi.delete(id);
-
+		
 		return Response.noContent().build();
-	}
+    }
 }
