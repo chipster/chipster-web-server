@@ -127,6 +127,16 @@ public class PubSubServer implements StatusSource {
 	public void publish(String topic, Object obj) {
 		publish(topic, RestUtils.asJson(obj));
 	}
+	
+	public void publishAllTopics(Object obj, Set<String> topicsToSkip) {
+		
+		// iterating ConcurrentHashMap should be safe
+		for (String topicName : topics.keySet()) {
+			if (!topicsToSkip.contains(topicName)) {
+				this.publish(topicName, obj);
+			}
+		}
+	}
 
 	private void publish(String topicName, String msg) {
 		Topic topic = topics.get(topicName);

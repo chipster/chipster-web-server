@@ -64,9 +64,25 @@ public class NewsResourceTest {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
-
+	
 	@Test
     public void get() throws RestException {
+		
+		UUID testValue = RestUtils.createUUID();
+		
+		News news = new News();
+    	news.setContents("{\"testKey\": \"" + testValue.toString() + "\"}");
+    	
+    	UUID newsId = adminClient.createNews(news);
+    	
+    	user1Client.getNews(newsId);    	
+						
+		// auth tests
+		testGetNews(401, newsId, noAuthClient);
+    }
+
+	@Test
+    public void getAll() throws RestException {
 		
 		UUID testValue = RestUtils.createUUID();
 		
@@ -96,12 +112,21 @@ public class NewsResourceTest {
     	assertEquals(1, filteredNews.size());
 						
 		// auth tests
-		testGetNews(401, noAuthClient);
+		testGetAllNews(401, noAuthClient);
     }
 				
-	private void testGetNews(int expected, SessionDbClient client) {
+	private void testGetAllNews(int expected, SessionDbClient client) {
 		try {
-    		client.getSessions();
+    		client.getNews();
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
+	
+	private void testGetNews(int expected, UUID newsId, SessionDbClient client) {
+		try {
+    		client.getNews(newsId);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());

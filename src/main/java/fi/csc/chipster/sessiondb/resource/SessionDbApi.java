@@ -102,6 +102,17 @@ public class SessionDbApi {
 			}
 		});
 	}
+	
+	public void publishAllTopics(SessionEvent event, org.hibernate.Session hibernateSession, Set<String> topicsToSkip) {
+		// publish the event only after the transaction is completed to make
+		// sure that the modifications are visible
+		hibernateSession.addEventListeners(new BaseSessionEventListener() {
+			@Override
+			public void transactionCompletion(boolean successful) {
+				events.publishAllTopics(event, topicsToSkip);
+			}
+		});
+	}
 
 	public void deleteSessionIfOrphan(Session session) {
 
@@ -368,5 +379,4 @@ public class SessionDbApi {
 			setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);
 		}
 	}
-
 }

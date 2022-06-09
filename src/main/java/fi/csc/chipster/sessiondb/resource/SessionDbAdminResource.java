@@ -314,7 +314,7 @@ public class SessionDbAdminResource extends AdminResource {
 		news.setNewsId(id);
 		news.setCreated(Instant.now());
 		
-		this.newsApi.save(news);
+		this.newsApi.create(news);
 		
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 		

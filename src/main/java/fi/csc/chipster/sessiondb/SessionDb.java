@@ -121,7 +121,7 @@ public class SessionDb {
 		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
 		this.userResource = new UserResource(hibernate);
-		this.newsApi = new NewsApi(hibernate);
+		this.newsApi = new NewsApi(hibernate, sessionDbApi);
 		this.newsResource = new NewsResource(newsApi);
 
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
@@ -134,7 +134,6 @@ public class SessionDb {
 		this.pubSubServer.start();
 
 		sessionDbApi.setPubSubServer(pubSubServer);
-		newsApi.setPubSubServer(pubSubServer);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(datasetTokenResource)

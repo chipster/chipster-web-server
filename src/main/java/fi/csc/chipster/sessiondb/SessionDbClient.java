@@ -442,4 +442,8 @@ public class SessionDbClient {
 	public void updateNews(News news) throws RestException {
 		RestMethods.put(getNewsTarget(news.getNewsId()), news);
 	}
+
+	public News getNews(UUID newsId) throws RestException {
+		return RestMethods.get(getNewsTarget(newsId), News.class);
+	}
 }

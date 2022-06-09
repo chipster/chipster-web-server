@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,6 +12,7 @@ import fi.csc.chipster.sessiondb.model.News;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
@@ -25,9 +27,19 @@ public class NewsResource {
 	public NewsResource(NewsApi newsApi) {
 		this.newsApi = newsApi;
 	}
+	
+	@GET
+	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT })
+    @Produces(MediaType.APPLICATION_JSON)	
+	@Transaction
+    public News get(@PathParam("id") UUID newsId) {
+		
+		return this.newsApi.getNews(newsId);
+	}
     
 	@GET
-	@RolesAllowed({ Role.UNAUTHENTICATED, Role.CLIENT }) // anyone
+	@RolesAllowed({ Role.CLIENT })
     @Produces(MediaType.APPLICATION_JSON)	
 	@Transaction
     public List<News> getAll() {
