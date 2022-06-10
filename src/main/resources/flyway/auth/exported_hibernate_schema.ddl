@@ -11,6 +11,7 @@
         modified timestamp,
         name varchar(255),
         organization varchar(255),
+        preferences jsonb,
         termsAccepted timestamp,
         termsVersion int4 not null,
         version int8 not null,

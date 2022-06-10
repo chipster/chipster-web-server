@@ -3,13 +3,19 @@ package fi.csc.chipster.auth.model;
 import java.time.Instant;
 import java.util.UUID;
 
+import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.Version;
-import jakarta.xml.bind.annotation.XmlRootElement;
+
+import org.hibernate.annotations.Type;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import fi.csc.chipster.rest.hibernate.JsonNodeJsonType;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Entity // db
 @XmlRootElement // json
@@ -36,6 +42,10 @@ public class User {
 	private Instant	created;
 	private Instant	modified;
 	private Instant	accessed;
+	
+	@Column
+	@Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
+	private JsonNode preferences;
 	
 	
 	public User() {
@@ -150,5 +160,13 @@ public class User {
 
 	public void setTermsAccepted(Instant termsAccepted) {
 		this.termsAccepted = termsAccepted;
+	}
+
+	public JsonNode getPreferences() {
+		return preferences;
+	}
+
+	public void setPreferences(JsonNode preferences) {
+		this.preferences = preferences;
 	}
 }
