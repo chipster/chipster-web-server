@@ -246,7 +246,7 @@ public class HibernateUtil {
 				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
 				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
 						new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
-				put(StringJsonType.STRING_JSON_TYPE, new StringJsonType());
+				put(JsonNodeJsonType.JSON_NODE_JSON_TYPE, new JsonNodeJsonType());
 			}
 		};
 	}

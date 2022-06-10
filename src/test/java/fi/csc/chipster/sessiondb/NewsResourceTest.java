@@ -3,16 +3,13 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -48,68 +45,65 @@ public class NewsResourceTest {
     @Test
     public void post() throws IOException, RestException {
     	
-    	News news = new News();
-    	news.setContents("{\"testKey\": \"testValue\"}");
+    	createNews(adminClient);
     	
-    	adminClient.createNews(news);
-    	
-    	testCreateNews(403, noAuthAdminClient, news);
+    	testCreateNews(403, noAuthAdminClient);
     }
 
-	public static void testCreateNews(int expected, SessionDbAdminClient client, News news) {
+	public static void testCreateNews(int expected, SessionDbAdminClient client) {
 		try {
-    		client.createNews(news);
+			createNews(client);
     		assertEquals(true, false);
     	} catch (RestException e) {
     		assertEquals(expected, e.getResponse().getStatus());
     	}
 	}
 	
+	private static UUID createNews(SessionDbAdminClient client) throws RestException {
+		return createNews(client, "{\"testKey\": \"testValue\"}");
+	}
+	
+	private static UUID createNews(SessionDbAdminClient client, String json) throws RestException {
+		News news = new News();
+		
+		/* 
+		 * Setting the contents field looks ugly here in the backend side. Jackson will embed
+		 * this field directly to the parent json structure making it pretty for the client.
+		 */
+    	news.setContents(RestUtils.parseJson(JsonNode.class, json));
+    	
+    	return client.createNews(news);
+	}
+	
 	@Test
     public void get() throws RestException {
 		
-		UUID testValue = RestUtils.createUUID();
-		
-		News news = new News();
-    	news.setContents("{\"testKey\": \"" + testValue.toString() + "\"}");
-    	
-    	UUID newsId = adminClient.createNews(news);
-    	
+    	UUID newsId = createNews(adminClient);
+
     	user1Client.getNews(newsId);    	
 						
 		// auth tests
 		testGetNews(401, newsId, noAuthClient);
     }
+	
+	private void testGetNews(int expected, UUID newsId, SessionDbClient client) {
+		try {
+    		client.getNews(newsId);
+    		assertEquals(true, false);
+    	} catch (RestException e) {
+    		assertEquals(expected, e.getResponse().getStatus());
+    	}
+	}
 
 	@Test
     public void getAll() throws RestException {
 		
 		UUID testValue = RestUtils.createUUID();
 		
-		News news = new News();
-    	news.setContents("{\"testKey\": \"" + testValue.toString() + "\"}");
-    	
-    	adminClient.createNews(news);
-    	
-    	List<News> filteredNews = user1Client.getNews().stream()
-    		.filter(n -> {
-    			HashMap<String, Object> jsonMap;
-				try {
-					if (n.getContents() == null) {
-						return false;
-					}
-					jsonMap = RestUtils.parseJsonToMap(n.getContents());
-					return jsonMap.containsKey("testKey") && testValue.toString().equals(jsonMap.get("testKey"));
-					
-				} catch (JsonProcessingException e) {
-					e.printStackTrace();
-					assertEquals(true, false);
-					return false;
-				}
-    		})
-    		.collect(Collectors.toList());
-    	
-    	assertEquals(1, filteredNews.size());
+    	createNews(adminClient, "{\"testKey\": \"" + testValue.toString() + "\"}");
+    		
+    	// check that the testValue is found from the list of all news
+    	RestUtils.asJson(user1Client.getNews()).contains(testValue.toString());
 						
 		// auth tests
 		testGetAllNews(401, noAuthClient);
@@ -124,24 +118,16 @@ public class NewsResourceTest {
     	}
 	}
 	
-	private void testGetNews(int expected, UUID newsId, SessionDbClient client) {
-		try {
-    		client.getNews(newsId);
-    		assertEquals(true, false);
-    	} catch (RestException e) {
-    		assertEquals(expected, e.getResponse().getStatus());
-    	}
-	}
+
 		
 	@Test
     public void put() throws RestException {
-		
-		News news = new News();
-    	news.setContents("{\"testKey\": \"testValue\"}");
     	
-    	adminClient.createNews(news);
+    	UUID newsId = createNews(adminClient);
     	
-    	news.setContents("{\"testKey\": \"testValue2\"}");
+    	News news = user1Client.getNews(newsId);
+    	
+    	news.setContents(RestUtils.parseJson(JsonNode.class, "{\"testKey\": \"testValue2\"}"));
     	
     	adminClient.updateNews(news);
     		
@@ -158,14 +144,12 @@ public class NewsResourceTest {
     	}
 	}
 	
+	
 	@Test
     public void delete() throws RestException {
 		
-		News news = new News();
-    	news.setContents("{\"testKey\": \"testValue\"}");
-    	
-    	UUID newsId = adminClient.createNews(news);
-    	
+		UUID newsId = createNews(adminClient);
+		    	
     	testDeleteNews(403, newsId, noAuthAdminClient);
 		
 		// delete

@@ -9,7 +9,9 @@ import javax.persistence.Id;
 
 import org.hibernate.annotations.Type;
 
-import fi.csc.chipster.rest.hibernate.StringJsonType;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import fi.csc.chipster.rest.hibernate.JsonNodeJsonType;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Entity // db
@@ -25,12 +27,12 @@ public class News {
 	private Instant modified;
 	/* Create jsonb column
 	 * 
-	 * At the moment this could be any text, the backend doesn't care.
+	 * At the moment this could be kind of object structure, the backend doesn't care.
 	 * Use the jsonb column type anyway to be able to query its contents later if needed.  
 	 */
 	@Column
-	@Type(type = StringJsonType.STRING_JSON_TYPE)
-	private String contents;
+	@Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
+	private JsonNode contents;
 	
 	public UUID getNewsId() {
 		return newsId;
@@ -55,11 +57,11 @@ public class News {
 		this.modified = modified;
 	}
 
-	public String getContents() {
+	public JsonNode getContents() {
 		return contents;
 	}
 
-	public void setContents(String contents) {
+	public void setContents(JsonNode contents) {
 		this.contents = contents;
 	}
 }

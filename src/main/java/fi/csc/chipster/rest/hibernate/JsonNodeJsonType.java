@@ -9,9 +9,18 @@ import java.sql.Types;
 import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.usertype.UserType;
+import org.postgresql.util.PGobject;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+import fi.csc.chipster.rest.RestUtils;
 
 /**
- * Hibernate UserType for storing a String as a json blob
+ * Hibernate UserType for storing JsonNode object as a json blob
+ * 
+ * JsonNode can include any json structures. The client app or other components
+ * can use these fields to save any kind of structured data. Database will store those to
+ * plain jsonb column. 
  * 
  * Type jsonb is used in Postgres and clob in H2 database. The jsonb must be registered in
  * the constructor of Postgres dialect:
@@ -21,13 +30,13 @@ import org.hibernate.usertype.UserType;
  * 
  * And the type must be registered for the Hibernate:
  * <pre>
- * hibernateConf.put(StringJsonType.STRING_JSON_TYPE, new StringJsonType());
+ * hibernateConf.put(JsonNodeJsonType.JSON_NODE_JSON_TYPE, new StringJsonType());
  * </pre>
  * 
  * Then you can use this type in the data model classes:
  * <pre>
  * {@literal @}Column
- * {@literal @}Type(type = StringJsonType.STRING_JSON_TYPE)
+ * {@literal @}Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
  * private String contents;
  * </pre>
  * 
@@ -35,9 +44,9 @@ import org.hibernate.usertype.UserType;
  *
  * @param <T>
  */
-public class StringJsonType implements UserType { 
+public class JsonNodeJsonType implements UserType { 
 	
-    public static final String STRING_JSON_TYPE = "StringJsonType";
+    public static final String JSON_NODE_JSON_TYPE = "JsonNodeJsonType";
 	private boolean fallbackToClob;
 
 	@Override
@@ -49,19 +58,27 @@ public class StringJsonType implements UserType {
     }
 
 	@Override
-    public Class<? extends String> returnedClass() {
-        return String.class;
+    public Class<JsonNode> returnedClass() {
+        return JsonNode.class;
     }
     
     @Override
 	public Object nullSafeGet(ResultSet rs, String[] names, SharedSessionContractImplementor session, Object owner)
 			throws HibernateException, SQLException {
-    	final String cellContent = rs.getString(names[0]);
+    	final Object cellContent = rs.getObject(names[0]);
         if (cellContent == null) {
             return null;
         }
         
-		return cellContent;
+        if (cellContent instanceof PGobject) {
+        	
+			String jsonString = ((PGobject)cellContent).getValue();
+        	JsonNode jsonObject = RestUtils.parseJson(JsonNode.class, jsonString);
+        	
+        	return jsonObject;
+        } else {
+        	throw new HibernateException("unknown type: " + cellContent.getClass().getName());
+        }
 	}
 
 	@Override
@@ -81,9 +98,13 @@ public class StringJsonType implements UserType {
 	@Override
     public Object deepCopy(final Object value) throws HibernateException {
 		if (value == null) {
-			return null;
+			return null;		
 		}
-    	return new String((String)value); 	
+		
+		String json = RestUtils.asJson(value);
+		
+		Object copy = RestUtils.parseJson(JsonNode.class, json);
+		return copy;
     }
 
     @Override
