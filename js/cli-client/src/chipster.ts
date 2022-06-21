@@ -109,7 +109,7 @@ export default class CliClient {
     jobRunSubparser.add_argument('tool', { help: 'tool name or id' });
     jobRunSubparser.add_argument('--input', '-i', { help: 'INPUT_NAME=DATASET_NAME_OR_ID', action: 'append' });
     jobRunSubparser.add_argument('--parameter', '-p', { help: 'PARAMETER_NAME=VALUE', action: 'append' });
-    jobRunSubparser.add_argument('--background', '-b', {help: 'do not wait'});
+    jobRunSubparser.add_argument('--background', '-b', {action: 'store_true', help: 'do not wait'});
 
     let jobDeleteSubparser = jobSubparsers.add_parser('delete');
     jobDeleteSubparser.add_argument('name', { help: 'job name or id' });
@@ -338,13 +338,13 @@ export default class CliClient {
 
       // get the previous app name and use it as a prompt default
       mergeMap(() => this.env.get("app")),
-      mergeMap(defaultApp => {
+      map(defaultApp => {
         if (defaultApp == null) {
           defaultApp = "chipster";
         }
-        return args.application
-          ? observableOf(args.application)
-          : ChipsterUtils.getPrompt("application: ", defaultApp)
+        return args.app
+          ? args.app
+          : defaultApp
       }),
       tap(u => (app = u)),
 
@@ -552,8 +552,10 @@ export default class CliClient {
       mergeMap(() => this.getSessionId()),
       tap(id => sessionId = id),
       tap(() => {
-        wsClient = new WsClient(this.restClient);
-        wsClient.connect(sessionId);
+        if (!args.background) {
+          wsClient = new WsClient(this.restClient);
+          wsClient.connect(sessionId);
+        }
       }),
       mergeMap(() => {
         inputMap = ChipsterUtils.parseArgArray(args.input);
@@ -574,6 +576,13 @@ export default class CliClient {
       }),
       tap(id => jobId = id),
       mergeMap(() => {
+
+        if (!wsClient) {
+          this.formatOutput({
+            jobId: jobId,
+          });
+          return of(null);
+        }
 
         const jobState$ = wsClient.getJobState$(jobId).pipe(
           filter((job: Job) => {
