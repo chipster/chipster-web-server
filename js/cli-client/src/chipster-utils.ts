@@ -30,6 +30,10 @@ export default class ChipsterUtils {
       if (widths.length > i) {
         const nonNullValue: any = "" + value;
         row += nonNullValue.padEnd(widths[i]);
+        if (nonNullValue.length >= widths[i]) {
+          // add one more space to separate columns
+          row += " ";
+        }
       } else {
         row += value;
       }
