@@ -212,6 +212,9 @@ export default class ChipsterUtils {
 
     const job = {
       toolId: tool.name.id,
+      toolCategory: null, // not known in CLI
+      toolName: tool.name.displayName,
+      toolDescription: tool.description,
       state: "NEW",
       parameters: [],
       inputs: [],
