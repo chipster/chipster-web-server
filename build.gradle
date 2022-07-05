@@ -118,10 +118,11 @@ dependencies {
     // db backups
     compile "com.amazonaws:aws-java-sdk-s3:+"
 
-    // websockets
-    compile "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"   
-    compile "org.glassfish.tyrus:tyrus-client:+"
-    compile "org.glassfish.tyrus:tyrus-container-grizzly-client:+"
+    // websockets 
+    compile "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"
+    // services get stuck in websocket connection with latest tyrus-client version 2.1.0-M4   
+    compile "org.glassfish.tyrus:tyrus-client:2.0.2"
+    compile "org.glassfish.tyrus:tyrus-container-grizzly-client:2.0.2"
     
     // cache settings in web-server
     compile "org.eclipse.jetty:jetty-rewrite:11.0.0"
