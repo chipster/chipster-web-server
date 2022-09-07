@@ -84,6 +84,10 @@ import jakarta.ws.rs.core.Response.ResponseBuilder;
 
 public class RestUtils {
 
+	private static final String CONF_SERVER_THREADS_WORKER_MAX = "server-threads-worker-max";
+	private static final String CONF_SERVER_THREADS_WORKER_MIN = "server-threads-worker-min";
+	private static final String CONF_SERVER_THREADS_SELECTOR = "server-threads-selector";
+
 	public static final String PATH_ARRAY = "array";
 
 	private static Logger logger = LogManager.getLogger();
@@ -412,7 +416,7 @@ public class RestUtils {
 		URI baseUri = URI.create(config.getAdminBindUrl(role));
 		HttpServer server = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
 
-		configureGrizzlyThreads(server, role + "-admin", true);
+		configureGrizzlyThreads(server, role + "-admin", true, config);
 		RestUtils.configureGrizzlyRequestLog(server, role, LogType.ADMIN);
 
 		server.start();
@@ -576,6 +580,10 @@ public class RestUtils {
 		return json;
 	}
 
+	public static void configureJettyThreads(Server server, String name) {
+		configureJettyThreads(server, name, null);
+	}
+	
 	/**
 	 * Configure Jetty threads
 	 * 
@@ -585,7 +593,7 @@ public class RestUtils {
 	 * @param name
 	 * @param isAdminAPI
 	 */
-	public static void configureJettyThreads(Server server, String name) {
+	public static void configureJettyThreads(Server server, String name, Config config) {
 
 		// no need to configure thread counts, because there are no Jetty admin APIs so
 		// far
@@ -600,9 +608,25 @@ public class RestUtils {
 		if (pool instanceof QueuedThreadPool) {
 			QueuedThreadPool qtp = ((QueuedThreadPool) pool);
 			qtp.setName("jetty-qtp-" + name);
+			
+			if (config != null) {
+			
+				String configWorkerThreadsMin = config.getString(CONF_SERVER_THREADS_WORKER_MIN, name);
+				String configWorkerThreadsMax = config.getString(CONF_SERVER_THREADS_WORKER_MAX, name);
+				
+				if (!configWorkerThreadsMin.isEmpty()) {
+					qtp.setMinThreads(Integer.parseInt(configWorkerThreadsMin));
+				}
+				
+				if (!configWorkerThreadsMax.isEmpty()) {
+					qtp.setMaxThreads(Integer.parseInt(configWorkerThreadsMax));
+				}
+			}
+			
 			logger.info(name + " configured to use " + qtp.getMinThreads() + "-" + qtp.getMaxThreads() + " threads");
 		}
 	}
+
 
 	/**
 	 * Configure Grizzly threads
@@ -614,7 +638,7 @@ public class RestUtils {
 	 * @param name
 	 * @param isAdminAPI
 	 */
-	public static void configureGrizzlyThreads(HttpServer server, String name, boolean isAdminAPI) {
+	public static void configureGrizzlyThreads(HttpServer server, String name, boolean isAdminAPI, Config config) {
 
 		if (server.isStarted()) {
 			/*
@@ -629,13 +653,9 @@ public class RestUtils {
 			throw new IllegalStateException("grizzly " + name + " shouldn't be running when configuring threads");
 		}
 
-		// two threads should still reveal simplest concurrency issues
-		int adminWorkerThreads = 2;
-		int adminKernelThreads = 2;
-
 		NetworkListener listener = server.getListeners().iterator().next();
 		TCPNIOTransport transport = listener.getTransport();
-
+	
 		ThreadPoolConfig workerConfig = transport.getWorkerThreadPoolConfig();
 		workerConfig.setPoolName("grizzly-worker-" + name);
 		/*
@@ -645,22 +665,51 @@ public class RestUtils {
 		 * names. When it's set to null the thread names are created from the pool name.
 		 */
 		workerConfig.setThreadFactory(null);
-
+		
+		// use the default, because transport.getKernelThreadPoolConfig() is null until
+		// the server is started
+		int defaultKernelThreads = transport.getSelectorRunnersCount();
+		
+		int kernelThreads = defaultKernelThreads;		
+		int workerThreadsCore = workerConfig.getCorePoolSize();
+		int workerThreadsMax = workerConfig.getMaxPoolSize();
+		
 		if (isAdminAPI) {
-			workerConfig.setCorePoolSize(adminWorkerThreads);
+			// two threads should still reveal simplest concurrency issues
+			kernelThreads = 2;
+			workerThreadsCore = 2;
+			workerThreadsMax = 16;
 		}
+		
+		if (config != null) {
+			String configKernelThreads = config.getString(CONF_SERVER_THREADS_SELECTOR, name);
+			String configWorkerThreadsCore = config.getString(CONF_SERVER_THREADS_WORKER_MIN, name);
+			String configWorkerThreadsMax = config.getString(CONF_SERVER_THREADS_WORKER_MAX, name);
+			
+			if (!configKernelThreads.isEmpty()) {
+				kernelThreads = Integer.parseInt(configKernelThreads);
+			}
+			
+			if (!configWorkerThreadsCore.isEmpty()) {
+				workerThreadsCore = Integer.parseInt(configWorkerThreadsCore);
+			}
+			
+			if (!configWorkerThreadsMax.isEmpty()) {
+				workerThreadsMax = Integer.parseInt(configWorkerThreadsMax);
+			}
+		}
+
+		workerConfig.setCorePoolSize(workerThreadsCore);
+		workerConfig.setMaxPoolSize(workerThreadsMax);
 
 		transport.setWorkerThreadPoolConfig(workerConfig);
 
-		// use the default, because transport.getKernelThreadPoolConfig() is null until
-		// the server is started
-		int kernelThreads = isAdminAPI ? adminKernelThreads : transport.getSelectorRunnersCount();
 		ThreadPoolConfig kernelConfig = ThreadPoolConfig.defaultConfig();
 		kernelConfig.setCorePoolSize(kernelThreads);
 		kernelConfig.setMaxPoolSize(kernelThreads);
 		kernelConfig.setPoolName("grizzly-kernel-" + name);
 
-		transport.setSelectorRunnersCount(adminKernelThreads);
+		transport.setSelectorRunnersCount(kernelThreads);
 		transport.setKernelThreadPoolConfig(kernelConfig);
 
 		logger.info(name + " configured to use " + kernelConfig.getCorePoolSize() + " selector threads and "

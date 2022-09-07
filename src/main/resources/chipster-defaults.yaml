@@ -137,6 +137,11 @@ jws-private-key-session-db: ""
 # jws signing algorithm
 jws-algorithm: ES512
 
+
+server-threads-selector: ""
+server-threads-worker-min: ""
+server-threads-worker-max: ""
+
 # auth
 
 auth-monitoring-password: monitoring

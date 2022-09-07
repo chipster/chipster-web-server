@@ -95,7 +95,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.JOB_HISTORY));
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
-		RestUtils.configureGrizzlyThreads(this.httpServer, Role.JOB_HISTORY, false);
+		RestUtils.configureGrizzlyThreads(this.httpServer, Role.JOB_HISTORY, false, config);
 		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.JOB_HISTORY, LogType.API);
 		httpServer.start();
 

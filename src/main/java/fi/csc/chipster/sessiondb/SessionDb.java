@@ -155,7 +155,7 @@ public class SessionDb {
 		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
 
 		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
-		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false);
+		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false, config);
 		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SESSION_DB, LogType.API);
 
 		jerseyStatisticsSource.collectConnectionStatistics(httpServer);

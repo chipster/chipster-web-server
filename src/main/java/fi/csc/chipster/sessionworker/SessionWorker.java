@@ -121,7 +121,7 @@ public class SessionWorker {
         servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), PATH_SPEC_SESSIONS, null);
         
         httpServer = new Server();
-        RestUtils.configureJettyThreads(httpServer, Role.SESSION_WORKER);
+        RestUtils.configureJettyThreads(httpServer, Role.SESSION_WORKER, config);
         
         ServerConnector connector = new ServerConnector(httpServer);
         connector.setPort(baseUri.getPort());
