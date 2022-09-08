@@ -137,10 +137,14 @@ jws-private-key-session-db: ""
 # jws signing algorithm
 jws-algorithm: ES512
 
-
+# Server thread counts. Can be changed with these config keys for all the services or overridden with <key>-<role> for individual services
 server-threads-selector: ""
 server-threads-worker-min: ""
 server-threads-worker-max: ""
+
+# file-broker must have enough threads for all concurrent connections
+server-threads-worker-min-file-broker: 2
+server-threads-worker-max-file-broker: 100
 
 # auth
 
