@@ -330,7 +330,7 @@ public class BackupArchive {
 						})
 						.findAny();					
 						if (candidateOptional.isPresent()) {
-							logger.warn("file " + candidate + " was found from other arhive (maybe several backups were created before running archive?");
+							logger.warn("file " + candidate + " was found from other archive (maybe several backups were created before running archive?");
 							archiveFile(candidateOptional.get(), currentBackupPath, info.getGpgPath());
 						} else {
 							logger.error("file " + candidate + " not found");	
