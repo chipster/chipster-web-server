@@ -34,7 +34,7 @@
     "@types/restify-errors": "^4.3.2",
     "chai": "^4.3.0",
     "mocha": "^10.0.0",
-    "nodemon": "^2.0.7",
+    "nodemon": "^2.0.20",
     "ts-node": "^10.7.0",
     "typescript": "4.6.4"
   }
