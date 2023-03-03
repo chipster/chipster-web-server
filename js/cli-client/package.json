@@ -1,6 +1,6 @@
 {
   "name": "chipster-cli-js",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "Command line client for Chipster",
   "private": false,
   "main": "lib/chipster.js",

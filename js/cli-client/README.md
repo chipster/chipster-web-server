@@ -17,7 +17,7 @@ chipster --help
 Compile
 
 ```bash
-tsc
+npx tsc
 ```
 
 Run
