@@ -85,26 +85,27 @@ dependencies {
     implementation "org.apache.logging.log4j:log4j-api:+"
     implementation "org.apache.logging.log4j:log4j-core:+"
     implementation "org.apache.logging.log4j:log4j-jul:+"
-    implementation "org.apache.logging.log4j:log4j-slf4j18-impl:+"
+    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:+"
 
     // jersey
-    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.0.0"
-    implementation "org.glassfish.jersey.inject:jersey-hk2:3.0.0"
-    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.0.0"
+    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.1"
+    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.1"
+    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.1"
     
     // Jersey in Jetty (session-worker)            
-    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.0.0"    
+    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.1"    
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty:jetty-servlet:11.0.0"
-    implementation "org.eclipse.jetty:jetty-server:11.0.0"
+    implementation "org.eclipse.jetty:jetty-servlet:11.0.14"
+    implementation "org.eclipse.jetty:jetty-server:11.0.14"
+    
         
     // jackson
-	implementation "com.fasterxml.jackson.core:jackson-core:2.12.0"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.12.0"
+	implementation "com.fasterxml.jackson.core:jackson-core:2.14.2"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.0"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.14.2"
 	
     // hibernate
     implementation "org.hibernate:hibernate-core:5.4.25.Final"
@@ -113,19 +114,19 @@ dependencies {
     implementation "org.postgresql:postgresql:+"
     
     // flyway
-    implementation "org.flywaydb:flyway-core:7.+"
+    implementation "org.flywaydb:flyway-core:9.+"
     
     // db backups
     implementation "com.amazonaws:aws-java-sdk-s3:+"
 
     // websockets 
-    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"
-    // services get stuck in websocket connection with latest tyrus-client version 2.1.0-M4   
-    implementation "org.glassfish.tyrus:tyrus-client:2.0.2"
-    implementation "org.glassfish.tyrus:tyrus-container-grizzly-client:2.0.2"
+    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.14"
+    // services get stuck in websocket connection with latest tyrus-client version 2.1.   
+    implementation "org.glassfish.tyrus:tyrus-client:2.0.4"
+    implementation "org.glassfish.tyrus:tyrus-container-grizzly-client:2.0.4"
     
     // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:11.0.0"
+    implementation "org.eclipse.jetty:jetty-rewrite:11.0.14"
 
 	// other
     implementation "commons-io:commons-io:+"
