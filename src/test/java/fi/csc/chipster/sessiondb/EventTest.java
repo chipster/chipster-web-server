@@ -319,11 +319,6 @@ public class EventTest {
     		// encode the topic twice to pass Jetty WebSocketUpgradeFilter when there is a slash in the topic name 
     		encodedTopic = URLEncoder.encode(topic, StandardCharsets.UTF_8.toString());
     		encodedTopic = URLEncoder.encode(encodedTopic, StandardCharsets.UTF_8.toString());
-    		
-    		// something here in the client decodes the url, so let's encode it one more
-    		// investigate more if this is used in somewhere else than just tests
-    		encodedTopic = URLEncoder.encode(encodedTopic, StandardCharsets.UTF_8.toString());
-
     	}
     	
     	CredentialsProvider credentials = null;

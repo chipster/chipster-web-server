@@ -52,6 +52,7 @@ public class WebSocketClientEndpoint extends Endpoint {
 		
 		disconnectLatch = new CountDownLatch(1);
 		
+		
 		/* Wait for connection or error
 		 * 
 		 * If the server would use HTTP errors for signaling e.g. authentication errors, at this point
@@ -79,17 +80,18 @@ public class WebSocketClientEndpoint extends Endpoint {
 				try {
 					ping();
 					connectLatch.countDown();
+					
+					endpointListener.onOpen(session, config);
+					
 				} catch (IllegalArgumentException | IOException | TimeoutException | InterruptedException e) {
 					logger.warn("WebSocket client error", e);
 				}
 			}
 			
-		}, "websocket-connection-ping").start();
-		
-		this.endpointListener.onOpen(session, config);
+		}, "websocket-connection-ping").start();		
 	}							
 
-	@Override
+    @Override
 	public void onClose(Session session, CloseReason reason) {
 		
 		logger.debug("WebSocket client onClose: " + reason);

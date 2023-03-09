@@ -1,6 +1,7 @@
 package fi.csc.chipster.rest;
 
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -106,7 +107,7 @@ public class WebSocketClientTest {
 				client.ping();
 			}
 			Assert.fail();
-		} catch (IllegalStateException e) {			
+		} catch (IOException e) {			
 		}
 	}
 	

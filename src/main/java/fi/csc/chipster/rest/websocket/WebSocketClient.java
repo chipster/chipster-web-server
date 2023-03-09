@@ -65,7 +65,14 @@ public class WebSocketClient implements EndpointListener {
 	private void connect() throws WebSocketErrorException, InterruptedException, WebSocketClosedException {
 	    
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-
+        
+        /* Disable idle timeout in the client
+         * 
+         * Let's try this first. Clearing non-cleanly closed connections is more important for the server
+         * to avoid resource leaks. If the OS doesn't close stale connections reliably, then we'll have to implement
+         * some kind of ping timer to keep the connection open. 
+         */
+        container.setDefaultMaxSessionIdleTimeout(-1);
 		
 		final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 		
@@ -85,7 +92,7 @@ public class WebSocketClient implements EndpointListener {
 			endpoint = new WebSocketClientEndpoint(messageHandler, this);
 			
             // Attempt Connect
-            session = container.connectToServer(endpoint, cec, new URI(uri));
+            session = container.connectToServer(endpoint, cec, new URI(uriBuilder.toString()));
 
 		} catch (DeploymentException | IOException | URISyntaxException e) {
 			throw new WebSocketErrorException(e);

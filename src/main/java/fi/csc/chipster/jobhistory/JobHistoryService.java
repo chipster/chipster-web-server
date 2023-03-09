@@ -244,6 +244,13 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	public void close() {
 		RestUtils.shutdown("JobHistory-service", httpServer);
+		try {
+            if (sessionDbClient != null) {
+                sessionDbClient.close();
+            }
+        } catch (IOException e) {
+            logger.warn("failed to shutdown session-db client", e);
+        }
 		hibernate.getSessionFactory().close();
 	}
 }
