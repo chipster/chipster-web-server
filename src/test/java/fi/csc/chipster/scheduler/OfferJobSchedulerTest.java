@@ -1,6 +1,6 @@
 //package fi.csc.chipster.scheduler;
 //
-//import static org.junit.Assert.assertEquals;
+//import static org.junit.jupiter.api.Assertions.assertEquals;
 //
 //import java.util.ArrayList;
 //import java.util.HashSet;
@@ -10,9 +10,9 @@
 //
 //import org.apache.logging.log4j.LogManager;
 //import org.apache.logging.log4j.Logger;
-//import org.junit.AfterClass;
-//import org.junit.BeforeClass;
-//import org.junit.Test;
+//import org.junit.jupiter.api.AfterAll;
+//import org.junit.jupiter.api.BeforeAll;
+//import org.junit.jupiter.api.Test;
 //
 //import fi.csc.chipster.auth.AuthenticationClient;
 //import fi.csc.chipster.auth.model.Role;
@@ -43,7 +43,7 @@
 //	private static SessionDbClient user1Client;
 //	private static UUID sessionId;
 //
-//    @BeforeClass
+//    @BeforeAll
 //    public static void setUp() throws Exception {
 //    	Config config = new Config();    	
 //
@@ -61,7 +61,7 @@
 //		uri = adminServiceLocator.getInternalService(Role.SCHEDULER).getUri() + "/events";
 //    }
 //
-//    @AfterClass
+//    @AfterAll
 //    public static void tearDown() throws Exception {
 //    	launcher.stop();
 //    }           

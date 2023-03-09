@@ -1,6 +1,6 @@
 package fi.csc.chipster.auth;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -13,10 +13,10 @@ import java.util.HashMap;
 import jakarta.ws.rs.ForbiddenException;
 
 import org.hibernate.Session;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -72,7 +72,7 @@ public class OidcResourceTest {
 	private static OidcProvidersMock oidcProviderMock;
 	private static OidcResource oidcResource;
 	
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -88,7 +88,7 @@ public class OidcResourceTest {
     	oidcResource.init(tokenTable, userTable, config);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }
@@ -188,7 +188,7 @@ public class OidcResourceTest {
 			
 			String jwsFail4 = oidcProviderMock.getIdToken(claimsIssuer4Fail);
 			chipsterToken = resource.createTokenFromOidc(jwsFail4, null);
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		try {
@@ -199,7 +199,7 @@ public class OidcResourceTest {
 			
 			String jwsFail5 = oidcProviderMock.getIdToken(claimsIssuer5Fail);
 			chipsterToken = resource.createTokenFromOidc(jwsFail5, null);
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// wrong required claim value
@@ -209,7 +209,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 				
 		// wrong iss
@@ -219,7 +219,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// wrong aud
@@ -229,7 +229,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 
 		// missing sub (issuer3 uses this default)
@@ -239,7 +239,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// missing userId claim (issuer1 is configured to get the userId from USER_ID_CLAIM_KEY)
@@ -249,7 +249,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// missing required claim (issuer1 is configured to require REQUIRE_CLAIM_KEY1)
@@ -259,7 +259,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// expired
@@ -269,7 +269,7 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);						
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// from future
@@ -279,14 +279,14 @@ public class OidcResourceTest {
 			}};
 			String jws2 = oidcProviderMock.getIdToken(claims2);
 			resource.createTokenFromOidc(jws2, null);
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 
 		// wrong key
 		try {
 			String jws2 = oidcProviderMock.getIdToken(privateKey2, claimsIssuer3, JWSAlgorithm.RS256);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		/* 
@@ -301,14 +301,14 @@ public class OidcResourceTest {
 		try {
 			String jws2 = getIdTokenSymmetric(oidcProviderMock.toString(), claimsIssuer3, JWSAlgorithm.HS256);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 		
 		// signed with public key and none algorithm
 		try {
 			String jws2 = getIdTokenNone(claimsIssuer3);
 			resource.createTokenFromOidc(jws2, null);				
-			Assert.fail();
+			Assertions.fail();
 		} catch (ForbiddenException e) { }
 	}
 	

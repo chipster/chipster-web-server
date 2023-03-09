@@ -1,14 +1,15 @@
 package fi.csc.chipster.auth;
 
-import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.Random;
 
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserToken;
@@ -27,7 +28,7 @@ public class AuthTokenResourceTest {
 	private static TestServerLauncher launcher;
 	private static WebTarget target;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -36,7 +37,7 @@ public class AuthTokenResourceTest {
         target = AuthenticationClient.getClient(null, null, true).target(config.getInternalServiceUrls().get(Role.AUTH));
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }

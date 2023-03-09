@@ -1,14 +1,14 @@
 package fi.csc.chipster.sessiondb;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
@@ -42,7 +42,7 @@ public class SessionDbTokenTest {
 
 	private static SessionDbClient schedulerClient;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -67,7 +67,7 @@ public class SessionDbTokenTest {
 		fileBrokerClient2.upload(sessionId2, datasetId2, RestUtils.toInputStream(TEST_FILE_CONTENT));
     }
 
-	@AfterClass
+	@AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }

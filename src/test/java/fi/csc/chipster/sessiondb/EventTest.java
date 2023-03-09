@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -10,9 +10,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -47,7 +47,7 @@ public class EventTest {
 	private static String schedulerToken;
 	private static SessionDbClient user1Client;	
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -59,7 +59,7 @@ public class EventTest {
         user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }

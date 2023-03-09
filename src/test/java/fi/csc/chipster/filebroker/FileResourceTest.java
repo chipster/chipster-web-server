@@ -1,6 +1,6 @@
 package fi.csc.chipster.filebroker;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,9 +18,9 @@ import jakarta.ws.rs.core.Response;
 
 import org.apache.commons.io.IOUtils;
 import org.glassfish.jersey.client.ClientProperties;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -41,7 +41,7 @@ public class FileResourceTest {
 	private static UUID sessionId1;
 	private static UUID sessionId2;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -56,7 +56,7 @@ public class FileResourceTest {
         sessionId2 = sessionDbClient2.createSession(RestUtils.getRandomSession());   
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }

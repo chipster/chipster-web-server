@@ -1,7 +1,6 @@
 package fi.csc.chipster.rest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,9 +12,10 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 
@@ -26,13 +26,13 @@ public class AdminResourceTest {
 
 	private static Config config;
 
-	@BeforeClass
+	@BeforeAll
 	public static void setUp() throws Exception {
 		config = new Config();
 		launcher = new TestServerLauncher(config);
 	}
 
-	@AfterClass
+	@AfterAll
 	public static void tearDown() throws Exception {
 		launcher.stop();
 	}
@@ -101,7 +101,7 @@ public class AdminResourceTest {
 	}
 
 	public void getStatus(String role) throws IOException {
-		assertNotNull(getStatusMap(launcher.getMonitoringClient(), role).size());
+		Assertions.assertNotNull(getStatusMap(launcher.getMonitoringClient(), role).size());
 	}
 
 	public HashMap<String, Object> getStatusMap(Client client, String role) throws IOException {

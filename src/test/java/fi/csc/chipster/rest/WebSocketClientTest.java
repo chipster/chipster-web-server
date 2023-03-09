@@ -1,7 +1,6 @@
 package fi.csc.chipster.rest;
 
 import java.io.IOException;
-import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -9,8 +8,8 @@ import java.util.concurrent.TimeoutException;
 
 import jakarta.servlet.ServletException;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.websocket.PubSubServer;
@@ -106,7 +105,7 @@ public class WebSocketClientTest {
 				// try again
 				client.ping();
 			}
-			Assert.fail();
+			Assertions.fail();
 		} catch (IOException e) {			
 		}
 	}

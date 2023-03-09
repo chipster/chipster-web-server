@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.List;
@@ -8,9 +8,9 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.JobState;
@@ -31,7 +31,7 @@ public class GlobalJobResourceTest {
 
 	private static UUID sessionId1;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -42,7 +42,7 @@ public class GlobalJobResourceTest {
 		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }           

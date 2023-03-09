@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -8,10 +8,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -36,7 +36,7 @@ public class RuleResourceTest {
 	private static SessionDbClient sessionWorkerClient;
 	private static SessionDbClient exampleSessionOwnerClient;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -55,7 +55,7 @@ public class RuleResourceTest {
 				Role.CLIENT);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }
@@ -86,7 +86,7 @@ public class RuleResourceTest {
 		try {
 			Rule rule = new Rule(RuleTable.EVERYONE, false);    	
 	    	user1Client.createRule(sessionId, rule);
-	    	Assert.fail("only example_session_owner should be able to share to everyone");
+	    	Assertions.fail("only example_session_owner should be able to share to everyone");
 		} catch (Exception e) {			
 		}
     }
@@ -287,7 +287,7 @@ public class RuleResourceTest {
 				Rule user2Rule = new Rule(launcher.getUser2Credentials().getUsername(), true);    	
 				user1Client.createRule(sessionId, user2Rule);
 			}
-			Assert.fail();
+			Assertions.fail();
 		} catch (RestException e) {
 			// quota reached
 		}

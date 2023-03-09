@@ -4,8 +4,8 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -16,7 +16,8 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 public class BashJobSchedulerTest {
 	
 	// this tool must have a "IMAGE" in SADL, otherwise were are testing only OfferJobScheduler
-	private static final String BASH_TOOL_ID = "test-data-in-out-image.py";
+	@SuppressWarnings("unused")
+    private static final String BASH_TOOL_ID = "test-data-in-out-image.py";
 
 	@SuppressWarnings("unused")
 	private final Logger logger = LogManager.getLogger();
@@ -26,7 +27,7 @@ public class BashJobSchedulerTest {
 	private static SessionDbClient user1Client;
 	private static UUID sessionId1;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();    	
 
@@ -35,7 +36,7 @@ public class BashJobSchedulerTest {
     	sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	user1Client.close();
     	launcher.stop();

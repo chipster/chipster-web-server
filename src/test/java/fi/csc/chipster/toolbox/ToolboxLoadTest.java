@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.toolbox.runtime.RuntimeRepository;

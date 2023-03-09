@@ -7,8 +7,8 @@ import java.nio.file.Paths;
 
 import jakarta.validation.ValidationException;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class PhenodataUtilsTest {
 
@@ -26,21 +26,21 @@ public class PhenodataUtilsTest {
 	@Test
 	public void testOriginalNamesAlreadyExist() throws IOException, URISyntaxException {
 		String result = PhenodataUtils.processPhenodata(getPath(PHENODATA_FILE_WITH_ORIGINAL_NAMES));
-		Assert.assertEquals(PhenodataUtils.parse(result).get(1).get(1), "should remain here.tsv");
-		Assert.assertEquals(PhenodataUtils.parse(result).get(1).get(4), "should remain here");
+		Assertions.assertEquals(PhenodataUtils.parse(result).get(1).get(1), "should remain here.tsv");
+		Assertions.assertEquals(PhenodataUtils.parse(result).get(1).get(4), "should remain here");
 	}
 
 	@Test
 	public void testOnlyDescriptionAlreadyExist() throws IOException, URISyntaxException {
 		String result = PhenodataUtils.processPhenodata(getPath(PHENODATA_FILE_WITH_ORIGINAL_NAMES_WITH_DESCRIPTIONS));
-		Assert.assertEquals(PhenodataUtils.parse(result).get(1).get(1), "cancerGSM11814.cel");
-		Assert.assertEquals(PhenodataUtils.parse(result).get(1).get(4), "original description");
+		Assertions.assertEquals(PhenodataUtils.parse(result).get(1).get(1), "cancerGSM11814.cel");
+		Assertions.assertEquals(PhenodataUtils.parse(result).get(1).get(4), "original description");
 	}
 
 	@Test
 	public void testProcessInvalid() throws IOException {
 
-		Assert.assertThrows(ValidationException.class,
+		Assertions.assertThrows(ValidationException.class,
 				() -> PhenodataUtils.processPhenodata(getPath(PHENODATA_FILE_INVALID)));
 	}
 

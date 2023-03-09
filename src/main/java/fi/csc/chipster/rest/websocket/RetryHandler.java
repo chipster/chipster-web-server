@@ -2,7 +2,6 @@ package fi.csc.chipster.rest.websocket;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.websocket.core.exception.WebSocketException;
 import org.flywaydb.core.internal.util.ExceptionUtils;
 
 import jakarta.websocket.CloseReason;

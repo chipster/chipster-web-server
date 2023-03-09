@@ -40,7 +40,6 @@ public class RuleResource {
 	private RuleTable ruleTable;
 	private SessionDbApi sessionDbApi;
 	private HibernateUtil hibernate;
-	private SessionResource sessionResource;
 	private int maxShareCount;
 
 	public RuleResource(SessionResource sessionResource, UUID id, SessionDbApi sessionDbApi,
@@ -48,7 +47,6 @@ public class RuleResource {
 		this.sessionId = id;
 		this.ruleTable = authorizationTable;
 		this.sessionDbApi = sessionDbApi;
-		this.sessionResource = sessionResource;
 		this.hibernate = sessionResource.getHibernate();
 		this.maxShareCount = config.getInt(Config.KEY_SESSION_DB_MAX_SHARE_COUNT);
 

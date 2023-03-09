@@ -1,15 +1,15 @@
 package fi.csc.chipster.auth;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.List;
 
 import jakarta.ws.rs.client.Client;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
@@ -23,7 +23,7 @@ public class AuthUserResourceTest {
 
 	private static TestServerLauncher launcher;
 	
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -32,7 +32,7 @@ public class AuthUserResourceTest {
 		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }

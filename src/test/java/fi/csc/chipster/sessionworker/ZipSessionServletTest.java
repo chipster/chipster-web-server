@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessionworker;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,10 +16,10 @@ import java.util.UUID;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
@@ -49,7 +49,7 @@ public class ZipSessionServletTest {
 	private static SessionWorkerClient sessionWorkerClient1;
 	private static SessionWorkerClient sessionWorkerClient2;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -64,7 +64,7 @@ public class ZipSessionServletTest {
 		sessionWorkerClient2 = new SessionWorkerClient(launcher.getUser2Target(Role.SESSION_WORKER), sessionDbClient2, fileBrokerClient2);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }
@@ -189,7 +189,7 @@ public class ZipSessionServletTest {
 		try {
 			// user2 shouldn't be able to get the zip of user1
 			sessionWorkerClient2.getZipSessionStream(sessionId);
-			Assert.fail();
+			Assertions.fail();
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());
 		}
@@ -209,7 +209,7 @@ public class ZipSessionServletTest {
 		try {
 			// user2 shouldn't be able to extract a session owner by user1
 			sessionWorkerClient2.extractZipSession(sessionId2, zipDatasetId);
-			Assert.fail();
+			Assertions.fail();
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());
 		}
@@ -297,7 +297,7 @@ public class ZipSessionServletTest {
 		
 		try {			
 			client.getZipSessionStream(sessionId);
-			Assert.fail();
+			Assertions.fail();
 		} catch (RestException e) {
 			assertEquals(expectedStatusCode, e.getResponse().getStatus());
 		}
@@ -315,7 +315,7 @@ public class ZipSessionServletTest {
 		try {
 			SessionWorkerClient client = new SessionWorkerClient(launcher.getAuthFailTarget(Role.SESSION_WORKER), sessionDbClient1, fileBrokerClient1);
 			client.extractZipSession(sessionId1, zipDatasetId);
-			Assert.fail();
+			Assertions.fail();
 		} catch (RestException e) {
 			assertEquals(expectedStatusCode, e.getResponse().getStatus());
 		}

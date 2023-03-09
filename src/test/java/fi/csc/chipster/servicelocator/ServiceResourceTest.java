@@ -1,6 +1,6 @@
 package fi.csc.chipster.servicelocator;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.Set;
@@ -11,9 +11,9 @@ import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.Response;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -37,7 +37,7 @@ public class ServiceResourceTest {
 	private static WebTarget noAuthTarget;
 	private static WebTarget unparseableTokenTarget;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
     	Config config = new Config();
     	launcher = new TestServerLauncher(config);
@@ -50,7 +50,7 @@ public class ServiceResourceTest {
         authFailTarget = launcher.getAuthFailTarget(Role.SERVICE_LOCATOR);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
     	launcher.stop();
     }
