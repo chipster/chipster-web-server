@@ -10,16 +10,17 @@ import jakarta.ws.rs.core.UriBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.tyrus.client.ClientManager;
 
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.websocket.WebSocketClientEndpoint.EndpointListener;
 import jakarta.websocket.ClientEndpointConfig;
 import jakarta.websocket.CloseReason;
+import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.MessageHandler.Whole;
 import jakarta.websocket.Session;
+import jakarta.websocket.WebSocketContainer;
 
 public class WebSocketClient implements EndpointListener {
 	
@@ -27,7 +28,6 @@ public class WebSocketClient implements EndpointListener {
 
 	private String name;
 
-	private ClientManager client;
 	private WebSocketClientEndpoint endpoint;	
 	private RetryHandler retryHandler;
 	private Timer pingTimer = new Timer("ping timer", true);
@@ -36,7 +36,9 @@ public class WebSocketClient implements EndpointListener {
 
 	private Whole<String> messageHandler;
 
-	private CredentialsProvider credentials;	
+	private CredentialsProvider credentials;
+
+    private Session session;	
 	
 	public WebSocketClient(final String uri, final Whole<String> messageHandler, boolean retry, final String name, CredentialsProvider credentials) throws InterruptedException, WebSocketErrorException, WebSocketClosedException {
 	
@@ -61,9 +63,11 @@ public class WebSocketClient implements EndpointListener {
 	}
 	
 	private void connect() throws WebSocketErrorException, InterruptedException, WebSocketClosedException {
+	    
+        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+
 		
 		final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-		client = ClientManager.createClient();
 		
 		// HTTP Basic authentication
 		//client.getProperties().put(ClientProperties.CREDENTIALS, new Credentials("ws_user", "password"));	
@@ -79,7 +83,10 @@ public class WebSocketClient implements EndpointListener {
 			logger.info("websocket client " + name + " connecting to " + uri);
 			
 			endpoint = new WebSocketClientEndpoint(messageHandler, this);
-			client.connectToServer(endpoint, cec, new URI(uriBuilder.toString()));
+			
+            // Attempt Connect
+            session = container.connectToServer(endpoint, cec, new URI(uri));
+
 		} catch (DeploymentException | IOException | URISyntaxException e) {
 			throw new WebSocketErrorException(e);
 		}
@@ -116,7 +123,7 @@ public class WebSocketClient implements EndpointListener {
 		} catch (InterruptedException e) {
 			logger.warn("failed to close the websocket client " + name, e);
 		}		
-		client.shutdown();
+		session.close();
 	}
 
 	public void ping() throws IOException, TimeoutException, InterruptedException {

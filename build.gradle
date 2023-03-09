@@ -121,9 +121,6 @@ dependencies {
 
     // websockets 
     implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.14"
-    // services get stuck in websocket connection with latest tyrus-client version 2.1.   
-    implementation "org.glassfish.tyrus:tyrus-client:2.0.4"
-    implementation "org.glassfish.tyrus:tyrus-container-grizzly-client:2.0.4"
     
     // cache settings in web-server
     implementation "org.eclipse.jetty:jetty-rewrite:11.0.14"

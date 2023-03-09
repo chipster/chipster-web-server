@@ -2,14 +2,21 @@ package fi.csc.chipster.rest.websocket;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.tyrus.client.ClientManager;
-import org.glassfish.tyrus.core.HandshakeException;
 
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.CloseReason.CloseCodes;
-import jakarta.websocket.DeploymentException;
 
-public class RetryHandler extends ClientManager.ReconnectHandler {
+/**
+ * Retry logic for failed WebSocket connections
+ * 
+ * There is no specific hooks for retry in JSR 356 Java API. This class was originally written to extend
+ * ClientManager.ReconnectHandler Tyrus, but even that API wasn't enough to update the authentication token
+ * in reconnection. Now this only a regular class that we call from WebSocketClient. 
+ * 
+ * @author klemela
+ *
+ */
+public class RetryHandler {
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -24,7 +31,6 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 		this.name = name;
 	}
 
-	@Override
 	public boolean onDisconnect(CloseReason closeReason) {
 		if (close) {
 			// don't reconnect when we are trying to close the connection on purpose
@@ -44,15 +50,14 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 		}
 	}
 
-	@Override
 	public boolean onConnectFailure(Exception exception) {
 		logger.info("websocket client " + name + " connection failure", exception);
 		
-		// HTTP upgrade request errors
-		if (exception instanceof DeploymentException && exception.getCause() instanceof HandshakeException) {
-			logger.error("unrecoverable connection failure, reconnection cancelled");
-			return false;
-		}
+		//TODO how to check HTTP upgrade request errors
+//		if (exception instanceof DeploymentException && exception.getCause() instanceof HandshakeException) {
+//			logger.error("unrecoverable connection failure, reconnection cancelled");
+//			return false;
+//		}
 		
 		// VIOLATE_POLICY from onDisconnect(). Should we check the close reason also here?
 		if (exception instanceof RuntimeException && exception.getCause() instanceof WebSocketClosedException) {
@@ -69,7 +74,6 @@ public class RetryHandler extends ClientManager.ReconnectHandler {
 		}
 	}
 
-	@Override
 	public long getDelay() {		
 		if (counter < 1) {			
 			return 0;
