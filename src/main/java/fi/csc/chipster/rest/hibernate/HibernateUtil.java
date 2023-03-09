@@ -43,7 +43,6 @@ public class HibernateUtil {
 		}
 	}
 
-	private static final int DB_WARNING_DELAY = 1; // seconds
 	private static final String CONF_DB_C3P0_MIN_SIZE = "db-c3p0-min-size";
 	private static final String CONF_DB_C3P0_MAX_SIZE = "db-c3p0-max-size";
 	private static final String CONF_DB_SHOW_SQL = "db-show-sql";
@@ -106,22 +105,11 @@ public class HibernateUtil {
 
 		} catch (DatabaseConnectionRefused e) {
 
-			if (config.getBoolean(Config.KEY_DB_FALLBACK, role)) {
+			throw new RuntimeException(role + " db not available\n"
+					+ "Install postgres: \n" + "  brew install postgres\n"
+					+ "  pg_ctl -D /usr/local/var/postgres start\n" + "  createuser user\n" + "  createdb auth_db\n"
+					+ "  createdb session_db_db\n" + "  createdb job_history_db\n" + "\n", e);
 
-				logger.warn(role + " db not available, starting an in-memory DB " + "after " + DB_WARNING_DELAY
-						+ " seconds. " + "All data is lost in service restart. "
-						+ "Disable this fallback in production! (" + e.getMessage() + ")\n" + "\n"
-						+ "Install postgres: \n" + "  brew install postgres\n"
-						+ "  pg_ctl -D /usr/local/var/postgres start\n" + "  createuser user\n" + "  createdb auth_db\n"
-						+ "  createdb session_db_db\n" + "  createdb job_history_db\n" + "\n");
-
-				// wait little bit to make the log message above more visible
-				Thread.sleep(DB_WARNING_DELAY * 1000);
-
-				this.sessionFactory = buildSessionFactoryFallback(hibernateConf, role);
-			} else {
-				throw e;
-			}
 		} catch (SchemaManagementException e) {
 
 			this.dbSchema.printSchemaError(e);
@@ -182,15 +170,11 @@ public class HibernateUtil {
 			hibernateConf.addAnnotatedClass(c);
 		}
 
-		boolean isPostgres = isPostgres(config, role);
+		hibernateConf.setProperty(Environment.DIALECT, ChipsterPostgreSQL95Dialect.class.getName());
+		// hibernateConf.setProperty(Environment.URL, url +
+		// "?reWriteBatchedInserts=true");
 
-		if (isPostgres) {
-			hibernateConf.setProperty(Environment.DIALECT, ChipsterPostgreSQL95Dialect.class.getName());
-			// hibernateConf.setProperty(Environment.URL, url +
-			// "?reWriteBatchedInserts=true");
-		}
-
-		registerTypeOverrides(hibernateConf, isPostgres);
+		registerTypeOverrides(hibernateConf);
 
 		/*
 		 * Allow hibernate to make inserts and updates in batches to overcome the
@@ -209,43 +193,24 @@ public class HibernateUtil {
 		return hibernateConf;
 	}
 
-	private static SessionFactory buildSessionFactoryFallback(Configuration hibernateConf, String role) {
+	public static void registerTypeOverrides(Configuration hibernateConf) {
 
-		String url = "jdbc:h2:mem:" + role + "-db";
-
-		hibernateConf.setProperty(Environment.DRIVER, "org.h2.Driver");
-		hibernateConf.setProperty(Environment.URL, url);
-		hibernateConf.setProperty(Environment.USER, "user");
-		hibernateConf.setProperty(Environment.PASS, "");
-		hibernateConf.setProperty(Environment.DIALECT, ChipsterH2Dialect.class.getName());
-		hibernateConf.setProperty("hibernate.hbm2ddl.auto", "create");
-
-		registerTypeOverrides(hibernateConf, false);
-
-		logger.info("connect to db " + url);
-		SessionFactory sessionFactory = buildSessionFactory(hibernateConf);
-		logger.info("connected");
-		return sessionFactory;
-	}
-
-	public static void registerTypeOverrides(Configuration hibernateConf, boolean isPostgres) {
-
-		HashMap<String, UserType> types = getUserTypes(isPostgres);
+		HashMap<String, UserType> types = getUserTypes();
 
 		for (String name : types.keySet()) {
 			hibernateConf.registerTypeOverride(types.get(name), new String[] { name });
 		}
 	}
 
-	public static HashMap<String, UserType> getUserTypes(boolean isPostgres) {
+	public static HashMap<String, UserType> getUserTypes() {
 
 		// store these child objects as json
 		return new HashMap<String, UserType>() {
 			{
-				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(!isPostgres, Parameter.class));
-				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(!isPostgres, Input.class));
+				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(Parameter.class));
+				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(Input.class));
 				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
-						new ListJsonType<MetadataFile>(!isPostgres, MetadataFile.class));
+						new ListJsonType<MetadataFile>(MetadataFile.class));
 				put(JsonNodeJsonType.JSON_NODE_JSON_TYPE, new JsonNodeJsonType());
 			}
 		};
@@ -256,10 +221,6 @@ public class HibernateUtil {
 				.applySettings(hibernateConf.getProperties()).build();
 
 		return hibernateConf.buildSessionFactory(registry);
-	}
-
-	public static boolean isPostgres(Config config, String role) {
-		return config.getString(CONF_DB_DIALECT, role).toLowerCase().contains("postgres");
 	}
 
 	public SessionFactory getSessionFactory() {

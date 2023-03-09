@@ -102,8 +102,6 @@ db-user: user
 # according to instructions above.
 db-restore-key: ""
 db-export-schema: false
-# fallback to in-memory db if connection to the configured db fails, disable in production
-db-fallback: true
 
 
 # db backups

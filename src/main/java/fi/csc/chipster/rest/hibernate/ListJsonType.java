@@ -17,7 +17,7 @@ import fi.csc.chipster.rest.RestUtils;
 /**
  * Hibernate UserType for storing a list of objects as a json blob
  * 
- * Type jsonb is used in Postgres and clob in H2 database. The jsonb must be registered in
+ * Type jsonb is used in Postgres. The jsonb must be registered in
  * the constructor of Postgre dialect:
  * <pre>
  * this.registerColumnType(Types.JAVA_OBJECT, "jsonb");
@@ -41,23 +41,17 @@ import fi.csc.chipster.rest.RestUtils;
  */
 public class ListJsonType<T extends DeepCopyable> implements UserType { 
 	
-    private boolean fallbackToClob;
 	private Class<T> innerType;
     
 	/**
-	 * @param fallbackToClob
 	 * @param innerType There is no generic type available in runtime, so we it has to be given also here
 	 */
-	public ListJsonType(boolean fallbackToClob, Class<T> innerType) {
-    	this.fallbackToClob = fallbackToClob;
+	public ListJsonType(Class<T> innerType) {
     	this.innerType = innerType;
 	}
 
 	@Override
     public int[] sqlTypes() {
-		if (fallbackToClob) {
-			return new int[]{Types.CLOB};
-		}
         return new int[]{Types.JAVA_OBJECT};
     }
 
@@ -86,7 +80,7 @@ public class ListJsonType<T extends DeepCopyable> implements UserType {
 	public void nullSafeSet(PreparedStatement ps, Object value, int idx, SharedSessionContractImplementor session)
 			throws HibernateException, SQLException {
 		
-		int type = fallbackToClob ? Types.CLOB : Types.OTHER;
+		int type = Types.OTHER;
 		
 		if (value == null) {
             ps.setObject(idx, null, type);

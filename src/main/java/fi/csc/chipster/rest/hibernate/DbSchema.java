@@ -86,7 +86,7 @@ public class DbSchema {
 		
 		MetadataBuilder metadataBuilder = metadata.getMetadataBuilder();
 				
-		HashMap<String, UserType> types = HibernateUtil.getUserTypes(true); 		
+		HashMap<String, UserType> types = HibernateUtil.getUserTypes(); 		
 		for (String name : types.keySet()) {
 			metadataBuilder.applyBasicType(types.get(name), name);
 		}		                

@@ -505,7 +505,7 @@ public class RestUtils {
 	 * Configure Grizzly to handle SIGINT gracefully
 	 * 
 	 * Note: Make sure other shutdown hooks won't ruin the processing of the
-	 * requests. For example an embedded H2 database will shutdown by default. For
+	 * requests. For
 	 * some reason the logging stops working too, so these are difficult to debug.
 	 * Debugger seems to still work and probably System.out in ExceptionMappers
 	 * would too.

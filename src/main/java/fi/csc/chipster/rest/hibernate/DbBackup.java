@@ -18,9 +18,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.h2.store.fs.FileUtils;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -159,7 +159,7 @@ public class DbBackup implements StatusSource {
 		// the backupInfo is not really necessary because there is only one file, but the BackupArchiver expects it
 		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 		
-		FileUtils.deleteRecursive(backupDir.toString(), true);
+		FileUtils.deleteDirectory(backupDir.toFile());
 		
 		stats.put("lastBackupDuration", Duration.between(now, Instant.now()).toMillis());
 		

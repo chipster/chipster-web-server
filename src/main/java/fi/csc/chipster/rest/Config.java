@@ -70,7 +70,6 @@ public class Config {
 	
 	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
 	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
-	public static final String KEY_DB_FALLBACK = "db-fallback";
 	
 	public static final String KEY_SESSION_WORKER_SMTP_HOST = "session-worker-smtp-host";
 	public static final String KEY_SESSION_WORKER_SMPT_USERNAME = "session-worker-smtp-username";

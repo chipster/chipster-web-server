@@ -22,7 +22,7 @@ import fi.csc.chipster.rest.RestUtils;
  * can use these fields to save any kind of structured data. Database will store those to
  * plain jsonb column. 
  * 
- * Type jsonb is used in Postgres and clob in H2 database. The jsonb must be registered in
+ * Type jsonb is used in Postgres. The jsonb must be registered in
  * the constructor of Postgres dialect:
  * <pre>
  * this.registerColumnType(Types.JAVA_OBJECT, "jsonb");
@@ -47,13 +47,9 @@ import fi.csc.chipster.rest.RestUtils;
 public class JsonNodeJsonType implements UserType { 
 	
     public static final String JSON_NODE_JSON_TYPE = "JsonNodeJsonType";
-	private boolean fallbackToClob;
 
 	@Override
     public int[] sqlTypes() {
-		if (fallbackToClob) {
-			return new int[]{Types.CLOB};
-		}
         return new int[]{Types.JAVA_OBJECT};
     }
 
@@ -85,7 +81,7 @@ public class JsonNodeJsonType implements UserType {
 	public void nullSafeSet(PreparedStatement ps, Object value, int idx, SharedSessionContractImplementor session)
 			throws HibernateException, SQLException {
 		
-		int type = fallbackToClob ? Types.CLOB : Types.OTHER;
+		int type = Types.OTHER;
 		
 		if (value == null) {
             ps.setObject(idx, null, type);
