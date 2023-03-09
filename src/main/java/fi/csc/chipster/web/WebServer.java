@@ -9,7 +9,7 @@ import org.eclipse.jetty.rewrite.handler.HeaderPatternRule;
 import org.eclipse.jetty.rewrite.handler.RewriteHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
+import org.eclipse.jetty.server.SymlinkAllowedResourceAliasChecker;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -73,12 +73,13 @@ public class WebServer {
         ForwardingResourceHandler forwardingResourceHandler = new ForwardingResourceHandler();
         forwardingResourceHandler.setDirectoriesListed(false);
         forwardingResourceHandler.setWelcomeFiles(new String[] { INDEX_HTML });
-        forwardingResourceHandler.setResourceBase(rootPath);
         
         // some ContextHandler is needed to enable symlinks
         ContextHandler contextHandler = new ContextHandler("/");
-		contextHandler.setHandler(forwardingResourceHandler );
-        contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
+        contextHandler.setResourceBase(rootPath);
+		contextHandler.setHandler(forwardingResourceHandler);
+		//TODO how should SymlinkAllowedResourceAliasChecker be used? At least this seems to work...
+		contextHandler.addAliasCheck(new SymlinkAllowedResourceAliasChecker(contextHandler));
         
         // generate a better error message if the ErrorHandler page is missing instead of the 
         // vague NullPointerException

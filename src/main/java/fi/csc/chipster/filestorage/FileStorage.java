@@ -13,7 +13,6 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.AllowSymLinkAliasChecker;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -125,8 +124,6 @@ public class FileStorage {
         server.addConnector(connector);
 		                
 		ServletContextHandler contextHandler = new ServletContextHandler(server, "/", false, false);
-		// file-root and some public files are symlinks
-		contextHandler.addAliasCheck(new AllowSymLinkAliasChecker());
 		contextHandler.setResourceBase(storage.getPath());
 				
 		FileServlet fileServlet = new FileServlet(storage, authService, config);

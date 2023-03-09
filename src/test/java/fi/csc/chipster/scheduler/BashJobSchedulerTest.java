@@ -25,7 +25,8 @@ public class BashJobSchedulerTest {
 	private static TestServerLauncher launcher;
 
 	private static SessionDbClient user1Client;
-	private static UUID sessionId1;
+	@SuppressWarnings("unused")
+    private static UUID sessionId1;
 
     @BeforeAll
     public static void setUp() throws Exception {
