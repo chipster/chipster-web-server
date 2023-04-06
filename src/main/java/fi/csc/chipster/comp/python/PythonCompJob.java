@@ -29,6 +29,7 @@ import fi.csc.chipster.comp.ProcessMonitor;
 import fi.csc.chipster.comp.ProcessPool;
 import fi.csc.chipster.comp.ToolDescription;
 import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
+import fi.csc.chipster.comp.ToolUtils;
 import fi.csc.chipster.util.IOUtils;
 
 /**
@@ -324,7 +325,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			} else {
 				// we promised to handle this safely when we implemented the method
 				// ParameterSecurityPolicy.allowUncheckedParameters()
-				value = STRING_DELIMETER + toUnicodeEscapes(value) + STRING_DELIMETER;
+				value = STRING_DELIMETER + ToolUtils.toUnicodeEscapes(value) + STRING_DELIMETER;
 			}
 		}
 
@@ -404,29 +405,4 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			this.waitProcessLatch.countDown();
 		}
 	}
-
-	/**
-	 * Convert a string to unicode escape characters
-	 * 
-	 * Python script allows string literals as unicode hex values, when escaped with
-	 * "\" and "u" (16 bit, 4 character hex) or \U (32 bit, 8 character hex). The
-	 * back slash has to be escaped too with an additional backslash.
-	 * 
-	 * @param input
-	 * @return
-	 */
-	public static String toUnicodeEscapes(String input) {
-		String escapedValue = "";
-		for (int i = 0; i < input.length(); i++) {
-			// get the unicode value of the character (even if it wouldn't fit in the char
-			// type)
-			int codePoint = Character.codePointAt(input, i);
-			// convert to 8 character hex with leading zeroes
-			String hex = String.format("%08X", codePoint);
-			// escape for python code
-			escapedValue += "\\U" + hex;
-		}
-		return escapedValue;
-	}
-
 }

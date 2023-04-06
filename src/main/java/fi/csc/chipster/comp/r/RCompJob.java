@@ -29,6 +29,7 @@ import fi.csc.chipster.comp.ProcessMonitor;
 import fi.csc.chipster.comp.ProcessPool;
 import fi.csc.chipster.comp.ToolDescription;
 import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
+import fi.csc.chipster.comp.ToolUtils;
 import fi.csc.chipster.util.IOUtils;
 
 /**
@@ -114,6 +115,12 @@ public class RCompJob extends OnDiskCompJobBase {
 
 		}
 
+		@Override
+        public boolean allowUncheckedParameters(ToolDescription toolDescription) {
+            // we promise to handle unchecked parameters safely, see the method
+            // transformVariable()
+            return true;
+        }
 	}
 
 	public static RParameterSecurityPolicy R_PARAMETER_SECURITY_POLICY = new RParameterSecurityPolicy();
@@ -163,7 +170,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		}
 		for (ToolDescription.ParameterDescription param : toolDescription.getParameters()) {
 			String value = parameterValues.get(i);
-			String rSnippet = transformVariable(param.getName(), value, param.isNumeric());
+			String rSnippet = transformVariable(param, value);
 			logger.debug("added parameter (" + rSnippet + ")");
 			inputReaders.add(new BufferedReader(new StringReader(rSnippet)));
 			i++;
@@ -277,7 +284,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		}
 	}
 
-	@Override
+    @Override
 	protected void preExecute() throws JobCancelledException {
 		super.preExecute();
 	}
@@ -303,30 +310,35 @@ public class RCompJob extends OnDiskCompJobBase {
 	/**
 	 * Converts a name-value -pair into R variable definition.
 	 */
-	public static String transformVariable(String name, String value, boolean isNumeric) {
+	private String transformVariable(ParameterDescription param, String value) {	    
 
 		// Escape strings and such
-		if (!isNumeric) {
-			if (value != null) {
-				value = STRING_DELIMETER + value + STRING_DELIMETER;
-			} else {
-				value = "NULL";
-			}
+		if (!param.isNumeric()) {
+		    
+			if (value == null) {
+                value = "None";
+            } else if (param.isChecked()) {
+                value = STRING_DELIMETER + value + STRING_DELIMETER;
+            } else {
+                // we promised to handle this safely when we implemented the method
+                // ParameterSecurityPolicy.allowUncheckedParameters()
+                value = STRING_DELIMETER + ToolUtils.toUnicodeEscapes(value) + STRING_DELIMETER;
+            }
 		}
 
 		// If numeric, check for empty value
-		if (isNumeric && value.trim().isEmpty()) {
+		if (param.isNumeric() && value.trim().isEmpty()) {
 			value = "NA"; // R's constant for "not available"
 		}
 
 		// Sanitize parameter name (remove spaces)
-		name = name.replaceAll(" ", "_");
+		String name = param.getName().replaceAll(" ", "_");
 
 		// Construct and return parameter assignment
 		return (name + " <- " + value);
 	}
 
-	@Override
+    @Override
 	protected void cancelRequested() {
 		this.waitProcessLatch.countDown();
 

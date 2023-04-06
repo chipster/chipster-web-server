@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 
 public class ToolUtils {
 	
@@ -77,4 +78,25 @@ public class ToolUtils {
 		writeInputDescription(new File(jobWorkDir, "chipster-outputs.tsv"), nameMap);
 	}
 
+	/**
+	 * Convert a string to unicode escape characters
+	 * 
+	 * Python and R script allows string literals as unicode hex values, when escaped with
+	 * "\" and "u" (16 bit, 4 character hex) or \U (32 bit, 8 character hex). The
+	 * back slash has to be escaped too with an additional backslash.
+	 * 
+	 * @param input
+	 * @return
+	 */
+    public static String toUnicodeEscapes(String input) {
+        
+        // get the unicode value of the character (even if it wouldn't fit in the char
+        // type) like \U00010437
+        return input.codePoints().mapToObj(codePoint -> {
+            // convert to 8 character hex with leading zeroes
+            String hex = String.format("%08X", codePoint);
+            // escape for python code
+            return "\\U" + hex;
+        }).collect(Collectors.joining());
+    }
 }
