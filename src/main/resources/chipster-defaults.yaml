@@ -390,11 +390,11 @@ toolbox-runtime-command-R-4.2.0-single-cell: /opt/chipster/tools/R-4.2.0-single-
 toolbox-runtime-image-R-4.2.0-single-cell: comp-20.04-single-cell
 
 toolbox-runtime-command-R-4.2.3: /opt/chipster/tools/R-4.2.3/bin/R
-toolbox-runtime-image-R-4.2.3: comp-R-4.2.3
+toolbox-runtime-image-R-4.2.3: comp-r-4-2-3
 toolbox-runtime-tools-bin-path-R-4.2.3: /opt/chipster/tools-bin
 
 toolbox-runtime-command-R-4.2.3-single-cell: /opt/chipster/tools/R-4.2.3-single-cell/bin/R
-toolbox-runtime-image-R-4.2.3-single-cell: comp-R-4.2.3-single-cell
+toolbox-runtime-image-R-4.2.3-single-cell: comp-r-4-2-3-single-cell
 toolbox-runtime-tools-bin-path-R-4.2.3-single-cell: /opt/chipster/tools-bin
 
 toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
