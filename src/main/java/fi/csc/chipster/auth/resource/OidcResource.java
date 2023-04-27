@@ -44,9 +44,19 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
  * 
- * At the moment the OIDC client runs in the browser, so here we only receive the id_token, 
+ * At the moment the OIDC client runs in a browser, so here we only receive the id_token, 
  * validate it and create a new Chipster token. Optionally also a OIDC userinfo endpoint is 
  * queried and its claim checked.  
+ * 
+ * Running OIDC client in the browser allows the token to be stored directly in the local storage of 
+ * the main Chipster app. If OIDC return URL pointed to the server, it would be difficult 
+ * to transfer the token to the main app. Ideas:
+ * - Save the to the local storage. Doesn't work if the main app (web-server) and the OIDC authentication handler 
+ * (auth) are served from different domains.
+ * - Respond with a html having iframe which is loaded from the web-server, which stores the token to 
+ * the local storage. Worked in Chrome and Firefox, but not in Safari, if I remember correctly. Safari 
+ * uses the page domain hierarchy to keep local storages separated.
+ * - Pass the token in the query parameter of redirect URL. Should work, but insecure? 
  * 
  * @author klemela
  */
