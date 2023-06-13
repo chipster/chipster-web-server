@@ -16,6 +16,7 @@ import fi.csc.chipster.comp.ToolDescriptionGenerator;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 
 public class JavaJobFactory implements JobFactory {
 
@@ -33,7 +34,7 @@ public class JavaJobFactory implements JobFactory {
 
 	@SuppressWarnings(value="unchecked")
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout, Job dbJob) throws CompException {
+			int jobTimeout, Job dbJob, Runtime runtime) throws CompException {
 		ToolDescription description = createToolDescription(tool);
 		
 		try {

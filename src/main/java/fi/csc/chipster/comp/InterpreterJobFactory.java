@@ -10,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 
 /**
  * Abstract base class for any JobFactory that connects to external interpreter to run commands.
@@ -60,12 +61,12 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 	@Override
 	public abstract CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, 
-			ResultCallback resultHandler, int jobTimeout, Job dbJob) throws CompException;
+			ResultCallback resultHandler, int jobTimeout, Job dbJob, Runtime runtime) throws CompException;
 
 	protected abstract String getStringDelimeter();
 	protected abstract String getVariableNameSeparator();
 
-	protected ToolDescription createToolDescription(ToolboxTool tool, Job dbJob) throws CompException {
+	protected ToolDescription createToolDescription(ToolboxTool tool, Job dbJob, Runtime runtime) throws CompException {
 
 		File moduleDir = new File(tool.getModule());
 		
@@ -100,6 +101,15 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 		File javaLibsDir = new File(chipsterRootDir, "lib");
 		File externalToolsDir = new File(chipsterRootDir, "tools");
+		
+		if (runtime.getToolsBinPath() != null) {
+		    if (runtime.getToolsBinPath().startsWith("/")) {
+		        externalToolsDir = new File(runtime.getToolsBinPath());
+		    } else {
+		        externalToolsDir = new File(chipsterRootDir, runtime.getToolsBinPath());
+		    }
+		}
+		
 		
 		String vns = getVariableNameSeparator();
 		String sd = getStringDelimeter();

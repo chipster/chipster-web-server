@@ -334,7 +334,7 @@ public class SingleShotComp
 
 		try {
 			JobFactory jobFactory = RuntimeRepository.getJobFactory(runtime, config, this.workDir, toolId);
-			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob);
+			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob, runtime);
 
 		} catch (CompException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);

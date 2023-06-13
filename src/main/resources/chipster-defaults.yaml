@@ -373,7 +373,7 @@ toolbox-runtime-job-factory: fi.csc.chipster.comp.r.RJobFactory
 toolbox-runtime-parameters: "--vanilla --quiet"
 toolbox-runtime-image: comp-16.04
 toolbox-runtime-tools-bin-name: chipster-3.5.1
-toolbox-runtime-tools-bin-path: /opt/chipster/tools
+toolbox-runtime-tools-bin-path: tools
 
 # add other runtimes by appending 
 # a dash and the runtime name to each config (e.g. "-R-4.1.1") 
@@ -391,11 +391,11 @@ toolbox-runtime-image-R-4.2.0-single-cell: comp-20.04-single-cell
 
 toolbox-runtime-command-R-4.2.3: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3: comp-r-4-2-3
-toolbox-runtime-tools-bin-path-R-4.2.3: /opt/chipster/tools-bin
+toolbox-runtime-tools-bin-path-R-4.2.3: tools-bin
 
 toolbox-runtime-command-R-4.2.3-single-cell: /opt/chipster/tools/R-4.2.3-single-cell/bin/R
 toolbox-runtime-image-R-4.2.3-single-cell: comp-r-4-2-3-single-cell
-toolbox-runtime-tools-bin-path-R-4.2.3-single-cell: /opt/chipster/tools-bin
+toolbox-runtime-tools-bin-path-R-4.2.3-single-cell: tools-bin
 
 toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
 toolbox-runtime-image-R-4.1.1-asv: comp-20.04-asv
