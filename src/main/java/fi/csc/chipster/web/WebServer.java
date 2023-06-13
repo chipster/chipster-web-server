@@ -91,7 +91,7 @@ public class WebServer {
         // disable caching of the front page, because we use it for maintenance break communication
         RewriteHandler cacheRewrite = new RewriteHandler();        
         HeaderPatternRule cacheRule = new HeaderPatternRule();
-        cacheRule.setPattern("*/app-home.html");
+        cacheRule.setPattern("*.html");
         cacheRule.setName("Cache-Control");
         cacheRule.setValue("no-store");        
         cacheRewrite.addRule(cacheRule);
