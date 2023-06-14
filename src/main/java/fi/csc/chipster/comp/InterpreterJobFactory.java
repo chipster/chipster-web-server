@@ -90,26 +90,10 @@ public abstract class InterpreterJobFactory implements JobFactory {
 		File commonScriptDir = new File(toolsRootDir, "common/" + toolDir);
 		File relativeModuleDir = new File(toolsRootDir, moduleDir.getName());
 		
-		File chipsterRootDir;
-		try {
-			String configChipsterRootDir = config.getString(CONF_CHIPSTER_ROOT_DIR);
-			chipsterRootDir = new File(configChipsterRootDir).getCanonicalFile();
-		} catch (IOException e) {
-			logger.warn("failed to get base dir, using default");
-			chipsterRootDir = new File("/opt/chipster");
-		}
+		File chipsterRootDir = getChipsterRootDir(config);
 
 		File javaLibsDir = new File(chipsterRootDir, "lib");
-		File externalToolsDir = new File(chipsterRootDir, "tools");
-		
-		if (runtime.getToolsBinPath() != null) {
-		    if (runtime.getToolsBinPath().startsWith("/")) {
-		        externalToolsDir = new File(runtime.getToolsBinPath());
-		    } else {
-		        externalToolsDir = new File(chipsterRootDir, runtime.getToolsBinPath());
-		    }
-		}
-		
+		File externalToolsDir = getAbsoluteToolsBinDir(chipsterRootDir, runtime.getToolsBinPath());		
 		
 		String vns = getVariableNameSeparator();
 		String sd = getStringDelimeter();
@@ -124,6 +108,35 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 		return ad;		
 	}
+	
+	public static File getChipsterRootDir(Config config) {
+	    File chipsterRootDir;
+        try {
+            String configChipsterRootDir = config.getString(CONF_CHIPSTER_ROOT_DIR);
+            chipsterRootDir = new File(configChipsterRootDir).getCanonicalFile();
+        } catch (IOException e) {
+            logger.warn("failed to get base dir, using default");
+            chipsterRootDir = new File("/opt/chipster");
+        }
+        
+        return chipsterRootDir;
+	}
+	
+   public static File getAbsoluteToolsBinDir(File chipsterRootDir, String toolsBinPath) {
+        
+        File externalToolsDir = new File(chipsterRootDir, "tools");
+        
+        // convert the possible relative paths to absolute
+        if (toolsBinPath != null) {
+            if (toolsBinPath.startsWith("/")) {
+                externalToolsDir = new File(toolsBinPath);
+            } else {
+                externalToolsDir = new File(chipsterRootDir, toolsBinPath);
+            }
+        }
+        
+        return externalToolsDir;
+    }
 
 	
 	public boolean isDisabled() {

@@ -24,6 +24,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.internal.guava.ThreadFactoryBuilder;
 
+import fi.csc.chipster.comp.InterpreterJobFactory;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
@@ -524,7 +525,11 @@ public class BashJobScheduler implements JobScheduler {
 		String toolsBinPath = runtime.getToolsBinPath();
 		
 		if (toolsBinPath != null) {
-			env.put(ENV_TOOLS_BIN_PATH, toolsBinPath);
+	        
+		    // convert the possible relative paths to absolute, so that bash scripts don't need to take care of it
+		    File externalToolsDir = InterpreterJobFactory.getAbsoluteToolsBinDir(InterpreterJobFactory.getChipsterRootDir(config), toolsBinPath);
+	            
+			env.put(ENV_TOOLS_BIN_PATH, externalToolsDir.getPath());
 		}
 		
 		if (toolsBinHostMountPath != null) {
