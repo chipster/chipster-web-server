@@ -339,9 +339,6 @@ scheduler-bash-pod-anti-affinity: true
 scheduler-bash-env-name-1: ""
 scheduler-bash-env-value-1: ""
 
-
-  
-scheduler-bash-max-slots: 100
       
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
