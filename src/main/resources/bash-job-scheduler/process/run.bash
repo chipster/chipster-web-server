@@ -3,8 +3,9 @@ echo "run in process, slots: $SLOTS, image: $IMAGE, pod name: $POD_NAME"
 echo "source .bash_profile to set JAVA_HOME when using sdkman"
 source ~/.bash_profile
 
+
 echo "build SingleShotComp"
-./gradlew distTar; pushd build/tmp/; tar -xzf ../distributions/chipster-web-server.tar.gz; popd
+./gradlew clean;./gradlew distTar; pushd build/tmp/; tar -xzf ../distributions/chipster-web-server.tar.gz; popd
 
 for prefixed_name in $(env | grep "ENV_PREFIX_" | cut -d "=" -f 1); do
     name="$(echo "$prefixed_name" | sed s/ENV_PREFIX_//)"
