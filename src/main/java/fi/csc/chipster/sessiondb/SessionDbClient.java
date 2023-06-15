@@ -33,6 +33,7 @@ import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
+import fi.csc.chipster.sessiondb.model.SessionListStats;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.resource.NewsResource;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
@@ -142,6 +143,10 @@ public class SessionDbClient {
 		return getSessionsTarget().path(sessionId.toString());
 	}
 	
+	private WebTarget getStatsTarget() {
+        return getSessionsTarget().path("stats");
+    }
+	
 	private WebTarget getDatasetsTarget(UUID sessionId) {
 		return getSessionTarget(sessionId).path("datasets");
 	}
@@ -212,6 +217,11 @@ public class SessionDbClient {
 		
         return session;
 	}
+	
+    public SessionListStats getStats() throws RestException {
+        
+        return RestMethods.get(getStatsTarget(), SessionListStats.class);
+    }
 
 	/**
 	 * Upload a session. The server assigns the id for the session. It must be

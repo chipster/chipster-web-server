@@ -5,6 +5,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -293,6 +294,23 @@ public class SessionResource {
 
 		return Response.noContent().build();
 	}
+	
+	@GET
+	@Path("stats")
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response getStats(@Context SecurityContext sc) {
+
+        String authenticatedUserId = sc.getUserPrincipal().getName();
+        
+        HashMap<String, Object> responseObj = new HashMap<String, Object>() {{
+            put("size", ruleTable.getTotalSize(authenticatedUserId));
+        }};
+
+        return Response.ok(responseObj).build();
+    }
+
 
 	/**
 	 * Make a list compatible with JSON conversion

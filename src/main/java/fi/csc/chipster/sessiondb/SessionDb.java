@@ -148,7 +148,7 @@ public class SessionDb {
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
-				hibernateClasses.toArray(new Class[0]), newsApi);
+				hibernateClasses.toArray(new Class[0]), newsApi, ruleTable);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

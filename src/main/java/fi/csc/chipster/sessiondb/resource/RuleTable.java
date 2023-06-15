@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
@@ -485,5 +486,21 @@ public class RuleTable {
 			org.hibernate.Session hibernateSession, boolean allowAdmin) {
 		ChipsterToken token = getChipsterToken(sc);
 		return checkSessionAuthorization(token, sessionId, requireReadWrite, hibernateSession, allowAdmin);
+	}
+	
+	public long getTotalSize(String username) {
+	       // use native query, because Hibernate 5 doesn't support subqueries in from or join clauses
+        BigDecimal size = (BigDecimal) hibernate.session().createNativeQuery(
+                "select sum(size) from file inner join ("
+                + "    select distinct dataset.fileid from rule "
+                + "        inner join dataset on rule.sessionid=dataset.sessionid "
+                + "    where rule.username=:username) as dataset_fileid on dataset_fileid.fileid=file.fileid")
+                .setParameter("username", username).getSingleResult();
+        
+        if (size == null) {
+            // no sessions or datasets 
+            return 0;
+        }
+        return size.longValue();
 	}
 }

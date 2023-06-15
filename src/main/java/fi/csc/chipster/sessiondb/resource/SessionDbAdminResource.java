@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -68,6 +67,8 @@ public class SessionDbAdminResource extends AdminResource {
 
 	private NewsApi newsApi;
 
+    private RuleTable ruleTable;
+
 	/**
 	 * @param hibernate
 	 * @param jerseyStats
@@ -77,13 +78,15 @@ public class SessionDbAdminResource extends AdminResource {
 	 *                     type"). We don't care about it, because we instantiate
 	 *                     the class ourselves.
 	 * @param newsApi
+	 * @param ruleTable 
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
-			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi) {
+			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi, RuleTable ruleTable) {
 		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
 		this.newsApi = newsApi;
+		this.ruleTable = ruleTable;
 	}
 
 	@GET
@@ -212,21 +215,8 @@ public class SessionDbAdminResource extends AdminResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getQuota(@PathParam("username") String username, @Context SecurityContext sc) {
-
-		@SuppressWarnings("unchecked")
-		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username")
-				.setParameter("username", username).list();
-
-		List<Dataset> datasets = rules.stream().map(rule -> rule.getSession())
-				.flatMap(session -> SessionDbApi.getDatasets(hibernate.session(), session).stream())
-				.collect(Collectors.toList());
-
-		// in case of duplicate IDs, pick any of them. They all should come from the
-		// same DB row even if there are multiple Java objects
-		Map<UUID, File> uniqueFiles = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
-				.collect(Collectors.toMap(file -> file.getFileId(), file -> file, (f1, f2) -> f1));
-
-		Long size = uniqueFiles.values().stream().collect(Collectors.summingLong(file -> file.getSize()));
+	    	    
+	    long size = ruleTable.getTotalSize(username);
 
 		Long readWriteSessions = (Long) hibernate.session()
 				.createQuery("select count(*) from Rule where username=:username and readWrite=true")
