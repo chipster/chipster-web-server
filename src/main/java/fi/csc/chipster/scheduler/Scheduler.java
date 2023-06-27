@@ -347,6 +347,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 				return;
 			}
 			
+			if (tool == null) {
+			    // session import creates new jobs with bogus tooldIds like "operation-definition-id-import"
+			    // maybe we shouldn't log this at all if the job is already in final state?
+			    logger.error("cannot schedule new job " + jobIdPair + ": tool not found: " + job.getToolId(), e);
+                return;
+			}
+			
 			try {
 				runtime = this.toolbox.getRuntime(tool.getRuntime());
 				
