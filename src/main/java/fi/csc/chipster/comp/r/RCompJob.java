@@ -155,7 +155,13 @@ public class RCompJob extends OnDiskCompJobBase {
 
 		// load handler initialiser
 		inputReaders.add(new BufferedReader(new StringReader(toolDescription.getInitialiser())));
-
+		
+		// load document versions
+		String documentVersionCommand = "source(file.path(chipster.common.lib.path, \"version-utils.R\"))\n" + 
+		"documentR()\n";
+		inputReaders.add(new BufferedReader(new StringReader(documentVersionCommand)));
+		
+		
 		// load input parameters
 		int i = 0;
 		List<String> parameterValues;

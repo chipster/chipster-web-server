@@ -31,6 +31,9 @@ public class GenericResultMessage {
 	private Instant startTime;
 	private Instant endTime;
 	
+	private String versionsJson;
+	
+
 	private Map<String, String> ids = new HashMap<String, String>();
 	private Map<String, String> names = new HashMap<String, String>();
 	
@@ -47,6 +50,16 @@ public class GenericResultMessage {
 	public GenericResultMessage() {
 		super();
 	}
+	
+	
+	public String getVersionsJson() {
+		return versionsJson;
+	}
+
+	public void setVersionsJson(String versionsJson) {
+		this.versionsJson = versionsJson;
+	}
+
 	
 	/**
 	 * Return error message in case of failed job execution. 

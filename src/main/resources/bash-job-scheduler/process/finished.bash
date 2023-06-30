@@ -11,4 +11,4 @@ else
     echo "found $found processes"
 fi
 
-rm logs/SingleShotComp-run-${POD_NAME}.log || true
+#rm logs/SingleShotComp-run-${POD_NAME}.log || true

@@ -1,15 +1,26 @@
 package fi.csc.chipster.comp;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.nimbusds.jose.shaded.gson.Gson;
+import com.nimbusds.jose.shaded.gson.GsonBuilder;
 
 import fi.csc.chipster.comp.ToolDescription.OutputDescription;
 
@@ -20,15 +31,39 @@ import fi.csc.chipster.comp.ToolDescription.OutputDescription;
  */
 public abstract class OnDiskCompJobBase extends CompJob {
 
+	
+	class VersionJson {
+	    @SuppressWarnings("unused")
+		private String name;
+	    @SuppressWarnings("unused")
+		private String version;
+
+	    public VersionJson(String name, String version) {
+	        this.name = name;
+	        this.version = version;
+	    }
+
+	    // Add getters and setters if needed
+	}
+	
+	
 	private static Logger logger = LogManager.getLogger();
 
 	private static final String JOB_DATA_DIR_NAME = "data";
 	private static final String JOB_TOOLBOX_DIR_NAME = "toolbox";
+	private static final String JOB_INFO_DIR_NAME = "info";
+	private static final String JOB_VERSIONS_DIR_NAME = "versions";
 
 	protected File jobDir;
 	protected File jobDataDir;
 	protected File jobToolboxDir;
+	protected File jobInfoDir;
+	protected File jobVersionsDir;
 
+	
+	
+	
+	
 	@Override
 	public void construct(GenericJobMessage inputMessage, ToolDescription toolDescription, ResultCallback resultHandler,
 			int jobTimeout) {
@@ -36,6 +71,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
 		this.jobDir = new File(resultHandler.getWorkDir(), getId());
 		this.jobDataDir = new File(this.jobDir, JOB_DATA_DIR_NAME);
 		this.jobToolboxDir = new File(this.jobDir, JOB_TOOLBOX_DIR_NAME);
+		this.jobInfoDir = new File(this.jobDir, JOB_INFO_DIR_NAME);
+		this.jobVersionsDir = new File(this.jobInfoDir, JOB_VERSIONS_DIR_NAME);
 	}
 
 	/**
@@ -57,7 +94,18 @@ public abstract class OnDiskCompJobBase extends CompJob {
 			updateState(JobState.ERROR);
 			return;
 		}
+		if (!this.jobInfoDir.mkdir()) {
+			this.setErrorMessage("Creating job info directory failed.");
+			updateState(JobState.ERROR);
+			return;
+		}
+		if (!this.jobVersionsDir.mkdir()) {
+			this.setErrorMessage("Creating job versions directory failed.");
+			updateState(JobState.ERROR);
+			return;
+		}
 
+		
 		// get input files and toolbox
 		try {
 			// input files
@@ -135,6 +183,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
 				this.setErrorMessage("could not parse " + outputsFilename);
 				this.setOutputText(Exceptions.getStackTrace(e));
 				updateState(JobState.ERROR);
+				return;
 			}
 
 			// add all described files to the result message
@@ -169,6 +218,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
 					this.setErrorMessage(
 							"There was not enough disk space for the result file in the Chipster server. Please try again later.");
 					updateState(JobState.FAILED_USER_ERROR, "not enough disk space for results");
+					return;
 				}
 
 				catch (Exception e) {
@@ -180,10 +230,60 @@ public abstract class OnDiskCompJobBase extends CompJob {
 					return;
 				}
 			}
+			
 		}
+
+		
+		// add versions data to result message
+		String versionsJson; 
+		try { 			
+			versionsJson = this.getVersionsJson(); } catch (Exception e) {
+			String m = "failed to read versions file ";
+			logger.error(m);
+			this.setErrorMessage(m);
+			this.setOutputText(Exceptions.getStackTrace(e));
+			updateState(JobState.ERROR);
+			return;
+		}
+		
+		if (versionsJson != null && versionsJson.length() > 0) {
+			this.addVersions(versionsJson);
+		}
+
 		super.postExecute();
 	}
 
+	
+	protected String getVersionsJson() {
+
+		FileFilter fileFilter = file -> file.isFile() && file.getName().endsWith(".txt");
+
+		File[] files = this.jobVersionsDir.listFiles(fileFilter);
+
+		List<VersionJson> jsonList = new ArrayList<>();
+
+		if (files != null) {
+			jsonList = Stream.of(files).sorted(Comparator.comparingLong(File::lastModified)).map(file -> {
+					String fileContent;
+					try {
+						fileContent = readFileContent(file);
+					} catch (IOException e) {
+						String m = "failed to read version file " + file.getName();
+						logger.warn(m);
+						throw new RuntimeException(e);
+					}
+					return new VersionJson(file.getName().replaceAll("\\.txt$", ""), fileContent);
+			}).filter(Objects::nonNull).collect(Collectors.toList());
+		}
+
+		if (jsonList.size() < 1) {
+			return null;
+		} else {
+			Gson gson = new GsonBuilder().create();
+			return gson.toJson(jsonList);
+		}
+	}
+	
 	/**
 	 * Clear job working directory.
 	 * 
@@ -288,4 +388,10 @@ public abstract class OnDiskCompJobBase extends CompJob {
 	public File getJobDataDir() {
 		return this.jobDataDir;
 	}
+
+    private static String readFileContent(File file) throws IOException {
+        byte[] encodedBytes = Files.readAllBytes(file.toPath());
+        return new String(encodedBytes, StandardCharsets.UTF_8);
+    }
+
 }

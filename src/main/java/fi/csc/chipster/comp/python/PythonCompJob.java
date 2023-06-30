@@ -150,11 +150,34 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 		// load handler initialiser
 		inputReaders.add(new BufferedReader(new StringReader(toolDescription.getInitialiser())));
+		logger.info("INITIALIZER " + toolDescription.getInitialiser());
 
 		// load work dir initialiser
 		logger.debug("job dir: " + jobDir.getPath());
-		inputReaders.add(
-				new BufferedReader(new StringReader("import os\nos.chdir('" + jobDataDir.getAbsolutePath() + "')\n")));
+		String importOs = "import os\n";
+		String chDir = "os.chdir('" + jobDataDir.getAbsolutePath() + "')\n";
+		String importSys = "import sys\n";
+
+		// TODO does this need to be absolute?
+		String appendSysPath = "sys.path.append(os.getcwd() + '/' + chipster_common_lib_path)\n";
+		String importVersionUtils = "import version_utils\n";
+		String documentVersions = "version_utils.document_python_version()\n";
+
+		inputReaders.add(new BufferedReader(new StringReader(
+				importOs + chDir + importSys + appendSysPath + importVersionUtils + documentVersions)));
+
+		
+		/*
+		 * Enable importing of common scripts. Python won't know the dir of the script
+		 * file, because it gets it from standard input.
+		 */
+//		String setCommonsDir = "import sys\n" + "sys.path.append(chipster_common_path)\n";
+//		inputReaders.add(new BufferedReader(new StringReader(setCommonsDir)));
+
+		// load document versions
+//		String documentVersionCommand = "source(file.path(chipster.common.lib.path, \"version-utils.R\"))\n"
+//				+ "documentR()\n";
+//		inputReaders.add(new BufferedReader(new StringReader(documentVersionCommand)));
 
 		// load input parameters
 		int i = 0;
@@ -175,13 +198,6 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			inputReaders.add(new BufferedReader(new StringReader(pythonSnippet)));
 			i++;
 		}
-
-		/*
-		 * Enable importing of common scripts. Python won't know the dir of the script
-		 * file, because it gets it from standard input.
-		 */
-		String setCommonsDir = "import sys\n" + "sys.path.append(chipster_common_path)\n";
-		inputReaders.add(new BufferedReader(new StringReader(setCommonsDir)));
 
 		// load input script
 		String script = (String) toolDescription.getImplementation();
