@@ -39,6 +39,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -210,25 +211,25 @@ public class SessionDbAdminResource extends AdminResource {
 	}
 
 	@GET
-	@Path("users/{username}/quota")
+	@Path("users/quota")
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getQuota(@PathParam("username") String username, @Context SecurityContext sc) {
+	public Response getQuota(@QueryParam("userId") String userId, @Context SecurityContext sc) {
 	    	    
-	    long size = ruleTable.getTotalSize(username);
+	    long size = ruleTable.getTotalSize(userId);
 
 		Long readWriteSessions = (Long) hibernate.session()
 				.createQuery("select count(*) from Rule where username=:username and readWrite=true")
-				.setParameter("username", username).uniqueResult();
+				.setParameter("username", userId).uniqueResult();
 
 		Long readOnlySessions = (Long) hibernate.session()
 				.createQuery("select count(*) from Rule where username=:username and readWrite=false")
-				.setParameter("username", username).uniqueResult();
+				.setParameter("username", userId).uniqueResult();
 
 		HashMap<String, Object> responseObj = new HashMap<String, Object>() {
 			{
-				put("username", username);
+				put("username", userId);
 				put("readWriteSessions", readWriteSessions);
 				put("readOnlySessions", readOnlySessions);
 				put("size", size);
@@ -239,15 +240,15 @@ public class SessionDbAdminResource extends AdminResource {
 	}
 
 	@GET
-	@Path("users/{username}/sessions")
+	@Path("users/sessions")
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getSessions(@PathParam("username") String username, @Context SecurityContext sc) {
+	public Response getSessions(@QueryParam("userId") String userId, @Context SecurityContext sc) {
 
 		@SuppressWarnings("unchecked")
 		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username")
-				.setParameter("username", username).list();
+				.setParameter("username", userId).list();
 
 		List<Session> sessions = rules.stream().map(rule -> rule.getSession()).collect(Collectors.toList());
 

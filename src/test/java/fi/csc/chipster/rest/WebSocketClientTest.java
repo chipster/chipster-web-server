@@ -69,7 +69,7 @@ public class WebSocketClientTest {
 	@Test
 	public void start() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
 		
-		PubSubServer server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
 		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
 			
@@ -86,7 +86,7 @@ public class WebSocketClientTest {
 	@Test
 	public void stop() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
 		
-		PubSubServer server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
 		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
 			
@@ -113,7 +113,7 @@ public class WebSocketClientTest {
 	@Test
 	public void reconnect() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
 		
-		PubSubServer server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
 		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
 			
@@ -124,7 +124,7 @@ public class WebSocketClientTest {
 		}, true, "test-ws-client", new StaticCredentials("user", "password"));
 		
 		server.stop();
-		server = new PubSubServer(uri, "", new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+		server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
 
 		// it takes a while for the client to notice the disconnection

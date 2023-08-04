@@ -67,7 +67,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 		}, jobTimerInterval, jobTimerInterval);
 		
 		SchedulerTopicConfig topicConfig = new SchedulerTopicConfig(authService);
-		this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), "events", this, topicConfig,
+		this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER), this, topicConfig,
 				"scheduler-events");
 		
 		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));

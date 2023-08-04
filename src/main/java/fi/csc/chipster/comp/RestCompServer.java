@@ -30,6 +30,7 @@ import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketErrorException;
@@ -207,7 +208,7 @@ public class RestCompServer
 
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 
-		schedulerUri = UriBuilder.fromUri(schedulerUrl).path("events").toString();
+		schedulerUri = UriBuilder.fromUri(schedulerUrl).queryParam(PubSubEndpoint.TOPIC_KEY, "events").toString();
 		schedulerClient = new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client",
 				authClient.getCredentials());
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);

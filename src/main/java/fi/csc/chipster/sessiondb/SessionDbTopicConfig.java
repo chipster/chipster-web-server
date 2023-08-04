@@ -24,11 +24,14 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 	private static final String TOPIC_GROUP_CLIENT = ",topicGroup=client";
 	private static final String TOPIC_GROUP_SERVER = ",topicGroup=server";
 	
-	public static final String JOBS_TOPIC = "jobs";
-	public static final String FILES_TOPIC = "files";
-	public static final String AUTHORIZATIONS_TOPIC = "authorizations";
-	public static final String DATASETS_TOPIC = "datasets";
-	public static final String SESSIONS_TOPIC = "sessions";
+	public static final String ALL_JOBS_TOPIC = "jobs";
+	public static final String ALL_FILES_TOPIC = "files";
+	public static final String ALL_AUTHORIZATIONS_TOPIC = "authorizations";
+	public static final String ALL_DATASETS_TOPIC = "datasets";
+	public static final String ALL_SESSIONS_TOPIC = "sessions";
+	
+	public static final String SESSIONS_TOPIC_PREFIX = "sessions/";
+    public static final String USERS_TOPIC_PREFIX = "users/";
 
 	private HibernateUtil hibernate;
 
@@ -44,30 +47,33 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 	public boolean isAuthorized(final AuthPrincipal principal, String topic) {
 		logger.debug("check topic authorization for topic " + topic);
 		
-		if (JOBS_TOPIC.equals(topic) || FILES_TOPIC.equals(topic)) {
+		if (ALL_JOBS_TOPIC.equals(topic) || ALL_FILES_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SERVER);
 			
-		} else if (DATASETS_TOPIC.equals(topic) || AUTHORIZATIONS_TOPIC.equals(topic) || SESSIONS_TOPIC.equals(topic)) {
+		} else if (ALL_DATASETS_TOPIC.equals(topic) || ALL_AUTHORIZATIONS_TOPIC.equals(topic) || ALL_SESSIONS_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SESSION_DB);
 			
-		} else {  
-			if (isUUID(topic)) {
-				final UUID sessionId = UUID.fromString(topic);
-				return isAuthorizedSessionId(sessionId, principal);
-			} else {
-				UserId userId = new UserId(topic);
-				return isAuthorizedUserId(userId, principal);
-			}
-		} 
-	}
-	
-	private boolean isUUID(String uuid) {
-		try {
-			UUID.fromString(uuid);
-			return true;	
-		} catch (IllegalArgumentException e) {
-			return false;
+		} else if (topic.startsWith(SESSIONS_TOPIC_PREFIX)) {
+			    
+			    String sessionIdString = topic.substring(SESSIONS_TOPIC_PREFIX.length());
+			    try {
+		            final UUID sessionId = UUID.fromString(sessionIdString);
+		            return isAuthorizedSessionId(sessionId, principal);
+    
+		        } catch (IllegalArgumentException e) {
+		            logger.error("parsing UUID failed", e);
+		            return false;
+		        }
+				
+		} else 	if (topic.startsWith(USERS_TOPIC_PREFIX)) {
+		
+		    String userIdString = topic.substring(USERS_TOPIC_PREFIX.length());
+		    
+			UserId userId = new UserId(userIdString);
+			return isAuthorizedUserId(userId, principal);
 		}
+		
+		return false;
 	}
 	
 	private boolean isAuthorizedSessionId(UUID sessionId, AuthPrincipal principal) {
@@ -92,11 +98,11 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 
 	@Override
 	public String getMonitoringTag(String topic) {
-		if (JOBS_TOPIC.equals(topic) || 
-				FILES_TOPIC.equals(topic) || 
-				DATASETS_TOPIC.equals(topic) || 
-				AUTHORIZATIONS_TOPIC.equals(topic) || 
-				SESSIONS_TOPIC.equals(topic)) {			
+		if (ALL_JOBS_TOPIC.equals(topic) || 
+				ALL_FILES_TOPIC.equals(topic) || 
+				ALL_DATASETS_TOPIC.equals(topic) || 
+				ALL_AUTHORIZATIONS_TOPIC.equals(topic) || 
+				ALL_SESSIONS_TOPIC.equals(topic)) {			
 			
 			return TOPIC_GROUP_SERVER;
 		} else {

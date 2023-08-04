@@ -22,6 +22,7 @@ import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketErrorException;
@@ -111,7 +112,7 @@ public class SessionDbClient {
 		
 		try {
 			
-			UriBuilder uriBuilder = UriBuilder.fromUri(sessionDbEventsUri).path(SessionDb.EVENTS_PATH).path(topic);
+			UriBuilder uriBuilder = UriBuilder.fromUri(sessionDbEventsUri).queryParam(PubSubEndpoint.TOPIC_KEY, topic);
 						
 			this.client = new WebSocketClient(uriBuilder.toString(), new Whole<String>() {
 

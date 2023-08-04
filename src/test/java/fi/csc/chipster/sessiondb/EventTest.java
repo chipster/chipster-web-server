@@ -2,8 +2,6 @@ package fi.csc.chipster.sessiondb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -22,6 +20,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClosedException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -34,6 +33,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
 import jakarta.websocket.CloseReason.CloseCodes;
 import jakarta.websocket.MessageHandler;
+import jakarta.ws.rs.core.UriBuilder;
 
 public class EventTest {
 	
@@ -52,7 +52,7 @@ public class EventTest {
     	config = new Config();
     	launcher = new TestServerLauncher(config);
         ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
-        uri = serviceLocator.getPublicUri(Role.SESSION_DB_EVENTS) + "/" + SessionDb.EVENTS_PATH + "/";
+        uri = serviceLocator.getPublicUri(Role.SESSION_DB_EVENTS);
         token = new AuthenticationClient(serviceLocator, TestServerLauncher.UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getToken().toString();
         token2 = new AuthenticationClient(serviceLocator, TestServerLauncher.UNIT_TEST_USER2, "client2Password", Role.CLIENT).getToken().toString();
         schedulerToken = new AuthenticationClient(serviceLocator, Role.SCHEDULER, Role.SCHEDULER, Role.CLIENT).getToken().toString();
@@ -93,15 +93,31 @@ public class EventTest {
     	
     	// jobs topic with client credentials
     	try {       
-    		getTestClient(uri, SessionDbTopicConfig.JOBS_TOPIC, messages, latch, retry, token);
+    		getTestClient(uri, SessionDbTopicConfig.ALL_JOBS_TOPIC, messages, latch, retry, token);
     		assertEquals(true, false);
     	} catch (WebSocketClosedException e) {
     		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
+    	// sessions topic without sessionId
+        try {       
+            getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX, messages, latch, retry, token);
+            assertEquals(true, false);
+        } catch (WebSocketClosedException e) {
+            assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
+        }
+        
+        // sessions topic with userId
+        try {       
+            getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX +  launcher.getUser1Credentials().getUsername(), messages, latch, retry, token);
+            assertEquals(true, false);
+        } catch (WebSocketClosedException e) {
+            assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
+        }
+    	
     	// wrong user
     	try {       
-    		getTestClient(uri, sessionId, messages, latch, retry, token2);
+    		getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId, messages, latch, retry, token2);
     		assertEquals(true, false);
     	} catch (WebSocketClosedException e) {
     		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
@@ -109,7 +125,7 @@ public class EventTest {
     	
     	// unparseable token
     	try {       
-    		getTestClient(uri, sessionId, messages, latch, retry, "unparseableToken");
+    		getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId, messages, latch, retry, "unparseableToken");
     		assertEquals(true, false);
     	} catch (WebSocketClosedException e) {
     		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
@@ -117,7 +133,7 @@ public class EventTest {
     	
     	// wrong token
     	try {       
-    		getTestClient(uri, sessionId, messages, latch, retry, RestUtils.createId());
+    		getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId, messages, latch, retry, RestUtils.createId());
     		assertEquals(true, false);
     	} catch (WebSocketClosedException e) {
     		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
@@ -125,7 +141,7 @@ public class EventTest {
 
     	// no token
     	try {       
-    		getTestClient(uri, sessionId, messages, latch, retry, null);
+    		getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId, messages, latch, retry, null);
     		assertEquals(true, false);
     	} catch (WebSocketClosedException e) {
     		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
@@ -141,16 +157,25 @@ public class EventTest {
     	
     	// wrong user
     	try {       
-    		getTestClient(uri, userId, messages, latch, retry, token2);
+    		getTestClient(uri, SessionDbTopicConfig.USERS_TOPIC_PREFIX + userId, messages, latch, retry, token2);
     		assertEquals(true, false);
     		
     	} catch (WebSocketClosedException e) {
     		assertEquals(CloseCodes.VIOLATED_POLICY, e.getCloseReason().getCloseCode());
     	}
     	
+    	// user topic without userId
+        try {       
+            getTestClient(uri, SessionDbTopicConfig.USERS_TOPIC_PREFIX, messages, latch, retry, token);
+            assertEquals(true, false);
+            
+        } catch (WebSocketClosedException e) {
+            assertEquals(CloseCodes.UNEXPECTED_CONDITION, e.getCloseReason().getCloseCode());
+        }
+    	
     	// unparseable token
     	try {       
-    		getTestClient(uri, userId, messages, latch, retry, "unparseableToken");
+    		getTestClient(uri, SessionDbTopicConfig.USERS_TOPIC_PREFIX + userId, messages, latch, retry, "unparseableToken");
     		assertEquals(true, false);
     		
     	} catch (WebSocketClosedException e) {
@@ -159,7 +184,7 @@ public class EventTest {
     	
     	// wrong token
     	try {       
-    		getTestClient(uri, userId, messages, latch, retry, RestUtils.createId());
+    		getTestClient(uri, SessionDbTopicConfig.USERS_TOPIC_PREFIX + userId, messages, latch, retry, RestUtils.createId());
     		assertEquals(true, false);
     		
     	} catch (WebSocketClosedException e) {
@@ -168,7 +193,7 @@ public class EventTest {
 
     	// no token
     	try {       
-    		getTestClient(uri, userId, messages, latch, retry, null);
+    		getTestClient(uri, SessionDbTopicConfig.USERS_TOPIC_PREFIX + userId, messages, latch, retry, null);
     		assertEquals(true, false);
     		
     	} catch (WebSocketClosedException e) {
@@ -184,7 +209,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(uri, sessionId, messages, latch, false, token);
+    	WebSocketClient client = getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId, messages, latch, false, token);
     	    	
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	
@@ -208,7 +233,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);    	
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);    	
     	
     	user1Client.deleteSession(sessionId);
     	
@@ -231,7 +256,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(userId, messages, latch);    	
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.USERS_TOPIC_PREFIX + userId, messages, latch);    	
     	
     	UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
     	
@@ -255,7 +280,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(userId, messages, latch);    	
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.USERS_TOPIC_PREFIX + userId, messages, latch);    	
     	
     	user1Client.deleteSession(sessionId);
     	
@@ -278,7 +303,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(uri, sessionId.toString(), messages, latch, true, token);
+    	WebSocketClient client = getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch, true, token);
     	
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().stop();
     	launcher.getServerLauncher().getSessionDb().getPubSubServer().init();
@@ -313,20 +338,16 @@ public class EventTest {
     }
     
     public static WebSocketClient getTestClient(String requestUri, String topic, final ArrayList<String> messages, final CountDownLatch latch, boolean retry, String token) throws Exception {
-    
-    	String encodedTopic = "";
-    	if (topic != null) {
-    		// encode the topic twice to pass Jetty WebSocketUpgradeFilter when there is a slash in the topic name 
-    		encodedTopic = URLEncoder.encode(topic, StandardCharsets.UTF_8.toString());
-    		encodedTopic = URLEncoder.encode(encodedTopic, StandardCharsets.UTF_8.toString());
-    	}
     	
     	CredentialsProvider credentials = null;
     	if (token != null) {
     		credentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, token);
     	}
     	
-    	WebSocketClient client =  new WebSocketClient(requestUri + encodedTopic, new MessageHandler.Whole<String>() {
+    	String wsUri = UriBuilder.fromUri(requestUri)
+    	        .queryParam(PubSubEndpoint.TOPIC_KEY, topic).toString();
+        	
+    	WebSocketClient client =  new WebSocketClient(wsUri, new MessageHandler.Whole<String>() {
     		@Override
     		public void onMessage(String msg) {
     			messages.add(msg);
@@ -348,7 +369,7 @@ public class EventTest {
 
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);
 
     	session.setName("new name");
     	user1Client.updateSession(session);
@@ -372,7 +393,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);
 
     	UUID datasetId = user1Client.createDataset(sessionId, RestUtils.getRandomDataset());
         
@@ -397,7 +418,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);
     	
     	dataset.setName("new name");
     	user1Client.updateDataset(sessionId, dataset);
@@ -422,7 +443,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);
     	
     	user1Client.deleteDataset(sessionId, datasetId);
         
@@ -445,7 +466,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);
 
     	UUID jobId = user1Client.createJob(sessionId, RestUtils.getRandomJob());
         
@@ -479,7 +500,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(uri, sessionId.toString(), messages, latch, false, eventToken);
+    	WebSocketClient client = getTestClient(uri, SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch, false, eventToken);
     	
     	job.setToolName("new name");
     	user1Client.updateJob(sessionId, job);
@@ -504,7 +525,7 @@ public class EventTest {
     	
     	final ArrayList<String> messages = new ArrayList<>(); 
     	final CountDownLatch latch = new CountDownLatch(1);    	
-    	WebSocketClient client = getTestClient(sessionId.toString(), messages, latch);
+    	WebSocketClient client = getTestClient(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), messages, latch);
     	
     	user1Client.deleteJob(sessionId, jobId);
     	

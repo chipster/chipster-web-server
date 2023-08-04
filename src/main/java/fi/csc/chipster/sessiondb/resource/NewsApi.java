@@ -33,8 +33,8 @@ public class NewsApi {
 	private SessionDbApi sessionDbApi;
 	
 	private Set<String> topicsToSkip = new HashSet<>() {{
-		add(SessionDbTopicConfig.JOBS_TOPIC);
-		add(SessionDbTopicConfig.FILES_TOPIC);
+		add(SessionDbTopicConfig.ALL_JOBS_TOPIC);
+		add(SessionDbTopicConfig.ALL_FILES_TOPIC);
 	}};
 	
 	public NewsApi(HibernateUtil hibernate, SessionDbApi sessionDbApi) {

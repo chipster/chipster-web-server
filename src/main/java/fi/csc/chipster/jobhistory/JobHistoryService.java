@@ -83,7 +83,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		
 		// we are ready to handle events after this.hibernate has been set
-		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "job-history");
+		this.sessionDbClient.subscribe(SessionDbTopicConfig.ALL_JOBS_TOPIC, this, "job-history");
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 

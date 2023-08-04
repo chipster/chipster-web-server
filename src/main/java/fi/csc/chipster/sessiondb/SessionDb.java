@@ -52,8 +52,6 @@ public class SessionDb {
 
 	private Logger logger = LogManager.getLogger();
 
-	public static final String EVENTS_PATH = "events";
-
 	private static HibernateUtil hibernate;
 
 	private String serviceId;
@@ -125,10 +123,9 @@ public class SessionDb {
 		this.newsResource = new NewsResource(newsApi);
 
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
-		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
 		SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(authService, hibernate, sessionResource);
-		this.pubSubServer = new PubSubServer(pubSubUri, path, null, topicConfig, "session-db-events");
+		this.pubSubServer = new PubSubServer(pubSubUri, null, topicConfig, "session-db-events");
 		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
 		this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
 		this.pubSubServer.start();

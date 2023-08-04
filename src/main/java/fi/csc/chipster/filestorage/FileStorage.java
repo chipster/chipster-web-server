@@ -140,7 +140,7 @@ public class FileStorage {
          *  events, there might be many file-broker replicas, and all those would try to delete the file
          *  from the file-storage at the same time.
          */
-        sessionDbClient.subscribe(SessionDbTopicConfig.FILES_TOPIC, fileServlet, "file-storage-file-listener");
+        sessionDbClient.subscribe(SessionDbTopicConfig.ALL_FILES_TOPIC, fileServlet, "file-storage-file-listener");
 		
         server.start();                      
                

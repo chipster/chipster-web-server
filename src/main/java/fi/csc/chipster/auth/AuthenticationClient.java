@@ -338,7 +338,7 @@ public class AuthenticationClient {
 			return RestMethods.get(client
 				.target(serviceLocator.getPublicUri(Role.AUTH))
 				.path(AuthUserResource.USERS)
-				.path(URLEncoder.encode(userId.toUserIdString(), StandardCharsets.UTF_8.name())), User.class);
+				.queryParam(AuthUserResource.USER_ID_KEY, URLEncoder.encode(userId.toUserIdString(), StandardCharsets.UTF_8.name())), User.class);
 		} catch (UnsupportedEncodingException e) {
 			// convert to UncheckedException, because there is nothing the caller can do for this
 			throw new RuntimeException(e);

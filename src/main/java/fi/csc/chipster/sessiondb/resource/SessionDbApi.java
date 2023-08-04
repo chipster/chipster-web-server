@@ -66,7 +66,7 @@ public class SessionDbApi {
 
 	public void publishRuleEvent(UUID sessionId, Collection<Rule> sessionRules, Rule rule, EventType eventType) {
 
-		publish(sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
 				hibernate.session());
 
 		Set<String> usernames = sessionRules.stream()
@@ -79,7 +79,7 @@ public class SessionDbApi {
 
 		// send events to username topics to update the session list
 		for (String username : usernames) {
-			publish(username, new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
+			publish(SessionDbTopicConfig.USERS_TOPIC_PREFIX + username, new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
 					hibernate.session());
 		}
 	}
@@ -95,7 +95,7 @@ public class SessionDbApi {
 
 				// global topics for servers
 				if (ResourceType.JOB == obj.getResourceType()) {
-					events.publish(SessionDbTopicConfig.JOBS_TOPIC, obj);
+					events.publish(SessionDbTopicConfig.ALL_JOBS_TOPIC, obj);
 				}
 				// global AUTHORIZATIONS_TOPIC and SESSIONS_TOPIC and DATASETS_TOPIC hasn't been
 				// needed yet
@@ -170,7 +170,7 @@ public class SessionDbApi {
 
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,
 				session.getState());
-		publish(sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
 	}
 
 	public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
@@ -187,7 +187,7 @@ public class SessionDbApi {
 
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE,
 				session.getState());
-		publish(sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
 	}
 
 	public List<Rule> getRules(UUID sessionId) {
@@ -218,14 +218,14 @@ public class SessionDbApi {
 			// can delete it
 			if (fileDatasets.isEmpty()) {
 				// remove from file-broker
-				publish(SessionDbTopicConfig.FILES_TOPIC,
+				publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
 						new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
 				// remove from db
 				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernateSession);
 			}
 
 		}
-		publish(sessionId.toString(),
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
 				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE),
 				hibernateSession);
 	}
@@ -234,7 +234,7 @@ public class SessionDbApi {
 		HibernateUtil.delete(job, job.getJobIdPair(), hibernateSession);
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE,
 				job.getState());
-		publish(sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
 	}
 
 	/**
@@ -283,7 +283,7 @@ public class SessionDbApi {
 		}
 
 		HibernateUtil.update(newDataset, newDataset.getDatasetIdPair(), hibernateSession);
-		publish(sessionId.toString(),
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
 				new SessionEvent(sessionId, ResourceType.DATASET, newDataset.getDatasetId(), EventType.UPDATE),
 				hibernateSession);
 	}
@@ -297,7 +297,7 @@ public class SessionDbApi {
 			HibernateUtil.persist(dataset.getFile(), hibernateSession);
 		}
 		HibernateUtil.persist(dataset, hibernateSession);
-		publish(sessionId.toString(),
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
 				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE),
 				hibernateSession);
 	}
@@ -337,14 +337,14 @@ public class SessionDbApi {
 		HibernateUtil.persist(job, hibernateSession);
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE,
 				job.getState());
-		publish(sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
 	}
 
 	public void updateJob(Job job, UUID sessionId, org.hibernate.Session hibernateSession) {
 		HibernateUtil.update(job, job.getJobIdPair(), hibernateSession);
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE,
 				job.getState());
-		publish(sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
 	}
 
 	public void createSession(Session session, Rule auth, org.hibernate.Session hibernateSession) {
@@ -355,7 +355,7 @@ public class SessionDbApi {
 		UUID sessionId = session.getSessionId();
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.CREATE,
 				session.getState());
-		publish(sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
 	}
 
 	public UUID createRule(Rule newRule, Session session) {

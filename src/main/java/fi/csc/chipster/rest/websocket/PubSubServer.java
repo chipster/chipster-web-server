@@ -45,8 +45,6 @@ public class PubSubServer implements StatusSource {
 
 	private String baseUri;
 
-	private String path;
-
 	private TopicConfig topicConfig;
 
 	private String name;
@@ -66,9 +64,8 @@ public class PubSubServer implements StatusSource {
 	private long pingInterval = 0;
 	
 
-	public PubSubServer(String baseUri, String path, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException {
+	public PubSubServer(String baseUri, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name) throws ServletException {
 		this.baseUri = baseUri;
-		this.path = path;
 		this.replyHandler = replyHandler;
 		this.topicConfig = topicCheck;
 		this.name = name;
@@ -112,7 +109,7 @@ public class PubSubServer implements StatusSource {
 						
 	        // give this instance to the PubSubConfigurator, so that it can pass it to the PubSubEndpoint
 	        ServerEndpointConfig serverConfig = ServerEndpointConfig.Builder
-	        		.create(PubSubEndpoint.class, "/" + path)
+	        		.create(PubSubEndpoint.class, "/")
 	        		.configurator(new PubSubConfigurator(this)).build();
 	        	        
 	        // Add WebSocket endpoint to javax.websocket layer
@@ -218,6 +215,11 @@ public class PubSubServer implements StatusSource {
 		try {
 			stopPingTimer();
 			this.server.stop();
+			while(!this.server.isStopped()) {
+			    logger.info("waiting a pub-sub server to stop: " + name);
+			    
+			    Thread.sleep(1000);
+			}
 			logger.info("stopped a pub-sub server: " + name);
 		} catch (Exception e) {
 			logger.warn("failed to stop the pub-sub server", e);

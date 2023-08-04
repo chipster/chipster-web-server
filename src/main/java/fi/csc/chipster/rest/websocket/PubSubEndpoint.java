@@ -40,7 +40,7 @@ public class PubSubEndpoint {
 
 	public static final Logger logger = LogManager.getLogger();
 
-	public static final String TOPIC_KEY = "topic-name";
+	public static final String TOPIC_KEY = "topic";
 
 	private PubSubServer server;
 
@@ -104,8 +104,13 @@ public class PubSubEndpoint {
 				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "access denied");
 			}
 
-			// get topic from path params    
-			String topic = getTopic(session);
+			// get topic
+			List<String> topics = requestParameters.get(TOPIC_KEY);
+			String topic = null;
+			
+			if (topics != null && topics.size() == 1) {
+			    topic = decodeTopic(topics.get(0));
+			}
 
 			boolean isAuthorized = this.server.isTopicAuthorized(principal, topic);
 
@@ -144,11 +149,6 @@ public class PubSubEndpoint {
 		}
 	}
 
-	private String getTopic(Session session) {
-		String topic = session.getPathParameters().get(TOPIC_KEY);    	
-		return decodeTopic(topic);
-	}
-
 	public static String decodeTopic(String topic) {
 		if (topic == null) {
 			return null;
@@ -164,7 +164,7 @@ public class PubSubEndpoint {
 	}
 
 	private void unsubscribe(Session session) {
-		String topic = getTopic(session);
+		String topic = (String) session.getUserProperties().get(TOPIC_KEY);
 		this.server.unsubscribe(topic, session.getBasicRemote());
 	}
 

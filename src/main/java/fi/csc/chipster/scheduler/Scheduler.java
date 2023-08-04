@@ -112,7 +112,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.toolbox = new ToolboxClientComp(toolboxUrl);
 		
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		this.sessionDbClient.subscribe(SessionDbTopicConfig.JOBS_TOPIC, this, "scheduler-job-listener");
+		this.sessionDbClient.subscribe(SessionDbTopicConfig.ALL_JOBS_TOPIC, this, "scheduler-job-listener");
 		
 		logger.info("start " + BashJobScheduler.class.getSimpleName());
 		this.bashJobScheduler = new BashJobScheduler(this, this.sessionDbClient, this.serviceLocator, config);
