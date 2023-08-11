@@ -76,6 +76,7 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT = "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
+	private static final String CONF_BASH_IMAGE_TAG = "scheduler-bash-image-tag";
 	private static final String CONF_BASH_IMAGE_PULL_POLICY = "scheduler-bash-image-pull-policy";
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
 	public static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
@@ -128,6 +129,7 @@ public class BashJobScheduler implements JobScheduler {
 	private int slotMemoryLimit;
 	private boolean podAntiAffinity;
 	private HashMap<String, String> environmentVariables;
+    private String imageTag;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -149,6 +151,7 @@ public class BashJobScheduler implements JobScheduler {
 		this.logScript = config.getString(CONF_BASH_LOG_SCRIPT);
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
 		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
+		this.imageTag = config.getString(CONF_BASH_IMAGE_TAG);
 		this.imagePullPolicy = config.getString(CONF_BASH_IMAGE_PULL_POLICY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);		
 		this.slotMemoryRequest = config.getInt(CONF_BASH_SLOT_MEMORY_REQUEST);
@@ -502,6 +505,10 @@ public class BashJobScheduler implements JobScheduler {
 		
 		if (image == null) {
 			image = runtime.getImage();
+		}
+		
+		if (imageTag != null) {
+		    image = image + ":" + imageTag;
 		}
 		
 		if (image != null) {
