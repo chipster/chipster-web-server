@@ -47,7 +47,10 @@ export default class WsClient {
   connect(sessionId: string, quiet = false) {
     this.sessionId = sessionId;
     return this.restClient.getSessionDbEventsUri().subscribe(url => {
-      url = url + "/events/" + sessionId + "?token=" + this.restClient.token;
+
+      let topic = "sessions/" + sessionId;
+      url = url + "/?topic=" + encodeURIComponent(topic) + "&token=" + this.restClient.token;
+
       let previousScreenOutput = "";
 
       this.ws = new WebSocket(url);
