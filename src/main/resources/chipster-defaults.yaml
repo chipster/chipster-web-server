@@ -380,16 +380,16 @@ toolbox-runtime-tools-bin-path: tools
 # add other runtimes by appending 
 # a dash and the runtime name to each config (e.g. "-R-4.1.1") 
 toolbox-runtime-command-R-4.1.1: /opt/chipster/tools/R-4.1.1/bin/R
-toolbox-runtime-image-R-4.1.1: comp-20.04-r-deps
+toolbox-runtime-image-R-4.1.1: comp-20-04-r-deps
 
 toolbox-runtime-command-R-4.1.1-statistics: /opt/chipster/tools/R-4.1.1-statistics/bin/R
-toolbox-runtime-image-R-4.1.1-statistics: comp-20.04-r-deps
+toolbox-runtime-image-R-4.1.1-statistics: comp-20-04-r-deps
 
 toolbox-runtime-command-R-4.1.0-single-cell: /opt/chipster/tools/R-4.1.0-single-cell/bin/R
-toolbox-runtime-image-R-4.1.0-single-cell: comp-20.04-single-cell
+toolbox-runtime-image-R-4.1.0-single-cell: comp-20-04-single-cell
 
 toolbox-runtime-command-R-4.2.0-single-cell: /opt/chipster/tools/R-4.2.0-single-cell/bin/R
-toolbox-runtime-image-R-4.2.0-single-cell: comp-20.04-single-cell
+toolbox-runtime-image-R-4.2.0-single-cell: comp-20-04-single-cell
 
 toolbox-runtime-command-R-4.2.3: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3: comp-r-4-2-3
@@ -400,16 +400,16 @@ toolbox-runtime-image-R-4.2.3-single-cell: comp-r-4-2-3-single-cell
 toolbox-runtime-tools-bin-path-R-4.2.3-single-cell: tools-bin
 
 toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
-toolbox-runtime-image-R-4.1.1-asv: comp-20.04-asv
+toolbox-runtime-image-R-4.1.1-asv: comp-20-04-asv
 
 # special image, but default R. Only an apt package is needed, but Chipster's config system apparently requires the command too
 toolbox-runtime-command-R-4.1.1-fastqc: /opt/chipster/tools/R-4.1.1/bin/R
-toolbox-runtime-image-R-4.1.1-fastqc: comp-20.04-fastqc
+toolbox-runtime-image-R-4.1.1-fastqc: comp-20-04-fastqc
 
 toolbox-runtime-command-R-3.6.1-phyloseq: /opt/chipster/tools/R-3.6.1-phyloseq/bin/R
 
 toolbox-runtime-command-R-4.2.0-phyloseq: /opt/chipster/tools/R-4.2.0-phyloseq/bin/R
-toolbox-runtime-image-R-4.2.0-phyloseq: comp-20.04-phyloseq
+toolbox-runtime-image-R-4.2.0-phyloseq: comp-20-04-phyloseq
 
 toolbox-runtime-command-R-3.4.3: /opt/chipster/tools/R-3.4.3/bin/R
 
@@ -420,18 +420,18 @@ toolbox-runtime-command-R: /opt/chipster/tools/R-3.2.3/bin/R
 toolbox-runtime-job-factory-java: fi.csc.chipster.comp.java.JavaJobFactory
 toolbox-runtime-command-java: ""
 toolbox-runtime-parameters-java: ""
-toolbox-runtime-image-java: comp-16.04
+toolbox-runtime-image-java: comp-16-04
 
 toolbox-runtime-job-factory-python: fi.csc.chipster.comp.python.PythonJobFactory
 toolbox-runtime-command-python: python
 toolbox-runtime-parameters-python: "-u"
-toolbox-runtime-image-python: comp-16.04
+toolbox-runtime-image-python: comp-16-04
 
 toolbox-runtime-job-factory-python3: fi.csc.chipster.comp.python.PythonJobFactory
 toolbox-runtime-command-python3: python3
 # unbuffered stdout to see screen output immediately
 toolbox-runtime-parameters-python3: "-u"
-toolbox-runtime-image-python3: comp-20.04-python
+toolbox-runtime-image-python3: comp-20-04-python
 
 # set default runtimes for different file types
 toolbox-default-runtime-name-r: R
