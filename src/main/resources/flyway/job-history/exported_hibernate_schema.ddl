@@ -14,6 +14,7 @@
         startTime timestamp,
         state varchar(255),
         stateDetail varchar(255),
+        storageUsage int8,
         toolId varchar(255),
         toolName varchar(255),
         primary key (jobId, sessionId)

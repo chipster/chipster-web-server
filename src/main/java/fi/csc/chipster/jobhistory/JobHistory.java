@@ -38,6 +38,7 @@ public class JobHistory {
 	private String state;
 	private String stateDetail;
 	private Long memoryUsage;
+	private Long storageUsage;
 	private String module;
 
 	public JobHistory() {
@@ -151,4 +152,12 @@ public class JobHistory {
 	public void setModule(String module) {
 		this.module = module;
 	}
+
+    public Long getStorageUsage() {
+        return storageUsage;
+    }
+
+    public void setStorageUsage(Long storageUsage) {
+        this.storageUsage = storageUsage;
+    }
 }

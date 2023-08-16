@@ -220,6 +220,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 						js.setState(job.getState().toString());
 						js.setStateDetail(job.getStateDetail());
 						js.setMemoryUsage(job.getMemoryUsage());
+						js.setStorageUsage(job.getStorageUsage());
 						js.setComp(job.getComp());
 						
 						if (js.getStateDetail() != null && js.getStateDetail().length() > 255) {
