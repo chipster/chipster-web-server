@@ -318,7 +318,7 @@ scheduler-bash-storage-class: ""
 # memory limit for each job slot, in GiB
 scheduler-bash-slot-memory: 8
 # memory request for each job slot, in GiB
-scheduler-bash-slot-memory-request: 4
+scheduler-bash-slot-memory-request: 8
 # maximum memory of one job in GiB
 scheduler-bash-max-memory: ""
 # cpu core limit for each job slot
