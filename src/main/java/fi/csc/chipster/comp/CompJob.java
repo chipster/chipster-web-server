@@ -340,6 +340,12 @@ public abstract class CompJob implements Runnable {
 		outputMessage.addDataset(outputName, id, name);
 	}
 
+	protected void addVersions(String versionsJson) {
+		outputMessage.setVersionsJson(versionsJson);
+	}
+
+	
+	
 	
 	protected static String getErrorMessage(String screenOutput, String errorMessageToken, String removeLastLineToken) {
 

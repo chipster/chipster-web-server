@@ -240,7 +240,7 @@ public class SingleShotComp
 	 * 
 	 */
 	public void sendResultMessage(GenericJobMessage jobMessage, GenericResultMessage result) {
-
+		
 		if (result.getState() == JobState.CANCELLED) {
 			// scheduler has already removed the cancelled job from the session-db
 			return;
@@ -264,6 +264,9 @@ public class SingleShotComp
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
 			
+			// tool versions
+			CompUtils.addVersionsToDbJob(result, dbJob);
+						
 			dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
 			dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
 			
@@ -404,4 +407,6 @@ public class SingleShotComp
 			}
 		}		
 	}
+	
+
 }

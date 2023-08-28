@@ -155,7 +155,13 @@ public class RCompJob extends OnDiskCompJobBase {
 
 		// load handler initialiser
 		inputReaders.add(new BufferedReader(new StringReader(toolDescription.getInitialiser())));
-
+		
+		// load document versions
+		String documentVersionCommand = "source(file.path(chipster.common.lib.path, \"version-utils.R\"))\n" + 
+		"documentR()\n";
+		inputReaders.add(new BufferedReader(new StringReader(documentVersionCommand)));
+		
+		
 		// load input parameters
 		int i = 0;
 		List<String> parameterValues;
@@ -180,6 +186,12 @@ public class RCompJob extends OnDiskCompJobBase {
 		String script = (String) toolDescription.getImplementation();
 		inputReaders.add(new BufferedReader(new StringReader(script)));
 
+		// do this again to document all the packages loaded by the script
+		// done also before the actual script, to avoid ending up with no version info
+		// in case the script fails
+		inputReaders.add(new BufferedReader(new StringReader(documentVersionCommand)));
+
+		
 		// load script finished trigger
 		inputReaders.add(new BufferedReader(new StringReader("print(\"" + SCRIPT_SUCCESSFUL_STRING + "\")\n")));
 

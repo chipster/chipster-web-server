@@ -401,6 +401,9 @@ public class RestCompServer
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
 			
+			// tool versions
+			CompUtils.addVersionsToDbJob(result, dbJob);
+									
 			compJob = this.runningJobs.get(jobMessage.getJobId());
 			if (compJob != null) {
 				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem(compJob.getProcess()));

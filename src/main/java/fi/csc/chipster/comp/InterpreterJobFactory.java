@@ -30,6 +30,9 @@ public abstract class InterpreterJobFactory implements JobFactory {
 	protected ProcessPool processPool;
 	protected boolean isDisabled = false;
 
+	protected String infoDir = "info";
+	protected String versionsString = "versions";
+	
 	private Config config;
 
 	public static final String CONF_CHIPSTER_ROOT_DIR = "comp-chipster-root-dir";
@@ -94,14 +97,24 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 		File javaLibsDir = new File(chipsterRootDir, "lib");
 		File externalToolsDir = getAbsoluteToolsBinDir(chipsterRootDir, runtime.getToolsBinPath());		
+		File moduleLibsDir = new File(relativeModuleDir, "lib");
+		File commonLibsDir = new File(commonScriptDir, "lib");
+		
+		File infoDir = new File("../info");
+		File versionsDir = new File(infoDir, "versions");
 		
 		String vns = getVariableNameSeparator();
 		String sd = getStringDelimeter();
 		
+		
 		ad.setInitialiser(
 				"chipster" + vns + "tools" + vns + "path = " + sd + externalToolsDir + sd + "\n" +
-				"chipster" + vns + "common" + vns + "path = " + sd + commonScriptDir + sd + "\n" + 
+				"chipster" + vns + "common" + vns + "path = " + sd + commonScriptDir + sd + "\n" +
+				"chipster" + vns + "common" + vns + "lib" + vns + "path = " + sd + commonLibsDir + sd + "\n" +
 				"chipster" + vns + "module" + vns + "path = " + sd + relativeModuleDir + sd + "\n" + 
+				"chipster" + vns + "module" + vns + "lib" + vns + "path = " + sd + moduleLibsDir + sd + "\n" +
+				"chipster" + vns + "info" + vns + "path = " + sd + infoDir + sd + "\n" +
+				"chipster" + vns + "versions" + vns + "path = " + sd + versionsDir + sd + "\n" +
 				"chipster" + vns + "java" + vns + "libs" + vns + "path = " + sd + javaLibsDir + sd + "\n" + 
 				"chipster" + vns + "threads" + vns + "max = " + sd + threadsMax + sd + "\n" +
 				"chipster" + vns + "memory" + vns + "max = " + sd + memoryMax + sd + "\n");

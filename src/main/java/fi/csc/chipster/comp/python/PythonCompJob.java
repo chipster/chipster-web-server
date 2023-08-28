@@ -6,10 +6,14 @@ package fi.csc.chipster.comp.python;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -40,6 +44,7 @@ import fi.csc.chipster.util.IOUtils;
 public class PythonCompJob extends OnDiskCompJobBase {
 
 	public static final String STRING_DELIMETER = "'";
+	public static final String CHIPSTER_VARIABLES_FILE = "chipster_variables.py";
 
 	public static final String ERROR_MESSAGE_TOKEN = "Traceback";
 	private static final Pattern SUCCESS_STRING_PATTERN = Pattern.compile("^" + SCRIPT_SUCCESSFUL_STRING + "$");
@@ -153,8 +158,37 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 		// load work dir initialiser
 		logger.debug("job dir: " + jobDir.getPath());
-		inputReaders.add(
-				new BufferedReader(new StringReader("import os\nos.chdir('" + jobDataDir.getAbsolutePath() + "')\n")));
+		String importOs = "import os\n";
+		String chDir = "os.chdir('" + jobDataDir.getAbsolutePath() + "')\n";
+		String importSys = "import sys\n";
+
+		// possibly needs to be absolute because "__main__ script cannot use relative imports"
+		String appendSysPath = "sys.path.append(os.path.join(os.getcwd(), chipster_common_lib_path))\n";
+
+		
+		// write chipster variables to a file so that they can be imported in python lib files
+		// such as version_utils.py
+	    Path variablesFilePath = new File(jobDataDir, CHIPSTER_VARIABLES_FILE).toPath();
+
+        try {
+        	Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE);
+            
+        } catch (IOException e) {
+			this.setErrorMessage("Writing variables file failed");
+			this.setOutputText(Exceptions.getStackTrace(e));
+			updateState(JobState.ERROR);
+			return;
+        }
+			
+        String importVersionUtils = "import version_utils\n";
+		String documentVersions = "version_utils.document_python_version()\n";
+
+        
+//      String importVersionUtils = "from version_utils import *\n";
+//		String documentVersions = "document_python_version()\n";
+
+		inputReaders.add(new BufferedReader(new StringReader(importOs + chDir + importSys + appendSysPath
+				+ importVersionUtils + documentVersions)));
 
 		// load input parameters
 		int i = 0;
@@ -176,13 +210,6 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			i++;
 		}
 
-		/*
-		 * Enable importing of common scripts. Python won't know the dir of the script
-		 * file, because it gets it from standard input.
-		 */
-		String setCommonsDir = "import sys\n" + "sys.path.append(chipster_common_path)\n";
-		inputReaders.add(new BufferedReader(new StringReader(setCommonsDir)));
-
 		// load input script
 		String script = (String) toolDescription.getImplementation();
 		inputReaders.add(new BufferedReader(new StringReader(script)));
@@ -193,7 +220,6 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		// get a process
 		cancelCheck();
 		logger.debug("getting a process.");
-		;
 		try {
 			this.process = processPool.getProcess();
 		} catch (Exception e) {
