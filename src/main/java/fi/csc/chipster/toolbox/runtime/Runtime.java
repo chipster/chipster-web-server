@@ -18,6 +18,9 @@ public class Runtime {
 	private String toolsBinName;
 	private String toolsBinPath;
 	private String image;
+	private String imageRepository;
+	private String imageTag;
+	private String imagePullPolicy;
 	
 	public String getName() {
 		return name;
@@ -61,4 +64,22 @@ public class Runtime {
 	public void setImage(String image) {
 		this.image = image;
 	}
+    public String getImageRepository() {
+        return imageRepository;
+    }
+    public void setImageRepository(String imageRepository) {
+        this.imageRepository = imageRepository;
+    }
+    public String getImageTag() {
+        return imageTag;
+    }
+    public void setImageTag(String imageTag) {
+        this.imageTag = imageTag;
+    }
+    public String getImagePullPolicy() {
+        return imagePullPolicy;
+    }
+    public void setImagePullPolicy(String imagePullPolicy) {
+        this.imagePullPolicy = imagePullPolicy;
+    }
 }

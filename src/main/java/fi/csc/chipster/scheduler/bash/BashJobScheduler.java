@@ -75,9 +75,6 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
 	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT = "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
-	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
-	private static final String CONF_BASH_IMAGE_TAG = "scheduler-bash-image-tag";
-	private static final String CONF_BASH_IMAGE_PULL_POLICY = "scheduler-bash-image-pull-policy";
 	private static final String CONF_BASH_STORAGE_CLASS = "scheduler-bash-storage-class";
 	public static final String CONF_BASH_SLOT_MEMORY = "scheduler-bash-slot-memory";
 	public static final String CONF_BASH_SLOT_CPU = "scheduler-bash-slot-cpu";
@@ -112,7 +109,6 @@ public class BashJobScheduler implements JobScheduler {
 	private long tokenValidTime;
 
 	private String scriptDirInJar;
-	private String imageRepository;
 	private Config config;
 	private String logScript;
 	private String podYaml;
@@ -124,12 +120,10 @@ public class BashJobScheduler implements JobScheduler {
 	private String toolsBinHostMountPath;
 	private Integer maxMemory;
 	private Integer maxCpu;
-	private String imagePullPolicy;
 	private int slotCpuLimit;
 	private int slotMemoryLimit;
 	private boolean podAntiAffinity;
 	private HashMap<String, String> environmentVariables;
-    private String imageTag;
 
 	public BashJobScheduler(JobSchedulerCallback scheduler, SessionDbClient sessionDbClient,
 			ServiceLocatorClient serviceLocator, Config config) throws IOException {
@@ -150,9 +144,6 @@ public class BashJobScheduler implements JobScheduler {
 		this.heartbeatScript = config.getString(CONF_BASH_HEARTBEAT_SCRIPT);
 		this.logScript = config.getString(CONF_BASH_LOG_SCRIPT);
 		this.scriptDirInJar = config.getString(CONF_BASH_SCRIPT_DIR_IN_JAR);
-		this.imageRepository = config.getString(CONF_BASH_IMAGE_REPOSITORY);
-		this.imageTag = config.getString(CONF_BASH_IMAGE_TAG);
-		this.imagePullPolicy = config.getString(CONF_BASH_IMAGE_PULL_POLICY);
 		this.storageClass = config.getString(CONF_BASH_STORAGE_CLASS);		
 		this.slotMemoryRequest = config.getInt(CONF_BASH_SLOT_MEMORY_REQUEST);
 		this.slotCpuRequest = config.getInt(CONF_BASH_SLOT_CPU_REQUEST);
@@ -507,16 +498,16 @@ public class BashJobScheduler implements JobScheduler {
 			image = runtime.getImage();
 		}
 		
-		if (imageTag != null) {
-		    image = image + ":" + imageTag;
+		if (runtime.getImageTag() != null) {
+		    image = image + ":" + runtime.getImageTag();
 		}
 		
 		if (image != null) {
-			env.put(ENV_IMAGE, this.imageRepository + image);
+			env.put(ENV_IMAGE, runtime.getImageRepository() + image);
 		}
 		
-		if (this.imagePullPolicy != null) {
-			env.put(ENV_IMAGE_PULL_POLICY, this.imagePullPolicy);
+		if (runtime.getImagePullPolicy() != null) {
+			env.put(ENV_IMAGE_PULL_POLICY, runtime.getImagePullPolicy());
 		}
 		
 		String toolsBinName = tool.getSadlDescription().getToolsBin();

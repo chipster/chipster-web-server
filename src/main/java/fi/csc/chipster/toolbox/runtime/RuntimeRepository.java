@@ -25,7 +25,10 @@ public class RuntimeRepository {
 	
 	private static final String CONF_RUNTIME_COMMAND = "toolbox-runtime-command";
 	private static final String CONF_RUNTIME_PARAMETERS = "toolbox-runtime-parameters";
-	private static final String CONF_RUNTIME_IMAGE = "toolbox-runtime-image";
+	private static final String CONF_RUNTIME_IMAGE_NAME = "toolbox-runtime-image-name";
+	private static final String CONF_RUNTIME_IMAGE_REPOSITORY = "toolbox-runtime-image-repository";
+	private static final String CONF_RUNTIME_IMAGE_TAG = "toolbox-runtime-image-tag";
+	private static final String CONF_RUNTIME_IMAGE_PULL_POLICY = "toolbox-runtime-image-pull-policy";
 	private static final String CONF_RUNTIME_JOB_FACTORY = "toolbox-runtime-job-factory";
 	private static final String CONF_RUNTIME_TOOLS_BIN_NAME = "toolbox-runtime-tools-bin-name";
 	private static final String CONF_RUNTIME_TOOLS_BIN_PATH = "toolbox-runtime-tools-bin-path";
@@ -50,7 +53,10 @@ public class RuntimeRepository {
 		// collect all runtime names, because admin can create a new runtime by changing any of these
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_COMMAND + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_PARAMETERS + "-").keySet());
-		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE_NAME + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE_REPOSITORY + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE_TAG + "-").keySet());
+		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_IMAGE_PULL_POLICY + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_JOB_FACTORY + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_NAME + "-").keySet());
 		runtimeNames.addAll(config.getConfigEntries(CONF_RUNTIME_TOOLS_BIN_PATH + "-").keySet());
@@ -64,17 +70,23 @@ public class RuntimeRepository {
 			runtime.setName(runtimeName);
 			runtime.setCommand(config.getString(CONF_RUNTIME_COMMAND, runtimeName));
 			runtime.setParameters(config.getString(CONF_RUNTIME_PARAMETERS, runtimeName));
-			runtime.setImage(config.getString(CONF_RUNTIME_IMAGE, runtimeName));
+			runtime.setImage(config.getString(CONF_RUNTIME_IMAGE_NAME, runtimeName));
+			runtime.setImageRepository(config.getString(CONF_RUNTIME_IMAGE_REPOSITORY, runtimeName));
+			runtime.setImageTag(config.getString(CONF_RUNTIME_IMAGE_TAG, runtimeName));
+			runtime.setImagePullPolicy(config.getString(CONF_RUNTIME_IMAGE_PULL_POLICY, runtimeName));
 			runtime.setJobFactory(config.getString(CONF_RUNTIME_JOB_FACTORY, runtimeName));
 			runtime.setToolsBinName(config.getString(CONF_RUNTIME_TOOLS_BIN_NAME, runtimeName));
 			runtime.setToolsBinPath(config.getString(CONF_RUNTIME_TOOLS_BIN_PATH, runtimeName));
 			
-			logger.info("  command:          " + runtime.getCommand());
-			logger.info("  parameters:       " + runtime.getParameters());
-			logger.info("  image:            " + runtime.getImage());
-			logger.info("  job factory:      " + runtime.getJobFactory());
-			logger.info("  tools-bin name:   " + runtime.getToolsBinName());
-			logger.info("  tools-bin path:   " + runtime.getToolsBinPath());
+			logger.info("  command:           " + runtime.getCommand());
+			logger.info("  parameters:        " + runtime.getParameters());
+			logger.info("  image repository:  " + runtime.getImageRepository());
+			logger.info("  image:             " + runtime.getImage());
+			logger.info("  image tag:         " + runtime.getImageTag());
+			logger.info("  image pull policy: " + runtime.getImagePullPolicy());
+			logger.info("  job factory:       " + runtime.getJobFactory());
+			logger.info("  tools-bin name:    " + runtime.getToolsBinName());
+			logger.info("  tools-bin path:    " + runtime.getToolsBinPath());
 			
 			runtimes.add(runtime);
 		}
