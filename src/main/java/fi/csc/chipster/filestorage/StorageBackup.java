@@ -60,6 +60,7 @@ public class StorageBackup implements StatusSource {
 	private String fileStorageBackupNamePrefix;
 
 	private ScheduledExecutorService executor;
+	private Object executorLock = new Object();
 
 	private ScheduledFuture<?> scheduledBackup;
 
@@ -103,11 +104,15 @@ public class StorageBackup implements StatusSource {
 	}
 	
 	private void initExecutor() {
-		if (executor == null || executor.isShutdown()) {
-			
-			logger.info("create new executor");
-			executor = Executors.newScheduledThreadPool(1);
-		}
+	    
+	    synchronized (executorLock) {
+            
+	        if (executor == null || executor.isShutdown()) {
+	            
+	            logger.info("create new executor");
+	            executor = Executors.newScheduledThreadPool(1);
+	        }
+        }
 	}
 	
 	public void backupNow() {
@@ -128,11 +133,14 @@ public class StorageBackup implements StatusSource {
 	}
 	
 	public void disable() {
-		
-		logger.info("disable and cancel scheduled backups");
-		this.scheduledBackup.cancel(true);
-		
-		this.executor.shutdownNow();
+	    
+	    synchronized (executorLock) {
+            		
+    		logger.info("disable and cancel scheduled backups");
+    		this.scheduledBackup.cancel(true);
+    		
+    		this.executor.shutdownNow();
+	    }
 	}
 	
 	private Calendar getNextBackupTime() {
@@ -174,20 +182,24 @@ public class StorageBackup implements StatusSource {
     	logger.info("next " + role + " backup is scheduled at " + nextBackupTime.getTime().toString());
     	logger.info("save " + role + " backups to bucket:  " + BackupUtils.getBackupBucket(config, role));
     
-    	this.initExecutor();
+    	synchronized (executorLock) {
+    	    
+        	this.initExecutor();
+        	
+        	/* Make sure we don't schedule multiple backups
+        	 * 
+        	 * Client disables the button too, but it can have stale state.
+        	 */
     	
-    	/* Make sure we don't schedule multiple backups
-    	 * 
-    	 * Client disables the button too, but it can have stale state.
-    	 */
-    	if (this.scheduledBackup == null || this.scheduledBackup.isCancelled()) {
-    		
-	    	this.scheduledBackup = this.executor.scheduleAtFixedRate(
-	    			timerTask, nextBackupTime.getTimeInMillis() - Calendar.getInstance().getTimeInMillis(), 
-	    			backupInterval * 60 * 60 * 1000, TimeUnit.MILLISECONDS);
-    	} else {
-    		
-    		logger.warn("cannot enable scheduled backups, because those are enabled already");
+        	if (this.scheduledBackup == null || this.scheduledBackup.isCancelled()) {
+        		
+    	    	this.scheduledBackup = this.executor.scheduleAtFixedRate(
+    	    			timerTask, nextBackupTime.getTimeInMillis() - Calendar.getInstance().getTimeInMillis(), 
+    	    			backupInterval * 60 * 60 * 1000, TimeUnit.MILLISECONDS);
+        	} else {
+        		
+        		logger.warn("cannot enable scheduled backups, because those are enabled already");
+        	}
     	}
 	}
 	
@@ -519,6 +531,7 @@ public class StorageBackup implements StatusSource {
 	public String getStatusString() {
 		if (this.manualBackup != null && !this.manualBackup.isDone()) {
 			return "manual backup running";
+		// no lock, but this is not critical
 		} else if (this.scheduledBackup != null && !this.scheduledBackup.isDone()) {
 			return "will run " + getNextBackupTime().getTime().toString();
 		}
