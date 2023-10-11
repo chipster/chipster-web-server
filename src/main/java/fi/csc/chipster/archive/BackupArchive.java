@@ -230,7 +230,7 @@ public class BackupArchive {
 		
 		downloadFiles(backupObjects, bucket, transferManager, downloadPath);
 		
-		collectFiles(archiveRootPath, currentBackupPath, downloadPath, backupInfoMap, backupName);
+		collectFiles(archiveRootPath, currentBackupPath, downloadPath, backupInfoMap, backupName, backupNamePrefix);
 		
 		FileUtils.deleteDirectory(downloadPath.toFile());
 		
@@ -301,7 +301,7 @@ public class BackupArchive {
 		return archiveInfoPath;
 	}
 
-	private void collectFiles(Path archiveRootPath, Path currentBackupPath, Path downloadPath, Map<Path, InfoLine> backupInfoMap, String backupName) throws IOException {
+	private void collectFiles(Path archiveRootPath, Path currentBackupPath, Path downloadPath, Map<Path, InfoLine> backupInfoMap, String backupName, String backupNamePrefix) throws IOException {
 		backupInfoMap.values()
 		.forEach(info -> {						
 			try {				
@@ -320,6 +320,13 @@ public class BackupArchive {
 					// search from other archives
 					try (Stream<Path> archives = Files.list(archiveRootPath)) {
 						Optional<Path> candidateOptional = archives
+    			        // start from latest
+    		            .sorted(Collections.reverseOrder())
+						.filter(archive -> {
+						    // check only folders of this file-storage
+						    return archive.getFileName().toString().startsWith(backupNamePrefix);
+						    
+						})
 						.map(archive -> archive.resolve(info.getGpgPath()))
 						.filter(file -> {
 							try {
