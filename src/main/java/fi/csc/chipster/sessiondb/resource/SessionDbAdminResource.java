@@ -49,6 +49,7 @@ import jakarta.ws.rs.core.UriInfo;
 public class SessionDbAdminResource extends AdminResource {
 
 	private static Logger logger = LogManager.getLogger();
+	public static final String PATH_USERS_SESSIONS = "users/sessions";
 
 //	private final static String SQL_ORPHAN_FILES =     "from File f    left join Dataset d on f.fileId = d.file                       where d.file is null";
 //	private final static String SQL_ORPHAN_DATASETS =  "from Dataset d left join Session s on d.datasetIdPair.sessionId = s.sessionId where s.sessionId is null";
@@ -67,8 +68,8 @@ public class SessionDbAdminResource extends AdminResource {
 	private PubSubServer pubSubServer;
 
 	private NewsApi newsApi;
-
-    private RuleTable ruleTable;
+	private SessionDbApi sessionDbApi;
+	private RuleTable ruleTable;
 
 	/**
 	 * @param hibernate
@@ -82,11 +83,12 @@ public class SessionDbAdminResource extends AdminResource {
 	 * @param ruleTable 
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
-			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi, RuleTable ruleTable) {
+			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi, SessionDbApi sessionDbApi, RuleTable ruleTable) {
 		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
 		this.newsApi = newsApi;
+		this.sessionDbApi = sessionDbApi;
 		this.ruleTable = ruleTable;
 	}
 
@@ -240,17 +242,13 @@ public class SessionDbAdminResource extends AdminResource {
 	}
 
 	@GET
-	@Path("users/sessions")
+	@Path(PATH_USERS_SESSIONS)
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getSessions(@QueryParam("userId") String userId, @Context SecurityContext sc) {
 
-		@SuppressWarnings("unchecked")
-		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username")
-				.setParameter("username", userId).list();
-
-		List<Session> sessions = rules.stream().map(rule -> rule.getSession()).collect(Collectors.toList());
+		List<Session> sessions = sessionDbApi.getSessions(userId);
 
 		List<HashMap<String, Object>> sessionSizes = new ArrayList<>();
 
@@ -286,6 +284,19 @@ public class SessionDbAdminResource extends AdminResource {
 		return Response.ok(sessionSizes).build();
 	}
 
+	@DELETE
+	@Path(PATH_USERS_SESSIONS)
+	@RolesAllowed({ Role.ADMIN })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response deleteSessions(@QueryParam("userId") String userId, @Context SecurityContext sc) {
+		logger.info("deleting sessions for " + userId);
+		List<Rule> deletedRules = this.sessionDbApi.deleteRulesWithUser(userId);
+		logger.info("deleted " + deletedRules.size() + " rules");
+		return Response.ok(deletedRules).build();
+	}
+	
+	
 	@POST
 	@Path("news")
 	@RolesAllowed({ Role.ADMIN })

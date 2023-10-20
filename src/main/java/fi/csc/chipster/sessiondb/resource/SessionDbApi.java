@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +48,37 @@ public class SessionDbApi {
 
 	}
 
+	
+		public List<Rule> deleteRulesWithUser(String username) {
+		// 1) own rule only -> delete rule
+		// 2) own rule and shared ro -> delete all rules (own and ro)
+		// 3) own rule, shared rw by me, delete own and shared by me
+		// 4) shared ro to me, delete shared to me
+		// 5) shared rw to me, delete shared to me
+		//
+		// As a summary, delete all rules where username or sharedBy is me
+		// (and delete session if no rules left)
+
+		List<Rule> rulesToDelete = new ArrayList<Rule>();
+
+		// get sessions I have shared to someone 
+		List<Rule> sharedByMeRules = ruleTable.getShares(username);
+		rulesToDelete.addAll(sharedByMeRules);
+		
+		
+		// get sessions I have access to, except those shared to 'everyone'
+		List<Rule> ownRules = ruleTable.getRulesOwn(username);
+		rulesToDelete.addAll(ownRules);
+		
+		for (Rule rule: rulesToDelete) {
+			deleteRule(rule.getSession(), rule, hibernate.session(), true);
+		}
+		
+		return rulesToDelete;
+	}
+	
+
+	
 	public void deleteRule(Session session, Rule rule, org.hibernate.Session hibernateSession,
 			boolean deleteSessionIfLastRule) {
 
@@ -374,6 +406,15 @@ public class SessionDbApi {
 		return newRule.getRuleId();
 	}
 
+	public List<Session> getSessions(String userId) {
+		@SuppressWarnings("unchecked")
+		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username")
+				.setParameter("username", userId).list();
+
+		List<Session> sessions = rules.stream().map(rule -> rule.getSession()).collect(Collectors.toList());
+		return sessions;
+	}
+	
 	public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
 		if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
 			setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);

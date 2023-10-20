@@ -15,6 +15,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.resource.NewsResource;
+import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
 import jakarta.ws.rs.client.WebTarget;
 
 public class SessionDbAdminClient {
@@ -66,10 +67,29 @@ public class SessionDbAdminClient {
 	private WebTarget getNewsTarget(UUID id) {
 		return getNewsTarget().path(id.toString());
 	}
+
+	private WebTarget getUsersSessionsTarget() {
+		return getSessionDbAdminTarget().path(SessionDbAdminResource.PATH_USERS_SESSIONS);
+	}
+
+	private WebTarget getUsersSessionsTarget(String username) {
+		return getUsersSessionsTarget().queryParam("userId", username);
+	}
+
+
+	// sessions for user
+	public String getSessionsForUser(String username) throws RestException {
+		return RestMethods.getJson(getUsersSessionsTarget(username));
+	}
+
+	public void deleteSessionsForUser(String username) throws RestException {
+		RestMethods.delete(getUsersSessionsTarget(username));
+	}
+
 	
-	// news
 	
 
+	// news
 	public UUID createNews(News news) throws RestException {
 		UUID id =  RestMethods.post(getNewsTarget(), news);
 		news.setNewsId(id);

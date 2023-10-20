@@ -29,6 +29,18 @@ public class RestMethods {
 		String json = response.readEntity(String.class);
 		return RestUtils.parseJson(List.class, type, json);
 	}
+
+	public static String getJson(WebTarget target) throws RestException {
+		Response response = target.request().get(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("get json failed ", response, target.getUri());
+		}
+		String json = response.readEntity(String.class);
+		return json;
+	}
+
+	
+	
 	
 	public static <T> T get(WebTarget target, Class<T> type) throws RestException {
 		Response response = target.request().get(Response.class);
