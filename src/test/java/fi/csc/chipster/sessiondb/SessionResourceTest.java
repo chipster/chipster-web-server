@@ -46,11 +46,12 @@ public class SessionResourceTest {
         schedulerClient 		= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getSchedulerToken(), Role.SERVER);
         unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
         tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), TestServerLauncher.getWrongKeyToken(), Role.CLIENT);
-        signatureFailClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getSignatureFailToken(), Role.CLIENT);
-        unsignedTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnsignedToken(), Role.CLIENT);
+        signatureFailClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSignatureFailToken(), Role.CLIENT);
+        unsignedTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnsignedToken(), Role.CLIENT);
         expiredTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getExpiredToken(), Role.CLIENT);
         noneTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getNoneToken(), Role.CLIENT);
         symmetricTokenClient	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSymmetricToken(), Role.CLIENT);
+        // this tries to authenticate with password when token is expected
         authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
         noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
         sessionWorkerClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(), Role.CLIENT);

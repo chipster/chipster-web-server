@@ -1,14 +1,15 @@
 package fi.csc.chipster.auth.resource;
 
 import java.io.IOException;
-import java.security.Key;
 import java.security.KeyPair;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -33,7 +34,7 @@ import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
@@ -69,7 +70,7 @@ public class AuthTokens {
 	
 	private static final Duration SERVER_TOKEN_LIFETIME = Duration.of(6, ChronoUnit.HOURS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
 	private static final Duration SERVER_TOKEN_MAX_LIFETIME = Duration.of(10, ChronoUnit.DAYS); // UNIT MUST BE DAYS OR SHORTER, MONTH IS NOT OK;
-	private static final String ROLES_DELIMITER = " ";
+	public static final String ROLES_DELIMITER = " ";
 			
 	private static Logger logger = LogManager.getLogger();
 	
@@ -99,7 +100,7 @@ public class AuthTokens {
 		return createUserToken(username, roles, loginTime, jwsKeyPair.getPrivate(), signatureAlgorithm, name);
 	}
 	
-	public static String createUserToken(String username, Set<String> roles, Instant loginTime, Key privateKey, SignatureAlgorithm signatureAlgorithm, String name) {
+	public static String createUserToken(String username, Set<String> roles, Instant loginTime, PrivateKey privateKey, SignatureAlgorithm signatureAlgorithm, String name) {
 				
 		String rolesString = String.join(ROLES_DELIMITER, roles);
 		
@@ -107,12 +108,12 @@ public class AuthTokens {
 		Instant expiration = getUserTokenNextExpiration(now, roles);
 		
 		String jws = Jwts.builder()
-			    .setIssuer("chipster")
-			    .setSubject(username)
-			    .setAudience("chipster")
-			    .setExpiration(Date.from(expiration))
-			    .setNotBefore(Date.from(now)) 
-			    .setIssuedAt(Date.from(now))
+			    .issuer("chipster")
+			    .subject(username)
+			    .audience().add("chipster").and()
+			    .expiration(Date.from(expiration))
+			    .notBefore(Date.from(now)) 
+			    .issuedAt(Date.from(now))
 			    .claim(CLAIM_KEY_CLASS, UserToken.class.getName())
 			    .claim(CLAIM_KEY_NAME, name)
 			    .claim(CLAIM_KEY_ROLES, rolesString)
@@ -128,13 +129,13 @@ public class AuthTokens {
 		Instant now = Instant.now();
 		
 		String jws = Jwts.builder()
-			    .setIssuer(issuer)
-			    .setSubject(username)
-			    .setAudience("chipster")
-			    .setExpiration(Date.from(valid))
-			    .setNotBefore(Date.from(now))
-			    .setIssuedAt(Date.from(now))
-			    .setId(UUID.randomUUID().toString())
+			    .issuer(issuer)
+			    .subject(username)
+			    .audience().add("chipster").and()
+			    .expiration(Date.from(valid))
+			    .notBefore(Date.from(now))
+			    .issuedAt(Date.from(now))
+			    .id(UUID.randomUUID().toString())
 			    .claim(CLAIM_KEY_CLASS, SessionToken.class.getName())
 			    .claim(CLAIM_KEY_SESSION_ID, sessionId)
 			    .claim(CLAIM_KEY_ACCESS, access.name())
@@ -150,13 +151,13 @@ public class AuthTokens {
 		Instant now = Instant.now();
 		
 		String jws = Jwts.builder()
-			    .setIssuer(issuer)
-			    .setSubject(username)
-			    .setAudience("chipster")
-			    .setExpiration(Date.from(valid))
-			    .setNotBefore(Date.from(now))
-			    .setIssuedAt(Date.from(now))
-			    .setId(UUID.randomUUID().toString())
+			    .issuer(issuer)
+			    .subject(username)
+			    .audience().add("chipster").and()
+			    .expiration(Date.from(valid))
+			    .notBefore(Date.from(now))
+			    .issuedAt(Date.from(now))
+			    .id(UUID.randomUUID().toString())
 			    .claim(CLAIM_KEY_CLASS, DatasetToken.class.getName())
 			    .claim(CLAIM_KEY_SESSION_ID, sessionId)
 			    .claim(CLAIM_KEY_DATASET_ID, datasetId)
@@ -179,7 +180,7 @@ public class AuthTokens {
 		return createUserToken(validToken.getUsername(), validToken.getRoles(), validToken.getCreated(), name);
 	}
 	
-	private static Instant getUserTokenNextExpiration(Instant created, Set<String> roles) {
+	public static Instant getUserTokenNextExpiration(Instant created, Set<String> roles) {
 		Instant nextCandidateExpiration = getUserTokenNextCandidateExpiration(roles);
 		Instant finalExpiration = getUserTokenFinalExpiration(created, roles);
 
@@ -212,10 +213,10 @@ public class AuthTokens {
 	public static Jws<Claims> validateSignature(String jwsString, PublicKey publicKey) {
 		
 		try {
-			Jws<Claims> jws = Jwts.parserBuilder()
-					.setSigningKey(publicKey)
+			Jws<Claims> jws = Jwts.parser()
+					.verifyWith(publicKey)
 					.build()
-					.parseClaimsJws(jwsString);
+					.parseSignedClaims(jwsString);
 		
 			// now we can safely trust the JWT
 			return jws;		   		    
@@ -248,7 +249,7 @@ public class AuthTokens {
 	public static <T extends ChipsterToken> T validateToken(String jwsString, PublicKey publicKey, Class<T> tokenClass) {
 		
 		Jws<Claims> jws = validateSignature(jwsString, publicKey);
-		Claims body = jws.getBody();
+		Claims body = jws.getPayload();
 		
 		// now we can safely trust the JWT
 		if (!isTokenClass(body, tokenClass)) {
@@ -284,15 +285,14 @@ public class AuthTokens {
 		String jwtString = jwsToJwt(jwsString);
 		
 		try {
-			@SuppressWarnings("rawtypes")
-			Jwt<Header, Claims> jwt = Jwts.parserBuilder().build()
-					.parseClaimsJwt(jwtString);
+			Jwt<Header, Claims> jwt = Jwts.parser().unsecured().build()
+					.parseUnsecuredClaims(jwtString);
 
-			if (!isTokenClass(jwt.getBody(), UserToken.class)) {
+			if (!isTokenClass(jwt.getPayload(), UserToken.class)) {
 				throw new IllegalStateException("token isn't an " + UserToken.class.getName());
 			}
 
-			return claimsToUserToken(jwt.getBody(), jwsString);		     
+			return claimsToUserToken(jwt.getPayload(), jwsString);		     
 		   		    
 		    
 		} catch (ExpiredJwtException e) {
@@ -310,11 +310,22 @@ public class AuthTokens {
 		    throw new NotAuthorizedException("token not valid");
 		}		
 	}
+	
+	public static String getPayload(String jws) {
+	    
+	    int payloadStartIndex = jws.indexOf(".") + 1;
+	    int payloadEndIndex = jws.lastIndexOf(".");
+	    
+	    String payload = jws.substring(payloadStartIndex, payloadEndIndex);
+	    return payload;
+	}
 
 	public static String jwsToJwt(String jws) {
-		// https://github.com/jwtk/jjwt/issues/135
-		String withoutSignature = jws.substring(0, jws.lastIndexOf(".") + 1);
-		return withoutSignature;
+	    	    
+	    String payload = getPayload(jws);
+	    String noneHeader = Base64.getEncoder().encodeToString("{\"alg\": \"none\"}".getBytes());
+	    	     
+		return noneHeader + "." + payload + ".";
 	}
 
 	public static UserToken claimsToUserToken(Claims body, String jwsString) {

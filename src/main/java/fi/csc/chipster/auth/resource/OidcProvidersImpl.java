@@ -128,7 +128,7 @@ public class OidcProvidersImpl implements OidcProviders {
 		HTTPResponse httpResponse = httpRequest.send();
 
 		// Parse OpenID provider metadata
-		return OIDCProviderMetadata.parse(httpResponse.getContentAsJSONObject());
+		return OIDCProviderMetadata.parse(httpResponse.getBodyAsJSONObject());
 	}
 	
 	

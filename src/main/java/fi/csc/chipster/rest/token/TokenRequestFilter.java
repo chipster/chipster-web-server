@@ -112,7 +112,7 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		
 		// throws if not valid
 		Jws<Claims> jws = authService.validateTokenSignature(password);
-		Claims jwsBody = jws.getBody();
+		Claims jwsBody = jws.getPayload();
 		
 		// now we can trust that these claims were signed by auth
 		
@@ -120,16 +120,16 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		
 		if (authService.isTokenClass(jwsBody, UserToken.class)) {
 						
-			UserToken userToken = AuthTokens.claimsToUserToken(jws.getBody(), password);
+			UserToken userToken = AuthTokens.claimsToUserToken(jws.getPayload(), password);
 			token = userToken;
 			
 		} else if (authService.isTokenClass(jwsBody, SessionToken.class)) {
 			
-			token = AuthTokens.claimsToSessionToken(jws.getBody(), password);
+			token = AuthTokens.claimsToSessionToken(jws.getPayload(), password);
 			
 		} else if (authService.isTokenClass(jwsBody, DatasetToken.class)) {
 			
-			token = AuthTokens.claimsToDatasetToken(jws.getBody(), password);
+			token = AuthTokens.claimsToDatasetToken(jws.getPayload(), password);
 			
 		} else {
 			throw new ForbiddenException("unknown token type");

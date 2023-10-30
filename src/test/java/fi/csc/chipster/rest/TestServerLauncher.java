@@ -1,6 +1,8 @@
 package fi.csc.chipster.rest;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -9,21 +11,22 @@ import java.util.HashSet;
 import java.util.UUID;
 
 import javax.crypto.spec.SecretKeySpec;
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.WebTarget;
 
+import org.apache.commons.codec.digest.HmacAlgorithms;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Jwts.SIG;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.WebTarget;
 
 public class TestServerLauncher {
 	
@@ -192,7 +195,7 @@ public class TestServerLauncher {
 		CredentialsProvider userToken = new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getCredentials();
 		String tokenKey = userToken.getPassword();
 		
-		String jwt = AuthTokens.jwsToJwt(tokenKey);
+		String jwt = getHeader(tokenKey) + "." + AuthTokens.getPayload(tokenKey) + ".";
 		
 		return new StaticCredentials("token", jwt);
 	}
@@ -210,21 +213,24 @@ public class TestServerLauncher {
 		CredentialsProvider userToken2 = new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER2, "client2Password", Role.CLIENT).getCredentials();
 		String tokenKey1 = userToken1.getPassword();
 		String tokenKey2 = userToken2.getPassword();
-		
-		String jwt1 = AuthTokens.jwsToJwt(tokenKey1);
-		
-		if (!jwt1.endsWith(".")) {
-			// I'm not sure whether jwsToJwt() should return the last dot or not, but
-			// let's check this test gets fixed if this is changed someday
-			throw new IllegalStateException("jwsToJwt did not return the last period. You should fix this test to add it.");
-		}
-		String signature2 = getSignature(tokenKey2);
-		
-		String signatureFailToken = jwt1 + signature2;
+				
+		String signatureFailToken = 
+		        getHeader(tokenKey1) + "."
+		                + AuthTokens.getPayload(tokenKey1)
+		                + "." + getSignature(tokenKey2);
 		
 		return new StaticCredentials("token", signatureFailToken);
 	}
 	
+	public static String getHeader(String jws) {
+        
+        int payloadStartIndex = jws.indexOf(".");
+        
+        String header = jws.substring(0, payloadStartIndex);
+        
+        return header;
+    }
+    	
 	public static String getSignature(String jws) {
 		String signature = jws.substring(jws.lastIndexOf(".") + 1);
 		return signature;
@@ -236,7 +242,7 @@ public class TestServerLauncher {
 				UNIT_TEST_USER1, 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now(), 
-				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512, "John Doe");
+				SIG.ES512.keyPair().build().getPrivate(), Jwts.SIG.ES512, "John Doe");
 		
 		return new StaticCredentials("token", token);
 	}
@@ -247,7 +253,7 @@ public class TestServerLauncher {
 				UNIT_TEST_USER1, 
 				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
 				Instant.now().minus(60, ChronoUnit.DAYS), 
-				Keys.keyPairFor(SignatureAlgorithm.ES512).getPrivate(), SignatureAlgorithm.ES512, "John Doe");
+				SIG.ES512.keyPair().build().getPrivate(), Jwts.SIG.ES512, "John Doe");
 		
 		return new StaticCredentials("token", token);
 	}
@@ -261,20 +267,13 @@ public class TestServerLauncher {
 	 * @return
 	 */
 	public CredentialsProvider getNoneToken() {
+	    
+	    CredentialsProvider userToken1 = new AuthenticationClient(serviceLocatorClient, UNIT_TEST_USER1, "clientPassword", Role.CLIENT).getCredentials();
+        String tokenKey1 = userToken1.getPassword();
+        
+        String jwt = AuthTokens.jwsToJwt(tokenKey1);
 		
-		String jws = Jwts.builder()
-			    .setIssuer("chipster")
-			    .setSubject(UNIT_TEST_USER1)
-			    .setAudience("chipster")
-			    .setExpiration(Date.from(Instant.now().plus(1, ChronoUnit.HOURS)))
-			    .setNotBefore(Date.from(Instant.now())) 
-			    .setIssuedAt(Date.from(Instant.now()))
-			    .setId(UUID.randomUUID().toString())
-			    .claim(AuthTokens.CLAIM_KEY_ROLES, Role.CLIENT + " " + Role.SERVER + " " + Role.ADMIN)
-			    .claim(AuthTokens.CLAIM_KEY_LOGIN_TIME, Instant.now().getEpochSecond())			  
-			    .compact();
-		
-		return new StaticCredentials("token", jws);
+		return new StaticCredentials("token", jwt);
 	}
 	
 	/**
@@ -285,18 +284,43 @@ public class TestServerLauncher {
 	 * 
 	 * @return
 	 * @throws IOException 
+	 * @throws NoSuchAlgorithmException 
+	 * @throws InvalidKeySpecException 
 	 */
-	public CredentialsProvider getSymmetricToken() throws IOException {
+	public CredentialsProvider getSymmetricToken() throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
 		
 		byte[] publicKey = new AuthenticationClient(new ServiceLocatorClient(config), "session-db", "session-db", Role.SERVER).getJwtPublicKey().getEncoded();
+						
+		/* 
+		 * https://stackoverflow.com/a/68377829
+		 * 
+		 * "SecretKey[Spec] classes and their subclasses are used only for symmetric algorithms, 
+		 * including HMAC, and the PrivateKey[Spec] classes and their subclasses are used only 
+		 * for asymmetric algorithms"
+		 */
+		SecretKeySpec symmetricKey = new SecretKeySpec(publicKey, HmacAlgorithms.HMAC_SHA_512.getName());
 		
-		SecretKeySpec symmetricKey = new SecretKeySpec(publicKey, SignatureAlgorithm.HS512.getJcaName());
+		// have to sign a token here, because AuthTokens.createUserToken() doesn't (correctly) 
+		// accept a symmetric key
 		
-		String token = AuthTokens.createUserToken(
-				UNIT_TEST_USER1, 
-				new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN })),
-				Instant.now(), 
-				symmetricKey, SignatureAlgorithm.HS512, "John Doe");
+		HashSet<String> roles = new HashSet<String>(Arrays.asList(new String[] { Role.CLIENT, Role.SERVER, Role.ADMIN }));
+		String rolesString = String.join(AuthTokens.ROLES_DELIMITER, roles);
+        Instant now = Instant.now();
+        Instant expiration = AuthTokens.getUserTokenNextExpiration(now, roles);
+        
+        String token = Jwts.builder()
+                .issuer("chipster")
+                .subject(UNIT_TEST_USER1)
+                .audience().add("chipster").and()
+                .expiration(Date.from(expiration))
+                .notBefore(Date.from(now)) 
+                .issuedAt(Date.from(now))
+                .claim(AuthTokens.CLAIM_KEY_CLASS, UserToken.class.getName())
+                .claim(AuthTokens.CLAIM_KEY_NAME, "John Doe")
+                .claim(AuthTokens.CLAIM_KEY_ROLES, rolesString)
+                .claim(AuthTokens.CLAIM_KEY_LOGIN_TIME, Instant.now().getEpochSecond())
+                .signWith(symmetricKey, Jwts.SIG.HS512)
+                .compact();
 		
 		return new StaticCredentials("token", token);
 	}	
