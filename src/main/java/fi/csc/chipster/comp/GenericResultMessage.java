@@ -1,10 +1,10 @@
 package fi.csc.chipster.comp;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,8 +34,10 @@ public class GenericResultMessage {
 	private String versionsJson;
 	
 
-	private Map<String, String> ids = new HashMap<String, String>();
-	private Map<String, String> names = new HashMap<String, String>();
+	// preserve tool's output order in job.outputs
+	private LinkedHashMap<String, String> outputIdToDatasetIdMap = new LinkedHashMap<String, String>();
+	private Map<String, String> outputIdToDatasetNameMap = new HashMap<String, String>();
+	private Map<String, String> outputIdToDisplayNameMap = new HashMap<String, String>();
 	
 	public GenericResultMessage(String jobId, JobState state, String stateDetail, String errorMessage,
 			String outputText) {
@@ -127,25 +129,28 @@ public class GenericResultMessage {
 		this.jobId = jobId;
 	}
 	
-	public void addDataset(String outputName, String id, String name) {
-		ids.put(outputName, id);
-		names.put(outputName, name);
+	public void addDataset(String outputId, String datasetId, String datasetName, String outputDisplayName) {
+		outputIdToDatasetIdMap.put(outputId, datasetId);
+		outputIdToDatasetNameMap.put(outputId, datasetName);
+		outputIdToDisplayNameMap.put(outputId, outputDisplayName);
 	}
 	
-	public Set<String> getOutputNames() {
-		HashSet<String> keys = new HashSet<>();
-		keys.addAll(ids.keySet());
-		keys.addAll(names.keySet());
-		return keys;
+	public ArrayList<String> getOutputIds() {
+	    // preserve order of LinkedHashMap
+	    return new ArrayList<String>(outputIdToDatasetIdMap.keySet());
 	}
 	
-	public String getDatasetId(String outputName) {
-		return ids.get(outputName);
+	public String getDatasetId(String outputId) {
+		return outputIdToDatasetIdMap.get(outputId);
 	}
 
-	public String getDatasetName(String outputName) {
-		return names.get(outputName);
+	public String getDatasetName(String outputId) {
+		return outputIdToDatasetNameMap.get(outputId);
 	}
+	
+	public String getOutputDisplayName(String outputId) {
+        return outputIdToDisplayNameMap.get(outputId);
+    }
 
 	public Instant getStartTime() {
 		return startTime;

@@ -17,7 +17,6 @@ import fi.csc.chipster.toolbox.sadl.SADLDescription;
 
 public class RuntimeRepository {
 	
-	@SuppressWarnings("unused")
 	private Logger logger = LogManager.getLogger();
 	
 	public static final String TOOL_DIR_R = "R";

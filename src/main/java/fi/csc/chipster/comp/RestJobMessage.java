@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
 import fi.csc.chipster.scheduler.offer.JobCommand;
 import fi.csc.chipster.sessiondb.model.Input;
@@ -17,9 +20,12 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class RestJobMessage implements GenericJobMessage {
-
-	private JobCommand jobCommand;
+    
+    private JobCommand jobCommand;
 	private Job job;
+	
+	@SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
 	public RestJobMessage(JobCommand jobCommand, Job job) {
 		this.jobCommand = jobCommand;
@@ -55,12 +61,14 @@ public class RestJobMessage implements GenericJobMessage {
 
 	@Override
 	public String getName(String inputName) {
-		for (Input input : job.getInputs()) {
-			if (input.getInputId().equals(inputName)) {
-				return input.getDisplayName();
-			}
-		}
-		return null;
+	        
+        for (Input input : job.getInputs()) {
+            if (input.getInputId().equals(inputName)) {
+                return input.getDatasetName();
+            }
+        }
+        
+        return null;
 	}
 
 	/**

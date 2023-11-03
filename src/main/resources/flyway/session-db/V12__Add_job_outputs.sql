@@ -1,0 +1,1 @@
+alter table Job add column outputs jsonb;

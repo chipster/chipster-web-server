@@ -53,6 +53,7 @@
         memoryUsage int8,
         metadataFiles jsonb,
         module varchar(255),
+        outputs jsonb,
         parameters jsonb,
         screenOutput oid,
         sourceCode oid,

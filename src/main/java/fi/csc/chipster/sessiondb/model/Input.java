@@ -10,6 +10,7 @@ public class Input implements DeepCopyable {
 
 	private String inputId;
 	private String displayName;
+	private String datasetName;
 	@Lob
 	private String description;
 	private String type;
@@ -45,6 +46,12 @@ public class Input implements DeepCopyable {
 	public void setDatasetId(String datasetId) {
 		this.datasetId = datasetId;
 	}
+	public String getDatasetName() {
+        return datasetName;
+    }
+    public void setDatasetName(String datasetName) {
+        this.datasetName = datasetName;
+    }
 	@Override
 	public Object deepCopy() {
 		Input i = new Input();
@@ -53,6 +60,7 @@ public class Input implements DeepCopyable {
 		i.description = description;
 		i.type = type;
 		i.datasetId = datasetId;
+		i.datasetName = datasetName;
 		return i;
 	}
 }

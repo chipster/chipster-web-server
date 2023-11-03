@@ -59,6 +59,11 @@ public class Job {
 	@Column
 	@Type(type = Input.INPUT_LIST_JSON_TYPE)
 	private List<Input> inputs = new ArrayList<>();
+	
+	@Column
+    @Type(type = Output.OUTPUT_LIST_JSON_TYPE)
+    private List<Output> outputs = new ArrayList<>();
+
 
 	@Column
 	@Type(type = MetadataFile.METADATA_FILE_LIST_JSON_TYPE)
@@ -257,4 +262,12 @@ public class Job {
 	public void setCpuLimit(Integer cpuLimit) {
 		this.cpuLimit = cpuLimit;
 	}
+
+    public List<Output> getOutputs() {
+        return outputs;
+    }
+
+    public void setOutputs(List<Output> outputs) {
+        this.outputs = outputs;
+    }
 }
