@@ -199,8 +199,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
 					String nameInSessionDb = nameInClient != null ? nameInClient : outputFile.getName();
 					String dataId = resultHandler.getFileBrokerClient().addFile(
 							UUID.fromString(inputMessage.getJobId()), inputMessage.getSessionId(), outputFile, nameInSessionDb, fileDescription.isMeta(), phenodataFileForThisOutput);
-					// put dataId to result message
-					this.addOutputDataset(outputFile.getName(), dataId, nameInClient);
+					// put dataId to result message. Preserve the order of outputs in tool
+					this.addOutputDataset(outputFile.getName(), dataId, nameInClient, fileDescription.getFileName().getDisplayName());
 					logger.debug("transferred output file: " + fileDescription.getFileName());
 
 				} catch (FileNotFoundException e) {

@@ -329,7 +329,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
 		@SuppressWarnings("unused")
 		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_CHUNKS);
-		@SuppressWarnings("unused")
+
 		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
 		
 		if (logRest) {

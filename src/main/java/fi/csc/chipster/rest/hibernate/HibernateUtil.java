@@ -27,6 +27,7 @@ import org.postgresql.util.PSQLException;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
+import fi.csc.chipster.sessiondb.model.Output;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class HibernateUtil {
@@ -209,6 +210,7 @@ public class HibernateUtil {
 			{
 				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(Parameter.class));
 				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(Input.class));
+				put(Output.OUTPUT_LIST_JSON_TYPE, new ListJsonType<Output>(Output.class));
 				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
 						new ListJsonType<MetadataFile>(MetadataFile.class));
 				put(JsonNodeJsonType.JSON_NODE_JSON_TYPE, new JsonNodeJsonType());

@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,6 +25,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Output;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.chipster.toolbox.runtime.Runtime;
@@ -263,6 +265,17 @@ public class SingleShotComp
 			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
+			
+			dbJob.setOutputs(result.getOutputIds().stream()
+			    .map(outputId -> {
+			        Output output = new Output();
+			        output.setOutputId(outputId);
+			        output.setDatasetId(result.getDatasetId(outputId));
+			        output.setDisplayName(result.getOutputDisplayName(outputId));
+			        
+			        return output;
+			    })
+			    .collect(Collectors.toList()));
 			
 			// tool versions
 			CompUtils.addVersionsToDbJob(result, dbJob);

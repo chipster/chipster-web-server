@@ -336,8 +336,8 @@ public abstract class CompJob implements Runnable {
 		return this.jobTimeout;
 	}
 
-	protected void addOutputDataset(String outputName, String id, String name) {
-		outputMessage.addDataset(outputName, id, name);
+	protected void addOutputDataset(String outputId, String datasetId, String datasetName, String outputDisplayName) {
+		outputMessage.addDataset(outputId, datasetId, datasetName, outputDisplayName);
 	}
 
 	protected void addVersions(String versionsJson) {
