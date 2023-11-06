@@ -87,4 +87,17 @@ public class RestMethods {
 			throw new RestException("delete failed ", response, target.getUri());
 		}
 	}
+
+	public static String deleteJson(WebTarget target) throws RestException {
+		Response response = target.request().delete(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			// use this to have the entity available at later code
+			response.bufferEntity();
+			throw new RestException("delete failed ", response, target.getUri());
+		}
+		String json = response.readEntity(String.class);
+		return json;
+
+	}
+	
 }
