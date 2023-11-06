@@ -44,8 +44,8 @@ public class AuthUserResource {
 		String authenticatedUserId = sc.getUserPrincipal().getName();
 		if (authenticatedUserId.equals(userId) // client cat get it's own User object 
 				|| authenticatedUserId.equals(Role.SESSION_WORKER)) { // session-worker can get all
-			
-			return Response.ok(userTable.get(new UserId(userId))).build();
+			User user = userTable.get(new UserId(userId));
+			return user == null ? Response.status(404).build() : Response.ok(user).build(); 
 		}
 		
 		throw new ForbiddenException();			

@@ -17,6 +17,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
+import fi.csc.chipster.auth.resource.AuthAdminResource;
 import fi.csc.chipster.auth.resource.AuthTokenResource;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.AuthUserResource;
@@ -106,7 +107,8 @@ public class AuthenticationService {
         	.register(authRequestFilter);
     	
     	JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		AdminResource adminResource = new AdminResource(hibernate, hibernateClasses, jerseyStatisticsSource);
+		
+    	AuthAdminResource authAdminResource = new AuthAdminResource(hibernate, hibernateClasses, jerseyStatisticsSource, userTable);
 
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
@@ -130,7 +132,7 @@ public class AuthenticationService {
 
         AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH, config.getPassword(Role.AUTH), Role.SERVER);
 		this.adminServer = RestUtils.startAdminServer(
-        		adminResource, hibernate, 
+        		authAdminResource, hibernate, 
         		Role.AUTH, config, authClient, serviceLocator);
     }
 

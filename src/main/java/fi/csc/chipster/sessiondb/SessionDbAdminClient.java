@@ -72,8 +72,8 @@ public class SessionDbAdminClient {
 		return getSessionDbAdminTarget().path(SessionDbAdminResource.PATH_USERS_SESSIONS);
 	}
 
-	private WebTarget getUsersSessionsTarget(String username) {
-		return getUsersSessionsTarget().queryParam("userId", username);
+	private WebTarget getUsersSessionsTarget(String... username) {
+		return getUsersSessionsTarget().queryParam("userId", (Object[])username);
 	}
 
 
@@ -82,7 +82,7 @@ public class SessionDbAdminClient {
 		return RestMethods.getJson(getUsersSessionsTarget(username));
 	}
 
-	public void deleteSessionsForUser(String username) throws RestException {
+	public void deleteSessionsForUser(String... username) throws RestException {
 		RestMethods.delete(getUsersSessionsTarget(username));
 	}
 

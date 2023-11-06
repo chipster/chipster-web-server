@@ -30,6 +30,7 @@ import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -289,9 +290,13 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response deleteSessions(@QueryParam("userId") String userId, @Context SecurityContext sc) {
+	public Response deleteSessions(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 		logger.info("deleting sessions for " + userId);
-		List<Rule> deletedRules = this.sessionDbApi.deleteRulesWithUser(userId);
+		List<Rule> deletedRules = new ArrayList<Rule>();
+		for (String uId: userId) {
+			deletedRules.addAll(this.sessionDbApi.deleteRulesWithUser(uId));
+		}
+		
 		logger.info("deleted " + deletedRules.size() + " rules");
 		return Response.ok(deletedRules).build();
 	}
