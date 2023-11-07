@@ -271,16 +271,16 @@ export default class ChipsterUtils {
   ) {
     const input = {
       inputId: inputId,
-      // apparently the app sends something here, because comp throws if this is null
-      displayName: "dataset-name-placeholder",
+      displayName: null,
       description: toolInput.name.description,
       type: toolInput.type.name,
-      datasetId: null
+      datasetId: null,
+      datasetName: null,
     };
 
     if (inputMap.has(inputId)) {
       input.datasetId = inputMap.get(inputId).datasetId;
-      input.displayName = inputMap.get(inputId).name;
+      input.datasetName = inputMap.get(inputId).name;
     } else if (toolInput.optional) {
       return null;
     } else {
