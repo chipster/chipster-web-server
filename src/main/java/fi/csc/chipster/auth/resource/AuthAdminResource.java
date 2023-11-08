@@ -11,6 +11,8 @@ import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.NotFoundRollbackException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import jakarta.annotation.security.RolesAllowed;
@@ -42,6 +44,14 @@ public class AuthAdminResource extends AdminResource {
 	}
 
 
+	
+	/**
+	 * Could also return simple string, but returning json, since most other api methods return json.
+	 * 
+	 * @param userId
+	 * @param sc
+	 * @return
+	 */
 	@DELETE
 	@Path(PATH_USERS)
 	@RolesAllowed({ Role.ADMIN })
@@ -50,33 +60,13 @@ public class AuthAdminResource extends AdminResource {
 	public Response deleteUser(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 		logger.info("deleting user " + userId);
 		
-//		hibernate.runInTransaction(new HibernateRunnable<List<String>>() {
-//			public List<String> run(Session hibernateSession) {
-//				for (String idString: userId) {
-//					UserId id = new UserId(idString);
-//					User user = userTable.get(id, hibernateSession);
-//					if (user == null) {
-////						hibernate.session().clear();
-////						throw new NotFoundException("User " + idString + " not found");
-////						return Response.status(404, "User " + idString + " not found").build();
-//					
-//					
-//					}
-//					HibernateUtil.delete(user, id, hibernateSession);
-//				}
-//
-//				
-//				
-//				return new LinkedList<String>();
-//			}
-//		});
-
 		List<String> deletedUserIds = new ArrayList<String>();
 		for (String idString: userId) {
 			UserId id = new UserId(idString);
 			User user = userTable.get(id, hibernate.session());
 			if (user == null) {
-				return Response.status(404, "User " + idString + " not found").entity(deletedUserIds).build();
+				throw new NotFoundRollbackException(RestUtils.asJson(new String[] {idString}));
+//				return Response.status(404, "User " + idString + " not found").entity(deletedUserIds).build();
 			}
 			
 			HibernateUtil.delete(user, id, hibernate.session());

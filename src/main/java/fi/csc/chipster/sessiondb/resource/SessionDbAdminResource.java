@@ -285,6 +285,14 @@ public class SessionDbAdminResource extends AdminResource {
 		return Response.ok(sessionSizes).build();
 	}
 
+		
+	/**
+	 * Deletes rules for give user(s).
+	 * 
+	 * @param userId
+	 * @param sc
+	 * @return Deleted rules as json
+	 */
 	@DELETE
 	@Path(PATH_USERS_SESSIONS)
 	@RolesAllowed({ Role.ADMIN })

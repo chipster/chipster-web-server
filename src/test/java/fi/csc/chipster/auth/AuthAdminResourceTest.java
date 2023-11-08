@@ -114,15 +114,17 @@ public class AuthAdminResourceTest {
 			assertEquals(true, false, "delete already deleted user should have failed");
 		} catch (RestException e) {
 			
+			// should get 404 and the missing userId 
 			String json = e.getResponse().readEntity(String.class);
-			assertEquals(RestUtils.asJson(new String[] {user2Id.toUserIdString()}), json);
+			assertEquals(RestUtils.asJson(new String[] {user1Id.toUserIdString()}), json);
 			
 			assertEquals(404, e.getResponse().getStatus());
 		}
 
-		// expect not found for deleted user
+		// since delete fail, user2 delete should be rollbacked and user2 still there
 		testGetUser(404, user1Id, user1Client);
-		testGetUser(404, user2Id, user2Client);
+		AuthenticationClient.getUser(user2Id, user2Client, launcher.getServiceLocator());
+		
 	}
 	
 	public static void testGetUser(int expected, UserId userId, Client client) {
