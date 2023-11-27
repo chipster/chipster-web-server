@@ -1,18 +1,21 @@
 package fi.csc.chipster.sessiondb;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import fi.csc.chipster.auth.model.Role;
@@ -60,18 +63,50 @@ public class SessionDbAdminResourceTest {
         String user1IdString = launcher.getUser1Credentials().getUsername();
         
         String json = adminClient.getSessionsForUser(user1IdString);
+        List<HashMap<String, Object>> resultList = getResultsList(json);
         
-        // getSessions result json should contain at least 1 session
-        ObjectMapper mapper = new ObjectMapper();
-        List<HashMap<String, Object>> resultMaps = mapper.readValue(json,
-                new TypeReference<List<HashMap<String, Object>>>(){});
-//      for (Map<String, Object> m: resultMaps) {
-//          System.out.println(m.get("name"));
-//      }
-        assertTrue(resultMaps.size() > 0);
-        
+        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, resultList);
+        assertTrue(containsSession(sessionId1.toString(), user1Sessions));
     }
 
+    
+    @Test
+    public void getSessionsForMultipleUsers() throws IOException, RestException {
+        
+    	
+        // create sessions for users 1 and 2
+        Session session1 = RestUtils.getRandomSession();
+        Session session2 = RestUtils.getRandomSession();
+        Session session3 = RestUtils.getRandomSession();
+        Session session4 = RestUtils.getRandomSession();
+        UUID sessionId1 = user1Client.createSession(session1);
+        UUID sessionId2 = user1Client.createSession(session2);
+        UUID sessionId3 = user2Client.createSession(session3);
+        UUID sessionId4 = user2Client.createSession(session4);
+        
+        // admin can get all sessions for users 1 and 2
+        String user1IdString = launcher.getUser1Credentials().getUsername();
+        String user2IdString = launcher.getUser2Credentials().getUsername();
+        
+        String json = adminClient.getSessionsForUser(user1IdString, user2IdString);
+        List<HashMap<String, Object>> resultList = getResultsList(json);
+        
+        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, resultList);
+        List<HashMap<String, Object>> user2Sessions = getResultsSessionsForUser(user2IdString, resultList);
+
+        
+        assertTrue(containsSession(sessionId1.toString(), user1Sessions));
+        assertTrue(containsSession(sessionId2.toString(), user1Sessions));
+        assertTrue(containsSession(sessionId3.toString(), user2Sessions));
+        assertTrue(containsSession(sessionId4.toString(), user2Sessions));
+
+        assertFalse(containsSession(sessionId3.toString(), user1Sessions));
+        assertFalse(containsSession(sessionId4.toString(), user1Sessions));
+        assertFalse(containsSession(sessionId1.toString(), user2Sessions));
+        assertFalse(containsSession(sessionId2.toString(), user2Sessions));
+    }
+
+    
     
     @Test
     public void deleteSessionsForUser() throws IOException, RestException {
@@ -91,14 +126,17 @@ public class SessionDbAdminResourceTest {
         SessionResourceTest.testGetSession(404, sessionId1, user1Client);
         
         // no more sessions at all for user1
-        String result = adminClient.getSessionsForUser(user1IdString);
-        assertEquals(result, "[]");
+        String json = adminClient.getSessionsForUser(user1IdString);
+        List<HashMap<String, Object>> resultList = getResultsList(json);
+        
+        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, resultList);
+        assertTrue(user1Sessions.size() == 0);
     }
 
     @Test
     public void deleteSessionsForMultipleUsers() throws IOException, RestException {
         
-        // create session for user 1
+        // create sessions for users 1 and 2
         Session session1 = RestUtils.getRandomSession();
         Session session2 = RestUtils.getRandomSession();
         Session session3 = RestUtils.getRandomSession();
@@ -127,12 +165,51 @@ public class SessionDbAdminResourceTest {
         SessionResourceTest.testGetSession(404, sessionId4, user2Client);
         
         // no more sessions at all for user1
-        String sessionsUser1 = adminClient.getSessionsForUser(user1IdString);
-        assertEquals(sessionsUser1, "[]");
+        String user1sessionsJson = adminClient.getSessionsForUser(user1IdString);
+        List<HashMap<String, Object>> user1ResultList = getResultsList(user1sessionsJson);
+        
+        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, user1ResultList);
+        assertTrue(user1Sessions.size() == 0);
 
+        
         // no more sessions at all for user2
-        String sessionsUser2 = adminClient.getSessionsForUser(user2IdString);
-        assertEquals(sessionsUser2, "[]");
+        String user2sessionsJson = adminClient.getSessionsForUser(user2IdString);
+        List<HashMap<String, Object>> user2ResultList = getResultsList(user2sessionsJson);
+        
+        List<HashMap<String, Object>> user2Sessions = getResultsSessionsForUser(user2IdString, user2ResultList);
+        assertTrue(user2Sessions.size() == 0);
     }
+
+    
+    
+    private List<HashMap<String, Object>> getResultsList(String json) throws JsonMappingException, JsonProcessingException {
+    	ObjectMapper mapper = new ObjectMapper();
+    	List<HashMap<String, Object>> resultMaps = mapper.readValue(json,
+            new TypeReference<List<HashMap<String, Object>>>(){});
+    	return resultMaps;
+    }
+
+    
+    
+    /**
+     * Returns the list of sessions for a single user
+     * 
+     * @param userId
+     * @param results
+     * @return
+     */
+    private List<HashMap<String, Object>> getResultsSessionsForUser(String userId, List<HashMap<String, Object>> results) {
+    	
+    	List<List<HashMap<String, Object>>> filteredResultsList = results.stream().filter(singleUserResultMap -> singleUserResultMap.get("userId").equals(userId)).map(singleUserResultMap -> (List<HashMap<String, Object>>)singleUserResultMap.get("sessions")).collect(Collectors.toList());
+
+    	// the results should only contain each userId once
+    	assertTrue(filteredResultsList.size() == 1);
+    	return filteredResultsList.get(0);
+    }
+    
+    private boolean containsSession(String sessionId, List<HashMap<String, Object>> sessionList) {
+        return sessionList.stream().anyMatch(session -> session.get("sessionId").equals(sessionId));
+    }
+    
     
 }

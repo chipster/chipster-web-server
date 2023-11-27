@@ -247,42 +247,52 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getSessions(@QueryParam("userId") String userId, @Context SecurityContext sc) {
+	public Response getSessions(@QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 
-		List<Session> sessions = sessionDbApi.getSessions(userId);
+		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
+		
+		for (String uId: userId) {
+			List<Session> sessions = sessionDbApi.getSessions(uId);
 
-		List<HashMap<String, Object>> sessionSizes = new ArrayList<>();
+			List<HashMap<String, Object>> sessionSizes = new ArrayList<>();
 
-		for (Session session : sessions) {
+			for (Session session : sessions) {
 
-			List<Dataset> datasets = SessionDbApi.getDatasets(hibernate.session(), session);
-			List<Job> jobs = SessionDbApi.getJobs(hibernate.session(), session);
+				List<Dataset> datasets = SessionDbApi.getDatasets(hibernate.session(), session);
+				List<Job> jobs = SessionDbApi.getJobs(hibernate.session(), session);
 
-			long sessionSize = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
-					.collect(Collectors.toMap(file -> file.getFileId(), file -> file)).values().stream()
-					.collect(Collectors.summingLong(file -> file.getSize()));
+				long sessionSize = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
+						.collect(Collectors.toMap(file -> file.getFileId(), file -> file)).values().stream()
+						.collect(Collectors.summingLong(file -> file.getSize()));
 
-			long datasetsCount = datasets.size();
-			long jobCount = jobs.size();
-			long inputCount = jobs.stream().flatMap(job -> job.getInputs().stream()).count();
-			long parameterCount = jobs.stream().flatMap(job -> job.getParameters().stream()).count();
-			long metadataCount = datasets.stream().flatMap(dataset -> dataset.getMetadataFiles().stream()).count();
+				long datasetsCount = datasets.size();
+				long jobCount = jobs.size();
+				long inputCount = jobs.stream().flatMap(job -> job.getInputs().stream()).count();
+				long parameterCount = jobs.stream().flatMap(job -> job.getParameters().stream()).count();
+				long metadataCount = datasets.stream().flatMap(dataset -> dataset.getMetadataFiles().stream()).count();
 
-			sessionSizes.add(new HashMap<String, Object>() {
-				{
-					put("sessionId", session.getSessionId());
-					put("name", session.getName());
-					put("size", sessionSize);
-					put("datasetCount", datasetsCount);
-					put("jobCount", jobCount);
-					put("inputCount", inputCount);
-					put("parameterCount", parameterCount);
-					put("metadataFileCount", metadataCount);
-				}
-			});
+				sessionSizes.add(new HashMap<String, Object>() {
+					{
+						put("sessionId", session.getSessionId());
+						put("name", session.getName());
+						put("size", sessionSize);
+						put("datasetCount", datasetsCount);
+						put("jobCount", jobCount);
+						put("inputCount", inputCount);
+						put("parameterCount", parameterCount);
+						put("metadataFileCount", metadataCount);
+					}
+				});
+			}
+
+			HashMap<String, Object> singleResult = new HashMap<String, Object>();
+			singleResult.put("userId", uId);
+			singleResult.put("sessions", sessionSizes);
+			
+			
+			results.add(singleResult);
 		}
-
-		return Response.ok(sessionSizes).build();
+		return Response.ok(results).build();
 	}
 
 		

@@ -78,7 +78,7 @@ public class SessionDbAdminClient {
 
 
 	// sessions for user
-	public String getSessionsForUser(String username) throws RestException {
+	public String getSessionsForUser(String... username) throws RestException {
 		return RestMethods.getJson(getUsersSessionsTarget(username));
 	}
 
