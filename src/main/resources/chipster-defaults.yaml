@@ -283,7 +283,7 @@ scheduler-get-jobs-from-db: true
 scheduler-bash-image-repository: ""
 # image tag
 scheduler-bash-image-tag: "latest"
-# image pull policy for jobs, for example local images need pull policy "Never"
+# image pull policy for jobs
 scheduler-bash-image-pull-policy: "IfNotPresent"
 # number of threads for BashJobScheduler
 scheduler-bash-threads: 4
@@ -382,9 +382,6 @@ toolbox-runtime-image-R-4.1.1: comp-20-04-r-deps
 toolbox-runtime-command-R-4.1.1-statistics: /opt/chipster/tools/R-4.1.1-statistics/bin/R
 toolbox-runtime-image-R-4.1.1-statistics: comp-20-04-r-deps
 
-toolbox-runtime-command-R-4.1.0-single-cell: /opt/chipster/tools/R-4.1.0-single-cell/bin/R
-toolbox-runtime-image-R-4.1.0-single-cell: comp-20-04-single-cell
-
 toolbox-runtime-command-R-4.2.0-single-cell: /opt/chipster/tools/R-4.2.0-single-cell/bin/R
 toolbox-runtime-image-R-4.2.0-single-cell: comp-20-04-single-cell
 
@@ -396,14 +393,17 @@ toolbox-runtime-command-R-4.2.3-single-cell: /opt/chipster/tools/R-4.2.3-single-
 toolbox-runtime-image-R-4.2.3-single-cell: comp-r-4-2-3-single-cell
 toolbox-runtime-tools-bin-path-R-4.2.3-single-cell: tools-bin
 
+# additional R package installed in image build, so the path is the same as in plain R-4.2.3 
+toolbox-runtime-command-R-4.2.3-cellbender: /opt/chipster/tools/R-4.2.3/bin/R
+toolbox-runtime-image-R-4.2.3-cellbender: comp-r-4-2-3-cellbender
+toolbox-runtime-tools-bin-path-R-4.2.3-cellbender: tools-bin
+
 toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
 toolbox-runtime-image-R-4.1.1-asv: comp-20-04-asv
 
 # special image, but default R. Only an apt package is needed, but Chipster's config system apparently requires the command too
 toolbox-runtime-command-R-4.1.1-fastqc: /opt/chipster/tools/R-4.1.1/bin/R
 toolbox-runtime-image-R-4.1.1-fastqc: comp-20-04-fastqc
-
-toolbox-runtime-command-R-3.6.1-phyloseq: /opt/chipster/tools/R-3.6.1-phyloseq/bin/R
 
 toolbox-runtime-command-R-4.2.0-phyloseq: /opt/chipster/tools/R-4.2.0-phyloseq/bin/R
 toolbox-runtime-image-R-4.2.0-phyloseq: comp-20-04-phyloseq
