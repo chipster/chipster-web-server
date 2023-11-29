@@ -13,7 +13,6 @@ import org.hibernate.Session;
 
 import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.rest.Config;
@@ -219,23 +218,25 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		}
 		
 		if (jaasUsername != null && authenticationProvider.authenticate(jaasUsername, password.toCharArray())) {
-			User user = addOrUpdateUser(jaasUsername);
+		    
+		    UserId userId = new UserId(jaasPrefix, jaasUsername);
+		    
+			addOrUpdateUser(userId);
 			// authenticate with username/password ok
-			return new AuthPrincipal(user.getUserId().toUserIdString(), getRoles(username));
+			return new AuthPrincipal(userId.toUserIdString(), getRoles(username));
 		}
 		throw new ForbiddenException("wrong username or password");
 	}
 
-	private User addOrUpdateUser(String username) {
-		User user = new User(jaasPrefix, username, null, null, username);
+	private void addOrUpdateUser(UserId userId) {	    
+	    
 		hibernate.runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
-				userTable.addOrUpdate(user, hibernateSession);
+				userTable.addOrUpdateFromLogin(userId, null, null, userId.getUsername(), hibernateSession);
 				return null;
 			}
 		});
-		return user;
 	}
 
 	public HashSet<String> getRoles(String username) {

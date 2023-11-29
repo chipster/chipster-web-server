@@ -56,11 +56,18 @@ public class AuthUserResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response put(User user, @QueryParam(USER_ID_KEY) String userId, @Context SecurityContext sc) {
-		
+	
+	    /* there are three userIds:
+	     * 1. from authentication in sc.getUserPrincipal()
+	     * 2: in query parameter
+	     * 3: in the user object
+	     * 
+	     * We can trust only the first one
+	     */
+	    
 		if (sc.getUserPrincipal().getName().equals(userId)) {
-			// don't allow malicious client to update other objects
-			user.setUserId(new UserId(userId));
-			userTable.update(user);
+			// get the userId from authentication, malicious client could change others
+			userTable.updateFromClient(sc.getUserPrincipal().getName(), user.getLatestSession(), user.getPreferences(), user.getTermsVersion());
 			return Response.noContent().build();
 		}
 		throw new ForbiddenException();			

@@ -11,18 +11,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jakarta.annotation.security.RolesAllowed;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.ForbiddenException;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.InternalServerErrorException;
-import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -35,11 +23,21 @@ import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
@@ -170,12 +168,11 @@ public class OidcResource {
 		}
 		
 		String organization = getClaim(oidcConfig.getClaimOrganization(), claims);				
-		User user = new User(userId.getAuth(), userId.getUsername(), email, organization, name);
 				
-		userTable.addOrUpdate(user);
+		userTable.addOrUpdateFromLogin(userId, email, organization, name);
 
 		HashSet<String> roles = Stream.of(Role.CLIENT, Role.OIDC).collect(Collectors.toCollection(HashSet::new));
-		String token = authTokens.createNewUserToken(userId.toUserIdString(), roles, user.getName());
+		String token = authTokens.createNewUserToken(userId.toUserIdString(), roles, name);
 
 		return token;	
 	}
