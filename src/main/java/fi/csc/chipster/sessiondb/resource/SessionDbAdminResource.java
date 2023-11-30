@@ -51,6 +51,7 @@ public class SessionDbAdminResource extends AdminResource {
 
 	private static Logger logger = LogManager.getLogger();
 	public static final String PATH_USERS_SESSIONS = "users/sessions";
+	public static final String PATH_USERS_QUOTA = "users/quota";
 
 //	private final static String SQL_ORPHAN_FILES =     "from File f    left join Dataset d on f.fileId = d.file                       where d.file is null";
 //	private final static String SQL_ORPHAN_DATASETS =  "from Dataset d left join Session s on d.datasetIdPair.sessionId = s.sessionId where s.sessionId is null";
@@ -218,28 +219,33 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getQuota(@QueryParam("userId") String userId, @Context SecurityContext sc) {
-	    	    
-	    long size = ruleTable.getTotalSize(userId);
+	public Response getQuota(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
+		logger.info("get quotas for " + userId);
+		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
+		
+		for (String uId: userId) {
+		    long size = ruleTable.getTotalSize(uId);
 
-		Long readWriteSessions = (Long) hibernate.session()
-				.createQuery("select count(*) from Rule where username=:username and readWrite=true")
-				.setParameter("username", userId).uniqueResult();
+		    Long readWriteSessions = (Long) hibernate.session()
+					.createQuery("select count(*) from Rule where username=:username and readWrite=true")
+					.setParameter("username", uId).uniqueResult();
 
-		Long readOnlySessions = (Long) hibernate.session()
-				.createQuery("select count(*) from Rule where username=:username and readWrite=false")
-				.setParameter("username", userId).uniqueResult();
+			Long readOnlySessions = (Long) hibernate.session()
+					.createQuery("select count(*) from Rule where username=:username and readWrite=false")
+					.setParameter("username", uId).uniqueResult();
 
-		HashMap<String, Object> responseObj = new HashMap<String, Object>() {
-			{
-				put("username", userId);
-				put("readWriteSessions", readWriteSessions);
-				put("readOnlySessions", readOnlySessions);
-				put("size", size);
-			}
-		};
+			HashMap<String, Object> singleUserQuotas = new HashMap<String, Object>() {
+				{
+					put("userId", uId);
+					put("readWriteSessions", readWriteSessions);
+					put("readOnlySessions", readOnlySessions);
+					put("size", size);
+				}
+			};
+			results.add(singleUserQuotas);
+		}
 
-		return Response.ok(responseObj).build();
+		return Response.ok(results).build();
 	}
 
 	@GET
@@ -247,7 +253,7 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getSessions(@QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
+	public Response getSessions(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 
 		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
 		

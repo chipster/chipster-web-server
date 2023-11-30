@@ -47,6 +47,56 @@ public class SessionDbAdminResourceTest {
         launcher.stop();
     }
     
+
+    @Test
+    public void getQuotasForUser() throws IOException, RestException {
+        
+        Session session1 = RestUtils.getRandomSession();        
+        user1Client.createSession(session1);
+
+        
+        // admin can get quotas for user1
+        String user1IdString = launcher.getUser1Credentials().getUsername();
+        
+        String json = adminClient.getQuotasForUser(user1IdString);
+        List<HashMap<String, Object>> resultList = getResultsList(json);
+        
+        assertTrue(resultList.get(0).get("userId").equals(user1IdString));
+        assertTrue(((Integer) resultList.get(0).get("readWriteSessions")) > 0);
+    }
+    
+    
+    @Test
+    public void getQuotaForMultipleUsers() throws IOException, RestException {
+        
+    	
+        // create sessions for users 1 and 2
+        Session session1 = RestUtils.getRandomSession();
+        Session session2 = RestUtils.getRandomSession();
+        Session session3 = RestUtils.getRandomSession();
+        Session session4 = RestUtils.getRandomSession();
+        user1Client.createSession(session1);
+        user1Client.createSession(session2);
+        user2Client.createSession(session3);
+        user2Client.createSession(session4);
+        
+        // admin can get all sessions for users 1 and 2
+        String user1IdString = launcher.getUser1Credentials().getUsername();
+        String user2IdString = launcher.getUser2Credentials().getUsername();
+        
+        String json = adminClient.getQuotasForUser(user1IdString, user2IdString);
+        List<HashMap<String, Object>> resultList = getResultsList(json);
+        
+        HashMap<String, Object> user1Quotas = getResultQuotasForUser(user1IdString, resultList);
+        HashMap<String, Object> user2Quotas = getResultQuotasForUser(user2IdString, resultList);
+        
+        assertTrue((Integer)user1Quotas.get("readWriteSessions") >= 2);
+        assertTrue((Integer)user2Quotas.get("readWriteSessions") >= 2);
+    }
+
+    
+    
+    
     @Test
     public void getSessionsForUser() throws IOException, RestException {
         
@@ -65,7 +115,7 @@ public class SessionDbAdminResourceTest {
         String json = adminClient.getSessionsForUser(user1IdString);
         List<HashMap<String, Object>> resultList = getResultsList(json);
         
-        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, resultList);
+        List<HashMap<String, Object>> user1Sessions = getResultSessionsForUser(user1IdString, resultList);
         assertTrue(containsSession(sessionId1.toString(), user1Sessions));
     }
 
@@ -91,8 +141,8 @@ public class SessionDbAdminResourceTest {
         String json = adminClient.getSessionsForUser(user1IdString, user2IdString);
         List<HashMap<String, Object>> resultList = getResultsList(json);
         
-        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, resultList);
-        List<HashMap<String, Object>> user2Sessions = getResultsSessionsForUser(user2IdString, resultList);
+        List<HashMap<String, Object>> user1Sessions = getResultSessionsForUser(user1IdString, resultList);
+        List<HashMap<String, Object>> user2Sessions = getResultSessionsForUser(user2IdString, resultList);
 
         
         assertTrue(containsSession(sessionId1.toString(), user1Sessions));
@@ -129,7 +179,7 @@ public class SessionDbAdminResourceTest {
         String json = adminClient.getSessionsForUser(user1IdString);
         List<HashMap<String, Object>> resultList = getResultsList(json);
         
-        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, resultList);
+        List<HashMap<String, Object>> user1Sessions = getResultSessionsForUser(user1IdString, resultList);
         assertTrue(user1Sessions.size() == 0);
     }
 
@@ -168,7 +218,7 @@ public class SessionDbAdminResourceTest {
         String user1sessionsJson = adminClient.getSessionsForUser(user1IdString);
         List<HashMap<String, Object>> user1ResultList = getResultsList(user1sessionsJson);
         
-        List<HashMap<String, Object>> user1Sessions = getResultsSessionsForUser(user1IdString, user1ResultList);
+        List<HashMap<String, Object>> user1Sessions = getResultSessionsForUser(user1IdString, user1ResultList);
         assertTrue(user1Sessions.size() == 0);
 
         
@@ -176,7 +226,7 @@ public class SessionDbAdminResourceTest {
         String user2sessionsJson = adminClient.getSessionsForUser(user2IdString);
         List<HashMap<String, Object>> user2ResultList = getResultsList(user2sessionsJson);
         
-        List<HashMap<String, Object>> user2Sessions = getResultsSessionsForUser(user2IdString, user2ResultList);
+        List<HashMap<String, Object>> user2Sessions = getResultSessionsForUser(user2IdString, user2ResultList);
         assertTrue(user2Sessions.size() == 0);
     }
 
@@ -191,6 +241,19 @@ public class SessionDbAdminResourceTest {
 
     
     
+     private HashMap<String, Object> getResultQuotasForUser(String userId, List<HashMap<String, Object>> results) {
+    	
+    	List<HashMap<String, Object>> filteredResultsList = results.stream().filter(singleUserResultMap -> singleUserResultMap.get("userId").equals(userId)).collect(Collectors.toList());
+
+    	// the results should only contain each userId once
+    	assertTrue(filteredResultsList.size() == 1);
+    	return filteredResultsList.get(0);
+    }
+
+    
+    
+    
+    
     /**
      * Returns the list of sessions for a single user
      * 
@@ -198,7 +261,7 @@ public class SessionDbAdminResourceTest {
      * @param results
      * @return
      */
-    private List<HashMap<String, Object>> getResultsSessionsForUser(String userId, List<HashMap<String, Object>> results) {
+     private List<HashMap<String, Object>> getResultSessionsForUser(String userId, List<HashMap<String, Object>> results) {
     	
     	List<List<HashMap<String, Object>>> filteredResultsList = results.stream().filter(singleUserResultMap -> singleUserResultMap.get("userId").equals(userId)).map(singleUserResultMap -> (List<HashMap<String, Object>>)singleUserResultMap.get("sessions")).collect(Collectors.toList());
 

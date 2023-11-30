@@ -72,18 +72,30 @@ public class SessionDbAdminClient {
 		return getSessionDbAdminTarget().path(SessionDbAdminResource.PATH_USERS_SESSIONS);
 	}
 
-	private WebTarget getUsersSessionsTarget(String... username) {
-		return getUsersSessionsTarget().queryParam("userId", (Object[])username);
+	private WebTarget getUsersSessionsTarget(String... userId) {
+		return getUsersSessionsTarget().queryParam("userId", (Object[])userId);
 	}
 
+	private WebTarget getUsersQuotasTarget() {
+		return getSessionDbAdminTarget().path(SessionDbAdminResource.PATH_USERS_QUOTA);
+	}
+
+	private WebTarget getUsersQuotasTarget(String... userId) {
+		return getUsersQuotasTarget().queryParam("userId", (Object[])userId);
+	}
+
+	// quotas for user
+	public String getQuotasForUser(String... userId) throws RestException {
+		return RestMethods.getJson(getUsersQuotasTarget(userId));
+	}
 
 	// sessions for user
-	public String getSessionsForUser(String... username) throws RestException {
-		return RestMethods.getJson(getUsersSessionsTarget(username));
+	public String getSessionsForUser(String... userId) throws RestException {
+		return RestMethods.getJson(getUsersSessionsTarget(userId));
 	}
 
-	public void deleteSessionsForUser(String... username) throws RestException {
-		RestMethods.delete(getUsersSessionsTarget(username));
+	public void deleteSessionsForUser(String... userId) throws RestException {
+		RestMethods.delete(getUsersSessionsTarget(userId));
 	}
 
 	

@@ -494,7 +494,7 @@ public class RuleTable {
                 "select sum(size) from file inner join ("
                 + "    select distinct dataset.fileid from rule "
                 + "        inner join dataset on rule.sessionid=dataset.sessionid "
-                + "    where rule.username=:username) as dataset_fileid on dataset_fileid.fileid=file.fileid")
+                + "    where rule.username=:username and readWrite=true) as dataset_fileid on dataset_fileid.fileid=file.fileid")
                 .setParameter("username", username).getSingleResult();
         
         if (size == null) {
