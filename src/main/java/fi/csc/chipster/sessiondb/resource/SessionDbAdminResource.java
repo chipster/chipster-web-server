@@ -236,27 +236,37 @@ public class SessionDbAdminResource extends AdminResource {
 		
 		for (String uId: userIdsToGet) {
 			HashMap<String, Object> singleUserQuotas = new HashMap<String, Object>();
-			try {
-		    	
-		    	long size = ruleTable.getTotalSize(uId);
-	
-			    Long readWriteSessions = (Long) hibernate.session()
-						.createQuery("select count(*) from Rule where username=:username and readWrite=true")
-						.setParameter("username", uId).uniqueResult();
-	
-				Long readOnlySessions = (Long) hibernate.session()
-						.createQuery("select count(*) from Rule where username=:username and readWrite=false")
-						.setParameter("username", uId).uniqueResult();
-	
+			
+			if (uId != null && !uId.equals("null")) {
+				try {
+			    	
+			    	long size = ruleTable.getTotalSize(uId);
+		
+				    Long readWriteSessions = (Long) hibernate.session()
+							.createQuery("select count(*) from Rule where username=:username and readWrite=true")
+							.setParameter("username", uId).uniqueResult();
+		
+					Long readOnlySessions = (Long) hibernate.session()
+							.createQuery("select count(*) from Rule where username=:username and readWrite=false")
+							.setParameter("username", uId).uniqueResult();
+		
+						singleUserQuotas.put("userId", uId);
+						singleUserQuotas.put("readWriteSessions", readWriteSessions);
+						singleUserQuotas.put("readOnlySessions", readOnlySessions);
+						singleUserQuotas.put("size", size);
+					
+			    } catch (Exception e) {
+					logger.warn("failed to get quota for user " + uId, e);
 					singleUserQuotas.put("userId", uId);
-					singleUserQuotas.put("readWriteSessions", readWriteSessions);
-					singleUserQuotas.put("readOnlySessions", readOnlySessions);
-					singleUserQuotas.put("size", size);
-				
-		    } catch (Exception e) {
-				logger.warn("failed to get quota for user " + uId, e);
+			    }
+			} else {
+				if (uId == null) {
+					logger.warn("userId is null");
+				} else {
+					logger.warn("userId is 'null'");
+				}
 				singleUserQuotas.put("userId", uId);
-		    }
+			}
 			results.add(singleUserQuotas);
 		}
 
