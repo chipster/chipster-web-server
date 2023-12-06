@@ -118,7 +118,7 @@ public class SessionDb {
 		this.datasetTokenResource = new SessionDbTokenResource(ruleTable, authService);
 		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
-		this.userResource = new UserResource(hibernate);
+		this.userResource = new UserResource(hibernate, ruleTable);
 		this.newsApi = new NewsApi(hibernate, sessionDbApi);
 		this.newsResource = new NewsResource(newsApi);
 

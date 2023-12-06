@@ -145,6 +145,19 @@ public class RuleTable {
 				.setParameter("sharedBy", userIdString).list();
 	}
 
+	
+	
+	List<String> getUsers() {
+		@SuppressWarnings("unchecked")
+		List<String> users = hibernate.session().createQuery("select distinct(username) from Rule").list();
+
+		// everyone isn't a real user
+		users.remove(RuleTable.EVERYONE);
+
+		return users;
+	}
+	
+	
 	/**
 	 * Stream the whole table as a json array
 	 * 

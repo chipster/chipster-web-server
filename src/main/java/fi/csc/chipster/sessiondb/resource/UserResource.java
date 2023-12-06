@@ -26,9 +26,11 @@ public class UserResource {
 	private static Logger logger = LogManager.getLogger();
 
 	private HibernateUtil hibernate;
+	private RuleTable ruleTable;
 
-	public UserResource(HibernateUtil hibernate) {
+	public UserResource(HibernateUtil hibernate, RuleTable ruleTable) {
 		this.hibernate = hibernate;
+		this.ruleTable = ruleTable;
 	}
 
 	@GET
@@ -36,13 +38,7 @@ public class UserResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {
-
-		@SuppressWarnings("unchecked")
-		List<String> users = hibernate.session().createQuery("select distinct(username) from Rule").list();
-
-		// everyone isn't a real user
-		users.remove(RuleTable.EVERYONE);
-
+		List<String> users = ruleTable.getUsers();
 		return Response.ok(users).build();
 	}
 

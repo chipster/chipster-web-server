@@ -219,11 +219,21 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getQuota(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
-		logger.info("get quotas for " + userId);
+	public Response getQuota(@QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
+		
+		List<String> userIdsToGet;
+		if (userId == null || userId.size() == 0) {
+			logger.info("get quotas for all users");
+			userIdsToGet = ruleTable.getUsers();
+		} else {
+			logger.info("get quotas for " + userId);
+			userIdsToGet = userId;
+		}
+		
+		
 		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
 		
-		for (String uId: userId) {
+		for (String uId: userIdsToGet) {
 		    long size = ruleTable.getTotalSize(uId);
 
 		    Long readWriteSessions = (Long) hibernate.session()
