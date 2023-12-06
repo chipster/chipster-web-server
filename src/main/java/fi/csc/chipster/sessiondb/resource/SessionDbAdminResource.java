@@ -225,6 +225,7 @@ public class SessionDbAdminResource extends AdminResource {
 		if (userId == null || userId.size() == 0) {
 			logger.info("get quotas for all users");
 			userIdsToGet = ruleTable.getUsers();
+			logger.info("got " + userIdsToGet.size() + " users");
 		} else {
 			logger.info("get quotas for " + userId);
 			userIdsToGet = userId;
@@ -234,24 +235,28 @@ public class SessionDbAdminResource extends AdminResource {
 		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
 		
 		for (String uId: userIdsToGet) {
-		    long size = ruleTable.getTotalSize(uId);
-
-		    Long readWriteSessions = (Long) hibernate.session()
-					.createQuery("select count(*) from Rule where username=:username and readWrite=true")
-					.setParameter("username", uId).uniqueResult();
-
-			Long readOnlySessions = (Long) hibernate.session()
-					.createQuery("select count(*) from Rule where username=:username and readWrite=false")
-					.setParameter("username", uId).uniqueResult();
-
-			HashMap<String, Object> singleUserQuotas = new HashMap<String, Object>() {
-				{
-					put("userId", uId);
-					put("readWriteSessions", readWriteSessions);
-					put("readOnlySessions", readOnlySessions);
-					put("size", size);
-				}
-			};
+			HashMap<String, Object> singleUserQuotas = new HashMap<String, Object>();
+			try {
+		    	
+		    	long size = ruleTable.getTotalSize(uId);
+	
+			    Long readWriteSessions = (Long) hibernate.session()
+						.createQuery("select count(*) from Rule where username=:username and readWrite=true")
+						.setParameter("username", uId).uniqueResult();
+	
+				Long readOnlySessions = (Long) hibernate.session()
+						.createQuery("select count(*) from Rule where username=:username and readWrite=false")
+						.setParameter("username", uId).uniqueResult();
+	
+					singleUserQuotas.put("userId", uId);
+					singleUserQuotas.put("readWriteSessions", readWriteSessions);
+					singleUserQuotas.put("readOnlySessions", readOnlySessions);
+					singleUserQuotas.put("size", size);
+				
+		    } catch (Exception e) {
+				logger.warn("failed to get quota for user " + uId, e);
+				singleUserQuotas.put("userId", uId);
+		    }
 			results.add(singleUserQuotas);
 		}
 
