@@ -85,6 +85,13 @@ public class RuleResource {
 			throw new BadRequestException("authorization already has an id, post not allowed");
 		}
 
+		if (newRule.getUsername() == null || 
+				newRule.getUsername().length() < 1 || 
+				!(newRule.getUsername().equals(newRule.getUsername().trim()))) {
+			throw new BadRequestException("invalid userId " + newRule.getUsername());
+		}
+		
+		
 		if (RuleTable.EVERYONE.equals(newRule.getUsername())) {
 			if (!ruleTable.isAllowedToShareToEveryone(sc.getUserPrincipal().getName())) {
 				throw new ForbiddenException("sharing to everyone is not allowed for this user");
