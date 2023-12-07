@@ -341,12 +341,18 @@ public class SessionDbAdminResource extends AdminResource {
 	@Transaction
 	public Response deleteSessions(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 		logger.info("deleting sessions for " + userId);
+		long requestStartTime = System.currentTimeMillis();
 		List<Rule> deletedRules = new ArrayList<Rule>();
 		for (String uId: userId) {
+			logger.info("deleting rules for " + uId);
+			long startTime = System.currentTimeMillis();
 			deletedRules.addAll(this.sessionDbApi.deleteRulesWithUser(uId));
+			long endTime = System.currentTimeMillis();
+			logger.info("deleting rules for " + uId + " done, took " + (endTime - startTime) + " ms");
 		}
 		
-		logger.info("deleted " + deletedRules.size() + " rules");
+		long requestEndTime = System.currentTimeMillis();
+		logger.info("delete sessions request done, deleted " + deletedRules.size() + " rules, took " + (requestEndTime - requestStartTime) + " ms");
 		return Response.ok(deletedRules).build();
 	}
 	
