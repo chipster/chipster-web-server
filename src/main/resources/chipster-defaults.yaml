@@ -398,6 +398,14 @@ toolbox-runtime-command-R-4.2.3-cellbender: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3-cellbender: comp-r-4-2-3-cellbender
 toolbox-runtime-tools-bin-path-R-4.2.3-cellbender: tools-bin
 
+toolbox-runtime-command-R-4.3.2: /opt/chipster/tools/R-4.3.2/bin/R
+toolbox-runtime-image-R-4.3.2: comp-r-4-3-2
+toolbox-runtime-tools-bin-path-R-4.3.2: tools-bin
+
+toolbox-runtime-command-R-4.3.2-single-cell: /opt/chipster/tools/R-4.3.2-single-cell/bin/R
+toolbox-runtime-image-R-4.3.2-single-cell: comp-r-4-3-2-single-cell
+toolbox-runtime-tools-bin-path-R-4.3.2-single-cell: tools-bin
+
 toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
 toolbox-runtime-image-R-4.1.1-asv: comp-20-04-asv
 
