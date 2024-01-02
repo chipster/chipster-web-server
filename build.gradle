@@ -82,10 +82,11 @@ task checkTools(type: JavaExec) {
 dependencies {
 
 	// logging
-    implementation "org.apache.logging.log4j:log4j-api:+"
-    implementation "org.apache.logging.log4j:log4j-core:+"
-    implementation "org.apache.logging.log4j:log4j-jul:+"
-    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:+"
+	// stay in 2.+ , because 3.0.0-beta1 is compiled with Java 17 
+    implementation "org.apache.logging.log4j:log4j-api:2.+"
+    implementation "org.apache.logging.log4j:log4j-core:2.+"
+    implementation "org.apache.logging.log4j:log4j-jul:2.+"
+    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.+"
 
     // jersey
     implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.1"
