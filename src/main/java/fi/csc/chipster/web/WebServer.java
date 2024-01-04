@@ -78,7 +78,7 @@ public class WebServer {
         ContextHandler contextHandler = new ContextHandler("/");
         contextHandler.setResourceBase(rootPath);
         contextHandler.setHandler(forwardingResourceHandler);
-        // TODO how should SymlinkAllowedResourceAliasChecker be used? At least this
+        // how should SymlinkAllowedResourceAliasChecker be used? At least this
         // seems to work...
         contextHandler.addAliasCheck(new SymlinkAllowedResourceAliasChecker(contextHandler));
 

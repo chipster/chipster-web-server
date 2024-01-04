@@ -44,7 +44,7 @@ public class BashJobSchedulerTest {
 		launcher.stop();
 	}
 
-	// FIXME commit a tool for this test first
+	// commit a tool for this test first
 	// /**
 	// * Test that bash job scheduler run new jobs
 	// * @throws Exception

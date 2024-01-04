@@ -57,7 +57,7 @@ public class RetryHandler {
 	public boolean onConnectFailure(Exception exception) {
 		logger.info("websocket client " + name + " connection failure", exception);
 
-		// TODO how to check HTTP upgrade request errors
+		// how to check HTTP upgrade request errors?
 		// if (exception instanceof DeploymentException && exception.getCause()
 		// instanceof HandshakeException) {
 		// logger.error("unrecoverable connection failure, reconnection cancelled");

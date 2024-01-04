@@ -23,7 +23,6 @@ public class RestJobMessage implements GenericJobMessage {
 	private final JobCommand jobCommand;
 	private final Job job;
 
-	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
 	public RestJobMessage(JobCommand jobCommand, Job job) {

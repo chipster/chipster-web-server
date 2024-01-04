@@ -123,7 +123,7 @@ public class TypeTagResourceTest {
 		UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
 
 		// upload a file content, because TypeService skips files without content
-		// TODO why other tests work?
+		// why other tests work?
 		FileResourceTest.uploadInputStream(launcher.getUser1Target(Role.FILE_BROKER), sessionId, datasetId,
 				IOUtils.toInputStream("abc", "UTF-8"));
 

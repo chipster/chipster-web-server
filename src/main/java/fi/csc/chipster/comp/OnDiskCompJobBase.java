@@ -220,7 +220,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 }
 
                 catch (Exception e) {
-                    // TODO continue or return? also note the super.postExecute()
+                    // continue or return? also note the super.postExecute()
                     logger.error("could not put file to file broker", e);
                     this.setErrorMessage("Could not send output file.");
                     this.setOutputText(Exceptions.getStackTrace(e));

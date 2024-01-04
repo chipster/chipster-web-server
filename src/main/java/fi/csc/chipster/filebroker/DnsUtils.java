@@ -50,7 +50,7 @@ public class DnsUtils {
 			this.priority = priority;
 			this.weight = weight;
 			this.port = port;
-			// FIXME should we keep the dot or not?
+			// should we keep the dot or not?
 			this.host = host.replaceAll("\\\\.$", "");
 			;
 		}

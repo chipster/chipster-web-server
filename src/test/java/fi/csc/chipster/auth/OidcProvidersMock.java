@@ -43,7 +43,7 @@ public class OidcProvidersMock implements OidcProviders {
 
 	@Override
 	public UserInfo getUserInfo(OidcConfig oidcConfig, String accessTokenString, boolean isDebug) {
-		// TODO Auto-generated method stub
+		// Auto-generated method stub
 		return null;
 	}
 

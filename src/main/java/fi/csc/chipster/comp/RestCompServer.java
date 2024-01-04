@@ -680,7 +680,7 @@ public class RestCompServer
 	 * enough job is found as the following jobs are newer (almost always, see
 	 * above).
 	 * 
-	 * TODO send BUSY if timeout?
+	 * todo send BUSY if timeout?
 	 * 
 	 */
 	private class TimeoutTimerTask extends TimerTask {

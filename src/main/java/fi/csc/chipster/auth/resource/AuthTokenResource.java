@@ -101,7 +101,7 @@ public class AuthTokenResource {
 	 * If that is impractical for some service, it can also use this endpoint to do
 	 * the validation.
 	 * 
-	 * TODO find a way to pass the client's error (NotAuthorized or Forbidden), to
+	 * todo: find a way to pass the client's error (NotAuthorized or Forbidden), to
 	 * make it
 	 * easier to switch between these two ways of validation.
 	 * 

@@ -20,7 +20,7 @@ public class CompUtils {
 			MetadataFile versionsMetadataFile = new MetadataFile(METADATA_FILE_NAME_APPLICATION_VERSIONS,
 					result.getVersionsJson());
 
-			// TODO for now, just remove possible existing versions file, should not exist
+			// for now, just remove possible existing versions file, should not exist
 			// really
 			List<MetadataFile> updatedMetadataFiles = dbJob.getMetadataFiles().stream()
 					.filter(metadataFile -> metadataFile.getName().equals(METADATA_FILE_NAME_APPLICATION_VERSIONS))

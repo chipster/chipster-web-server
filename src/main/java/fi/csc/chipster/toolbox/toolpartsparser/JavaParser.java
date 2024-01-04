@@ -30,7 +30,7 @@ public class JavaParser implements ToolPartsParser {
 		JavaCompJobBase jobInstance;
 		jobInstance = (JavaCompJobBase) jobClass.getDeclaredConstructor().newInstance();
 
-		// TODO what to do with other parts
+		// what to do with other parts?
 		ParsedScript ps = new ParsedScript();
 		ps.SADL = jobInstance.getSADL();
 		ps.source = "Source code for this tool is available within Chipster source code.";

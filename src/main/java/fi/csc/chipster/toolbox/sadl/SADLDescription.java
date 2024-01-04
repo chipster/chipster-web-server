@@ -453,14 +453,6 @@ public class SADLDescription {
 		return SADLGenerator.generate(this);
 	}
 
-	/**
-	 * Deprecated.
-	 */
-	// FIXME remove after not using VVSADL anymore
-	public void setID(String id) {
-		this.name.setID(id);
-	}
-
 	public void setSlotCount(Integer slotCount) {
 		this.slotCount = slotCount;
 	}

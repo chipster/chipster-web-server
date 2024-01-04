@@ -87,7 +87,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 
-		// TODO why does this even have this public api server, when all resources are
+		// why does this even have this public api server, when all resources are
 		// in the admin api server?
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(new HibernateRequestFilter(hibernate))
