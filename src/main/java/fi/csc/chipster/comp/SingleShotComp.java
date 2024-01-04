@@ -3,6 +3,7 @@ package fi.csc.chipster.comp;
 import java.io.File;
 import java.net.InetAddress;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -64,16 +65,16 @@ public class SingleShotComp
 	/**
 	 * Loggers.
 	 */
-	private static Logger logger = LogManager.getLogger();
+	private final Logger logger = LogManager.getLogger();
 
-	private int jobTimeout;
+	private final int jobTimeout;
 
 	/**
 	 * Id of the comp server instance.
 	 */
-	private UUID compId = UUID.randomUUID();
+	private final UUID compId = UUID.randomUUID();
 
-	private File workDir;
+	private final File workDir;
 
 	private ToolboxClientComp toolboxClient;
 
@@ -85,31 +86,29 @@ public class SingleShotComp
 	private ExecutorService executorService;
 
 	// synchronize with this object when accessing the job maps below
-	private Object jobsLock = new Object();
+	private final Object jobsLock = new Object();
 	private CompJob job;
-	@SuppressWarnings("unused")
-	private String localFilebrokerPath;
-	@SuppressWarnings("unused")
-	private String overridingFilebrokerIp;
 
 	private ServiceLocatorClient serviceLocator;
 	
 	private SessionDbClient sessionDbClient;
 
 	private SingleShotResourceMonitor resourceMonitor;
-	private int monitoringInterval;
+	private final int monitoringInterval;
 	private String hostname;
-	private Config config;
+	private final Config config;
 	private Long storageLimit;
 
 	/**
 	 * 
+	 * @param configURL
 	 * @param config
 	 * @param sessionToken 
-	 * @param compToken 
 	 * @throws Exception
 	 */
 	public SingleShotComp(String configURL, Config config, String sessionToken) throws Exception {
+
+		logger.info("SingleShotComp started");
 		
 		this.config = config;
 			
@@ -166,8 +165,10 @@ public class SingleShotComp
 		try {			
 
 			if (args.length != 3) {
-				logger.error("wrong number of arguments");
-				logger.error("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID SESSION_TOKEN");
+
+				// logger of the startup class cannot be static
+				System.out.println("wrong number of arguments");
+				System.out.println("Usage: " + SingleShotComp.class + " SESSION_ID JOB_ID SESSION_TOKEN");
 				System.exit(1);
 			}
 
@@ -182,7 +183,8 @@ public class SingleShotComp
 			comp.runJob(compJob);
 			
 		} catch (Exception e) {
-			logger.error("error in comp launch", e);
+			System.err.println("error in comp launch");
+			e.printStackTrace();
 		}
 	}
 
@@ -196,30 +198,33 @@ public class SingleShotComp
 			// run the job
 			executorService.execute(job);
 			
-			logger.info("executing job " + job.getToolDescription().getDisplayName() + "("
+			logger.info("executing job '" + job.getToolDescription().getDisplayName() + "' ("
 					+ job.getToolDescription().getID() + ")" + ", " + job.getId() + ", "
 					+ job.getInputMessage().getUsername());
 		}
 	}
 
+	@Override
 	public File getWorkDir() {
 		return workDir;
 	}
 
+	@Override
 	public boolean shouldSweepWorkDir() {
 		return true;
 	}
 
+	@Override
 	public void removeRunningJob(CompJob job) {
-		String hostname = RestUtils.getHostname();
+		String humanReadableHostname = RestUtils.getHostname();
 
 		char delimiter = ';';
 		try {
 			logger.info(job.getId() + delimiter + job.getInputMessage().getToolId().replaceAll("\"", "") + delimiter
-					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
+					+ job.getState() + delimiter + job.getStateDetail() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
-					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem()));
+					humanReadableHostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem()));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}
@@ -239,8 +244,10 @@ public class SingleShotComp
 	 * 
 	 * For this reason, all the data must be sent before this method returns.
 	 * 
-	 * 
+	 * @param jobMessage
+	 * @param result
 	 */
+	@Override
 	public void sendResultMessage(GenericJobMessage jobMessage, GenericResultMessage result) {
 		
 		if (result.getState() == JobState.CANCELLED) {
@@ -279,29 +286,40 @@ public class SingleShotComp
 			
 			// tool versions
 			CompUtils.addVersionsToDbJob(result, dbJob);
+
+			// comp fills in parameters, because client can send only partial list
+			if (result.getParameters() != null) {
+				logger.debug("update parameters in DB");
+				dbJob.setParameters(List.copyOf(result.getParameters().values()));
+			}
 						
 			dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
 			dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
 			
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
+
+			logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
+
 		} catch (RestException e) {
 			logger.error("could not update the job", e);
+		} catch (Exception e) {
+			logger.error("failed to send result message", e);
 		}
-
-		logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
 	}
 
+	@Override
 	public LegacyRestFileBrokerClient getFileBrokerClient() {
 		return this.fileBroker;
 	}
 
+	@Override
 	public ToolboxClientComp getToolboxClient() {
 		return this.toolboxClient;
 	}
 
 	private CompJob getCompJob(UUID sessionId, UUID jobId) {
 
-		Job dbJob = null;
+		Job dbJob;
 		try {
 			dbJob = sessionDbClient.getJob(sessionId, jobId);
 		} catch (RestException e) {
@@ -316,7 +334,7 @@ public class SingleShotComp
 			return null;
 		}
 
-		ToolboxTool toolboxTool = null;
+		ToolboxTool toolboxTool;
 		try {
 			toolboxTool = toolboxClient.getTool(toolId);
 		} catch (Exception e) {
@@ -344,13 +362,13 @@ public class SingleShotComp
 		}
 
 		// get factory from runtime and create the job instance
-		CompJob job;
+		CompJob compJob;
 		JobCommand jobCommand = new JobCommand(sessionId, jobId, null, null);
 		RestJobMessage jobMessage = new RestJobMessage(jobCommand, dbJob);
 
 		try {
 			JobFactory jobFactory = RuntimeRepository.getJobFactory(runtime, config, this.workDir, toolId);
-			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob, runtime);
+			compJob = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob, runtime);
 
 		} catch (CompException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);
@@ -361,9 +379,9 @@ public class SingleShotComp
 			return null;
 		}
 
-		job.setReceiveTime(new Date());
+		compJob.setReceiveTime(new Date());
 	
-		return job;		
+		return compJob;		
 	}
 
 	public void shutdown() {

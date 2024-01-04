@@ -3,7 +3,7 @@ package fi.csc.chipster.tools.model;
 /**
  * Lists all supported data types.
  * 
- * @author Petri Klemelä
+ * @author Petri Klemela
  * 
  */
 public enum DataType {

@@ -4,7 +4,7 @@ package fi.csc.chipster.tools.model;
  * DNA strand, either forward or reverse. Value BOTH is usually used in tracks to denote that
  * information from both strands should be included in a single track.
  * 
- * @author Petri Klemelä
+ * @author Petri Klemela
  */
 public enum Strand {
 	FORWARD, 

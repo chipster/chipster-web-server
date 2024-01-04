@@ -4,11 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.util.List;
+import java.util.LinkedHashMap;
 
 import fi.csc.chipster.comp.Exceptions;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.comp.java.JavaCompJobBase;
+import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.tools.parsers.DataUrl;
 import fi.csc.chipster.tools.parsers.TsvLineParser;
 import fi.csc.chipster.tools.parsers.TsvSorter;
@@ -34,11 +35,11 @@ public class SortTsv extends JavaCompJobBase {
 
 		try {
 			// files
-			File inputFile = new File(jobDataDir, toolDescription.getInputFiles().get(0).getFileName()); 
+			File inputFile = new File(jobDataDir, toolDescription.getInputFiles().get(0).getFileName().getID()); 
 			File outputFile = new File(jobDataDir, toolDescription.getOutputFiles().get(0).getFileName().getID());
 			
-			List<String> parameters = inputMessage.getParameters(JAVA_PARAMETER_SECURITY_POLICY, toolDescription);			
-			String columnString = parameters.get(0);
+			LinkedHashMap<String, Parameter> parameters = inputMessage.getParameters(JAVA_PARAMETER_SECURITY_POLICY, toolDescription);			
+			String columnString = parameters.get(COLUMN_ID).getValue();
 
 			int chrColumn = 0; //if not second, this will apply
 			if (SECOND_ID.equals(columnString)) {

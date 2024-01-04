@@ -8,7 +8,7 @@ package fi.csc.chipster.tools.model;
  * are normalised and normalised name is used in all comparisons,
  * so naming conventions can be mixed.</p>
  * 
- * @author Petri Klemelä, Aleksi Kallio
+ * @author Petri Klemela, Aleksi Kallio
  */
 public class Chromosome implements Comparable<Chromosome> {
 

@@ -4,11 +4,12 @@
  */
 package fi.csc.chipster.comp;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
-import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 
 
 /**
@@ -18,51 +19,14 @@ import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
  */
 public class ToolDescription {
 
-	/**
-	 * Describes one parameter, such as "number of iterations".
-	 * 
-	 */
-	public static class ParameterDescription {
-
-		private String name;
-		private String comment;
-		private ParameterType type;
-		
-		public ParameterDescription(String name, String comment, ParameterType type) {
-			this.name = name;
-			this.comment = comment;
-			this.type = type;
-		}
-
-		public boolean isNumeric() {
-			return type.isNumeric();
-		}
-		
-		/**
-		 * Return true if this parameter is checked by the normal security policy
-		 * 
-		 * @return
-		 */
-		public boolean isChecked() {
-			return this.type != ParameterType.UNCHECKED_STRING;
-		}
-
-		public String getComment() {
-			return comment;
-		}
-
-		public String getName() {
-			return name;
-		}
-	}
 	
 	/**
 	 * Describes an output (parameter name and file name). 
 	 */
 	public static class OutputDescription {
-        private Name fileName;
-        private boolean optional;
-        private boolean meta;
+        private final Name fileName;
+        private final boolean optional;
+        private final boolean meta;
 
         public Name getFileName() {
             return fileName;
@@ -88,15 +52,21 @@ public class ToolDescription {
 	 * Describes an input (parameter name and file name). 
 	 */
 	public static class InputDescription {
-        private String fileName;
+        private final Name fileName;
+        private final boolean optional;
 
-        public String getFileName() {
+        public Name getFileName() {
             return fileName;
         }
 	    
-	    public InputDescription(String fileName) {
+	    public InputDescription(Name fileName, boolean optional) {
 	        this.fileName = fileName;
+	        this.optional = optional;
 	    }
+
+        public boolean isOptional() {
+            return optional;
+        }
 	}
 
 	
@@ -124,9 +94,9 @@ public class ToolDescription {
 
 	
 
-	private List<InputDescription> inputFiles = new LinkedList<InputDescription>();
-	private List<OutputDescription> outputFiles = new LinkedList<OutputDescription>();
-	private List<ParameterDescription> parameters = new LinkedList<ParameterDescription>();
+	private final List<InputDescription> inputFiles = new LinkedList<>();
+	private final List<OutputDescription> outputFiles = new LinkedList<>();
+	private final LinkedHashMap<String, Parameter> parameters = new LinkedHashMap<>();
 	private String sourceCode;
 	private String helpURL = null;
 
@@ -150,12 +120,12 @@ public class ToolDescription {
 		return outputFiles;
 	}
 	
-	public Iterable<ParameterDescription> getParameters() {
+	public LinkedHashMap<String, Parameter> getParameters() {
 		return parameters;
 	}
 	
-	public void addParameter(ParameterDescription pd) {
-		parameters.add(pd);
+	public void addParameter(fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter parameter) {
+		parameters.put(parameter.getName().getID(), parameter);
 	}
 	
 	public String getInitialiser() {
@@ -199,8 +169,8 @@ public class ToolDescription {
 	}
 	
 
-	public void addInputFile(String fileName) {
-		inputFiles.add(new InputDescription(fileName));
+	public void addInputFile(Name fileName, boolean optional) {
+		inputFiles.add(new InputDescription(fileName, optional));
 	}
 	
 	public void addOutputFile(Name fileName, boolean optional, boolean meta) {

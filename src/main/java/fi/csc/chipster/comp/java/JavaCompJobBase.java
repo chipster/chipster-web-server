@@ -4,7 +4,7 @@ import fi.csc.chipster.comp.JobCancelledException;
 import fi.csc.chipster.comp.OnDiskCompJobBase;
 import fi.csc.chipster.comp.ParameterSecurityPolicy;
 import fi.csc.chipster.comp.ToolDescription;
-import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 
 public abstract class JavaCompJobBase extends OnDiskCompJobBase {
 
@@ -13,15 +13,11 @@ public abstract class JavaCompJobBase extends OnDiskCompJobBase {
 		private static final int MAX_VALUE_LENGTH = 10000;
 
 		@Override
-		public boolean isValueValid(String value, ParameterDescription parameterDescription) {
-
-			// Check parameter size (DOS protection)
-			if (value.length() > MAX_VALUE_LENGTH) {
-				return false;
-			}
+		public boolean isValueValid(String value, Parameter parameterDescription) {
 
 			// No need to check content, parameters are passed inside Java Strings
-			return true;
+			// Check only the parameter size (DOS protection)
+			return value.length() <= MAX_VALUE_LENGTH;
 		}
 
 		@Override

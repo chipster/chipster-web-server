@@ -1,8 +1,10 @@
 package fi.csc.chipster.tools.ngs.regions;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.tools.model.Feature;
 import fi.csc.chipster.tools.parsers.RegionOperations;
 
@@ -20,21 +22,25 @@ public class FindOverlappingTool extends RegionTool {
 	
 
 	@Override
-	protected LinkedList<Feature> operate(LinkedList<List<Feature>> inputs, List<String> parameters) {
+	protected LinkedList<Feature> operate(LinkedList<List<Feature>> inputs, LinkedHashMap<String, Parameter> parameters) {
 		RegionOperations tool = new RegionOperations();
 		RegionOperations.PairPolicy pairPolicy;
-		if ("intersection".equals(parameters.get(0))) {
+
+		String returnType = parameters.get("return.type").getValue();
+		String minOverlapBp = parameters.get("min.overlap.bp").getValue();
+
+		if ("intersection".equals(returnType)) {
 			pairPolicy = RegionOperations.INTERSECT_PAIR_POLICY; 
-		} else if ("both".equals(parameters.get(0))) {
+		} else if ("both".equals(returnType)) {
 			pairPolicy = RegionOperations.ORIGINALS_PAIR_POLICY;
-		} else if ("merged".equals(parameters.get(0))) {
+		} else if ("merged".equals(returnType)) {
 			pairPolicy = RegionOperations.MERGE_PAIR_POLICY;
-		} else if ("first_augmented".equals(parameters.get(0))) {
+		} else if ("first_augmented".equals(returnType)) {
 			pairPolicy = RegionOperations.LEFT_PAIR_POLICY_WITH_AUGMENTATION;
 		} else {
 			pairPolicy = RegionOperations.LEFT_PAIR_POLICY;
 		}
-		Long minOverlap = Long.parseLong(parameters.get(1));
+		Long minOverlap = Long.valueOf(minOverlapBp);
 		return tool.intersect(inputs.get(0), inputs.get(1), minOverlap, pairPolicy, false);
 		
 	}

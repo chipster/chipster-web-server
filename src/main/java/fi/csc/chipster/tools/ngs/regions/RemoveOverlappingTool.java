@@ -1,8 +1,10 @@
 package fi.csc.chipster.tools.ngs.regions;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.tools.model.Feature;
 import fi.csc.chipster.tools.parsers.RegionOperations;
 
@@ -18,9 +20,9 @@ public class RemoveOverlappingTool extends RegionTool {
 	}
 
 	@Override
-	protected LinkedList<Feature> operate(LinkedList<List<Feature>> inputs, List<String> parameters) {
+	protected LinkedList<Feature> operate(LinkedList<List<Feature>> inputs, LinkedHashMap<String, Parameter> parameters) {
 		RegionOperations tool = new RegionOperations();
-		Long minOverlap = Long.parseLong(parameters.get(0));
+		Long minOverlap = Long.valueOf(parameters.get("min.overlap.bp").getValue());
 		return tool.subtract(inputs.get(0), inputs.get(1), minOverlap);
 	}
 }

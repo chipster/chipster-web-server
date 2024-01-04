@@ -26,7 +26,7 @@ public class SortBed extends JavaCompJobBase {
 
 		try {
 			// files
-			File inputFile = new File(jobDataDir, toolDescription.getInputFiles().get(0).getFileName()); 
+			File inputFile = new File(jobDataDir, toolDescription.getInputFiles().get(0).getFileName().getID()); 
 			File outputFile = new File(jobDataDir, toolDescription.getOutputFiles().get(0).getFileName().getID()); 
 
 			// run sort

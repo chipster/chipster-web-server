@@ -9,6 +9,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -91,7 +92,7 @@ public class RestCompServer
 	/**
 	 * Id of the comp server instance.
 	 */
-	private UUID compId = UUID.randomUUID();
+	private final UUID compId = UUID.randomUUID();
 
 	private File workDir;
 
@@ -105,9 +106,9 @@ public class RestCompServer
 	private ExecutorService executorService;
 
 	// synchronize with this object when accessing the job maps below
-	private Object jobsLock = new Object();
-	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
-	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
+	private final Object jobsLock = new Object();
+	private final LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<>();
+	private final LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<>();
 	private Timer timeoutTimer;
 	private Timer compAvailableTimer;
 	@SuppressWarnings("unused")
@@ -122,7 +123,7 @@ public class RestCompServer
 	private WebSocketClient schedulerClient;
 	private String schedulerUri;
 
-	private Config config;
+	private final Config config;
 	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
 
@@ -137,7 +138,7 @@ public class RestCompServer
 	private int compHeartbeatInterval;
 
 	/**
-	 * 
+	 * @param configURL
 	 * @param config
 	 * @throws Exception
 	 */
@@ -324,14 +325,17 @@ public class RestCompServer
 
 	}
 
+	@Override
 	public File getWorkDir() {
 		return workDir;
 	}
 
+	@Override
 	public boolean shouldSweepWorkDir() {
 		return sweepWorkDir;
 	}
 
+	@Override
 	public void removeRunningJob(CompJob job) {
 		String hostname = RestUtils.getHostname();
 
@@ -357,7 +361,7 @@ public class RestCompServer
 	private void checkStopGracefully() {
 		if (stopGracefully) {
 			synchronized (jobsLock) {
-				if (this.scheduledJobs.size() == 0 && this.runningJobs.size() == 0) {
+				if (this.scheduledJobs.isEmpty() && this.runningJobs.isEmpty()) {
 					shutdown();
 					System.exit(0);
 				}
@@ -372,8 +376,10 @@ public class RestCompServer
 	 * 
 	 * For this reason, all the data must be sent before this method returns.
 	 * 
-	 * 
+	 * @param jobMessage
+	 * @param result
 	 */
+	@Override
 	public void sendResultMessage(GenericJobMessage jobMessage, GenericResultMessage result) {
 
 		if (result.getState() == JobState.CANCELLED) {
@@ -403,6 +409,11 @@ public class RestCompServer
 			
 			// tool versions
 			CompUtils.addVersionsToDbJob(result, dbJob);
+
+			// comp fills in parameters, because client can send only partial list
+			if (result.getParameters() != null) {
+				dbJob.setParameters(List.copyOf(result.getParameters().values()));
+			}
 									
 			compJob = this.runningJobs.get(jobMessage.getJobId());
 			if (compJob != null) {
@@ -410,6 +421,8 @@ public class RestCompServer
 			}
 						
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
+
+			logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
 			
 		} catch (RestException e) {
 			if (e.getResponse().getStatus() == 403) {
@@ -421,15 +434,17 @@ public class RestCompServer
 			} else {
 				logger.error("could not update the job", e);
 			}
-		}
-
-		logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
+		} catch (Exception e) {
+			logger.error("failed to send result message", e);
+		}		
 	}
 
+	@Override
 	public LegacyRestFileBrokerClient getFileBrokerClient() {
 		return this.fileBroker;
 	}
 
+	@Override
 	public ToolboxClientComp getToolboxClient() {
 		return this.toolboxClient;
 	}
@@ -628,7 +643,7 @@ public class RestCompServer
 	
 	private static HashMap<Integer, Long> getOfferDelayRequestedSlots(Config config) {
 		
-		HashMap<Integer, Long> parsedEntries = new HashMap<Integer, Long>();
+		HashMap<Integer, Long> parsedEntries = new HashMap<>();
 		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS).entrySet()) {
 			String slotsString = entry.getKey();
 			String confKey = PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS + slotsString;
@@ -670,7 +685,7 @@ public class RestCompServer
 			try {
 				synchronized (jobsLock) {
 
-					ArrayList<CompJob> jobsToBeRemoved = new ArrayList<CompJob>();
+					ArrayList<CompJob> jobsToBeRemoved = new ArrayList<>();
 
 					// get old scheduled jobs
 					jobsToBeRemoved.clear();
@@ -755,7 +770,7 @@ public class RestCompServer
 
 	@SuppressWarnings("unused")
 	private synchronized ArrayList<CompJob> getAllJobs() {
-		ArrayList<CompJob> allJobs = new ArrayList<CompJob>();
+		ArrayList<CompJob> allJobs = new ArrayList<>();
 		allJobs.addAll(scheduledJobs.values());
 		allJobs.addAll(runningJobs.values());
 
@@ -777,6 +792,7 @@ public class RestCompServer
 		}
 	}
 
+	@Override
 	public HashMap<String, Object> getStatus() {
 		HashMap<String, Object> status = new HashMap<>();
 		synchronized (jobsLock) {

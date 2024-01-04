@@ -2,10 +2,13 @@ package fi.csc.chipster.comp;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.LinkedHashMap;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.sessiondb.model.Parameter;
 
 /**
  * Interface to analysis jobs. Implementations do the actual analysis
@@ -53,10 +56,10 @@ import org.apache.logging.log4j.Logger;
  */
 public abstract class CompJob implements Runnable {
 
-	public static String SCRIPT_SUCCESSFUL_STRING = "chipster-script-finished-succesfully";
+	public static final String SCRIPT_SUCCESSFUL_STRING = "chipster-script-finished-succesfully";
 	public static final String CHIPSTER_NOTE_TOKEN = "CHIPSTER-NOTE:"; 
 
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 	
 	protected GenericJobMessage inputMessage;
 	protected ResultCallback resultHandler;
@@ -74,7 +77,7 @@ public abstract class CompJob implements Runnable {
 	private JobState state;
 	private String stateDetail;
 	private boolean toBeCanceled = false;
-	private GenericResultMessage outputMessage;
+	private final GenericResultMessage outputMessage;
 	
 	public CompJob() {
 		outputMessage = new GenericResultMessage();
@@ -99,15 +102,16 @@ public abstract class CompJob implements Runnable {
 	 * Run the job. After execution, job should report results 
 	 * through the ResultCallback interface.
 	 */
+	@Override
 	public void run() {
-		try {
+		try {			
 			this.outputMessage.setStartTime(Instant.now());
 			updateState(JobState.RUNNING, "initialising");
 			
 			if (!constructed) {
 				throw new IllegalStateException("you must call construct(...) first");
 			}
-			
+
 			// before execute
 			preExecute();
 
@@ -135,6 +139,9 @@ public abstract class CompJob implements Runnable {
 		
 		// something unexpected happened
 		catch (Throwable e) {
+
+			logger.error("unexpected error", e);
+
 			updateState(JobState.ERROR, "running tool failed");
 			outputMessage.setErrorMessage("Running tool failed.");
 			outputMessage.setOutputText(Exceptions.getStackTrace(e));
@@ -310,6 +317,10 @@ public abstract class CompJob implements Runnable {
 	
 	public void setOutputText(String output) {
 		this.outputMessage.setOutputText(output);
+	}
+
+	public void setParameters(LinkedHashMap<String, Parameter> parameters) {
+		this.outputMessage.setParameters(parameters);
 	}
 	
 	public void appendOutputText(String s) {

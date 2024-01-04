@@ -1,6 +1,6 @@
 package fi.csc.chipster.comp;
 
-import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 
 public abstract class ParameterSecurityPolicy {
 		/**
@@ -9,9 +9,11 @@ public abstract class ParameterSecurityPolicy {
 		 * depends on the type of value (numeric, text...), so ParameterDescription is
 		 * also passed.
 		 * 
+     * @param value
+     * @param parameterDescription
 		 * @return true iff is valid
 		 */
-		public abstract boolean isValueValid(String value, ParameterDescription parameterDescription);
+		public abstract boolean isValueValid(String value, Parameter parameterDescription);
 
 		/**
 		 * Most comp jobs don't support UNCHECKED_STRING parameter
@@ -22,7 +24,8 @@ public abstract class ParameterSecurityPolicy {
 		 * 
 		 * @see fi.csc.chipster.comp.python.PythonCompJob#transformVariable(ParameterDescription,
 		 *      String)
-		 * 
+		 * @param description
+		 * @return boolean
 		 */
 		public boolean allowUncheckedParameters(ToolDescription description) {
 			return false;

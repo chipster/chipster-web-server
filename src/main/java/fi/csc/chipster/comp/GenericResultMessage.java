@@ -9,6 +9,8 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.sessiondb.model.Parameter;
+
 /**
  * Generic result message, independent of the communication method used.
  * 
@@ -30,14 +32,15 @@ public class GenericResultMessage {
 	private String sourceCode;
 	private Instant startTime;
 	private Instant endTime;
+	private LinkedHashMap<String, Parameter> parameters;
 	
 	private String versionsJson;
 	
 
 	// preserve tool's output order in job.outputs
-	private LinkedHashMap<String, String> outputIdToDatasetIdMap = new LinkedHashMap<String, String>();
-	private Map<String, String> outputIdToDatasetNameMap = new HashMap<String, String>();
-	private Map<String, String> outputIdToDisplayNameMap = new HashMap<String, String>();
+	private final LinkedHashMap<String, String> outputIdToDatasetIdMap = new LinkedHashMap<>();
+	private final Map<String, String> outputIdToDatasetNameMap = new HashMap<>();
+	private final Map<String, String> outputIdToDisplayNameMap = new HashMap<>();
 	
 	public GenericResultMessage(String jobId, JobState state, String stateDetail, String errorMessage,
 			String outputText) {
@@ -62,9 +65,18 @@ public class GenericResultMessage {
 		this.versionsJson = versionsJson;
 	}
 
+	public void setParameters(LinkedHashMap<String, Parameter> parameters) {
+		this.parameters = parameters;
+	}
+
+	public LinkedHashMap<String, Parameter> getParameters() {
+		return parameters;
+	}
+
 	
 	/**
-	 * Return error message in case of failed job execution. 
+	 * @return Return error message in case of failed job execution. 
+	 * 
 	 */
 	public String getErrorMessage() {
 		return errorMessage;
@@ -72,13 +84,15 @@ public class GenericResultMessage {
 
 	/**
 	 * @see #getErrorMessage()
+	 * @param errorMessage
 	 */
 	public void setErrorMessage(String errorMessage) {
 		this.errorMessage = errorMessage;
 	}
 
 	/**
-	 * Return the exit state of the job.
+	 * @return Return the exit state of the job.
+	 * 
 	 */
 	public JobState getState() {
 		return state;
@@ -86,13 +100,14 @@ public class GenericResultMessage {
 
 	/**
 	 * @see #getState()
+	 * @param exitState
 	 */
 	public void setState(JobState exitState) {
 		this.state = exitState;
 	}
 
 	/**
-	 * Returns the text output (sysout) of the job. 
+	 * @return Returns the text output (sysout) of the job.  
 	 */
 	public String getOutputText() {
 		return outputText;

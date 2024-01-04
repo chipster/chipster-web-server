@@ -13,7 +13,7 @@ import java.net.URL;
  * in a hash map, data sources with identical urls or file paths would be
  * considered the same.</p>
  * 
- * @author Petri Klemelä
+ * @author Petri Klemela
  *
  */
 public abstract class DataSource {

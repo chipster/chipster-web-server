@@ -12,7 +12,7 @@ import java.net.URISyntaxException;
  * Simple data source for small non-binary files. These small files are stored in memory, so  only
  * simple initial line-by-line read through is needed.
  * 
- * @author Petri Klemelä
+ * @author Petri Klemela
  *
  */
 public class LineDataSource extends DataSource {

@@ -11,7 +11,7 @@ import fi.csc.chipster.sessiondb.model.MetadataFile;
 
 public class CompUtils {
 
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 	public static final String METADATA_FILE_NAME_APPLICATION_VERSIONS = "application-versions.json";
 
 	public static void addVersionsToDbJob(GenericResultMessage result, Job dbJob)  {

@@ -439,10 +439,12 @@ export default class ReplaySession {
           allTools
         )
       ),
+      
       mergeMap(() => {
         // TODO should be done after all jobs for session have been run, not in the end like this
         return this.deleteTempSessions(Array.from(tempSessionsToDelete));
       }),
+
       tap(() => {
         logger.info("test set " + testSet + " took " + humanizeDuration(Date.now() - this.startTime.getTime()));
         this.restClient = null;

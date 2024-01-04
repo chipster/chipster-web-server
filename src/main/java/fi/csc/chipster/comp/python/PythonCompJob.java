@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -25,6 +26,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.Exceptions;
 import fi.csc.chipster.comp.JobCancelledException;
+import fi.csc.chipster.comp.JobMessageUtils;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.comp.OnDiskCompJobBase;
 import fi.csc.chipster.comp.ParameterSecurityPolicy;
@@ -32,9 +34,10 @@ import fi.csc.chipster.comp.ParameterValidityException;
 import fi.csc.chipster.comp.ProcessMonitor;
 import fi.csc.chipster.comp.ProcessPool;
 import fi.csc.chipster.comp.ToolDescription;
-import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
 import fi.csc.chipster.comp.ToolUtils;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 import fi.csc.chipster.util.IOUtils;
+import net.bytebuddy.description.method.ParameterDescription;
 
 /**
  * Uses Python to run actual analysis operations.
@@ -88,7 +91,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		 * @see ParameterSecurityPolicy#isValueValid(String, ParameterDescription)
 		 */
 		@Override
-		public boolean isValueValid(String value, ParameterDescription parameterDescription) {
+		public boolean isValueValid(String value, Parameter parameterDescription) {
 
 			// unset parameters are fine
 			if (value == null) {
@@ -101,7 +104,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			}
 
 			// Check parameter content (Python injection protection)
-			if (parameterDescription.isNumeric()) {
+			if (parameterDescription.getType().isNumeric()) {
 
 				// Numeric value must match the strictly specified pattern
 				return value.matches(NUMERIC_VALUE_PATTERN);
@@ -128,9 +131,9 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 	public static PythonParameterSecurityPolicy PARAMETER_SECURITY_POLICY = new PythonParameterSecurityPolicy();
 
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
-	private CountDownLatch waitProcessLatch = new CountDownLatch(1);
+	private final CountDownLatch waitProcessLatch = new CountDownLatch(1);
 
 	// injected by handler at right after creation
 	private ProcessPool processPool;
@@ -143,15 +146,18 @@ public class PythonCompJob extends OnDiskCompJobBase {
 	/**
 	 * Executes the analysis.
 	 * 
-	 * @throws IOException
-	 * @throws MicroarrayException
-	 * @throws InterruptedException
+	 * @throws JobCancelledException
 	 */
+	@Override
 	protected void execute() throws JobCancelledException {
+
+		logger.debug("PythonCompJob.execute()");
+
 		cancelCheck();
+
 		updateState(JobState.RUNNING, "initialising Python");
 
-		List<BufferedReader> inputReaders = new ArrayList<BufferedReader>();
+		List<BufferedReader> inputReaders = new ArrayList<>();
 
 		// load handler initialiser
 		inputReaders.add(new BufferedReader(new StringReader(toolDescription.getInitialiser())));
@@ -191,10 +197,12 @@ public class PythonCompJob extends OnDiskCompJobBase {
 				+ importVersionUtils + documentVersions)));
 
 		// load input parameters
-		int i = 0;
-		List<String> parameterValues;
+		LinkedHashMap<String, fi.csc.chipster.sessiondb.model.Parameter> parameters;
 		try {
-			parameterValues = inputMessage.getParameters(PARAMETER_SECURITY_POLICY, toolDescription);
+			parameters = inputMessage.getParameters(PARAMETER_SECURITY_POLICY, toolDescription);
+
+			// update parameters in the db, in case comp added displayNames and descriptions (cli client, replay-test)
+			this.setParameters(parameters);
 
 		} catch (ParameterValidityException e) {
 			this.setErrorMessage(e.getMessage()); // always has a message
@@ -202,12 +210,13 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			updateState(JobState.FAILED_USER_ERROR);
 			return;
 		}
-		for (ToolDescription.ParameterDescription param : toolDescription.getParameters()) {
-			String value = parameterValues.get(i);
-			String pythonSnippet = transformVariable(param, value);
+
+		for (fi.csc.chipster.sessiondb.model.Parameter param : parameters.values()) {
+			String value = param.getValue();
+			Parameter toolParameter = toolDescription.getParameters().get(param.getParameterId());
+			String pythonSnippet = transformVariable(toolParameter, value);
 			logger.debug("added parameter (" + pythonSnippet + ")");
 			inputReaders.add(new BufferedReader(new StringReader(pythonSnippet)));
-			i++;
 		}
 
 		// load input script
@@ -259,7 +268,8 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		try {
 			for (BufferedReader reader : inputReaders) {
 				for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-					inputStringBuilder.append(line + "\n");
+					inputStringBuilder.append(line);
+					inputStringBuilder.append("\n");
 				}
 			}
 		} catch (IOException ioe) {
@@ -296,7 +306,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		// wait for the script to finish
 		cancelCheck();
 		logger.debug("waiting for the script to finish.");
-		boolean finishedBeforeTimeout = false;
+		boolean finishedBeforeTimeout;
 		try {
 			finishedBeforeTimeout = waitProcessLatch.await(getTimeout(), TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
@@ -320,10 +330,12 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		super.preExecute();
 	}
 
+	@Override
 	protected void postExecute() throws JobCancelledException {
 		super.postExecute();
 	}
 
+	@Override
 	protected void cleanUp() {
 		try {
 			// release the process (don't recycle)
@@ -339,14 +351,18 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 	/**
 	 * Converts a name-value -pair into Python variable definition.
+	 * 
+	 * @param param
+	 * @param value
+	 * @return String
 	 */
-	public static String transformVariable(ToolDescription.ParameterDescription param, String value) {
+	public static String transformVariable(Parameter param, String value) {
 
 		// Escape strings and such
-		if (!param.isNumeric()) {
+		if (!param.getType().isNumeric()) {
 			if (value == null) {
 				value = "None";
-			} else if (param.isChecked()) {
+			} else if (JobMessageUtils.isChecked(param)) {
 				value = STRING_DELIMETER + value + STRING_DELIMETER;
 			} else {
 				// we promised to handle this safely when we implemented the method
@@ -356,12 +372,12 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		}
 
 		// If numeric, check for empty value
-		if (param.isNumeric() && value.trim().isEmpty()) {
+		if (param.getType().isNumeric() && value.trim().isEmpty()) {
 			value = "float('NaN')";
 		}
 
 		// Sanitize parameter name (remove spaces)
-		String name = param.getName();
+		String name = param.getName().getID();
 		name = name.replaceAll(" ", "_");
 
 		// Construct and return parameter assignment

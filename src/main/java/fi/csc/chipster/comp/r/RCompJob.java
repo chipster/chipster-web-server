@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.Exceptions;
 import fi.csc.chipster.comp.JobCancelledException;
+import fi.csc.chipster.comp.JobMessageUtils;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.comp.OnDiskCompJobBase;
 import fi.csc.chipster.comp.ParameterSecurityPolicy;
@@ -28,8 +30,8 @@ import fi.csc.chipster.comp.ParameterValidityException;
 import fi.csc.chipster.comp.ProcessMonitor;
 import fi.csc.chipster.comp.ProcessPool;
 import fi.csc.chipster.comp.ToolDescription;
-import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
 import fi.csc.chipster.comp.ToolUtils;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 import fi.csc.chipster.util.IOUtils;
 
 /**
@@ -85,7 +87,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		 * @see ParameterSecurityPolicy#isValueValid(String, ParameterDescription)
 		 */
 		@Override
-		public boolean isValueValid(String value, ParameterDescription parameterDescription) {
+		public boolean isValueValid(String value, Parameter parameterDescription) {
 			// unset parameters are fine
 			if (value == null) {
 				return true;
@@ -97,7 +99,7 @@ public class RCompJob extends OnDiskCompJobBase {
 			}
 
 			// Check parameter content (R injection protection)
-			if (parameterDescription.isNumeric()) {
+			if (parameterDescription.getType().isNumeric()) {
 
 				// Numeric value must match the strictly specified pattern
 				return value.matches(NUMERIC_VALUE_PATTERN);
@@ -125,9 +127,9 @@ public class RCompJob extends OnDiskCompJobBase {
 
 	public static RParameterSecurityPolicy R_PARAMETER_SECURITY_POLICY = new RParameterSecurityPolicy();
 
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
-	private CountDownLatch waitProcessLatch = new CountDownLatch(1);
+	private final CountDownLatch waitProcessLatch = new CountDownLatch(1);
 
 	// injected by handler at right after creation
 	private ProcessPool processPool;
@@ -140,15 +142,14 @@ public class RCompJob extends OnDiskCompJobBase {
 	/**
 	 * Executes the analysis.
 	 * 
-	 * @throws IOException
-	 * @throws MicroarrayException
-	 * @throws InterruptedException
+	 * @throws JobCancelledException
 	 */
+	@Override
 	protected void execute() throws JobCancelledException {
 		cancelCheck();
 		updateState(JobState.RUNNING, "initialising R");
 
-		List<BufferedReader> inputReaders = new ArrayList<BufferedReader>();
+		List<BufferedReader> inputReaders = new ArrayList<>();
 
 		// load work dir initialiser
 		inputReaders.add(new BufferedReader(new StringReader("setwd(\"" + jobDataDir.getAbsolutePath() + "\")\n")));
@@ -163,10 +164,12 @@ public class RCompJob extends OnDiskCompJobBase {
 		
 		
 		// load input parameters
-		int i = 0;
-		List<String> parameterValues;
+		LinkedHashMap<String, fi.csc.chipster.sessiondb.model.Parameter> parameters;
 		try {
-			parameterValues = inputMessage.getParameters(R_PARAMETER_SECURITY_POLICY, toolDescription);
+			parameters = inputMessage.getParameters(R_PARAMETER_SECURITY_POLICY, toolDescription);
+
+			// update parameters in the db, in case comp added displayNames and descriptions (cli client, replay-test)
+			this.setParameters(parameters);
 
 		} catch (ParameterValidityException e) {
 			this.setErrorMessage(e.getMessage()); // always has a message
@@ -174,12 +177,12 @@ public class RCompJob extends OnDiskCompJobBase {
 			updateState(JobState.FAILED_USER_ERROR);
 			return;
 		}
-		for (ToolDescription.ParameterDescription param : toolDescription.getParameters()) {
-			String value = parameterValues.get(i);
-			String rSnippet = transformVariable(param, value);
+		for (fi.csc.chipster.sessiondb.model.Parameter param : parameters.values()) {
+			String value = param.getValue();
+			Parameter toolParameter = toolDescription.getParameters().get(param.getParameterId());
+			String rSnippet = transformVariable(toolParameter, value);
 			logger.debug("added parameter (" + rSnippet + ")");
 			inputReaders.add(new BufferedReader(new StringReader(rSnippet)));
-			i++;
 		}
 
 		// load input script
@@ -198,7 +201,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		// get a process
 		cancelCheck();
 		logger.debug("getting a process.");
-		;
+
 		try {
 			this.process = processPool.getProcess();
 		} catch (Exception e) {
@@ -238,7 +241,8 @@ public class RCompJob extends OnDiskCompJobBase {
 		try {
 			for (BufferedReader reader : inputReaders) {
 				for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-					inputStringBuilder.append(line + "\n");
+					inputStringBuilder.append(line);
+					inputStringBuilder.append("\n");
 				}
 			}
 		} catch (IOException ioe) {
@@ -277,7 +281,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		cancelCheck();
 		logger.debug("waiting for the script to finish.");
 
-		boolean finishedBeforeTimeout = false;
+		boolean finishedBeforeTimeout;
 		try {
 			finishedBeforeTimeout = waitProcessLatch.await(getTimeout(), TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
@@ -301,10 +305,12 @@ public class RCompJob extends OnDiskCompJobBase {
 		super.preExecute();
 	}
 
+	@Override
 	protected void postExecute() throws JobCancelledException {
 		super.postExecute();
 	}
 
+	@Override
 	protected void cleanUp() {
 		try {
 			// release the process (don't recycle)
@@ -322,14 +328,14 @@ public class RCompJob extends OnDiskCompJobBase {
 	/**
 	 * Converts a name-value -pair into R variable definition.
 	 */
-	private String transformVariable(ParameterDescription param, String value) {	    
+	private String transformVariable(Parameter param, String value) {	    
 
 		// Escape strings and such
-		if (!param.isNumeric()) {
+		if (!param.getType().isNumeric()) {
 		    
 			if (value == null) {
                 value = "None";
-            } else if (param.isChecked()) {
+            } else if (JobMessageUtils.isChecked(param)) {
                 value = STRING_DELIMETER + value + STRING_DELIMETER;
             } else {
                 // we promised to handle this safely when we implemented the method
@@ -339,12 +345,12 @@ public class RCompJob extends OnDiskCompJobBase {
 		}
 
 		// If numeric, check for empty value
-		if (param.isNumeric() && value.trim().isEmpty()) {
+		if (param.getType().isNumeric() && value.trim().isEmpty()) {
 			value = "NA"; // R's constant for "not available"
 		}
 
 		// Sanitize parameter name (remove spaces)
-		String name = param.getName().replaceAll(" ", "_");
+		String name = param.getName().getID().replaceAll(" ", "_");
 
 		// Construct and return parameter assignment
 		return (name + " <- " + value);

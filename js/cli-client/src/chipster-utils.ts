@@ -1,4 +1,4 @@
-import { Dataset, Tool, ToolInput } from "chipster-js-common";
+import { Dataset, Tool, ToolInput, ToolParameter } from "chipster-js-common";
 import MetadataFile from "chipster-js-common/lib/model/metadata-file";
 import { RestClient } from "chipster-nodejs-core";
 import * as _ from "lodash";
@@ -10,6 +10,7 @@ import path = require("path");
 import read = require("read");
 
 export const missingInputError = "MissingInputError";
+
 export default class ChipsterUtils {
   static printStatus(args, status, value = null) {
     if (!args.quiet) {
@@ -221,18 +222,12 @@ export default class ChipsterUtils {
       metadataFiles: metadata
     };
 
-    tool.parameters.forEach(p => {
-      const param = {
-        parameterId: p.name.id,
-        displayName: p.name.displayName,
-        description: p.name.description,
-        type: p.type,
-        value: p.defaultValue
-      };
-      if (paramMap.has(p.name.id)) {
-        param.value = paramMap.get(p.name.id);
-      }
-      job.parameters.push(param);
+    paramMap.forEach((value, parameterId) => {
+      // comp will fill in display name etc.
+      job.parameters.push({
+        parameterId: parameterId,
+        value: value
+      });
     });
 
     tool.inputs.forEach(i => {

@@ -18,7 +18,7 @@ import fi.csc.chipster.util.IOUtils;
  * have indexes (like tab-separated tables). Reads data to byte array and the user
  * must parse meaningful content out from the bytes.
  * 
- * @author Petri Klemelä, Aleksi Kallio
+ * @author Petri Klemela, Aleksi Kallio
  *
  */
 public class ByteDataSource extends DataSource {

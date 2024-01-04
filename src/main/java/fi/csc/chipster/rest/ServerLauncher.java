@@ -21,26 +21,26 @@ public class ServerLauncher {
 	// this must not be static, otherwise logging configuration fails
 	private final Logger logger = LogManager.getLogger();
 
-	private AuthenticationService auth;
-	private ServiceLocator serviceLocator;
-	private SessionDb sessionDb;
-	private Scheduler scheduler;
-	private ToolboxService toolbox;
-	private FileBroker fileBroker;
-	private WebServer web;
+	private final AuthenticationService auth;
+	private final ServiceLocator serviceLocator;
+	private final SessionDb sessionDb;
+	private final Scheduler scheduler;
+	private final ToolboxService toolbox;
+	private final FileBroker fileBroker;
+	private final WebServer web;
 
 	private RestCompServer comp;
 
 	private SessionDb sessionDbSlave;
 
-	private SessionWorker sessionWorker;
-	private JavascriptService typeService;
+	private final SessionWorker sessionWorker;
+	private final JavascriptService typeService;
 
-	private JobHistoryService jobHistoryService;
+	private final JobHistoryService jobHistoryService;
 
-	private Backup backup;
+	private final Backup backup;
 
-	private FileStorage fileStorage;
+	private final FileStorage fileStorage;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 
@@ -139,7 +139,7 @@ public class ServerLauncher {
 		System.exit(0);
 	}
 
-	public void stop() {
+	public final void stop() {
 
 		if (backup != null) {
 			try {

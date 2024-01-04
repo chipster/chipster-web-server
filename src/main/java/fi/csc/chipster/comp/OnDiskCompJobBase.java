@@ -9,9 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -22,7 +24,9 @@ import org.apache.logging.log4j.Logger;
 import com.nimbusds.jose.shaded.gson.Gson;
 import com.nimbusds.jose.shaded.gson.GsonBuilder;
 
+import fi.csc.chipster.comp.ToolDescription.InputDescription;
 import fi.csc.chipster.comp.ToolDescription.OutputDescription;
+import fi.csc.chipster.rest.RestUtils;
 
 /**
  * Provides functionality for transferring input files from file broker to job
@@ -34,9 +38,9 @@ public abstract class OnDiskCompJobBase extends CompJob {
 	
 	class VersionJson {
 	    @SuppressWarnings("unused")
-		private String application;
+		private final String application;
 	    @SuppressWarnings("unused")
-		private String version;
+		private final String version;
 
 	    public VersionJson(String application, String version) {
 	        this.application = application;
@@ -47,7 +51,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
 	}
 	
 	
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
 	private static final String JOB_DATA_DIR_NAME = "data";
 	private static final String JOB_TOOLBOX_DIR_NAME = "toolbox";
@@ -75,18 +79,18 @@ public abstract class OnDiskCompJobBase extends CompJob {
 		this.jobVersionsDir = new File(this.jobInfoDir, JOB_VERSIONS_DIR_NAME);
 	}
 
-	/**
-	 * Copy input files from file broker to job work directory.
-	 * 
-	 * @throws JobCancelledException
-	 * 
-	 */
-	@Override
-	protected void preExecute() throws JobCancelledException {
-		cancelCheck();
-		super.preExecute();
+    /**
+     * Copy input files from file broker to job work directory.
+     * 
+     * @throws JobCancelledException
+     * 
+     */
+    @Override
+    protected void preExecute() throws JobCancelledException {
+        cancelCheck();
+        super.preExecute();
 
-		updateState(JobState.RUNNING, "transferring input data");
+        updateState(JobState.RUNNING, "transferring input data");
 
 		// create directories for the job
 		if (!this.jobDir.mkdir()) {
@@ -111,71 +115,71 @@ public abstract class OnDiskCompJobBase extends CompJob {
 			// input files
 			getInputFiles();
 
-			// toolbox
-			if (!this.jobToolboxDir.mkdir()) {
-				throw new IOException("Creating job toolbox dir failed.");
-			}
-			resultHandler.getToolboxClient().getToolboxModules(this.jobToolboxDir);
+            // toolbox
+            if (!this.jobToolboxDir.mkdir()) {
+                throw new IOException("Creating job toolbox dir failed.");
+            }
+            resultHandler.getToolboxClient().getToolboxModules(this.jobToolboxDir);
 
-		} catch (Exception e) {
-			this.setErrorMessage("Transferring input data and tools to computing service failed.");
-			this.setOutputText(Exceptions.getStackTrace(e));
-			logger.error("transferring input data and tools failed", e);
-			updateState(JobState.ERROR);
-			return;
-		}
-	}
+        } catch (Exception e) {
+            this.setErrorMessage("Transferring input data and tools to computing service failed.");
+            this.setOutputText(Exceptions.getStackTrace(e));
+            logger.error("transferring input data and tools failed", e);
+            updateState(JobState.ERROR);
+        }
+    }
 
-	/**
-	 * Copy output files from job work dir to file broker.
-	 * 
-	 */
-	@Override
-	protected void postExecute() throws JobCancelledException {
-		// update job state on the client side
-		updateState(JobState.RUNNING, "transferring output data");
-		cancelCheck();
+    /**
+     * Copy output files from job work dir to file broker.
+     * 
+     * @throws JobCancelledException
+     */
+    @Override
+    protected void postExecute() throws JobCancelledException {
+        // update job state on the client side
+        updateState(JobState.RUNNING, "transferring output data");
+        cancelCheck();
 
-		// get phenodata file // FIXME add support for multiple phenodata outputs
-		File phenodataFile = null;
-		for (OutputDescription outputDescription : toolDescription.getOutputFiles()) {
-			if (outputDescription.isMeta()) {
-				phenodataFile = new File(jobDataDir, outputDescription.getFileName().getID());
-			}
-		}
+        // get phenodata file // FIXME add support for multiple phenodata outputs
+        File phenodataFile = null;
+        for (OutputDescription outputDescription : toolDescription.getOutputFiles()) {
+            if (outputDescription.isMeta()) {
+                phenodataFile = new File(jobDataDir, outputDescription.getFileName().getID());
+            }
+        }
 
-		// pass output files to result message
-		List<OutputDescription> outputFiles = toolDescription.getOutputFiles();
-		for (OutputDescription fileDescription : outputFiles) {
-			cancelCheck();
+        // pass output files to result message
+        List<OutputDescription> outputFiles = toolDescription.getOutputFiles();
+        for (OutputDescription fileDescription : outputFiles) {
+            cancelCheck();
 
-			// single file description can also describe several files
-			File[] describedFiles;
+            // single file description can also describe several files
+            File[] describedFiles;
 
-			if (fileDescription.getFileName().isSpliced()) {
-				// it is a set of files
-				String prefix = fileDescription.getFileName().getPrefix();
-				String postfix = fileDescription.getFileName().getPostfix();
-				String regex = prefix + ".*" + postfix;
-				describedFiles = OnDiskCompJobBase.findFiles(jobDataDir, regex);
+            if (fileDescription.getFileName().isSpliced()) {
+                // it is a set of files
+                String prefix = fileDescription.getFileName().getPrefix();
+                String postfix = fileDescription.getFileName().getPostfix();
+                String regex = prefix + ".*" + postfix;
+                describedFiles = OnDiskCompJobBase.findFiles(jobDataDir, regex);
 
-				// if output is required there should be at least one
-				if (!fileDescription.isOptional() && describedFiles.length == 0) {
-					logger.error("required output file set not found");
-					this.setErrorMessage(
-							"Required output file set " + fileDescription.getFileName().getID() + " is missing.");
-					updateState(JobState.ERROR);
-					return;
-				}
-			} else {
-				// it is a single file
-				String outputName = fileDescription.getFileName().getID();
-				describedFiles = new File[] { new File(jobDataDir, outputName) };
-			}
+                // if output is required there should be at least one
+                if (!fileDescription.isOptional() && describedFiles.length == 0) {
+                    logger.error("required output file set not found");
+                    this.setErrorMessage(
+                            "Required output file set " + fileDescription.getFileName().getID() + " is missing.");
+                    updateState(JobState.ERROR);
+                    return;
+                }
+            } else {
+                // it is a single file
+                String outputName = fileDescription.getFileName().getID();
+                describedFiles = new File[] { new File(jobDataDir, outputName) };
+            }
 
 			// parse a file containing file names for the client
 			String outputsFilename = "chipster-outputs.tsv";
-			LinkedHashMap<String, String> nameMap = new LinkedHashMap<>();
+			LinkedHashMap<String, String> nameMap;
 			try {
 				nameMap = ToolUtils.parseOutputDescription(new File(jobDataDir, outputsFilename));
 			} catch (IOException | CompException e) {
@@ -303,76 +307,152 @@ public abstract class OnDiskCompJobBase extends CompJob {
 		}
 	}
 
-	private void getInputFiles()
-			throws Exception, JobCancelledException, IOException, FileBrokerException {
-		LinkedHashMap<String, String> nameMap = new LinkedHashMap<>();
+    private void getInputFiles()
+            throws Exception, JobCancelledException, IOException, FileBrokerException {
+        LinkedHashMap<String, String> nameMap = new LinkedHashMap<>();
 
-		if (!this.jobDataDir.mkdir()) {
-			throw new IOException("Creating job data dir failed.");
-		}
+        if (!this.jobDataDir.mkdir()) {
+            throw new IOException("Creating job data dir failed.");
+        }
+        
+        Set<String> boundInputs = new HashSet<>();
+        
+        /* Check inputs
+         * 
+         * Bind all inputs in the job message to inputs in the tool
+         * and check that all non-optional inputs are found. 
+         * 
+         * The same check is done already in the app too, but checking it here makes the error
+         * messages clearer, in case we get invalid jobs from replay-test, CLI client or Rest API.
+         */
+        for (InputDescription input : toolDescription.getInputFiles()) {
 
-		for (String fileName : inputMessage.getKeys()) {
-			cancelCheck();
+            if (input.getFileName().isSpliced()) {
+                // it is a set of files
+                String prefix = input.getFileName().getPrefix();
+                String postfix = input.getFileName().getPostfix();
 
-			// get url and output file
-			String dataId = inputMessage.getId(fileName);
-			File localFile = new File(jobDataDir, fileName);
+                // if input is required there should be at least one
+                
+                boolean found = false;
 
-			// make local file available, by downloading, copying or symlinking
-			resultHandler.getFileBrokerClient().getFile(inputMessage.getSessionId(), dataId,
-					new File(jobDataDir, fileName));
-			logger.debug("made available local file: " + localFile.getName() + " " + localFile.length());
+                for (String messageInput : inputMessage.getKeys()) {              
+                    if (messageInput.startsWith(prefix) && messageInput.endsWith(postfix)) {
+                        // found
+                        boundInputs.add(messageInput);
+                        found = true;
+                    }
+                }
 
-			nameMap.put(fileName, inputMessage.getName(fileName));
-		}
+                if (!found && !input.isOptional()) {
+                    logger.error("required input file set not found");
+                    this.setErrorMessage(
+                        "The tool has required input set " + input.getFileName().getPrefix() + "{...}"
+                        + input.getFileName().getPostfix() + " but the job didn't have any input files for it: "
+                        + RestUtils.asJson(inputMessage.getKeys().toArray()));
+                                                        
+                    updateState(JobState.ERROR);
+                    return;
+                }
 
-		ToolUtils.writeInputDescription(new File(jobDataDir, "chipster-inputs.tsv"), nameMap);
+            } else {
+                // it is a single file
+                String inputName = input.getFileName().getID();
 
-		inputMessage.preExecute(jobDataDir);
-	}
+                if (inputMessage.getKeys().contains(inputName)) {
+                    boundInputs.add(inputName);
 
-	/**
-	 * Deletes a file or a directory recursively. Deletes directory links, does not go 
-	 * into them recursively.
-	 * 
-	 * @param dir directory or file to be deleted
-	 * @return true if deleting was successful, false file does not exist or deleting it failed
-	 * @throws IOException 
-	 */
-	public static boolean delTree(File dir) throws IOException {
+                } else if (!input.isOptional()){
+                    logger.error("required input file not found");
+                    this.setErrorMessage(
+                        "The tool has required input " + input.getFileName().getID()
+                        + " but the job didn't have any input files for it: "
+                        + RestUtils.asJson(inputMessage.getKeys().toArray()));
+                    updateState(JobState.ERROR);
+                    return; 
+                }                
+            }
+        }
+        
+        // check that there was an input in the tool for all inputs in the message
+        for (String messageInput : inputMessage.getKeys()) {
+            if (!boundInputs.contains(messageInput)) {
+                
+                logger.error("job input " + messageInput + " was not found from the tool");
+                this.setErrorMessage(
+                        "Job input " + messageInput + " was not found from the tool.");
+                updateState(JobState.ERROR);
+                return; 
+            }
+        }
 
-		// Just try to delete the file first
-		// Will work for normal files, empty dirs and links (dir or file)
-		// Avoids need for dealing with links later on
-		if (dir.delete()) {
-			return true;
-		} 
-		
-		// Directory
-		else if (dir.isDirectory()) {
-			for (File file : dir.listFiles()) {
-				delTree(file);
-			}
+        for (String fileName : inputMessage.getKeys()) {
 
-			// Dir should be empty now
-			return dir.delete();
-		} 
-		
-		// Could not delete, not a directory, no can do
-		else {
-			return false;
-		}
-	}
-	
-	/**
-	 * Find files in a given directory whose filenames match given regex.
-	 */
-	public static File[] findFiles(File dir, String regex) {
-	    
-	    class RegexFileFilter implements FilenameFilter {
-	        private String regex;
-	        
-	        public RegexFileFilter(String regex) {
+            cancelCheck();
+
+            // get url and output file
+            String dataId = inputMessage.getId(fileName);
+            File localFile = new File(jobDataDir, fileName);
+
+            // make local file available, by downloading, copying or symlinking
+            resultHandler.getFileBrokerClient().getFile(inputMessage.getSessionId(), dataId,
+                    new File(jobDataDir, fileName));
+            logger.debug("made available local file: " + localFile.getName() + " " + localFile.length());
+
+            nameMap.put(fileName, inputMessage.getName(fileName));
+        }
+
+        ToolUtils.writeInputDescription(new File(jobDataDir, "chipster-inputs.tsv"), nameMap);
+
+        inputMessage.preExecute(jobDataDir);
+    }
+
+    /**
+     * Deletes a file or a directory recursively. Deletes directory links, does not go 
+     * into them recursively.
+     * 
+     * @param dir directory or file to be deleted
+     * @return true if deleting was successful, false file does not exist or deleting it failed
+     * @throws IOException 
+     */
+    public static boolean delTree(File dir) throws IOException {
+
+        // Just try to delete the file first
+        // Will work for normal files, empty dirs and links (dir or file)
+        // Avoids need for dealing with links later on
+        if (dir.delete()) {
+            return true;
+        } 
+
+        // Directory
+        else if (dir.isDirectory()) {
+            for (File file : dir.listFiles()) {
+                delTree(file);
+            }
+
+            // Dir should be empty now
+            return dir.delete();
+        } 
+
+        // Could not delete, not a directory, no can do
+        else {
+            return false;
+        }
+    }
+
+    /**
+     * Find files in a given directory whose filenames match given regex.
+     * 
+     * @param dir
+     * @param regex
+     * @return File[]
+     */    
+    public static File[] findFiles(File dir, String regex) {
+
+        class RegexFileFilter implements FilenameFilter {
+            private final String regex;
+
+            public RegexFileFilter(String regex) {
                 this.regex = regex;
             }
 
