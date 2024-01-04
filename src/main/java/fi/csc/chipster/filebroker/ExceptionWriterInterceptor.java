@@ -16,14 +16,14 @@ import org.apache.logging.log4j.Logger;
  *
  */
 public class ExceptionWriterInterceptor implements WriterInterceptor {
-	
+
 	private static Logger logger = LogManager.getLogger();
 
 	@Override
 	public void aroundWriteTo(WriterInterceptorContext context) throws IOException, WebApplicationException {
 		try {
-	        context.setOutputStream(context.getOutputStream());
-	        context.proceed();
+			context.setOutputStream(context.getOutputStream());
+			context.proceed();
 		} catch (IOException e) {
 			logger.info("download cancelled " + e);
 		}

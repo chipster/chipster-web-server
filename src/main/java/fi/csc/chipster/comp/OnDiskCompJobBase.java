@@ -35,49 +35,43 @@ import fi.csc.chipster.rest.RestUtils;
  */
 public abstract class OnDiskCompJobBase extends CompJob {
 
-	
-	class VersionJson {
-	    @SuppressWarnings("unused")
-		private final String application;
-	    @SuppressWarnings("unused")
-		private final String version;
+    class VersionJson {
+        @SuppressWarnings("unused")
+        private final String application;
+        @SuppressWarnings("unused")
+        private final String version;
 
-	    public VersionJson(String application, String version) {
-	        this.application = application;
-	        this.version = version;
-	    }
+        public VersionJson(String application, String version) {
+            this.application = application;
+            this.version = version;
+        }
 
-	    // Add getters and setters if needed
-	}
-	
-	
-	private static final Logger logger = LogManager.getLogger();
+        // Add getters and setters if needed
+    }
 
-	private static final String JOB_DATA_DIR_NAME = "data";
-	private static final String JOB_TOOLBOX_DIR_NAME = "toolbox";
-	private static final String JOB_INFO_DIR_NAME = "info";
-	private static final String JOB_VERSIONS_DIR_NAME = "versions";
+    private static final Logger logger = LogManager.getLogger();
 
-	protected File jobDir;
-	protected File jobDataDir;
-	protected File jobToolboxDir;
-	protected File jobInfoDir;
-	protected File jobVersionsDir;
+    private static final String JOB_DATA_DIR_NAME = "data";
+    private static final String JOB_TOOLBOX_DIR_NAME = "toolbox";
+    private static final String JOB_INFO_DIR_NAME = "info";
+    private static final String JOB_VERSIONS_DIR_NAME = "versions";
 
-	
-	
-	
-	
-	@Override
-	public void construct(GenericJobMessage inputMessage, ToolDescription toolDescription, ResultCallback resultHandler,
-			int jobTimeout) {
-		super.construct(inputMessage, toolDescription, resultHandler, jobTimeout);
-		this.jobDir = new File(resultHandler.getWorkDir(), getId());
-		this.jobDataDir = new File(this.jobDir, JOB_DATA_DIR_NAME);
-		this.jobToolboxDir = new File(this.jobDir, JOB_TOOLBOX_DIR_NAME);
-		this.jobInfoDir = new File(this.jobDir, JOB_INFO_DIR_NAME);
-		this.jobVersionsDir = new File(this.jobInfoDir, JOB_VERSIONS_DIR_NAME);
-	}
+    protected File jobDir;
+    protected File jobDataDir;
+    protected File jobToolboxDir;
+    protected File jobInfoDir;
+    protected File jobVersionsDir;
+
+    @Override
+    public void construct(GenericJobMessage inputMessage, ToolDescription toolDescription, ResultCallback resultHandler,
+            int jobTimeout) {
+        super.construct(inputMessage, toolDescription, resultHandler, jobTimeout);
+        this.jobDir = new File(resultHandler.getWorkDir(), getId());
+        this.jobDataDir = new File(this.jobDir, JOB_DATA_DIR_NAME);
+        this.jobToolboxDir = new File(this.jobDir, JOB_TOOLBOX_DIR_NAME);
+        this.jobInfoDir = new File(this.jobDir, JOB_INFO_DIR_NAME);
+        this.jobVersionsDir = new File(this.jobInfoDir, JOB_VERSIONS_DIR_NAME);
+    }
 
     /**
      * Copy input files from file broker to job work directory.
@@ -92,28 +86,27 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
         updateState(JobState.RUNNING, "transferring input data");
 
-		// create directories for the job
-		if (!this.jobDir.mkdir()) {
-			this.setErrorMessage("Creating job working directory failed.");
-			updateState(JobState.ERROR);
-			return;
-		}
-		if (!this.jobInfoDir.mkdir()) {
-			this.setErrorMessage("Creating job info directory failed.");
-			updateState(JobState.ERROR);
-			return;
-		}
-		if (!this.jobVersionsDir.mkdir()) {
-			this.setErrorMessage("Creating job versions directory failed.");
-			updateState(JobState.ERROR);
-			return;
-		}
+        // create directories for the job
+        if (!this.jobDir.mkdir()) {
+            this.setErrorMessage("Creating job working directory failed.");
+            updateState(JobState.ERROR);
+            return;
+        }
+        if (!this.jobInfoDir.mkdir()) {
+            this.setErrorMessage("Creating job info directory failed.");
+            updateState(JobState.ERROR);
+            return;
+        }
+        if (!this.jobVersionsDir.mkdir()) {
+            this.setErrorMessage("Creating job versions directory failed.");
+            updateState(JobState.ERROR);
+            return;
+        }
 
-		
-		// get input files and toolbox
-		try {
-			// input files
-			getInputFiles();
+        // get input files and toolbox
+        try {
+            // input files
+            getInputFiles();
 
             // toolbox
             if (!this.jobToolboxDir.mkdir()) {
@@ -177,135 +170,134 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 describedFiles = new File[] { new File(jobDataDir, outputName) };
             }
 
-			// parse a file containing file names for the client
-			String outputsFilename = "chipster-outputs.tsv";
-			LinkedHashMap<String, String> nameMap;
-			try {
-				nameMap = ToolUtils.parseOutputDescription(new File(jobDataDir, outputsFilename));
-			} catch (IOException | CompException e) {
-				logger.warn("couldn't parse " + outputsFilename);
-				this.setErrorMessage("could not parse " + outputsFilename);
-				this.setOutputText(Exceptions.getStackTrace(e));
-				updateState(JobState.ERROR);
-				return;
-			}
+            // parse a file containing file names for the client
+            String outputsFilename = "chipster-outputs.tsv";
+            LinkedHashMap<String, String> nameMap;
+            try {
+                nameMap = ToolUtils.parseOutputDescription(new File(jobDataDir, outputsFilename));
+            } catch (IOException | CompException e) {
+                logger.warn("couldn't parse " + outputsFilename);
+                this.setErrorMessage("could not parse " + outputsFilename);
+                this.setOutputText(Exceptions.getStackTrace(e));
+                updateState(JobState.ERROR);
+                return;
+            }
 
-			// add all described files to the result message
-			for (File outputFile : describedFiles) {
-				// copy file to file broker
-				try {
-					File phenodataFileForThisOutput = 
-							outputFile.getName().endsWith(".tsv") ||
-							outputFile.getName().endsWith(".shared") ||
-							outputFile.getName().endsWith(".Rda") ? phenodataFile : null;
-					
-					String nameInClient = nameMap.get(outputFile.getName());
-					String nameInSessionDb = nameInClient != null ? nameInClient : outputFile.getName();
-					String dataId = resultHandler.getFileBrokerClient().addFile(
-							UUID.fromString(inputMessage.getJobId()), inputMessage.getSessionId(), outputFile, nameInSessionDb, fileDescription.isMeta(), phenodataFileForThisOutput);
-					// put dataId to result message. Preserve the order of outputs in tool
-					this.addOutputDataset(outputFile.getName(), dataId, nameInClient, fileDescription.getFileName().getDisplayName());
-					logger.debug("transferred output file: " + fileDescription.getFileName());
+            // add all described files to the result message
+            for (File outputFile : describedFiles) {
+                // copy file to file broker
+                try {
+                    File phenodataFileForThisOutput = outputFile.getName().endsWith(".tsv") ||
+                            outputFile.getName().endsWith(".shared") ||
+                            outputFile.getName().endsWith(".Rda") ? phenodataFile : null;
 
-				} catch (FileNotFoundException e) {
-					// required output file not found
-					if (!fileDescription.isOptional()) {
-						logger.error("required output file not found", e);
-						this.setErrorMessage("Required output file is missing.");
-						this.appendOutputText(Exceptions.getStackTrace(e));
-						updateState(JobState.ERROR);
-						return;
-					}
+                    String nameInClient = nameMap.get(outputFile.getName());
+                    String nameInSessionDb = nameInClient != null ? nameInClient : outputFile.getName();
+                    String dataId = resultHandler.getFileBrokerClient().addFile(
+                            UUID.fromString(inputMessage.getJobId()), inputMessage.getSessionId(), outputFile,
+                            nameInSessionDb, fileDescription.isMeta(), phenodataFileForThisOutput);
+                    // put dataId to result message. Preserve the order of outputs in tool
+                    this.addOutputDataset(outputFile.getName(), dataId, nameInClient,
+                            fileDescription.getFileName().getDisplayName());
+                    logger.debug("transferred output file: " + fileDescription.getFileName());
 
-				} catch (NotEnoughDiskSpaceException nedse) {
-					logger.warn("not enough disk space for result file in filebroker");
-					this.setErrorMessage(
-							"There was not enough disk space for the result file in the Chipster server. Please try again later.");
-					updateState(JobState.FAILED_USER_ERROR, "not enough disk space for results");
-					return;
-				}
+                } catch (FileNotFoundException e) {
+                    // required output file not found
+                    if (!fileDescription.isOptional()) {
+                        logger.error("required output file not found", e);
+                        this.setErrorMessage("Required output file is missing.");
+                        this.appendOutputText(Exceptions.getStackTrace(e));
+                        updateState(JobState.ERROR);
+                        return;
+                    }
 
-				catch (Exception e) {
-					// TODO continue or return? also note the super.postExecute()
-					logger.error("could not put file to file broker", e);
-					this.setErrorMessage("Could not send output file.");
-					this.setOutputText(Exceptions.getStackTrace(e));
-					updateState(JobState.ERROR);
-					return;
-				}
-			}
-			
-		}
+                } catch (NotEnoughDiskSpaceException nedse) {
+                    logger.warn("not enough disk space for result file in filebroker");
+                    this.setErrorMessage(
+                            "There was not enough disk space for the result file in the Chipster server. Please try again later.");
+                    updateState(JobState.FAILED_USER_ERROR, "not enough disk space for results");
+                    return;
+                }
 
-		
-		// add versions data to result message
-		String versionsJson; 
-		try { 			
-			versionsJson = this.getVersionsJson(); 
-		} catch (Exception e) {
-			String m = "failed to read versions file ";
-			logger.error(m);
-			this.setErrorMessage(m);
-			this.setOutputText(Exceptions.getStackTrace(e));
-			updateState(JobState.ERROR);
-			return;
-		}
-		
-		if (versionsJson != null && versionsJson.length() > 0) {
-			this.addVersions(versionsJson);
-		}
+                catch (Exception e) {
+                    // TODO continue or return? also note the super.postExecute()
+                    logger.error("could not put file to file broker", e);
+                    this.setErrorMessage("Could not send output file.");
+                    this.setOutputText(Exceptions.getStackTrace(e));
+                    updateState(JobState.ERROR);
+                    return;
+                }
+            }
 
-		super.postExecute();
-	}
+        }
 
-	
-	protected String getVersionsJson() {
+        // add versions data to result message
+        String versionsJson;
+        try {
+            versionsJson = this.getVersionsJson();
+        } catch (Exception e) {
+            String m = "failed to read versions file ";
+            logger.error(m);
+            this.setErrorMessage(m);
+            this.setOutputText(Exceptions.getStackTrace(e));
+            updateState(JobState.ERROR);
+            return;
+        }
 
-		FileFilter fileFilter = file -> file.isFile() && file.getName().endsWith(".txt");
+        if (versionsJson != null && versionsJson.length() > 0) {
+            this.addVersions(versionsJson);
+        }
 
-		File[] files = this.jobVersionsDir.listFiles(fileFilter);
+        super.postExecute();
+    }
 
-		List<VersionJson> jsonList = new ArrayList<>();
+    protected String getVersionsJson() {
 
-		if (files != null) {
-			jsonList = Stream.of(files).sorted(Comparator.comparingLong(File::lastModified)).map(file -> {
-					String fileContent;
-					try {
-						fileContent = readFileContent(file);
-					} catch (IOException e) {
-						String m = "failed to read version file " + file.getName();
-						logger.warn(m);
-						throw new RuntimeException(e);
-					}
-					return new VersionJson(file.getName().replaceAll("\\.txt$", ""), fileContent);
-			}).filter(Objects::nonNull).collect(Collectors.toList());
-		}
+        FileFilter fileFilter = file -> file.isFile() && file.getName().endsWith(".txt");
 
-		if (jsonList.size() < 1) {
-			return null;
-		} else {
-			Gson gson = new GsonBuilder().create();
-			return gson.toJson(jsonList);
-		}
-	}
-	
-	/**
-	 * Clear job working directory.
-	 * 
-	 */
-	@Override
-	protected void cleanUp() {
-		try {
-			// sweep job working directory
-			if (resultHandler.shouldSweepWorkDir()) {
-//				OnDiskCompJobBase.delTree(jobDir);
-			}
-		} catch (Exception e) {
-			logger.error("Error when cleaning up job work dir.", e);
-		} finally {
-			super.cleanUp();
-		}
-	}
+        File[] files = this.jobVersionsDir.listFiles(fileFilter);
+
+        List<VersionJson> jsonList = new ArrayList<>();
+
+        if (files != null) {
+            jsonList = Stream.of(files).sorted(Comparator.comparingLong(File::lastModified)).map(file -> {
+                String fileContent;
+                try {
+                    fileContent = readFileContent(file);
+                } catch (IOException e) {
+                    String m = "failed to read version file " + file.getName();
+                    logger.warn(m);
+                    throw new RuntimeException(e);
+                }
+                return new VersionJson(file.getName().replaceAll("\\.txt$", ""), fileContent);
+            }).filter(Objects::nonNull).collect(Collectors.toList());
+        }
+
+        if (jsonList.size() < 1) {
+            return null;
+        } else {
+            Gson gson = new GsonBuilder().create();
+            return gson.toJson(jsonList);
+        }
+    }
+
+    /**
+     * Clear job working directory.
+     * 
+     */
+    @Override
+    protected void cleanUp() {
+        try {
+            // sweep job working directory
+            if (resultHandler.shouldSweepWorkDir()) {
+                // OnDiskCompJobBase.delTree(jobDir);
+            }
+        } catch (Exception e) {
+            logger.error("Error when cleaning up job work dir.", e);
+        } finally {
+            super.cleanUp();
+        }
+    }
 
     private void getInputFiles()
             throws Exception, JobCancelledException, IOException, FileBrokerException {
@@ -314,16 +306,19 @@ public abstract class OnDiskCompJobBase extends CompJob {
         if (!this.jobDataDir.mkdir()) {
             throw new IOException("Creating job data dir failed.");
         }
-        
+
         Set<String> boundInputs = new HashSet<>();
-        
-        /* Check inputs
+
+        /*
+         * Check inputs
          * 
          * Bind all inputs in the job message to inputs in the tool
-         * and check that all non-optional inputs are found. 
+         * and check that all non-optional inputs are found.
          * 
-         * The same check is done already in the app too, but checking it here makes the error
-         * messages clearer, in case we get invalid jobs from replay-test, CLI client or Rest API.
+         * The same check is done already in the app too, but checking it here makes the
+         * error
+         * messages clearer, in case we get invalid jobs from replay-test, CLI client or
+         * Rest API.
          */
         for (InputDescription input : toolDescription.getInputFiles()) {
 
@@ -333,10 +328,10 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 String postfix = input.getFileName().getPostfix();
 
                 // if input is required there should be at least one
-                
+
                 boolean found = false;
 
-                for (String messageInput : inputMessage.getKeys()) {              
+                for (String messageInput : inputMessage.getKeys()) {
                     if (messageInput.startsWith(prefix) && messageInput.endsWith(postfix)) {
                         // found
                         boundInputs.add(messageInput);
@@ -347,10 +342,11 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 if (!found && !input.isOptional()) {
                     logger.error("required input file set not found");
                     this.setErrorMessage(
-                        "The tool has required input set " + input.getFileName().getPrefix() + "{...}"
-                        + input.getFileName().getPostfix() + " but the job didn't have any input files for it: "
-                        + RestUtils.asJson(inputMessage.getKeys().toArray()));
-                                                        
+                            "The tool has required input set " + input.getFileName().getPrefix() + "{...}"
+                                    + input.getFileName().getPostfix()
+                                    + " but the job didn't have any input files for it: "
+                                    + RestUtils.asJson(inputMessage.getKeys().toArray()));
+
                     updateState(JobState.ERROR);
                     return;
                 }
@@ -362,27 +358,27 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 if (inputMessage.getKeys().contains(inputName)) {
                     boundInputs.add(inputName);
 
-                } else if (!input.isOptional()){
+                } else if (!input.isOptional()) {
                     logger.error("required input file not found");
                     this.setErrorMessage(
-                        "The tool has required input " + input.getFileName().getID()
-                        + " but the job didn't have any input files for it: "
-                        + RestUtils.asJson(inputMessage.getKeys().toArray()));
+                            "The tool has required input " + input.getFileName().getID()
+                                    + " but the job didn't have any input files for it: "
+                                    + RestUtils.asJson(inputMessage.getKeys().toArray()));
                     updateState(JobState.ERROR);
-                    return; 
-                }                
+                    return;
+                }
             }
         }
-        
+
         // check that there was an input in the tool for all inputs in the message
         for (String messageInput : inputMessage.getKeys()) {
             if (!boundInputs.contains(messageInput)) {
-                
+
                 logger.error("job input " + messageInput + " was not found from the tool");
                 this.setErrorMessage(
                         "Job input " + messageInput + " was not found from the tool.");
                 updateState(JobState.ERROR);
-                return; 
+                return;
             }
         }
 
@@ -408,12 +404,14 @@ public abstract class OnDiskCompJobBase extends CompJob {
     }
 
     /**
-     * Deletes a file or a directory recursively. Deletes directory links, does not go 
+     * Deletes a file or a directory recursively. Deletes directory links, does not
+     * go
      * into them recursively.
      * 
      * @param dir directory or file to be deleted
-     * @return true if deleting was successful, false file does not exist or deleting it failed
-     * @throws IOException 
+     * @return true if deleting was successful, false file does not exist or
+     *         deleting it failed
+     * @throws IOException
      */
     public static boolean delTree(File dir) throws IOException {
 
@@ -422,7 +420,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
         // Avoids need for dealing with links later on
         if (dir.delete()) {
             return true;
-        } 
+        }
 
         // Directory
         else if (dir.isDirectory()) {
@@ -432,7 +430,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
             // Dir should be empty now
             return dir.delete();
-        } 
+        }
 
         // Could not delete, not a directory, no can do
         else {
@@ -446,7 +444,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
      * @param dir
      * @param regex
      * @return File[]
-     */    
+     */
     public static File[] findFiles(File dir, String regex) {
 
         class RegexFileFilter implements FilenameFilter {
@@ -460,15 +458,15 @@ public abstract class OnDiskCompJobBase extends CompJob {
             public boolean accept(File dir, String name) {
                 return name.matches(regex);
             }
-	        
-	    }
-	    
-	    return dir.listFiles(new RegexFileFilter(regex));
-	}
-	
-	public File getJobDataDir() {
-		return this.jobDataDir;
-	}
+
+        }
+
+        return dir.listFiles(new RegexFileFilter(regex));
+    }
+
+    public File getJobDataDir() {
+        return this.jobDataDir;
+    }
 
     private static String readFileContent(File file) throws IOException {
         byte[] encodedBytes = Files.readAllBytes(file.toPath());

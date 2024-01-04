@@ -19,21 +19,25 @@ import fi.csc.chipster.rest.RestUtils;
  * Hibernate UserType for storing JsonNode object as a json blob
  * 
  * JsonNode can include any json structures. The client app or other components
- * can use these fields to save any kind of structured data. Database will store those to
- * plain jsonb column. 
+ * can use these fields to save any kind of structured data. Database will store
+ * those to
+ * plain jsonb column.
  * 
  * Type jsonb is used in Postgres. The jsonb must be registered in
  * the constructor of Postgres dialect:
+ * 
  * <pre>
  * this.registerColumnType(Types.JAVA_OBJECT, "jsonb");
  * </pre>
  * 
  * And the type must be registered for the Hibernate:
+ * 
  * <pre>
  * hibernateConf.put(JsonNodeJsonType.JSON_NODE_JSON_TYPE, new StringJsonType());
  * </pre>
  * 
  * Then you can use this type in the data model classes:
+ * 
  * <pre>
  * {@literal @}Column
  * {@literal @}Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
@@ -44,63 +48,63 @@ import fi.csc.chipster.rest.RestUtils;
  *
  * @param <T>
  */
-public class JsonNodeJsonType implements UserType { 
-	
+public class JsonNodeJsonType implements UserType {
+
     public static final String JSON_NODE_JSON_TYPE = "JsonNodeJsonType";
 
-	@Override
+    @Override
     public int[] sqlTypes() {
-        return new int[]{Types.JAVA_OBJECT};
+        return new int[] { Types.JAVA_OBJECT };
     }
 
-	@Override
+    @Override
     public Class<JsonNode> returnedClass() {
         return JsonNode.class;
     }
-    
+
     @Override
-	public Object nullSafeGet(ResultSet rs, String[] names, SharedSessionContractImplementor session, Object owner)
-			throws HibernateException, SQLException {
-    	final Object cellContent = rs.getObject(names[0]);
+    public Object nullSafeGet(ResultSet rs, String[] names, SharedSessionContractImplementor session, Object owner)
+            throws HibernateException, SQLException {
+        final Object cellContent = rs.getObject(names[0]);
         if (cellContent == null) {
             return null;
         }
-        
-        if (cellContent instanceof PGobject) {
-        	
-			String jsonString = ((PGobject)cellContent).getValue();
-        	JsonNode jsonObject = RestUtils.parseJson(JsonNode.class, jsonString);
-        	
-        	return jsonObject;
-        } else {
-        	throw new HibernateException("unknown type: " + cellContent.getClass().getName());
-        }
-	}
 
-	@Override
-	public void nullSafeSet(PreparedStatement ps, Object value, int idx, SharedSessionContractImplementor session)
-			throws HibernateException, SQLException {
-		
-		int type = Types.OTHER;
-		
-		if (value == null) {
+        if (cellContent instanceof PGobject) {
+
+            String jsonString = ((PGobject) cellContent).getValue();
+            JsonNode jsonObject = RestUtils.parseJson(JsonNode.class, jsonString);
+
+            return jsonObject;
+        } else {
+            throw new HibernateException("unknown type: " + cellContent.getClass().getName());
+        }
+    }
+
+    @Override
+    public void nullSafeSet(PreparedStatement ps, Object value, int idx, SharedSessionContractImplementor session)
+            throws HibernateException, SQLException {
+
+        int type = Types.OTHER;
+
+        if (value == null) {
             ps.setObject(idx, null, type);
         } else {
-			    	
-	        ps.setObject(idx, value, type);
-        }
-	}
 
-	@Override
+            ps.setObject(idx, value, type);
+        }
+    }
+
+    @Override
     public Object deepCopy(final Object value) throws HibernateException {
-		if (value == null) {
-			return null;		
-		}
-		
-		String json = RestUtils.asJson(value);
-		
-		Object copy = RestUtils.parseJson(JsonNode.class, json);
-		return copy;
+        if (value == null) {
+            return null;
+        }
+
+        String json = RestUtils.asJson(value);
+
+        Object copy = RestUtils.parseJson(JsonNode.class, json);
+        return copy;
     }
 
     @Override
@@ -122,7 +126,7 @@ public class JsonNodeJsonType implements UserType {
     public Object replace(final Object original, final Object target, final Object owner) throws HibernateException {
         return this.deepCopy(original);
     }
-    
+
     @Override
     public boolean equals(final Object obj1, final Object obj2) throws HibernateException {
         if (obj1 == null) {

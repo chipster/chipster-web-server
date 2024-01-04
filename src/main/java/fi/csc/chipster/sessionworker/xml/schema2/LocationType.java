@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -13,11 +12,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 
-
 /**
- * <p>Java class for locationType complex type.
+ * <p>
+ * Java class for locationType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="locationType">
@@ -36,8 +37,8 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "locationType", propOrder = {
-    "method",
-    "url"
+        "method",
+        "url"
 })
 public class LocationType {
 
@@ -50,9 +51,9 @@ public class LocationType {
      * Gets the value of the method property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getMethod() {
         return method;
@@ -62,9 +63,9 @@ public class LocationType {
      * Sets the value of the method property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setMethod(String value) {
         this.method = value;
@@ -74,9 +75,9 @@ public class LocationType {
      * Gets the value of the url property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getUrl() {
         return url;
@@ -86,9 +87,9 @@ public class LocationType {
      * Sets the value of the url property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setUrl(String value) {
         this.url = value;

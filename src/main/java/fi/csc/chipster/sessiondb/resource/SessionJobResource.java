@@ -70,7 +70,7 @@ public class SessionJobResource {
 	@Transaction
 	public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
 
-//    	logger.info(sc.getUserPrincipal().getName());
+		// logger.info(sc.getUserPrincipal().getName());
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId, true);

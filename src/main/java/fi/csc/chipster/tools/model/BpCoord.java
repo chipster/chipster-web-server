@@ -1,7 +1,8 @@
 package fi.csc.chipster.tools.model;
 
 /**
- * Basepair coordinate: base(pair) location and chromosome. The basic coordinate used throughout the Genome Browser.
+ * Basepair coordinate: base(pair) location and chromosome. The basic coordinate
+ * used throughout the Genome Browser.
  *
  */
 public class BpCoord implements Comparable<BpCoord> {
@@ -26,7 +27,7 @@ public class BpCoord implements Comparable<BpCoord> {
 	}
 
 	public int compareTo(BpCoord o) {
-		
+
 		int chrComparison = chr.compareTo(o.chr);
 
 		if (chrComparison != 0) {
@@ -35,10 +36,10 @@ public class BpCoord implements Comparable<BpCoord> {
 			return bp.compareTo(o.bp);
 		}
 	}
-	
+
 	public int compareTo(Long o) {
 
-		return bp.compareTo(o);		
+		return bp.compareTo(o);
 	}
 
 	public boolean equals(Object o) {
@@ -55,7 +56,7 @@ public class BpCoord implements Comparable<BpCoord> {
 	}
 
 	public Long minus(BpCoord o) {
-		
+
 		if (chr.equals(o.chr)) {
 			return bp - o.bp;
 		}

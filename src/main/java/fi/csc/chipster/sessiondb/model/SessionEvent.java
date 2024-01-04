@@ -20,15 +20,21 @@ public class SessionEvent {
 	 * Object specific state, e.g. session is being imported or job is running
 	 */
 	private String state;
-	
-	public enum EventType { CREATE, UPDATE, DELETE }
-	public enum ResourceType { RULE, DATASET, JOB, FILE, SESSION, NEWS }
+
+	public enum EventType {
+		CREATE, UPDATE, DELETE
+	}
+
+	public enum ResourceType {
+		RULE, DATASET, JOB, FILE, SESSION, NEWS
+	}
 
 	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {
 		this(sessionId, resource, resourceId, type, null);
 	}
-	
-	public <E extends Enum<E>> SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type, Enum<E> state) {
+
+	public <E extends Enum<E>> SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type,
+			Enum<E> state) {
 		this.resource = resource;
 		this.sessionId = sessionId;
 		this.resourceId = resourceId;
@@ -37,7 +43,7 @@ public class SessionEvent {
 			this.setState(state.toString());
 		}
 	}
-	
+
 	public SessionEvent() {
 		// JAXB needs this
 	}

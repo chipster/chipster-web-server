@@ -7,9 +7,9 @@ import javax.xml.bind.ValidationEvent;
 import javax.xml.bind.ValidationEventHandler;
 
 public class NonStoppingValidationEventHandler implements ValidationEventHandler {
-	
+
 	private List<ValidationEvent> validationEvents = new LinkedList<ValidationEvent>();
-	
+
 	/**
 	 * Continue, no matter what.
 	 */
@@ -18,7 +18,7 @@ public class NonStoppingValidationEventHandler implements ValidationEventHandler
 		this.validationEvents.add(event);
 		return true;
 	}
-	
+
 	public boolean hasEvents() {
 		return validationEvents.size() > 0;
 	}

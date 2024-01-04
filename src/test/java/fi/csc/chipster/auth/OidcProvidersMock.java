@@ -49,24 +49,26 @@ public class OidcProvidersMock implements OidcProviders {
 
 	@Override
 	public IDTokenValidator getValidator(OidcConfig oidcConfig) {
-		return new IDTokenValidator(new Issuer(oidcConfig.getIssuer()), new ClientID(oidcConfig.getClientId()), JWSAlgorithm.RS256, new JWKSet(privateKey));
+		return new IDTokenValidator(new Issuer(oidcConfig.getIssuer()), new ClientID(oidcConfig.getClientId()),
+				JWSAlgorithm.RS256, new JWKSet(privateKey));
 	}
 
 	public RSAKey getPublicKey() {
 		return privateKey.toPublicJWK();
 	}
-	
+
 	public String getIdToken(HashMap<String, Object> claims) throws JOSEException {
 		return this.getIdToken(this.privateKey, claims, JWSAlgorithm.RS256);
 	}
-	
-	protected String getIdToken(RSAKey privateKey, HashMap<String, Object> claims, JWSAlgorithm algorithm) throws JOSEException {
-		
+
+	protected String getIdToken(RSAKey privateKey, HashMap<String, Object> claims, JWSAlgorithm algorithm)
+			throws JOSEException {
+
 		// https://connect2id.com/products/nimbus-jose-jwt/examples/jws-with-rsa-signature
-		
+
 		// Create RSA-signer with the private key
 		JWSSigner signer = new RSASSASigner(privateKey);
-		
+
 		JWSHeader header = new JWSHeader.Builder(algorithm).keyID(privateKey.getKeyID()).build();
 		Payload payload = new Payload(RestUtils.asJson(claims));
 
@@ -74,7 +76,7 @@ public class OidcProvidersMock implements OidcProviders {
 		JWSObject jwsObject = new JWSObject(header, payload);
 
 		// Compute the RSA signature
-		jwsObject.sign(signer);		
+		jwsObject.sign(signer);
 
 		// To serialize to compact form, produces something like
 		// eyJhbGciOiJSUzI1NiJ9.SW4gUlNBIHdlIHRydXN0IQ.IRMQENi4nJyp4er2L
@@ -82,7 +84,7 @@ public class OidcProvidersMock implements OidcProviders {
 		// maXlS9DhN0nUk_hGI3amEjkKd0BWYCB8vfUbUv0XGjQip78AI4z1PrFRNidm7
 		// -jPDm5Iq0SZnjKjCNS5Q15fokXZc8u0A
 		String jws = jwsObject.serialize();
-		
+
 		return jws;
 	}
 }

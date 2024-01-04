@@ -17,23 +17,23 @@ public class JettyStatisticsSource implements StatusSource {
 	}
 
 	@Override
-	public Map<String, Object> getStatus() {		
-		
-		HashMap<String, Object> status = new HashMap<>();	        
-			        
+	public Map<String, Object> getStatus() {
+
+		HashMap<String, Object> status = new HashMap<>();
+
 		// more or less same with the Jersey
 		status.put("requestAverageDuration", requestStats.getRequestTimeMean());
 		status.put("requestMaximumDuration", requestStats.getRequestTimeMax());
-		
+
 		status.put("requestCount", requestStats.getRequests());
-		status.put("requestsPerSecond", perSecond(requestStats.getRequests(), requestStats));				
-		
+		status.put("requestsPerSecond", perSecond(requestStats.getRequests(), requestStats));
+
 		status.put("responseCodes200", requestStats.getResponses2xx());
 		status.put("responseCodes400", requestStats.getResponses4xx());
 		status.put("responseCodes500", requestStats.getResponses5xx());
 		status.put("responseCodesOther", requestStats.getResponses1xx() + requestStats.getResponses3xx());
 		status.put("connectionsOpen", connectorStats.getConnections());
-		
+
 		// Jetty specific statistics
 		status.put("jettyConnectionDurationMax", connectorStats.getConnectionDurationMax());
 		status.put("jettyConnectionDurationMean", connectorStats.getConnectionDurationMean());
@@ -48,7 +48,7 @@ public class JettyStatisticsSource implements StatusSource {
 		status.put("jettySentBytesRate", connectorStats.getSentBytesRate());
 		status.put("jettySentMessages", connectorStats.getSentMessages());
 		status.put("jettySentMessagesRate", connectorStats.getSentMessagesRate());
-		
+
 		status.put("jettyRquestsActive", requestStats.getRequestsActive());
 		status.put("jettyResponseBytesTotal", requestStats.getResponsesBytesTotal());
 		status.put("jettyRequestsActive", requestStats.getRequestsActive());
@@ -56,11 +56,12 @@ public class JettyStatisticsSource implements StatusSource {
 		status.put("jettyRequestsAsync", requestStats.getAsyncRequests());
 		status.put("jettyRequestsAsyncWaiting", requestStats.getAsyncRequestsWaiting());
 		status.put("jettyDispatched", requestStats.getDispatched());
-		status.put("jettyDispatchedActive", requestStats.getDispatchedActive());	
-		
-		// should be done with fixed intervals, but what results to return right after the reset?
+		status.put("jettyDispatchedActive", requestStats.getDispatchedActive());
+
+		// should be done with fixed intervals, but what results to return right after
+		// the reset?
 		requestStats.statsReset();
-		
+
 		return status;
 	}
 

@@ -32,13 +32,14 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 	public static final DateFormat EXPIRATION_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 	public static final String DELIMETER_CHARACTER = ":";
 	public static final String COMMENT_CHARACTER = "#";
-	
+
 	private static Logger logger = LogManager.getLogger();
 
 	// configurable options
 	protected File passwdFile;
 
-	public void initialize(Subject subject, CallbackHandler callbackHandler, Map<String, ?> sharedState, Map<String, ?> options) {
+	public void initialize(Subject subject, CallbackHandler callbackHandler, Map<String, ?> sharedState,
+			Map<String, ?> options) {
 		super.initialize(subject, callbackHandler, sharedState, options);
 
 		// check password file
@@ -46,7 +47,8 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 		this.passwdFile = new File(passwdFileName);
 
 		if (!passwdFile.exists()) {
-			logger.error("Password file " + passwdFile.getAbsolutePath() + " not found, simple file login module not started.");
+			logger.error("Password file " + passwdFile.getAbsolutePath()
+					+ " not found, simple file login module not started.");
 			throw new RuntimeException(passwdFile.getAbsolutePath() + " not found");
 		}
 	}
@@ -64,7 +66,7 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
 
 				// FIXME line should be cleaned (contains password)
-				
+
 				// check for empty line
 				if (line.trim().length() == 0) {
 					continue;
@@ -89,14 +91,14 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 
 				// password
 				StringBuffer readPassword = tokens.readToSB(DELIMETER_CHARACTER);
-				boolean match = true; 
+				boolean match = true;
 				for (int i = 0; i < readPassword.length(); i++) {
 					// check that we match (length checking is a bit redundant, but who cares...)
 					if (readPassword.length() != password.length || readPassword.charAt(i) != password[i]) {
 						match = false;
 					}
 					// clean password as we go
-					readPassword.setCharAt(i, (char)0); 
+					readPassword.setCharAt(i, (char) 0);
 				}
 
 				if (!match) {
@@ -109,7 +111,7 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 					tokens.read();
 
 					String expiration = tokens.readTo(DELIMETER_CHARACTER);
-					
+
 					if (expiration.trim().length() > 0) {
 						// check only if data is not empty
 						try {
@@ -118,7 +120,8 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 								match = false; // authentication successful, but account has expired
 							}
 						} catch (ParseException e) {
-							logger.error("when authenticating " + username +" failed to parse exp. date: " + expiration);
+							logger.error(
+									"when authenticating " + username + " failed to parse exp. date: " + expiration);
 							match = false;
 						}
 					}
@@ -131,7 +134,7 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			
+
 		} finally {
 			IOUtils.closeIfPossible(reader);
 		}

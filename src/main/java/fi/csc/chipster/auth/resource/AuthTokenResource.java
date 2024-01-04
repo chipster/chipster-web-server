@@ -30,7 +30,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
 /**
- * REST API resource for creating Chipster tokens 
+ * REST API resource for creating Chipster tokens
  * 
  * 
  * @author klemela
@@ -41,13 +41,13 @@ public class AuthTokenResource {
 
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
-	
+
 	public static final String QP_DATASET_ID = "datasetId";
 	public static final String QP_ACCESS = "access";
 	public static final String QP_VALID = "valid";
 	public static final String QP_SESSION_ID = "sessionId";
 	public static final String QP_USERNAME = "username";
-	
+
 	public static final String TOKEN_HEADER = "chipster-token";
 
 	public static final String PATH_TOKENS = "tokens";
@@ -55,12 +55,11 @@ public class AuthTokenResource {
 
 	public static final String PATH_DATASET_TOKEN = "datasettoken";
 	public static final String PATH_SESSION_TOKEN = "sessiontoken";
-	
+
 	private static final long DATASET_TOKEN_VALID_DEFAULT = 60; // seconds
-	
+
 	// session downloads may take several hours
 	private static final long SESSION_TOKEN_VALID_DEFAULT = 60 * 60 * 24; // seconds
-
 
 	private AuthTokens tokens;
 	private UserTable userTable;
@@ -76,7 +75,8 @@ public class AuthTokenResource {
 	@Transaction // getName() uses the db
 	public Response createUserToken(@Context SecurityContext sc) {
 
-		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X POST http://localhost:8081/auth/tokens
+		// curl -i -H "Content-Type: application/json" --user client:clientPassword -X
+		// POST http://localhost:8081/auth/tokens
 
 		AuthPrincipal principal = (AuthPrincipal) sc.getUserPrincipal();
 		String username = sc.getUserPrincipal().getName();
@@ -85,21 +85,25 @@ public class AuthTokenResource {
 			// RolesAllowed prevents this
 			throw new NotAuthorizedException("username is null");
 		}
-		
-		String token = tokens.createNewUserToken(username, principal.getRoles(), this.getName(username, principal.getRoles()));
-		
+
+		String token = tokens.createNewUserToken(username, principal.getRoles(),
+				this.getName(username, principal.getRoles()));
+
 		return Response.ok(token).build();
 	}
-	
+
 	/**
 	 * Check the token validity on the server
 	 * 
-	 * Most services shouldn't use this, but get the public key and check the token themselves 
+	 * Most services shouldn't use this, but get the public key and check the token
+	 * themselves
 	 * for performance reasons.
-	 * If that is impractical for some service, it can also use this endpoint to do the validation.
+	 * If that is impractical for some service, it can also use this endpoint to do
+	 * the validation.
 	 * 
-	 * TODO find a way to pass the client's error (NotAuthorized or Forbidden), to make it
-	 * easier to switch between these two ways of validation.  
+	 * TODO find a way to pass the client's error (NotAuthorized or Forbidden), to
+	 * make it
+	 * easier to switch between these two ways of validation.
 	 * 
 	 * @param requestToken
 	 * @param sc
@@ -115,17 +119,18 @@ public class AuthTokenResource {
 		try {
 			validToken = tokens.validateUserToken(requestToken);
 		} catch (NotAuthorizedException | ForbiddenException e) {
-			// NotAuthorized and Forbidden are not suitable here, because the server authenticated correctly in the TokenRequestFilter			
+			// NotAuthorized and Forbidden are not suitable here, because the server
+			// authenticated correctly in the TokenRequestFilter
 			throw new NotFoundException(e);
 		}
 
-		return Response.ok(validToken).build();			
+		return Response.ok(validToken).build();
 	}
-	
+
 	/**
 	 * Get the public key
 	 * 
-	 * Other services can use the public key to validate tokens signed by the 
+	 * Other services can use the public key to validate tokens signed by the
 	 * auth service.
 	 * 
 	 * @param sc
@@ -137,8 +142,8 @@ public class AuthTokenResource {
 	@RolesAllowed(Role.SERVER)
 	public Response getPublicKey(@Context SecurityContext sc) {
 
-		return Response.ok(this.tokens.getPublicKey()).build();					
-	}	
+		return Response.ok(this.tokens.getPublicKey()).build();
+	}
 
 	/**
 	 * Exchange an expiring UserToken to one which is valid for longer
@@ -150,7 +155,7 @@ public class AuthTokenResource {
 	 */
 	@POST
 	@Path("refresh")
-	@RolesAllowed({Role.CLIENT, Role.SERVER})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER })
 	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction // getName() uses the db
 	public Response refreshUserToken(@Context SecurityContext sc) {
@@ -159,13 +164,13 @@ public class AuthTokenResource {
 		String oldToken = principal.getTokenKey();
 
 		String newToken = tokens.refreshUserToken(oldToken, this.getName(principal.getName(), principal.getRoles()));
-		
+
 		return Response.ok(newToken).build();
 	}
 
 	@GET
 	@Path("check")
-	@RolesAllowed({Role.CLIENT, Role.SERVER})
+	@RolesAllowed({ Role.CLIENT, Role.SERVER })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction // getName() uses the db
 	public Response checkClientToken(@Context SecurityContext sc) {
@@ -175,7 +180,7 @@ public class AuthTokenResource {
 
 		// throws if fails
 		UserToken validToken = tokens.validateUserToken(token);
-		
+
 		return Response.ok(validToken).build();
 	}
 
@@ -186,7 +191,7 @@ public class AuthTokenResource {
 	 * @param roles
 	 * @return
 	 */
-	private String getName(String username, Set<String> roles ) {
+	private String getName(String username, Set<String> roles) {
 		// service accounts are not in the userTable
 		if (roles.contains(Role.CLIENT)) {
 			return this.userTable.get(new UserId(username)).getName();
@@ -199,11 +204,11 @@ public class AuthTokenResource {
 	 * Create dataset token
 	 * 
 	 * Only session-db calls this directly, everyone else must use it through
-	 * SessionDbTokenResource. 
+	 * SessionDbTokenResource.
 	 * 
-	 * This method signs dataset tokens with any values that it receives from the 
-	 * session-db. It's critical that the session-db makes requests to this 
-	 * method only after checking that user is allowed to create such token. 
+	 * This method signs dataset tokens with any values that it receives from the
+	 * session-db. It's critical that the session-db makes requests to this
+	 * method only after checking that user is allowed to create such token.
 	 * 
 	 * @param enduserUsername
 	 * @param sessionId
@@ -217,12 +222,12 @@ public class AuthTokenResource {
 	@RolesAllowed(Role.SESSION_DB) // only session-db should create DatasetTokens
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response createDatasetToken(
-			@QueryParam(QP_USERNAME) String enduserUsername, 
-			@QueryParam(QP_SESSION_ID) UUID sessionId, 
-			@QueryParam(QP_DATASET_ID) UUID datasetId, 
-			@QueryParam(QP_VALID) String validString,  
+			@QueryParam(QP_USERNAME) String enduserUsername,
+			@QueryParam(QP_SESSION_ID) UUID sessionId,
+			@QueryParam(QP_DATASET_ID) UUID datasetId,
+			@QueryParam(QP_VALID) String validString,
 			@Context SecurityContext sc) {
-		
+
 		String serviceUsername = sc.getUserPrincipal().getName();
 		Instant valid = AuthTokens.parseValid(validString, DATASET_TOKEN_VALID_DEFAULT);
 
@@ -230,20 +235,20 @@ public class AuthTokenResource {
 			// RolesAllowed prevents this
 			throw new NotAuthorizedException("username is null");
 		}
-		
+
 		String token = tokens.createDatasetToken(serviceUsername, enduserUsername, sessionId, datasetId, valid);
-		
+
 		return Response.ok(token).build();
 	}
-	
+
 	/**
 	 * Create session token
 	 * 
 	 * Only session-db calls this directly, everyone else must use it through
-	 * SessionDbTokenResource. 
+	 * SessionDbTokenResource.
 	 * 
-	 * This method signs dataset tokens with any values that it receives from the 
-	 * session-db. It's critical that the session-db makes requests to this 
+	 * This method signs dataset tokens with any values that it receives from the
+	 * session-db. It's critical that the session-db makes requests to this
 	 * method only after checking that user is allowed to create such token.
 	 * 
 	 * @param enduserUsername
@@ -258,31 +263,30 @@ public class AuthTokenResource {
 	@RolesAllowed(Role.SESSION_DB) // only session-db should create SessionTokens
 	@Produces(MediaType.TEXT_PLAIN)
 	public Response createSessionToken(
-			@QueryParam(QP_USERNAME) String enduserUsername, 
-			@QueryParam(QP_SESSION_ID) UUID sessionId,  
-			@QueryParam(QP_VALID) String validString, 
-			@QueryParam(QP_ACCESS) String accessString, 
+			@QueryParam(QP_USERNAME) String enduserUsername,
+			@QueryParam(QP_SESSION_ID) UUID sessionId,
+			@QueryParam(QP_VALID) String validString,
+			@QueryParam(QP_ACCESS) String accessString,
 			@Context SecurityContext sc) {
-		
+
 		String serviceUsername = sc.getUserPrincipal().getName();
 		Instant valid = AuthTokens.parseValid(validString, SESSION_TOKEN_VALID_DEFAULT);
-		
+
 		Access access = null;
-		
+
 		if (accessString != null) {
-			access = Access.valueOf(accessString);			
+			access = Access.valueOf(accessString);
 		} else {
 			access = Access.READ_ONLY;
 		}
-		
+
 		if (serviceUsername == null) {
 			// RolesAllowed prevents this
 			throw new NotAuthorizedException("username is null");
 		}
-		
-		
+
 		String token = tokens.createSessionToken(serviceUsername, enduserUsername, sessionId, valid, access);
-		
+
 		return Response.ok(token).build();
 	}
 }

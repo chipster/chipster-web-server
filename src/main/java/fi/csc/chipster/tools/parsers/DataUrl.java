@@ -9,9 +9,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 
 /**
- * Genome browser shouldn't care whether the data is a local file or an url address. This class
- * is a replacement for File and URL classes to enable transparent use of data regardless of its
- * type. 
+ * Genome browser shouldn't care whether the data is a local file or an url
+ * address. This class
+ * is a replacement for File and URL classes to enable transparent use of data
+ * regardless of its
+ * type.
  * 
  * @author klemela
  */
@@ -35,12 +37,12 @@ public class DataUrl {
 
 	public InputStream getInputStream() throws IOException, URISyntaxException {
 
-		//Assume local
+		// Assume local
 		return new FileInputStream(new File(url.toURI()));
 	}
 
 	public File getLocalFile() throws IOException, URISyntaxException {
-		//Assume local
+		// Assume local
 		return new File(url.toURI());
 	}
 
@@ -84,5 +86,5 @@ public class DataUrl {
 			return false;
 		}
 		return true;
-	}		
+	}
 }

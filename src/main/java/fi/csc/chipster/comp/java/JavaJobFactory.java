@@ -24,58 +24,57 @@ public class JavaJobFactory implements JobFactory {
 	 * Logger for this class
 	 */
 	private static Logger logger = LogManager.getLogger();
-	
+
 	private HashMap<String, String> parameters;
 
-	
 	public JavaJobFactory(HashMap<String, String> parameters, Config config) throws IOException {
 		this.parameters = parameters;
 	}
 
-	@SuppressWarnings(value="unchecked")
+	@SuppressWarnings(value = "unchecked")
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
 			int jobTimeout, Job dbJob, Runtime runtime) throws CompException {
 		ToolDescription description = createToolDescription(tool);
-		
+
 		try {
-			Class<? extends Object> jobClass = (Class<? extends Object>)description.getImplementation();
-			JavaCompJobBase analysisJob = (JavaCompJobBase)jobClass.getDeclaredConstructor().newInstance();
+			Class<? extends Object> jobClass = (Class<? extends Object>) description.getImplementation();
+			JavaCompJobBase analysisJob = (JavaCompJobBase) jobClass.getDeclaredConstructor().newInstance();
 			analysisJob.construct(message, description, resultHandler, jobTimeout);
 			return analysisJob;
-			
+
 		} catch (Exception e) {
-			throw new RuntimeException("internal error: type " + description.getImplementation().toString() + " could not be instantiated");
+			throw new RuntimeException("internal error: type " + description.getImplementation().toString()
+					+ " could not be instantiated");
 		}
 	}
-	
+
 	public HashMap<String, String> getParameters() {
 		return parameters;
 	}
 
 	private ToolDescription createToolDescription(ToolboxTool tool) throws CompException {
-		
+
 		// get the job class
 		Class<? extends Object> jobClass = null;
 		String className = tool.getId().substring(0, tool.getId().lastIndexOf(".java"));
-		
-		try { 
-			 jobClass = Class.forName(className);
+
+		try {
+			jobClass = Class.forName(className);
 		} catch (ClassNotFoundException e) {
 			logger.error("could not load job class: " + tool.getId());
 			throw new CompException("could not load job class: " + tool.getId());
 		}
-		
+
 		// create analysis description
 		ToolDescription td;
 		td = new ToolDescriptionGenerator().generate(tool.getSadlDescription());
-		
+
 		td.setImplementation(jobClass);
 		td.setCommand("java");
 		td.setSourceCode("Source code for this tool is available within Chipster source code.");
-		
+
 		return td;
 	}
-
 
 	@Override
 	public boolean isDisabled() {
@@ -83,4 +82,3 @@ public class JavaJobFactory implements JobFactory {
 	}
 
 }
-

@@ -16,7 +16,8 @@ public class ExtractedSession {
 	private ArrayList<String> warnings;
 	private ArrayList<String> errors;
 
-	public ExtractedSession(Session session, Map<UUID, Dataset> datasetMap, Map<UUID, Job> jobMap, ArrayList<String> warnings, ArrayList<String> errors) {
+	public ExtractedSession(Session session, Map<UUID, Dataset> datasetMap, Map<UUID, Job> jobMap,
+			ArrayList<String> warnings, ArrayList<String> errors) {
 		this.setSession(session);
 		this.datasetMap = datasetMap;
 		this.jobMap = jobMap;

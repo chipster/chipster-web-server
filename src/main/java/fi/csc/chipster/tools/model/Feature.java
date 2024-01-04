@@ -3,14 +3,14 @@ package fi.csc.chipster.tools.model;
 import java.text.DecimalFormat;
 import java.util.LinkedHashMap;
 
-
 /**
- * Content for given genomic region. Content is data dependent, but basically it is data parsed from the 
+ * Content for given genomic region. Content is data dependent, but basically it
+ * is data parsed from the
  * input file or other data source. All the rows fall within the genomic region.
  *
  */
 public class Feature implements Comparable<Feature> {
-	
+
 	public Region region;
 	public LinkedHashMap<DataType, Object> values;
 
@@ -21,7 +21,7 @@ public class Feature implements Comparable<Feature> {
 
 	public Feature(Region region) {
 		this.region = region;
-		this.values = new LinkedHashMap<DataType, Object>(); 
+		this.values = new LinkedHashMap<DataType, Object>();
 	}
 
 	public Feature(Feature other) {
@@ -34,13 +34,13 @@ public class Feature implements Comparable<Feature> {
 		int regionComparison = this.region.compareTo(other.region);
 
 		if (regionComparison != 0) {
-			return regionComparison;			
-			
+			return regionComparison;
+
 		} else {
 			return values.toString().compareTo(other.values.toString());
 		}
 	}
-	
+
 	@Override
 	public int hashCode() {
 		return region.hashCode();
@@ -54,18 +54,18 @@ public class Feature implements Comparable<Feature> {
 			return false;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
-		
+
 		final DecimalFormat FLOAT_FORMAT = new DecimalFormat("0.#########");
 		String extra = "";
-		
+
 		for (Object value : values.values()) {
-			
+
 			if (value instanceof Float) {
-				extra += "\t" + FLOAT_FORMAT.format((Float)value);
-				
+				extra += "\t" + FLOAT_FORMAT.format((Float) value);
+
 			} else {
 				extra += "\t" + value.toString();
 			}
@@ -73,9 +73,9 @@ public class Feature implements Comparable<Feature> {
 		return region.toString(true) + extra;
 	}
 
-//	public IndexKey getIndexKey() {
-//		return (IndexKey)values.get(DataType.ID);
-//	}
+	// public IndexKey getIndexKey() {
+	// return (IndexKey)values.get(DataType.ID);
+	// }
 
 	public Object getValueObject() {
 		return values.get(DataType.VALUE);

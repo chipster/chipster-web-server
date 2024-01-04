@@ -140,7 +140,7 @@ public class SessionDb {
 				.register(userResource)
 				.register(newsResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
-//				.register(RestUtils.getLoggingFeature("session-db"))
+				// .register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);

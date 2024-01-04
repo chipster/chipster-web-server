@@ -42,7 +42,7 @@ public class SingleShotResourceMonitor {
 
 	public static interface SingleShotProcessProvider {
 		public Process getJobProcess();
-		
+
 		public File getJobDataDir();
 
 		void maxStorageChanged(long maxStorage);
@@ -58,11 +58,11 @@ public class SingleShotResourceMonitor {
 	private StorageResourceMonitor storageMonitor;
 
 	public SingleShotResourceMonitor(SingleShotProcessProvider processProvider, int monitoringInterval) {
-		
+
 		if (monitoringInterval >= 0) {
-			
+
 			this.processProvider = processProvider;
-			
+
 			resourceMonitorTimer = new Timer(true);
 			resourceMonitorTimer.schedule(new ResourceMonitorTask(), monitoringInterval, monitoringInterval);
 		}
@@ -73,21 +73,21 @@ public class SingleShotResourceMonitor {
 		@Override
 		public void run() {
 			try {
-				
+
 				updateProcessResources();
-				
+
 				updateStorageResources();
-				
+
 			} catch (IOException e) {
 				logger.error("failed to monitor job resource usage", e);
 			}
 		}
 	}
-	
+
 	private void updateProcessResources() throws IOException {
 		long t = System.currentTimeMillis();
-		
-		/* 
+
+		/*
 		 * Create ProcessResouceMonitor after there is a process
 		 * 
 		 * We don't know when the CompJob has created the process.
@@ -95,11 +95,11 @@ public class SingleShotResourceMonitor {
 		 * ProcessResourceMonitor when the process exists.
 		 */
 		Process process = processProvider.getJobProcess();
-		
+
 		if (process != null && processMonitor == null) {
-			processMonitor = new ProcessResourceMonitor(process);					
+			processMonitor = new ProcessResourceMonitor(process);
 		}
-			
+
 		if (processMonitor != null) {
 			processMonitor.update();
 		}
@@ -111,27 +111,26 @@ public class SingleShotResourceMonitor {
 			logger.warn("process monitoring took " + (System.currentTimeMillis() - t) + "ms");
 		}
 	}
-	
+
 	private void updateStorageResources() throws IOException {
 		long t = System.currentTimeMillis();
-		
+
 		File jobDataDir = processProvider.getJobDataDir();
-		
+
 		if (jobDataDir != null && storageMonitor == null) {
-			storageMonitor = new StorageResourceMonitor(jobDataDir, this.processProvider);					
+			storageMonitor = new StorageResourceMonitor(jobDataDir, this.processProvider);
 		}
-			
+
 		if (storageMonitor != null) {
 			storageMonitor.update();
 		}
 
 		long dt = (System.currentTimeMillis() - t);
-		
+
 		if (dt > 500) {
 			logger.warn("storage monitoring took " + (System.currentTimeMillis() - t) + "ms");
 		}
 	}
-
 
 	public Long getMaxMem() {
 		// return null if monitoring is disabled
@@ -147,18 +146,18 @@ public class SingleShotResourceMonitor {
 			return null;
 		}
 		return processMonitor.getCurrentMem();
-	} 
-	
+	}
+
 	public Long getMaxStorage() {
 		if (storageMonitor == null) {
 			return null;
 		}
 		return storageMonitor.getMaxStorage();
 	}
-	
+
 	public Long getCurrentStorage() {
 		if (storageMonitor == null) {
-			return null;			
+			return null;
 		}
 		return storageMonitor.getCurrentStorage();
 	}

@@ -6,27 +6,30 @@ import javax.persistence.Embeddable;
 
 @Embeddable
 public class UserId implements Serializable {
-	
+
 	private static final String DELIMITER = "/";
-	
+
 	private String username;
 
 	/**
 	 * Authenticator
 	 * 
-	 * Username or other string identifier of the service who authenticated this user.
-	 * Effectively creates username namespaces which ensure that each authenticator can
-	 * only login its own users. 
+	 * Username or other string identifier of the service who authenticated this
+	 * user.
+	 * Effectively creates username namespaces which ensure that each authenticator
+	 * can
+	 * only login its own users.
 	 */
 	private String auth;
-	
-	public UserId() { }
-	
+
+	public UserId() {
+	}
+
 	public UserId(String auth, String username) {
 		this.auth = auth;
 		this.username = username;
 	}
-	
+
 	public UserId(String userId) {
 		String[] parts = userId.split(DELIMITER);
 		if (parts.length == 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
@@ -36,20 +39,23 @@ public class UserId implements Serializable {
 			throw new IllegalArgumentException("unable to parse the userId: " + userId);
 		}
 	}
-	
+
 	public String getUsername() {
 		return username;
 	}
+
 	public void setUsername(String username) {
 		this.username = username;
 	}
+
 	public String getAuth() {
 		return auth;
 	}
+
 	public void setAuth(String auth) {
 		this.auth = auth;
 	}
-	
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -80,7 +86,7 @@ public class UserId implements Serializable {
 			return false;
 		return true;
 	}
-	
+
 	public String toUserIdString() {
 		if (auth.contains(DELIMITER) || username.contains(DELIMITER)) {
 			throw new IllegalStateException(DELIMITER + " not allowed in username (" + username + ")");

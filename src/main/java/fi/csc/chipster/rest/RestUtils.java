@@ -172,8 +172,9 @@ public class RestUtils {
 			throw new InternalServerErrorException();
 		}
 	}
-	
-	public static HashMap<String, Object> parseJsonToMap(String json) throws JsonMappingException, JsonProcessingException {
+
+	public static HashMap<String, Object> parseJsonToMap(String json)
+			throws JsonMappingException, JsonProcessingException {
 		ObjectReader reader = new ObjectMapper().readerFor(Map.class);
 
 		return reader.readValue(json);
@@ -208,11 +209,11 @@ public class RestUtils {
 		d.setX(100);
 		d.setY(100);
 
-//    	File f = new File();
-//    	f.setFileId(createUUID());
-//    	f.setChecksum("xyz");
-//    	f.setSize(0);
-//    	d.setFile(f);
+		// File f = new File();
+		// f.setFileId(createUUID());
+		// f.setChecksum("xyz");
+		// f.setSize(0);
+		// d.setFile(f);
 
 		return d;
 	}
@@ -583,7 +584,7 @@ public class RestUtils {
 	public static void configureJettyThreads(Server server, String name) {
 		configureJettyThreads(server, name, null);
 	}
-	
+
 	/**
 	 * Configure Jetty threads
 	 * 
@@ -608,25 +609,24 @@ public class RestUtils {
 		if (pool instanceof QueuedThreadPool) {
 			QueuedThreadPool qtp = ((QueuedThreadPool) pool);
 			qtp.setName("jetty-qtp-" + name);
-			
+
 			if (config != null) {
-			
+
 				String configWorkerThreadsMin = config.getString(CONF_SERVER_THREADS_WORKER_MIN, name);
 				String configWorkerThreadsMax = config.getString(CONF_SERVER_THREADS_WORKER_MAX, name);
-				
+
 				if (!configWorkerThreadsMin.isEmpty()) {
 					qtp.setMinThreads(Integer.parseInt(configWorkerThreadsMin));
 				}
-				
+
 				if (!configWorkerThreadsMax.isEmpty()) {
 					qtp.setMaxThreads(Integer.parseInt(configWorkerThreadsMax));
 				}
 			}
-			
+
 			logger.info(name + " configured to use " + qtp.getMinThreads() + "-" + qtp.getMaxThreads() + " threads");
 		}
 	}
-
 
 	/**
 	 * Configure Grizzly threads
@@ -655,7 +655,7 @@ public class RestUtils {
 
 		NetworkListener listener = server.getListeners().iterator().next();
 		TCPNIOTransport transport = listener.getTransport();
-	
+
 		ThreadPoolConfig workerConfig = transport.getWorkerThreadPoolConfig();
 		workerConfig.setPoolName("grizzly-worker-" + name);
 		/*
@@ -665,35 +665,35 @@ public class RestUtils {
 		 * names. When it's set to null the thread names are created from the pool name.
 		 */
 		workerConfig.setThreadFactory(null);
-		
+
 		// use the default, because transport.getKernelThreadPoolConfig() is null until
 		// the server is started
 		int defaultKernelThreads = transport.getSelectorRunnersCount();
-		
-		int kernelThreads = defaultKernelThreads;		
+
+		int kernelThreads = defaultKernelThreads;
 		int workerThreadsCore = workerConfig.getCorePoolSize();
 		int workerThreadsMax = workerConfig.getMaxPoolSize();
-		
+
 		if (isAdminAPI) {
 			// two threads should still reveal simplest concurrency issues
 			kernelThreads = 2;
 			workerThreadsCore = 2;
 			workerThreadsMax = 16;
 		}
-		
+
 		if (config != null) {
 			String configKernelThreads = config.getString(CONF_SERVER_THREADS_SELECTOR, name);
 			String configWorkerThreadsCore = config.getString(CONF_SERVER_THREADS_WORKER_MIN, name);
 			String configWorkerThreadsMax = config.getString(CONF_SERVER_THREADS_WORKER_MAX, name);
-			
+
 			if (!configKernelThreads.isEmpty()) {
 				kernelThreads = Integer.parseInt(configKernelThreads);
 			}
-			
+
 			if (!configWorkerThreadsCore.isEmpty()) {
 				workerThreadsCore = Integer.parseInt(configWorkerThreadsCore);
 			}
-			
+
 			if (!configWorkerThreadsMax.isEmpty()) {
 				workerThreadsMax = Integer.parseInt(configWorkerThreadsMax);
 			}

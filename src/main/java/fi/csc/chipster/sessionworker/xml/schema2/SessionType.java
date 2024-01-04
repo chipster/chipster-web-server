@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import java.util.ArrayList;
@@ -15,11 +14,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlType;
 
-
 /**
- * <p>Java class for sessionType complex type.
+ * <p>
+ * Java class for sessionType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="sessionType">
@@ -41,10 +42,10 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "sessionType", propOrder = {
-    "operation",
-    "folder",
-    "data",
-    "notes"
+        "operation",
+        "folder",
+        "data",
+        "notes"
 })
 public class SessionType {
 
@@ -62,12 +63,14 @@ public class SessionType {
      * This accessor method returns a reference to the live list,
      * not a snapshot. Therefore any modification you make to the
      * returned list will be present inside the JAXB object.
-     * This is why there is not a <CODE>set</CODE> method for the operation property.
+     * This is why there is not a <CODE>set</CODE> method for the operation
+     * property.
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getOperation().add(newItem);
+     * getOperation().add(newItem);
      * </pre>
      * 
      * 
@@ -95,8 +98,9 @@ public class SessionType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getFolder().add(newItem);
+     * getFolder().add(newItem);
      * </pre>
      * 
      * 
@@ -124,8 +128,9 @@ public class SessionType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getData().add(newItem);
+     * getData().add(newItem);
      * </pre>
      * 
      * 
@@ -146,9 +151,9 @@ public class SessionType {
      * Gets the value of the notes property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getNotes() {
         return notes;
@@ -158,9 +163,9 @@ public class SessionType {
      * Sets the value of the notes property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setNotes(String value) {
         this.notes = value;
@@ -170,9 +175,9 @@ public class SessionType {
      * Gets the value of the formatVersion property.
      * 
      * @return
-     *     possible object is
-     *     {@link Integer }
-     *     
+     *         possible object is
+     *         {@link Integer }
+     * 
      */
     public Integer getFormatVersion() {
         return formatVersion;
@@ -182,9 +187,9 @@ public class SessionType {
      * Sets the value of the formatVersion property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link Integer }
-     *     
+     *              allowed object is
+     *              {@link Integer }
+     * 
      */
     public void setFormatVersion(Integer value) {
         this.formatVersion = value;

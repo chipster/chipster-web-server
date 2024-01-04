@@ -18,25 +18,30 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement // REST
 public class News {
 
-	public News() {} // JAXB needs this
-	
+	public News() {
+	} // JAXB needs this
+
 	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	@Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
 	private UUID newsId;
 	private Instant created;
 	private Instant modified;
-	/* Create jsonb column
+	/*
+	 * Create jsonb column
 	 * 
-	 * At the moment this could be kind of object structure, the backend doesn't care.
-	 * Use the jsonb column type anyway to be able to query its contents later if needed.  
+	 * At the moment this could be kind of object structure, the backend doesn't
+	 * care.
+	 * Use the jsonb column type anyway to be able to query its contents later if
+	 * needed.
 	 */
 	@Column
 	@Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
 	private JsonNode contents;
-	
+
 	public UUID getNewsId() {
 		return newsId;
 	}
+
 	public void setNewsId(UUID newsId) {
 		this.newsId = newsId;
 	}

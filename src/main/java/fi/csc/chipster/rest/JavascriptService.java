@@ -33,11 +33,10 @@ public class JavascriptService {
 			throw new IllegalStateException("typescript project " + serviceRootPath + " not found");
 		}
 
-		
 		if (!new File(serviceRoot, "node_modules").exists()) {
-	//		System.out.println("Remove possible existing node_modules");
-	//		runAndWait("rm", "-rf", "node_modules");
-	
+			// System.out.println("Remove possible existing node_modules");
+			// runAndWait("rm", "-rf", "node_modules");
+
 			System.out.println("Install dependencies");
 			runAndWait("npm", "ci");
 		}

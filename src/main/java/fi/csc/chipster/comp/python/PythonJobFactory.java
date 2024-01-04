@@ -26,7 +26,7 @@ import fi.csc.chipster.toolbox.runtime.Runtime;
 public class PythonJobFactory extends InterpreterJobFactory {
 
 	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();	
+	private static Logger logger = LogManager.getLogger();
 
 	public PythonJobFactory(HashMap<String, String> parameters, Config config)
 			throws IOException {
@@ -37,7 +37,7 @@ public class PythonJobFactory extends InterpreterJobFactory {
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
 			int jobTimeout, Job dbJob, Runtime runtime) throws CompException {
 		ToolDescription description = createToolDescription(tool, dbJob, runtime);
-		
+
 		PythonCompJob analysisJob = new PythonCompJob();
 		analysisJob.construct(message, description, resultHandler, jobTimeout);
 		analysisJob.setProcessPool(this.processPool);
@@ -48,7 +48,6 @@ public class PythonJobFactory extends InterpreterJobFactory {
 	protected String getStringDelimeter() {
 		return PythonCompJob.STRING_DELIMETER;
 	}
-
 
 	@Override
 	protected String getVariableNameSeparator() {

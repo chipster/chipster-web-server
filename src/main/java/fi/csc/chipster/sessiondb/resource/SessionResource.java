@@ -294,23 +294,24 @@ public class SessionResource {
 
 		return Response.noContent().build();
 	}
-	
+
 	@GET
 	@Path("stats")
-    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
-    @Produces(MediaType.APPLICATION_JSON)
-    @Transaction
-    public Response getStats(@Context SecurityContext sc) {
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getStats(@Context SecurityContext sc) {
 
-        String authenticatedUserId = sc.getUserPrincipal().getName();
-        
-        HashMap<String, Object> responseObj = new HashMap<String, Object>() {{
-            put("size", ruleTable.getTotalSize(authenticatedUserId));
-        }};
+		String authenticatedUserId = sc.getUserPrincipal().getName();
 
-        return Response.ok(responseObj).build();
-    }
+		HashMap<String, Object> responseObj = new HashMap<String, Object>() {
+			{
+				put("size", ruleTable.getTotalSize(authenticatedUserId));
+			}
+		};
 
+		return Response.ok(responseObj).build();
+	}
 
 	/**
 	 * Make a list compatible with JSON conversion

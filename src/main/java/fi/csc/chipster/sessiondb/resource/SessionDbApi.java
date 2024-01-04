@@ -48,8 +48,7 @@ public class SessionDbApi {
 
 	}
 
-	
-		public List<Rule> deleteRulesWithUser(String username) {
+	public List<Rule> deleteRulesWithUser(String username) {
 		// 1) own rule only -> delete rule
 		// 2) own rule and shared ro -> delete all rules (own and ro)
 		// 3) own rule, shared rw by me, delete own and shared by me
@@ -61,24 +60,21 @@ public class SessionDbApi {
 
 		List<Rule> rulesToDelete = new ArrayList<Rule>();
 
-		// get sessions I have shared to someone 
+		// get sessions I have shared to someone
 		List<Rule> sharedByMeRules = ruleTable.getShares(username);
 		rulesToDelete.addAll(sharedByMeRules);
-		
-		
+
 		// get sessions I have access to, except those shared to 'everyone'
 		List<Rule> ownRules = ruleTable.getRulesOwn(username);
 		rulesToDelete.addAll(ownRules);
-		
-		for (Rule rule: rulesToDelete) {
+
+		for (Rule rule : rulesToDelete) {
 			deleteRule(rule.getSession(), rule, hibernate.session(), true);
 		}
-		
+
 		return rulesToDelete;
 	}
-	
 
-	
 	public void deleteRule(Session session, Rule rule, org.hibernate.Session hibernateSession,
 			boolean deleteSessionIfLastRule) {
 
@@ -98,7 +94,8 @@ public class SessionDbApi {
 
 	public void publishRuleEvent(UUID sessionId, Collection<Rule> sessionRules, Rule rule, EventType eventType) {
 
-		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+				new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
 				hibernate.session());
 
 		Set<String> usernames = sessionRules.stream()
@@ -111,7 +108,8 @@ public class SessionDbApi {
 
 		// send events to username topics to update the session list
 		for (String username : usernames) {
-			publish(SessionDbTopicConfig.USERS_TOPIC_PREFIX + username, new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
+			publish(SessionDbTopicConfig.USERS_TOPIC_PREFIX + username,
+					new SessionEvent(sessionId, ResourceType.RULE, rule.getRuleId(), eventType),
 					hibernate.session());
 		}
 	}
@@ -134,7 +132,7 @@ public class SessionDbApi {
 			}
 		});
 	}
-	
+
 	public void publishAllTopics(SessionEvent event, org.hibernate.Session hibernateSession, Set<String> topicsToSkip) {
 		// publish the event only after the transaction is completed to make
 		// sure that the modifications are visible
@@ -414,7 +412,7 @@ public class SessionDbApi {
 		List<Session> sessions = rules.stream().map(rule -> rule.getSession()).collect(Collectors.toList());
 		return sessions;
 	}
-	
+
 	public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
 		if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
 			setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);

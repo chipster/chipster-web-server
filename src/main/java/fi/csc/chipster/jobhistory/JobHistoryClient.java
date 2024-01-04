@@ -30,7 +30,7 @@ public class JobHistoryClient {
 	public JobHistoryClient(ServiceLocatorClient serviceLocator,
 			CredentialsProvider credentials) {
 		this.serviceLocator = serviceLocator;
-		this.credentials = credentials;		
+		this.credentials = credentials;
 
 		String jobHistoryUri = serviceLocator.getInternalService(
 				Role.JOB_HISTORY).getAdminUri();
@@ -66,8 +66,8 @@ public class JobHistoryClient {
 		Response response = getJobHistoryTarget().request().get(Response.class);
 		return response;
 	}
-	
-	public void saveTestJob(JobHistory jobHistory) throws RestException{
+
+	public void saveTestJob(JobHistory jobHistory) throws RestException {
 		logger.info("Target uri" + getJobHistoryTarget());
 		RestMethods.put(getJobHistoryTarget(), jobHistory);
 	}

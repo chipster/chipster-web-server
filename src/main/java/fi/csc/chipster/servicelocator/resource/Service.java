@@ -10,20 +10,21 @@ public class Service {
 	private String uri;
 	private String publicUri;
 	private String adminUri;
-	
+
 	public Service(String role, String uri, String publicUri, String adminUri) {
 		this.role = role;
 		this.uri = uri;
 		this.publicUri = publicUri;
 		this.adminUri = adminUri;
 	}
-	
+
 	public Service() {
 	}
-	
+
 	public String getServiceId() {
 		return serviceId;
 	}
+
 	public void setServiceId(String serviceId) {
 		this.serviceId = serviceId;
 	}

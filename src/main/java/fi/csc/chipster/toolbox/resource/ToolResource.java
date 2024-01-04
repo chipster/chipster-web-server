@@ -32,19 +32,20 @@ public class ToolResource {
     }
 
     @GET
-//    @JacksonFeatures(serializationEnable =  { SerializationFeature.INDENT_OUTPUT })
+    // @JacksonFeatures(serializationEnable = { SerializationFeature.INDENT_OUTPUT
+    // })
     @Produces(MediaType.APPLICATION_JSON)
     public final Response getAll() {
-    	List<SADLDescription> list = new LinkedList<SADLDescription>();
-    	for (ToolboxTool tool : toolbox.getAll()) {
-    		 list.add(tool.getSadlDescription());
-    	}
+        List<SADLDescription> list = new LinkedList<SADLDescription>();
+        for (ToolboxTool tool : toolbox.getAll()) {
+            list.add(tool.getSadlDescription());
+        }
 
-    	return Response.ok(list).build();
+        return Response.ok(list).build();
     }
 
-
-    @GET @Path("{toolId}")
+    @GET
+    @Path("{toolId}")
     @Produces(MediaType.APPLICATION_JSON)
     public final Response getTool(@PathParam("toolId") String toolId) {
         ToolboxTool tool = toolbox.getTool(toolId);
@@ -55,8 +56,8 @@ public class ToolResource {
         }
     }
 
-    
-    @GET @Path("{toolId}/{part}")
+    @GET
+    @Path("{toolId}/{part}")
     @Produces(MediaType.TEXT_PLAIN)
     public final String getToolPart(@PathParam("toolId") String toolId, @PathParam("part") String part) {
         ToolboxTool tool = toolbox.getTool(toolId);
@@ -75,11 +76,9 @@ public class ToolResource {
         }
     }
 
-	public void setToolbox(Toolbox newToolbox) {
-		this.toolbox = newToolbox;
-		
-	}
+    public void setToolbox(Toolbox newToolbox) {
+        this.toolbox = newToolbox;
+
+    }
 
 }
-
-

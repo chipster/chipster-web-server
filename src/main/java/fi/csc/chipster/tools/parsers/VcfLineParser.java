@@ -3,18 +3,18 @@ package fi.csc.chipster.tools.parsers;
 import fi.csc.chipster.tools.model.Chromosome;
 import fi.csc.chipster.tools.model.Region;
 
-public class VcfLineParser extends AbstractTsvLineParser {		 
-	
+public class VcfLineParser extends AbstractTsvLineParser {
+
 	public enum Column {
 
-		CHROM ("CHROM"), 		
-		POS ("POS"), 
-		ID ("ID"),
-		REF("REF"), 
-		ALT ("ALT"), 
-		QUAL ("QUAL"), 
-		FILTER ("FILTER"),
-		INFO ("INFO");
+		CHROM("CHROM"),
+		POS("POS"),
+		ID("ID"),
+		REF("REF"),
+		ALT("ALT"),
+		QUAL("QUAL"),
+		FILTER("FILTER"),
+		INFO("INFO");
 
 		private final String name;
 
@@ -29,25 +29,25 @@ public class VcfLineParser extends AbstractTsvLineParser {
 
 	@Override
 	public Region getRegion() {
-		
+
 		if (isContentLine()) {
-			
+
 			long start = getLong(Column.POS.ordinal());
-			
+
 			Chromosome chr = new Chromosome(getString(Column.CHROM.ordinal()));
 			return new Region(start, start, chr);
-			
+
 		} else {
-			//This is header line
+			// This is header line
 			return null;
 		}
 	}
 
 	public VcfLine getFileLine() {
 		VcfLine line = new VcfLine();
-		
+
 		Region region = getRegion();
-		
+
 		line.setChrom(region.start.chr);
 		line.setPos(region.start.bp);
 		line.setId(getString(Column.ID.ordinal()));
@@ -56,7 +56,7 @@ public class VcfLineParser extends AbstractTsvLineParser {
 		line.setQual(getFloat(Column.QUAL.ordinal()));
 		line.setFilter(getString(Column.FILTER.ordinal()));
 		line.setInfo(getString(Column.INFO.ordinal()));
-		
+
 		return line;
 	}
 

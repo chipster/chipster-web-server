@@ -13,8 +13,8 @@ import jakarta.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthorizedException> {	
-	
+public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthorizedException> {
+
 	@Override
 	public Response toResponse(NotAuthorizedException e) {
 		// client error, no need to log

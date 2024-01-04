@@ -16,18 +16,23 @@ public class TsvLine extends FileLine {
 	public Region getRegion() {
 		return region;
 	}
+
 	public void setRegion(Region region) {
 		this.region = region;
 	}
+
 	public String[] getHeaders() {
 		return headers;
 	}
+
 	public void setHeaders(String[] headers) {
 		this.headers = headers;
 	}
+
 	public String[] getValues() {
 		return values;
 	}
+
 	public void setValues(String[] values) {
 		this.values = values;
 	}

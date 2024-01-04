@@ -164,8 +164,10 @@ public class HibernateUtil {
 																				// in startup
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		// following two for debugging connection leaks
-//		hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces", "true");
-//		hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout", "30");
+		// hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces",
+		// "true");
+		// hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout",
+		// "30");
 
 		for (Class<?> c : hibernateClasses) {
 			hibernateConf.addAnnotatedClass(c);
@@ -296,7 +298,8 @@ public class HibernateUtil {
 			session.getTransaction().rollback();
 			session.close();
 		} else {
-			// why the sessions is null e.g. when an exception happens when the result is mapped to json
+			// why the sessions is null e.g. when an exception happens when the result is
+			// mapped to json
 			logger.warn("cannot rollback Hibernate session, because it's null");
 		}
 	}

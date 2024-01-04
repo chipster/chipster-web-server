@@ -79,15 +79,16 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		List<Class<?>> hibernateClasses = Arrays.asList(JobHistory.class);
 		// Initializing hibernate components
 		hibernate = new HibernateUtil(this.config, Role.JOB_HISTORY, hibernateClasses);
-		
+
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		
+
 		// we are ready to handle events after this.hibernate has been set
 		this.sessionDbClient.subscribe(SessionDbTopicConfig.ALL_JOBS_TOPIC, this, "job-history");
 
 		this.jobHistoryResource = new JobHistoryResource(hibernate, config);
 
-		// TODO why does this even have this public api server, when all resources are in the admin api server?
+		// TODO why does this even have this public api server, when all resources are
+		// in the admin api server?
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(new HibernateRequestFilter(hibernate))
 				.register(new HibernateResponseFilter(hibernate))
@@ -121,7 +122,8 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	@Override
 	public void onEvent(SessionEvent e) {
-//		logger.info("received a job event: " + e.getResourceType() + " " + e.getType());
+		// logger.info("received a job event: " + e.getResourceType() + " " +
+		// e.getType());
 		try {
 			if (e.getResourceType() == ResourceType.JOB) {
 				handleDbEvent(e, new IdPair(e.getSessionId(), e.getResourceId()), JobState.valueOf(e.getState()));
@@ -134,36 +136,38 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 
 	/**
 	 * Handling the events received from session-db
-	 * @param jobState 
+	 * 
+	 * @param jobState
 	 * 
 	 */
 
 	private void handleDbEvent(SessionEvent e, IdPair jobIdPair, JobState jobState) throws RestException {
 		switch (e.getType()) {
-		case CREATE:
-			Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
-			
-			// use the state from the event, because the state in db can be already something else
-			switch (jobState) {
-			case NEW:
-				// When a client adds a new job, save it the job history
-				// database
-				// hibernate.getsession.save()
-				saveNewJobHistory(job, jobState);
+			case CREATE:
+				Job job = sessionDbClient.getJob(e.getSessionId(), e.getResourceId());
+
+				// use the state from the event, because the state in db can be already
+				// something else
+				switch (jobState) {
+					case NEW:
+						// When a client adds a new job, save it the job history
+						// database
+						// hibernate.getsession.save()
+						saveNewJobHistory(job, jobState);
+						break;
+					case COMPLETED:
+						logger.info("For imported sessions, jobs are not logged in to job history database");
+						break;
+					default:
+						break;
+				}
 				break;
-			case COMPLETED:
-				logger.info("For imported sessions, jobs are not logged in to job history database");
+			case UPDATE:
+				updateJobHistory(e.getSessionId(), e.getResourceId(), jobState);
 				break;
 			default:
 				break;
-			}
-			break;
-		case UPDATE:
-			updateJobHistory(e.getSessionId(), e.getResourceId(), jobState);
-			break;
-		default:
-			break;
-		// what to do with if the client has cancelled the job?
+			// what to do with if the client has cancelled the job?
 		}
 	}
 
@@ -174,7 +178,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		jobHistory.setToolId(job.getToolId());
 		jobHistory.setToolName(job.getToolName());
 		jobHistory.setModule(job.getModule());
-		
+
 		if (job.getCreated() == null) {
 			// session-db should make sure that this is set for all jobs
 			logger.warn("job.created is null, using the current time");
@@ -182,10 +186,10 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		} else {
 			jobHistory.setCreated(job.getCreated());
 		}
-		
+
 		jobHistory.setState(jobState.toString());
-		jobHistory.setCreatedBy(job.getCreatedBy());		
-		
+		jobHistory.setCreatedBy(job.getCreatedBy());
+
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
@@ -199,21 +203,21 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 		getHibernate().runInTransaction(new HibernateRunnable<Void>() {
 			@Override
 			public Void run(Session hibernateSession) {
-								
+
 				JobHistory js = hibernateSession.get(JobHistory.class, new JobIdPair(sessionId, jobId));
 				// the HibbernateUtil.update() assumes detached objects, otherwise it won't
 				// notice the changes
 				hibernateSession.detach(js);
-				
+
 				boolean isFinished = newState.isFinished();
-				boolean isScheduled = JobState.NEW == JobState.valueOf(js.getState()) 
+				boolean isScheduled = JobState.NEW == JobState.valueOf(js.getState())
 						&& newState != JobState.NEW;
-				
+
 				if (isFinished || isScheduled) {
 					Job job;
 					try {
 						job = sessionDbClient.getJob(sessionId, jobId);
-				
+
 						js.setStartTime(job.getStartTime());
 						js.setEndTime(job.getEndTime());
 						js.setScreenOutput(job.getScreenOutput());
@@ -222,14 +226,14 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 						js.setMemoryUsage(job.getMemoryUsage());
 						js.setStorageUsage(job.getStorageUsage());
 						js.setComp(job.getComp());
-						
+
 						if (js.getStateDetail() != null && js.getStateDetail().length() > 255) {
 							logger.warn("cutting too long state detail: " + js.getStateDetail());
 							js.setStateDetail(js.getStateDetail().substring(0, 255));
 						}
-						
+
 						HibernateUtil.update(js, js.getJobIdPair(), hibernateSession);
-						
+
 					} catch (RestException e) {
 						logger.error("failed to get the job from session-db", e);
 					}
@@ -246,12 +250,12 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	public void close() {
 		RestUtils.shutdown("JobHistory-service", httpServer);
 		try {
-            if (sessionDbClient != null) {
-                sessionDbClient.close();
-            }
-        } catch (IOException e) {
-            logger.warn("failed to shutdown session-db client", e);
-        }
+			if (sessionDbClient != null) {
+				sessionDbClient.close();
+			}
+		} catch (IOException e) {
+			logger.warn("failed to shutdown session-db client", e);
+		}
 		hibernate.getSessionFactory().close();
 	}
 }

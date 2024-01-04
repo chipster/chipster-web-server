@@ -9,16 +9,16 @@ import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.chipster.toolbox.runtime.Runtime;
 
 public class SchedulerJobs {
-	
+
 	HashMap<IdPair, SchedulerJob> jobs = new HashMap<>();
-	
+
 	public Map<IdPair, SchedulerJob> getRunningJobs() {
 		Map<IdPair, SchedulerJob> runningJobs = jobs.entrySet().stream()
 				.filter(entry -> entry.getValue().isRunning())
 				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 		return runningJobs;
 	}
-	
+
 	public Map<IdPair, SchedulerJob> getScheduledJobs() {
 		Map<IdPair, SchedulerJob> runningJobs = jobs.entrySet().stream()
 				.filter(entry -> entry.getValue().isScheduled())
@@ -32,15 +32,15 @@ public class SchedulerJobs {
 				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
 		return newJobs;
 	}
-	
+
 	public int getRunningSlots(String userId) {
 		return getSlots(getRunningJobs().values(), userId);
 	}
-	
+
 	public int getScheduledSlots(String userId) {
 		return getSlots(getScheduledJobs().values(), userId);
 	}
-		
+
 	public int getNewSlots(String userId) {
 		return getSlots(getNewJobs().values(), userId);
 	}
@@ -50,7 +50,7 @@ public class SchedulerJobs {
 				.mapToInt(j -> j.getSlots())
 				.sum();
 	}
-	
+
 	public int getSlots(Collection<SchedulerJob> jobs, String userId) {
 		return jobs.stream()
 				.filter(j -> userId.equals(j.getUserId()))
@@ -59,7 +59,7 @@ public class SchedulerJobs {
 	}
 
 	public SchedulerJob remove(IdPair jobId) {
-		return jobs.remove(jobId);	
+		return jobs.remove(jobId);
 	}
 
 	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, ToolboxTool tool, Runtime runtime) {
@@ -67,7 +67,7 @@ public class SchedulerJobs {
 		jobs.put(idPair, jobState);
 		return jobState;
 	}
-	
+
 	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, ToolboxTool tool, Runtime runtime) {
 		SchedulerJob job = new SchedulerJob(userId, slots, tool, runtime);
 		job.setRunningTimestamp();

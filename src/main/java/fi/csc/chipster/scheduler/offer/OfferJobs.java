@@ -8,9 +8,9 @@ import java.util.stream.Collectors;
 import fi.csc.chipster.scheduler.IdPair;
 
 public class OfferJobs {
-	
+
 	HashMap<IdPair, OfferJob> jobs = new HashMap<>();
-	
+
 	public Map<IdPair, OfferJob> getHeartbeatJobs() {
 		Map<IdPair, OfferJob> runningJobs = jobs.entrySet().stream()
 				.filter(entry -> entry.getValue().hasHeartbeat())
@@ -26,7 +26,7 @@ public class OfferJobs {
 	}
 
 	public void remove(IdPair jobId) {
-		jobs.remove(jobId);	
+		jobs.remove(jobId);
 	}
 
 	public OfferJob addScheduledJob(IdPair idPair) {

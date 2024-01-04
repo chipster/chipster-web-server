@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import java.util.ArrayList;
@@ -17,11 +16,13 @@ import javax.xml.bind.annotation.XmlSchemaType;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.datatype.XMLGregorianCalendar;
 
-
 /**
- * <p>Java class for dataType complex type.
+ * <p>
+ * Java class for dataType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="dataType">
@@ -52,20 +53,20 @@ import javax.xml.datatype.XMLGregorianCalendar;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "dataType", propOrder = {
-    "name",
-    "id",
-    "dataId",
-    "folder",
-    "resultOf",
-    "location",
-    "link",
-    "notes",
-    "toolVersions",
-    "creationTime",
-    "size",
-    "checksum",
-    "layoutX",
-    "layoutY"
+        "name",
+        "id",
+        "dataId",
+        "folder",
+        "resultOf",
+        "location",
+        "link",
+        "notes",
+        "toolVersions",
+        "creationTime",
+        "size",
+        "checksum",
+        "layoutX",
+        "layoutY"
 })
 public class DataType {
 
@@ -95,9 +96,9 @@ public class DataType {
      * Gets the value of the name property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getName() {
         return name;
@@ -107,9 +108,9 @@ public class DataType {
      * Sets the value of the name property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setName(String value) {
         this.name = value;
@@ -119,9 +120,9 @@ public class DataType {
      * Gets the value of the id property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getId() {
         return id;
@@ -131,9 +132,9 @@ public class DataType {
      * Sets the value of the id property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setId(String value) {
         this.id = value;
@@ -143,9 +144,9 @@ public class DataType {
      * Gets the value of the dataId property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getDataId() {
         return dataId;
@@ -155,9 +156,9 @@ public class DataType {
      * Sets the value of the dataId property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setDataId(String value) {
         this.dataId = value;
@@ -167,9 +168,9 @@ public class DataType {
      * Gets the value of the folder property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getFolder() {
         return folder;
@@ -179,9 +180,9 @@ public class DataType {
      * Sets the value of the folder property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setFolder(String value) {
         this.folder = value;
@@ -191,9 +192,9 @@ public class DataType {
      * Gets the value of the resultOf property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getResultOf() {
         return resultOf;
@@ -203,9 +204,9 @@ public class DataType {
      * Sets the value of the resultOf property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setResultOf(String value) {
         this.resultOf = value;
@@ -222,8 +223,9 @@ public class DataType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getLocation().add(newItem);
+     * getLocation().add(newItem);
      * </pre>
      * 
      * 
@@ -251,8 +253,9 @@ public class DataType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getLink().add(newItem);
+     * getLink().add(newItem);
      * </pre>
      * 
      * 
@@ -273,9 +276,9 @@ public class DataType {
      * Gets the value of the notes property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getNotes() {
         return notes;
@@ -285,9 +288,9 @@ public class DataType {
      * Sets the value of the notes property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setNotes(String value) {
         this.notes = value;
@@ -297,9 +300,9 @@ public class DataType {
      * Gets the value of the toolVersions property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getToolVersions() {
         return toolVersions;
@@ -309,9 +312,9 @@ public class DataType {
      * Sets the value of the toolVersions property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setToolVersions(String value) {
         this.toolVersions = value;
@@ -321,9 +324,9 @@ public class DataType {
      * Gets the value of the creationTime property.
      * 
      * @return
-     *     possible object is
-     *     {@link XMLGregorianCalendar }
-     *     
+     *         possible object is
+     *         {@link XMLGregorianCalendar }
+     * 
      */
     public XMLGregorianCalendar getCreationTime() {
         return creationTime;
@@ -333,9 +336,9 @@ public class DataType {
      * Sets the value of the creationTime property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link XMLGregorianCalendar }
-     *     
+     *              allowed object is
+     *              {@link XMLGregorianCalendar }
+     * 
      */
     public void setCreationTime(XMLGregorianCalendar value) {
         this.creationTime = value;
@@ -345,9 +348,9 @@ public class DataType {
      * Gets the value of the size property.
      * 
      * @return
-     *     possible object is
-     *     {@link Long }
-     *     
+     *         possible object is
+     *         {@link Long }
+     * 
      */
     public Long getSize() {
         return size;
@@ -357,9 +360,9 @@ public class DataType {
      * Sets the value of the size property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link Long }
-     *     
+     *              allowed object is
+     *              {@link Long }
+     * 
      */
     public void setSize(Long value) {
         this.size = value;
@@ -369,9 +372,9 @@ public class DataType {
      * Gets the value of the checksum property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getChecksum() {
         return checksum;
@@ -381,9 +384,9 @@ public class DataType {
      * Sets the value of the checksum property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setChecksum(String value) {
         this.checksum = value;
@@ -393,9 +396,9 @@ public class DataType {
      * Gets the value of the layoutX property.
      * 
      * @return
-     *     possible object is
-     *     {@link Integer }
-     *     
+     *         possible object is
+     *         {@link Integer }
+     * 
      */
     public Integer getLayoutX() {
         return layoutX;
@@ -405,9 +408,9 @@ public class DataType {
      * Sets the value of the layoutX property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link Integer }
-     *     
+     *              allowed object is
+     *              {@link Integer }
+     * 
      */
     public void setLayoutX(Integer value) {
         this.layoutX = value;
@@ -417,9 +420,9 @@ public class DataType {
      * Gets the value of the layoutY property.
      * 
      * @return
-     *     possible object is
-     *     {@link Integer }
-     *     
+     *         possible object is
+     *         {@link Integer }
+     * 
      */
     public Integer getLayoutY() {
         return layoutY;
@@ -429,9 +432,9 @@ public class DataType {
      * Sets the value of the layoutY property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link Integer }
-     *     
+     *              allowed object is
+     *              {@link Integer }
+     * 
      */
     public void setLayoutY(Integer value) {
         this.layoutY = value;

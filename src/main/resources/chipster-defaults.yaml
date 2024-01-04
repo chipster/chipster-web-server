@@ -1,7 +1,7 @@
 conf-path: conf/chipster.yaml
 
 # Service accounts
-# all config items starting with "service-password-" will be automatically authenticated as Role.SERVER 
+# all config items starting with "service-password-" will be automatically authenticated as Role.SERVER
 
 service-password-auth: auth
 service-password-session-db: session-db
@@ -20,7 +20,6 @@ service-password-type-service: type-service
 # all config items starting with "admin-username-" (username in the value) will be automatically authenticated as Role.ADMIN
 admin-username-1: admin
 
-   
 # Internal and external service addresses
 
 url-int-web-server: http://{{public-ip}}:8000
@@ -28,7 +27,7 @@ url-ext-web-server: http://{{public-ip}}:8000
 url-int-auth: http://{{public-ip}}:8002
 url-ext-auth: http://{{public-ip}}:8002
 url-int-service-locator: http://{{public-ip}}:8003
-url-ext-service-locator: http://{{public-ip}}:8003 
+url-ext-service-locator: http://{{public-ip}}:8003
 url-int-session-db: http://{{public-ip}}:8004
 url-ext-session-db: http://{{public-ip}}:8004
 url-int-session-db-events: ws://{{public-ip}}:8005
@@ -87,10 +86,10 @@ url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 url-admin-bind-file-storage: http://{{bind-ip}}:8116
 
-# use external (public) addresses when connecting to other services 
+# use external (public) addresses when connecting to other services
 use-external-addresses: false
 
-# DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles 
+# DB config defaults. Can be changed with these config keys for all the databases or overridden with <key>-<role> for individual roles
 
 db-show-sql: false
 db-c3p0-min-size: ""
@@ -98,11 +97,10 @@ db-c3p0-max-size: ""
 db-dialect: fi.csc.chipster.rest.hibernate.ChipsterPostgreSQL95Dialect
 db-driver: org.postgresql.Driver
 db-user: user
-# This is just a placeholder, because it wouldn't make sense to try to restore all the databaes from the same file. Set this for individual role 
+# This is just a placeholder, because it wouldn't make sense to try to restore all the databaes from the same file. Set this for individual role
 # according to instructions above.
 db-restore-key: ""
 db-export-schema: false
-
 
 # db backups
 
@@ -156,8 +154,8 @@ db-pass-auth: ""
 auth-jaas-conf-path: ""
 
 # auth OpenID Connect
-# register multiple oidc providers by inventing an name for each provider and appending 
-# a dash and the name to each config (e.g. "-google") 
+# register multiple oidc providers by inventing an name for each provider and appending
+# a dash and the name to each config (e.g. "-google")
 
 # server which hosts the discovery document in path /.well-known/openid-configuration, e.g. https://accounts.google.com
 auth-oidc-issuer: ""
@@ -167,7 +165,7 @@ auth-oidc-client-id: ""
 auth-oidc-redirect-path: /oidc/callback
 # "id_token" for implicit flow, "code" for authorization code flow
 auth-oidc-response-type: id_token
-# url or client path to the logo to show on the login page 
+# url or client path to the logo to show on the login page
 auth-oidc-logo: ""
 auth-oidc-logo-width: ""
 # login button text, if logo is not set
@@ -188,19 +186,19 @@ auth-oidc-claim-user-id: "sub"
 auth-oidc-parameter: ""
 # prefix for the userId, set different for each authentication provider the prevent clashes
 auth-oidc-user-id-prefix: "oidc"
-# appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs 
+# appId of for this oidc config. Allow multiple apps use the same backend, but still have different oidc configs
 auth-oidc-app-id: "chipster"
 # print more information about failed login attempts
 auth-oidc-debug: false
 
-# Required claims. Empty lines in between to make it readable despite the long lines. 
+# Required claims. Empty lines in between to make it readable despite the long lines.
 # accept authentication only if the token contains this claim key. Next authentication method is tried if this claim is not found
 auth-oidc-required-claim-key: ""
 
 # accept authentication only if the token contains the claim defined in auth-oidc-require-claim-key and its value matches the value given here.
 auth-oidc-required-claim-value: ""
 
-# how to compare claim values, like auth-oidc-require-userinfo-claim-value-comparison  
+# how to compare claim values, like auth-oidc-require-userinfo-claim-value-comparison
 auth-oidc-required-claim-value-comparison: "string"
 
 # accept authentication only if the userinfo response contains this claim key. Querying the userinfo endpoint is only possible with access token, i.e. when to response type is "code", or "id_token token". Authentication fails if this claim is not found.
@@ -209,17 +207,16 @@ auth-oidc-required-userinfo-claim-key: ""
 # accept authentication only if the userinfo response contains the claim defined in auth-oidc-require-userinfo-claim-key and its value matches the value given here. Authentication fails if the value doesn't match.
 auth-oidc-required-userinfo-claim-value: ""
 
-# how to compare claim values. Set to "string" to require an exact string match. When this is set to "jsonArrayAll" or to "jsonArrayAny" the configured auth-oidc-require-userinfo-claim-value and the returned claim value is expected to be a json arrays of strings. Respectively, the claim value must contain all or at least one of the configured values.  
+# how to compare claim values. Set to "string" to require an exact string match. When this is set to "jsonArrayAll" or to "jsonArrayAny" the configured auth-oidc-require-userinfo-claim-value and the returned claim value is expected to be a json arrays of strings. Respectively, the claim value must contain all or at least one of the configured values.
 auth-oidc-required-userinfo-claim-value-comparison: "string"
 
 # show this error message to the user when the required userinfo claim is not found
 auth-oidc-required-userinfo-claim-error: "Chipster login is not allowed for this account"
 
-
-# throttle password request for one username after too many requests during this time, seconds 
+# throttle password request for one username after too many requests during this time, seconds
 auth-password-throttle-period: 120
 
-# throttle password request for one username after this many tries 
+# throttle password request for one username after this many tries
 auth-password-throttle-request-count: 20
 
 # use server throttle settings for these accounts, separated by space. If any real account is put here, it must have a proper password
@@ -228,10 +225,9 @@ auth-server-password-throttle-list: "unitTestUser1 unitTestUser2 monitoring"
 # throttle server password request for one username after too many requests during this time, seconds
 auth-server-password-throttle-period: 60
 
-# throttle server password request for one username after this many tries 
+# throttle server password request for one username after this many tries
 auth-server-password-throttle-request-count: 100
 
- 
 # comp
 
 # max number of jobs run simultaneously
@@ -241,7 +237,7 @@ comp-schedule-timeout: 10
 # delay before sending the job offer message, multiplied by number of running and scheduled jobs, milliseconds
 comp-offer-delay-running-slots: 100
 # fixed delay before sending the job offer message for specific job size, milliseconds
-# append a dash and slot count to configure a delay for different job sizes 
+# append a dash and slot count to configure a delay for different job sizes
 comp-offer-delay-requested-slots: 0
 # should job specific temporary directory be sweeped after job execution
 comp-sweep-work-dir: true
@@ -254,7 +250,7 @@ comp-status-interval: 30000
 # name of the module to enable or disable
 comp-module-filter-name: kielipankki
 # 'exclude' disables the specified module and enables all other modules, 'include' enables the specified module and disables all other modules
-comp-module-filter-mode: exclude 
+comp-module-filter-mode: exclude
 # how often to monitor job resource usage or -1 to disable it, milliseconds
 comp-resource-monitoring-interval: 10000
 # timeout after which a job is killed, seconds
@@ -302,7 +298,7 @@ scheduler-bash-script-dir-in-jar: "bash-job-scheduler/process"
 # for example:
 # scheduler-bash-run-script: |
 #   echo "running..."
-# 
+#
 scheduler-bash-run-script: ""
 scheduler-bash-cancel-script: ""
 scheduler-bash-finished-script: ""
@@ -339,14 +335,13 @@ scheduler-bash-pod-anti-affinity: true
 scheduler-bash-env-name-1: ""
 scheduler-bash-env-value-1: ""
 
-      
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
 
 scheduler-bash-heartbeat-lost-timeout: 30
 
-# session-db 
-    
+# session-db
+
 # allow sharing to everyone only for one username, empty allows for everybody
 session-db-restrict-sharing-to-everyone-chipster: jaas/example_session_owner
 db-url-session-db: jdbc:postgresql://localhost:5432/session_db_db
@@ -362,7 +357,6 @@ db-pass-job-history: ""
 
 web-server-web-root-path: web-root
 
-
 # toolbox
 
 toolbox-tools-bin-path: /opt/chipster/tools
@@ -374,8 +368,8 @@ toolbox-runtime-image: comp-16-04
 toolbox-runtime-tools-bin-name: chipster-3.5.1
 toolbox-runtime-tools-bin-path: tools
 
-# add other runtimes by appending 
-# a dash and the runtime name to each config (e.g. "-R-4.1.1") 
+# add other runtimes by appending
+# a dash and the runtime name to each config (e.g. "-R-4.1.1")
 toolbox-runtime-command-R-4.1.1: /opt/chipster/tools/R-4.1.1/bin/R
 toolbox-runtime-image-R-4.1.1: comp-20-04-r-deps
 
@@ -393,7 +387,7 @@ toolbox-runtime-command-R-4.2.3-single-cell: /opt/chipster/tools/R-4.2.3-single-
 toolbox-runtime-image-R-4.2.3-single-cell: comp-r-4-2-3-single-cell
 toolbox-runtime-tools-bin-path-R-4.2.3-single-cell: tools-bin
 
-# additional R package installed in image build, so the path is the same as in plain R-4.2.3 
+# additional R package installed in image build, so the path is the same as in plain R-4.2.3
 toolbox-runtime-command-R-4.2.3-cellbender: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3-cellbender: comp-r-4-2-3-cellbender
 toolbox-runtime-tools-bin-path-R-4.2.3-cellbender: tools-bin
@@ -450,20 +444,19 @@ toolbox-default-runtime-file-extension-python: .py
 
 # file-broker
 
-
 # how long to wait for connections to complete after receiving SIGINT, seconds
 file-broker-shutdown-timeout: 3600
 
 # Find file-storages from the DNS server's SRV records. This is handy for Kubernetes
 # statefulset, because this way the file-broker will find out automatically the number
-# of file-storage replicas. Configure here the domain name of the replicaset's 
+# of file-storage replicas. Configure here the domain name of the replicaset's
 # (headless) service. You can check that records are populated correctly by running
 # this command in some container:
-# 
+#
 #   nslookup -type=SRV file-storage
-# 
-# Unfortunately the Java DNS seems to require the longer form of the domain name: 
-# 
+#
+# Unfortunately the Java DNS seems to require the longer form of the domain name:
+#
 #   file-storage.NAMESPACE.svc.cluster.local
 #
 file-broker-storage-dns-domain-0: ""
@@ -478,28 +471,27 @@ file-broker-storage-dns-port-admin: "8116"
 # The file-storage name is:
 # 1) a string between "url-int-" and ":" when configured in the service-locator
 # 2) a string before the first period ".", when found from the DNS
-# Add as many configuration keys as require by appending new postfixes, e.g. 
+# Add as many configuration keys as require by appending new postfixes, e.g.
 # "-0", "-1" and so on.
 file-broker-storage-read-only-0: ""
 
-# When migrating files from file-broker to file-storage, the storage field in 
+# When migrating files from file-broker to file-storage, the storage field in
 # the DB is null for all old files.
 # If you can't copy all the files from the old file-broker to the new file-storage,
-# you can configure a special read-only file-storage service that mounts the old 
+# you can configure a special read-only file-storage service that mounts the old
 # file-broker volume.
-# Its name must start with "file-storage-". Let's call it "file-storage-migration" 
+# Its name must start with "file-storage-". Let's call it "file-storage-migration"
 # in this example. Then you configure its address in the service-locator:
 #
 #   url-int-file-storage-migration: ADDRESS
 #
 # and configure here it to be used for reading all files that have null in the storage
 # field:
-#   
+#
 #   file-broker-storage-null: "file-storage-migration"
-# 
+#
 # The file-storage configured here won't be used for writing new files.
 file-broker-storage-null: ""
-
 
 # file-storage
 
@@ -542,6 +534,6 @@ websocket-ping-interval: 120000
 # variables
 
 variable-public-ip: 127.0.0.1
-variable-admin-ip: 127.0.0.1 
+variable-admin-ip: 127.0.0.1
 variable-bind-ip: 0.0.0.0
 variable-admin-bind-ip: 0.0.0.0

@@ -16,7 +16,7 @@ import org.xml.sax.SAXException;
  * metadata files contained in them (session.xml). Metadata files
  * are specified by the XSD definition and accessed using
  * classes generated from the definition. To generate the classes,
- * use the Ant tasks in build.xml. 
+ * use the Ant tasks in build.xml.
  * 
  * @author Taavi Hupponen, Aleksi Kallio
  *
@@ -24,16 +24,16 @@ import org.xml.sax.SAXException;
 public class UserSession {
 
 	public static final String SESSION_DATA_FILENAME = "session.xml";
-	
+
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
-    
+
 	public static JAXBContext getJAXBContext() throws JAXBException {
 		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2");
 	}
 
 	public static Schema getSchema() throws SAXException {
-        SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+		SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
 		return factory.newSchema(new StreamSource(UserSession.class.getResourceAsStream("session2.xsd")));
 	}
 }

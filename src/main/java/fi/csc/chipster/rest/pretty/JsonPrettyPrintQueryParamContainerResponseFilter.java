@@ -10,7 +10,8 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.ext.Provider;
 
 @Provider
-public class JsonPrettyPrintQueryParamContainerResponseFilter implements jakarta.ws.rs.container.ContainerResponseFilter {
+public class JsonPrettyPrintQueryParamContainerResponseFilter
+        implements jakarta.ws.rs.container.ContainerResponseFilter {
 
     private static final String QUERY_PARAM_PRETTY = "pretty";
 
@@ -22,7 +23,7 @@ public class JsonPrettyPrintQueryParamContainerResponseFilter implements jakarta
         MultivaluedMap<String, String> queryParams = requestContext.getUriInfo().getQueryParameters();
 
         if (queryParams.containsKey(QUERY_PARAM_PRETTY)) {
-        	ObjectWriterInjector.set(new IndentingModifier());
+            ObjectWriterInjector.set(new IndentingModifier());
         }
     }
 }

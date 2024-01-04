@@ -10,23 +10,23 @@ public class BasicAuthParser {
 	private String password;
 
 	public BasicAuthParser(String auth) {
-		
-        // remove auth type
-        auth = auth.replaceFirst("[B|b]asic ", "");
 
-        // decode to byte array
-        byte[] decodedBytes = DatatypeConverter.parseBase64Binary(auth);
+		// remove auth type
+		auth = auth.replaceFirst("[B|b]asic ", "");
 
-        if(decodedBytes == null || decodedBytes.length == 0){
-            throw new NotAuthorizedException("authorization header is null or empty");
-        }
+		// decode to byte array
+		byte[] decodedBytes = DatatypeConverter.parseBase64Binary(auth);
 
-		String[] credentials =  new String(decodedBytes).split(":", 2);
+		if (decodedBytes == null || decodedBytes.length == 0) {
+			throw new NotAuthorizedException("authorization header is null or empty");
+		}
 
-		//If login or password fail
-		if(credentials == null || credentials.length != 2){
+		String[] credentials = new String(decodedBytes).split(":", 2);
+
+		// If login or password fail
+		if (credentials == null || credentials.length != 2) {
 			throw new NotAuthorizedException("username or password missing");
-		}		
+		}
 
 		setUsername(credentials[0]);
 		setPassword(credentials[1]);

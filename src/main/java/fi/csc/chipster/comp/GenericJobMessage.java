@@ -28,7 +28,8 @@ public interface GenericJobMessage {
 
 	public String getName(String fileName);
 
-	public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy, ToolDescription description) throws ParameterValidityException;
+	public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy,
+			ToolDescription description) throws ParameterValidityException;
 
 	public UUID getSessionId();
 

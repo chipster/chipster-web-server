@@ -11,14 +11,15 @@ import javax.persistence.Id;
 public class File {
 
 	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	@Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
 	private UUID fileId;
 	private long size = -1;
 	private String checksum;
 	private Instant fileCreated;
 	private String storage;
-	
-	public File() {} // JAXB needs this	
+
+	public File() {
+	} // JAXB needs this
 
 	public long getSize() {
 		return size;
@@ -47,7 +48,7 @@ public class File {
 	public Instant getFileCreated() {
 		return fileCreated;
 	}
-	
+
 	public void setFileCreated(Instant created) {
 	}
 

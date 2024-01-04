@@ -10,9 +10,9 @@ import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.toolbox.ToolboxTool;
 
 public class BashJobs {
-	
+
 	HashMap<IdPair, BashJob> jobs = new HashMap<>();
-	
+
 	public Map<IdPair, BashJob> getHeartbeatJobs() {
 		Map<IdPair, BashJob> runningJobs = jobs.entrySet().stream()
 				.filter(entry -> entry.getValue().hasHeartbeat())
@@ -31,18 +31,21 @@ public class BashJobs {
 	}
 
 	public BashJob remove(IdPair jobId) {
-		return jobs.remove(jobId);	
+		return jobs.remove(jobId);
 	}
 
 	public BashJob addJob(IdPair idPair, int slots, ToolboxTool tool) {
 		BashJob jobState = new BashJob(slots, tool);
-		
-		/* Set first heartbeat to change this job from the state scheduled to running
+
+		/*
+		 * Set first heartbeat to change this job from the state scheduled to running
 		 * 
-		 * Jobs are allowed to stay in the scheduled state only momentarily (a second or so), but we 
-		 * cannot rely on heartbeat script to change the state, because it's not run frequently enough. 
+		 * Jobs are allowed to stay in the scheduled state only momentarily (a second or
+		 * so), but we
+		 * cannot rely on heartbeat script to change the state, because it's not run
+		 * frequently enough.
 		 */
-		jobState.setHeartbeatTimestamp();		
+		jobState.setHeartbeatTimestamp();
 		jobs.put(idPair, jobState);
 		return jobState;
 	}

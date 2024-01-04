@@ -15,16 +15,16 @@ import javax.persistence.MapKeyColumn;
 @Entity
 public class DatasetColumn {
 
-	@Id 
+	@Id
 	@GeneratedValue
 	private int columnId;
-	
+
 	private String name;
-	
-	@ElementCollection(fetch=FetchType.EAGER)
-	@MapKeyColumn(name="key")
-	@Column(name="value")
-	@CollectionTable(name="ColumnMetadata", joinColumns=@JoinColumn(name="columnId"))
+
+	@ElementCollection(fetch = FetchType.EAGER)
+	@MapKeyColumn(name = "key")
+	@Column(name = "value")
+	@CollectionTable(name = "ColumnMetadata", joinColumns = @JoinColumn(name = "columnId"))
 	private Map<String, String> metadata;
 
 	public String getName() {

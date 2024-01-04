@@ -69,7 +69,7 @@ public class ServerLauncher {
 		}
 		fileStorage = new FileStorage(config);
 		fileStorage.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting file-broker");
 		}
@@ -87,19 +87,18 @@ public class ServerLauncher {
 		}
 		toolbox = new ToolboxService(config);
 		toolbox.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting scheduler");
 		}
 		scheduler = new Scheduler(config);
 		scheduler.startServer();
 
-
-//		if (verbose) {
-//			logger.info("starting comp");
-//		}
-//		comp = new RestCompServer(null, config);
-//		comp.startServer();
+		// if (verbose) {
+		// logger.info("starting comp");
+		// }
+		// comp = new RestCompServer(null, config);
+		// comp.startServer();
 
 		if (verbose) {
 			logger.info("starting web server");
@@ -118,13 +117,12 @@ public class ServerLauncher {
 		}
 		typeService = new JavascriptService("js/type-service");
 		typeService.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting backup service");
 		}
 		backup = new Backup(config);
 		backup.start();
-
 
 		if (verbose) {
 			logger.info("up and running ("
@@ -148,7 +146,7 @@ public class ServerLauncher {
 				logger.warn("closing backup service failed", e);
 			}
 		}
-		
+
 		if (web != null) {
 			try {
 				web.close();
@@ -243,7 +241,7 @@ public class ServerLauncher {
 			} catch (Exception e) {
 				logger.warn("closing auth failed", e);
 			}
-		}		
+		}
 	}
 
 	public static void main(String[] args) throws Exception {

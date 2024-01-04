@@ -20,7 +20,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.filestorage.UploadCancelledException;
 
 public class ExceptionServletFilter implements Filter {
-	
+
 	private static final Logger logger = LogManager.getLogger();
 
 	@Override
@@ -29,13 +29,13 @@ public class ExceptionServletFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
-			throws IOException, ServletException {	
-		
-		HttpServletRequest request = (HttpServletRequest)req;
-		HttpServletResponse response = (HttpServletResponse)resp;
-		
+			throws IOException, ServletException {
+
+		HttpServletRequest request = (HttpServletRequest) req;
+		HttpServletResponse response = (HttpServletResponse) resp;
+
 		try {
-		
+
 			chain.doFilter(request, response);
 		} catch (ForbiddenException e) {
 			logger.error("servlet error", e);
@@ -60,9 +60,9 @@ public class ExceptionServletFilter implements Filter {
 		} catch (ConflictException e) {
 			logger.error("servlet error", e);
 			sendError(response, HttpServletResponse.SC_CONFLICT, e.getMessage());
-			return;				
+			return;
 		} catch (InsufficientStorageException e) {
-						
+
 			logger.error(e.getClass().getSimpleName() + " " + e.getMessage());
 			try {
 				// try to avoid "unconsumed input" error
@@ -70,19 +70,20 @@ public class ExceptionServletFilter implements Filter {
 			} catch (Exception e2) {
 				logger.warn("couldn't consume useless input", e2.getMessage());
 			}
-			
+
 			sendError(response, InsufficientStorageException.STATUS_CODE, e.getMessage());
-			
-			return;	
+
+			return;
 		} catch (Exception e) {
 			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
 			logger.error("servlet error", e);
-			// abort download from session-worker if there is an error. Otherwise the user thinks
+			// abort download from session-worker if there is an error. Otherwise the user
+			// thinks
 			// that the download was successful
 			throw e;
 		}
 	}
-	
+
 	/**
 	 * Send an HTTP error with plain text message
 	 * 

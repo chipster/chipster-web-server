@@ -32,7 +32,7 @@ public class RJobFactory extends InterpreterJobFactory {
 			int jobTimeout, Job dbJob, Runtime runtime) throws CompException {
 
 		ToolDescription description = createToolDescription(tool, dbJob, runtime);
-		
+
 		RCompJob analysisJob = new RCompJob();
 		analysisJob.construct(message, description, resultHandler, jobTimeout);
 		analysisJob.setProcessPool(this.processPool);

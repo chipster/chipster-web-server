@@ -6,9 +6,12 @@ import java.util.List;
 import fi.csc.chipster.toolbox.sadl.SADLParser.ParseException;
 
 /**
- * Parses string into tokens, suitable for SADLParser. The tokeniser has some understating
- * of SADL syntax so that it can produce higher level tokens and make parsing easier.
- * Tokens can be keywords, operators, strings, quoted string or strings in parentheses.
+ * Parses string into tokens, suitable for SADLParser. The tokeniser has some
+ * understating
+ * of SADL syntax so that it can produce higher level tokens and make parsing
+ * easier.
+ * Tokens can be keywords, operators, strings, quoted string or strings in
+ * parentheses.
  *
  * @see SADLParser
  * 
@@ -23,7 +26,7 @@ public class SADLTokeniser {
 		OPERATOR,
 		NORMAL
 	}
-	
+
 	private List<String> tokens;
 	private List<TokenType> types;
 	int index = -1;
@@ -33,12 +36,12 @@ public class SADLTokeniser {
 		t.tokenise();
 		this.tokens = t.getTokens();
 		this.types = t.getTypes();
-		
+
 		if (this.tokens.size() != this.types.size()) {
 			throw new RuntimeException("internal parsing error, number of types and tokens does not match");
 		}
 	}
-	
+
 	public String peek() {
 		if (!hasNext()) {
 			return null;
@@ -54,7 +57,7 @@ public class SADLTokeniser {
 	}
 
 	public boolean hasNext() {
-		return (index+1) < tokens.size();
+		return (index + 1) < tokens.size();
 	}
 
 	public String next() {
@@ -70,7 +73,7 @@ public class SADLTokeniser {
 				SADLSyntax.COMMENT_CLOSE
 		};
 	}
-	
+
 	public static String[] tokenEndingOperators() {
 		return new String[] {
 				SADLSyntax.NAME_SEPARATOR,
@@ -89,7 +92,7 @@ public class SADLTokeniser {
 		private boolean escapingEnabled;
 		private List<String> tokens = new LinkedList<String>();
 		private List<TokenType> types = new LinkedList<TokenType>();
-		
+
 		public CharTokeniser(String sadl, String unitName) {
 			this.sadl = sadl;
 			this.unitName = unitName;
@@ -102,24 +105,24 @@ public class SADLTokeniser {
 
 				int startedAt = charIndex;
 				String token = "";
-				TokenType type = TokenType.NORMAL; 
+				TokenType type = TokenType.NORMAL;
 
 				// read special comment block
 				if (peek() == SADLSyntax.COMMENT_OPEN.charAt(0)) {
 
 					next(); // skip '('
 					setEscapingEnabled(true);
-					
+
 					while (!atEnd() && !isOperator(SADLSyntax.COMMENT_CLOSE.charAt(0))) {
 						token += next();
 					}
 
 					setEscapingEnabled(false);
 					next(); // skip ')'
-					
+
 					type = TokenType.DESCRIPTION;
 
-				// read special quoted block
+					// read special quoted block
 				} else if (peek() == SADLSyntax.QUOTE.charAt(0)) {
 
 					next(); // skip '"'
@@ -134,16 +137,16 @@ public class SADLTokeniser {
 
 					type = TokenType.QUOTED;
 
-				// read special operator block
+					// read special operator block
 				} else if (isOperator()) {
 
 					while (!atEnd() && isOperator()) {
 						token += next();
 					}
-					
+
 					type = TokenType.OPERATOR;
 
-				// read regular block of non-whitespace
+					// read regular block of non-whitespace
 				} else {
 
 					while (!atEnd() && !isWhiteSpace() && !isOperator()) {
@@ -190,19 +193,19 @@ public class SADLTokeniser {
 		}
 
 		private boolean isOperator(char operator) {
-			boolean isOperator =  peek() == operator;
+			boolean isOperator = peek() == operator;
 			if (escaped) {
 				return false; // escaped chars are never interpreted as operators
 			}
 			return isOperator;
 		}
-		
+
 		private boolean isOperator() {
 			char c = peek();
 			if (escaped) {
 				return false; // escaped chars are never interpreted as operators
 			}
-			
+
 			for (String operator : tokenEndingOperators()) {
 				if (c == operator.charAt(0)) {
 					return true;
@@ -218,14 +221,14 @@ public class SADLTokeniser {
 		}
 
 		public char peek() {
-			
+
 			// skip escape char and remember the we have escaped the next char
 			this.escaped = false;
 			if (escapingEnabled && sadl.charAt(charIndex) == SADLSyntax.ESCAPE.charAt(0)) {
 				charIndex++;
 				escaped = true;
 			}
-			
+
 			return sadl.charAt(charIndex);
 		}
 	}

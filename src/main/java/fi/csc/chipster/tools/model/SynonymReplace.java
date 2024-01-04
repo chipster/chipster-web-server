@@ -67,6 +67,6 @@ public class SynonymReplace {
 	}
 
 	public void add(Synonym synonym) {
-		list.add(synonym);		
+		list.add(synonym);
 	}
 }

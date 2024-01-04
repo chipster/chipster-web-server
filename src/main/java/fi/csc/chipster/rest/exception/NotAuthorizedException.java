@@ -8,6 +8,5 @@ public class NotAuthorizedException extends jakarta.ws.rs.NotAuthorizedException
 
 	public NotAuthorizedException(String message) {
 		super(Response.status(Status.UNAUTHORIZED).entity(message).type(MediaType.TEXT_PLAIN).build());
-	}	
+	}
 }
-

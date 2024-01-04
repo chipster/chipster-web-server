@@ -21,16 +21,16 @@ import jakarta.websocket.DeploymentException;
 import jakarta.websocket.MessageHandler.Whole;
 
 public class WebSocketClientTest {
-	
+
 	public static class TestReplyHandler implements Whole<String> {
 
 		@Override
 		public void onMessage(String message) {
 			System.out.println("server received message: " + message);
 		}
-		
+
 	}
-	
+
 	public static class TestTopicConfig implements TopicConfig {
 
 		@Override
@@ -52,52 +52,56 @@ public class WebSocketClientTest {
 		public AuthPrincipal getUserPrincipal(String tokenKey) {
 			return new AuthPrincipal("user", new HashSet<>());
 		}
-		
+
 	}
-	
+
 	public static class TestMessageHandler implements Whole<String> {
-		
+
 		@Override
 		public void onMessage(String message) {
 			System.out.println("client received message: " + message);
 		}
 	}
-	
+
 	public static final int PORT = 8200;
 	public static final String uri = "ws://127.0.0.1:" + PORT;
-	
+
 	@Test
-	public void start() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
-		
-		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+	public void start() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException,
+			WebSocketClosedException, IOException, TimeoutException {
+
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(),
+				"test-pub-sub-server");
 		server.start();
 		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
-			
+
 			@Override
 			public void onMessage(String message) {
 				System.out.println("client received message: " + message);
 			}
 		}, false, "test-ws-client", new StaticCredentials("user", "password"));
-		
+
 		client.ping();
 		server.stop();
 	}
-	
+
 	@Test
-	public void stop() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
-		
-		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+	public void stop() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException,
+			WebSocketClosedException, IOException, TimeoutException {
+
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(),
+				"test-pub-sub-server");
 		server.start();
 		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
-			
+
 			@Override
 			public void onMessage(String message) {
 				System.out.println("client received message: " + message);
 			}
 		}, false, "test-ws-client", new StaticCredentials("user", "password"));
-		
+
 		server.stop();
-		
+
 		try {
 			try {
 				client.ping();
@@ -106,23 +110,25 @@ public class WebSocketClientTest {
 				client.ping();
 			}
 			Assertions.fail();
-		} catch (IOException e) {			
+		} catch (IOException e) {
 		}
 	}
-	
+
 	@Test
-	public void reconnect() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
-		
-		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
+	public void reconnect() throws ServletException, DeploymentException, InterruptedException, WebSocketErrorException,
+			WebSocketClosedException, IOException, TimeoutException {
+
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(),
+				"test-pub-sub-server");
 		server.start();
 		WebSocketClient client = new WebSocketClient(uri, new jakarta.websocket.MessageHandler.Whole<String>() {
-			
+
 			@Override
 			public void onMessage(String message) {
 				System.out.println("client received message: " + message);
 			}
 		}, true, "test-ws-client", new StaticCredentials("user", "password"));
-		
+
 		server.stop();
 		server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "test-pub-sub-server");
 		server.start();
@@ -131,13 +137,12 @@ public class WebSocketClientTest {
 		Thread.sleep(2000);
 		// wait for the reconnection
 		client.waitForConnection();
-		
+
 		client.ping();
 		// client must be shutdown when the retry is enabled
 		client.shutdown();
 		server.stop();
-		
-		
+
 		Thread.sleep(10);
 	}
 }

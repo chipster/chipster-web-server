@@ -31,8 +31,9 @@ import jakarta.ws.rs.ext.Provider;
  * 
  * Validate Chipster tokens and parse claims to AuthPrincipal.
  * After this resource methods can limit their access by setting
- * @RolesAllowed annotation and by comparing the other information in 
- * AuthPrincipal. 
+ * 
+ * @RolesAllowed annotation and by comparing the other information in
+ *               AuthPrincipal.
  * 
  * @author klemela
  *
@@ -64,8 +65,9 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 			// CORS preflight checks require unauthenticated OPTIONS
 			return;
 		}
-		
-//		logger.info(requestContext.getMethod() + " " + requestContext.getUriInfo().getRequestUri());
+
+		// logger.info(requestContext.getMethod() + " " +
+		// requestContext.getUriInfo().getRequestUri());
 
 		String authHeader = requestContext.getHeaderString(HEADER_AUTHORIZATION);
 		// allow token to be sent also as a query parameter, because JS EventSource
@@ -74,15 +76,15 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 
 		String username = null;
 		String password = null;
-		
+
 		if (authHeader != null) {
-			BasicAuthParser parser = new BasicAuthParser(authHeader);			
+			BasicAuthParser parser = new BasicAuthParser(authHeader);
 			username = parser.getUsername();
 			password = parser.getPassword();
 		} else {
 			username = TOKEN_USER;
 			password = authParameter;
-		}		
+		}
 
 		if (password == null) {
 			if (allowedRoles.contains(Role.UNAUTHENTICATED)) {
@@ -90,53 +92,54 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 				requestContext.setSecurityContext(new AuthSecurityContext(new AuthPrincipal(Role.UNAUTHENTICATED),
 						requestContext.getSecurityContext()));
 				return;
-				
+
 			} else {
 				throw new NotAuthorizedException("password or token required");
 			}
 		}
-		
+
 		if (!TOKEN_USER.equals(username)) {
 			if (allowedRoles.contains(Role.PASSWORD)) {
 				// throws an exception if fails
 				AuthPrincipal principal = passwordAuthentication(username, password);
 
 				// login ok
-				requestContext.setSecurityContext(new AuthSecurityContext(principal, requestContext.getSecurityContext()));
+				requestContext
+						.setSecurityContext(new AuthSecurityContext(principal, requestContext.getSecurityContext()));
 				return;
 
 			} else {
 				throw new NotAuthorizedException("only tokens allowed");
 			}
 		}
-		
+
 		// throws if not valid
 		Jws<Claims> jws = authService.validateTokenSignature(password);
 		Claims jwsBody = jws.getPayload();
-		
+
 		// now we can trust that these claims were signed by auth
-		
+
 		ChipsterToken token = null;
-		
+
 		if (authService.isTokenClass(jwsBody, UserToken.class)) {
-						
+
 			UserToken userToken = AuthTokens.claimsToUserToken(jws.getPayload(), password);
 			token = userToken;
-			
+
 		} else if (authService.isTokenClass(jwsBody, SessionToken.class)) {
-			
+
 			token = AuthTokens.claimsToSessionToken(jws.getPayload(), password);
-			
+
 		} else if (authService.isTokenClass(jwsBody, DatasetToken.class)) {
-			
+
 			token = AuthTokens.claimsToDatasetToken(jws.getPayload(), password);
-			
+
 		} else {
 			throw new ForbiddenException("unknown token type");
 		}
-				
+
 		// login ok
-		AuthPrincipal principal = new AuthPrincipal(token, password);			
+		AuthPrincipal principal = new AuthPrincipal(token, password);
 		requestContext.setSecurityContext(new AuthSecurityContext(principal, requestContext.getSecurityContext()));
 	}
 
@@ -144,22 +147,22 @@ public class TokenRequestFilter implements ContainerRequestFilter {
 		// throws if fails
 		AuthenticationClient passwordAuthClient = new AuthenticationClient(
 				this.authService.getAuth(), username, password, null, false);
-		
+
 		String tokenKey = passwordAuthClient.getToken();
-		
+
 		// we can trust the token that we got from auth, decoding is enough
-		 UserToken parsedToken = AuthTokens.decodeUserToken(tokenKey);
-		 
-		 return new AuthPrincipal(parsedToken.getUsername(), tokenKey, parsedToken.getRoles());
+		UserToken parsedToken = AuthTokens.decodeUserToken(tokenKey);
+
+		return new AuthPrincipal(parsedToken.getUsername(), tokenKey, parsedToken.getRoles());
 	}
 
 	/**
 	 * Allow Role.UNAUTHENTICATED to pass this filter.
 	 * By default those produce an authentication error.
-	 *  
+	 * 
 	 */
 	public void addAllowedRole(String role) {
-		
+
 		this.allowedRoles.add(role);
 	}
 }

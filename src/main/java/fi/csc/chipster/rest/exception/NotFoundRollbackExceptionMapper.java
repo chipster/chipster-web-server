@@ -10,8 +10,8 @@ import jakarta.ws.rs.ext.Provider;
 /**
  */
 @Provider
-public class NotFoundRollbackExceptionMapper implements ExceptionMapper<NotFoundException> {	
-	
+public class NotFoundRollbackExceptionMapper implements ExceptionMapper<NotFoundException> {
+
 	@Override
 	public Response toResponse(NotFoundException e) {
 		// client error, no need to log

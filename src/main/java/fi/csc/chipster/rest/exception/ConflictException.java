@@ -8,6 +8,5 @@ public class ConflictException extends jakarta.ws.rs.WebApplicationException {
 
 	public ConflictException(String message) {
 		super(Response.status(Status.CONFLICT).entity(message).type(MediaType.TEXT_PLAIN).build());
-	}	
+	}
 }
-

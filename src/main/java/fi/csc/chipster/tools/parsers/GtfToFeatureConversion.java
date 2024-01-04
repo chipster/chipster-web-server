@@ -4,11 +4,11 @@ import fi.csc.chipster.tools.model.Exon;
 import fi.csc.chipster.tools.model.Region;
 
 public class GtfToFeatureConversion {
-	
+
 	@SuppressWarnings("deprecation")
 	public static Exon parseLine(GtfLineParser parser, String line) {
 		if (!parser.setLine(line)) {
-			//header line
+			// header line
 			return null;
 		}
 
@@ -18,23 +18,23 @@ public class GtfToFeatureConversion {
 		String transcId = parser.getTranscriptId();
 
 		String exonString = parser.getAttribute("exon_number");
-		int exonNumber = -1; 
+		int exonNumber = -1;
 		if (exonString != null) {
 			exonNumber = new Integer(exonString);
 		}
 		String geneName = parser.getAttribute("gene_name");
 		String transcName = parser.getAttribute("transcript_name");
 		String biotype = null;
-		
+
 		Exon exon = null;
 
-		//Standard gtf data (for example Ensembl)
+		// Standard gtf data (for example Ensembl)
 		if ("exon".equals(feature) || "CDS".equals(feature)) {
 
 			exon = new Exon(region, feature, exonNumber, geneId, transcId, geneName, transcName, biotype);
 
-			//Custom almost-gtf data
-		} else 	if (feature.startsWith("GenBank")) {
+			// Custom almost-gtf data
+		} else if (feature.startsWith("GenBank")) {
 
 			if (geneId == null || transcId == null) {
 				return null;

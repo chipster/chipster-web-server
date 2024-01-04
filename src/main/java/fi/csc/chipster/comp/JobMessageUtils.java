@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
+
 public class JobMessageUtils {
 	/**
 	 * This should really be in the GenericJobMessage, but static methods in
@@ -19,7 +20,8 @@ public class JobMessageUtils {
 	 * @return
 	 * @throws ParameterValidityException
 	 */
-	public static LinkedHashMap<String, Parameter> checkParameterSafety(ParameterSecurityPolicy securityPolicy, ToolDescription description,
+	public static LinkedHashMap<String, Parameter> checkParameterSafety(ParameterSecurityPolicy securityPolicy,
+			ToolDescription description,
 			LinkedHashMap<String, Parameter> parameters) throws ParameterValidityException {
 		// Do argument checking first
 		if (securityPolicy == null) {
@@ -35,13 +37,15 @@ public class JobMessageUtils {
 		// Check that description and values match
 		if (parameterDescriptionCount != parameters.size()) {
 			throw new ParameterValidityException(
-					"number of parameter descriptions (" + parameterDescriptionCount + ") does not match the number of parameter values (" + parameters.size() + ")");			
+					"number of parameter descriptions (" + parameterDescriptionCount
+							+ ") does not match the number of parameter values (" + parameters.size() + ")");
 		}
 
-		// Check if there are any disallowed characters in the parameter value 
+		// Check if there are any disallowed characters in the parameter value
 		for (Parameter parameter : parameters.values()) {
 
-			fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter toolParameter = description.getParameters().get(parameter.getParameterId());
+			fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter toolParameter = description.getParameters()
+					.get(parameter.getParameterId());
 
 			if (toolParameter == null) {
 				// shouldn't happen, checked already in RestJobMessage.getParameters()
@@ -59,23 +63,26 @@ public class JobMessageUtils {
 				}
 			}
 		}
-		
-	    // Check that the selected enum option exists
+
+		// Check that the selected enum option exists
 		// Should we check also other parameter constraints like integer limits?
 
 		for (Parameter parameter : parameters.values()) {
-			fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter toolParameter = description.getParameters().get(parameter.getParameterId());
+			fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter toolParameter = description.getParameters()
+					.get(parameter.getParameterId());
 
 			if (toolParameter.getType() == ParameterType.ENUM) {
-				Set<String> options = Stream.of(toolParameter.getSelectionOptions()).map(o -> o.getID()).collect(Collectors.toSet());
-               
-               if (!options.contains(parameter.getValue())) {
-                   throw new ParameterValidityException(
-                           "Enum parameter '" + parameter.getParameterId() + "' does not have option '" + parameter.getValue() + "'. Options: " + RestUtils.asJson(options) + ". ");
-               }
+				Set<String> options = Stream.of(toolParameter.getSelectionOptions()).map(o -> o.getID())
+						.collect(Collectors.toSet());
+
+				if (!options.contains(parameter.getValue())) {
+					throw new ParameterValidityException(
+							"Enum parameter '" + parameter.getParameterId() + "' does not have option '"
+									+ parameter.getValue() + "'. Options: " + RestUtils.asJson(options) + ". ");
+				}
 			}
 		}
-				
+
 		// Everything was ok, return the parameters
 		return parameters;
 	}

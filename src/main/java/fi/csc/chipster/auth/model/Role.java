@@ -1,10 +1,10 @@
 package fi.csc.chipster.auth.model;
 
 public class Role {
-	
-	// roles as String constants	because that's the only thing the RolesAllowed
+
+	// roles as String constants because that's the only thing the RolesAllowed
 	// annotation accepts
-	
+
 	// special role for the first authentication step
 	public static final String PASSWORD = "password";
 	public static final String CLIENT = "client";
@@ -24,10 +24,10 @@ public class Role {
 	public static final String SESSION_WORKER = "session-worker";
 	public static final String TYPE_SERVICE = "type-service";
 	public static final String WEB_SERVER = "web-server";
-	public static final String JOB_HISTORY="job-history";
-	public static final String BACKUP="backup";
+	public static final String JOB_HISTORY = "job-history";
+	public static final String BACKUP = "backup";
 	public static final String OIDC = "oidc";
 	public static final String SESSION_TOKEN = "session-token";
 	public static final String DATASET_TOKEN = "dataset-token";
 	public static final String SINGLE_SHOT_COMP = "single-shot-comp";
-}	
+}

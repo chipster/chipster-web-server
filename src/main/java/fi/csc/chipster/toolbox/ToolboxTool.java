@@ -15,8 +15,9 @@ public class ToolboxTool {
 
 	public ToolboxTool() {
 	}
-	
-	public ToolboxTool(String id, SADLDescription sadlDescription, String sadlString, String code, String source, String module, String runtime) {
+
+	public ToolboxTool(String id, SADLDescription sadlDescription, String sadlString, String code, String source,
+			String module, String runtime) {
 		this.id = id;
 		this.sadlDescription = sadlDescription;
 		this.sadlString = sadlString;
@@ -29,11 +30,11 @@ public class ToolboxTool {
 	public String getId() {
 		return id;
 	}
-	
+
 	public SADLDescription getSadlDescription() {
 		return sadlDescription;
 	}
-	
+
 	public String getRuntime() {
 		return runtime;
 	}
@@ -52,5 +53,5 @@ public class ToolboxTool {
 
 	public String getModule() {
 		return module;
-	}	
+	}
 }

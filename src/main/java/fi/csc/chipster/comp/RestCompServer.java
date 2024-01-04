@@ -67,10 +67,10 @@ public class RestCompServer
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
 	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
-	
+
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
-	
+
 	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay-running-slots";
 	private static final String PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS = "comp-offer-delay-requested-slots-";
 
@@ -82,7 +82,7 @@ public class RestCompServer
 	/**
 	 * Directory for storing input and output files.
 	 */
-	private int scheduleTimeout;	
+	private int scheduleTimeout;
 	private int timeoutCheckInterval;
 	private int compStatusInterval;
 	private boolean sweepWorkDir;
@@ -131,7 +131,7 @@ public class RestCompServer
 	private int monitoringInterval;
 	private HttpServer adminServer;
 	private String hostname;
-	
+
 	private int offerDelayRunningSlots;
 	private HashMap<Integer, Long> offerDelayRequestedSlots;
 	private Timer heartbeatTimer;
@@ -151,7 +151,7 @@ public class RestCompServer
 			throws CompException, IOException, InterruptedException, WebSocketErrorException, WebSocketClosedException {
 
 		logger = LogManager.getLogger();
-		
+
 		// Initialise instance variables
 		this.scheduleTimeout = config.getInt(KEY_COMP_SCHEDULE_TIMEOUT);
 		this.offerDelayRunningSlots = config.getInt(KEY_COMP_OFFER_DELAY);
@@ -166,8 +166,8 @@ public class RestCompServer
 		this.moduleFilterMode = config.getString(KEY_COMP_MODULE_FILTER_MODE);
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
-		
-		this.offerDelayRequestedSlots = getOfferDelayRequestedSlots(config); 				
+
+		this.offerDelayRequestedSlots = getOfferDelayRequestedSlots(config);
 
 		// initialize working directory
 		logger.info("starting compute service...");
@@ -197,13 +197,15 @@ public class RestCompServer
 		timeoutTimer = new Timer("timeout timer", true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
 
-		/* Send heartbeats frequently enough (every 10 seconds) to be able timeout soon
+		/*
+		 * Send heartbeats frequently enough (every 10 seconds) to be able timeout soon
 		 * when something goes wrong (30 seconds).
 		 */
 		heartbeatTimer = new Timer(true);
 		heartbeatTimer.schedule(new HeartbeatTask(), compHeartbeatInterval, compHeartbeatInterval);
-		
-		// send comp available messages only every 30 seconds, because rescheduling all waiting jobs is quite messy
+
+		// send comp available messages only every 30 seconds, because rescheduling all
+		// waiting jobs is quite messy
 		compAvailableTimer = new Timer(true);
 		compAvailableTimer.schedule(new CompAvailableTask(), compStatusInterval, compStatusInterval);
 
@@ -219,8 +221,9 @@ public class RestCompServer
 
 		AdminResource adminResource = new AdminResource(this);
 		adminResource.addFileSystem("work", workDir);
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient, serviceLocator);
-		
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient,
+				serviceLocator);
+
 		this.hostname = InetAddress.getLocalHost().getHostName();
 
 		sendCompAvailable();
@@ -240,30 +243,30 @@ public class RestCompServer
 			JobCommand schedulerMsg = RestUtils.parseJson(JobCommand.class, message);
 
 			switch (schedulerMsg.getCommand()) {
-			case SCHEDULE:
-				logger.info("received a schedule message for a job " + schedulerMsg.getJobId());
-				scheduleJob(schedulerMsg);
+				case SCHEDULE:
+					logger.info("received a schedule message for a job " + schedulerMsg.getJobId());
+					scheduleJob(schedulerMsg);
 
-				break;
-			case CHOOSE:
+					break;
+				case CHOOSE:
 
-				if (compId.equals(schedulerMsg.getCompId())) {
-					runJob(schedulerMsg);
-					logger.info("offer chosen, running the job...");
-				} else {
-					removeScheduled(schedulerMsg.getJobId().toString());
-					logger.info("offer rejected");
-				}
-				break;
+					if (compId.equals(schedulerMsg.getCompId())) {
+						runJob(schedulerMsg);
+						logger.info("offer chosen, running the job...");
+					} else {
+						removeScheduled(schedulerMsg.getJobId().toString());
+						logger.info("offer rejected");
+					}
+					break;
 
-			case CANCEL:
-				logger.info("cancelling the job...");
-				cancelJob(schedulerMsg.getJobId().toString());
-				break;
+				case CANCEL:
+					logger.info("cancelling the job...");
+					cancelJob(schedulerMsg.getJobId().toString());
+					break;
 
-			default:
-				logger.warn("unknown command: " + schedulerMsg.getCommand());
-				break;
+				default:
+					logger.warn("unknown command: " + schedulerMsg.getCommand());
+					break;
 			}
 			updateStatus();
 
@@ -345,7 +348,8 @@ public class RestCompServer
 					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
-					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
+					hostname + delimiter
+					+ ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}
@@ -388,7 +392,7 @@ public class RestCompServer
 		}
 
 		CompJob compJob = null;
-		
+
 		try {
 			JobCommand jobCommand = ((RestJobMessage) jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
@@ -406,7 +410,7 @@ public class RestCompServer
 			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
-			
+
 			// tool versions
 			CompUtils.addVersionsToDbJob(result, dbJob);
 
@@ -414,16 +418,16 @@ public class RestCompServer
 			if (result.getParameters() != null) {
 				dbJob.setParameters(List.copyOf(result.getParameters().values()));
 			}
-									
+
 			compJob = this.runningJobs.get(jobMessage.getJobId());
 			if (compJob != null) {
 				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem(compJob.getProcess()));
 			}
-						
+
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 
 			logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
-			
+
 		} catch (RestException e) {
 			if (e.getResponse().getStatus() == 403) {
 				logger.warn("unable to update job, cancel it (" + e.getMessage() + ")");
@@ -436,7 +440,7 @@ public class RestCompServer
 			}
 		} catch (Exception e) {
 			logger.error("failed to send result message", e);
-		}		
+		}
 	}
 
 	@Override
@@ -559,7 +563,8 @@ public class RestCompServer
 		return slots;
 	}
 
-	private void scheduleJob(final CompJob job, final JobCommand cmd, int runningSlots, int scheduledSlots, int requestedSlots) {
+	private void scheduleJob(final CompJob job, final JobCommand cmd, int runningSlots, int scheduledSlots,
+			int requestedSlots) {
 		synchronized (jobsLock) {
 			job.setScheduleTime(new Date());
 			scheduledJobs.put(job.getId(), job);
@@ -568,14 +573,14 @@ public class RestCompServer
 		// delaying sending of the offer message can be used for
 		// prioritising comp instances
 		long delay = offerDelayRunningSlots * (runningSlots + scheduledSlots);
-		
-		// comp can avoid jobs of certain size		
-		Long slotDelay = offerDelayRequestedSlots.get((Integer)requestedSlots);
-		
+
+		// comp can avoid jobs of certain size
+		Long slotDelay = offerDelayRequestedSlots.get((Integer) requestedSlots);
+
 		if (slotDelay != null) {
 			delay = delay + slotDelay;
 		}
-		
+
 		if (delay > 0) {
 			Timer timer = new Timer("offer-delay-timer", true);
 			timer.schedule(new TimerTask() {
@@ -640,15 +645,16 @@ public class RestCompServer
 			logger.error("unable to send " + cmd.getCommand() + " message", e);
 		}
 	}
-	
+
 	private static HashMap<Integer, Long> getOfferDelayRequestedSlots(Config config) {
-		
+
 		HashMap<Integer, Long> parsedEntries = new HashMap<>();
-		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS).entrySet()) {
+		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS)
+				.entrySet()) {
 			String slotsString = entry.getKey();
 			String confKey = PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS + slotsString;
 			int slots;
-			try {						
+			try {
 				slots = Integer.parseInt(slotsString);
 			} catch (NumberFormatException e) {
 				logger.warn("cannot parse slot count from configuration key " + confKey);
@@ -664,7 +670,6 @@ public class RestCompServer
 		}
 		return parsedEntries;
 	}
-
 
 	/**
 	 * The order of the jobs in the receivedJobs and scheduledJobs is FIFO. Because
@@ -713,7 +718,7 @@ public class RestCompServer
 	public class HeartbeatTask extends TimerTask {
 
 		@Override
-		public void run() {			
+		public void run() {
 			try {
 				synchronized (jobsLock) {
 					for (CompJob job : runningJobs.values()) {
@@ -726,14 +731,14 @@ public class RestCompServer
 			}
 		}
 	}
-	
+
 	public class CompAvailableTask extends TimerTask {
 
 		@Override
-		public void run() {			
+		public void run() {
 			try {
 				synchronized (jobsLock) {
-					
+
 					if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
 						sendCompAvailable();
 					}
@@ -743,7 +748,6 @@ public class RestCompServer
 			}
 		}
 	}
-
 
 	public void shutdown() {
 		logger.info("shutdown requested");
@@ -798,7 +802,7 @@ public class RestCompServer
 		synchronized (jobsLock) {
 			status.put("runningJobCount", runningJobs.size());
 			status.put("scheduledJobCount", scheduledJobs.size());
-			
+
 			status.put("runningSlotCount", getSlotSum(runningJobs.values()));
 			status.put("scheduledSlotCount", getSlotSum(scheduledJobs.values()));
 		}
@@ -813,9 +817,9 @@ public class RestCompServer
 
 		try {
 			server.startServer();
-			
+
 			RestUtils.waitForShutdown("comp service", server.adminServer);
-			
+
 		} catch (Exception e) {
 			System.err.println("comp startup failed, exiting");
 			e.printStackTrace(System.err);

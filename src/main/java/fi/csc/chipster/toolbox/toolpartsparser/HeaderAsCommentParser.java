@@ -12,12 +12,12 @@ public class HeaderAsCommentParser implements ToolPartsParser {
 
 	private String commentString;
 	private String toolPath;
-	
+
 	public HeaderAsCommentParser(String commentString, String toolPath) {
 		this.commentString = commentString;
 		this.toolPath = toolPath;
 	}
-	
+
 	@Override
 	public ParsedScript parse(Path moduleDir, String toolFilename) throws IOException {
 

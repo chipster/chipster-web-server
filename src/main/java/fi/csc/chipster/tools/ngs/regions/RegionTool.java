@@ -16,10 +16,11 @@ import fi.csc.chipster.util.IOUtils;
 
 public abstract class RegionTool extends JavaCompJobBase {
 
-	protected abstract LinkedList<Feature> operate(LinkedList<List<Feature>> inputs, LinkedHashMap<String, Parameter> parameters) throws Exception;
-	
+	protected abstract LinkedList<Feature> operate(LinkedList<List<Feature>> inputs,
+			LinkedHashMap<String, Parameter> parameters) throws Exception;
+
 	@Override
-	protected void execute() { 
+	protected void execute() {
 		try {
 			updateState(JobState.RUNNING, "preprocessing");
 
@@ -32,22 +33,24 @@ public abstract class RegionTool extends JavaCompJobBase {
 			}
 
 			// Delegate actual processing to subclasses
-			LinkedHashMap<String, Parameter> parameters = inputMessage.getParameters(JAVA_PARAMETER_SECURITY_POLICY, toolDescription);
+			LinkedHashMap<String, Parameter> parameters = inputMessage.getParameters(JAVA_PARAMETER_SECURITY_POLICY,
+					toolDescription);
 			LinkedList<Feature> output = operate(inputs, parameters);
-			
+
 			// Sort result
 			new RegionOperations().sort(output);
-			
+
 			// Write output
 			FileOutputStream outputStream = null;
 			try {
-				outputStream = new FileOutputStream(new File(jobDataDir, toolDescription.getOutputFiles().get(0).getFileName().getID())); 
+				outputStream = new FileOutputStream(
+						new File(jobDataDir, toolDescription.getOutputFiles().get(0).getFileName().getID()));
 				tool.print(output, outputStream);
 
 			} finally {
 				IOUtils.closeIfPossible(outputStream);
 			}
-			
+
 		} catch (Exception e) {
 			this.setOutputText(Exceptions.getStackTrace(e));
 			updateState(JobState.FAILED, e.getMessage());

@@ -40,21 +40,27 @@ public class SessionResourceTest {
         Config config = new Config();
         launcher = new TestServerLauncher(config);
 
-
-        user1Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
-        user2Client 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
-        schedulerClient 		= new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getSchedulerToken(), Role.SERVER);
-        unparseableTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(), Role.CLIENT);
-        tokenFailClient 		= new SessionDbClient(launcher.getServiceLocator(), TestServerLauncher.getWrongKeyToken(), Role.CLIENT);
-        signatureFailClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSignatureFailToken(), Role.CLIENT);
-        unsignedTokenClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getUnsignedToken(), Role.CLIENT);
-        expiredTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getExpiredToken(), Role.CLIENT);
-        noneTokenClient 		= new SessionDbClient(launcher.getServiceLocator(), launcher.getNoneToken(), Role.CLIENT);
-        symmetricTokenClient	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSymmetricToken(), Role.CLIENT);
+        user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+        user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+        schedulerClient = new SessionDbClient(launcher.getServiceLocatorForAdmin(), launcher.getSchedulerToken(),
+                Role.SERVER);
+        unparseableTokenClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUnparseableToken(),
+                Role.CLIENT);
+        tokenFailClient = new SessionDbClient(launcher.getServiceLocator(), TestServerLauncher.getWrongKeyToken(),
+                Role.CLIENT);
+        signatureFailClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSignatureFailToken(),
+                Role.CLIENT);
+        unsignedTokenClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUnsignedToken(),
+                Role.CLIENT);
+        expiredTokenClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getExpiredToken(), Role.CLIENT);
+        noneTokenClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getNoneToken(), Role.CLIENT);
+        symmetricTokenClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSymmetricToken(),
+                Role.CLIENT);
         // this tries to authenticate with password when token is expected
-        authFailClient 			= new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
-        noAuthClient 			= new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
-        sessionWorkerClient 	= new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(), Role.CLIENT);
+        authFailClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Credentials(), Role.CLIENT);
+        noAuthClient = new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
+        sessionWorkerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(),
+                Role.CLIENT);
     }
 
     @AfterAll
@@ -122,7 +128,7 @@ public class SessionResourceTest {
 
         // get total size in the beginning
         long size1 = user1Client.getStats().getSize();
-        
+
         // use large value to check that json conversions don't use int
         long fileSize = Integer.MAX_VALUE * 1024l;
 
@@ -136,13 +142,13 @@ public class SessionResourceTest {
         file1.setSize(fileSize);
         dataset1.setFile(file1);
         user1Client.createDataset(sessionId1, dataset1);
-        
+
         // get new total size
         long size2 = user1Client.getStats().getSize();
-        
+
         // check that the total size has grown with the file size
         assertEquals(size1 + fileSize, size2);
-        
+
         user1Client.deleteSession(sessionId1);
 
         // auth tests
@@ -157,9 +163,8 @@ public class SessionResourceTest {
         testGetStats(401, noAuthClient);
     }
 
-
     @Test
-    public void getSharesErrors() throws IOException, RestException {				
+    public void getSharesErrors() throws IOException, RestException {
 
         // auth tests
         testGetShares(401, unparseableTokenClient);
@@ -218,14 +223,14 @@ public class SessionResourceTest {
     }
 
     @Test
-    public void getAllByUserId() throws RestException {			
+    public void getAllByUserId() throws RestException {
 
         String userIdString = launcher.getUser1Credentials().getUsername();
 
         // session-worker can get the sessions of others
         sessionWorkerClient.getSessions(userIdString);
 
-        testGetSessions(403, userIdString, user1Client);		
+        testGetSessions(403, userIdString, user1Client);
         testGetSessions(401, userIdString, unparseableTokenClient);
         testGetSessions(403, userIdString, tokenFailClient);
         testGetSessions(401, userIdString, authFailClient);
@@ -269,7 +274,6 @@ public class SessionResourceTest {
         sessionWorkerClient.updateSession(session1);
         assertEquals("new name3", user1Client.getSession(sessionId1).getName());
 
-
         // wrong user
         testUpdateSession(403, session1, user2Client);
 
@@ -300,7 +304,7 @@ public class SessionResourceTest {
         user1Client.updateSession(session1);
 
         // check that change succeeded
-        assertEquals(SessionState.TEMPORARY_UNMODIFIED, user1Client.getSession(sessionId).getState());		
+        assertEquals(SessionState.TEMPORARY_UNMODIFIED, user1Client.getSession(sessionId).getState());
 
         // modify a TEMPORARY session
         session1.setName("new name 2");

@@ -23,7 +23,7 @@ public class GenericResultMessage {
 	 */
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
-		
+
 	private String jobId;
 	private JobState state;
 	private String stateDetail;
@@ -33,30 +33,28 @@ public class GenericResultMessage {
 	private Instant startTime;
 	private Instant endTime;
 	private LinkedHashMap<String, Parameter> parameters;
-	
+
 	private String versionsJson;
-	
 
 	// preserve tool's output order in job.outputs
 	private final LinkedHashMap<String, String> outputIdToDatasetIdMap = new LinkedHashMap<>();
 	private final Map<String, String> outputIdToDatasetNameMap = new HashMap<>();
 	private final Map<String, String> outputIdToDisplayNameMap = new HashMap<>();
-	
+
 	public GenericResultMessage(String jobId, JobState state, String stateDetail, String errorMessage,
 			String outputText) {
-		
+
 		this.jobId = jobId;
-        this.state = state;
+		this.state = state;
 		this.stateDetail = stateDetail;
 		this.errorMessage = errorMessage;
 		this.outputText = outputText;
 	}
-	
+
 	public GenericResultMessage() {
 		super();
 	}
-	
-	
+
 	public String getVersionsJson() {
 		return versionsJson;
 	}
@@ -73,9 +71,8 @@ public class GenericResultMessage {
 		return parameters;
 	}
 
-	
 	/**
-	 * @return Return error message in case of failed job execution. 
+	 * @return Return error message in case of failed job execution.
 	 * 
 	 */
 	public String getErrorMessage() {
@@ -107,7 +104,7 @@ public class GenericResultMessage {
 	}
 
 	/**
-	 * @return Returns the text output (sysout) of the job.  
+	 * @return Returns the text output (sysout) of the job.
 	 */
 	public String getOutputText() {
 		return outputText;
@@ -123,11 +120,11 @@ public class GenericResultMessage {
 	public void setSourceCode(String sourceCode) {
 		this.sourceCode = sourceCode;
 	}
-	
+
 	public String getSourceCode() {
 		return this.sourceCode;
 	}
-	
+
 	public String getStateDetail() {
 		return stateDetail;
 	}
@@ -143,18 +140,18 @@ public class GenericResultMessage {
 	public void setJobId(String jobId) {
 		this.jobId = jobId;
 	}
-	
+
 	public void addDataset(String outputId, String datasetId, String datasetName, String outputDisplayName) {
 		outputIdToDatasetIdMap.put(outputId, datasetId);
 		outputIdToDatasetNameMap.put(outputId, datasetName);
 		outputIdToDisplayNameMap.put(outputId, outputDisplayName);
 	}
-	
+
 	public ArrayList<String> getOutputIds() {
-	    // preserve order of LinkedHashMap
-	    return new ArrayList<String>(outputIdToDatasetIdMap.keySet());
+		// preserve order of LinkedHashMap
+		return new ArrayList<String>(outputIdToDatasetIdMap.keySet());
 	}
-	
+
 	public String getDatasetId(String outputId) {
 		return outputIdToDatasetIdMap.get(outputId);
 	}
@@ -162,10 +159,10 @@ public class GenericResultMessage {
 	public String getDatasetName(String outputId) {
 		return outputIdToDatasetNameMap.get(outputId);
 	}
-	
+
 	public String getOutputDisplayName(String outputId) {
-        return outputIdToDisplayNameMap.get(outputId);
-    }
+		return outputIdToDisplayNameMap.get(outputId);
+	}
 
 	public Instant getStartTime() {
 		return startTime;
@@ -183,7 +180,4 @@ public class GenericResultMessage {
 		this.endTime = endTime;
 	}
 
-
 }
-	
-

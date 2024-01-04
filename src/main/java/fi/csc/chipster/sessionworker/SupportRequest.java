@@ -6,27 +6,27 @@ public class SupportRequest {
 	private String session;
 	private String app;
 	private String log;
-	
+
 	public String getMessage() {
 		return message;
 	}
-	
+
 	public void setMessage(String message) {
 		this.message = message;
 	}
-	
+
 	public String getMail() {
 		return mail;
 	}
-	
+
 	public void setMail(String email) {
 		this.mail = email;
 	}
-	
+
 	public String getSession() {
 		return session;
 	}
-	
+
 	public void setSession(String session) {
 		this.session = session;
 	}

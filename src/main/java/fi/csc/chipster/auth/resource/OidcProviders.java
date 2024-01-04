@@ -10,17 +10,17 @@ import fi.csc.chipster.rest.Config;
 /**
  * Interface for communicating with the OIDC provider
  * 
- * To allow it to be mocked for JUnit tests. 
+ * To allow it to be mocked for JUnit tests.
  * 
  * @author klemela
  */
 public interface OidcProviders {
-	
+
 	public static final String CONF_ISSUER = "auth-oidc-issuer";
 	public static final String CONF_CLIENT_ID = "auth-oidc-client-id";
 	public static final String CONF_CLIENT_SECRET = "auth-oidc-client-secret";
 	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-path";
-	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";	
+	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";
 	public static final String CONF_LOGO = "auth-oidc-logo";
 	public static final String CONF_LOGO_WIDTH = "auth-oidc-logo-width";
 	public static final String CONF_TEXT = "auth-oidc-text";
@@ -34,7 +34,7 @@ public interface OidcProviders {
 	public static final String CONF_REQUIRED_CLAIM_KEY = "auth-oidc-required-claim-key";
 	public static final String CONF_REQUIRED_CLAIM_VALUE = "auth-oidc-required-claim-value";
 	public static final String CONF_REQUIRED_CLAIM_VALUE_COMPARISON = "auth-oidc-required-claim-value-comparison";
-	public static final String CONF_REQUIRED_USERINFO_CLAIM_KEY = "auth-oidc-required-userinfo-claim-key";	
+	public static final String CONF_REQUIRED_USERINFO_CLAIM_KEY = "auth-oidc-required-userinfo-claim-key";
 	public static final String CONF_REQUIRED_USERINFO_CLAIM_VALUE = "auth-oidc-required-userinfo-claim-value";
 	public static final String CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON = "auth-oidc-required-userinfo-claim-value-comparison";
 	public static final String CONF_REQUIRED_USERINFO_CLAIM_ERROR = "auth-oidc-required-userinfo-claim-error";
@@ -46,11 +46,11 @@ public interface OidcProviders {
 	UserInfo getUserInfo(OidcConfig oidcConfig, String accessTokenString, boolean isDebug);
 
 	IDTokenValidator getValidator(OidcConfig oidcConfig);
-	
+
 	public static OidcConfig getOidcConfig(String oidcName, Config config) {
-		
+
 		OidcConfig oidc = new OidcConfig();
-		
+
 		oidc.setIssuer(config.getString(CONF_ISSUER, oidcName));
 		oidc.setClientId(config.getString(CONF_CLIENT_ID, oidcName));
 		oidc.setRedirectPath(config.getString(CONF_REDIRECT_URI, oidcName));
@@ -71,11 +71,12 @@ public interface OidcProviders {
 		oidc.setRequiredClaimValueComparison(config.getString(CONF_REQUIRED_CLAIM_VALUE_COMPARISON, oidcName));
 		oidc.setRequiredUserinfoClaimKey(config.getString(CONF_REQUIRED_USERINFO_CLAIM_KEY, oidcName));
 		oidc.setRequiredUserinfoClaimValue(config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE, oidcName));
-		oidc.setRequiredUserinfoClaimValueComparison(config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON, oidcName));
+		oidc.setRequiredUserinfoClaimValueComparison(
+				config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON, oidcName));
 		oidc.setRequiredUserinfoClaimError(config.getString(CONF_REQUIRED_USERINFO_CLAIM_ERROR, oidcName));
 		oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 		oidc.setScope(config.getString(CONF_SCOPE, oidcName));
-		
+
 		return oidc;
 	}
 }

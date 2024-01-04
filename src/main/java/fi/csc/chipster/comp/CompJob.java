@@ -18,37 +18,37 @@ import fi.csc.chipster.sessiondb.model.Parameter;
  * 
  * Job state
  * ---------
- * Use updateState(...) and updateStateDetailToClient(...) for changing the 
+ * Use updateState(...) and updateStateDetailToClient(...) for changing the
  * state of the job.
  * <p>
- * If there isn't a really good reason to do otherwise, the state of a 
+ * If there isn't a really good reason to do otherwise, the state of a
  * successful job should be kept as RUNNING until the AnalysisJob sets
  * it to COMPLETED. So don't set the state as COMPLETED in a subclass.
  * <p>
  * Try to detect any error situations and set the state accordingly:
  * <p>
- * FAILED_USER_ERROR:	A situation in which the user can fix the problem
- * 						by changing inputs or parameters. You must also
- * 						set the error message to something which will
- * 						tell the user what happened and how to fix it.
- * 						The error message will be used as the header
- * 						in the client dialog.
+ * FAILED_USER_ERROR: A situation in which the user can fix the problem
+ * by changing inputs or parameters. You must also
+ * set the error message to something which will
+ * tell the user what happened and how to fix it.
+ * The error message will be used as the header
+ * in the client dialog.
  * <p>
- * FAILED:				The tool failed.
+ * FAILED: The tool failed.
  * <p>
- * ERROR:				Error in the system, not in a specific tool.
+ * ERROR: Error in the system, not in a specific tool.
  * <p>
  * Before setting the state to one of those above, set the error message
  * and output text, then return after updateState(...)
  * <p>
- * AnalysisJob will catch any Exceptions (and Throwables) and set the 
- * state as ERROR (With the exception of JobCancelledException). 
+ * AnalysisJob will catch any Exceptions (and Throwables) and set the
+ * state as ERROR (With the exception of JobCancelledException).
  * <p>
  * Call cancelCheck() in situations where it makes sense to acknowledge
  * that the jobs has been requested to be canceled. This will throw the
  * JobCancelledException.
  * <p>
- * Use updateStateDetailToClient(...) for reporting meaningful state 
+ * Use updateStateDetailToClient(...) for reporting meaningful state
  * detail changes to the client.
  * 
  * 
@@ -57,20 +57,18 @@ import fi.csc.chipster.sessiondb.model.Parameter;
 public abstract class CompJob implements Runnable {
 
 	public static final String SCRIPT_SUCCESSFUL_STRING = "chipster-script-finished-succesfully";
-	public static final String CHIPSTER_NOTE_TOKEN = "CHIPSTER-NOTE:"; 
+	public static final String CHIPSTER_NOTE_TOKEN = "CHIPSTER-NOTE:";
 
 	private static final Logger logger = LogManager.getLogger();
-	
+
 	protected GenericJobMessage inputMessage;
 	protected ResultCallback resultHandler;
 	protected ToolDescription toolDescription;
 
 	private Date receiveTime;
 	private Date scheduleTime;
-	
+
 	private int jobTimeout;
-	
-	
 
 	private boolean constructed = false;
 
@@ -78,12 +76,11 @@ public abstract class CompJob implements Runnable {
 	private String stateDetail;
 	private boolean toBeCanceled = false;
 	private final GenericResultMessage outputMessage;
-	
+
 	public CompJob() {
 		outputMessage = new GenericResultMessage();
 		this.state = JobState.NEW; // updateState would check old state -> NPE
 	}
-	
 
 	public void construct(GenericJobMessage inputMessage, ToolDescription analysis,
 			ResultCallback resultHandler, int jobTimeout) {
@@ -92,22 +89,21 @@ public abstract class CompJob implements Runnable {
 		this.inputMessage = inputMessage;
 		this.resultHandler = resultHandler;
 		this.jobTimeout = jobTimeout;
-		
+
 		// initialize result message
 		outputMessage.setJobId(this.getId());
 	}
-	
-	
+
 	/**
-	 * Run the job. After execution, job should report results 
+	 * Run the job. After execution, job should report results
 	 * through the ResultCallback interface.
 	 */
 	@Override
 	public void run() {
-		try {			
+		try {
 			this.outputMessage.setStartTime(Instant.now());
 			updateState(JobState.RUNNING, "initialising");
-			
+
 			if (!constructed) {
 				throw new IllegalStateException("you must call construct(...) first");
 			}
@@ -125,18 +121,18 @@ public abstract class CompJob implements Runnable {
 				postExecute();
 			}
 
-			// successful job, failed states are set when they happen 
+			// successful job, failed states are set when they happen
 			if (this.getState() == JobState.RUNNING) {
 				updateState(JobState.COMPLETED, "");
 			}
-		} 
+		}
 
-		// job was cancelled, do nothing, state has already been set when calling cancel()
+		// job was cancelled, do nothing, state has already been set when calling
+		// cancel()
 		catch (JobCancelledException jce) {
 			logger.debug("job cancelled: " + this.getId());
-		} 
-		
-		
+		}
+
 		// something unexpected happened
 		catch (Throwable e) {
 
@@ -148,7 +144,7 @@ public abstract class CompJob implements Runnable {
 			outputMessage.setState(this.state);
 			outputMessage.setStateDetail(this.stateDetail);
 			resultHandler.sendResultMessage(inputMessage, outputMessage);
-		} 
+		}
 
 		// clean up
 		finally {
@@ -165,13 +161,10 @@ public abstract class CompJob implements Runnable {
 		return this.inputMessage.getJobId();
 	}
 
-	
-	
 	public synchronized void updateState(JobState newState) {
 		updateState(newState, "");
 	}
 
-	
 	public synchronized void updateState(JobState newState, String stateDetail) {
 
 		// ignore if job is cancelled already
@@ -179,19 +172,19 @@ public abstract class CompJob implements Runnable {
 			logger.info("job tried to change it's state to " + newState.toString() + ", but it's already cancelled");
 			return;
 		}
-		
+
 		// should not try to update state if already finished
 		if (this.state.isFinished()) {
-			logger.warn("trying to update state for already finished job, old state: " + this.state.toString() + 
+			logger.warn("trying to update state for already finished job, old state: " + this.state.toString() +
 					"new state: " + newState.toString());
 			return;
 		}
-		
+
 		// set end time if new state is finished
 		if (newState.isFinished()) {
 			this.outputMessage.setEndTime(Instant.now());
 		}
-		
+
 		// update state
 		this.state = newState;
 		this.stateDetail = stateDetail;
@@ -202,15 +195,14 @@ public abstract class CompJob implements Runnable {
 		resultHandler.sendResultMessage(inputMessage, outputMessage);
 
 	}
-	
-		
+
 	public JobState getState() {
 		return this.state;
 	}
-	
-	
+
 	/**
-	 * Request the job to be canceled. The job is not canceled immediately. Instead it is 
+	 * Request the job to be canceled. The job is not canceled immediately. Instead
+	 * it is
 	 * flagged to be canceled and will cancel as soon as possible.
 	 * 
 	 */
@@ -220,19 +212,19 @@ public abstract class CompJob implements Runnable {
 		updateState(JobState.CANCELLED, "");
 		cancelRequested();
 	}
-	
-	
+
 	/**
 	 * Check if the job should be canceled (cancel() has been called)
 	 * cancels the job by throwing the cancellation exception.
 	 * 
-	 * Should be called by subclasses in situations where it is safe to cancel the job.
+	 * Should be called by subclasses in situations where it is safe to cancel the
+	 * job.
 	 * 
 	 * 
 	 * @throws JobCancelledException
 	 */
 	protected void cancelCheck() throws JobCancelledException {
-		if (toBeCanceled) {			
+		if (toBeCanceled) {
 			throw new JobCancelledException();
 		}
 	}
@@ -246,22 +238,17 @@ public abstract class CompJob implements Runnable {
 	 */
 	protected abstract void cancelRequested();
 
-	
-	
 	protected abstract void execute() throws JobCancelledException;
-	
-	
-	
+
 	protected void preExecute() throws JobCancelledException {
 	}
-	
-	protected void postExecute()  throws JobCancelledException {
-		
+
+	protected void postExecute() throws JobCancelledException {
+
 	}
 
 	protected void cleanUp() {
 	}
-
 
 	public GenericJobMessage getInputMessage() {
 		return inputMessage;
@@ -275,21 +262,17 @@ public abstract class CompJob implements Runnable {
 		return receiveTime;
 	}
 
-
 	public void setReceiveTime(Date receiveTime) {
 		this.receiveTime = receiveTime;
 	}
-
 
 	public Date getScheduleTime() {
 		return scheduleTime;
 	}
 
-
 	public void setScheduleTime(Date scheduleTime) {
 		this.scheduleTime = scheduleTime;
 	}
-
 
 	public Instant getStartTime() {
 		return outputMessage.getStartTime();
@@ -302,19 +285,19 @@ public abstract class CompJob implements Runnable {
 	public String getStateDetail() {
 		return this.stateDetail;
 	}
-	
+
 	public void setSourceCode(String source) {
 		this.outputMessage.setSourceCode(source);
 	}
-	
+
 	public String getErrorMessage() {
 		return this.outputMessage.getErrorMessage();
 	}
-	
+
 	public void setErrorMessage(String message) {
 		this.outputMessage.setErrorMessage(message);
 	}
-	
+
 	public void setOutputText(String output) {
 		this.outputMessage.setOutputText(output);
 	}
@@ -322,7 +305,7 @@ public abstract class CompJob implements Runnable {
 	public void setParameters(LinkedHashMap<String, Parameter> parameters) {
 		this.outputMessage.setParameters(parameters);
 	}
-	
+
 	public void appendOutputText(String s) {
 		String currentOutput = this.outputMessage.getOutputText();
 		if (currentOutput != null) {
@@ -331,18 +314,19 @@ public abstract class CompJob implements Runnable {
 			this.outputMessage.setOutputText(s);
 		}
 	}
-	
+
 	public ToolDescription getToolDescription() {
 		return toolDescription;
 	}
-	
+
 	/**
-	 * @return Process object of the external process or null, if this Job doesn't have any
+	 * @return Process object of the external process or null, if this Job doesn't
+	 *         have any
 	 */
 	public Process getProcess() {
 		return null;
 	}
-	
+
 	protected int getTimeout() {
 		return this.jobTimeout;
 	}
@@ -355,9 +339,6 @@ public abstract class CompJob implements Runnable {
 		outputMessage.setVersionsJson(versionsJson);
 	}
 
-	
-	
-	
 	protected static String getErrorMessage(String screenOutput, String errorMessageToken, String removeLastLineToken) {
 
 		// find the error token
@@ -390,6 +371,4 @@ public abstract class CompJob implements Runnable {
 		}
 	}
 
-	
-	
 }

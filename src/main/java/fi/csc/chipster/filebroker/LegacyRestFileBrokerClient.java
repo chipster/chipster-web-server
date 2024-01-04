@@ -47,7 +47,7 @@ public class LegacyRestFileBrokerClient {
 	private static Logger logger = LogManager.getLogger();
 
 	private SessionDbClient sessionDbClient;
-//	private SessionManager sessionManager;
+	// private SessionManager sessionManager;
 	private AuthenticationClient authClient;
 
 	private ServiceLocatorClient serviceLocator;
@@ -62,13 +62,14 @@ public class LegacyRestFileBrokerClient {
 
 	public LegacyRestFileBrokerClient(SessionDbClient sessionDbClient, ServiceLocatorClient serviceLocator,
 			CredentialsProvider credentials) {
-		
+
 		this.sessionDbClient = sessionDbClient;
 		this.credentials = credentials;
 		this.serviceLocator = serviceLocator;
 	}
 
-	public String addFile(UUID jobId, UUID sessionId, File file, String datsetName, boolean isMetaOutput, File phenodataFile)
+	public String addFile(UUID jobId, UUID sessionId, File file, String datsetName, boolean isMetaOutput,
+			File phenodataFile)
 			throws IOException, FileBrokerException {
 
 		if (!file.exists()) {
@@ -160,15 +161,16 @@ public class LegacyRestFileBrokerClient {
 	}
 
 	private WebTarget getFileBrokerTarget() {
-		
+
 		Client authenticatedClient;
-		
+
 		if (authClient != null) {
 			authenticatedClient = authClient.getAuthenticatedClient();
 		} else {
-			authenticatedClient = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true);
+			authenticatedClient = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(),
+					true);
 		}
-		
+
 		return authenticatedClient.target(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
 	}
 }

@@ -10,6 +10,5 @@ public class TooManyRequestsException extends jakarta.ws.rs.ClientErrorException
 		super(Response.status(Status.TOO_MANY_REQUESTS)
 				.header(RequestThrottle.HEADER_RETRY_AFTER, retryAfterSeconds)
 				.build());
-	}	
+	}
 }
-

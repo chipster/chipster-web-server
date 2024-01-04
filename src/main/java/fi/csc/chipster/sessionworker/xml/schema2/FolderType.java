@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import java.util.ArrayList;
@@ -15,11 +14,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 
-
 /**
- * <p>Java class for folderType complex type.
+ * <p>
+ * Java class for folderType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="folderType">
@@ -40,10 +41,10 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "folderType", propOrder = {
-    "name",
-    "id",
-    "parent",
-    "child"
+        "name",
+        "id",
+        "parent",
+        "child"
 })
 public class FolderType {
 
@@ -58,9 +59,9 @@ public class FolderType {
      * Gets the value of the name property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getName() {
         return name;
@@ -70,9 +71,9 @@ public class FolderType {
      * Sets the value of the name property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setName(String value) {
         this.name = value;
@@ -82,9 +83,9 @@ public class FolderType {
      * Gets the value of the id property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getId() {
         return id;
@@ -94,9 +95,9 @@ public class FolderType {
      * Sets the value of the id property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setId(String value) {
         this.id = value;
@@ -106,9 +107,9 @@ public class FolderType {
      * Gets the value of the parent property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getParent() {
         return parent;
@@ -118,9 +119,9 @@ public class FolderType {
      * Sets the value of the parent property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setParent(String value) {
         this.parent = value;
@@ -137,8 +138,9 @@ public class FolderType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getChild().add(newItem);
+     * getChild().add(newItem);
      * </pre>
      * 
      * 

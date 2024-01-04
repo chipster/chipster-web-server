@@ -168,30 +168,30 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		String chDir = "os.chdir('" + jobDataDir.getAbsolutePath() + "')\n";
 		String importSys = "import sys\n";
 
-		// possibly needs to be absolute because "__main__ script cannot use relative imports"
+		// possibly needs to be absolute because "__main__ script cannot use relative
+		// imports"
 		String appendSysPath = "sys.path.append(os.path.join(os.getcwd(), chipster_common_lib_path))\n";
 
-		
-		// write chipster variables to a file so that they can be imported in python lib files
+		// write chipster variables to a file so that they can be imported in python lib
+		// files
 		// such as version_utils.py
-	    Path variablesFilePath = new File(jobDataDir, CHIPSTER_VARIABLES_FILE).toPath();
+		Path variablesFilePath = new File(jobDataDir, CHIPSTER_VARIABLES_FILE).toPath();
 
-        try {
-        	Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE);
-            
-        } catch (IOException e) {
+		try {
+			Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE);
+
+		} catch (IOException e) {
 			this.setErrorMessage("Writing variables file failed");
 			this.setOutputText(Exceptions.getStackTrace(e));
 			updateState(JobState.ERROR);
 			return;
-        }
-			
-        String importVersionUtils = "import version_utils\n";
+		}
+
+		String importVersionUtils = "import version_utils\n";
 		String documentVersions = "version_utils.document_python_version()\n";
 
-        
-//      String importVersionUtils = "from version_utils import *\n";
-//		String documentVersions = "document_python_version()\n";
+		// String importVersionUtils = "from version_utils import *\n";
+		// String documentVersions = "document_python_version()\n";
 
 		inputReaders.add(new BufferedReader(new StringReader(importOs + chDir + importSys + appendSysPath
 				+ importVersionUtils + documentVersions)));
@@ -201,7 +201,8 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		try {
 			parameters = inputMessage.getParameters(PARAMETER_SECURITY_POLICY, toolDescription);
 
-			// update parameters in the db, in case comp added displayNames and descriptions (cli client, replay-test)
+			// update parameters in the db, in case comp added displayNames and descriptions
+			// (cli client, replay-test)
 			this.setParameters(parameters);
 
 		} catch (ParameterValidityException e) {

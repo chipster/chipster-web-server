@@ -19,12 +19,12 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class RestJobMessage implements GenericJobMessage {
-    
-    private final JobCommand jobCommand;
+
+	private final JobCommand jobCommand;
 	private final Job job;
-	
+
 	@SuppressWarnings("unused")
-    private static final Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
 	public RestJobMessage(JobCommand jobCommand, Job job) {
 		this.jobCommand = jobCommand;
@@ -64,14 +64,14 @@ public class RestJobMessage implements GenericJobMessage {
 
 	@Override
 	public String getName(String inputName) {
-	        
-        for (Input input : job.getInputs()) {
-            if (input.getInputId().equals(inputName)) {
-                return input.getDatasetName();
-            }
-        }
-        
-        return null;
+
+		for (Input input : job.getInputs()) {
+			if (input.getInputId().equals(inputName)) {
+				return input.getDatasetName();
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -80,17 +80,20 @@ public class RestJobMessage implements GenericJobMessage {
 	 * access to them.
 	 * 
 	 * @param securityPolicy
-	 *            security policy to check parameters against, cannot be null
+	 *                       security policy to check parameters against, cannot be
+	 *                       null
 	 * @param description
-	 *            description of the tool, cannot be null
+	 *                       description of the tool, cannot be null
 	 * 
 	 * @return parameters
 	 * 
 	 * @throws ParameterValidityException
-	 *             if some parameter value fails check by security policy
+	 *                                    if some parameter value fails check by
+	 *                                    security policy
 	 */
 	@Override
-	public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy, ToolDescription description)
+	public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy,
+			ToolDescription description)
 			throws ParameterValidityException {
 
 		// add job parameters to map to make them easier to find
@@ -103,7 +106,8 @@ public class RestJobMessage implements GenericJobMessage {
 		// keep the order of the ToolDescription
 		LinkedHashMap<String, Parameter> completedParameters = new LinkedHashMap<>();
 
-		for (fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter toolParameter : description.getParameters().values()) {
+		for (fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter toolParameter : description.getParameters()
+				.values()) {
 			Parameter jobParameter = jobParameters.get(toolParameter.getName().getID());
 			Parameter completedParameter = new Parameter();
 			completedParameter.setParameterId(toolParameter.getName().getID());
@@ -113,7 +117,8 @@ public class RestJobMessage implements GenericJobMessage {
 					logger.info("parameter '" + toolParameter.getName().getID() + "' is not set, using default value");
 					completedParameter.setValue(toolParameter.getDefaultValue());
 				} else {
-					throw new ParameterValidityException("mandatory parameter '" + toolParameter.getName().getID() + "' is not set");
+					throw new ParameterValidityException(
+							"mandatory parameter '" + toolParameter.getName().getID() + "' is not set");
 				}
 			} else {
 				completedParameter.setValue(jobParameter.getValue());
@@ -130,8 +135,8 @@ public class RestJobMessage implements GenericJobMessage {
 		for (Parameter param : job.getParameters()) {
 			if (!completedParameters.containsKey(param.getParameterId())) {
 				throw new ParameterValidityException("Parameter not found from tool. "
-				+ "Job has parameter '" + param.getParameterId()
-				+ "', but it's not found from tool: " + RestUtils.asJson(completedParameters.keySet()));
+						+ "Job has parameter '" + param.getParameterId()
+						+ "', but it's not found from tool: " + RestUtils.asJson(completedParameters.keySet()));
 			}
 		}
 

@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -13,11 +12,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 
-
 /**
- * <p>Java class for nameType complex type.
+ * <p>
+ * Java class for nameType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="nameType">
@@ -37,9 +38,9 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "nameType", propOrder = {
-    "id",
-    "displayName",
-    "description"
+        "id",
+        "displayName",
+        "description"
 })
 public class NameType {
 
@@ -53,9 +54,9 @@ public class NameType {
      * Gets the value of the id property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getId() {
         return id;
@@ -65,9 +66,9 @@ public class NameType {
      * Sets the value of the id property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setId(String value) {
         this.id = value;
@@ -77,9 +78,9 @@ public class NameType {
      * Gets the value of the displayName property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getDisplayName() {
         return displayName;
@@ -89,9 +90,9 @@ public class NameType {
      * Sets the value of the displayName property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setDisplayName(String value) {
         this.displayName = value;
@@ -101,9 +102,9 @@ public class NameType {
      * Gets the value of the description property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getDescription() {
         return description;
@@ -113,9 +114,9 @@ public class NameType {
      * Sets the value of the description property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setDescription(String value) {
         this.description = value;

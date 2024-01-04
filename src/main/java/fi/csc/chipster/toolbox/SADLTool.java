@@ -27,17 +27,16 @@ public class SADLTool {
 		public String source = "";
 		public String code = "";
 	}
-	
+
 	private String comment;
-	
+
 	public SADLTool(String comment) {
 		this.comment = comment;
 	}
 
-
 	public ParsedScript parseScript(InputStream rScriptSource) throws IOException {
 
-		ParsedScript parsedScript = new ParsedScript();		
+		ParsedScript parsedScript = new ParsedScript();
 		BufferedReader in = null;
 		try {
 			in = new BufferedReader(new InputStreamReader(rScriptSource));
@@ -52,34 +51,34 @@ public class SADLTool {
 						strippedLine = strippedLine.substring(1); // remove space after comment symbol
 					}
 					parsedScript.SADL += strippedLine + "\n";
-					
+
 				} else {
 					parsedScript.code += line + "\n";
 				}
-				
+
 				parsedScript.source += line + "\n";
 			}
 		} finally {
 			IOUtils.closeIfPossible(in);
 		}
-		
+
 		return parsedScript;
 	}
-	
+
 	public String toScriptString(ParsedScript parsedScript) {
 		String string = "";
-		
+
 		// Do SADL part
 		for (String sadlRow : parsedScript.SADL.split("\n")) {
 			string += comment + " " + sadlRow + "\n";
 		}
-		
+
 		// Do rest
 		string += parsedScript.code;
-		
+
 		return string;
 	}
-	
+
 	public void convertToSADL(File scriptFile) throws IOException, ParseException {
 		FileInputStream in = null;
 		ParsedScript parsedScript;
@@ -87,10 +86,10 @@ public class SADLTool {
 			// Load the script
 			in = new FileInputStream(scriptFile);
 			parsedScript = parseScript(in);
-			
+
 			// Parse it
 			SADLDescription sadl = new ChipsterSADLParser().parse(parsedScript.SADL);
-			
+
 			// Do necessary tweaks to meta inputs/outputs
 			for (Input input : sadl.getInputs()) {
 				if ("phenodata.tsv".equals(input.getName().getID())) {
@@ -105,17 +104,17 @@ public class SADLTool {
 
 			// Generate SADL from parsed content
 			parsedScript.SADL = sadl.toString();
-			
+
 		} finally {
 			IOUtils.closeIfPossible(in);
 		}
-		
+
 		// Rewrite the file
 		PrintWriter out = null;
 		try {
 			out = new PrintWriter(new FileOutputStream(scriptFile));
 			out.print(toScriptString(parsedScript));
-			
+
 		} finally {
 			IOUtils.closeIfPossible(out);
 		}
@@ -131,20 +130,20 @@ public class SADLTool {
 			}
 		}
 	}
-	
+
 	public static void convertSomeScripts() throws Exception {
 		File files[] = new File[] {
-			new File("src/main/modules/microarray/R-2.12/annotate-agilent-miRNA.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-annotate-miRNA-targets.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-correlation-analysis-mirna.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-extract-target-gene-expression.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-filter-annotations.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-filter-results-column.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-pathways-mirna-hyperg-go.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-pathways-mirna-hyperg-kegg.R"),
-			new File("src/main/modules/ngs/R-2.12/ngs-up-down-analysis-mirna.R")
+				new File("src/main/modules/microarray/R-2.12/annotate-agilent-miRNA.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-annotate-miRNA-targets.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-correlation-analysis-mirna.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-extract-target-gene-expression.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-filter-annotations.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-filter-results-column.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-pathways-mirna-hyperg-go.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-pathways-mirna-hyperg-kegg.R"),
+				new File("src/main/modules/ngs/R-2.12/ngs-up-down-analysis-mirna.R")
 		};
-		
+
 		for (File file : files) {
 			if (file.getName().endsWith(".R")) {
 				System.out.println(file.getCanonicalPath());
@@ -161,6 +160,5 @@ public class SADLTool {
 			}
 		}
 	}
-
 
 }

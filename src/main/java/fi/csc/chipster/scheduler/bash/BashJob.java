@@ -14,14 +14,14 @@ public class BashJob {
 		this.slots = slots;
 		this.tool = tool;
 	}
-	
+
 	public Instant getHeartbeatTimestamp() {
 		return heartbeatTimestamp;
 	}
-	
+
 	public void setHeartbeatTimestamp() {
 		this.heartbeatTimestamp = Instant.now();
-	}		
+	}
 
 	public boolean hasHeartbeat() {
 		return heartbeatTimestamp != null;

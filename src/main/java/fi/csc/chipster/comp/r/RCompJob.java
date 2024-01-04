@@ -118,11 +118,11 @@ public class RCompJob extends OnDiskCompJobBase {
 		}
 
 		@Override
-        public boolean allowUncheckedParameters(ToolDescription toolDescription) {
-            // we promise to handle unchecked parameters safely, see the method
-            // transformVariable()
-            return true;
-        }
+		public boolean allowUncheckedParameters(ToolDescription toolDescription) {
+			// we promise to handle unchecked parameters safely, see the method
+			// transformVariable()
+			return true;
+		}
 	}
 
 	public static RParameterSecurityPolicy R_PARAMETER_SECURITY_POLICY = new RParameterSecurityPolicy();
@@ -156,19 +156,19 @@ public class RCompJob extends OnDiskCompJobBase {
 
 		// load handler initialiser
 		inputReaders.add(new BufferedReader(new StringReader(toolDescription.getInitialiser())));
-		
+
 		// load document versions
-		String documentVersionCommand = "source(file.path(chipster.common.lib.path, \"version-utils.R\"))\n" + 
-		"documentR()\n";
+		String documentVersionCommand = "source(file.path(chipster.common.lib.path, \"version-utils.R\"))\n" +
+				"documentR()\n";
 		inputReaders.add(new BufferedReader(new StringReader(documentVersionCommand)));
-		
-		
+
 		// load input parameters
 		LinkedHashMap<String, fi.csc.chipster.sessiondb.model.Parameter> parameters;
 		try {
 			parameters = inputMessage.getParameters(R_PARAMETER_SECURITY_POLICY, toolDescription);
 
-			// update parameters in the db, in case comp added displayNames and descriptions (cli client, replay-test)
+			// update parameters in the db, in case comp added displayNames and descriptions
+			// (cli client, replay-test)
 			this.setParameters(parameters);
 
 		} catch (ParameterValidityException e) {
@@ -194,7 +194,6 @@ public class RCompJob extends OnDiskCompJobBase {
 		// in case the script fails
 		inputReaders.add(new BufferedReader(new StringReader(documentVersionCommand)));
 
-		
 		// load script finished trigger
 		inputReaders.add(new BufferedReader(new StringReader("print(\"" + SCRIPT_SUCCESSFUL_STRING + "\")\n")));
 
@@ -300,7 +299,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		}
 	}
 
-    @Override
+	@Override
 	protected void preExecute() throws JobCancelledException {
 		super.preExecute();
 	}
@@ -328,20 +327,20 @@ public class RCompJob extends OnDiskCompJobBase {
 	/**
 	 * Converts a name-value -pair into R variable definition.
 	 */
-	private String transformVariable(Parameter param, String value) {	    
+	private String transformVariable(Parameter param, String value) {
 
 		// Escape strings and such
 		if (!param.getType().isNumeric()) {
-		    
+
 			if (value == null) {
-                value = "None";
-            } else if (JobMessageUtils.isChecked(param)) {
-                value = STRING_DELIMETER + value + STRING_DELIMETER;
-            } else {
-                // we promised to handle this safely when we implemented the method
-                // ParameterSecurityPolicy.allowUncheckedParameters()
-                value = STRING_DELIMETER + ToolUtils.toUnicodeEscapes(value) + STRING_DELIMETER;
-            }
+				value = "None";
+			} else if (JobMessageUtils.isChecked(param)) {
+				value = STRING_DELIMETER + value + STRING_DELIMETER;
+			} else {
+				// we promised to handle this safely when we implemented the method
+				// ParameterSecurityPolicy.allowUncheckedParameters()
+				value = STRING_DELIMETER + ToolUtils.toUnicodeEscapes(value) + STRING_DELIMETER;
+			}
 		}
 
 		// If numeric, check for empty value
@@ -356,7 +355,7 @@ public class RCompJob extends OnDiskCompJobBase {
 		return (name + " <- " + value);
 	}
 
-    @Override
+	@Override
 	protected void cancelRequested() {
 		this.waitProcessLatch.countDown();
 

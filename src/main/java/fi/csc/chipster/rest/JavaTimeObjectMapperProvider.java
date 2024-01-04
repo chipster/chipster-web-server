@@ -10,12 +10,12 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 @Provider
 public class JavaTimeObjectMapperProvider implements ContextResolver<ObjectMapper> {
 
-    @Override
-    public ObjectMapper getContext(Class<?> type) {
-    	return new ObjectMapper()
-		.registerModule(new JavaTimeModule())
-		.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-		//.configure(SerializationFeature.INDENT_OUTPUT, true)
+	@Override
+	public ObjectMapper getContext(Class<?> type) {
+		return new ObjectMapper()
+				.registerModule(new JavaTimeModule())
+				.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+		// .configure(SerializationFeature.INDENT_OUTPUT, true)
 		;
-    }
+	}
 }

@@ -9,6 +9,7 @@ public class DynamicCredentials implements CredentialsProvider {
 		this.username = username;
 		this.password = password;
 	}
+
 	@Override
 	public String getUsername() {
 		return username;

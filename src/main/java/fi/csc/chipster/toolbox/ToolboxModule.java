@@ -109,24 +109,25 @@ public class ToolboxModule {
 		load();
 	}
 
-//	public ModuleDescriptionMessage getModuleDescriptionMessage() {
-//
-//		// Construct description message using the current state
-//		ModuleDescriptionMessage msg = new ModuleDescriptionMessage(moduleName);
-//
-//		for (ToolboxCategory toolboxCategory : categories) {
-//			Category category = new Category(toolboxCategory.getName(), toolboxCategory.getColor(),
-//					toolboxCategory.isHidden());
-//
-//			for (ToolboxTool tool : toolboxCategory.getTools()) {
-//				// help url not supported (or used) at the moment
-//				category.addTool(tool.getSadlString(), null);
-//			}
-//			msg.addCategory(category);
-//		}
-//
-//		return msg;
-//	}
+	// public ModuleDescriptionMessage getModuleDescriptionMessage() {
+	//
+	// // Construct description message using the current state
+	// ModuleDescriptionMessage msg = new ModuleDescriptionMessage(moduleName);
+	//
+	// for (ToolboxCategory toolboxCategory : categories) {
+	// Category category = new Category(toolboxCategory.getName(),
+	// toolboxCategory.getColor(),
+	// toolboxCategory.isHidden());
+	//
+	// for (ToolboxTool tool : toolboxCategory.getTools()) {
+	// // help url not supported (or used) at the moment
+	// category.addTool(tool.getSadlString(), null);
+	// }
+	// msg.addCategory(category);
+	// }
+	//
+	// return msg;
+	// }
 
 	public ToolboxTool getTool(String id) {
 		return tools.get(id);
@@ -299,7 +300,7 @@ public class ToolboxModule {
 							+ " " + toolIdFromSadl);
 					continue;
 				}
-				
+
 				// Check that filenames are unique. Overwriting input files is a bad idea when
 				// the input file is
 				// only a symlink to the original file
@@ -365,17 +366,16 @@ public class ToolboxModule {
 					logger.warn("not loading " + toolId + ": ", e);
 					continue;
 				}
-				
+
 				String runtimeName = null;
 				try {
 					// get runtime from sadl or defaults
 					runtimeName = this.runtimeRepository.getRuntime(sadlDescription, moduleName);
-					
+
 				} catch (ToolLoadException e) {
 					logger.warn("not loading " + toolId + ": " + e.getMessage());
 					continue;
 				}
-
 
 				// Register the tool, override existing
 				ToolboxTool toolboxTool = new ToolboxTool(toolId, sadlDescription, generatedSadl, parsedScript.code,
@@ -438,25 +438,25 @@ public class ToolboxModule {
 			// parameters with default value(s)
 			if (param.getDefaultValues() != null && param.getDefaultValues().length > 0) {
 				switch (param.getType()) {
-				case ENUM:
-					// get valid options
-					Set<String> options = Arrays.stream(param.getSelectionOptions()).map(name -> name.getID())
-							.collect(Collectors.toSet());
+					case ENUM:
+						// get valid options
+						Set<String> options = Arrays.stream(param.getSelectionOptions()).map(name -> name.getID())
+								.collect(Collectors.toSet());
 
-					// check if default values are included in the valid options
-					for (String defaultValue : param.getDefaultValues()) {
-						if (!options.contains(defaultValue)) {
-							valid = false;
-							logger.warn(sadl.getName().getID() + " parameter " + param.getName().getID()
-									+ " has invalid default " + defaultValue + " ["
-									+ options.stream().collect(Collectors.joining(", ")) + "]");
+						// check if default values are included in the valid options
+						for (String defaultValue : param.getDefaultValues()) {
+							if (!options.contains(defaultValue)) {
+								valid = false;
+								logger.warn(sadl.getName().getID() + " parameter " + param.getName().getID()
+										+ " has invalid default " + defaultValue + " ["
+										+ options.stream().collect(Collectors.joining(", ")) + "]");
+							}
 						}
-					}
-					break;
-				case INTEGER:
-					break;
-				default:
-					break;
+						break;
+					case INTEGER:
+						break;
+					default:
+						break;
 				}
 			}
 		}

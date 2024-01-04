@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import java.util.ArrayList;
@@ -17,11 +16,13 @@ import javax.xml.bind.annotation.XmlSchemaType;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.datatype.XMLGregorianCalendar;
 
-
 /**
- * <p>Java class for operationType complex type.
+ * <p>
+ * Java class for operationType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="operationType">
@@ -51,19 +52,19 @@ import javax.xml.datatype.XMLGregorianCalendar;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "operationType", propOrder = {
-    "id",
-    "name",
-    "type",
-    "sourceCodeFile",
-    "input",
-    "output",
-    "parameter",
-    "category",
-    "categoryColor",
-    "module",
-    "jobId",
-    "startTime",
-    "endTime"
+        "id",
+        "name",
+        "type",
+        "sourceCodeFile",
+        "input",
+        "output",
+        "parameter",
+        "category",
+        "categoryColor",
+        "module",
+        "jobId",
+        "startTime",
+        "endTime"
 })
 public class OperationType {
 
@@ -91,9 +92,9 @@ public class OperationType {
      * Gets the value of the id property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getId() {
         return id;
@@ -103,9 +104,9 @@ public class OperationType {
      * Sets the value of the id property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setId(String value) {
         this.id = value;
@@ -115,9 +116,9 @@ public class OperationType {
      * Gets the value of the name property.
      * 
      * @return
-     *     possible object is
-     *     {@link NameType }
-     *     
+     *         possible object is
+     *         {@link NameType }
+     * 
      */
     public NameType getName() {
         return name;
@@ -127,9 +128,9 @@ public class OperationType {
      * Sets the value of the name property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link NameType }
-     *     
+     *              allowed object is
+     *              {@link NameType }
+     * 
      */
     public void setName(NameType value) {
         this.name = value;
@@ -139,9 +140,9 @@ public class OperationType {
      * Gets the value of the type property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getType() {
         return type;
@@ -151,9 +152,9 @@ public class OperationType {
      * Sets the value of the type property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setType(String value) {
         this.type = value;
@@ -163,9 +164,9 @@ public class OperationType {
      * Gets the value of the sourceCodeFile property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getSourceCodeFile() {
         return sourceCodeFile;
@@ -175,9 +176,9 @@ public class OperationType {
      * Sets the value of the sourceCodeFile property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setSourceCodeFile(String value) {
         this.sourceCodeFile = value;
@@ -194,8 +195,9 @@ public class OperationType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getInput().add(newItem);
+     * getInput().add(newItem);
      * </pre>
      * 
      * 
@@ -223,8 +225,9 @@ public class OperationType {
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getOutput().add(newItem);
+     * getOutput().add(newItem);
      * </pre>
      * 
      * 
@@ -248,12 +251,14 @@ public class OperationType {
      * This accessor method returns a reference to the live list,
      * not a snapshot. Therefore any modification you make to the
      * returned list will be present inside the JAXB object.
-     * This is why there is not a <CODE>set</CODE> method for the parameter property.
+     * This is why there is not a <CODE>set</CODE> method for the parameter
+     * property.
      * 
      * <p>
      * For example, to add a new item, do as follows:
+     * 
      * <pre>
-     *    getParameter().add(newItem);
+     * getParameter().add(newItem);
      * </pre>
      * 
      * 
@@ -274,9 +279,9 @@ public class OperationType {
      * Gets the value of the category property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getCategory() {
         return category;
@@ -286,9 +291,9 @@ public class OperationType {
      * Sets the value of the category property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setCategory(String value) {
         this.category = value;
@@ -298,9 +303,9 @@ public class OperationType {
      * Gets the value of the categoryColor property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getCategoryColor() {
         return categoryColor;
@@ -310,9 +315,9 @@ public class OperationType {
      * Sets the value of the categoryColor property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setCategoryColor(String value) {
         this.categoryColor = value;
@@ -322,9 +327,9 @@ public class OperationType {
      * Gets the value of the module property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getModule() {
         return module;
@@ -334,9 +339,9 @@ public class OperationType {
      * Sets the value of the module property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setModule(String value) {
         this.module = value;
@@ -346,9 +351,9 @@ public class OperationType {
      * Gets the value of the jobId property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getJobId() {
         return jobId;
@@ -358,9 +363,9 @@ public class OperationType {
      * Sets the value of the jobId property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setJobId(String value) {
         this.jobId = value;
@@ -370,9 +375,9 @@ public class OperationType {
      * Gets the value of the startTime property.
      * 
      * @return
-     *     possible object is
-     *     {@link XMLGregorianCalendar }
-     *     
+     *         possible object is
+     *         {@link XMLGregorianCalendar }
+     * 
      */
     public XMLGregorianCalendar getStartTime() {
         return startTime;
@@ -382,9 +387,9 @@ public class OperationType {
      * Sets the value of the startTime property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link XMLGregorianCalendar }
-     *     
+     *              allowed object is
+     *              {@link XMLGregorianCalendar }
+     * 
      */
     public void setStartTime(XMLGregorianCalendar value) {
         this.startTime = value;
@@ -394,9 +399,9 @@ public class OperationType {
      * Gets the value of the endTime property.
      * 
      * @return
-     *     possible object is
-     *     {@link XMLGregorianCalendar }
-     *     
+     *         possible object is
+     *         {@link XMLGregorianCalendar }
+     * 
      */
     public XMLGregorianCalendar getEndTime() {
         return endTime;
@@ -406,9 +411,9 @@ public class OperationType {
      * Sets the value of the endTime property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link XMLGregorianCalendar }
-     *     
+     *              allowed object is
+     *              {@link XMLGregorianCalendar }
+     * 
      */
     public void setEndTime(XMLGregorianCalendar value) {
         this.endTime = value;

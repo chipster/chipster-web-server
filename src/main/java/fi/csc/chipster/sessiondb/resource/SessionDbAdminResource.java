@@ -53,11 +53,17 @@ public class SessionDbAdminResource extends AdminResource {
 	public static final String PATH_USERS_SESSIONS = "users/sessions";
 	public static final String PATH_USERS_QUOTA = "users/quota";
 
-//	private final static String SQL_ORPHAN_FILES =     "from File f    left join Dataset d on f.fileId = d.file                       where d.file is null";
-//	private final static String SQL_ORPHAN_DATASETS =  "from Dataset d left join Session s on d.datasetIdPair.sessionId = s.sessionId where s.sessionId is null";
-//	private final static String SQL_ORPHAN_JOBS =      "from Job j     left join Session s on j.jobIdPair.sessionId = s.sessionId     where s.sessionId is null";
-//	private final static String SQL_ORPHAN_RULES =     "from Rule r    left join Session s on r.session.sessionId = s.sessionId       where s.sessionId is null";
-//	private final static String SQL_ORPHAN_SESSIONS =  "from Session s left join Rule r    on s = r.session                           where r.session is null";
+	// private final static String SQL_ORPHAN_FILES = "from File f left join Dataset
+	// d on f.fileId = d.file where d.file is null";
+	// private final static String SQL_ORPHAN_DATASETS = "from Dataset d left join
+	// Session s on d.datasetIdPair.sessionId = s.sessionId where s.sessionId is
+	// null";
+	// private final static String SQL_ORPHAN_JOBS = "from Job j left join Session s
+	// on j.jobIdPair.sessionId = s.sessionId where s.sessionId is null";
+	// private final static String SQL_ORPHAN_RULES = "from Rule r left join Session
+	// s on r.session.sessionId = s.sessionId where s.sessionId is null";
+	// private final static String SQL_ORPHAN_SESSIONS = "from Session s left join
+	// Rule r on s = r.session where r.session is null";
 
 	private final static String SQL_ORPHAN_FILES = "from file f    where not exists ( select from dataset d where f.fileid = d.fileid)";
 	private final static String SQL_ORPHAN_DATASETS = "from dataset d where not exists ( select from session s where d.sessionid = s.sessionid)";
@@ -82,10 +88,11 @@ public class SessionDbAdminResource extends AdminResource {
 	 *                     type"). We don't care about it, because we instantiate
 	 *                     the class ourselves.
 	 * @param newsApi
-	 * @param ruleTable 
+	 * @param ruleTable
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
-			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi, SessionDbApi sessionDbApi, RuleTable ruleTable) {
+			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi,
+			SessionDbApi sessionDbApi, RuleTable ruleTable) {
 		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
@@ -220,7 +227,7 @@ public class SessionDbAdminResource extends AdminResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getQuota(@QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
-		
+
 		List<String> userIdsToGet;
 		if (userId == null || userId.size() == 0) {
 			logger.info("get quotas for all users");
@@ -230,35 +237,34 @@ public class SessionDbAdminResource extends AdminResource {
 			logger.info("get quotas for " + userId);
 			userIdsToGet = userId;
 		}
-		
-		
+
 		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
-		
-		for (String uId: userIdsToGet) {
+
+		for (String uId : userIdsToGet) {
 			HashMap<String, Object> singleUserQuotas = new HashMap<String, Object>();
-			
+
 			if (uId != null && !uId.equals("null")) {
 				try {
-			    	
-			    	long size = ruleTable.getTotalSize(uId);
-		
-				    Long readWriteSessions = (Long) hibernate.session()
+
+					long size = ruleTable.getTotalSize(uId);
+
+					Long readWriteSessions = (Long) hibernate.session()
 							.createQuery("select count(*) from Rule where username=:username and readWrite=true")
 							.setParameter("username", uId).uniqueResult();
-		
+
 					Long readOnlySessions = (Long) hibernate.session()
 							.createQuery("select count(*) from Rule where username=:username and readWrite=false")
 							.setParameter("username", uId).uniqueResult();
-		
-						singleUserQuotas.put("userId", uId);
-						singleUserQuotas.put("readWriteSessions", readWriteSessions);
-						singleUserQuotas.put("readOnlySessions", readOnlySessions);
-						singleUserQuotas.put("size", size);
-					
-			    } catch (Exception e) {
+
+					singleUserQuotas.put("userId", uId);
+					singleUserQuotas.put("readWriteSessions", readWriteSessions);
+					singleUserQuotas.put("readOnlySessions", readOnlySessions);
+					singleUserQuotas.put("size", size);
+
+				} catch (Exception e) {
 					logger.warn("failed to get quota for user " + uId, e);
 					singleUserQuotas.put("userId", uId);
-			    }
+				}
 			} else {
 				if (uId == null) {
 					logger.warn("userId is null");
@@ -281,8 +287,8 @@ public class SessionDbAdminResource extends AdminResource {
 	public Response getSessions(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 
 		List<HashMap<String, Object>> results = new ArrayList<HashMap<String, Object>>();
-		
-		for (String uId: userId) {
+
+		for (String uId : userId) {
 			List<Session> sessions = sessionDbApi.getSessions(uId);
 
 			List<HashMap<String, Object>> sessionSizes = new ArrayList<>();
@@ -319,14 +325,12 @@ public class SessionDbAdminResource extends AdminResource {
 			HashMap<String, Object> singleResult = new HashMap<String, Object>();
 			singleResult.put("userId", uId);
 			singleResult.put("sessions", sessionSizes);
-			
-			
+
 			results.add(singleResult);
 		}
 		return Response.ok(results).build();
 	}
 
-		
 	/**
 	 * Deletes rules for give user(s).
 	 * 
@@ -343,20 +347,20 @@ public class SessionDbAdminResource extends AdminResource {
 		logger.info("deleting sessions for " + userId);
 		long requestStartTime = System.currentTimeMillis();
 		List<Rule> deletedRules = new ArrayList<Rule>();
-		for (String uId: userId) {
+		for (String uId : userId) {
 			logger.info("deleting rules for " + uId);
 			long startTime = System.currentTimeMillis();
 			deletedRules.addAll(this.sessionDbApi.deleteRulesWithUser(uId));
 			long endTime = System.currentTimeMillis();
 			logger.info("deleting rules for " + uId + " done, took " + (endTime - startTime) + " ms");
 		}
-		
+
 		long requestEndTime = System.currentTimeMillis();
-		logger.info("delete sessions request done, deleted " + deletedRules.size() + " rules, took " + (requestEndTime - requestStartTime) + " ms");
+		logger.info("delete sessions request done, deleted " + deletedRules.size() + " rules, took "
+				+ (requestEndTime - requestStartTime) + " ms");
 		return Response.ok(deletedRules).build();
 	}
-	
-	
+
 	@POST
 	@Path("news")
 	@RolesAllowed({ Role.ADMIN })
@@ -376,48 +380,47 @@ public class SessionDbAdminResource extends AdminResource {
 		UUID id = RestUtils.createUUID();
 		news.setNewsId(id);
 		news.setCreated(Instant.now());
-		
+
 		this.newsApi.create(news);
-		
+
 		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
 
 		ObjectNode json = new JsonNodeFactory(false).objectNode();
 		json.put("newsId", id.toString());
-		
+
 		return Response.created(uri).entity(json).build();
 	}
 
 	@PUT
 	@Path("news/{id}")
 	@RolesAllowed({ Role.ADMIN }) // don't allow Role.UNAUTHENTICATED
-    @Consumes(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
-		
-				    				
-		// override the url in json with the id in the url, in case a 
+	public Response put(News requestNews, @PathParam("id") UUID newsId, @Context SecurityContext sc) {
+
+		// override the url in json with the id in the url, in case a
 		// malicious client has changed it
 		requestNews.setNewsId(newsId);
 		requestNews.setModified(Instant.now());
-		
+
 		// check the notification exists (is this needed?)
 		News dbNotification = this.newsApi.getNews(newsId);
-		
+
 		requestNews.setCreated(dbNotification.getCreated());
-		
+
 		this.newsApi.update(requestNews);
-				
+
 		return Response.noContent().build();
-    }	
-	
+	}
+
 	@DELETE
-    @Path("news/{id}")
+	@Path("news/{id}")
 	@RolesAllowed({ Role.ADMIN })
 	@Transaction
-    public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
+	public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		this.newsApi.delete(id);
-		
+
 		return Response.noContent().build();
-    }
+	}
 }

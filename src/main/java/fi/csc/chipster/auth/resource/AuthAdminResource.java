@@ -34,19 +34,16 @@ public class AuthAdminResource extends AdminResource {
 	private HibernateUtil hibernate;
 	private UserTable userTable;
 
-	
-	
-	public AuthAdminResource(HibernateUtil hibernate, 
+	public AuthAdminResource(HibernateUtil hibernate,
 			List<Class<?>> classes, JerseyStatisticsSource jerseyStats, UserTable userTable) {
 		super(hibernate, classes, jerseyStats);
 		this.userTable = userTable;
 		this.hibernate = hibernate;
 	}
 
-
-	
 	/**
-	 * Could also return simple string, but returning json, since most other api methods return json.
+	 * Could also return simple string, but returning json, since most other api
+	 * methods return json.
 	 * 
 	 * @param userId
 	 * @param sc
@@ -59,21 +56,22 @@ public class AuthAdminResource extends AdminResource {
 	@Transaction
 	public Response deleteUser(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
 		logger.info("deleting user " + userId);
-		
+
 		List<String> deletedUserIds = new ArrayList<String>();
-		for (String idString: userId) {
+		for (String idString : userId) {
 			UserId id = new UserId(idString);
 			User user = userTable.get(id, hibernate.session());
 			if (user == null) {
-				throw new NotFoundRollbackException(RestUtils.asJson(new String[] {idString}));
-//				return Response.status(404, "User " + idString + " not found").entity(deletedUserIds).build();
+				throw new NotFoundRollbackException(RestUtils.asJson(new String[] { idString }));
+				// return Response.status(404, "User " + idString + " not
+				// found").entity(deletedUserIds).build();
 			}
-			
+
 			HibernateUtil.delete(user, id, hibernate.session());
 			deletedUserIds.add(idString);
 		}
-		
+
 		return Response.ok(deletedUserIds).build();
 	}
-	
+
 }

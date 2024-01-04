@@ -37,15 +37,15 @@ import htsjdk.tribble.readers.TabixReader;
 
 @SuppressWarnings("deprecation")
 public class SamBamUtils {
-		
+
 	public interface SamBamUtilStateListener {
 		public void stateChanged(SamBamUtilState newState);
 	}
-	
+
 	public class SamBamUtilState {
 		private String state;
 		private double percentage;
-	
+
 		public SamBamUtilState(String state, double percentage) {
 			this.state = state;
 			this.percentage = percentage;
@@ -54,33 +54,32 @@ public class SamBamUtils {
 		public String getState() {
 			return this.state;
 		}
-		
+
 		public double getPercentage() {
 			return this.percentage;
 		}
 	}
-	
-	
+
 	private SamBamUtilStateListener stateListener;
 	private ChromosomeNormaliser chromosomeNormaliser = new ChromosomeNormaliser() {
 
 		public String normaliseChromosome(String chromosomeName) {
 
 			// Leave prefix as it is
-			
+
 			// Remove postfix, if present
 			String SEPARATOR = ".";
 			if (chromosomeName.contains(SEPARATOR)) {
 				chromosomeName = chromosomeName.substring(0, chromosomeName.indexOf(SEPARATOR));
 			}
-			
+
 			return chromosomeName;
 		}
 	};
-	
+
 	public SamBamUtils() {
 	}
-	
+
 	public SamBamUtils(SamBamUtilStateListener stateListener) {
 		this.stateListener = stateListener;
 	}
@@ -90,12 +89,12 @@ public class SamBamUtils {
 			stateListener.stateChanged(new SamBamUtilState(state, percentage));
 		}
 	}
-	
+
 	public static void convertElandToSortedBam(File elandFile, File bamFile) throws IOException {
 
 		BufferedReader in = null;
 		SAMFileWriter writer = null;
-		
+
 		try {
 			in = new BufferedReader(new InputStreamReader(new FileInputStream(elandFile)));
 			SAMFileHeader header = new SAMFileHeader();
@@ -107,41 +106,40 @@ public class SamBamUtils {
 				SAMRecord alignment = new SAMRecord(header);
 				alignment.setReadName(fields[0]);
 				alignment.setReadBases(fields[1].getBytes());
-//				String quality =  fields[2];
+				// String quality = fields[2];
 				alignment.setAlignmentStart(Integer.parseInt(fields[7]));
 				alignment.setReadNegativeStrandFlag("R".equals(fields[8]));
 				alignment.setReferenceName(fields[6]);
 				writer.addAlignment(alignment);
 			}
-			
+
 		} finally {
 			IOUtils.closeIfPossible(in);
 			closeIfPossible(writer);
 		}
 
 	}
-	
+
 	public static void sortSamBam(File samBamFile, File sortedBamFile) {
-		
+
 		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
 		SAMFileReader reader = new SAMFileReader(IOUtil.openFileForReading(samBamFile));
 		SAMFileWriter writer = null;
 		try {
-			
+
 			reader.getFileHeader().setSortOrder(SAMFileHeader.SortOrder.coordinate);
 			writer = new SAMFileWriterFactory().makeBAMWriter(reader.getFileHeader(), false, sortedBamFile);
 			Iterator<SAMRecord> iterator = reader.iterator();
 			while (iterator.hasNext()) {
 				writer.addAlignment(iterator.next());
 			}
-			
+
 		} finally {
 			closeIfPossible(reader);
 			closeIfPossible(writer);
 		}
 	}
 
-	
 	public void normaliseBam(File bamFile, File normalisedBamFile) {
 
 		// Read in a BAM file and its header
@@ -157,7 +155,8 @@ public class SamBamUtils {
 
 				// Normalise chromosome
 				String sequenceName = chromosomeNormaliser.normaliseChromosome(sequenceRecord.getSequenceName());
-				normalisedDictionary.addSequence(new SAMSequenceRecord(sequenceName, sequenceRecord.getSequenceLength()));
+				normalisedDictionary
+						.addSequence(new SAMSequenceRecord(sequenceName, sequenceRecord.getSequenceLength()));
 			}
 			normalisedHeader.setSequenceDictionary(normalisedDictionary);
 
@@ -167,7 +166,7 @@ public class SamBamUtils {
 				rec.setHeader(normalisedHeader);
 				writer.addAlignment(rec);
 			}
-			
+
 		} finally {
 			closeIfPossible(reader);
 			closeIfPossible(writer);
@@ -176,30 +175,30 @@ public class SamBamUtils {
 
 	public void indexBam(File bamFile, File baiFile) {
 		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
-        final SamReader bam;
+		final SamReader bam;
 
-            // input from a normal file
-            IOUtil.assertFileIsReadable(bamFile);
-            bam = SamReaderFactory.makeDefault().referenceSequence(null)
-                    .enable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS)
-                    .open(bamFile);
+		// input from a normal file
+		IOUtil.assertFileIsReadable(bamFile);
+		bam = SamReaderFactory.makeDefault().referenceSequence(null)
+				.enable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS)
+				.open(bamFile);
 
-        if (bam.type() != SamReader.Type.BAM_TYPE) {
-            throw new SAMException("Input file must be bam file, not sam file.");
-        }
+		if (bam.type() != SamReader.Type.BAM_TYPE) {
+			throw new SAMException("Input file must be bam file, not sam file.");
+		}
 
-        if (!bam.getFileHeader().getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
-            throw new SAMException("Input bam file must be sorted by coordinate");
-        }
+		if (!bam.getFileHeader().getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
+			throw new SAMException("Input bam file must be sorted by coordinate");
+		}
 
-        BAMIndexer.createIndex(bam, baiFile);
+		BAMIndexer.createIndex(bam, baiFile);
 
-        CloserUtil.close(bam);
+		CloserUtil.close(bam);
 	}
 
 	public void preprocessEland(File elandFile, File preprocessedBamFile, File baiFile) throws IOException {
 		File sortedTempBamFile = File.createTempFile("converted", "bam");
-		
+
 		try {
 			// Convert & Sort
 			convertElandToSortedBam(elandFile, sortedTempBamFile);
@@ -210,19 +209,19 @@ public class SamBamUtils {
 
 			// Index
 			indexBam(preprocessedBamFile, baiFile);
-			
+
 		} finally {
 			sortedTempBamFile.delete();
 		}
 	}
 
 	public void preprocessSamBam(File samBamFile, File preprocessedBamFile, File baiFile) throws IOException {
-		
+
 		// Sort
 		updateState("sorting", 0);
 		File sortedTempBamFile = File.createTempFile("sorted", "bam");
 		sortSamBam(samBamFile, sortedTempBamFile);
-		
+
 		// Normalise (input must be BAM)
 		updateState("normalising", 33.3);
 		normaliseBam(sortedTempBamFile, preprocessedBamFile);
@@ -234,36 +233,38 @@ public class SamBamUtils {
 		updateState("done", 100);
 	}
 
-	public static List<String> readChromosomeNames(URL bam, URL index) throws FileNotFoundException, URISyntaxException {
-									
-			SAMFileReader reader = getSAMReader(bam, index);
-			
-			LinkedList<String> chromosomes = new LinkedList<String>();
-			for (SAMSequenceRecord record : reader.getFileHeader().getSequenceDictionary().getSequences()) {
-				chromosomes.add(record.getSequenceName());
-			}
-			
-			closeIfPossible(reader);
-			
-			return chromosomes;		
+	public static List<String> readChromosomeNames(URL bam, URL index)
+			throws FileNotFoundException, URISyntaxException {
+
+		SAMFileReader reader = getSAMReader(bam, index);
+
+		LinkedList<String> chromosomes = new LinkedList<String>();
+		for (SAMSequenceRecord record : reader.getFileHeader().getSequenceDictionary().getSequences()) {
+			chromosomes.add(record.getSequenceName());
+		}
+
+		closeIfPossible(reader);
+
+		return chromosomes;
 	}
 
 	public static SAMFileReader getSAMReader(URL bam, URL index) throws FileNotFoundException, URISyntaxException {
-		
-		SAMFileReader reader = null; 
+
+		SAMFileReader reader = null;
 		SeekableStream bamStream = null;
 		SeekableStream indexStream = null;
-		
+
 		try {
-			
+
 			if ("file".equals(bam.getProtocol())) {
-			
+
 				bamStream = new SeekableFileStream(new File(bam.toURI()));
-			} else {				
+			} else {
 				bamStream = new SeekableHTTPStream(bam);
 			}
 
-			// Picard requires file to have a 'bam' extension, but our hashed url doesn't have it
+			// Picard requires file to have a 'bam' extension, but our hashed url doesn't
+			// have it
 			SeekableBufferedStream bamBufferedStream = new SeekableBufferedStream(bamStream) {
 				@Override
 				public String getSource() {
@@ -272,17 +273,17 @@ public class SamBamUtils {
 			};
 
 			if ("file".equals(index.getProtocol())) {
-				
+
 				indexStream = new SeekableFileStream(new File(index.toURI()));
-			} else {				
+			} else {
 				indexStream = new SeekableHTTPStream(index);
 			}
-			
+
 			SeekableBufferedStream indexBufferedStream = new SeekableBufferedStream(indexStream);
 
 			return new SAMFileReader(bamBufferedStream, indexBufferedStream, false);
 
-		} finally {			
+		} finally {
 			closeIfPossible(reader);
 		}
 	}
@@ -306,7 +307,6 @@ public class SamBamUtils {
 			}
 		}
 	}
-	
 
 	public static void closeIfPossible(TabixReader reader) {
 		if (reader != null) {
@@ -325,7 +325,7 @@ public class SamBamUtils {
 		extension = extension.toLowerCase();
 		return "sam".equals(extension) || "bam".equals(extension);
 	}
-	
+
 	public String printSamBam(InputStream samBamStream, int maxRecords) throws IOException {
 		SAMFileReader.setDefaultValidationStringency(ValidationStringency.SILENT);
 		SAMFileReader in = new SAMFileReader(samBamStream);
@@ -349,7 +349,7 @@ public class SamBamUtils {
 		if (i > maxRecords) {
 			buffer.write("SAM/BAM too long for viewing, truncated here!\n".getBytes());
 		}
-		
+
 		return buffer.toString();
 	}
 }

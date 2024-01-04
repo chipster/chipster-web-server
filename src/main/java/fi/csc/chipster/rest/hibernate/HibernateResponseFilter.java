@@ -1,4 +1,5 @@
 package fi.csc.chipster.rest.hibernate;
+
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerResponseContext;
 import jakarta.ws.rs.container.ContainerResponseFilter;
@@ -21,18 +22,19 @@ public class HibernateResponseFilter implements ContainerResponseFilter {
 			ContainerResponseContext responseContext) {
 
 		if (requestContext.getProperty(HibernateRequestFilter.PROP_HIBERNATE_SESSION) == null) {
-			// nothing to do if HibernateRequestFilter didn't run, e.g. on AuthenticationRequestFilter errors
+			// nothing to do if HibernateRequestFilter didn't run, e.g. on
+			// AuthenticationRequestFilter errors
 			return;
 		}
-		
+
 		if (responseContext instanceof ContainerResponse) {
 			ContainerResponse response = (ContainerResponse) responseContext;
-			
+
 			if (response.isMappedFromException()) {
 				hibernate.rollbackAndUnbind();
 				return;
 			}
 		}
-		hibernate.commitAndUnbind();		
+		hibernate.commitAndUnbind();
 	}
 }

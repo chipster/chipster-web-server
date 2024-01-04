@@ -28,7 +28,7 @@ public class ForwardingResourceHandler extends ResourceHandler {
 			throws IOException, ServletException {
 
 		super.handle(target, baseRequest, request, response);
-		
+
 		if (!baseRequest.isHandled()) {
 			String redirectRoute = "/";
 			RequestDispatcher dispatcher = request.getRequestDispatcher(redirectRoute);

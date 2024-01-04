@@ -23,37 +23,40 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 
 public class S3Util {
-	
+
 	private final static Logger logger = LogManager.getLogger();
-	
-	public static TransferManager getTransferManager(String endpoint, String region, String access, String secret, String signerOverride) {
+
+	public static TransferManager getTransferManager(String endpoint, String region, String access, String secret,
+			String signerOverride) {
 		TransferManagerBuilder builder = TransferManagerBuilder.standard()
 				.withS3Client(getClient(endpoint, region, access, secret, signerOverride));
-		
+
 		builder.setDisableParallelDownloads(true);
-		
+
 		return builder.build();
-		
+
 	}
 
-	public static AmazonS3 getClient(String endpoint, String region, String access, String secret, String signerOverride) {
+	public static AmazonS3 getClient(String endpoint, String region, String access, String secret,
+			String signerOverride) {
 
 		AWSCredentials credentials = new BasicAWSCredentials(access, secret);
 
 		ClientConfiguration clientConfig = new ClientConfiguration();
-		//clientConfig.setSignerOverride("S3SignerType");
+		// clientConfig.setSignerOverride("S3SignerType");
 		clientConfig.setSignerOverride(signerOverride);
-		
+
 		logger.debug("S3 max idle:                 " + clientConfig.getConnectionMaxIdleMillis() + " ms");
 		logger.debug("S3 connection timeout:       " + clientConfig.getConnectionTimeout() + " ms");
 		logger.debug("S3 connection TTL:           " + clientConfig.getConnectionTTL() + " ms");
 		logger.debug("S3 request timeout:          " + clientConfig.getRequestTimeout() + " ms");
 		logger.debug("S3 socket timeout:           " + clientConfig.getSocketTimeout() + " ms");
 		logger.debug("S3 client execution timeout: " + clientConfig.getClientExecutionTimeout() + " ms");
-		
+
 		AmazonS3 s3 = AmazonS3ClientBuilder.standard()
 				.withClientConfiguration(clientConfig)
-				//.withEndpointConfiguration(new EndpointConfiguration("object.pouta.csc.fi", "regionOne"))
+				// .withEndpointConfiguration(new EndpointConfiguration("object.pouta.csc.fi",
+				// "regionOne"))
 				.withEndpointConfiguration(new EndpointConfiguration(endpoint, region))
 				.withCredentials(new AWSStaticCredentialsProvider(credentials))
 				.build();
@@ -66,25 +69,24 @@ public class S3Util {
 		ObjectListing listing = s3.listObjects(bucket);
 		List<S3ObjectSummary> summaries = listing.getObjectSummaries();
 		while (listing.isTruncated()) {
-		   listing = s3.listNextBatchOfObjects (listing);
-		   summaries.addAll (listing.getObjectSummaries());
+			listing = s3.listNextBatchOfObjects(listing);
+			summaries.addAll(listing.getObjectSummaries());
 		}
 		return summaries;
 	}
 
 	public static URL getPresignedUrl(TransferManager transferManager, String bucket, String key, int secondsToExpire) {
-        java.util.Date expiration = new java.util.Date();
-        long expTimeMillis = expiration.getTime();
-        expTimeMillis += 1000 * 60 * 60;
-        expiration.setTime(expTimeMillis);
-        
-        expiration  = Instant.now().plus(Duration.standardSeconds(secondsToExpire)).toDate();
+		java.util.Date expiration = new java.util.Date();
+		long expTimeMillis = expiration.getTime();
+		expTimeMillis += 1000 * 60 * 60;
+		expiration.setTime(expTimeMillis);
 
-        GeneratePresignedUrlRequest generatePresignedUrlRequest = 
-                new GeneratePresignedUrlRequest(bucket, key)
-                .withMethod(HttpMethod.GET)
-                .withExpiration(expiration);
-        
-        return transferManager.getAmazonS3Client().generatePresignedUrl(generatePresignedUrlRequest);
+		expiration = Instant.now().plus(Duration.standardSeconds(secondsToExpire)).toDate();
+
+		GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucket, key)
+				.withMethod(HttpMethod.GET)
+				.withExpiration(expiration);
+
+		return transferManager.getAmazonS3Client().generatePresignedUrl(generatePresignedUrlRequest);
 	}
 }

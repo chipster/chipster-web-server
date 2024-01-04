@@ -12,9 +12,8 @@ public class FailingCompJob extends JavaCompJobBase {
 		updateState(JobState.FAILED);
 	}
 
-
 	@Override
-	public String getSADL() {		
+	public String getSADL() {
 		return " ANALYSIS Test/FailJava (Java job which fails.) ";
 	}
 

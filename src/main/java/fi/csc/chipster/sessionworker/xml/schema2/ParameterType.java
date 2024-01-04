@@ -5,7 +5,6 @@
 // Generated on: 2016.03.18 at 08:34:46 AM EET 
 //
 
-
 package fi.csc.chipster.sessionworker.xml.schema2;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -13,11 +12,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 
-
 /**
- * <p>Java class for parameterType complex type.
+ * <p>
+ * Java class for parameterType complex type.
  * 
- * <p>The following schema fragment specifies the expected content contained within this class.
+ * <p>
+ * The following schema fragment specifies the expected content contained within
+ * this class.
  * 
  * <pre>
  * &lt;complexType name="parameterType">
@@ -36,8 +37,8 @@ import javax.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "parameterType", propOrder = {
-    "name",
-    "value"
+        "name",
+        "value"
 })
 public class ParameterType {
 
@@ -50,9 +51,9 @@ public class ParameterType {
      * Gets the value of the name property.
      * 
      * @return
-     *     possible object is
-     *     {@link NameType }
-     *     
+     *         possible object is
+     *         {@link NameType }
+     * 
      */
     public NameType getName() {
         return name;
@@ -62,9 +63,9 @@ public class ParameterType {
      * Sets the value of the name property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link NameType }
-     *     
+     *              allowed object is
+     *              {@link NameType }
+     * 
      */
     public void setName(NameType value) {
         this.name = value;
@@ -74,9 +75,9 @@ public class ParameterType {
      * Gets the value of the value property.
      * 
      * @return
-     *     possible object is
-     *     {@link String }
-     *     
+     *         possible object is
+     *         {@link String }
+     * 
      */
     public String getValue() {
         return value;
@@ -86,9 +87,9 @@ public class ParameterType {
      * Sets the value of the value property.
      * 
      * @param value
-     *     allowed object is
-     *     {@link String }
-     *     
+     *              allowed object is
+     *              {@link String }
+     * 
      */
     public void setValue(String value) {
         this.value = value;

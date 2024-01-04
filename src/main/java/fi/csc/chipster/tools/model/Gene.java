@@ -3,9 +3,8 @@ package fi.csc.chipster.tools.model;
 import java.util.Collection;
 import java.util.HashMap;
 
-
 public class Gene extends HashMap<String, Transcript> implements Comparable<Gene> {
-	
+
 	private Region region;
 	private String name;
 	private String biotype;
@@ -18,7 +17,7 @@ public class Gene extends HashMap<String, Transcript> implements Comparable<Gene
 	}
 
 	public int compareTo(Gene other) {
-		
+
 		return this.id.compareTo(other.id);
 
 	}
@@ -40,10 +39,10 @@ public class Gene extends HashMap<String, Transcript> implements Comparable<Gene
 			return false;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
-		
+
 		return region.toString(true) + ", " + name;
 	}
 
@@ -52,42 +51,41 @@ public class Gene extends HashMap<String, Transcript> implements Comparable<Gene
 	}
 
 	public void addTranscript(String transcId, Transcript transcript) {
-		
+
 		this.put(transcId, transcript);
 	}
 
-
 	public Collection<Transcript> getTranscripts() {
-		return this.values() ;
+		return this.values();
 	}
 
 	public String getName() {
 		return name;
 	}
-	
+
 	public String getId() {
 		return id;
 	}
 
 	public void addExon(Exon exon, String geneId, String transcId, String transcName) {
 		Transcript transc;
-		
+
 		if ((transc = this.get(transcId)) == null) {
 			transc = new Transcript(transcName, this, transcId);
 			this.put(transcId, transc);
 		}
-		
+
 		exon.setTranscript(transc);
 		transc.addExon(exon, transcId);
-		
-		if(region == null) {
+
+		if (region == null) {
 			try {
 				region = transc.getRegion().clone();
 			} catch (CloneNotSupportedException e) {
-				e.printStackTrace(); //Shouldn't happen
+				e.printStackTrace(); // Shouldn't happen
 			}
 		} else {
-			
+
 			this.region = region.fill(transc.getRegion());
 		}
 	}

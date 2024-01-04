@@ -15,7 +15,8 @@ import fi.csc.chipster.util.IOUtils;
 
 /**
  * Handler for data sources that are accessed directly, meaning that they do not
- * have indexes (like tab-separated tables). Reads data to byte array and the user
+ * have indexes (like tab-separated tables). Reads data to byte array and the
+ * user
  * must parse meaningful content out from the bytes.
  * 
  * @author Petri Klemela, Aleksi Kallio
@@ -30,13 +31,13 @@ public class ByteDataSource extends DataSource {
 
 	public ByteDataSource(DataUrl dataUrl) throws URISyntaxException, IOException {
 		super(dataUrl);
-		
-		if (file != null) { //Initialized by super constructor if file is local
+
+		if (file != null) { // Initialized by super constructor if file is local
 			raFile = new RandomAccessFile(file.getPath(), "r");
 			fileChannel = raFile.getChannel();
 		}
 	}
-	
+
 	/**
 	 * Method for getting a range from the file.
 	 * 
@@ -50,7 +51,7 @@ public class ByteDataSource extends DataSource {
 		if (fileChannel != null) {
 			InputStream in = Channels.newInputStream(fileChannel.position(filePosition));
 			try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-				
+
 				IO.copy(in, out, length);
 
 				return out.toByteArray();
@@ -60,7 +61,7 @@ public class ByteDataSource extends DataSource {
 
 			long endFilePosition = filePosition + length - 1;
 
-			//Make sure that we won't make requests outside the file end   	        	        	
+			// Make sure that we won't make requests outside the file end
 			if (endFilePosition > length()) {
 				endFilePosition = length();
 			}
@@ -68,20 +69,21 @@ public class ByteDataSource extends DataSource {
 			HttpURLConnection connection = null;
 			try {
 
-				connection = (HttpURLConnection)url.openConnection();
+				connection = (HttpURLConnection) url.openConnection();
 				connection.setRequestProperty("Range", "bytes=" + filePosition + "-" + endFilePosition);
-				
-				try (InputStream in = connection.getInputStream();				
-				ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-					
+
+				try (InputStream in = connection.getInputStream();
+						ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
 					IOUtils.copy(in, out);
 					return out.toByteArray();
 				}
-				
+
 			} catch (IOException e) {
-				if(e.getMessage().contains("HTTP") && e.getMessage().contains(" 416 ")) {
-					//Requested Range Not Satisfiable
-					//This happens often when data files have bigger coordinates than annotations, just ignore
+				if (e.getMessage().contains("HTTP") && e.getMessage().contains(" 416 ")) {
+					// Requested Range Not Satisfiable
+					// This happens often when data files have bigger coordinates than annotations,
+					// just ignore
 				} else {
 					throw e;
 				}
@@ -89,12 +91,13 @@ public class ByteDataSource extends DataSource {
 				IOUtils.disconnectIfPossible(connection);
 			}
 		}
-		return null;   
+		return null;
 	}
 
 	/**
-	 * Get all bytes from the file. Obviously this shouldn't be used for huge files, because
-	 * all the data is read to the RAM. 
+	 * Get all bytes from the file. Obviously this shouldn't be used for huge files,
+	 * because
+	 * all the data is read to the RAM.
 	 * 
 	 * @return
 	 */
@@ -111,7 +114,7 @@ public class ByteDataSource extends DataSource {
 			} else {
 				HttpURLConnection connection = null;
 				try {
-					connection = (HttpURLConnection)url.openConnection();
+					connection = (HttpURLConnection) url.openConnection();
 					// connection.getContentLength() returns int, which is not enough
 					String string = connection.getHeaderField("content-length");
 					if (string == null) {
@@ -120,8 +123,8 @@ public class ByteDataSource extends DataSource {
 					length = Long.parseLong(connection.getHeaderField("content-length"));
 				} finally {
 					IOUtils.disconnectIfPossible(connection);
-				}       
-			} 
+				}
+			}
 		}
 		return length;
 	}
@@ -131,7 +134,7 @@ public class ByteDataSource extends DataSource {
 			try {
 				raFile.close();
 			} catch (IOException e) {
-				//No problem
+				// No problem
 			}
 			fileChannel = null;
 			raFile = null;

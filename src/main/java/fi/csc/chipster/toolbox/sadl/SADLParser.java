@@ -131,7 +131,7 @@ public class SADLParser {
 			String image = parseString(tokens);
 			description.setImage(image);
 		}
-		
+
 		// read possible runtime
 		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_RUNTIME)) {
 			skip(tokens, SADLSyntax.KEYWORD_RUNTIME);
@@ -144,15 +144,15 @@ public class SADLParser {
 			skip(tokens, SADLSyntax.KEYWORD_SLOTS);
 			int slotCount = parseInt(tokens);
 			description.setSlotCount(slotCount);
-		}		
-		
+		}
+
 		// read possible storage requirements
 		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_STORAGE)) {
 			skip(tokens, SADLSyntax.KEYWORD_STORAGE);
 			int storage = parseInt(tokens);
 			description.setStorage(storage);
 		}
-		
+
 		// read possible special tools-bin version
 		while (nextTokenIs(tokens, SADLSyntax.KEYWORD_TOOLS_BIN)) {
 			skip(tokens, SADLSyntax.KEYWORD_TOOLS_BIN);

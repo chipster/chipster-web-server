@@ -18,5 +18,5 @@ public class StaticCredentials implements CredentialsProvider {
 	@Override
 	public String getPassword() {
 		return password;
-	}	
+	}
 }

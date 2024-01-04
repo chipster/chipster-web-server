@@ -33,15 +33,17 @@ import fi.csc.chipster.toolbox.runtime.Runtime;
 import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
 
 /**
- * Executes analysis jobs and handles input&output. 
+ * Executes analysis jobs and handles input&output.
  * 
  * Compile:
  * 
- * ./gradlew distTar; pushd build/tmp/; tar -xzf ../distributions/chipster-web-server.tar.gz; popd
+ * ./gradlew distTar; pushd build/tmp/; tar -xzf
+ * ../distributions/chipster-web-server.tar.gz; popd
  * 
  * Run:
  * 
- * java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp
+ * java -cp build/tmp/chipster-web-server/lib/*:
+ * fi.csc.chipster.comp.SingleShotComp
  */
 public class SingleShotComp
 		implements ResultCallback, SingleShotProcessProvider {
@@ -56,10 +58,10 @@ public class SingleShotComp
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
 	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
 	public static final String KEY_COMP_MAX_STORAGE = "comp-max-storage";
-	
+
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
-	
+
 	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay-running-slots";
 
 	/**
@@ -90,7 +92,7 @@ public class SingleShotComp
 	private CompJob job;
 
 	private ServiceLocatorClient serviceLocator;
-	
+
 	private SessionDbClient sessionDbClient;
 
 	private SingleShotResourceMonitor resourceMonitor;
@@ -103,34 +105,33 @@ public class SingleShotComp
 	 * 
 	 * @param configURL
 	 * @param config
-	 * @param sessionToken 
+	 * @param sessionToken
 	 * @throws Exception
 	 */
 	public SingleShotComp(String configURL, Config config, String sessionToken) throws Exception {
 
 		logger.info("SingleShotComp started");
-		
+
 		this.config = config;
-			
+
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
-		
-		
+
 		if (config.getString(KEY_COMP_MAX_STORAGE).isEmpty()) {
-			
+
 			logger.info("storage limit is disabled");
-			
+
 		} else {
-			
+
 			long storageLimitGB = config.getLong(KEY_COMP_MAX_STORAGE);
-			
+
 			logger.info("storage limit is " + storageLimitGB + " GB");
-			
+
 			// convert gigabytes to bytes
 			this.storageLimit = storageLimitGB * 1024 * 1024 * 1024;
 		}
-		
+
 		// initialize working directory
 		this.workDir = new File("jobs-data", compId.toString());
 		if (!this.workDir.mkdirs()) {
@@ -141,7 +142,7 @@ public class SingleShotComp
 		this.executorService = Executors.newCachedThreadPool();
 
 		StaticCredentials sessionTokenCredentials = new StaticCredentials(TokenRequestFilter.TOKEN_USER, sessionToken);
-		
+
 		// Role.SESSION_TOKEN has access to internal addresses
 		serviceLocator = new ServiceLocatorClient(config);
 		serviceLocator.setCredentials(sessionTokenCredentials);
@@ -156,13 +157,13 @@ public class SingleShotComp
 
 		sessionDbClient = new SessionDbClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
 		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, sessionTokenCredentials);
-		
+
 		this.hostname = InetAddress.getLocalHost().getHostName();
 	}
-	
+
 	public static void main(String[] args) {
-		
-		try {			
+
+		try {
 
 			if (args.length != 3) {
 
@@ -175,13 +176,13 @@ public class SingleShotComp
 			UUID sessionId = UUID.fromString(args[0]);
 			UUID jobId = UUID.fromString(args[1]);
 			String sessionToken = args[2];
-			
+
 			SingleShotComp comp = new SingleShotComp(null, new Config(), sessionToken);
-					
+
 			CompJob compJob = comp.getCompJob(sessionId, jobId);
-			
+
 			comp.runJob(compJob);
-			
+
 		} catch (Exception e) {
 			System.err.println("error in comp launch");
 			e.printStackTrace();
@@ -194,10 +195,10 @@ public class SingleShotComp
 			// check that we have the job as scheduled
 
 			this.job = job;
-			
+
 			// run the job
 			executorService.execute(job);
-			
+
 			logger.info("executing job '" + job.getToolDescription().getDisplayName() + "' ("
 					+ job.getToolDescription().getID() + ")" + ", " + job.getId() + ", "
 					+ job.getInputMessage().getUsername());
@@ -221,7 +222,8 @@ public class SingleShotComp
 		char delimiter = ';';
 		try {
 			logger.info(job.getId() + delimiter + job.getInputMessage().getToolId().replaceAll("\"", "") + delimiter
-					+ job.getState() + delimiter + job.getStateDetail() + delimiter + job.getInputMessage().getUsername() + delimiter +
+					+ job.getState() + delimiter + job.getStateDetail() + delimiter
+					+ job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
 					humanReadableHostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem()));
@@ -232,10 +234,10 @@ public class SingleShotComp
 		synchronized (jobsLock) {
 			this.job = null;
 		}
-		
+
 		shutdown();
-		System.exit(0);		
-	}	
+		System.exit(0);
+	}
 
 	/**
 	 * This is the callback method for a job to send the result message. When a job
@@ -249,7 +251,7 @@ public class SingleShotComp
 	 */
 	@Override
 	public void sendResultMessage(GenericJobMessage jobMessage, GenericResultMessage result) {
-		
+
 		if (result.getState() == JobState.CANCELLED) {
 			// scheduler has already removed the cancelled job from the session-db
 			return;
@@ -272,18 +274,18 @@ public class SingleShotComp
 			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
-			
+
 			dbJob.setOutputs(result.getOutputIds().stream()
-			    .map(outputId -> {
-			        Output output = new Output();
-			        output.setOutputId(outputId);
-			        output.setDatasetId(result.getDatasetId(outputId));
-			        output.setDisplayName(result.getOutputDisplayName(outputId));
-			        
-			        return output;
-			    })
-			    .collect(Collectors.toList()));
-			
+					.map(outputId -> {
+						Output output = new Output();
+						output.setOutputId(outputId);
+						output.setDatasetId(result.getDatasetId(outputId));
+						output.setDisplayName(result.getOutputDisplayName(outputId));
+
+						return output;
+					})
+					.collect(Collectors.toList()));
+
 			// tool versions
 			CompUtils.addVersionsToDbJob(result, dbJob);
 
@@ -292,10 +294,10 @@ public class SingleShotComp
 				logger.debug("update parameters in DB");
 				dbJob.setParameters(List.copyOf(result.getParameters().values()));
 			}
-						
+
 			dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
 			dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
-			
+
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 
 			logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
@@ -380,8 +382,8 @@ public class SingleShotComp
 		}
 
 		compJob.setReceiveTime(new Date());
-	
-		return compJob;		
+
+		return compJob;
 	}
 
 	public void shutdown() {
@@ -390,7 +392,7 @@ public class SingleShotComp
 		} catch (Exception e) {
 			logger.warn("failed to shutdown session-db client: " + e.getMessage());
 		}
-		
+
 		logger.info(this.getClass().getSimpleName() + " is done");
 	}
 
@@ -405,28 +407,28 @@ public class SingleShotComp
 			return null;
 		}
 	}
-	
+
 	@Override
 	public File getJobDataDir() {
 		if (this.job != null && this.job instanceof OnDiskCompJobBase) {
-			return ((OnDiskCompJobBase)this.job).getJobDataDir();
+			return ((OnDiskCompJobBase) this.job).getJobDataDir();
 		}
-		
+
 		return null;
 	}
-	
+
 	@Override
 	public void maxStorageChanged(long maxStorage) {
-				
+
 		if (this.storageLimit != null && maxStorage > this.storageLimit) {
-			
+
 			String hfMaxStorage = ProcessMonitoring.humanFriendly(maxStorage);
 			String hfStorageLimit = ProcessMonitoring.humanFriendly(storageLimit);
-			
+
 			String message = "storage usage " + hfMaxStorage + " exceeds limit " + hfStorageLimit;
-			
+
 			logger.warn("cancel job: " + message);
-			
+
 			if (this.job != null) {
 
 				// this should trigger scheduler to delete the pod
@@ -436,8 +438,7 @@ public class SingleShotComp
 			} else {
 				logger.error("storage limit exceeded, but the job is null");
 			}
-		}		
+		}
 	}
-	
 
 }

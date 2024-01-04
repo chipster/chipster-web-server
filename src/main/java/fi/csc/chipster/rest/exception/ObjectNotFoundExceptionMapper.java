@@ -15,7 +15,7 @@ import org.hibernate.ObjectNotFoundException;
  */
 @Provider
 public class ObjectNotFoundExceptionMapper implements ExceptionMapper<ObjectNotFoundException> {
-	
+
 	@Override
 	public Response toResponse(ObjectNotFoundException e) {
 		// client error, no need to log

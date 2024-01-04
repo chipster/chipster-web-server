@@ -26,32 +26,33 @@ public class DnsUtils {
 		if (srv == null) {
 			throw new RuntimeException("no SRV records in DNS for " + service);
 		}
-		
+
 		NamingEnumeration<?> servers = srv.getAll();
-		
+
 		Set<String> hosts = new HashSet<String>();
-		
+
 		while (servers.hasMore()) {
 			DnsRecord record = DnsRecord.fromString((String) servers.next());
 			hosts.add(record.getHost());
 		}
-		
+
 		return hosts;
 	}
 
 	static class DnsRecord {
-		
+
 		private final int priority;
 		private final int weight;
 		private final int port;
 		private final String host;
 
-		public DnsRecord(int priority, int weight, int port, String host) {			
+		public DnsRecord(int priority, int weight, int port, String host) {
 			this.priority = priority;
 			this.weight = weight;
 			this.port = port;
-			//FIXME should we keep the dot or not?
-			this.host = host.replaceAll("\\\\.$", "");;
+			// FIXME should we keep the dot or not?
+			this.host = host.replaceAll("\\\\.$", "");
+			;
 		}
 
 		public int getPriority() {
@@ -76,9 +77,7 @@ public class DnsUtils {
 					Integer.parseInt(splitted[0]),
 					Integer.parseInt(splitted[1]),
 					Integer.parseInt(splitted[2]),
-					splitted[3]
-					);
+					splitted[3]);
 		}
 	}
 }
-

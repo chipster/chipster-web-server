@@ -26,45 +26,45 @@ import fi.csc.chipster.sessiondb.model.Job;
 
 @Path("jobs")
 public class GlobalJobResource {
-	
+
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
-	
+
 	private HibernateUtil hibernate;
-	
+
 	public GlobalJobResource(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 	}
-    
+
 	@GET
-	@RolesAllowed({Role.SCHEDULER, Role.ADMIN})
-    @Produces(MediaType.APPLICATION_JSON)
+	@RolesAllowed({ Role.SCHEDULER, Role.ADMIN })
+	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-    public Response getAll(@QueryParam("state") String stateString, @Context SecurityContext sc) {
+	public Response getAll(@QueryParam("state") String stateString, @Context SecurityContext sc) {
 
 		if (stateString == null) {
 			return Response.status(Status.BAD_REQUEST).entity("query parameter 'state' is mandatory").build();
 		}
-				
-		try {		
+
+		try {
 			// throws if invalid
 			JobState state = JobState.valueOf(stateString);
-			
+
 			@SuppressWarnings("unchecked")
 			List<Job> jobs = hibernate.session()
 					.createQuery("from Job where state=:state")
 					.setParameter("state", state)
 					.list();
-			
+
 			// Convert to IdPairs, because the Job JSON doesn't include the sessionId
 			// update: it does now, but is thisidPair list still a good concise format?
 			List<IdPair> idPairs = jobs.stream().map(job -> new IdPair(job.getSessionId(), job.getJobId()))
 					.collect(Collectors.toList());
-			
+
 			return Response.ok(idPairs).build();
 
 		} catch (IllegalArgumentException e) {
-			return Response.status(Status.BAD_REQUEST).entity("invalid state").build();			
-		}			
-    }	
+			return Response.status(Status.BAD_REQUEST).entity("invalid state").build();
+		}
+	}
 }

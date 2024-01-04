@@ -28,7 +28,7 @@ public class JwsUtils {
 	private static final String KEY_JWS_ALGORITHM = "jws-algorithm";
 
 	public static SignatureAlgorithm getSignatureAlgorithm(Config config, String role) {
-		return (SignatureAlgorithm)Jwts.SIG.get().get(config.getString(KEY_JWS_ALGORITHM, role));
+		return (SignatureAlgorithm) Jwts.SIG.get().get(config.getString(KEY_JWS_ALGORITHM, role));
 	}
 
 	public static KeyPair getOrGenerateKeyPair(Config config, String role, SignatureAlgorithm signatureAlgorithm)

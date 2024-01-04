@@ -11,88 +11,82 @@ import java.util.List;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 
-
 /**
  * Compute service specific versions of tool description.
- * Content is overlapping with generic SADLDescription objects, but 
- * some features are not needed here and excluded. 
+ * Content is overlapping with generic SADLDescription objects, but
+ * some features are not needed here and excluded.
  */
 public class ToolDescription {
 
-	
 	/**
-	 * Describes an output (parameter name and file name). 
+	 * Describes an output (parameter name and file name).
 	 */
 	public static class OutputDescription {
-        private final Name fileName;
-        private final boolean optional;
-        private final boolean meta;
+		private final Name fileName;
+		private final boolean optional;
+		private final boolean meta;
 
-        public Name getFileName() {
-            return fileName;
-        }
-        
-        public boolean isOptional() {
-            return optional;
-        }
+		public Name getFileName() {
+			return fileName;
+		}
 
-        public boolean isMeta() {
-            return meta;
-        }
+		public boolean isOptional() {
+			return optional;
+		}
 
-	    public OutputDescription(Name fileName, boolean optional, boolean meta) {
-	        this.fileName = fileName;
-	        this.optional = optional;
-	        this.meta = meta;
-	    }
+		public boolean isMeta() {
+			return meta;
+		}
+
+		public OutputDescription(Name fileName, boolean optional, boolean meta) {
+			this.fileName = fileName;
+			this.optional = optional;
+			this.meta = meta;
+		}
 	}
-	
 
 	/**
-	 * Describes an input (parameter name and file name). 
+	 * Describes an input (parameter name and file name).
 	 */
 	public static class InputDescription {
-        private final Name fileName;
-        private final boolean optional;
+		private final Name fileName;
+		private final boolean optional;
 
-        public Name getFileName() {
-            return fileName;
-        }
-	    
-	    public InputDescription(Name fileName, boolean optional) {
-	        this.fileName = fileName;
-	        this.optional = optional;
-	    }
+		public Name getFileName() {
+			return fileName;
+		}
 
-        public boolean isOptional() {
-            return optional;
-        }
+		public InputDescription(Name fileName, boolean optional) {
+			this.fileName = fileName;
+			this.optional = optional;
+		}
+
+		public boolean isOptional() {
+			return optional;
+		}
 	}
 
-	
 	private String id;
 
 	/**
 	 * Actual executable that handles the analysis.
 	 */
 	private String command;
-	
+
 	/**
 	 * The actual content of the operation implementation.
 	 */
 	private Object implementation;
-	
+
 	/**
 	 * Analysis name (used in GUI etc.)
 	 */
 	private String displayName;
-	
+
 	/**
 	 * Description.
 	 */
 	private String comment;
-
-	
 
 	private final List<InputDescription> inputFiles = new LinkedList<>();
 	private final List<OutputDescription> outputFiles = new LinkedList<>();
@@ -103,11 +97,11 @@ public class ToolDescription {
 	private String initialiser;
 
 	private Integer slotCount;
-	
+
 	public String getCommand() {
 		return command;
 	}
-	
+
 	public Object getImplementation() {
 		return implementation;
 	}
@@ -115,19 +109,19 @@ public class ToolDescription {
 	public List<InputDescription> getInputFiles() {
 		return inputFiles;
 	}
-	
+
 	public List<OutputDescription> getOutputFiles() {
 		return outputFiles;
 	}
-	
+
 	public LinkedHashMap<String, Parameter> getParameters() {
 		return parameters;
 	}
-	
+
 	public void addParameter(fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter parameter) {
 		parameters.put(parameter.getName().getID(), parameter);
 	}
-	
+
 	public String getInitialiser() {
 		return this.initialiser;
 	}
@@ -153,9 +147,9 @@ public class ToolDescription {
 	}
 
 	public String getID() {
-		 return this.id;
+		return this.id;
 	}
-	
+
 	public String getDisplayName() {
 		if (displayName == null) {
 			return id;
@@ -167,18 +161,17 @@ public class ToolDescription {
 	public void setDisplayName(String displayName) {
 		this.displayName = displayName;
 	}
-	
 
 	public void addInputFile(Name fileName, boolean optional) {
 		inputFiles.add(new InputDescription(fileName, optional));
 	}
-	
+
 	public void addOutputFile(Name fileName, boolean optional, boolean meta) {
 		outputFiles.add(new OutputDescription(fileName, optional, meta));
 	}
 
 	public void setSourceCode(String sourceCode) {
-		this.sourceCode = sourceCode;		
+		this.sourceCode = sourceCode;
 	}
 
 	public String getSourceCode() {
@@ -186,13 +179,13 @@ public class ToolDescription {
 	}
 
 	public void setHelpURL(String helpURL) {
-	    this.helpURL = helpURL;
+		this.helpURL = helpURL;
 	}
 
-    public String getHelpURL() {
-	    return helpURL;
+	public String getHelpURL() {
+		return helpURL;
 	}
-	
+
 	public void setID(String id) {
 		this.id = id;
 	}
@@ -209,4 +202,3 @@ public class ToolDescription {
 		this.slotCount = slotCount;
 	}
 }
- 

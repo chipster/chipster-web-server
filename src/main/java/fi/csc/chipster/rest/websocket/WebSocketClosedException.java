@@ -10,14 +10,14 @@ public class WebSocketClosedException extends Exception {
 	public WebSocketClosedException(CloseCode closeCode, String reasonPhrase) {
 		this(new CloseReason(closeCode, reasonPhrase));
 	}
-	
+
 	public WebSocketClosedException(CloseReason closeReason) {
 		super(closeReason.getCloseCode() + " " + closeReason.getReasonPhrase());
-		
+
 		this.closeReason = closeReason;
 	}
 
 	public CloseReason getCloseReason() {
 		return closeReason;
-	}			
+	}
 }
