@@ -53,7 +53,7 @@ public class RandomAccessLineReader {
 
 	public RandomAccessLineReader(URL url, BedLineParser bedLineParser,
 			File outputFile, ChromosomeNormaliser chromosomeNormaliser) {
-		// TODO Auto-generated constructor stub
+		// todo: Auto-generated constructor stub
 	}
 
 	/**

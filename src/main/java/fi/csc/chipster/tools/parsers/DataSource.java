@@ -13,7 +13,7 @@ import java.net.URL;
  * </p>
  *
  * <p>
- * TODO: add comparison methods so that when DataSource is used as a key
+ * todo: add comparison methods so that when DataSource is used as a key
  * in a hash map, data sources with identical urls or file paths would be
  * considered the same.
  * </p>
