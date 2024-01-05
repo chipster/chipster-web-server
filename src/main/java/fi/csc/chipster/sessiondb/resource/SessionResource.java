@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.Hibernate;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -104,8 +105,17 @@ public class SessionResource {
 			throw new NotFoundException();
 		}
 
-		// FIXME what should initialize this? is this necessary?
-		dbSession.getRules().size();
+		/*
+		 * Make sure rules are loaded
+		 * 
+		 * All json contents must be loaded from DB, because json serialization happens
+		 * after Hibernate session is closed (@See HibernateResponseFilter). When this
+		 * method call is authenticated with UserToken, checkSessionReadAuthorization()
+		 * above loads these rules. However, when this method is called with
+		 * SessionToken, authorization checks don't need the rules and we have to load
+		 * them ourselves.
+		 */
+		Hibernate.initialize(dbSession.getRules());
 
 		// client can suggest not updating the access date by adding the query parameter
 		// "preview"
