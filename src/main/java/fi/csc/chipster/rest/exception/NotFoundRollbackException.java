@@ -14,7 +14,6 @@ import jakarta.ws.rs.core.Response;
  * @author hupponen
  *
  */
-@SuppressWarnings("serial")
 public class NotFoundRollbackException extends jakarta.ws.rs.NotFoundException {
 
     /**

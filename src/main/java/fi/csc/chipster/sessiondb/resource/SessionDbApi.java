@@ -230,7 +230,7 @@ public class SessionDbApi {
 
 	public void deleteDataset(Dataset dataset, UUID sessionId, org.hibernate.Session hibernateSession) {
 
-		// FIXME use parameter hibernateSession?
+		// FIXME use parameter hibernateSession? is it still needed?
 		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), hibernate.session());
 
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {

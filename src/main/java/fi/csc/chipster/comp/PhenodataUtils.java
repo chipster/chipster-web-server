@@ -14,14 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import jakarta.validation.ValidationException;
-
 import org.apache.commons.io.FilenameUtils;
 
 import com.univocity.parsers.tsv.TsvParser;
 import com.univocity.parsers.tsv.TsvParserSettings;
 import com.univocity.parsers.tsv.TsvWriter;
 import com.univocity.parsers.tsv.TsvWriterSettings;
+
+import jakarta.validation.ValidationException;
 
 public class PhenodataUtils {
 
@@ -102,7 +102,7 @@ public class PhenodataUtils {
 	}
 
 	public static Map<String, String> parseInputNames(Path path) {
-		// TODO add validation
+		// add validation?
 		List<String[]> allRows = new TsvParser(new TsvParserSettings()).parseAll(path.toFile());
 
 		Map<String, String> inputNamesMap = new HashMap<String, String>();

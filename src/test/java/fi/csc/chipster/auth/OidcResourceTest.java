@@ -10,8 +10,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import jakarta.ws.rs.ForbiddenException;
-
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -31,7 +29,6 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.PlainJWT;
 
-import fi.csc.chipster.auth.AuthenticationService;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.auth.resource.AuthTokens;
@@ -44,6 +41,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
+import jakarta.ws.rs.ForbiddenException;
 
 public class OidcResourceTest {
 

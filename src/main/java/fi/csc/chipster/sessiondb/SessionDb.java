@@ -20,13 +20,11 @@ import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -118,7 +116,7 @@ public class SessionDb {
 		this.datasetTokenResource = new SessionDbTokenResource(ruleTable, authService);
 		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
-		this.userResource = new UserResource(hibernate, ruleTable);
+		this.userResource = new UserResource(ruleTable);
 		this.newsApi = new NewsApi(hibernate, sessionDbApi);
 		this.newsResource = new NewsResource(newsApi);
 

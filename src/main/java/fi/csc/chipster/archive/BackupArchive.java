@@ -69,7 +69,7 @@ public class BackupArchive {
 
 		logger.info("find file-storage backups from S3");
 
-		// TODO make prefix configurable
+		// todo: make prefix configurable
 		for (String backupPrefix : findStorageBackups("file-storage", "_", Role.FILE_STORAGE)) {
 
 			archiveAndCleanUp(Role.FILE_STORAGE, BackupType.INCREMENTAL, backupPrefix);

@@ -104,7 +104,7 @@ public class SessionResource {
 			throw new NotFoundException();
 		}
 
-		// FIXME what should initialize this?
+		// FIXME what should initialize this? is this necessary?
 		dbSession.getRules().size();
 
 		// client can suggest not updating the access date by adding the query parameter

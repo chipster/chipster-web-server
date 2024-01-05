@@ -133,7 +133,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
         updateState(JobState.RUNNING, "transferring output data");
         cancelCheck();
 
-        // get phenodata file // FIXME add support for multiple phenodata outputs
+        // get phenodata file
+        // todo: add support for multiple phenodata outputs
         File phenodataFile = null;
         for (OutputDescription outputDescription : toolDescription.getOutputFiles()) {
             if (outputDescription.isMeta()) {

@@ -6,7 +6,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.GET;
@@ -25,11 +24,9 @@ public class UserResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
-	private HibernateUtil hibernate;
 	private RuleTable ruleTable;
 
-	public UserResource(HibernateUtil hibernate, RuleTable ruleTable) {
-		this.hibernate = hibernate;
+	public UserResource(RuleTable ruleTable) {
 		this.ruleTable = ruleTable;
 	}
 

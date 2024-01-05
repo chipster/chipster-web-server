@@ -159,7 +159,7 @@ public class RestJobMessage implements GenericJobMessage {
 
 	@Override
 	public void preExecute(File jobWorkDir) {
-		// FIXME add phenodata content validation
+		// add phenodata content validation?
 		job.getMetadataFiles().forEach(phenodata -> {
 			try {
 				if (validatePhenodataFilename(phenodata.getName())) {

@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -24,11 +23,9 @@ public class AuthAdminResourceTest {
 
 	private static UserId user1Id;
 	private static Client user1Client;
-	private static User user1;
 
 	private static UserId user2Id;
 	private static Client user2Client;
-	private static User user2;
 
 	private static AuthenticationAdminClient adminClient;
 
@@ -41,13 +38,10 @@ public class AuthAdminResourceTest {
 		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user1Client = launcher.getUser1Client();
 		user1Id = new UserId(launcher.getUser1Credentials().getUsername());
-		user1 = AuthenticationClient.getUser(user1Id, user1Client, launcher.getServiceLocator());
 
 		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 		user2Client = launcher.getUser2Client();
 		user2Id = new UserId(launcher.getUser2Credentials().getUsername());
-
-		user2 = AuthenticationClient.getUser(user2Id, user2Client, launcher.getServiceLocator());
 
 		adminClient = new AuthenticationAdminClient(launcher.getServiceLocatorForAdmin(), launcher.getAdminToken());
 	}

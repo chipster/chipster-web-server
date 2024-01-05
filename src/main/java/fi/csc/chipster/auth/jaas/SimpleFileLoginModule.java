@@ -65,8 +65,6 @@ public class SimpleFileLoginModule extends LoginModuleBase {
 			// loop the lines of the password file
 			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
 
-				// FIXME line should be cleaned (contains password)
-
 				// check for empty line
 				if (line.trim().length() == 0) {
 					continue;
