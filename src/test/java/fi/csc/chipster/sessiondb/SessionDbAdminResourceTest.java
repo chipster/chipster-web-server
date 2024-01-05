@@ -246,6 +246,7 @@ public class SessionDbAdminResourceTest {
     private List<HashMap<String, Object>> getResultSessionsForUser(String userId,
             List<HashMap<String, Object>> results) {
 
+        @SuppressWarnings("unchecked")
         List<List<HashMap<String, Object>>> filteredResultsList = results.stream()
                 .filter(singleUserResultMap -> singleUserResultMap.get("userId").equals(userId))
                 .map(singleUserResultMap -> (List<HashMap<String, Object>>) singleUserResultMap.get("sessions"))
