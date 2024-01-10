@@ -1,0 +1,210 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "BackupArchive",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.archive.BackupArchive",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "AuthenticationService",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.auth.AuthenticationService",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "Backup",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.backup.Backup",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "RestCompServer",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.comp.RestCompServer",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "SingleShotComp",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.comp.SingleShotComp",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ProcessMonitoring",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "FileBroker",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.filebroker.FileBroker",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "FileStorage",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.filestorage.FileStorage",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "StorageBackup",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.filestorage.StorageBackup",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "JobHistoryService",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.jobhistory.JobHistoryService",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "AdminResource",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.rest.AdminResource",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "JavascriptService",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.rest.JavascriptService",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ServerLauncher",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.rest.ServerLauncher",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "DbBackup",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.rest.hibernate.DbBackup",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "Scheduler",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.scheduler.Scheduler",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ServiceLocator",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.servicelocator.ServiceLocator",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "SessionDb",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.sessiondb.SessionDb",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "SessionWorker",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.sessionworker.SessionWorker",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ToolboxClientComp",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.toolbox.ToolboxClientComp",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ToolboxClientRest",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.toolbox.ToolboxClientRest",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ToolboxLoadTest",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.toolbox.ToolboxLoadTest",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "ToolboxService",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.toolbox.ToolboxService",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "GtfGenes",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.tools.ngs.GtfGenes",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "SortGtf",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.tools.ngs.SortGtf",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "SortTsv",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.tools.ngs.SortTsv",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "RegionOperations",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.tools.parsers.RegionOperations",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "TsvSorter",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.tools.parsers.TsvSorter",
+            "projectName": "chipster-web-server"
+        },
+        {
+            "type": "java",
+            "name": "WebServer",
+            "request": "launch",
+            "mainClass": "fi.csc.chipster.web.WebServer",
+            "projectName": "chipster-web-server"
+        }
+    ]
+}
