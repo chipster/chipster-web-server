@@ -89,34 +89,29 @@ dependencies {
     implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.+"
 
     // jersey
-    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.5"
-    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.5"
-    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.5"
-    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.5" // @NonNull needs this 
+    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.1"
+    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.1"
+    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.1"
+    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.1" // @NonNull needs this 
         
     // Jersey in Jetty (session-worker)            
-    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.5"    
+    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.1"    
     
-    // jetty for session-worker servlet ( 12 would require Java 17 )
-    implementation "org.eclipse.jetty:jetty-servlet:11.0.19"
-    implementation "org.eclipse.jetty:jetty-server:11.0.19"
-
-    // websockets 
-    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.19"
+    // jetty for session-worker servlet
+    implementation "org.eclipse.jetty:jetty-servlet:11.0.14"
+    implementation "org.eclipse.jetty:jetty-server:11.0.14"
     
-    // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:11.0.19"    
         
     // jackson
-	implementation "com.fasterxml.jackson.core:jackson-core:2.16.1"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.1"
+	implementation "com.fasterxml.jackson.core:jackson-core:2.14.2"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.14.2"
 	
     // hibernate
-    implementation "org.hibernate:hibernate-core:5.6.15.Final"
-    implementation "org.hibernate:hibernate-c3p0:5.6.15.Final"
+    implementation "org.hibernate:hibernate-core:5.4.25.Final"
+    implementation "org.hibernate:hibernate-c3p0:5.4.25.Final"
     implementation "org.postgresql:postgresql:+"
     
     // flyway
@@ -124,6 +119,12 @@ dependencies {
     
     // db backups
     implementation "com.amazonaws:aws-java-sdk-s3:+"
+
+    // websockets 
+    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.14"
+    
+    // cache settings in web-server
+    implementation "org.eclipse.jetty:jetty-rewrite:11.0.14"
 
 	// other
     implementation "commons-io:commons-io:+"
