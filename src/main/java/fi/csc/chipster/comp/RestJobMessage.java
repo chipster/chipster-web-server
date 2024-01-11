@@ -31,6 +31,11 @@ public class RestJobMessage implements GenericJobMessage {
 	}
 
 	@Override
+	public Job getJob() {
+		return job;
+	}
+
+	@Override
 	public String getToolId() {
 		return job.getToolId();
 	}

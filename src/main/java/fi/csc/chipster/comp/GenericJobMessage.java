@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
 
+import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 /**
@@ -15,6 +16,8 @@ import fi.csc.chipster.sessiondb.model.Parameter;
  * @author klemela
  */
 public interface GenericJobMessage {
+
+	public Job getJob();
 
 	public String getJobId();
 

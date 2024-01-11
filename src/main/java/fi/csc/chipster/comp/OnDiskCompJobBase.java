@@ -310,6 +310,13 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
         Set<String> boundInputs = new HashSet<>();
 
+        Set<String> metadataFiles = new HashSet<>();
+
+        // create set of metadata filenames to make them easier to find
+        inputMessage.getJob().getMetadataFiles().forEach(phenodata -> {
+            metadataFiles.add(phenodata.getName());
+        });
+
         /*
          * Check inputs
          * 
@@ -359,6 +366,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 if (inputMessage.getKeys().contains(inputName)) {
                     boundInputs.add(inputName);
 
+                } else if (metadataFiles.contains(inputName)) {
+                    // suitable metadata found
                 } else if (!input.isOptional()) {
                     logger.error("required input file not found");
                     this.setErrorMessage(
