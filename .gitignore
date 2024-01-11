@@ -17,3 +17,4 @@ js/cli-client/chipster-cli-env.json
 js/rest-client/node_modules
 /db-backups
 /backup-archive/
+.vscode/settings.json
