@@ -109,11 +109,11 @@ dependencies {
     
         
     // jackson
-	implementation "com.fasterxml.jackson.core:jackson-core:2.14.2"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2"
+	implementation "com.fasterxml.jackson.core:jackson-core:2.16.1"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.1"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.14.2"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1"
 	
     // hibernate
     implementation "org.hibernate:hibernate-core:5.4.25.Final"
