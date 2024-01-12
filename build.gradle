@@ -98,8 +98,14 @@ dependencies {
     implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.1"    
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty:jetty-servlet:11.0.14"
-    implementation "org.eclipse.jetty:jetty-server:11.0.14"
+    implementation "org.eclipse.jetty:jetty-servlet:11.0.19"
+    implementation "org.eclipse.jetty:jetty-server:11.0.19"
+
+    // websockets 
+    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.19"
+    
+    // cache settings in web-server
+    implementation "org.eclipse.jetty:jetty-rewrite:11.0.19"    
     
         
     // jackson
@@ -119,12 +125,6 @@ dependencies {
     
     // db backups
     implementation "com.amazonaws:aws-java-sdk-s3:+"
-
-    // websockets 
-    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.14"
-    
-    // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:11.0.14"
 
 	// other
     implementation "commons-io:commons-io:+"
