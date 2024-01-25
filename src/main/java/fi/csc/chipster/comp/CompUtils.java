@@ -17,7 +17,7 @@ public class CompUtils {
 	public static void addVersionsToDbJob(GenericResultMessage result, Job dbJob) {
 		if (result.getVersionsJson() != null) {
 			logger.debug("adding versions info to db job");
-						MetadataFile versionsMetadataFile = new MetadataFile(METADATA_FILE_NAME_APPLICATION_VERSIONS,
+			MetadataFile versionsMetadataFile = new MetadataFile(METADATA_FILE_NAME_APPLICATION_VERSIONS,
 					result.getVersionsJson());
 
 			// for now, just remove possible existing versions file, should not exist
@@ -27,8 +27,7 @@ public class CompUtils {
 					.collect(Collectors.toList());
 			updatedMetadataFiles.add(versionsMetadataFile);
 			dbJob.setMetadataFiles(updatedMetadataFiles);
-
-					}
+		}
 	}
 
 	public static String getMetadataFilesAsString(List<MetadataFile> metadataFiles) {
