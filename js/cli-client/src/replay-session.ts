@@ -1411,7 +1411,7 @@ th {
             s2.end();
           });
         }
-        stream.write("</td >\n");
+        stream.write("</td>\n");
         stream.write("<td>" + duration + "</td>\n");
         stream.write("</tr>\n");
       });
@@ -1440,6 +1440,9 @@ th {
 
       stream.end();
     });
+
+    // write results also as json for easier parsing
+    fs.writeFileSync(this.resultsPath + "/results.json", JSON.stringify(results, null, 4));
 
     // create, update or delete the flag file based on the result
     if (isCompleted) {
