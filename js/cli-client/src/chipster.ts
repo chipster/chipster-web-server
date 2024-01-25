@@ -19,6 +19,7 @@ export default class CliClient {
   private env = new CliEnvironment();
 
   private isQuiet = false;
+  private isVerbose = false;
   private output: string;
 
 	constructor() {
@@ -37,6 +38,8 @@ export default class CliClient {
     parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
 
     parser.add_argument('-q', '--quiet', { action: 'store_true', help: 'suppress all extra status info' });
+
+    parser.add_argument('-V', '--verbose', { action: 'store_true', help: 'show verbose output' });
 
     parser.add_argument('-o', '--output', { choices: ['default', 'json', 'yaml'], help: 'output format. json and yaml enable --quiet'});
 
@@ -64,6 +67,10 @@ export default class CliClient {
 
     let sessionCreateSubparser = sessionSubparsers.add_parser('create');
     sessionCreateSubparser.add_argument('name', { help: 'session name'});
+
+    let sessionRenameSubparser = sessionSubparsers.add_parser('rename');
+    sessionRenameSubparser.add_argument('current_name', { help: 'current session name'});
+    sessionRenameSubparser.add_argument('new_name', { help: 'new session name'});
 
     let sessionUploadSubparser = sessionSubparsers.add_parser('upload');
     sessionUploadSubparser.add_argument('file', { help: 'session file to upload or - for stdin'});
@@ -169,6 +176,7 @@ export default class CliClient {
     logger.debug(args);
 
     this.isQuiet = args.quiet;
+    this.isVerbose = args.verbose;
     this.output = args.output;
 
     if (this.output === 'json' || this.output === 'yaml') {
@@ -197,6 +205,7 @@ export default class CliClient {
         case 'list': return this.sessionList();
         case 'get': return this.sessionGet(args);
         case 'create': return this.sessionCreate(args);
+        case 'rename': return this.sessionRename(args);
         case 'delete': return this.sessionDelete(args);
         case 'upload': return this.sessionUpload(args);
         case 'download': return this.sessionDownload(args);
@@ -479,6 +488,9 @@ export default class CliClient {
 
   showError(err) {
     console.error(err.message);
+    if (this.isVerbose) {
+      console.error(err);
+    }
   }
 
   datasetGet(args) {
@@ -723,6 +735,15 @@ export default class CliClient {
   sessionCreate(args) {
     return this.checkLogin().pipe(
       mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)));
+  }
+
+  sessionRename(args) {
+    return this.checkLogin().pipe(
+      mergeMap(() => this.getSessionByNameOrId(args.current_name)),
+      mergeMap(session => {
+        session.name = args.new_name
+        return this.restClient.putSession(session);
+      }));
   }
 
   serviceList() {
