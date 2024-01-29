@@ -16,10 +16,10 @@
   "license": "MIT",
   "homepage": "https://github.com/chipster/chipster-web-server#readme",
   "dependencies": {
-    "chipster-js-common": "^1.0.6",
-    "chipster-nodejs-core": "^0.3.5",
+    "chipster-js-common": "^1.4.0",
+    "chipster-nodejs-core": "^0.4.0",
     "lodash": "^4.17.20",
-    "restify": "^8.5.1",
+    "restify": "^11.1.0",
     "restify-cors-middleware2": "^2.1.2",
     "restify-errors": "^8.0.2",
     "rxjs": "^6.6.3",
@@ -27,15 +27,15 @@
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.15",
+    "@types/chai": "^4.3.11",
     "@types/lodash": "^4.14.168",
-    "@types/mocha": "^9.1.1",
-    "@types/node": "^14.14.28",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.10",
     "@types/restify-errors": "^4.3.2",
-    "chai": "^4.3.0",
+    "chai": "^5.0.3",
     "mocha": "^10.0.0",
-    "nodemon": "^2.0.7",
+    "nodemon": "^3.0.3",
     "ts-node": "^10.7.0",
-    "typescript": "4.6.4"
+    "typescript": "^5.3.3"
   }
 }
