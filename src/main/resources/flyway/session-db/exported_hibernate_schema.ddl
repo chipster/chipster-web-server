@@ -36,6 +36,7 @@
         checksum varchar(255),
         fileCreated timestamp,
         size int8 not null,
+        state int4,
         storage varchar(255),
         primary key (fileId)
     );

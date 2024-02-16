@@ -1,0 +1,1 @@
+alter table File add column state int4;

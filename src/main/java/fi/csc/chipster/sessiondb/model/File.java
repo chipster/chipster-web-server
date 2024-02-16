@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import javax.persistence.Column;
@@ -17,6 +18,15 @@ public class File {
 	private String checksum;
 	private Instant fileCreated;
 	private String storage;
+	private FileState state;
+
+	public FileState getState() {
+		return state;
+	}
+
+	public void setState(FileState state) {
+		this.state = state;
+	}
 
 	public File() {
 	} // JAXB needs this
@@ -73,28 +83,8 @@ public class File {
 		if (getClass() != obj.getClass())
 			return false;
 		File other = (File) obj;
-		if (checksum == null) {
-			if (other.checksum != null)
-				return false;
-		} else if (!checksum.equals(other.checksum))
-			return false;
-		if (fileCreated == null) {
-			if (other.fileCreated != null)
-				return false;
-		} else if (!fileCreated.equals(other.fileCreated))
-			return false;
-		if (fileId == null) {
-			if (other.fileId != null)
-				return false;
-		} else if (!fileId.equals(other.fileId))
-			return false;
-		if (size != other.size)
-			return false;
-		if (storage == null) {
-			if (other.storage != null)
-				return false;
-		} else if (!storage.equals(other.storage))
-			return false;
-		return true;
+		return Objects.equals(fileId, other.fileId) && size == other.size && Objects.equals(checksum, other.checksum)
+				&& Objects.equals(fileCreated, other.fileCreated) && Objects.equals(storage, other.storage)
+				&& state == other.state;
 	}
 }

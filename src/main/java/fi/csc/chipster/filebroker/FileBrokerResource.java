@@ -21,6 +21,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
@@ -217,6 +218,18 @@ public class FileBrokerResource {
 		if (fileLength >= 0) {
 			// update the file size after each chunk
 			dataset.getFile().setSize(fileLength);
+
+			// update File state
+			if (flowTotalSize == null) {
+				logger.warn("flowTotalSize is not available, will assume the file is completed");
+				dataset.getFile().setState(FileState.COMPLETE);
+
+			} else if (fileLength == flowTotalSize) {
+				dataset.getFile().setState(FileState.COMPLETE);
+
+			} else {
+				dataset.getFile().setState(FileState.UPLOADING);
+			}
 
 			try {
 				logger.debug("PUT " + sessionDbUri + "/sessions/" + sessionId + "/datasets/" + datasetId);
