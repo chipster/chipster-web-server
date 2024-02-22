@@ -25,6 +25,7 @@ import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetIdPair;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.JobIdPair;
 import fi.csc.chipster.sessiondb.model.Rule;
@@ -304,17 +305,22 @@ public class SessionDbApi {
 	public void updateDataset(Dataset newDataset, Dataset dbDataset, UUID sessionId,
 			org.hibernate.Session hibernateSession) {
 
+		FileState fileState = null;
+
 		if (newDataset.getFile() != null) {
 			if (dbDataset.getFile() == null) {
 				HibernateUtil.persist(newDataset.getFile(), hibernateSession);
 			} else {
 				HibernateUtil.update(newDataset.getFile(), newDataset.getFile().getFileId(), hibernateSession);
 			}
+
+			fileState = newDataset.getFile().getState();
 		}
 
 		HibernateUtil.update(newDataset, newDataset.getDatasetIdPair(), hibernateSession);
 		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
-				new SessionEvent(sessionId, ResourceType.DATASET, newDataset.getDatasetId(), EventType.UPDATE),
+				new SessionEvent(sessionId, ResourceType.DATASET, newDataset.getDatasetId(), EventType.UPDATE,
+						fileState),
 				hibernateSession);
 	}
 
@@ -322,13 +328,17 @@ public class SessionDbApi {
 
 		checkFileModification(dataset, hibernateSession);
 
+		FileState fileState = null;
+
 		if (dataset.getFile() != null) {
 			// why CascadeType.PERSIST isn't enough?
 			HibernateUtil.persist(dataset.getFile(), hibernateSession);
+
+			fileState = dataset.getFile().getState();
 		}
 		HibernateUtil.persist(dataset, hibernateSession);
 		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
-				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE),
+				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.CREATE, fileState),
 				hibernateSession);
 	}
 
