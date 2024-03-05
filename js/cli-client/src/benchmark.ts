@@ -8,7 +8,7 @@ import {
   mergeMap,
   takeUntil,
   tap,
-  toArray
+  toArray,
 } from "rxjs/operators";
 import ChipsterUtils from "./chipster-utils";
 
@@ -32,9 +32,8 @@ export default class Benchmark {
     "dolore eu fugiat nulla pariatur.Excepteur sint occaecat cupidatat non proident, " +
     "sunt in culpa qui officia deserunt mollit anim id est laborum.\n";
 
-  readonly screenOutput = 'print("Hello World!")\n[1] "Hello World!"\n\n'.repeat(
-    100
-  );
+  readonly screenOutput =
+    'print("Hello World!")\n[1] "Hello World!"\n\n'.repeat(100);
 
   influxUrl;
   results = "";
@@ -49,43 +48,46 @@ export default class Benchmark {
   }
 
   parseCommand() {
-
     const version = "Chipster server benchmark version 0.2.0";
 
     const parser = new ArgumentParser({
       add_help: true,
-      description: "Chipster server benchmark"
+      description: "Chipster server benchmark",
     });
 
-    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+    parser.add_argument("-v", "--version", {
+      action: "version",
+      version: version,
+      help: "show program's version nubmer and exit",
+    });
 
     parser.add_argument("URL", { help: "url of the app server" });
     parser.add_argument("--username", "-u", {
-      help: "username for the Chipster server"
+      help: "username for the Chipster server",
     });
     parser.add_argument("--password", "-p", {
-      help: "password for the Chipster server"
+      help: "password for the Chipster server",
     });
     parser.add_argument("--influx", { help: "url of the influxdb" });
     parser.add_argument("--debug", "-d", {
       help: "do not delete the test session",
-      action: "store_true"
+      action: "store_true",
     });
     parser.add_argument("--quiet", "-q", {
       help: "do not print job state changes",
-      action: "store_true"
+      action: "store_true",
     });
     parser.add_argument("--post", {
       help: "only create db rows to allow tests with larger databases",
-      action: "store_true"
+      action: "store_true",
     });
     parser.add_argument("--requests", "-r", {
       help: "max number of requests for each test",
-      default: 100
+      default: 100,
     });
     parser.add_argument("--time", "-t", {
       help: "max test duration in milliseconds",
-      default: 1000
+      default: 1000,
     });
 
     const args = parser.parse_args();
@@ -99,170 +101,176 @@ export default class Benchmark {
 
     this.restClient = new RestClient(true);
 
-    let benchmark = ChipsterUtils.getToken(args.URL, args.username, args.password, this.restClient).pipe(
+    let benchmark = ChipsterUtils.getToken(
+      args.URL,
+      args.username,
+      args.password,
+      this.restClient,
+    ).pipe(
       mergeMap((token: string) =>
-        ChipsterUtils.configureRestClient(args.URL, token, this.restClient)),
+        ChipsterUtils.configureRestClient(args.URL, token, this.restClient),
+      ),
     );
 
     if (this.onlyPost) {
       benchmark = benchmark.pipe(
         mergeMap(() =>
-          this.measure("post session                            ", i =>
-            this.postEmptySession(i, this.sessionIds)
-          )
+          this.measure("post session                            ", (i) =>
+            this.postEmptySession(i, this.sessionIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post dataset                            ", i =>
-            this.postDataset(i, 100, this.datasetIds, this.sessionIds)
-          )
+          this.measure("post dataset                            ", (i) =>
+            this.postDataset(i, 100, this.datasetIds, this.sessionIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post job                                ", i =>
-            this.postJob(i)
-          )
-        )
+          this.measure("post job                                ", (i) =>
+            this.postJob(i),
+          ),
+        ),
       );
     } else {
       benchmark = benchmark.pipe(
         mergeMap(() => this.deleteOldSessions(this.sessionPrefix)),
-        mergeMap(s => this.restClient.getSessions()),
+        mergeMap((s) => this.restClient.getSessions()),
         tap((s: Session[]) => {
           if (s.length > 0) {
             logger.warn(
               "account is not empty, results may be lower:",
               s.length,
-              "session(s)"
+              "session(s)",
             );
           }
         }),
         mergeMap(() =>
-          this.measure("get static                              ", i =>
-            this.getStatic(i)
-          )
+          this.measure("get static                              ", (i) =>
+            this.getStatic(i),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post session                            ", i =>
-            this.postEmptySession(i, this.sessionIds)
-          )
+          this.measure("post session                            ", (i) =>
+            this.postEmptySession(i, this.sessionIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post session                            ", i =>
-            this.postEmptySession(i, this.sessionIdsWithoutMetadata)
-          )
+          this.measure("post session                            ", (i) =>
+            this.postEmptySession(i, this.sessionIdsWithoutMetadata),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get sessions by id                      ", i =>
-            this.getSessionById(i)
-          )
+          this.measure("get sessions by id                      ", (i) =>
+            this.getSessionById(i),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post dataset                            ", i =>
-            this.postDataset(i, 100, this.datasetIds, this.sessionIds)
-          )
+          this.measure("post dataset                            ", (i) =>
+            this.postDataset(i, 100, this.datasetIds, this.sessionIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post dataset without metadata           ", i =>
+          this.measure("post dataset without metadata           ", (i) =>
             this.postDataset(
               i,
               0,
               this.datasetIdsWithoutMetadata,
-              this.sessionIdsWithoutMetadata
-            )
-          )
+              this.sessionIdsWithoutMetadata,
+            ),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get dataset                             ", i =>
-            this.getDataset(i, this.datasetIds)
-          )
+          this.measure("get dataset                             ", (i) =>
+            this.getDataset(i, this.datasetIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get dataset without metadata            ", i =>
-            this.getDataset(i, this.datasetIdsWithoutMetadata)
-          )
+          this.measure("get dataset without metadata            ", (i) =>
+            this.getDataset(i, this.datasetIdsWithoutMetadata),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get datasets by session                 ", i =>
-            this.getDatasetsBySession(i, this.datasetIds)
-          )
+          this.measure("get datasets by session                 ", (i) =>
+            this.getDatasetsBySession(i, this.datasetIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get datasets by session without metadata", i =>
-            this.getDatasetsBySession(i, this.datasetIdsWithoutMetadata)
-          )
+          this.measure("get datasets by session without metadata", (i) =>
+            this.getDatasetsBySession(i, this.datasetIdsWithoutMetadata),
+          ),
         ),
         mergeMap(() =>
-          this.measure("put and get dataset                     ", i =>
-            this.getAndPutDataset(i, this.datasetIds)
-          )
+          this.measure("put and get dataset                     ", (i) =>
+            this.getAndPutDataset(i, this.datasetIds),
+          ),
         ),
         mergeMap(() =>
-          this.measure("put and get dataset without metadata    ", i =>
-            this.getAndPutDataset(i, this.datasetIdsWithoutMetadata)
-          )
+          this.measure("put and get dataset without metadata    ", (i) =>
+            this.getAndPutDataset(i, this.datasetIdsWithoutMetadata),
+          ),
         ),
         mergeMap(() =>
-          this.measure("post job                                ", i =>
-            this.postJob(i)
-          )
+          this.measure("post job                                ", (i) =>
+            this.postJob(i),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get job                                 ", i =>
-            this.getJob(i)
-          )
+          this.measure("get job                                 ", (i) =>
+            this.getJob(i),
+          ),
         ),
         mergeMap(() =>
-          this.measure("get jobs by session                     ", i =>
-            this.getJobsBySession(i)
-          )
+          this.measure("get jobs by session                     ", (i) =>
+            this.getJobsBySession(i),
+          ),
         ),
         mergeMap(() =>
-          this.measure("put and get job                         ", i =>
-            this.getAndPutJob(i)
-          )
+          this.measure("put and get job                         ", (i) =>
+            this.getAndPutJob(i),
+          ),
         ),
         mergeMap(() =>
           this.measureOnce(
             "delete job                              ",
-            this.deleteJob()
-          )
+            this.deleteJob(),
+          ),
         ),
         mergeMap(() =>
           this.measureOnce(
             "delete dataset                          ",
-            this.deleteDataset(this.datasetIds)
-          )
+            this.deleteDataset(this.datasetIds),
+          ),
         ),
         mergeMap(() =>
           this.measureOnce(
             "delete dataset without metadata         ",
-            this.deleteDataset(this.datasetIdsWithoutMetadata)
-          )
+            this.deleteDataset(this.datasetIdsWithoutMetadata),
+          ),
         ),
         // measure this only after half of the sessions are deleted already
         mergeMap(() =>
-          this.measure("get sessions by username                ", i =>
-            this.getSessionsByUsername(i)
-          )
+          this.measure("get sessions by username                ", (i) =>
+            this.getSessionsByUsername(i),
+          ),
         ),
         mergeMap(() =>
           this.measureOnce(
             "delete session                          ",
-            this.deleteSession(this.sessionIds)
-          )
+            this.deleteSession(this.sessionIds),
+          ),
         ),
         mergeMap(() =>
           this.measureOnce(
             "delete session                          ",
-            this.deleteSession(this.sessionIdsWithoutMetadata)
-          )
+            this.deleteSession(this.sessionIdsWithoutMetadata),
+          ),
         ),
-        mergeMap(() => this.postResults())
+        mergeMap(() => this.postResults()),
       );
     }
     benchmark.subscribe(
       () => console.log("chipster benchmark done"),
-      err => console.error("chipster benchmark error", err),
-      () => console.log("chipster benchmark completed")
+      (err) => console.error("chipster benchmark error", err),
+      () => console.log("chipster benchmark completed"),
     );
   }
 
@@ -283,7 +291,7 @@ export default class Benchmark {
         const rps = (requestCount * 1000) / duration;
         this.addResult(name, 1, rps);
         logger.info(name, rps, "\trequest/s (sequential)");
-      })
+      }),
     );
   }
 
@@ -295,30 +303,27 @@ export default class Benchmark {
     } else {
       loops = [
         this.loop(jobFunction, 1, name),
-        this.loop(jobFunction, 4, name)
+        this.loop(jobFunction, 4, name),
       ];
     }
 
     return of(...loops).pipe(
       concatAll(),
       toArray(),
-      tap(res => {
+      tap((res) => {
         logger.info(
           name,
           res[0],
           "\trequest/s (sequential), \t",
           res[1],
-          "\trequests/s (parallel)"
+          "\trequests/s (parallel)",
         );
-      })
+      }),
     );
   }
 
   addResult(name, threads, value) {
-    const key = name
-      .trim()
-      .split(" ")
-      .join("-");
+    const key = name.trim().split(" ").join("-");
     const tags = "threads=" + threads;
     this.results +=
       key +
@@ -339,7 +344,7 @@ export default class Benchmark {
       mergeMap(jobFunction, null, threads),
       takeUntil(timer(this.maxTime)),
       toArray(),
-      map(array => array.length),
+      map((array) => array.length),
       map((requestCount: number) => {
         const duration = +new Date() - t;
         const throughput = (requestCount * 1000) / duration;
@@ -347,24 +352,24 @@ export default class Benchmark {
 
         return throughput;
       }),
-      catchError(err => {
+      catchError((err) => {
         logger.error("error in", name, err);
         return of(-1);
-      })
+      }),
     );
   }
 
   postEmptySession(i: number, sessionIds: string[]) {
     return of(i).pipe(
-      map(i => {
+      map((i) => {
         const s = {
           name: this.sessionPrefix + i,
-          notes: this.notes
+          notes: this.notes,
         };
         return s;
       }),
-      mergeMap(s => this.restClient.postSession(s)),
-      tap((sessionId: string) => sessionIds.push(sessionId))
+      mergeMap((s) => this.restClient.postSession(s)),
+      tap((sessionId: string) => sessionIds.push(sessionId)),
     );
   }
 
@@ -376,7 +381,7 @@ export default class Benchmark {
         if (resp.response.statusCode != 404) {
           throw this.restClient.reponseToError(resp);
         }
-      })
+      }),
     );
   }
 
@@ -384,13 +389,13 @@ export default class Benchmark {
     i: number,
     metadataCount: number,
     idMap: Map<string, string>,
-    sessionIds: string[]
+    sessionIds: string[],
   ) {
     // about 100 datasets per session
     const sessionId =
       sessionIds[Math.floor((Math.random() * sessionIds.length) / 100 + 1)];
     return of(i).pipe(
-      map(i => {
+      map((i) => {
         const dataset: Dataset = {
           name: "dataset_" + i,
           fileId: null,
@@ -404,7 +409,8 @@ export default class Benchmark {
           x: null,
           y: null,
           sessionId: null,
-          metadataFiles: []
+          metadataFiles: [],
+          state: null,
         };
         let phenodata = "";
         for (let j = 0; j < metadataCount; j++) {
@@ -412,24 +418,24 @@ export default class Benchmark {
         }
         dataset.metadataFiles.push({
           name: "phenodata",
-          content: phenodata
+          content: phenodata,
         });
         dataset.fileId = ChipsterUtils.uuidv4();
         dataset.notes = this.notes;
 
         return dataset;
       }),
-      mergeMap(dataset => this.restClient.postDataset(sessionId, dataset)),
-      tap((id: string) => idMap.set(id, sessionId))
+      mergeMap((dataset) => this.restClient.postDataset(sessionId, dataset)),
+      tap((id: string) => idMap.set(id, sessionId)),
     );
   }
 
   getDataset(i: number, datasetIds: Map<string, string>) {
     const datasetId = Array.from(datasetIds.keys())[i % datasetIds.size];
     return of(i).pipe(
-      mergeMap(s =>
-        this.restClient.getDataset(datasetIds.get(datasetId), datasetId)
-      )
+      mergeMap((s) =>
+        this.restClient.getDataset(datasetIds.get(datasetId), datasetId),
+      ),
     );
   }
 
@@ -437,7 +443,7 @@ export default class Benchmark {
     const datasetSessions = Array.from(datasetIds.values());
     const sessionId =
       datasetSessions[Math.floor(Math.random() * datasetSessions.length)];
-    return of(i).pipe(mergeMap(s => this.restClient.getDatasets(sessionId)));
+    return of(i).pipe(mergeMap((s) => this.restClient.getDatasets(sessionId)));
   }
 
   getAndPutDataset(i: number, datasetIds: Map<string, string>) {
@@ -445,19 +451,19 @@ export default class Benchmark {
       mergeMap((d: Dataset) => {
         d.notes = d.notes + "-";
         return this.restClient.putDataset(datasetIds.get(d.datasetId), d);
-      })
+      }),
     );
   }
 
   deleteDataset(datasetIds: Map<string, string>) {
     return from(datasetIds.keys()).pipe(
       mergeMap(
-        id => this.restClient.deleteDataset(datasetIds.get(id), id),
+        (id) => this.restClient.deleteDataset(datasetIds.get(id), id),
         null,
-        1
+        1,
       ),
       toArray(),
-      map(() => datasetIds.size)
+      map(() => datasetIds.size),
     );
   }
 
@@ -469,7 +475,7 @@ export default class Benchmark {
     // job must be in the same session
     const sessionId = this.datasetIds.get(datasetId);
     return of(i).pipe(
-      map(i => {
+      map((i) => {
         const job = {
           inputs: [],
           module: "misc",
@@ -479,33 +485,33 @@ export default class Benchmark {
           stateDetail: "",
           toolCategory: "Utilitites",
           toolId: "benchmark-tool.py",
-          toolName: "Fake tool"
+          toolName: "Fake tool",
         };
         for (let j = 0; j < 10; j++) {
           job.inputs.push({
             inputId: "input" + j,
-            datasetId: datasetId
+            datasetId: datasetId,
           });
 
           job.parameters.push({
             parameterId: "parameter" + j,
             type: "STRING",
-            value: "value" + j
+            value: "value" + j,
           });
         }
         job.screenOutput = this.screenOutput;
 
         return job;
       }),
-      mergeMap(job => this.restClient.postJob(sessionId, job)),
-      tap((id: string) => this.jobIds.set(id, sessionId))
+      mergeMap((job) => this.restClient.postJob(sessionId, job)),
+      tap((id: string) => this.jobIds.set(id, sessionId)),
     );
   }
 
   getJob(i: number) {
     const jobId = Array.from(this.jobIds.keys())[i % this.jobIds.size];
     return of(i).pipe(
-      mergeMap(s => this.restClient.getJob(this.jobIds.get(jobId), jobId))
+      mergeMap((s) => this.restClient.getJob(this.jobIds.get(jobId), jobId)),
     );
   }
 
@@ -513,7 +519,7 @@ export default class Benchmark {
     const jobSessions = Array.from(this.jobIds.values());
     const sessionId =
       jobSessions[Math.floor(Math.random() * jobSessions.length)];
-    return of(i).pipe(mergeMap(s => this.restClient.getDatasets(sessionId)));
+    return of(i).pipe(mergeMap((s) => this.restClient.getDatasets(sessionId)));
   }
 
   getAndPutJob(i: number) {
@@ -521,45 +527,44 @@ export default class Benchmark {
       mergeMap((j: Job) => {
         j.screenOutput = j.screenOutput + "-";
         return this.restClient.putJob(this.jobIds.get(j.jobId), j);
-      })
+      }),
     );
   }
 
   deleteJob() {
     return from(this.jobIds.keys()).pipe(
       mergeMap(
-        id => this.restClient.deleteJob(this.jobIds.get(id), id),
+        (id) => this.restClient.deleteJob(this.jobIds.get(id), id),
         null,
-        1
+        1,
       ),
       toArray(),
-      map(() => this.jobIds.size)
+      map(() => this.jobIds.size),
     );
   }
 
   getSessionsByUsername(i: number) {
-    return of(i).pipe(mergeMap(s => this.restClient.getSessions()));
+    return of(i).pipe(mergeMap((s) => this.restClient.getSessions()));
   }
 
   getSessionById(i: number) {
-    const randomId = this.sessionIds[
-      Math.floor(Math.random() * this.sessionIds.length)
-    ];
-    return of(i).pipe(mergeMap(s => this.restClient.getSession(randomId)));
+    const randomId =
+      this.sessionIds[Math.floor(Math.random() * this.sessionIds.length)];
+    return of(i).pipe(mergeMap((s) => this.restClient.getSession(randomId)));
   }
 
   deleteSession(sessionIds: string[]) {
     return from(sessionIds).pipe(
-      mergeMap(id => this.restClient.deleteSession(id), null, 1),
+      mergeMap((id) => this.restClient.deleteSession(id), null, 1),
       toArray(),
-      map(() => sessionIds.length)
+      map(() => sessionIds.length),
     );
   }
 
   deleteOldSessions(nameStart) {
     return this.restClient.getSessions().pipe(
       map((sessions: Session[]) => {
-        return sessions.filter(s => {
+        return sessions.filter((s) => {
           return s.name.startsWith(nameStart);
         });
       }),
@@ -570,7 +575,7 @@ export default class Benchmark {
           return this.restClient.deleteSession(session.sessionId);
         },
         null,
-        1
+        1,
       ),
       toArray(),
       tap((array: any[]) => {
@@ -578,10 +583,10 @@ export default class Benchmark {
           logger.warn(
             "found and deleted",
             array.length,
-            "old benchmark session(s)"
+            "old benchmark session(s)",
           );
         }
-      })
+      }),
     );
   }
 
