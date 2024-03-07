@@ -3,7 +3,7 @@
   "type": "module",
   "description": "Chipster type-service",
   "scripts": {
-    "start": "node src/type-service.js",
+    "start": "node lib/type-service.js",
     "build": "tsc",
     "compile": "npm run build ; npm run start",
     "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
