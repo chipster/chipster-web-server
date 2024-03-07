@@ -1,13 +1,13 @@
 import { Subject } from "rxjs";
 import { map, mergeMap } from "rxjs/operators";
-var fs = require("fs");
-var os = require("os");
-var path = require("path");
+import fs from "fs";
+import os from "os";
+import path from "path";
 const ENV_FILE = "chipster-cli-env.json";
 
 export default class CliEnvironment {
   get(key: string) {
-    return this.read().pipe(map(env => env[key]));
+    return this.read().pipe(map((env) => env[key]));
   }
 
   getEnvFile() {
@@ -24,7 +24,7 @@ export default class CliEnvironment {
           subject.complete();
         } else {
           throw new Error(
-            "failed to read the cli environment file" + ENV_FILE + " " + err
+            "failed to read the cli environment file" + ENV_FILE + " " + err,
           );
         }
       } else {
@@ -37,10 +37,10 @@ export default class CliEnvironment {
 
   set(key: string, value: string) {
     return this.read().pipe(
-      mergeMap(env => {
+      mergeMap((env) => {
         env[key] = value;
         return this.write(env);
-      })
+      }),
     );
   }
 
@@ -53,7 +53,7 @@ export default class CliEnvironment {
       fs.mkdirSync(path.dirname(this.getEnvFile()), { recursive: true });
     }
 
-    fs.writeFile(this.getEnvFile(), json, "utf8", err => {
+    fs.writeFile(this.getEnvFile(), json, "utf8", (err) => {
       if (err) {
         throw new Error("writing env file failed" + err);
       }

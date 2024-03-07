@@ -1,5 +1,6 @@
 import { Dataset, Job, WsEvent } from "chipster-js-common";
-import { Logger, RestClient } from "chipster-nodejs-core";
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { ReplaySubject, Subject } from "rxjs";
 import {
   concat,
@@ -11,15 +12,17 @@ import {
   pairwise,
   startWith,
   take,
-  takeWhile
+  takeWhile,
 } from "rxjs/operators";
-import { VError } from "verror";
-const WebSocket = require("ws");
+import VError from "verror";
+import WebSocket from "ws";
 
-const path = require("path");
-const read = require("read");
-const ArgumentParser = require("argparse").ArgumentParser;
-const logger = Logger.getLogger(__filename);
+import path from "path";
+import { read } from "read";
+import ArgumentParser from "argparse";
+import { fileURLToPath } from "url";
+
+const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 export default class WsClient {
   sessionId: string;
@@ -33,23 +36,27 @@ export default class WsClient {
     "ERROR",
     "CANCELLED",
     "TIMEOUT",
-    "EXPIRED_WAITING"
+    "EXPIRED_WAITING",
   ];
 
   static readonly successStates = ["COMPLETED"];
 
   static readonly finalStates = WsClient.failedStates.concat(
-    WsClient.successStates
+    WsClient.successStates,
   );
 
   constructor(private restClient: RestClient) {}
 
   connect(sessionId: string, quiet = false) {
     this.sessionId = sessionId;
-    return this.restClient.getSessionDbEventsUri().subscribe(url => {
-
+    return this.restClient.getSessionDbEventsUri().subscribe((url) => {
       let topic = "sessions/" + sessionId;
-      url = url + "/?topic=" + encodeURIComponent(topic) + "&token=" + this.restClient.token;
+      url =
+        url +
+        "/?topic=" +
+        encodeURIComponent(topic) +
+        "&token=" +
+        this.restClient.token;
 
       let previousScreenOutput = "";
 
@@ -61,7 +68,7 @@ export default class WsClient {
         });
       }
 
-      this.ws.on("message", data => {
+      this.ws.on("message", (data) => {
         const event = JSON.parse(data);
         this.wsEvents$.next(event);
       });
@@ -71,7 +78,6 @@ export default class WsClient {
           if (this.closing) {
             // closed by us
             this.wsEvents$.complete();
-            
           } else if (code === 1001) {
             // idle timeout
             logger.info("websocket " + reason + ", reconnecting...");
@@ -82,7 +88,7 @@ export default class WsClient {
           }
         });
 
-        this.ws.on("error", error => {
+        this.ws.on("error", (error) => {
           logger.error(new VError(error, "websocket error"));
           this.wsEvents$.error("websocket error: " + error);
         });
@@ -106,9 +112,9 @@ export default class WsClient {
 
     return this.wsEvents$.pipe(
       filter(
-        (e: WsEvent) => e.resourceType === "JOB" && e.resourceId === jobId
+        (e: WsEvent) => e.resourceType === "JOB" && e.resourceId === jobId,
       ),
-      mergeMap(e => this.restClient.getJob(this.sessionId, jobId)),
+      mergeMap((e) => this.restClient.getJob(this.sessionId, jobId)),
       /* 
       All this multicasting just to get the last event also in takeWhile().
       takeWhile(..., true) would do the same since rxjs 6.4, but rx-http-request seems
@@ -116,15 +122,15 @@ export default class WsClient {
       */
       multicast(
         () => new ReplaySubject(1),
-        subject => {
+        (subject) => {
           return subject.pipe(
             takeWhile(
-              (job: Job) => WsClient.finalStates.indexOf(job.state) === -1
+              (job: Job) => WsClient.finalStates.indexOf(job.state) === -1,
             ),
-            concat(subject.pipe(take(1)))
+            concat(subject.pipe(take(1))),
           );
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -132,7 +138,7 @@ export default class WsClient {
     return this.getJob$(jobId).pipe(
       distinctUntilChanged((a: Job, b: Job) => {
         return a.state === b.state && a.stateDetail === b.stateDetail;
-      })
+      }),
     );
   }
 
@@ -140,10 +146,10 @@ export default class WsClient {
     let warned = false;
     return this.getJob$(jobId).pipe(
       map((job: Job) => job.screenOutput),
-      filter(output => output != null),
+      filter((output) => output != null),
       startWith(""),
       pairwise(),
-      map(outputPair => {
+      map((outputPair) => {
         // It's hard to get perfect copies of the screen output
         // when we may miss some object versions, but it's good enough
         // for human eyes.
@@ -168,7 +174,7 @@ export default class WsClient {
           return output;
         }
         return outputPair[1].slice(outputPair[0].length);
-      })
+      }),
     );
   }
 
@@ -176,20 +182,20 @@ export default class WsClient {
     return this.wsEvents$.pipe(
       filter(
         (event: WsEvent) =>
-          event.resourceType === "DATASET" && event.type === "CREATE"
+          event.resourceType === "DATASET" && event.type === "CREATE",
       ),
       // we have to get all created datasets to see if
       // it was created by this job
       mergeMap((event: WsEvent) =>
-        this.restClient.getDataset(this.sessionId, event.resourceId)
+        this.restClient.getDataset(this.sessionId, event.resourceId),
       ),
-      filter((dataset: Dataset) => dataset.sourceJob === jobId)
+      filter((dataset: Dataset) => dataset.sourceJob === jobId),
     );
   }
 
   disconnect() {
     if (this.ws != null) {
-      this.closing = true;      
+      this.closing = true;
       this.ws.close();
     }
   }

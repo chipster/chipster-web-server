@@ -1,175 +1,245 @@
 #!/usr/bin/env node
-import { Dataset, Job, Module, Rule, Service, Session, Tool } from "chipster-js-common";
-import { Logger, RestClient } from "chipster-nodejs-core";
-import * as _ from 'lodash';
-import { empty as observableEmpty, forkJoin, forkJoin as observableForkJoin, from as observableFrom, of as observableOf, Observable, of } from 'rxjs';
-import { map, mergeMap, tap, toArray, catchError, finalize, filter } from 'rxjs/operators';
-import ChipsterUtils from "./chipster-utils";
-import CliEnvironment from "./cli-environment";
-import WsClient from "./ws-client";
-import { VError } from "verror";
+import {
+  Dataset,
+  Job,
+  Module,
+  Rule,
+  Service,
+  Session,
+  Tool,
+} from "chipster-js-common";
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
+import * as _ from "lodash";
+import {
+  empty as observableEmpty,
+  forkJoin,
+  forkJoin as observableForkJoin,
+  from as observableFrom,
+  of as observableOf,
+  Observable,
+  of,
+} from "rxjs";
+import {
+  map,
+  mergeMap,
+  tap,
+  toArray,
+  catchError,
+  finalize,
+  filter,
+} from "rxjs/operators";
+import ChipsterUtils from "./chipster-utils.js";
+import CliEnvironment from "./cli-environment.js";
+import WsClient from "./ws-client.js";
+import VError from "verror";
+import { fileURLToPath } from "url";
 
-const YAML = require('yamljs');
-const path = require('path');
-const ArgumentParser = require('argparse').ArgumentParser;
-const logger = Logger.getLogger(__filename);
+import YAML from "yamljs";
+import path from "path";
+import argparse from "argparse";
+
+const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 export default class CliClient {
-
-	private restClient: RestClient;
+  private restClient: RestClient;
   private env = new CliEnvironment();
 
   private isQuiet = false;
   private isVerbose = false;
   private output: string;
 
-	constructor() {
-	  this.parseCommand();
-	}
+  constructor() {
+    this.parseCommand();
+  }
 
-	parseCommand() {
+  parseCommand() {
+    const version = "Chipster CLI version 0.2.0";
 
-    const version = 'Chipster CLI version 0.2.0';
-
-    let parser = new ArgumentParser({
+    let parser = new argparse.ArgumentParser({
       add_help: true,
-      description: 'Chipster command line client for the version 4 and upwards',
+      description: "Chipster command line client for the version 4 and upwards",
     });
 
-    parser.add_argument( '-v', '--version' , { action: 'version', version: version, help: 'show program\'s version nubmer and exit' })
+    parser.add_argument("-v", "--version", {
+      action: "version",
+      version: version,
+      help: "show program's version nubmer and exit",
+    });
 
-    parser.add_argument('-q', '--quiet', { action: 'store_true', help: 'suppress all extra status info' });
+    parser.add_argument("-q", "--quiet", {
+      action: "store_true",
+      help: "suppress all extra status info",
+    });
 
-    parser.add_argument('-V', '--verbose', { action: 'store_true', help: 'show verbose output' });
+    parser.add_argument("-V", "--verbose", {
+      action: "store_true",
+      help: "show verbose output",
+    });
 
-    parser.add_argument('-o', '--output', { choices: ['default', 'json', 'yaml'], help: 'output format. json and yaml enable --quiet'});
+    parser.add_argument("-o", "--output", {
+      choices: ["default", "json", "yaml"],
+      help: "output format. json and yaml enable --quiet",
+    });
 
     let subparsers = parser.add_subparsers({
-      title:'commands',
-      dest:"command"
+      title: "commands",
+      dest: "command",
     });
 
-    let sessionSubparsers = subparsers.add_parser('session').add_subparsers({
-      title:'session subcommands',
-      dest:"subcommand"
+    let sessionSubparsers = subparsers.add_parser("session").add_subparsers({
+      title: "session subcommands",
+      dest: "subcommand",
     });
 
+    let sessionListSubparser = sessionSubparsers.add_parser("list");
 
-    let sessionListSubparser = sessionSubparsers.add_parser('list');
+    let sessionGetSubparser = sessionSubparsers.add_parser("get");
+    sessionGetSubparser.add_argument("name", { help: "session name or id" });
 
-    let sessionGetSubparser = sessionSubparsers.add_parser('get');
-    sessionGetSubparser.add_argument('name', { help: 'session name or id' });
+    let sessionOpenSubparser = sessionSubparsers.add_parser("open");
+    sessionOpenSubparser.add_argument("name", { help: "session name or id" });
 
-    let sessionOpenSubparser = sessionSubparsers.add_parser('open');
-    sessionOpenSubparser.add_argument('name', { help: 'session name or id' });
+    let sessionDeleteSubparser = sessionSubparsers.add_parser("delete");
+    sessionDeleteSubparser.add_argument("name", { help: "session name or id" });
 
-    let sessionDeleteSubparser = sessionSubparsers.add_parser('delete');
-    sessionDeleteSubparser.add_argument('name', { help: 'session name or id' });
+    let sessionCreateSubparser = sessionSubparsers.add_parser("create");
+    sessionCreateSubparser.add_argument("name", { help: "session name" });
 
-    let sessionCreateSubparser = sessionSubparsers.add_parser('create');
-    sessionCreateSubparser.add_argument('name', { help: 'session name'});
-
-    let sessionRenameSubparser = sessionSubparsers.add_parser('rename');
-    sessionRenameSubparser.add_argument('current_name', { help: 'current session name'});
-    sessionRenameSubparser.add_argument('new_name', { help: 'new session name'});
-
-    let sessionUploadSubparser = sessionSubparsers.add_parser('upload');
-    sessionUploadSubparser.add_argument('file', { help: 'session file to upload or - for stdin'});
-    sessionUploadSubparser.add_argument('--name', { help: 'session name (affects only the old session format)'});
-
-    let sessionDownloadSubparser = sessionSubparsers.add_parser('download');
-    sessionDownloadSubparser.add_argument('name', {help: 'session name or id'});
-    sessionDownloadSubparser.add_argument('--file', {help: 'file to write or - for stdout'});
-
-    let datasetSubparsers = subparsers.add_parser('dataset').add_subparsers({
-      title:'dataset subcommands',
-      dest:"subcommand"
+    let sessionRenameSubparser = sessionSubparsers.add_parser("rename");
+    sessionRenameSubparser.add_argument("current_name", {
+      help: "current session name",
+    });
+    sessionRenameSubparser.add_argument("new_name", {
+      help: "new session name",
     });
 
-    let datasetListSubparser = datasetSubparsers.add_parser('list');
-
-    let datasetGetSubparser = datasetSubparsers.add_parser('get');
-    datasetGetSubparser.add_argument('name', {help: 'dataset name or id'});
-
-    let datasetDeleteSubparser = datasetSubparsers.add_parser('delete');
-    datasetDeleteSubparser.add_argument('name', {help: 'dataset name or id'});
-
-    let datasetCreateSubparser = datasetSubparsers.add_parser('upload');
-    datasetCreateSubparser.add_argument('file', {help: 'file to read or - for stdin'});
-    datasetCreateSubparser.add_argument('--name', {help: 'dataset name'});
-
-    let datasetDownloadSubparser = datasetSubparsers.add_parser('download');
-    datasetDownloadSubparser.add_argument('name', {help: 'dataset name or id'});
-    datasetDownloadSubparser.add_argument('--file', {help: 'file to write or - for stdout'});
-
-
-    let jobSubparsers = subparsers.add_parser('job').add_subparsers({
-      title:'job subcommands',
-      dest:"subcommand"
+    let sessionUploadSubparser = sessionSubparsers.add_parser("upload");
+    sessionUploadSubparser.add_argument("file", {
+      help: "session file to upload or - for stdin",
+    });
+    sessionUploadSubparser.add_argument("--name", {
+      help: "session name (affects only the old session format)",
     });
 
-    let jobListSubparser = jobSubparsers.add_parser('list');
-
-    let jobGetSubparser = jobSubparsers.add_parser('get');
-    jobGetSubparser.add_argument('name', { help: 'job name or id' });
-    
-    let jobRunSubparser = jobSubparsers.add_parser('run');
-    jobRunSubparser.add_argument('tool', { help: 'tool name or id' });
-    jobRunSubparser.add_argument('--input', '-i', { help: 'INPUT_NAME=DATASET_NAME_OR_ID', action: 'append' });
-    jobRunSubparser.add_argument('--parameter', '-p', { help: 'PARAMETER_NAME=VALUE', action: 'append' });
-    jobRunSubparser.add_argument('--background', '-b', {action: 'store_true', help: 'do not wait'});
-
-    let jobDeleteSubparser = jobSubparsers.add_parser('delete');
-    jobDeleteSubparser.add_argument('name', { help: 'job name or id' });
-    
-
-    let toolSubparsers = subparsers.add_parser('tool').add_subparsers({
-      title:'tool subcommands',
-      dest:"subcommand"
+    let sessionDownloadSubparser = sessionSubparsers.add_parser("download");
+    sessionDownloadSubparser.add_argument("name", {
+      help: "session name or id",
+    });
+    sessionDownloadSubparser.add_argument("--file", {
+      help: "file to write or - for stdout",
     });
 
-    let toolListSubparser = toolSubparsers.add_parser('list');
-
-    let toolGetSubparser = toolSubparsers.add_parser('get');
-    toolGetSubparser.add_argument('name', {help: 'tool name or id'});
-
-
-    let loginSubparser = subparsers.add_parser('login');
-
-
-    let ruleSubparsers = subparsers.add_parser('rule').add_subparsers({
-      title:'access subcommands',
-      dest:"subcommand"
+    let datasetSubparsers = subparsers.add_parser("dataset").add_subparsers({
+      title: "dataset subcommands",
+      dest: "subcommand",
     });
 
-    let ruleListSubparser = ruleSubparsers.add_parser('list');
+    let datasetListSubparser = datasetSubparsers.add_parser("list");
 
-    let ruleCreateSubparser = ruleSubparsers.add_parser('create');
-    ruleCreateSubparser.add_argument('username', {help: 'username'});
-    ruleCreateSubparser.add_argument('--mode', {help: 'r for read-only, rw for read-write (default)'});
+    let datasetGetSubparser = datasetSubparsers.add_parser("get");
+    datasetGetSubparser.add_argument("name", { help: "dataset name or id" });
 
-    let ruleDeleteSubparser = ruleSubparsers.add_parser('delete');
-    ruleDeleteSubparser.add_argument('username', {help: 'username'});
+    let datasetDeleteSubparser = datasetSubparsers.add_parser("delete");
+    datasetDeleteSubparser.add_argument("name", { help: "dataset name or id" });
 
+    let datasetCreateSubparser = datasetSubparsers.add_parser("upload");
+    datasetCreateSubparser.add_argument("file", {
+      help: "file to read or - for stdin",
+    });
+    datasetCreateSubparser.add_argument("--name", { help: "dataset name" });
 
-    let serviceSubparsers = subparsers.add_parser('service').add_subparsers({
-      title: 'service admin subcommnads',
-      dest: 'subcommand'
+    let datasetDownloadSubparser = datasetSubparsers.add_parser("download");
+    datasetDownloadSubparser.add_argument("name", {
+      help: "dataset name or id",
+    });
+    datasetDownloadSubparser.add_argument("--file", {
+      help: "file to write or - for stdout",
     });
 
-    let serviceListSubparser = serviceSubparsers.add_parser('list');
+    let jobSubparsers = subparsers.add_parser("job").add_subparsers({
+      title: "job subcommands",
+      dest: "subcommand",
+    });
 
-    let serviceGetSubparser = serviceSubparsers.add_parser('get');
-    serviceGetSubparser.add_argument('name', { nargs: '?', help: 'service name or id'});
+    let jobListSubparser = jobSubparsers.add_parser("list");
 
+    let jobGetSubparser = jobSubparsers.add_parser("get");
+    jobGetSubparser.add_argument("name", { help: "job name or id" });
 
-    loginSubparser.add_argument('URL', { nargs: '?', help: 'url of the API server'});
-    loginSubparser.add_argument('--username', '-u', { help: 'username for the server'});
-    loginSubparser.add_argument('--password', '-p', { help: 'password for the server' });
+    let jobRunSubparser = jobSubparsers.add_parser("run");
+    jobRunSubparser.add_argument("tool", { help: "tool name or id" });
+    jobRunSubparser.add_argument("--input", "-i", {
+      help: "INPUT_NAME=DATASET_NAME_OR_ID",
+      action: "append",
+    });
+    jobRunSubparser.add_argument("--parameter", "-p", {
+      help: "PARAMETER_NAME=VALUE",
+      action: "append",
+    });
+    jobRunSubparser.add_argument("--background", "-b", {
+      action: "store_true",
+      help: "do not wait",
+    });
+
+    let jobDeleteSubparser = jobSubparsers.add_parser("delete");
+    jobDeleteSubparser.add_argument("name", { help: "job name or id" });
+
+    let toolSubparsers = subparsers.add_parser("tool").add_subparsers({
+      title: "tool subcommands",
+      dest: "subcommand",
+    });
+
+    let toolListSubparser = toolSubparsers.add_parser("list");
+
+    let toolGetSubparser = toolSubparsers.add_parser("get");
+    toolGetSubparser.add_argument("name", { help: "tool name or id" });
+
+    let loginSubparser = subparsers.add_parser("login");
+
+    let ruleSubparsers = subparsers.add_parser("rule").add_subparsers({
+      title: "access subcommands",
+      dest: "subcommand",
+    });
+
+    let ruleListSubparser = ruleSubparsers.add_parser("list");
+
+    let ruleCreateSubparser = ruleSubparsers.add_parser("create");
+    ruleCreateSubparser.add_argument("username", { help: "username" });
+    ruleCreateSubparser.add_argument("--mode", {
+      help: "r for read-only, rw for read-write (default)",
+    });
+
+    let ruleDeleteSubparser = ruleSubparsers.add_parser("delete");
+    ruleDeleteSubparser.add_argument("username", { help: "username" });
+
+    let serviceSubparsers = subparsers.add_parser("service").add_subparsers({
+      title: "service admin subcommnads",
+      dest: "subcommand",
+    });
+
+    let serviceListSubparser = serviceSubparsers.add_parser("list");
+
+    let serviceGetSubparser = serviceSubparsers.add_parser("get");
+    serviceGetSubparser.add_argument("name", {
+      nargs: "?",
+      help: "service name or id",
+    });
+
+    loginSubparser.add_argument("URL", {
+      nargs: "?",
+      help: "url of the API server",
+    });
+    loginSubparser.add_argument("--username", "-u", {
+      help: "username for the server",
+    });
+    loginSubparser.add_argument("--password", "-p", {
+      help: "password for the server",
+    });
     loginSubparser.add_argument("--app", "-a", {
-      help: "application name"
+      help: "application name",
     });
 
-    subparsers.add_parser('logout');
+    subparsers.add_parser("logout");
 
     let args = parser.parse_args();
 
@@ -179,20 +249,20 @@ export default class CliClient {
     this.isVerbose = args.verbose;
     this.output = args.output;
 
-    if (this.output === 'json' || this.output === 'yaml') {
+    if (this.output === "json" || this.output === "yaml") {
       this.isQuiet = true;
     }
 
     this.restClient = new RestClient(true, null, null, this.isQuiet);
 
-    this.printLoginStatus(args).pipe(
-      mergeMap(() => this.runCommand(args)))
-      .subscribe(null, err => {
+    this.printLoginStatus(args)
+      .pipe(mergeMap(() => this.runCommand(args)))
+      .subscribe(null, (err) => {
         if (err.code === "EPIPE") {
           // stdout is closed, write to stderr (for example when output is piped to "head")
           console.error(err.message);
         } else {
-          this.showError(err);          
+          this.showError(err);
         }
         // set exit code but allow possible other asynchronous tasks to complete
         process.exitCode = 1;
@@ -200,83 +270,114 @@ export default class CliClient {
   }
 
   runCommand(args): Observable<any> {
-    if (args.command === 'session') {
+    if (args.command === "session") {
       switch (args.subcommand) {
-        case 'list': return this.sessionList();
-        case 'get': return this.sessionGet(args);
-        case 'create': return this.sessionCreate(args);
-        case 'rename': return this.sessionRename(args);
-        case 'delete': return this.sessionDelete(args);
-        case 'upload': return this.sessionUpload(args);
-        case 'download': return this.sessionDownload(args);
-        case 'open': return this.sessionOpen(args);
-        default: throw new Error('unknown subcommand ' + args.subcommand);
+        case "list":
+          return this.sessionList();
+        case "get":
+          return this.sessionGet(args);
+        case "create":
+          return this.sessionCreate(args);
+        case "rename":
+          return this.sessionRename(args);
+        case "delete":
+          return this.sessionDelete(args);
+        case "upload":
+          return this.sessionUpload(args);
+        case "download":
+          return this.sessionDownload(args);
+        case "open":
+          return this.sessionOpen(args);
+        default:
+          throw new Error("unknown subcommand " + args.subcommand);
       }
-    } else if (args.command === 'dataset') {
+    } else if (args.command === "dataset") {
       switch (args.subcommand) {
-        case 'list': return this.datasetList();
-        case 'get': return this.datasetGet(args);
-        case 'upload': return this.datasetUpload(args);
-        case 'download': return this.datasetDownload(args);
-        case 'delete': return this.datasetDelete(args);
-        default: throw new Error('unknown subcommand ' + args.subcommand);
+        case "list":
+          return this.datasetList();
+        case "get":
+          return this.datasetGet(args);
+        case "upload":
+          return this.datasetUpload(args);
+        case "download":
+          return this.datasetDownload(args);
+        case "delete":
+          return this.datasetDelete(args);
+        default:
+          throw new Error("unknown subcommand " + args.subcommand);
       }
-    } else if (args.command === 'job') {
+    } else if (args.command === "job") {
       switch (args.subcommand) {
-        case 'list': return this.jobList();
-        case 'get': return this.jobGet(args);
-        case 'run': return this.jobRun(args);
-        case 'delete': return this.jobDelete(args);
-        default: throw new Error('unknown subcommand ' + args.subcommand);
+        case "list":
+          return this.jobList();
+        case "get":
+          return this.jobGet(args);
+        case "run":
+          return this.jobRun(args);
+        case "delete":
+          return this.jobDelete(args);
+        default:
+          throw new Error("unknown subcommand " + args.subcommand);
       }
-    } else if (args.command === 'tool') {
+    } else if (args.command === "tool") {
       switch (args.subcommand) {
-        case 'list': return this.toolList();
-        case 'get': return this.toolGet(args);
-        default: throw new Error('unknown subcommand ' + args.subcommand);
+        case "list":
+          return this.toolList();
+        case "get":
+          return this.toolGet(args);
+        default:
+          throw new Error("unknown subcommand " + args.subcommand);
       }
-    } else if (args.command === 'rule') {
+    } else if (args.command === "rule") {
       switch (args.subcommand) {
-        case 'list': return this.ruleList();
-        case 'create': return this.ruleCreate(args);
-        case 'delete': return this.ruleDelete(args);
-        default: throw new Error('unknown subcommand ' + args.subcommand);
+        case "list":
+          return this.ruleList();
+        case "create":
+          return this.ruleCreate(args);
+        case "delete":
+          return this.ruleDelete(args);
+        default:
+          throw new Error("unknown subcommand " + args.subcommand);
       }
-    } else if (args.command === 'service') {
+    } else if (args.command === "service") {
       switch (args.subcommand) {
-        case 'list': return this.serviceList();
-        case 'get': return this.serviceGet(args);
-        default: throw new Error('unknown subcommand ' + args.subcommand);
+        case "list":
+          return this.serviceList();
+        case "get":
+          return this.serviceGet(args);
+        default:
+          throw new Error("unknown subcommand " + args.subcommand);
       }
-    } else if (args.command === 'login') {
-      return this.login(args).pipe(
-        mergeMap(() => this.printLoginStatus(null)));
-    } else if (args.command === 'logout') {
-      return this.logout().pipe(
-        mergeMap(() => this.printLoginStatus(null)));
+    } else if (args.command === "login") {
+      return this.login(args).pipe(mergeMap(() => this.printLoginStatus(null)));
+    } else if (args.command === "logout") {
+      return this.logout().pipe(mergeMap(() => this.printLoginStatus(null)));
     } else {
-      throw new Error("command not given, see --help");      
+      throw new Error("command not given, see --help");
     }
   }
 
   printLoginStatus(args) {
-
-    if (args && (args.command === 'login' || args.command === 'logout' || this.isQuiet)) {
+    if (
+      args &&
+      (args.command === "login" || args.command === "logout" || this.isQuiet)
+    ) {
       return observableOf(null);
     } else {
+      let uri$ = this.env.get("webServerUri");
+      let username$ = this.env.get("username");
+      let token$ = this.env.get("token");
 
-      let uri$ = this.env.get('webServerUri');
-      let username$ = this.env.get('username');
-      let token$ = this.env.get('token');
-
-      return observableForkJoin(uri$, username$, token$).pipe(tap(res => {
-        if (res[2]) {
-          console.log('Logged in to ' + res[0] + ' as ' + res[1]);
-          console.log();
-        } else {
-          console.log('Logged out');
-        }
-      }));
+      return observableForkJoin(uri$, username$, token$).pipe(
+        tap((res) => {
+          if (res[2]) {
+            console.log("Logged in to " + res[0] + " as " + res[1]);
+            console.log();
+          } else {
+            console.log("Logged out");
+          }
+        }),
+      );
     }
   }
 
@@ -289,30 +390,33 @@ export default class CliClient {
       return observableOf(this.restClient);
     } else {
       let webServerUrl;
-      return this.env.get('webServerUri').pipe(
-        tap(url => webServerUrl = url),
-        mergeMap(() => this.env.get('token')),
-        mergeMap(token => {
+      return this.env.get("webServerUri").pipe(
+        tap((url) => (webServerUrl = url)),
+        mergeMap(() => this.env.get("token")),
+        mergeMap((token) => {
           if (!webServerUrl || !token) {
-            throw new Error('Login required');
+            throw new Error("Login required");
           }
-          return ChipsterUtils.configureRestClient(webServerUrl, token, this.restClient);
+          return ChipsterUtils.configureRestClient(
+            webServerUrl,
+            token,
+            this.restClient,
+          );
         }),
-        tap(restClient => this.restClient = restClient),
+        tap((restClient) => (this.restClient = restClient)),
       );
     }
   }
 
   getSessionId() {
-    return this.env.get('sessionId');
+    return this.env.get("sessionId");
   }
 
   getApp() {
-    return this.env.get('app');
+    return this.env.get("app");
   }
 
   login(args) {
-
     let webServerUri;
     let username;
     let password;
@@ -320,109 +424,123 @@ export default class CliClient {
 
     // get the previous uri and use it as a prompt default
     return this.env.get("webServerUri").pipe(
-      mergeMap(defaultUri =>
+      mergeMap((defaultUri) =>
         args.URL
           ? observableOf(args.URL)
-          : ChipsterUtils.getPrompt("server: ", defaultUri)
+          : ChipsterUtils.getPrompt("server: ", defaultUri),
       ),
-      map(webServer => ChipsterUtils.fixUri(webServer)),
-      tap(webServer => (webServerUri = webServer)),
+      map((webServer) => ChipsterUtils.fixUri(webServer)),
+      tap((webServer) => (webServerUri = webServer)),
 
       // get the previous username and use it as a prompt default
       mergeMap(() => this.env.get("username")),
-      mergeMap(defaultUsername =>
+      mergeMap((defaultUsername) =>
         args.username
           ? observableOf(args.username)
-          : ChipsterUtils.getPrompt("username: ", defaultUsername)
+          : ChipsterUtils.getPrompt("username: ", defaultUsername),
       ),
-      tap(u => (username = u)),
+      tap((u) => (username = u)),
 
       // password prompt
       mergeMap(() =>
         args.password
           ? observableOf(args.password)
-          : ChipsterUtils.getPrompt("password: ", "", true)
+          : ChipsterUtils.getPrompt("password: ", "", true),
       ),
-      tap(p => (password = p)),
+      tap((p) => (password = p)),
 
       // get the previous app name and use it as a prompt default
       mergeMap(() => this.env.get("app")),
-      map(defaultApp => {
+      map((defaultApp) => {
         if (defaultApp == null) {
           defaultApp = "chipster";
         }
-        return args.app
-          ? args.app
-          : defaultApp
+        return args.app ? args.app : defaultApp;
       }),
-      tap(u => (app = u)),
+      tap((u) => (app = u)),
 
-      mergeMap(() => ChipsterUtils.getToken(webServerUri, username, password, this.restClient)),
+      mergeMap(() =>
+        ChipsterUtils.getToken(
+          webServerUri,
+          username,
+          password,
+          this.restClient,
+        ),
+      ),
       // save
       mergeMap((token: string) => this.env.set("token", token)),
       mergeMap(() => this.env.set("webServerUri", webServerUri)),
       mergeMap(() => this.env.set("username", username)),
       mergeMap(() => this.env.set("app", app)),
-      mergeMap(() => this.checkLogin())
+      mergeMap(() => this.checkLogin()),
     );
   }
 
   logout() {
-    return this.env.set('token', null);
+    return this.env.set("token", null);
   }
 
   sessionUpload(args) {
-    
     let datasetName = path.basename(args.file);
-    let sessionName = args.name || datasetName.replace('.zip', '');
+    let sessionName = args.name || datasetName.replace(".zip", "");
     let sessionId;
     let datasetId;
 
     return this.checkLogin().pipe(
-      mergeMap(() => ChipsterUtils.sessionUpload(this.restClient, args.file, sessionName, !this.isQuiet)),
-      mergeMap(sessionId => this.setOpenSession(sessionId)),
+      mergeMap(() =>
+        ChipsterUtils.sessionUpload(
+          this.restClient,
+          args.file,
+          sessionName,
+          !this.isQuiet,
+        ),
+      ),
+      mergeMap((sessionId) => this.setOpenSession(sessionId)),
     );
   }
 
   sessionDownload(args) {
-    let file = args.file || args.name + '.zip';
+    let file = args.file || args.name + ".zip";
 
     return this.getSessionByNameOrId(args.name).pipe(
-      mergeMap(session => this.restClient.packageSession(session.sessionId, file))
+      mergeMap((session) =>
+        this.restClient.packageSession(session.sessionId, file),
+      ),
     );
   }
 
   sessionList() {
-    return this.checkLogin().pipe(      
+    return this.checkLogin().pipe(
       mergeMap(() => this.getApp()),
-      mergeMap(appId =>
-            forkJoin(
-              this.restClient.getSessions(),
-              this.restClient.getExampleSessions(appId)
-            )
-          ),
-        map(res => {
-          const ownSessions = <Session[]>res[0];
-          const sharedSessions = <Session[]>res[1];
-          const allSessions = ownSessions.concat(sharedSessions);
-          return allSessions;
-        }),
-        tap((sessions: Array<Session>) => {
-          const sessionArray = sessions.map(s => [s.name, s.sessionId]);
-          this.formatArray(sessions, ['name', 'sessionId'], [50]);
-      }));
+      mergeMap((appId) =>
+        forkJoin(
+          this.restClient.getSessions(),
+          this.restClient.getExampleSessions(appId),
+        ),
+      ),
+      map((res) => {
+        const ownSessions = <Session[]>res[0];
+        const sharedSessions = <Session[]>res[1];
+        const allSessions = ownSessions.concat(sharedSessions);
+        return allSessions;
+      }),
+      tap((sessions: Array<Session>) => {
+        const sessionArray = sessions.map((s) => [s.name, s.sessionId]);
+        this.formatArray(sessions, ["name", "sessionId"], [50]);
+      }),
+    );
   }
 
   sessionGet(args) {
     return this.getSessionByNameOrId(args.name).pipe(
-      tap(session => this.formatOutput(session))
+      tap((session) => this.formatOutput(session)),
     );
   }
 
   formatOutput(object) {
-    if (this.output === 'json') {
+    if (this.output === "json") {
       console.log(JSON.stringify(object, null, 4));
-    } else if (this.output === 'yaml') {
+    } else if (this.output === "yaml") {
       console.log(YAML.stringify(object, 4));
     } else {
       console.log(object);
@@ -430,12 +548,12 @@ export default class CliClient {
   }
 
   formatArray(array, keys: string[], widths: number[]) {
-    if (this.output === 'json') {
+    if (this.output === "json") {
       console.log(JSON.stringify(array, null, 4));
-    } else if (this.output === 'yaml') {
+    } else if (this.output === "yaml") {
       console.log(YAML.stringify(array, 4));
     } else {
-      array.forEach(item => ChipsterUtils.printTable(item, keys, widths));
+      array.forEach((item) => ChipsterUtils.printTable(item, keys, widths));
     }
   }
 
@@ -446,22 +564,24 @@ export default class CliClient {
   }
 
   setOpenSession(sessionId: string) {
-    return this.env.set('sessionId', sessionId);
+    return this.env.set("sessionId", sessionId);
   }
 
   ruleList() {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getRules(sessionId)),
-      tap(list => this.formatOutput(list)),
+      mergeMap((sessionId) => this.restClient.getRules(sessionId)),
+      tap((list) => this.formatOutput(list)),
     );
   }
 
   ruleCreate(args) {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.postRule(sessionId, args.username, args.mode !== 'r')),
-      tap(res => console.log(res)),
+      mergeMap((sessionId) =>
+        this.restClient.postRule(sessionId, args.username, args.mode !== "r"),
+      ),
+      tap((res) => console.log(res)),
     );
   }
 
@@ -469,19 +589,23 @@ export default class CliClient {
     let sessionId: string;
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      tap(id => sessionId = id),
+      tap((id) => (sessionId = id)),
       mergeMap(() => this.restClient.getRules(sessionId)),
-      mergeMap((rules: Rule[]) => observableFrom(rules.filter(r => r.username === args.username))),
-      mergeMap((rule: Rule) => this.restClient.deleteRule(sessionId, rule.ruleId)),
+      mergeMap((rules: Rule[]) =>
+        observableFrom(rules.filter((r) => r.username === args.username)),
+      ),
+      mergeMap((rule: Rule) =>
+        this.restClient.deleteRule(sessionId, rule.ruleId),
+      ),
     );
   }
 
   datasetList() {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getDatasets(sessionId)),
+      mergeMap((sessionId) => this.restClient.getDatasets(sessionId)),
       tap((datasets: Array<Dataset>) => {
-        this.formatArray(datasets, ['name', 'datasetId'], [50]);
+        this.formatArray(datasets, ["name", "datasetId"], [50]);
       }),
     );
   }
@@ -495,35 +619,36 @@ export default class CliClient {
 
   datasetGet(args) {
     return this.getDatasetByNameOrId(args.name).pipe(
-      tap(dataset => this.formatOutput(dataset))
+      tap((dataset) => this.formatOutput(dataset)),
     );
   }
 
   datasetUpload(args) {
     let name = args.name || path.basename(args.file);
     let sessionId;
-    return this.checkLogin()
-      .pipe(
-        mergeMap(() => this.getSessionId()),
-        tap(id => (sessionId = id)),
-        mergeMap(() =>
-          ChipsterUtils.datasetUpload(
-            this.restClient,
-            sessionId,
-            args.file,
-            name
-          )
-        )
-      );
+    return this.checkLogin().pipe(
+      mergeMap(() => this.getSessionId()),
+      tap((id) => (sessionId = id)),
+      mergeMap(() =>
+        ChipsterUtils.datasetUpload(
+          this.restClient,
+          sessionId,
+          args.file,
+          name,
+        ),
+      ),
+    );
   }
 
   datasetDelete(args) {
     let sessionId;
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      tap(id => sessionId = id),
+      tap((id) => (sessionId = id)),
       mergeMap(() => this.getDatasetByNameOrId(args.name)),
-      mergeMap(dataset => this.restClient.deleteDataset(sessionId, dataset.datasetId)),
+      mergeMap((dataset) =>
+        this.restClient.deleteDataset(sessionId, dataset.datasetId),
+      ),
     );
   }
 
@@ -531,9 +656,9 @@ export default class CliClient {
     let sessionId;
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      tap(id => sessionId = id),
+      tap((id) => (sessionId = id)),
       mergeMap(() => this.getDatasetByNameOrId(args.name)),
-      mergeMap(dataset => {
+      mergeMap((dataset) => {
         let file = args.file || args.name;
         return this.restClient.downloadFile(sessionId, dataset.datasetId, file);
       }),
@@ -543,16 +668,20 @@ export default class CliClient {
   jobList() {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getJobs(sessionId)),
+      mergeMap((sessionId) => this.restClient.getJobs(sessionId)),
       tap((jobs: Array<Job>) => {
-        this.formatArray(jobs, ['state', 'created', 'toolId', 'jobId'], [10, 25, 32]);        
+        this.formatArray(
+          jobs,
+          ["state", "created", "toolId", "jobId"],
+          [10, 25, 32],
+        );
       }),
     );
   }
 
   jobGet(args) {
     return this.getJobByNameOrId(args.name).pipe(
-      tap(job => this.formatOutput(job))
+      tap((job) => this.formatOutput(job)),
     );
   }
 
@@ -562,7 +691,7 @@ export default class CliClient {
 
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      tap(id => sessionId = id),
+      tap((id) => (sessionId = id)),
       tap(() => {
         if (!args.background) {
           wsClient = new WsClient(this.restClient);
@@ -571,9 +700,10 @@ export default class CliClient {
       }),
       mergeMap(() => {
         inputMap = ChipsterUtils.parseArgArray(args.input);
-        const datasetObservables = Array.from(inputMap.keys()).map(key => {
+        const datasetObservables = Array.from(inputMap.keys()).map((key) => {
           return this.getDatasetByNameOrId(inputMap.get(key)).pipe(
-            tap(dataset => inputMap.set(key, dataset)));
+            tap((dataset) => inputMap.set(key, dataset)),
+          );
         });
         if (datasetObservables.length > 0) {
           return observableForkJoin(datasetObservables);
@@ -582,13 +712,18 @@ export default class CliClient {
         }
       }),
       mergeMap(() => this.getToolByNameOrId(args.tool)),
-      mergeMap(tool => {
+      mergeMap((tool) => {
         const paramMap = ChipsterUtils.parseArgArray(args.parameter);
-        return ChipsterUtils.jobRun(this.restClient, sessionId, tool, paramMap, inputMap);
+        return ChipsterUtils.jobRun(
+          this.restClient,
+          sessionId,
+          tool,
+          paramMap,
+          inputMap,
+        );
       }),
-      tap(id => jobId = id),
+      tap((id) => (jobId = id)),
       mergeMap(() => {
-
         if (!wsClient) {
           this.formatOutput({
             jobId: jobId,
@@ -598,62 +733,78 @@ export default class CliClient {
 
         const jobState$ = wsClient.getJobState$(jobId).pipe(
           filter((job: Job) => {
-            console.log('*', job.state, '(' + (job.stateDetail || '') + ')');
+            console.log("*", job.state, "(" + (job.stateDetail || "") + ")");
             if (WsClient.failedStates.includes(job.state)) {
               throw new VError(job, "job failed");
             }
-            // filter events until the job finishes            
+            // filter events until the job finishes
             return false;
           }),
-          catchError(err => {
-            throw new VError(err, 'failed to get the job state');
+          catchError((err) => {
+            throw new VError(err, "failed to get the job state");
           }),
           finalize(() => {
             wsClient.disconnect();
           }),
-        )
+        );
 
-        wsClient.getJobScreenOutput$(jobId).subscribe(output => {
-          process.stdout.write(output);
-        }, err => {
-          console.log("screen output error", err);
-        });
+        wsClient.getJobScreenOutput$(jobId).subscribe(
+          (output) => {
+            process.stdout.write(output);
+          },
+          (err) => {
+            console.log("screen output error", err);
+          },
+        );
 
-        wsClient.getJobOutputDatasets$(jobId).subscribe(dataset => {
-          console.log('* dataset created: ' + dataset.name.padEnd(24) + dataset.datasetId);
-        }, err => {
-          console.log("output dataset error", err);
-        });
+        wsClient.getJobOutputDatasets$(jobId).subscribe(
+          (dataset) => {
+            console.log(
+              "* dataset created: " +
+                dataset.name.padEnd(24) +
+                dataset.datasetId,
+            );
+          },
+          (err) => {
+            console.log("output dataset error", err);
+          },
+        );
 
         return jobState$;
       }),
-    );      
+    );
   }
 
   jobDelete(args) {
     let sessionId;
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      tap(id => sessionId = id),
+      tap((id) => (sessionId = id)),
       mergeMap(() => this.getJobByNameOrId(args.name)),
-      mergeMap(job => this.restClient.deleteJob(sessionId, job.jobId)),
+      mergeMap((job) => this.restClient.deleteJob(sessionId, job.jobId)),
     );
   }
 
   toolList() {
     // login not needed, but it creates restClient
-    return this.checkLogin().pipe(
-      mergeMap(() => this.restClient.getTools())).pipe(
+    return this.checkLogin()
+      .pipe(mergeMap(() => this.restClient.getTools()))
+      .pipe(
         tap((modules: Array<Module>) => {
-          if (this.output === 'json' || this.output === 'yaml') {
+          if (this.output === "json" || this.output === "yaml") {
             // the original objects for structured outputs
             this.formatOutput(modules);
           } else {
             // format here, because formatArray() doesn't handle nested references
-            modules.forEach(module => {
-              module.categories.forEach(category => {
-                category.tools.forEach(tool => {
-                  console.log(module['name'].padEnd(12), category.name.padEnd(24), tool.name.id.padEnd(40), tool.name.displayName);
+            modules.forEach((module) => {
+              module.categories.forEach((category) => {
+                category.tools.forEach((tool) => {
+                  console.log(
+                    module["name"].padEnd(12),
+                    category.name.padEnd(24),
+                    tool.name.id.padEnd(40),
+                    tool.name.displayName,
+                  );
                 });
               });
             });
@@ -664,46 +815,59 @@ export default class CliClient {
 
   toolGet(args) {
     return this.getToolByNameOrId(args.name).pipe(
-      tap(tool => this.formatOutput(tool)),
+      tap((tool) => this.formatOutput(tool)),
     );
   }
 
   getSessionByNameOrId(search: string) {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getSessions()),
-      map((sessions: Array<Session>) => sessions.filter(s => s.name === search || s.sessionId.startsWith(search))),
-      map(sessions => {
+      map((sessions: Array<Session>) =>
+        sessions.filter(
+          (s) => s.name === search || s.sessionId.startsWith(search),
+        ),
+      ),
+      map((sessions) => {
         if (sessions.length !== 1) {
-          throw new Error('found ' + sessions.length + ' sessions');
+          throw new Error("found " + sessions.length + " sessions");
         }
         return sessions[0];
-      }),);
+      }),
+    );
   }
 
   getDatasetByNameOrId(search: string) {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getDatasets(sessionId)),
-      map((datasets: Array<Dataset>) => datasets.filter(d => d.name === search || d.datasetId.startsWith(search))),
-      map(datasets => {
+      mergeMap((sessionId) => this.restClient.getDatasets(sessionId)),
+      map((datasets: Array<Dataset>) =>
+        datasets.filter(
+          (d) => d.name === search || d.datasetId.startsWith(search),
+        ),
+      ),
+      map((datasets) => {
         if (datasets.length !== 1) {
-          throw new Error('found ' + datasets.length + ' datasets');
+          throw new Error("found " + datasets.length + " datasets");
         }
         return datasets[0];
-      }),);
+      }),
+    );
   }
 
   getJobByNameOrId(search: string) {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionId()),
-      mergeMap(sessionId => this.restClient.getJobs(sessionId)),
-      map((jobs: Array<Job>) => jobs.filter(j => j.toolId === search || j.jobId.startsWith(search))),
-      map(jobs => {
+      mergeMap((sessionId) => this.restClient.getJobs(sessionId)),
+      map((jobs: Array<Job>) =>
+        jobs.filter((j) => j.toolId === search || j.jobId.startsWith(search)),
+      ),
+      map((jobs) => {
         if (jobs.length !== 1) {
-          throw new Error('found ' + jobs.length + ' jobs');
+          throw new Error("found " + jobs.length + " jobs");
         }
         return jobs[0];
-      }),);
+      }),
+    );
   }
 
   getToolByNameOrId(search: string) {
@@ -711,45 +875,51 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getTools()),
       map((modules: Module[]) => {
-        const categoryArrays = modules.map(module => module.categories);
+        const categoryArrays = modules.map((module) => module.categories);
         const categories = _.flatten(categoryArrays);
-        const toolArrays = categories.map(category => category.tools);
+        const toolArrays = categories.map((category) => category.tools);
         return _.flatten(toolArrays);
       }),
-      map((tools: Array<Tool>) => tools.filter(t => {
-        return t.name.id === search || t.name.displayName === search;
-      })),
-      map(tools => {
+      map((tools: Array<Tool>) =>
+        tools.filter((t) => {
+          return t.name.id === search || t.name.displayName === search;
+        }),
+      ),
+      map((tools) => {
         if (tools.length !== 1) {
-          throw new Error('found ' + tools.length + ' tools');
+          throw new Error("found " + tools.length + " tools");
         }
         return tools[0];
-      }),);
+      }),
+    );
   }
 
   sessionDelete(args) {
     return this.getSessionByNameOrId(args.name).pipe(
-      mergeMap(s => this.restClient.deleteSession(s.sessionId)));
+      mergeMap((s) => this.restClient.deleteSession(s.sessionId)),
+    );
   }
 
   sessionCreate(args) {
     return this.checkLogin().pipe(
-      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)));
+      mergeMap(() => ChipsterUtils.sessionCreate(this.restClient, args.name)),
+    );
   }
 
   sessionRename(args) {
     return this.checkLogin().pipe(
       mergeMap(() => this.getSessionByNameOrId(args.current_name)),
-      mergeMap(session => {
-        session.name = args.new_name
+      mergeMap((session) => {
+        session.name = args.new_name;
         return this.restClient.putSession(session);
-      }));
+      }),
+    );
   }
 
   serviceList() {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getServices()),
-      tap(services => this.formatOutput(services)),
+      tap((services) => this.formatOutput(services)),
     );
   }
 
@@ -757,37 +927,54 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getInternalServices()),
       // map((services: Array<Service>) => services.filter(s => !!s.publicUri && s.publicUri.startsWith('http'))),
-      map((services: Array<Service>) => services.filter(s => !args.name || s.serviceId === args.name || s.role === args.name)),
-      mergeMap(services => observableFrom(services)),
-      mergeMap(service => {
+      map((services: Array<Service>) =>
+        services.filter(
+          (s) =>
+            !args.name || s.serviceId === args.name || s.role === args.name,
+        ),
+      ),
+      mergeMap((services) => observableFrom(services)),
+      mergeMap((service) => {
         return observableForkJoin(
           observableOf(service),
           this.restClient.getStatus(service.adminUri).pipe(
-            catchError(err => {
-              console.log(service.role + ' error (' + service.publicUri + ')');
+            catchError((err) => {
+              console.log(service.role + " error (" + service.publicUri + ")");
               return observableEmpty();
-          })));
+            }),
+          ),
+        );
       }),
       toArray(),
-      tap(statuses => {
-          if (statuses.length === 1) {
-            let res = statuses[0];
-            let service = res[0];
-            let status = <any>res[1];
-            for (let key in status) {
-              let value = status[key];
-              console.log(service.role + '\t' + service.serviceId+ '\t' + key + '\t' + value + '\t' + ChipsterUtils.toHumanReadable(value));
-            }
-          } else {
-            statuses.forEach(res => {
-              console.log(res[0].role, res[1]['status']);
-            });
+      tap((statuses) => {
+        if (statuses.length === 1) {
+          let res = statuses[0];
+          let service = res[0];
+          let status = <any>res[1];
+          for (let key in status) {
+            let value = status[key];
+            console.log(
+              service.role +
+                "\t" +
+                service.serviceId +
+                "\t" +
+                key +
+                "\t" +
+                value +
+                "\t" +
+                ChipsterUtils.toHumanReadable(value),
+            );
           }
-        }),
+        } else {
+          statuses.forEach((res) => {
+            console.log(res[0].role, res[1]["status"]);
+          });
+        }
+      }),
     );
   }
 }
 
-if (require.main === module) {
-	new CliClient();
+if (import.meta.url.endsWith(process.argv[1])) {
+  new CliClient();
 }

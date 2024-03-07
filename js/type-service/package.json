@@ -1,5 +1,6 @@
 {
   "name": "type-service",
+  "type": "module",
   "description": "Chipster type-service",
   "scripts": {
     "start": "node src/type-service.js",
@@ -16,8 +17,8 @@
   "license": "MIT",
   "homepage": "https://github.com/chipster/chipster-web-server#readme",
   "dependencies": {
-    "chipster-js-common": "^1.4.0",
-    "chipster-nodejs-core": "^0.4.0",
+    "chipster-js-common": "^1.5.0",
+    "chipster-nodejs-core": "^0.5.0",
     "lodash": "^4.17.20",
     "restify": "^11.1.0",
     "restify-cors-middleware2": "^2.1.2",
@@ -32,6 +33,7 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.10",
     "@types/restify-errors": "^4.3.2",
+    "@types/yamljs": "^0.2.34",
     "chai": "^5.0.3",
     "mocha": "^10.0.0",
     "nodemon": "^3.0.3",

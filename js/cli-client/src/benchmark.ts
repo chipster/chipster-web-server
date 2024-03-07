@@ -10,10 +10,11 @@ import {
   tap,
   toArray,
 } from "rxjs/operators";
-import ChipsterUtils from "./chipster-utils";
+import ChipsterUtils from "./chipster-utils.js";
+import { fileURLToPath } from "url";
 
 const ArgumentParser = require("argparse").ArgumentParser;
-const logger = Logger.getLogger(__filename);
+const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 export default class Benchmark {
   restClient: RestClient;
@@ -612,6 +613,6 @@ export default class Benchmark {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url.endsWith(process.argv[1])) {
   new Benchmark();
 }

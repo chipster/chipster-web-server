@@ -1,15 +1,18 @@
-import { Config, Logger, RestClient } from "chipster-nodejs-core";
 import { forkJoin, of as observableOf } from "rxjs";
 import { map, mergeMap } from "rxjs/operators";
-import { Tag, Tags, TypeTags } from "./type-tags";
+import { Tag, Tags, TypeTags } from "./type-tags.js";
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
+import { Config } from "chipster-nodejs-core/lib/config.js";
+import { fileURLToPath } from "url";
 
-const os = require("os");
-const url = require("url");
-const restify = require("restify");
-const corsMiddleware = require("restify-cors-middleware2");
-const errors = require("restify-errors");
+import os from "os";
+import url from "url";
+import restify from "restify";
+import corsMiddleware from "restify-cors-middleware2";
+import errors from "restify-errors";
 
-const logger = Logger.getLogger(__filename);
+const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 class IdPair {
   constructor(public sessionId: string, public datasetId: string) {}
@@ -28,19 +31,19 @@ export default class TypeService {
   serverRestClient: any;
 
   constructor() {
-    
     Logger.addLogFile();
 
     this.username = "type-service";
     this.password = this.config.get("service-password-type-service");
 
-    this.serverRestClient = new RestClient(false);
-    this.serverRestClient.getToken(this.username, this.password)
-    .subscribe(serverToken => {
-      this.serverRestClient.setToken(serverToken);
-      this.init();
-      this.initAdmin();
-    })
+    this.serverRestClient = new RestClient(false, null);
+    this.serverRestClient
+      .getToken(this.username, this.password)
+      .subscribe((serverToken) => {
+        this.serverRestClient.setToken(serverToken);
+        this.init();
+        this.initAdmin();
+      });
 
     // the Tags object above is just for the code completion. For any real use
     // we wan't a real ES6 map
@@ -51,7 +54,6 @@ export default class TypeService {
   }
 
   init() {
-    
     let server = this.createServer();
 
     server.get("/sessions/:sessionId", this.respond.bind(this));
@@ -98,15 +100,15 @@ export default class TypeService {
       .pipe(
         map((services: any[]) => {
           return services
-            .filter(service => service.role.startsWith("web-server"))
-            .map(service => service.publicUri);
+            .filter((service) => service.role.startsWith("web-server"))
+            .map((service) => service.publicUri);
         })
       )
-      .subscribe(webServers => {
+      .subscribe((webServers) => {
         cors = corsMiddleware({
           origins: webServers,
           allowHeaders: ["Authorization"],
-          credentials: true
+          credentials: true,
         });
         server.pre(cors.preflight);
         server.use(cors.actual);
@@ -138,15 +140,15 @@ export default class TypeService {
     }
 
     /* Configure RestClient to use internal addresses but client's token
-    * 
-    * We have to use the client token to test the user's access rights. 
-    * But we have to use internal addresses to contact other services.
-    * 
-    * Maybe we should impelement the token validation here and use server
-    * token the check the access rights from the session-db.
-    */
-   let clientRestClient = new RestClient(false, clientToken);
-   clientRestClient.services = this.serverRestClient.services;
+     *
+     * We have to use the client token to test the user's access rights.
+     * But we have to use internal addresses to contact other services.
+     *
+     * Maybe we should impelement the token validation here and use server
+     * token the check the access rights from the session-db.
+     */
+    let clientRestClient = new RestClient(false, clientToken);
+    clientRestClient.services = this.serverRestClient.services;
 
     let datasets$;
 
@@ -155,7 +157,7 @@ export default class TypeService {
       // only one dataset requested
       datasets$ = clientRestClient
         .getDataset(sessionId, datasetId)
-        .pipe(map(dataset => [dataset]));
+        .pipe(map((dataset) => [dataset]));
     } else {
       // all datasets of the session requested
       datasets$ = clientRestClient.getDatasets(sessionId);
@@ -167,7 +169,7 @@ export default class TypeService {
       .pipe(
         mergeMap((datasets: any[]) => {
           // array of observables that will resolve to [datasetId, typeTags] tuples
-          let types$ = datasets.map(dataset =>
+          let types$ = datasets.map((dataset) =>
             this.getTypeTags(sessionId, dataset, clientToken)
           );
 
@@ -176,7 +178,7 @@ export default class TypeService {
         })
       )
       .subscribe(
-        typesArray => {
+        (typesArray) => {
           let types = this.tupleArrayToObject(typesArray);
           res.contentType = "json";
           res.send(types);
@@ -191,7 +193,7 @@ export default class TypeService {
               "ms"
           );
         },
-        err => {
+        (err) => {
           this.respondError(next, err);
         }
       );
@@ -206,7 +208,7 @@ export default class TypeService {
     //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
     res.contentType = "json";
     let status = {
-      load: os.loadavg()[0] // 1 min load average
+      load: os.loadavg()[0], // 1 min load average
     };
     res.send(status);
     next();
@@ -246,8 +248,8 @@ export default class TypeService {
         token,
         fastTags
       ).pipe(
-        map(slowTags => Object.assign({}, fastTags, slowTags)),
-        map(allTags => [dataset.datasetId, allTags])
+        map((slowTags) => Object.assign({}, fastTags, slowTags)),
+        map((allTags) => [dataset.datasetId, allTags])
       );
     } else {
       /* The dataset has been created, but the file hasn't been uploaded.
@@ -282,7 +284,7 @@ export default class TypeService {
         token,
         fastTags
       ).pipe(
-        map(slowTags => {
+        map((slowTags) => {
           this.addToCache(idPair, slowTags);
           return slowTags;
         })
@@ -308,10 +310,14 @@ export default class TypeService {
     this.cache.set(JSON.stringify(idPair), tags);
   }
 
-  getSlowTypeTagsForDataset(sessionId: string, dataset: string, token: string, fastTags: Object) {
+  getSlowTypeTagsForDataset(
+    sessionId: string,
+    dataset: string,
+    token: string,
+    fastTags: Object
+  ) {
     let observable;
     if (Tags.TSV.id in fastTags) {
-
       observable = this.getParsedTsv(sessionId, dataset, token).pipe(
         map((table: any[][]) => {
           return TypeTags.getSlowTypeTags(table);
@@ -328,8 +334,8 @@ export default class TypeService {
     let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
     // Configure RestClient to use internal addresses but client's token
-   let clientRestClient = new RestClient(false, clientToken);
-   clientRestClient.services = this.serverRestClient.services;
+    let clientRestClient = new RestClient(false, clientToken);
+    clientRestClient.services = this.serverRestClient.services;
 
     return clientRestClient
       .getFile(sessionId, dataset.datasetId, requestSize)
@@ -352,6 +358,6 @@ export default class TypeService {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url.endsWith(process.argv[1])) {
   new TypeService();
 }

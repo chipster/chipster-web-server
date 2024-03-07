@@ -1,10 +1,15 @@
-import { Dataset, Tool, ToolInput, ToolParameter } from "chipster-js-common";
-import MetadataFile from "chipster-js-common/lib/model/metadata-file";
+import {
+  Dataset,
+  MetadataFile,
+  Tool,
+  ToolInput,
+  ToolParameter,
+} from "chipster-js-common";
 import { RestClient } from "chipster-nodejs-core";
 import * as _ from "lodash";
 import { Observable, Subject, from } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
-import { VError } from "verror";
+import VError from "verror";
 
 import path = require("path");
 import { read } from "read";

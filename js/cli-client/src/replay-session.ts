@@ -1,13 +1,14 @@
 import {
   Dataset,
   Job,
+  MetadataFile,
   Module,
   PhenodataUtils,
   Session,
   Tool,
 } from "chipster-js-common";
-import MetadataFile from "chipster-js-common/lib/model/metadata-file";
-import { Logger, RestClient } from "chipster-nodejs-core";
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import * as _ from "lodash";
 import {
   concat,
@@ -32,16 +33,17 @@ import {
   tap,
   toArray,
 } from "rxjs/operators";
-import { VError } from "verror";
-import ChipsterUtils, { missingInputError } from "./chipster-utils";
-import WsClient from "./ws-client";
-const humanizeDuration = require("humanize-duration");
+import VError from "verror";
+import ChipsterUtils, { missingInputError } from "./chipster-utils.js";
+import WsClient from "./ws-client.js";
+import humanizeDuration from "humanize-duration";
 
-const ArgumentParser = require("argparse").ArgumentParser;
-import fs = require("fs");
-import path = require("path");
+import argparse from "argparse";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const logger = Logger.getLogger(__filename);
+const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 interface ReplayOptions {
   debug?: boolean;
@@ -101,7 +103,7 @@ export default class ReplaySession {
   parseCommand(): void {
     const version = "Chipster session replay test version 0.1.0";
 
-    const parser = new ArgumentParser({
+    const parser = new argparse.ArgumentParser({
       add_help: true,
       description: "Chipster session replay test",
     });
@@ -1568,6 +1570,6 @@ export class JobPlan {
   originalSession: Session;
 }
 
-if (require.main === module) {
+if (import.meta.url.endsWith(process.argv[1])) {
   new ReplaySession().parseCommand();
 }

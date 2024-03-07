@@ -1,19 +1,24 @@
-import { Logger, RestClient } from "chipster-nodejs-core";
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { empty, interval, of } from "rxjs";
 import { catchError, mergeMap } from "rxjs/operators";
-import { VError } from "verror";
-import ReplaySession from "./replay-session";
+import VError from "verror";
+import ReplaySession from "./replay-session.js";
 import schedule = require("node-schedule");
 import serveIndex = require("serve-index");
 import express = require("express");
 import path = require("path");
 import v8 = require("v8");
 import morgan = require("morgan");
+import { fileURLToPath } from "url";
 
-const fs = require("fs");
-const rfs = require("rotating-file-stream");
-const ArgumentParser = require("argparse").ArgumentParser;
-const logger = Logger.getLogger(__filename, "logs/chipster.log");
+import fs from "fs";
+import rfs from "rotating-file-stream";
+import argparse from "argparse";
+const logger = Logger.getLogger(
+  fileURLToPath(import.meta.url),
+  "logs/chipster.log",
+);
 
 export default class ReplayServer {
   resultsPath: string;
@@ -28,48 +33,47 @@ export default class ReplayServer {
   parseCommand(): void {
     const version = "Chipster session replay server version 0.2.0";
 
-    const parser = new ArgumentParser({
+    const parser = new argparse.ArgumentParser({
       add_help: true,
-      description: "Chipster session replay server"
+      description: "Chipster session replay server",
     });
 
     parser.add_argument("-v", "--version", {
       action: "version",
       version: version,
-      help: "show program's version nubmer and exit"
+      help: "show program's version nubmer and exit",
     });
 
     parser.add_argument("URL", { help: "url of the app server" });
     parser.add_argument("--username", "-u", {
-      help: "username for the server"
+      help: "username for the server",
     });
     parser.add_argument("--password", "-p", {
-      help: "password for the server"
+      help: "password for the server",
     });
     parser.add_argument("--resultsRoot", {
-      help: "root directory for results"
+      help: "root directory for results",
     });
     parser.add_argument("--resultName", {
-      help: "name for the result directory, goes under resultsRoot"
+      help: "name for the result directory, goes under resultsRoot",
     });
     parser.add_argument("--skipFilterAsResultName", {
       help: "don't use the filter string as the name of the result dir",
-      action: "store_true"
+      action: "store_true",
     });
     parser.add_argument("--tempRoot", "-t", {
-      help: "root directory for temp files"
+      help: "root directory for temp files",
     });
     parser.add_argument("--schedule", "-s", {
-      help:
-        "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...][:PARALLEL_JOBS][:JOB_TIMEOUT_SECONDS]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
-      action: "append"
+      help: "how often to run a test sets, in format CRON_SCHEDULE:FILTER1[ FILTER2...][:PARALLEL_JOBS][:JOB_TIMEOUT_SECONDS]. Run immediately If CRON_SCHEDULE is empty. Filter is a prefix of the session name or a special string 'example-sessions'. ",
+      action: "append",
     });
     parser.add_argument("--influxdb", "-i", {
-      help: "influxdb url for statistics, e.g. http://influxdb:8086/write?db=db"
+      help: "influxdb url for statistics, e.g. http://influxdb:8086/write?db=db",
     });
     parser.add_argument("--port", "-P", {
       help: "HTTP port for serving the result files",
-      default: "9000"
+      default: "9000",
     });
 
     const args = parser.parse_args();
@@ -83,7 +87,7 @@ export default class ReplayServer {
       "start server for sharing the result files in port " +
         args.port +
         ", results root is",
-      resultsRoot
+      resultsRoot,
     );
 
     fs.mkdirSync(resultsRoot, { recursive: true });
@@ -91,11 +95,11 @@ export default class ReplayServer {
     const accessLogStream = rfs.createStream("access.log", {
       interval: "1d", // rotate daily
       path: path.join("logs"),
-      maxFiles: 60
+      maxFiles: 60,
     });
 
     // add custom token to log all request headers
-    morgan.token("request-headers", function(req, res) {
+    morgan.token("request-headers", function (req, res) {
       return Object.keys(req.headers);
     });
 
@@ -110,8 +114,8 @@ export default class ReplayServer {
       morgan(shortWithDateFormat, {
         immediate: true,
         stream: accessLogStream,
-        skip: (req, res) => req.url === "/alive"
-      })
+        skip: (req, res) => req.url === "/alive",
+      }),
     );
 
     // log responses
@@ -119,8 +123,8 @@ export default class ReplayServer {
       morgan(shortWithDateFormat, {
         immediate: false,
         stream: accessLogStream,
-        skip: (req, res) => req.url === "/alive"
-      })
+        skip: (req, res) => req.url === "/alive",
+      }),
     );
 
     // errors to stdout
@@ -129,8 +133,8 @@ export default class ReplayServer {
         immediate: false,
         skip: (req, res) => {
           return res.statusCode < 400;
-        }
-      })
+        },
+      }),
     );
 
     app.get("/alive", (req, res) => {
@@ -140,7 +144,7 @@ export default class ReplayServer {
     app.use(
       "/",
       express.static(resultsRoot),
-      serveIndex(resultsRoot, { icons: true, view: "details" })
+      serveIndex(resultsRoot, { icons: true, view: "details" }),
     );
 
     app.listen(parseInt(args.port));
@@ -167,7 +171,7 @@ export default class ReplayServer {
         jobTimeout = parseInt(colonSplitted[3]);
       }
 
-      const filters = testSets.map(f => {
+      const filters = testSets.map((f) => {
         if (f === "example-sessions") {
           return f;
         }
@@ -192,7 +196,7 @@ export default class ReplayServer {
             resultsRoot: args.resultsRoot,
             resultName: resultName,
             tempRoot: args.tempRoot,
-            jobTimeout: jobTimeout
+            jobTimeout: jobTimeout,
           })
           .pipe(
             mergeMap((stats: Map<string, number>) => {
@@ -200,16 +204,16 @@ export default class ReplayServer {
                 stats,
                 testSetName,
                 args.influxdb,
-                this.restClient
+                this.restClient,
               );
-            })
+            }),
           )
           .subscribe(
             () => logger.info("session replay " + testSetName + " done"),
-            err =>
+            (err) =>
               logger.error(
-                new VError(err, "session replay " + testSetName + " error")
-              )
+                new VError(err, "session replay " + testSetName + " error"),
+              ),
             // () =>
             //   logger.info(
             //     "session replay " +
@@ -231,7 +235,7 @@ export default class ReplayServer {
             parallel +
             ", timeout: " +
             jobTimeout +
-            "s"
+            "s",
         );
         const replaySessionJob = schedule.scheduleJob(cron, () => {
           replayNow();
@@ -249,43 +253,43 @@ export default class ReplayServer {
             stats.set("memRss", process.memoryUsage().rss);
             stats.set(
               "memHeapTotalAvailable",
-              v8.getHeapStatistics().total_available_size
+              v8.getHeapStatistics().total_available_size,
             );
             return this.postToInflux(
               stats,
               "memoryUsage",
               args.influxdb,
-              this.restClient
+              this.restClient,
             ).pipe(
-              catchError(err => {
+              catchError((err) => {
                 if (err.statusCode === 500) {
                   // this happens a lot, no need to log the stack
                   logger.error(
                     "posting memory statistics to influx failed: " +
                       err.statusCode +
                       " " +
-                      err.message
+                      err.message,
                   );
                 } else {
                   logger.error(new VError(err, "memory monitoring error"));
                 }
                 // allow timer to continue even if posting fails every now and then
                 return empty();
-              })
+              }),
             );
-          })
+          }),
         )
         .subscribe();
     });
 
     // these shouldn't happen if RestClient handled errrors correctly
     // apparently it doesn't, so let's catch them to prevent crashing this server after each tool failure
-    process.on("uncaughtException", err => {
+    process.on("uncaughtException", (err) => {
       logger.error(new VError(err, "uncaught exception"));
     });
 
     // try to see if the process was killed with SIGINT
-    process.on("SIGINT", function() {
+    process.on("SIGINT", function () {
       console.log("SIGINT");
       logger.info("SIGINT");
       if (this.restClient) {
@@ -299,7 +303,7 @@ export default class ReplayServer {
     stats: Map<string, number>,
     testSet: string,
     influxdb: string,
-    restClient: RestClient
+    restClient: RestClient,
   ) {
     let data = "";
     // nanosecond unix time
@@ -340,6 +344,6 @@ export default class ReplayServer {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url.endsWith(process.argv[1])) {
   new ReplayServer();
 }

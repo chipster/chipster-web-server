@@ -1,5 +1,7 @@
-import { Logger } from "chipster-nodejs-core";
-const logger = Logger.getLogger(__filename);
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { fileURLToPath } from "url";
+
+const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 export class Tag {
   constructor(public id: string, public extensions: string[]) {}
