@@ -22,7 +22,7 @@
     "argparse": "^2.0.1",
     "bufferutil": "^4.0.3",
     "chipster-js-common": "^1.5.0",
-    "chipster-nodejs-core": "^0.5.0",
+    "chipster-nodejs-core": "^0.5.1",
     "express": "^4.17.1",
     "humanize-duration": "^3.27.0",
     "lodash": "^4.17.20",
