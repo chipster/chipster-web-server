@@ -254,7 +254,7 @@ export default class TypeService {
     } else {
       /* The dataset has been created, but the file hasn't been uploaded.
       No need to add type tags */
-      return [dataset.datasetId, {}];
+      return observableOf([dataset.datasetId, {}]);
     }
   }
 
