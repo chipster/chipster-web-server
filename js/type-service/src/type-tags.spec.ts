@@ -1,8 +1,8 @@
 import { Tags, TypeTags } from "./type-tags.js";
 import { expect } from "chai";
 import { LocalFileTypeService } from "./local-file-type-service.js";
-import fs = require("fs");
-import * as _ from "lodash";
+import fs from "fs";
+import { keys } from "lodash-es";
 
 describe("Test pValue and fold change tagging", () => {
   let pvalueAndFCHeader = [
@@ -39,7 +39,7 @@ describe("Test tagging for all test files", () => {
       console.log(
         "\t",
         filename,
-        _.keys(tags).reduce((all, current) => (all += " " + current)),
+        keys(tags).reduce((all, current) => (all += " " + current)),
         ""
       );
       expect(tags).not.to.be.empty;

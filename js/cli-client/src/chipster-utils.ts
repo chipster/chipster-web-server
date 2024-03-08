@@ -6,7 +6,7 @@ import {
   ToolParameter,
 } from "chipster-js-common";
 import { RestClient } from "chipster-nodejs-core";
-import * as _ from "lodash";
+import { padStart } from "lodash-es";
 import { Observable, Subject, from } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
 import VError from "verror";
@@ -241,8 +241,7 @@ export default class ChipsterUtils {
       } else if (i.name.spliced) {
         // multi input
         for (let j = 1; j < 1000; j++) {
-          const inputId =
-            i.name.prefix + _.padStart(j, 3, "0") + i.name.postfix;
+          const inputId = i.name.prefix + padStart(j, 3, "0") + i.name.postfix;
           if (inputMap.has(inputId)) {
             const input = ChipsterUtils.getInput(inputId, i, inputMap);
             job.inputs.push(input);

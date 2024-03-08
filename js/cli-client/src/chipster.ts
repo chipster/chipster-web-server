@@ -10,7 +10,7 @@ import {
 } from "chipster-js-common";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
-import * as _ from "lodash";
+import { flatten } from "lodash-es";
 import {
   empty as observableEmpty,
   forkJoin,
@@ -876,9 +876,9 @@ export default class CliClient {
       mergeMap(() => this.restClient.getTools()),
       map((modules: Module[]) => {
         const categoryArrays = modules.map((module) => module.categories);
-        const categories = _.flatten(categoryArrays);
+        const categories = flatten(categoryArrays);
         const toolArrays = categories.map((category) => category.tools);
-        return _.flatten(toolArrays);
+        return flatten(toolArrays);
       }),
       map((tools: Array<Tool>) =>
         tools.filter((t) => {

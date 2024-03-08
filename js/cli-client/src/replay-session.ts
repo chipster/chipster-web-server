@@ -9,7 +9,7 @@ import {
 } from "chipster-js-common";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
-import * as _ from "lodash";
+import { clone, isEqual, uniq } from "lodash-es";
 import {
   concat,
   empty,
@@ -1004,7 +1004,7 @@ export default class ReplaySession {
   }
 
   errorToReplayResult(err, job: Job, plan: JobPlan): ReplayResult {
-    const j = _.clone(job);
+    const j = clone(job);
     j.state = "REPLAY_ERROR";
     j.stateDetail = "(see replay logs)";
     j.screenOutput = "";
@@ -1061,7 +1061,7 @@ export default class ReplaySession {
 
           const names1 = outputs1.map((d) => d.name);
           const names2 = outputs2.map((d) => d.name);
-          if (_.isEqual(names1, names2)) {
+          if (isEqual(names1, names2)) {
             messages.push("correct dataset names");
           } else {
             errors.push(
@@ -1246,7 +1246,7 @@ export default class ReplaySession {
     const failCount = booleanResults.filter((b) => !b).length;
     const totalTime = this.dateDiff(this.startTime, new Date());
 
-    const uniqTestToolsCount = _.uniq(results.map((r) => r.job.toolId)).length;
+    const uniqTestToolsCount = uniq(results.map((r) => r.job.toolId)).length;
 
     const coverageCounts = new Map<string, number>();
     const coverageSessions = new Map<string, Set<string>>();
