@@ -140,9 +140,6 @@ dependencies {
     
     // OpenID Connect
     implementation "com.nimbusds:oauth2-oidc-sdk:+"
-
-    // for S3 file-storage. bcpkix installed for JWTs
-    implementation "org.bouncycastle:bcpg-jdk15on:1.70"
     
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:+',
