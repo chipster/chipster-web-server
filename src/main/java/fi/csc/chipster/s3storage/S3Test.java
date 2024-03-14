@@ -105,7 +105,8 @@ public class S3Test {
 		String bucket = "s3-file-broker-test";
 		// String object = "rand_4k_1";
 
-		int smallFilesCount = 10;
+		int smallFilesCount = 300;
+		// int smallFilesCount = 10;
 
 		try {
 
@@ -121,9 +122,9 @@ public class S3Test {
 
 			test(tm, bucket, "large", false, true, 1, "tmp/rand");
 
-			test(tm, bucket, "large", true, true, 4, "tmp/rand");
+			test(tm, bucket, "large", true, false, 4, "tmp/rand");
 
-			test(tm, bucket, "large", false, true, 4, "tmp/rand");
+			test(tm, bucket, "large", false, false, 4, "tmp/rand");
 
 		} catch (AmazonServiceException e) {
 			e.printStackTrace();
