@@ -27,6 +27,7 @@ public class EncryptDecryptTest {
         List<File> smallTestFiles = new ArrayList<File>();
 
         long fileSize = 1l * 1024 * 1024 * 1024;
+        // long fileSize = 16l * 1024 * 1024;
         long smallFileCount = 1000;
 
         // generate test data
