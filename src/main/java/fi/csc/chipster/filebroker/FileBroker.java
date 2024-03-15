@@ -61,7 +61,8 @@ public class FileBroker {
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 
 		this.storageDiscovery = new StorageDiscovery(this.serviceLocator, authService, config);
-		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery);
+		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery,
+				config);
 
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 

@@ -34,6 +34,7 @@
     create table File (
        fileId uuid not null,
         checksum varchar(255),
+        encryptionKey varchar(255),
         fileCreated timestamp,
         size int8 not null,
         state int4,
