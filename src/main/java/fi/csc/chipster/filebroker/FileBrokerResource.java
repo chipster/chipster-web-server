@@ -1,5 +1,6 @@
 package fi.csc.chipster.filebroker;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -35,6 +36,7 @@ import fi.csc.chipster.s3storage.ChipsterChecksums;
 import fi.csc.chipster.s3storage.FileEncryption;
 import fi.csc.chipster.s3storage.IllegalFileException;
 import fi.csc.chipster.s3storage.S3StorageClient;
+import fi.csc.chipster.s3storage.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -128,71 +130,17 @@ public class FileBrokerResource {
 
 		FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
 
-		ResponseBuilder response = null;
+		InputStream fileStream;
 
-		try {
+		fileStream = s3StorageClient.downloadEncrypted(dataset);
 
-			java.io.File tmpFile = Files.createTempFile("chipster-s3-upload-temp", ".enc").toFile();
-			java.io.File decryptedFile = Files.createTempFile("chipster-s3-upload-temp", ".dec").toFile();
-			s3StorageClient.download("s3-file-broker-test", dataset.getFile().getFileId().toString(), tmpFile);
-
-			SecretKey key = this.fileEncryption.parseKey(dataset.getFile().getEncryptionKey());
-
-			this.fileEncryption.decrypt(key, tmpFile, decryptedFile);
-
-			String checksum = ChipsterChecksums.checksum(decryptedFile.getPath(), new CRC32());
-
-			if (dataset.getFile().getChecksum() != null) {
-				if (checksum.equals(dataset.getFile().getChecksum())) {
-					logger.info("checksum ok: " + checksum);
-				} else {
-					throw new InternalServerErrorException("checksum error");
-				}
-			} else {
-				logger.info("checksum not available");
-			}
-
-			response = Response.ok(decryptedFile);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InvalidAlgorithmParameterException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (BadPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalFileException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (DecoderException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		// InputStream fileStream;
 		// try {
 		// fileStream = storageClient.download(fileId, range);
 		// } catch (RestException e) {
 		// throw ServletUtils.extractRestException(e);
 		// }
 
-		// ResponseBuilder response = Response.ok(fileStream);
+		ResponseBuilder response = Response.ok(fileStream);
 
 		// configure filename for response
 		if (!download) {
@@ -278,35 +226,12 @@ public class FileBrokerResource {
 					// fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream,
 					// queryParams);
 
-					try {
-						java.io.File tmpFile = Files.createTempFile("chipster-s3-upload-temp", "").toFile();
-						java.io.File encryptedFile = Files.createTempFile("chipster-s3-upload-temp", ".enc").toFile();
+					ChipsterUpload upload = this.s3StorageClient.uploadEncrypted(dataset.getFile().getFileId(),
+							fileStream);
 
-						FileUtils.copyInputStreamToFile(fileStream, tmpFile);
-
-						// fast checksum to detect bugs. Definitely not cryptographically secure
-						checksum = ChipsterChecksums.checksum(tmpFile.getPath(), new CRC32());
-
-						// new key for each file
-						SecretKey secretKey = this.fileEncryption.generateKey();
-						this.fileEncryption.encrypt(secretKey, tmpFile, encryptedFile);
-
-						// let's store these in hex to make them easier to handle in command line tools
-						key = Hex.encodeHexString(secretKey.getEncoded());
-
-						s3StorageClient.upload("s3-file-broker-test", encryptedFile,
-								dataset.getFile().getFileId().toString());
-
-						fileLength = tmpFile.length();
-
-						tmpFile.delete();
-						encryptedFile.delete();
-
-					} catch (IOException | NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
-							| InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					fileLength = upload.getFileLength();
+					file.setChecksum(upload.getChecksum());
+					file.setEncryptionKey(upload.getEncryptionKey());
 
 					file.setStorage(storageId);
 					break;
@@ -337,8 +262,6 @@ public class FileBrokerResource {
 		if (fileLength >= 0) {
 			// update the file size after each chunk
 			dataset.getFile().setSize(fileLength);
-			dataset.getFile().setChecksum(checksum);
-			dataset.getFile().setEncryptionKey(key);
 
 			// update File state
 			if (flowTotalSize == null) {
