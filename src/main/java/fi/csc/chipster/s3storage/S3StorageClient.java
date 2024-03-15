@@ -47,7 +47,7 @@ public class S3StorageClient {
 
 	private FileEncryption fileEncryption;
 
-	public S3StorageClient(Config config) {
+	public S3StorageClient(Config config) throws NoSuchAlgorithmException {
 		this.transferManager = getTransferManager(config, Role.FILE_BROKER);
 		this.fileEncryption = new FileEncryption();
 	}
