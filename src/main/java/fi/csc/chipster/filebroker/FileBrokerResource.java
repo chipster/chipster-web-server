@@ -112,7 +112,7 @@ public class FileBrokerResource {
 
 		InputStream fileStream;
 
-		fileStream = s3StorageClient.downloadEncrypted(dataset);
+		fileStream = s3StorageClient.downloadAndDecrypt(dataset);
 
 		// try {
 		// fileStream = storageClient.download(fileId, range);
@@ -205,9 +205,11 @@ public class FileBrokerResource {
 					// queryParams);
 
 					ChipsterUpload upload = this.s3StorageClient.uploadEncrypted(dataset.getFile().getFileId(),
-							fileStream);
+							fileStream, flowTotalSize);
 
-					fileLength = upload.getFileLength();
+					// FIXME check stream length!
+					// fileLength = upload.getFileLength();
+					fileLength = flowTotalSize;
 					file.setChecksum(upload.getChecksum());
 					file.setEncryptionKey(upload.getEncryptionKey());
 

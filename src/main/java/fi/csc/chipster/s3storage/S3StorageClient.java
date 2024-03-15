@@ -1,6 +1,5 @@
 package fi.csc.chipster.s3storage;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +22,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
@@ -31,7 +32,6 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import jakarta.ws.rs.InternalServerErrorException;
-import jakarta.ws.rs.core.Response;
 
 public class S3StorageClient {
 
@@ -66,14 +66,20 @@ public class S3StorageClient {
 		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride);
 	}
 
-	public void upload(String bucket, File file, String objectName)
+	public void upload(String bucket, InputStream file, String objectName, long length)
 			throws InterruptedException {
 
 		long t = System.currentTimeMillis();
 
 		Transfer transfer = null;
 
-		transfer = this.transferManager.upload(bucket, objectName, file);
+		// TransferManager can handle multipart uploads, but requires a file length in
+		// advance the lower lever api would support uploads without file length, but
+		// then we have to take care of multipart uploads ourselves
+		ObjectMetadata objMeta = new ObjectMetadata();
+		objMeta.setContentLength(this.fileEncryption.getEncryptedLength(length));
+
+		transfer = this.transferManager.upload(bucket, objectName, file, objMeta);
 
 		AmazonClientException exception = transfer.waitForException();
 		if (exception != null) {
@@ -82,70 +88,40 @@ public class S3StorageClient {
 
 		long dt = System.currentTimeMillis() - t;
 
-		long fileSize = file.length();
+		// long fileSize = file.length();
 
-		System.out.println(
-				"uploaded " + fileSize / 1024 / 1024 + " MiB " + (fileSize * 1000 / dt / 1024 / 1024) + " MiB/s ");
+		// System.out.println(
+		// "uploaded " + fileSize / 1024 / 1024 + " MiB " + (fileSize * 1000 / dt / 1024
+		// / 1024) + " MiB/s ");
 	}
 
-	public void download(String bucket, String objectName, File file)
+	public S3ObjectInputStream download(String bucket, String objectName)
 			throws InterruptedException {
 
-		long t = System.currentTimeMillis();
-
-		Transfer transfer = null;
-
-		transfer = this.transferManager.download(bucket, objectName, file);
-
-		AmazonClientException exception = transfer.waitForException();
-		if (exception != null) {
-			throw exception;
-		}
-
-		long dt = System.currentTimeMillis() - t;
-
-		long fileSize = file.length();
-
-		System.out.println(
-				"downloaded " + fileSize / 1024 / 1024 + " MiB " + (fileSize * 1000 / dt / 1024 / 1024) + " MiB/s ");
+		return transferManager.getAmazonS3Client().getObject(bucket, objectName).getObjectContent();
 	}
 
-	public InputStream downloadEncrypted(Dataset dataset) {
+	public InputStream downloadAndDecrypt(Dataset dataset) {
 
 		try {
-
-			java.io.File tmpFile = Files.createTempFile("chipster-s3-upload-temp", ".enc").toFile();
-			java.io.File decryptedFile = Files.createTempFile("chipster-s3-upload-temp", ".dec").toFile();
-			this.download("s3-file-broker-test", dataset.getFile().getFileId().toString(), tmpFile);
-
 			SecretKey key = this.fileEncryption.parseKey(dataset.getFile().getEncryptionKey());
+			String fileId = dataset.getFile().getFileId().toString();
 
-			this.fileEncryption.decrypt(key, tmpFile, decryptedFile);
+			S3ObjectInputStream s3Stream = this.download("s3-file-broker-test", fileId);
+			InputStream decryptStream = new DecryptStream(s3Stream, key);
+			ChecksumStream checksumStream = new ChecksumStream(decryptStream, dataset.getFile().getChecksum());
 
-			String checksum = ChipsterChecksums.checksum(decryptedFile.getPath(), new CRC32());
+			return checksumStream;
 
-			if (dataset.getFile().getChecksum() != null) {
-				if (checksum.equals(dataset.getFile().getChecksum())) {
-					logger.info("checksum ok: " + checksum);
-				} else {
-					throw new InternalServerErrorException("checksum error");
-				}
-			} else {
-				logger.info("checksum not available");
-			}
-
-			FileInputStream fileStream = new FileInputStream(decryptedFile);
-
-			return fileStream;
 		} catch (IOException | InterruptedException | NoSuchAlgorithmException | InvalidKeyException
-				| NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException
-				| BadPaddingException | IllegalFileException | DecoderException e) {
+				| NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalFileException
+				| DecoderException e) {
 			logger.error("download failed", e);
 			throw new InternalServerErrorException("download failed: " + e.getClass());
 		}
 	}
 
-	public ChipsterUpload uploadEncrypted(UUID fileId, InputStream fileStream) {
+	public ChipsterUpload uploadEncrypted(UUID fileId, InputStream fileStream, long length) {
 		try {
 			java.io.File tmpFile = Files.createTempFile("chipster-s3-upload-temp", "").toFile();
 			java.io.File encryptedFile = Files.createTempFile("chipster-s3-upload-temp", ".enc").toFile();
@@ -163,7 +139,15 @@ public class S3StorageClient {
 			// let's store these in hex to make them easier to handle in command line tools
 			String key = Hex.encodeHexString(secretKey.getEncoded());
 
-			this.upload("s3-file-broker-test", encryptedFile, fileId.toString());
+			InputStream encryptedStream = new FileInputStream(encryptedFile);
+
+			// System.out.println("flowTotalSize: " + length);
+			// System.out.println("plaintext: " + tmpFile.length());
+			// System.out.println("encryptedFile: " + encryptedFile.length());
+			// System.out.println("padded: " +
+			// this.fileEncryption.getEncryptedLength(length));
+
+			this.upload("s3-file-broker-test", encryptedStream, fileId.toString(), length);
 
 			// length of plaintext
 			long fileLength = tmpFile.length();
