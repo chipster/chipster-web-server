@@ -1,26 +1,12 @@
 package fi.csc.chipster.filebroker;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.zip.CRC32;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -32,9 +18,6 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
-import fi.csc.chipster.s3storage.ChipsterChecksums;
-import fi.csc.chipster.s3storage.FileEncryption;
-import fi.csc.chipster.s3storage.IllegalFileException;
 import fi.csc.chipster.s3storage.S3StorageClient;
 import fi.csc.chipster.s3storage.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -47,7 +30,6 @@ import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
-import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -77,7 +59,6 @@ public class FileBrokerResource {
 	private String sessionDbEventsUri;
 	private StorageDiscovery storageDiscovery;
 	private S3StorageClient s3StorageClient;
-	private FileEncryption fileEncryption;
 
 	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient,
 			StorageDiscovery storageDiscovery, Config config) throws NoSuchAlgorithmException {
@@ -88,7 +69,6 @@ public class FileBrokerResource {
 		this.storageDiscovery = storageDiscovery;
 
 		this.s3StorageClient = new S3StorageClient(config);
-		this.fileEncryption = new FileEncryption();
 	}
 
 	@GET
@@ -202,8 +182,6 @@ public class FileBrokerResource {
 		}
 
 		long fileLength = -1;
-		String checksum = null;
-		String key = null;
 
 		if (dataset.getFile() == null) {
 
@@ -239,8 +217,6 @@ public class FileBrokerResource {
 					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
 					// } catch (RestException e) {
 					// throw ServletUtils.extractRestException(e);
-				} catch (InterruptedException e) {
-					logger.warn("interrupted", e.getMessage());
 				}
 			}
 

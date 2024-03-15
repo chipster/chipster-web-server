@@ -25,7 +25,7 @@ import org.apache.commons.io.IOUtils;
 /**
  * <h1>Encrypt and decrypt file streams</h1>
  * 
- * <h2>Thread model</h2>
+ * <h2>Threat model</h2>
  * <p>
  * Encryption at rest is a great idea, especially when saving data in object
  * storage, where a simple mistake in bucket configuration can make all data
@@ -58,7 +58,7 @@ import org.apache.commons.io.IOUtils;
  * The CBC mode seems to offer a good balance here. It doesn't have known
  * catastrophic vulnerabilities, when we create a separate random key
  * and IV for each file. It doesn't offer authentication, but that's not a
- * problem if our primary thread model is the accidental publication of the
+ * problem if our primary threat model is the accidental publication of the
  * object storage bucket. It neither has a standard file format, but without
  * practical file size limit
  * (https://crypto.stackexchange.com/questions/51518/maximum-number-of-blocks-to-be-encrypted-under-one-key-in-cbc-and-ctr-mode),
@@ -71,14 +71,14 @@ import org.apache.commons.io.IOUtils;
  * <p>
  * We can easily generate a new random key for each file and store it in the
  * database. This makes the key available for anyone, who would have acces to
- * the file data anyway and satisfies our thread model above. It has several
+ * the file data anyway and satisfies our threat model above. It has several
  * additional advantages:
  * <ul>
- * <li>We don't have any internal keys that we would have to manage
+ * <li>We don't have any internal keys that we would have to manage.
  * <li>Having an own key for each file makes the encryption more resistant
  * against attacks.
  * <li>We avoid all the difficulties of asymmetric cryptography and password
- * based key derivation functions
+ * based key derivation functions.
  * <li>This makes it trivial to offload the encryption and decryption to
  * anywhere where the access to the data is needed anyway (client app, comp,
  * session-worker).
@@ -103,7 +103,7 @@ import org.apache.commons.io.IOUtils;
  * 
  * <p>
  * "java encrypt aes" and "java encrypt aes" refer to the current
- * implementation. "native gpg encrypt" was measured with
+ * implementation in this classs. "native gpg encrypt" was measured with
  * GnuPG version 2.2.19 on x64 and version 2.4.3 on Apple M1:
  * <code>cat tmp/rand | gpg --output - --compress-algo none --recipient
  * RECIPIENT_NAME --always-trust --cipher-algo AES256 --encrypt - | pv >
