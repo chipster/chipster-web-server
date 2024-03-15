@@ -12,10 +12,14 @@ import java.security.SecureRandom;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -129,7 +133,7 @@ import org.apache.commons.io.IOUtils;
  * java encrypt aes 408 MB/s
  * java decrypt aes 662 MB/s
  */
-public class ChipsterEncryption {
+public class FileEncryption {
 
     // other programs can't read our files anyway, so let's make it easier for us to
     // recognize them
@@ -141,9 +145,20 @@ public class ChipsterEncryption {
     public static final String V1_ALGORITHM = "AES/CBC/PKCS5Padding";
     public static final int V1_IV_SIZE = 16;
 
-    final static SecureRandom secureRandom = new SecureRandom();
+    private SecureRandom secureRandom = new SecureRandom();
+    private KeyGenerator keyGenerator;
 
-    public static void encrypt(SecretKey secretKey, final File input,
+    public FileEncryption() throws NoSuchAlgorithmException {
+        keyGenerator = KeyGenerator.getInstance("AES");
+        keyGenerator.init(256);
+    }
+
+    public SecretKey generateKey() {
+
+        return keyGenerator.generateKey();
+    }
+
+    public void encrypt(SecretKey secretKey, final File input,
             final File outputFile)
             throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
             InvalidAlgorithmParameterException, IOException, IllegalBlockSizeException, BadPaddingException {
@@ -179,7 +194,7 @@ public class ChipsterEncryption {
         }
     }
 
-    public static void decrypt(SecretKey secretKey, final File input,
+    public void decrypt(SecretKey secretKey, final File input,
             final File outputFile)
             throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
             InvalidAlgorithmParameterException, IOException, IllegalBlockSizeException, BadPaddingException,
@@ -218,5 +233,9 @@ public class ChipsterEncryption {
                 outputStream.write(output);
             }
         }
+    }
+
+    public SecretKey parseKey(String key) throws DecoderException {
+        return new SecretKeySpec(Hex.decodeHex(key), "AES");
     }
 }

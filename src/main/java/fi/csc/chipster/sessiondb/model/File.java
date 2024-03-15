@@ -19,6 +19,15 @@ public class File {
 	private Instant fileCreated;
 	private String storage;
 	private FileState state;
+	private String encryptionKey;
+
+	public String getEncryptionKey() {
+		return encryptionKey;
+	}
+
+	public void setEncryptionKey(String encryptionKey) {
+		this.encryptionKey = encryptionKey;
+	}
 
 	public FileState getState() {
 		return state;

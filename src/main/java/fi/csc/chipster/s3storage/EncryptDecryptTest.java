@@ -8,7 +8,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.apache.commons.io.IOUtils;
@@ -66,19 +65,18 @@ public class EncryptDecryptTest {
 
         long t = System.currentTimeMillis();
 
-        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(256);
-        SecretKey secretKey = keyGenerator.generateKey();
+        FileEncryption enc = new FileEncryption();
+        SecretKey secretKey = enc.generateKey();
 
         System.out.println("encrypt aes " + largeTestFile);
-        ChipsterEncryption.encrypt(secretKey, largeTestFile, largeTestFileAes);
+        enc.encrypt(secretKey, largeTestFile, largeTestFileAes);
 
         long dt = System.currentTimeMillis() - t;
         System.out.println(dt + "ms, " + largeTestFile.length() / 1024.0 / 1024.0 / (dt / 1000.0) + "MB/s");
 
         System.out.println("decrypt aes " + largeTestFileAes);
         t = System.currentTimeMillis();
-        ChipsterEncryption.decrypt(secretKey, largeTestFileAes, largeTestFileAesDec);
+        enc.decrypt(secretKey, largeTestFileAes, largeTestFileAesDec);
 
         dt = System.currentTimeMillis() - t;
         System.out.println(dt + "ms, " + largeTestFileAes.length() / 1024.0 / 1024.0 / (dt / 1000.0) + "MB/s");
@@ -93,7 +91,7 @@ public class EncryptDecryptTest {
             File outFile = new File(testFile.getPath() + ".enc");
             // System.out.println("encrypt " + testFile.getPath() + " to " +
             // outFile.getPath());
-            ChipsterEncryption.encrypt(secretKey, testFile, outFile);
+            enc.encrypt(secretKey, testFile, outFile);
         }
 
         dt = System.currentTimeMillis() - t;
@@ -107,7 +105,7 @@ public class EncryptDecryptTest {
             File encFile = new File(origFile.getPath() + ".enc");
             File decFile = new File(origFile.getPath() + ".dec");
 
-            ChipsterEncryption.decrypt(secretKey, encFile, decFile);
+            enc.decrypt(secretKey, encFile, decFile);
         }
 
         dt = System.currentTimeMillis() - t;

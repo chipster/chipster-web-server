@@ -33,6 +33,10 @@ public class S3Util {
 
 		builder.setDisableParallelDownloads(true);
 
+		builder.setMinimumUploadPartSize(4l * 1024 * 1024 * 1024);
+
+		builder.setMultipartUploadThreshold(4l * 1024 * 1024 * 1024);
+
 		return builder.build();
 
 	}

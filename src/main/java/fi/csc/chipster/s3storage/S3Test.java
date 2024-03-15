@@ -4,9 +4,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.transfer.Transfer;
@@ -14,31 +11,8 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.S3Util;
 
 public class S3Test {
-
-	private final static Logger logger = LogManager.getLogger();
-
-	private static final String CONF_S3_ENDPOINT = "file-broker-s3-endpoint";
-	private static final String CONF_S3_REGION = "file-broker-s3-region";
-	private static final String CONF_S3_ACCESS_KEY = "file-broker-s3-access-key";
-	private static final String CONF_S3_SECRET_KEY = "file-broker-s3-secret-key";
-	private static final String COND_S3_SIGNER_OVERRIDE = "file-broker-s3-signer-override";
-
-	public static TransferManager getTransferManager(Config config, String role) {
-		String endpoint = config.getString(CONF_S3_ENDPOINT, role);
-		String region = config.getString(CONF_S3_REGION, role);
-		String access = config.getString(CONF_S3_ACCESS_KEY, role);
-		String secret = config.getString(CONF_S3_SECRET_KEY, role);
-		String signerOverride = config.getString(COND_S3_SIGNER_OVERRIDE, role);
-
-		if (endpoint == null || region == null || access == null || secret == null) {
-			logger.warn("backups are not configured");
-		}
-
-		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride);
-	}
 
 	public static void test(TransferManager tm, String bucket, String name, boolean isUpload, boolean isSerial,
 			int count,
@@ -99,13 +73,11 @@ public class S3Test {
 	public static void main(String args[]) throws InterruptedException {
 
 		Config config = new Config();
-		TransferManager tm = getTransferManager(config, Role.FILE_BROKER);
+		TransferManager tm = S3StorageClient.getTransferManager(config, Role.FILE_BROKER);
 
-		File outFile = new File("tmp/rand_4k_1.s3");
 		String bucket = "s3-file-broker-test";
-		// String object = "rand_4k_1";
 
-		int smallFilesCount = 300;
+		int smallFilesCount = 100;
 		// int smallFilesCount = 10;
 
 		try {
