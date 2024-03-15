@@ -20,7 +20,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.IOUtils;
 
 /**
  * <h1>Encrypt and decrypt file streams</h1>
@@ -153,6 +152,25 @@ public class FileEncryption {
         keyGenerator.init(256);
     }
 
+    public long getEncryptedLength(long plaintextLength) {
+
+        /*
+         * https://stackoverflow.com/a/64838079
+         * 
+         * A simple function to calculate the plaintext size after
+         * PKCS#7 padding is applied to the message.
+         * 
+         * In Java PKCS#7 = PKCS#5
+         * 
+         * @param plaintextLength : the byte size of the plaintext
+         * 
+         * @return message size after the PKCS#7 padding is applied
+         */
+        long paddedLength = plaintextLength + 16l - (plaintextLength % 16l);
+
+        return CHIPSTER_ENC_SIG.length() + V1_IV_SIZE + paddedLength;
+    }
+
     public SecretKey generateKey() {
 
         return keyGenerator.generateKey();
@@ -190,47 +208,6 @@ public class FileEncryption {
             byte[] outputBytes = cipher.doFinal();
             if (outputBytes != null) {
                 outputStream.write(outputBytes);
-            }
-        }
-    }
-
-    public void decrypt(SecretKey secretKey, final File input,
-            final File outputFile)
-            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-            InvalidAlgorithmParameterException, IOException, IllegalBlockSizeException, BadPaddingException,
-            IllegalFileException {
-
-        try (FileInputStream inputStream = new FileInputStream(input);
-                FileOutputStream outputStream = new FileOutputStream(outputFile)) {
-
-            byte[] sigBytes = new byte[CHIPSTER_ENC_SIG.getBytes().length];
-            byte[] ivBytes = new byte[V1_IV_SIZE];
-
-            // check file format signature
-            if (IOUtils.read(inputStream, sigBytes) != sigBytes.length) {
-                throw new IllegalFileException("wrong file format signature");
-            }
-
-            // read iv
-            if (IOUtils.read(inputStream, ivBytes) != ivBytes.length) {
-                throw new IllegalFileException("no IV data");
-            }
-
-            Cipher cipher = Cipher.getInstance(V1_ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
-
-            // decrypt ciphertext
-            byte[] buffer = new byte[1 << 16];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                byte[] output = cipher.update(buffer, 0, bytesRead);
-                if (output != null) {
-                    outputStream.write(output);
-                }
-            }
-            byte[] output = cipher.doFinal();
-            if (output != null) {
-                outputStream.write(output);
             }
         }
     }
