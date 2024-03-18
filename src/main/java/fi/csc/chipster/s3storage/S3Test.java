@@ -82,6 +82,8 @@ public class S3Test {
 
 		try {
 
+			test(tm, bucket, "warm-up", true, true, smallFilesCount, "tmp/rand_4k_0");
+
 			test(tm, bucket, "4k", true, true, smallFilesCount, "tmp/rand_4k_0");
 
 			test(tm, bucket, "4k", true, false, smallFilesCount, "tmp/rand_4k_0");

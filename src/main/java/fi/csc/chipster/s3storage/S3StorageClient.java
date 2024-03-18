@@ -1,23 +1,18 @@
 package fi.csc.chipster.s3storage;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import java.util.zip.CRC32;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.input.CountingInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -69,8 +64,6 @@ public class S3StorageClient {
 	public void upload(String bucket, InputStream file, String objectName, long length)
 			throws InterruptedException {
 
-		long t = System.currentTimeMillis();
-
 		Transfer transfer = null;
 
 		// TransferManager can handle multipart uploads, but requires a file length in
@@ -85,14 +78,6 @@ public class S3StorageClient {
 		if (exception != null) {
 			throw exception;
 		}
-
-		long dt = System.currentTimeMillis() - t;
-
-		// long fileSize = file.length();
-
-		// System.out.println(
-		// "uploaded " + fileSize / 1024 / 1024 + " MiB " + (fileSize * 1000 / dt / 1024
-		// / 1024) + " MiB/s ");
 	}
 
 	public S3ObjectInputStream download(String bucket, String objectName)
@@ -122,44 +107,30 @@ public class S3StorageClient {
 	}
 
 	public ChipsterUpload uploadEncrypted(UUID fileId, InputStream fileStream, long length) {
+
 		try {
-			java.io.File tmpFile = Files.createTempFile("chipster-s3-upload-temp", "").toFile();
-			java.io.File encryptedFile = Files.createTempFile("chipster-s3-upload-temp", ".enc").toFile();
-
-			FileUtils.copyInputStreamToFile(fileStream, tmpFile);
-
-			// fast plaintext checksum to detect bugs. Definitely not cryptographically
-			// secure
-			String checksum = ChipsterChecksums.checksum(tmpFile.getPath(), new CRC32());
 
 			// new key for each file
 			SecretKey secretKey = this.fileEncryption.generateKey();
-			this.fileEncryption.encrypt(secretKey, tmpFile, encryptedFile);
+
+			CountingInputStream countinInputStream = new CountingInputStream(fileStream);
+			ChecksumStream checksumStream = new ChecksumStream(countinInputStream, null);
+			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
+					this.fileEncryption.getSecureRandom());
+
+			this.upload("s3-file-broker-test", encryptStream, fileId.toString(), length);
 
 			// let's store these in hex to make them easier to handle in command line tools
 			String key = Hex.encodeHexString(secretKey.getEncoded());
-
-			InputStream encryptedStream = new FileInputStream(encryptedFile);
-
-			// System.out.println("flowTotalSize: " + length);
-			// System.out.println("plaintext: " + tmpFile.length());
-			// System.out.println("encryptedFile: " + encryptedFile.length());
-			// System.out.println("padded: " +
-			// this.fileEncryption.getEncryptedLength(length));
-
-			this.upload("s3-file-broker-test", encryptedStream, fileId.toString(), length);
+			String checksum = checksumStream.getStreamChecksum();
 
 			// length of plaintext
-			long fileLength = tmpFile.length();
-
-			tmpFile.delete();
-			encryptedFile.delete();
+			long fileLength = countinInputStream.getByteCount();
 
 			return new ChipsterUpload(fileLength, checksum, key);
 
 		} catch (IOException | NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
-				| InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
-				| InterruptedException e) {
+				| InvalidAlgorithmParameterException | InterruptedException e) {
 
 			throw new InternalServerErrorException("upload failed" + e.getClass());
 		}

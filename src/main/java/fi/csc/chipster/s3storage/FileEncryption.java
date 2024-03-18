@@ -1,21 +1,10 @@
 package fi.csc.chipster.s3storage;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
@@ -176,43 +165,11 @@ public class FileEncryption {
         return keyGenerator.generateKey();
     }
 
-    public void encrypt(SecretKey secretKey, final File input,
-            final File outputFile)
-            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-            InvalidAlgorithmParameterException, IOException, IllegalBlockSizeException, BadPaddingException {
-
-        byte[] iv = new byte[16];
-        secureRandom.nextBytes(iv);
-
-        Cipher cipher = Cipher.getInstance(V1_ALGORITHM);
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(iv));
-
-        try (FileInputStream inputStream = new FileInputStream(input);
-                FileOutputStream outputStream = new FileOutputStream(outputFile)) {
-
-            // write chipster signature
-            outputStream.write(CHIPSTER_ENC_SIG.getBytes());
-
-            // write iv
-            outputStream.write(iv);
-
-            // write ciphertext
-            byte[] buffer = new byte[1 << 16];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                byte[] output = cipher.update(buffer, 0, bytesRead);
-                if (output != null) {
-                    outputStream.write(output);
-                }
-            }
-            byte[] outputBytes = cipher.doFinal();
-            if (outputBytes != null) {
-                outputStream.write(outputBytes);
-            }
-        }
-    }
-
     public SecretKey parseKey(String key) throws DecoderException {
         return new SecretKeySpec(Hex.decodeHex(key), "AES");
+    }
+
+    public SecureRandom getSecureRandom() {
+        return this.secureRandom;
     }
 }
