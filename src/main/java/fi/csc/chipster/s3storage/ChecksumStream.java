@@ -14,24 +14,25 @@ public class ChecksumStream extends InputStream {
 
     private CheckedInputStream checkedInputStream;
     private CRC32 crc32;
-    private String checksum;
 
-    protected ChecksumStream(InputStream in, String checksum) {
+    private String expectedChecksum;
+    private String streamChecksum;
 
+    protected ChecksumStream(InputStream in, String expectedChecksum) {
+
+        this.expectedChecksum = expectedChecksum;
         this.crc32 = new CRC32();
 
         this.checkedInputStream = new CheckedInputStream(in, crc32);
-
-        this.checksum = checksum;
     }
 
     private void end() {
 
-        String streamChecksum = Long.toHexString(this.crc32.getValue());
+        this.streamChecksum = Long.toHexString(this.crc32.getValue());
 
-        if (this.checksum != null) {
-            if (this.checksum.equals(streamChecksum)) {
-                logger.info("checksum ok: " + checksum);
+        if (this.expectedChecksum != null) {
+            if (this.expectedChecksum.equals(streamChecksum)) {
+                logger.info("checksum ok: " + expectedChecksum);
             } else {
                 throw new ChecksumException("checksum error");
             }
@@ -92,5 +93,12 @@ public class ChecksumStream extends InputStream {
     @Override
     public boolean markSupported() {
         return false;
+    }
+
+    public String getStreamChecksum() {
+        if (this.streamChecksum != null) {
+            return this.streamChecksum;
+        }
+        throw new IllegalStateException("stream hasn't ended yet");
     }
 }
