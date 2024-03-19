@@ -8,8 +8,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.websocket.MessageHandler;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
@@ -38,6 +36,7 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.JobIdPair;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import jakarta.websocket.MessageHandler;
 
 public class JobHistoryService implements SessionEventListener, MessageHandler {
 
@@ -248,7 +247,9 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	}
 
 	public void close() {
-		RestUtils.shutdown("JobHistory-service", httpServer);
+		RestUtils.shutdown("job-history-admin", jobHistoryAdminServer);
+		RestUtils.shutdown("job-history", httpServer);
+
 		try {
 			if (sessionDbClient != null) {
 				sessionDbClient.close();
