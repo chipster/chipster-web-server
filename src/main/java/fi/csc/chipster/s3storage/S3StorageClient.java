@@ -11,7 +11,6 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
 import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -121,7 +120,7 @@ public class S3StorageClient {
 			this.upload("s3-file-broker-test", encryptStream, fileId.toString(), length);
 
 			// let's store these in hex to make them easier to handle in command line tools
-			String key = Hex.encodeHexString(secretKey.getEncoded());
+			String key = this.fileEncryption.keyToString(secretKey);
 			String checksum = checksumStream.getStreamChecksum();
 
 			// length of plaintext

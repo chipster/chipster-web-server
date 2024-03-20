@@ -1,14 +1,25 @@
 package fi.csc.chipster.s3storage;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
 import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
 
 /**
  * <h1>Encrypt and decrypt file streams</h1>
@@ -169,7 +180,34 @@ public class FileEncryption {
         return new SecretKeySpec(Hex.decodeHex(key), "AES");
     }
 
+    public String keyToString(SecretKey secretKey) {
+        return Hex.encodeHexString(secretKey.getEncoded());
+    }
+
     public SecureRandom getSecureRandom() {
         return this.secureRandom;
+    }
+
+    public void encrypt(SecretKey secretKey, File input, File output) throws InvalidKeyException,
+            NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
+
+        InputStream fileStream = new BufferedInputStream(new FileInputStream(input), 1 << 16);
+        EncryptStream encryptStream = new EncryptStream(fileStream, secretKey, this.secureRandom);
+
+        try (encryptStream; OutputStream outputStream = new FileOutputStream(output)) {
+            IOUtils.copyLarge(encryptStream, outputStream);
+        }
+    }
+
+    public void decrypt(SecretKey secretKey, File input, File output)
+            throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException,
+            InvalidAlgorithmParameterException, IOException, IllegalFileException {
+
+        InputStream fileStream = new BufferedInputStream(new FileInputStream(input), 1 << 16);
+        DecryptStream decryptStream = new DecryptStream(fileStream, secretKey);
+
+        try (decryptStream; OutputStream outputStream = new FileOutputStream(output)) {
+            IOUtils.copyLarge(decryptStream, outputStream);
+        }
     }
 }

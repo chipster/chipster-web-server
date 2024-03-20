@@ -1,8 +1,11 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.tests;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.commons.io.FileUtils;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -11,12 +14,13 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.s3storage.S3StorageClient;
 
 public class S3Test {
 
 	public static void test(TransferManager tm, String bucket, String name, boolean isUpload, boolean isSerial,
-			int count,
-			String fileName) throws InterruptedException {
+			int count, String fileName) throws InterruptedException {
+
 		long t = System.currentTimeMillis();
 
 		List<Transfer> transfers = new ArrayList<>();
@@ -70,35 +74,42 @@ public class S3Test {
 				+ (fileSize * count * 1000 / dt / 1024 / 1024) + " MiB/s \t" + dt + " ms \t");
 	}
 
-	public static void main(String args[]) throws InterruptedException {
+	public static void main(String args[]) throws InterruptedException, IOException {
+
+		// long largeFileSize = 1l * 1024 * 1024 * 1024;
+		// int smallFilesCount = 100;
+		long largeFileSize = 128l * 1024 * 1024;
+		int smallFilesCount = 10;
+
+		File tmpDir = TestData.generateTestFiles(largeFileSize, smallFilesCount, new ArrayList<File>());
+		String tmpDirString = tmpDir.getPath();
 
 		Config config = new Config();
 		TransferManager tm = S3StorageClient.getTransferManager(config, Role.FILE_BROKER);
 
 		String bucket = "s3-file-broker-test";
 
-		int smallFilesCount = 100;
-		// int smallFilesCount = 10;
-
 		try {
 
-			test(tm, bucket, "warm-up", true, true, smallFilesCount, "tmp/rand_4k_0");
+			test(tm, bucket, "warm-up", true, true, smallFilesCount, tmpDirString + "/rand_4k_0");
 
-			test(tm, bucket, "4k", true, true, smallFilesCount, "tmp/rand_4k_0");
+			test(tm, bucket, "4k", true, true, smallFilesCount, tmpDirString + "/rand_4k_0");
 
-			test(tm, bucket, "4k", true, false, smallFilesCount, "tmp/rand_4k_0");
+			test(tm, bucket, "4k", true, false, smallFilesCount, tmpDirString + "/rand_4k_0");
 
-			test(tm, bucket, "4k", false, true, smallFilesCount, "tmp/rand_4k_");
+			test(tm, bucket, "4k", false, true, smallFilesCount, tmpDirString + "/rand_4k_");
 
-			test(tm, bucket, "4k", false, false, smallFilesCount, "tmp/rand_4k_");
+			test(tm, bucket, "4k", false, false, smallFilesCount, tmpDirString + "/rand_4k_");
 
-			test(tm, bucket, "large", true, true, 1, "tmp/rand");
+			test(tm, bucket, "large", true, true, 1, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", false, true, 1, "tmp/rand");
+			test(tm, bucket, "large", false, true, 1, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", true, false, 4, "tmp/rand");
+			test(tm, bucket, "large", true, false, 4, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", false, false, 4, "tmp/rand");
+			test(tm, bucket, "large", false, false, 4, tmpDirString + "/rand");
+
+			FileUtils.deleteDirectory(tmpDir);
 
 		} catch (AmazonServiceException e) {
 			e.printStackTrace();
