@@ -6,6 +6,76 @@
   "configurations": [
     {
       "type": "java",
+      "name": "Download",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.Download",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "Upload",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.Upload",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "GenerateKey",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.GenerateKey",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "Decrypt",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.Decrypt",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "Encrypt",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.Encrypt",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "Checksum",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.Checksum",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "GenerateTestData",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.cli.GenerateTestData",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "S3Test",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.tests.S3Test",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "ChecksumTest",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.tests.ChecksumTest",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "EncryptDecryptTest",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.tests.EncryptDecryptTest",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
       "name": "S3Test",
       "request": "launch",
       "mainClass": "fi.csc.chipster.s3storage.S3Test",

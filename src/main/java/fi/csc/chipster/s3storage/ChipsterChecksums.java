@@ -1,6 +1,7 @@
 package fi.csc.chipster.s3storage;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,8 +13,8 @@ import org.apache.commons.codec.binary.Hex;
 
 public class ChipsterChecksums {
 
-    public static String checksum(String filename, Checksum crc) throws IOException, NoSuchAlgorithmException {
-        InputStream in = new BufferedInputStream(new FileInputStream(filename));
+    public static String checksum(File testFile, Checksum crc) throws IOException, NoSuchAlgorithmException {
+        InputStream in = new BufferedInputStream(new FileInputStream(testFile));
 
         byte[] buffer = new byte[1024];
         int numRead;
@@ -29,8 +30,9 @@ public class ChipsterChecksums {
         return Long.toHexString(crc.getValue());
     }
 
-    public static String messageDigest(String filename, String algorithm) throws IOException, NoSuchAlgorithmException {
-        InputStream in = new BufferedInputStream(new FileInputStream(filename));
+    public static String messageDigest(File testFile, String algorithm) throws IOException, NoSuchAlgorithmException {
+
+        InputStream in = new BufferedInputStream(new FileInputStream(testFile));
 
         MessageDigest md = MessageDigest.getInstance(algorithm);
         byte[] buffer = new byte[1024];
