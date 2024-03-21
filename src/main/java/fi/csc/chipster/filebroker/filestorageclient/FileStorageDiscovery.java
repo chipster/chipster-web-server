@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.filebroker.filestorageclient;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -17,7 +17,6 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.naming.NamingException;
-import jakarta.ws.rs.InternalServerErrorException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,8 +28,9 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
+import jakarta.ws.rs.InternalServerErrorException;
 
-public class StorageDiscovery {
+public class FileStorageDiscovery {
 
 	private static Logger logger = LogManager.getLogger();
 
@@ -42,7 +42,7 @@ public class StorageDiscovery {
 	private static final String FILE_BROKER_STORAGE_DNS_PORT_ADMIN = "file-broker-storage-dns-port-admin";
 	private static final String FILE_BROKER_STORAGE_NULL = "file-broker-storage-null";
 
-	private Map<String, Storage> storages = new HashMap<>();
+	private Map<String, FileStorage> storages = new HashMap<>();
 
 	Random rand = new Random();
 	private AuthenticationClient authService;
@@ -54,7 +54,7 @@ public class StorageDiscovery {
 	private ServiceLocatorClient serviceLocator;
 	private Config config;
 
-	public StorageDiscovery(ServiceLocatorClient serviceLocator, AuthenticationClient authService, Config config) {
+	public FileStorageDiscovery(ServiceLocatorClient serviceLocator, AuthenticationClient authService, Config config) {
 
 		this.serviceLocator = serviceLocator;
 		this.authService = authService;
@@ -70,7 +70,7 @@ public class StorageDiscovery {
 		this.updateExecutor = Executors.newCachedThreadPool();
 	}
 
-	private Map<String, Storage> getWriteStorages() {
+	private Map<String, FileStorage> getWriteStorages() {
 
 		synchronized (storages) {
 			return storages.keySet().stream()
@@ -83,7 +83,7 @@ public class StorageDiscovery {
 
 		synchronized (storages) {
 
-			Map<String, Storage> writeStorages = getWriteStorages();
+			Map<String, FileStorage> writeStorages = getWriteStorages();
 
 			if (writeStorages.isEmpty()) {
 				logger.info("file upload requested, but there aren't any writable file-storages. Try to find again");
@@ -111,7 +111,7 @@ public class StorageDiscovery {
 
 	public FileStorageClient getStorageClient(String storageId) {
 
-		Storage storage = storages.get(storageId);
+		FileStorage storage = storages.get(storageId);
 
 		if (storage == null) {
 			throw new InternalServerErrorException("storageId " + storageId + " is not found");
@@ -139,8 +139,8 @@ public class StorageDiscovery {
 
 	private void updateFileStorages(boolean verbose) {
 
-		HashMap<String, Storage> newStorages = new HashMap<>();
-		HashMap<String, Storage> oldStorages = null;
+		HashMap<String, FileStorage> newStorages = new HashMap<>();
+		HashMap<String, FileStorage> oldStorages = null;
 
 		// this is used only for log messages, doesn't matter if it changes between this
 		// and when it's replaced with the new map
@@ -181,7 +181,7 @@ public class StorageDiscovery {
 						URI adminUri = new URI(protocolAdmin + host + ":" + adminPort);
 						boolean readOnly = readOnlyStorages.contains(id);
 						logger.debug("file-storage id " + id + ", url " + uri + " found from DNS ");
-						newStorages.put(id, new Storage(id, uri, adminUri, readOnly));
+						newStorages.put(id, new FileStorage(id, uri, adminUri, readOnly));
 
 					} catch (URISyntaxException e) {
 						logger.error("storage url error: " + id, e);
@@ -208,7 +208,7 @@ public class StorageDiscovery {
 				if (verbose) {
 					logger.info("file-storage '" + id + "', url " + uri + " found from service-locator");
 				}
-				newStorages.put(id, new Storage(id, uri, adminUri, readOnly));
+				newStorages.put(id, new FileStorage(id, uri, adminUri, readOnly));
 
 			} catch (URISyntaxException e) {
 				logger.error("storage url error: " + id, e);
@@ -221,7 +221,7 @@ public class StorageDiscovery {
 					logger.info("use file-storage '" + storageForNull + "' if storage is null in the DB");
 				}
 				// create copy
-				Storage storage = new Storage(newStorages.get(storageForNull));
+				FileStorage storage = new FileStorage(newStorages.get(storageForNull));
 
 				storage.setStorageId(null);
 				// storageForNull is only for migration, no need to write there
@@ -236,14 +236,14 @@ public class StorageDiscovery {
 		}
 
 		// print only changes
-		for (Storage storage : newStorages.values()) {
+		for (FileStorage storage : newStorages.values()) {
 			if (!oldStorages.containsKey(storage.getStorageId())) {
 				logger.info("added file-storage '" + storage.getStorageId() + "', url " + storage.getUri()
 						+ (storage.isReadOnly() ? " (read-only)" : ""));
 			}
 		}
 
-		for (Storage storage : oldStorages.values()) {
+		for (FileStorage storage : oldStorages.values()) {
 			if (!newStorages.containsKey(storage.getStorageId())) {
 				logger.warn("lost file-storage '" + storage.getStorageId() + "', url " + storage.getUri()
 						+ (storage.isReadOnly() ? " (read-only)" : ""));
@@ -269,7 +269,7 @@ public class StorageDiscovery {
 		}
 	}
 
-	public Map<String, Storage> getStorages() {
+	public Map<String, FileStorage> getStorages() {
 		synchronized (storages) {
 			return storages;
 		}

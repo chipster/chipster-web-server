@@ -7,6 +7,24 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.filebroker.filestorageclient.FileStorage;
+import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
+import fi.csc.chipster.filestorage.FileStorageAdminClient;
+import fi.csc.chipster.filestorage.FileStorageClient;
+import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -23,33 +41,16 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.resource.AuthPrincipal;
-import fi.csc.chipster.filestorage.FileStorageAdminClient;
-import fi.csc.chipster.filestorage.FileStorageClient;
-import fi.csc.chipster.rest.AdminResource;
-import fi.csc.chipster.rest.StaticCredentials;
-import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDbClient;
-import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.File;
-import fi.csc.chipster.sessiondb.model.Session;
-
 @Path("admin")
 public class FileBrokerAdminResource extends AdminResource {
 
 	private Logger logger = LogManager.getLogger();
 
-	private StorageDiscovery storageDiscovery;
+	private FileStorageDiscovery storageDiscovery;
 
 	private SessionDbClient sessionDbClient;
 
-	public FileBrokerAdminResource(StatusSource stats, StorageDiscovery storageDiscovery,
+	public FileBrokerAdminResource(StatusSource stats, FileStorageDiscovery storageDiscovery,
 			SessionDbClient sessionDbClient) {
 		super(stats);
 
@@ -63,14 +64,14 @@ public class FileBrokerAdminResource extends AdminResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getStorages(@Context SecurityContext sc) {
 
-		Storage[] storages = storageDiscovery.getStorages().values().toArray(new Storage[0]);
+		FileStorage[] storages = storageDiscovery.getStorages().values().toArray(new FileStorage[0]);
 
 		return Response.ok(storages).build();
 	}
 
 	private FileStorageAdminClient getStorageAdminClient(String id, SecurityContext sc) {
 
-		Storage storage = storageDiscovery.getStorages().get(id);
+		FileStorage storage = storageDiscovery.getStorages().get(id);
 
 		if (storage == null) {
 			throw new NotFoundException("storage " + id + " not found");

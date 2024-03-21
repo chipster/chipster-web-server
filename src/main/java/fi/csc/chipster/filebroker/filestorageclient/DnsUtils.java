@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.filebroker.filestorageclient;
 
 import java.net.URISyntaxException;
 import java.util.HashSet;

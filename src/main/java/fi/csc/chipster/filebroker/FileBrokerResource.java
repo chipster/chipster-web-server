@@ -7,19 +7,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
+import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
-import fi.csc.chipster.s3storage.S3StorageClient;
-import fi.csc.chipster.s3storage.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -57,11 +59,11 @@ public class FileBrokerResource {
 	private SessionDbClient sessionDbWithFileBrokerCredentials;
 	private String sessionDbUri;
 	private String sessionDbEventsUri;
-	private StorageDiscovery storageDiscovery;
+	private FileStorageDiscovery storageDiscovery;
 	private S3StorageClient s3StorageClient;
 
 	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient,
-			StorageDiscovery storageDiscovery, Config config) throws NoSuchAlgorithmException {
+			FileStorageDiscovery storageDiscovery, Config config) throws NoSuchAlgorithmException {
 
 		this.sessionDbWithFileBrokerCredentials = sessionDbClient;
 		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
@@ -108,17 +110,28 @@ public class FileBrokerResource {
 		logger.info("GET from storage '" + storageId + "' "
 				+ FileBrokerAdminResource.humanFriendly(dataset.getFile().getSize()));
 
-		FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
-
 		InputStream fileStream;
 
-		fileStream = s3StorageClient.downloadAndDecrypt(dataset);
+		if (this.s3StorageClient.containsStorageId(storageId)) {
 
-		// try {
-		// fileStream = storageClient.download(fileId, range);
-		// } catch (RestException e) {
-		// throw ServletUtils.extractRestException(e);
-		// }
+			// FIXME implement ranges if it starts from the beginning and respond with
+			// error otherwise
+			if (range != null) {
+				throw new NotImplementedException("range queries not implemented for S3 storage: " + range);
+			}
+
+			fileStream = s3StorageClient.downloadAndDecrypt(dataset);
+
+		} else {
+
+			FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
+
+			try {
+				fileStream = storageClient.download(fileId, range);
+			} catch (RestException e) {
+				throw ServletUtils.extractRestException(e);
+			}
+		}
 
 		ResponseBuilder response = Response.ok(fileStream);
 
@@ -173,6 +186,11 @@ public class FileBrokerResource {
 			queryParams.put(FLOW_TOTAL_SIZE, "" + flowTotalSize);
 		}
 
+		logger.info("chunkNumber: " + chunkNumber);
+		logger.info("chunkSize: " + chunkSize);
+		logger.info("flowTotalChunks: " + flowTotalChunks);
+		logger.info("flowTotalSize: " + flowTotalSize);
+
 		// checks authorization
 		Dataset dataset;
 		try {
@@ -193,38 +211,49 @@ public class FileBrokerResource {
 			file.setFileCreated(Instant.now());
 			dataset.setFile(file);
 
-			for (String storageId : storageDiscovery.getStoragesForNewFile()) {
-				// not synchronized, may fail when storage is lost
-				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
+			if (this.s3StorageClient.isEnabled() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
 
-				logger.info("PUT new file to storage '" + storageId + "' "
-						+ FileBrokerAdminResource.humanFriendly(flowTotalSize));
-				try {
-					// storageClient.checkIfUploadAllowed(queryParams);
-					// fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream,
-					// queryParams);
+				String storageId = this.s3StorageClient.getStorageIdForNewFile();
 
-					ChipsterUpload upload = this.s3StorageClient.uploadEncrypted(dataset.getFile().getFileId(),
-							fileStream, flowTotalSize);
+				logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(storageId));
 
-					// FIXME check stream length!
-					// fileLength = upload.getFileLength();
-					fileLength = flowTotalSize;
-					file.setChecksum(upload.getChecksum());
-					file.setEncryptionKey(upload.getEncryptionKey());
+				ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(dataset.getFile().getFileId(),
+						fileStream, flowTotalSize, storageId);
 
-					file.setStorage(storageId);
-					break;
-				} catch (InsufficientStorageException e) {
-					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
-					// } catch (RestException e) {
-					// throw ServletUtils.extractRestException(e);
+				fileLength = upload.getFileLength();
+				file.setChecksum(upload.getChecksum());
+				file.setEncryptionKey(upload.getEncryptionKey());
+
+				file.setStorage(storageId);
+
+			} else {
+
+				logger.info("upload to file-storage");
+
+				for (String storageId : storageDiscovery.getStoragesForNewFile()) {
+					// not synchronized, may fail when storage is lost
+					FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
+
+					logger.info("PUT new file to storage '" + storageId + "' "
+							+ FileBrokerAdminResource.humanFriendly(flowTotalSize));
+					try {
+						storageClient.checkIfUploadAllowed(queryParams);
+						fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream,
+								queryParams);
+
+						file.setStorage(storageId);
+						break;
+					} catch (InsufficientStorageException e) {
+						logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
+					} catch (RestException e) {
+						throw ServletUtils.extractRestException(e);
+					}
 				}
-			}
 
-			if (fileLength == -1) {
-				logger.error("insufficient storage on all storages");
-				throw new InsufficientStorageException("insufficient storage on all storages");
+				if (fileLength == -1) {
+					logger.error("insufficient storage on all storages");
+					throw new InsufficientStorageException("insufficient storage on all storages");
+				}
 			}
 		} else {
 

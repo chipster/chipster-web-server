@@ -18,7 +18,7 @@ public class DecryptStream extends InputStream {
 
     private CipherInputStream cipherInputStream;
 
-    protected DecryptStream(InputStream in, SecretKey secretKey) throws IOException, IllegalFileException,
+    public DecryptStream(InputStream in, SecretKey secretKey) throws IOException, IllegalFileException,
             NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
 
         byte[] sigBytes = new byte[FileEncryption.CHIPSTER_ENC_SIG.getBytes().length];
