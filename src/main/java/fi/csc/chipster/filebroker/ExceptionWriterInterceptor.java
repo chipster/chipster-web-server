@@ -2,12 +2,14 @@ package fi.csc.chipster.filebroker;
 
 import java.io.IOException;
 
-import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.ext.WriterInterceptor;
-import jakarta.ws.rs.ext.WriterInterceptorContext;
+import javax.crypto.BadPaddingException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.ext.WriterInterceptor;
+import jakarta.ws.rs.ext.WriterInterceptorContext;
 
 /**
  * Don't log stack trace when download is cancelled
@@ -25,7 +27,12 @@ public class ExceptionWriterInterceptor implements WriterInterceptor {
 			context.setOutputStream(context.getOutputStream());
 			context.proceed();
 		} catch (IOException e) {
-			logger.info("download cancelled " + e);
+			if (e.getCause() instanceof BadPaddingException) {
+				logger.info("cipher stream was not fully read, but it's ok if http range query was used ("
+						+ e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
+			} else {
+				logger.info("download cancelled " + e);
+			}
 		}
 	}
 }

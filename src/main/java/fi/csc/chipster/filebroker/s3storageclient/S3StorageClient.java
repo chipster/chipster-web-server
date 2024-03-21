@@ -18,6 +18,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.transfer.Transfer;
@@ -33,6 +34,7 @@ import fi.csc.chipster.s3storage.FileEncryption;
 import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.IllegalFileException;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
 
 public class S3StorageClient {
@@ -100,20 +102,55 @@ public class S3StorageClient {
 		}
 	}
 
-	public S3ObjectInputStream download(String bucket, String objectName)
+	public S3ObjectInputStream download(String bucket, String objectName, Long start, Long end)
 			throws InterruptedException {
 
-		return transferManager.getAmazonS3Client().getObject(bucket, objectName).getObjectContent();
+		GetObjectRequest request = new GetObjectRequest(bucket, objectName);
+
+		logger.info("download range: " + start + " " + end);
+		if (start != null || end != null) {
+			request = request.withRange(start, end);
+		}
+
+		return transferManager.getAmazonS3Client().getObject(request).getObjectContent();
 	}
 
-	public InputStream downloadAndDecrypt(Dataset dataset) {
+	public InputStream downloadAndDecrypt(Dataset dataset, ByteRange byteRange) {
+
+		Long start = null;
+		Long end = null;
+
+		logger.info("downloadAndEncrypt byte range " + byteRange);
+
+		if (byteRange != null) {
+			logger.info("downloadAndEncrypt byte range " + byteRange + " [" + byteRange.getStart() + ", "
+					+ byteRange.getEnd() + "]");
+			// because of the encryption, we have to read the file from the beginning, but
+			// we can still use range queries when we don't need the whole file
+			if (byteRange.getStart() == 0) {
+				start = 0l;
+				/*
+				 * We will get the whole 16 B block. It doesn't matter in our case, because we
+				 * use range queries simply to read the beginning of the file. We could build
+				 * some kind of TruncatingInputStream to remove the extra bytes from the end if
+				 * necessary.
+				 * 
+				 * +16 I'm not sure why we don't get any output on < 16 ranges if we don't get
+				 * the next block too. Perhaps the CipherStream tries to read it for padding?
+				 * -1 because range query end is inclusive
+				 */
+				end = this.fileEncryption.getEncryptedLength(byteRange.end + 16) - 1;
+			} else {
+				throw new BadRequestException("start of the range must be 0");
+			}
+		}
 
 		try {
 			SecretKey secretKey = this.fileEncryption.parseKey(dataset.getFile().getEncryptionKey());
 			String fileId = dataset.getFile().getFileId().toString();
 			String bucket = storageIdToBucket(dataset.getFile().getStorage());
 
-			S3ObjectInputStream s3Stream = this.download(bucket, fileId);
+			S3ObjectInputStream s3Stream = this.download(bucket, fileId, start, end);
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
 			ChecksumStream checksumStream = new ChecksumStream(decryptStream, dataset.getFile().getChecksum());
 
@@ -233,5 +270,59 @@ public class S3StorageClient {
 			throw new IllegalArgumentException("not an s3 storageId: " + storageId);
 		}
 		return storageId.substring(S3_STORAGE_ID_PREFIX.length());
+	}
+
+	/**
+	 * Parse simple byte ranges in fromat bytes=START-END
+	 * 
+	 * @param str
+	 * @return
+	 */
+	public ByteRange parseByteRange(String str) {
+
+		String BYTES_PREFIX = "bytes=";
+
+		if (str == null) {
+			return null;
+		}
+
+		if (!str.startsWith(BYTES_PREFIX)) {
+			throw new BadRequestException("range must start with " + BYTES_PREFIX + str);
+		}
+
+		str = str.substring(BYTES_PREFIX.length());
+
+		String[] values = str.split("-");
+		if (values.length != 2) {
+			throw new BadRequestException("wrong number of range values: " + values.length);
+		}
+
+		long start = Long.parseLong(values[0]);
+		long end = Long.parseLong(values[1]);
+
+		return new ByteRange(start, end);
+	}
+
+	public static class ByteRange {
+
+		private Long start;
+		private Long end;
+
+		public ByteRange(long start, long end) {
+			this.start = start;
+			this.end = end;
+		}
+
+		public Long getStart() {
+			return start;
+		}
+
+		public Long getEnd() {
+			return end;
+		}
+
+		public String toString() {
+			return "[" + getStart() + ", " + getEnd() + "]";
+		}
 	}
 }

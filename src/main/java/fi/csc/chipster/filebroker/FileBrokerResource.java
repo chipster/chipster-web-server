@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -15,6 +14,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
 import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient.ByteRange;
 import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.Config;
@@ -114,13 +114,9 @@ public class FileBrokerResource {
 
 		if (this.s3StorageClient.containsStorageId(storageId)) {
 
-			// FIXME implement ranges if it starts from the beginning and respond with
-			// error otherwise
-			if (range != null) {
-				throw new NotImplementedException("range queries not implemented for S3 storage: " + range);
-			}
+			ByteRange byteRange = s3StorageClient.parseByteRange(range);
 
-			fileStream = s3StorageClient.downloadAndDecrypt(dataset);
+			fileStream = s3StorageClient.downloadAndDecrypt(dataset, byteRange);
 
 		} else {
 
