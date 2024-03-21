@@ -1,22 +1,22 @@
-package fi.csc.chipster.filebroker;
+package fi.csc.chipster.filebroker.filestorageclient;
 
 import java.net.URI;
 
-public class Storage {
+public class FileStorage {
 
 	private String storageId;
 	private URI uri;
 	private URI adminUri;
 	private boolean readOnly;
 
-	public Storage(String storageId, URI uri, URI adminUri, boolean readOnly) {
+	public FileStorage(String storageId, URI uri, URI adminUri, boolean readOnly) {
 		this.storageId = storageId;
 		this.uri = uri;
 		this.adminUri = adminUri;
 		this.readOnly = readOnly;
 	}
 
-	public Storage(Storage storage) {
+	public FileStorage(FileStorage storage) {
 		this(storage.getStorageId(), storage.getUri(), storage.getAdminUri(), storage.isReadOnly());
 	}
 

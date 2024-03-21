@@ -10,6 +10,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
@@ -37,7 +38,7 @@ public class FileBroker {
 
 	private FileBrokerResource fileBrokerResource;
 
-	private StorageDiscovery storageDiscovery;
+	private FileStorageDiscovery storageDiscovery;
 
 	public FileBroker(Config config) {
 		this.config = config;
@@ -60,7 +61,7 @@ public class FileBroker {
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 
-		this.storageDiscovery = new StorageDiscovery(this.serviceLocator, authService, config);
+		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
 		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery,
 				config);
 

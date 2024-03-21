@@ -9,8 +9,8 @@ import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.s3storage.S3StorageClient;
 
 public class Upload {
 

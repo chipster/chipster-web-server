@@ -1,8 +1,6 @@
 package fi.csc.chipster.s3storage;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
@@ -23,7 +21,7 @@ public class EncryptStream extends InputStream {
 
     private SequenceInputStream sequenceInputStream;
 
-    protected EncryptStream(InputStream in, SecretKey secretKey, SecureRandom secureRandom)
+    public EncryptStream(InputStream in, SecretKey secretKey, SecureRandom secureRandom)
             throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
             InvalidAlgorithmParameterException {
 

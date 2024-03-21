@@ -451,6 +451,15 @@ toolbox-default-runtime-file-extension-python: .py
 # how long to wait for connections to complete after receiving SIGINT, seconds
 file-broker-shutdown-timeout: 3600
 
+# New one-part uploads will be stored on S3 if access-key, secretKey, endpoint and at least one bucket are configured
+file-broker-s3-access-key: ""
+file-broker-s3-secret-key: ""
+file-broker-s3-endpoint: a3s.fi
+file-broker-s3-region: regionOne
+file-broker-s3-signer-override: S3SignerType
+# Add as many configuration keys as required by appending new postfixes, e.g. "-0", "-1" and so on.
+file-broker-s3-bucket-0: ""
+
 # Find file-storages from the DNS server's SRV records. This is handy for Kubernetes
 # statefulset, because this way the file-broker will find out automatically the number
 # of file-storage replicas. Configure here the domain name of the replicaset's
@@ -475,7 +484,7 @@ file-broker-storage-dns-port-admin: "8116"
 # The file-storage name is:
 # 1) a string between "url-int-" and ":" when configured in the service-locator
 # 2) a string before the first period ".", when found from the DNS
-# Add as many configuration keys as require by appending new postfixes, e.g.
+# Add as many configuration keys as required by appending new postfixes, e.g.
 # "-0", "-1" and so on.
 file-broker-storage-read-only-0: ""
 

@@ -18,7 +18,7 @@ public class ChecksumStream extends InputStream {
     private String expectedChecksum;
     private String streamChecksum;
 
-    protected ChecksumStream(InputStream in, String expectedChecksum) {
+    public ChecksumStream(InputStream in, String expectedChecksum) {
 
         this.expectedChecksum = expectedChecksum;
         this.crc32 = new CRC32();
