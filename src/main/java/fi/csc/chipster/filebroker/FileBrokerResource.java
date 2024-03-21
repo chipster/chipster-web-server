@@ -131,6 +131,18 @@ public class FileBrokerResource {
 
 		ResponseBuilder response = Response.ok(fileStream);
 
+		if (range == null || range.isEmpty()) {
+			/*
+			 * Set content-length header
+			 * 
+			 * This is not strictly needed, but it's difficult to report errors after the
+			 * response code has been sent, but at
+			 * least Firefox seems to show the download as blocked or failed if the stream
+			 * doesn't have as many bytes as we say here.
+			 */
+			response.header("content-length", dataset.getFile().getSize());
+		}
+
 		// configure filename for response
 		if (!download) {
 			RestUtils.configureFilename(response, dataset.getName());

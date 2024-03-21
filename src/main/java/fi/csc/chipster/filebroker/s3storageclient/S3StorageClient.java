@@ -152,9 +152,16 @@ public class S3StorageClient {
 
 			S3ObjectInputStream s3Stream = this.download(bucket, fileId, start, end);
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
-			ChecksumStream checksumStream = new ChecksumStream(decryptStream, dataset.getFile().getChecksum());
 
-			return checksumStream;
+			if (byteRange == null) {
+				ChecksumStream checksumStream = new ChecksumStream(decryptStream, dataset.getFile().getChecksum());
+
+				return checksumStream;
+			} else {
+				logger.info("skip checksum calculation for range request");
+				// there is no point to calculate checksum in range request
+				return decryptStream;
+			}
 
 		} catch (IOException | InterruptedException | NoSuchAlgorithmException | InvalidKeyException
 				| NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalFileException

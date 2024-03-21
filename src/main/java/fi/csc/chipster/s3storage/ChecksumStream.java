@@ -34,6 +34,17 @@ public class ChecksumStream extends InputStream {
             if (this.expectedChecksum.equals(streamChecksum)) {
                 logger.info("checksum ok: " + expectedChecksum);
             } else {
+                /*
+                 * We can log this error, but I don't know how we could tell the client about
+                 * it.
+                 * 
+                 * I guess our own clients (comp, session-worker) could check the checksum
+                 * themselves.
+                 * Unfortunately there is not much we can do for the browser downloads.
+                 * 
+                 * Maybe this is more important for admins and developers to notice bugs, and
+                 * in that case this log message could be enough.
+                 */
                 throw new ChecksumException("checksum error");
             }
         } else {
