@@ -25,6 +25,7 @@ import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.filestorageclient.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.ChecksumStream;
@@ -41,7 +42,8 @@ public class S3StorageClient {
 
 	private final static Logger logger = LogManager.getLogger();
 
-	private static final String S3_STORAGE_ID_PREFIX = "s3-bucket://";
+	// avoid too special characters, because admin API uses these in an URL path
+	private static final String S3_STORAGE_ID_PREFIX = "s3-bucket_";
 
 	private static final String CONF_S3_ENDPOINT = "file-broker-s3-endpoint";
 	private static final String CONF_S3_REGION = "file-broker-s3-region";
@@ -59,7 +61,7 @@ public class S3StorageClient {
 	private Random random = new Random();
 
 	public S3StorageClient(Config config) throws NoSuchAlgorithmException {
-		this.transferManager = getTransferManager(config, Role.FILE_BROKER);
+		this.transferManager = initTransferManager(config, Role.FILE_BROKER);
 		this.fileEncryption = new FileEncryption();
 
 		this.buckets = new ArrayList<String>(
@@ -68,7 +70,11 @@ public class S3StorageClient {
 		this.buckets.remove("");
 	}
 
-	public static TransferManager getTransferManager(Config config, String role) {
+	public TransferManager getTransferManager() {
+		return this.transferManager;
+	}
+
+	public static TransferManager initTransferManager(Config config, String role) {
 		String endpoint = config.getString(CONF_S3_ENDPOINT, role);
 		String region = config.getString(CONF_S3_REGION, role);
 		String access = config.getString(CONF_S3_ACCESS_KEY, role);
@@ -265,6 +271,10 @@ public class S3StorageClient {
 		 * changed.
 		 */
 		String bucket = this.buckets.get(this.random.nextInt(this.buckets.size()));
+		return bucketToStorageId(bucket);
+	}
+
+	public String bucketToStorageId(String bucket) {
 		return S3_STORAGE_ID_PREFIX + bucket;
 	}
 
@@ -331,5 +341,15 @@ public class S3StorageClient {
 		public String toString() {
 			return "[" + getStart() + ", " + getEnd() + "]";
 		}
+	}
+
+	public FileStorage[] getStorages() {
+		ArrayList<FileStorage> storages = new ArrayList<>();
+
+		for (String bucket : buckets) {
+			storages.add(new FileStorage(bucketToStorageId(bucket), null, null, false));
+		}
+
+		return storages.toArray(new FileStorage[0]);
 	}
 }

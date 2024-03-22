@@ -63,14 +63,14 @@ public class FileBrokerResource {
 	private S3StorageClient s3StorageClient;
 
 	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient,
-			FileStorageDiscovery storageDiscovery, Config config) throws NoSuchAlgorithmException {
+			FileStorageDiscovery storageDiscovery, S3StorageClient s3StorageClient, Config config)
+			throws NoSuchAlgorithmException {
 
 		this.sessionDbWithFileBrokerCredentials = sessionDbClient;
 		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
 		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
 		this.storageDiscovery = storageDiscovery;
-
-		this.s3StorageClient = new S3StorageClient(config);
+		this.s3StorageClient = s3StorageClient;
 	}
 
 	@GET
