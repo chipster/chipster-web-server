@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,6 +15,8 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filebroker.filestorageclient.FileStorage;
 import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageAdminClient;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
 import fi.csc.chipster.filestorage.FileStorageAdminClient;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.AdminResource;
@@ -46,16 +49,23 @@ public class FileBrokerAdminResource extends AdminResource {
 
 	private Logger logger = LogManager.getLogger();
 
-	private FileStorageDiscovery storageDiscovery;
+	private FileStorageDiscovery fileStorageDiscovery;
 
 	private SessionDbClient sessionDbClient;
 
+	private S3StorageClient s3StorageClient;
+
+	private S3StorageAdminClient s3StorageAdminClient;
+
 	public FileBrokerAdminResource(StatusSource stats, FileStorageDiscovery storageDiscovery,
-			SessionDbClient sessionDbClient) {
+			SessionDbClient sessionDbClient, S3StorageClient s3StorageClient,
+			S3StorageAdminClient s3StorageAdminClient) {
 		super(stats);
 
-		this.storageDiscovery = storageDiscovery;
+		this.fileStorageDiscovery = storageDiscovery;
 		this.sessionDbClient = sessionDbClient;
+		this.s3StorageClient = s3StorageClient;
+		this.s3StorageAdminClient = s3StorageAdminClient;
 	}
 
 	@GET
@@ -64,20 +74,22 @@ public class FileBrokerAdminResource extends AdminResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getStorages(@Context SecurityContext sc) {
 
-		FileStorage[] storages = storageDiscovery.getStorages().values().toArray(new FileStorage[0]);
+		FileStorage[] fileStorages = fileStorageDiscovery.getStorages().values().toArray(new FileStorage[0]);
 
-		return Response.ok(storages).build();
+		FileStorage[] s3Storages = s3StorageClient.getStorages();
+
+		return Response.ok(ArrayUtils.addAll(fileStorages, s3Storages)).build();
 	}
 
-	private FileStorageAdminClient getStorageAdminClient(String id, SecurityContext sc) {
+	private FileStorageAdminClient getFileStorageAdminClient(String id, SecurityContext sc) {
 
-		FileStorage storage = storageDiscovery.getStorages().get(id);
+		FileStorage storage = fileStorageDiscovery.getStorages().get(id);
 
 		if (storage == null) {
 			throw new NotFoundException("storage " + id + " not found");
 		}
 
-		URI url = storageDiscovery.getStorages().get(id).getAdminUri();
+		URI url = fileStorageDiscovery.getStorages().get(id).getAdminUri();
 
 		if (url == null) {
 			throw new NotFoundException("storage " + id + " has no admin address");
@@ -101,7 +113,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response backupMonitoring(@PathParam("storageId") String storageId) {
 
 		// pass null for the sc because we don't have credentials
-		getStorageAdminClient(storageId, null).checkBackup();
+		getFileStorageAdminClient(storageId, null).checkBackup();
 
 		return Response.ok().build();
 	}
@@ -112,7 +124,13 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response getBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		String json = getStorageAdminClient(storageId, sc).getStatus();
+		String json = null;
+
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+			json = this.s3StorageAdminClient.getStatus(storageId);
+		} else {
+			json = getFileStorageAdminClient(storageId, sc).getStatus();
+		}
 
 		return Response.ok(json).build();
 	}
@@ -123,7 +141,15 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response getStorageId(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		String json = getStorageAdminClient(storageId, sc).getStorageId();
+		String json = null;
+
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+
+			json = this.s3StorageAdminClient.getStorageId(storageId);
+		} else {
+
+			json = getFileStorageAdminClient(storageId, sc).getStorageId();
+		}
 
 		return Response.ok(json).build();
 	}
@@ -134,7 +160,15 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response getFileStats(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		String json = getStorageAdminClient(storageId, sc).getFileStats();
+		String json = null;
+
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+
+			json = this.s3StorageAdminClient.getFileStats(storageId);
+		} else {
+
+			json = getFileStorageAdminClient(storageId, sc).getFileStats();
+		}
 
 		return Response.ok(json).build();
 	}
@@ -212,8 +246,8 @@ public class FileBrokerAdminResource extends AdminResource {
 			logger.info("copy from '" + sourceStorageId + "' to '" + targetStorageId + "' fileId: " + file.getFileId()
 					+ ", " + humanFriendly(file.getSize()));
 
-			FileStorageClient sourceClient = storageDiscovery.getStorageClientForExistingFile(sourceStorageId);
-			FileStorageClient targetClient = storageDiscovery.getStorageClient(targetStorageId);
+			FileStorageClient sourceClient = fileStorageDiscovery.getStorageClientForExistingFile(sourceStorageId);
+			FileStorageClient targetClient = fileStorageDiscovery.getStorageClient(targetStorageId);
 
 			try {
 				InputStream sourceStream = sourceClient.download(file.getFileId(), null);
@@ -250,7 +284,7 @@ public class FileBrokerAdminResource extends AdminResource {
 				 * will get the storage from the session-db anyway.
 				 */
 				sessionDbClient.updateDataset(sessionId, dataset);
-				storageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
+				fileStorageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
 
 				bytesCopied += fileLength;
 			} catch (RestException e) {
@@ -268,7 +302,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response startBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		getStorageAdminClient(storageId, sc).startBackup();
+		getFileStorageAdminClient(storageId, sc).startBackup();
 
 		return Response.ok().build();
 	}
@@ -278,7 +312,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response disableBackups(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		getStorageAdminClient(storageId, sc).disableBackups();
+		getFileStorageAdminClient(storageId, sc).disableBackups();
 
 		return Response.ok().build();
 	}
@@ -288,7 +322,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response enableBackups(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		getStorageAdminClient(storageId, sc).enableBackups();
+		getFileStorageAdminClient(storageId, sc).enableBackups();
 
 		return Response.ok().build();
 	}
@@ -298,7 +332,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response startCheck(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		getStorageAdminClient(storageId, sc).startCheck();
+		getFileStorageAdminClient(storageId, sc).startCheck();
 
 		return Response.ok().build();
 	}
@@ -309,7 +343,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response deleteOldOrphans(@PathParam("storageId") String storageId, @Context SecurityContext sc)
 			throws IOException {
 
-		getStorageAdminClient(storageId, sc).deleteOldOrphans();
+		getFileStorageAdminClient(storageId, sc).deleteOldOrphans();
 
 		return Response.ok().build();
 	}

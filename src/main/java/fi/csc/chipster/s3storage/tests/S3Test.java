@@ -85,7 +85,7 @@ public class S3Test {
 		String tmpDirString = tmpDir.getPath();
 
 		Config config = new Config();
-		TransferManager tm = S3StorageClient.getTransferManager(config, Role.FILE_BROKER);
+		TransferManager tm = S3StorageClient.initTransferManager(config, Role.FILE_BROKER);
 
 		String bucket = "s3-file-broker-test";
 

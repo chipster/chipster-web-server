@@ -11,6 +11,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageAdminClient;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
@@ -40,6 +42,10 @@ public class FileBroker {
 
 	private FileStorageDiscovery storageDiscovery;
 
+	private S3StorageClient s3StorageClient;
+
+	private S3StorageAdminClient s3StorageAdminClient;
+
 	public FileBroker(Config config) {
 		this.config = config;
 	}
@@ -60,10 +66,12 @@ public class FileBroker {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+		this.s3StorageClient = new S3StorageClient(config);
+		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
 		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery,
-				config);
+				s3StorageClient, config);
 
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 
@@ -87,7 +95,7 @@ public class FileBroker {
 		this.httpServer.start();
 
 		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(jerseyStatisticsSource, storageDiscovery,
-				sessionDbClient);
+				sessionDbClient, s3StorageClient, s3StorageAdminClient);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
 				this.serviceLocator);
 	}

@@ -26,7 +26,7 @@ public class Download {
 		File file = new File(args[2]);
 
 		Config config = new Config();
-		TransferManager tm = S3StorageClient.getTransferManager(config, Role.FILE_BROKER);
+		TransferManager tm = S3StorageClient.initTransferManager(config, Role.FILE_BROKER);
 
 		try {
 
