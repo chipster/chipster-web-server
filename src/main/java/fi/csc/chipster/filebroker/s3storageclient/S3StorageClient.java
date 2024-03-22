@@ -98,7 +98,7 @@ public class S3StorageClient {
 		// advance. The lower lever api would support uploads without file length, but
 		// then we have to take care of multipart uploads ourselves
 		ObjectMetadata objMeta = new ObjectMetadata();
-		objMeta.setContentLength(this.fileEncryption.getEncryptedLength(length));
+		objMeta.setContentLength(length);
 
 		transfer = this.transferManager.upload(bucket, objectName, file, objMeta);
 
@@ -185,13 +185,14 @@ public class S3StorageClient {
 
 			// new key for each file
 			SecretKey secretKey = this.fileEncryption.generateKey();
+			long encryptedLength = this.fileEncryption.getEncryptedLength(length);
 
 			CountingInputStream countingInputStream = new CountingInputStream(fileStream);
 			ChecksumStream checksumStream = new ChecksumStream(countingInputStream, null);
 			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
 					this.fileEncryption.getSecureRandom());
 
-			this.upload(bucket, encryptStream, fileId.toString(), length);
+			this.upload(bucket, encryptStream, fileId.toString(), encryptedLength);
 
 			// let's store these in hex to make them easier to handle in command line tools
 			String key = this.fileEncryption.keyToString(secretKey);
@@ -351,5 +352,9 @@ public class S3StorageClient {
 		}
 
 		return storages.toArray(new FileStorage[0]);
+	}
+
+	public FileEncryption getFileEncryption() {
+		return this.fileEncryption;
 	}
 }

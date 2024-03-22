@@ -67,7 +67,7 @@ public class FileBroker {
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		this.s3StorageClient = new S3StorageClient(config);
-		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient);
+		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient, sessionDbClient);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
 		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery,
