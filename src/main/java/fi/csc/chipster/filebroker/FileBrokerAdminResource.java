@@ -332,7 +332,13 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response startCheck(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		getFileStorageAdminClient(storageId, sc).startCheck();
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+
+			this.s3StorageAdminClient.startCheck(storageId);
+		} else {
+
+			getFileStorageAdminClient(storageId, sc).startCheck();
+		}
 
 		return Response.ok().build();
 	}
@@ -343,7 +349,13 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response deleteOldOrphans(@PathParam("storageId") String storageId, @Context SecurityContext sc)
 			throws IOException {
 
-		getFileStorageAdminClient(storageId, sc).deleteOldOrphans();
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+
+			this.s3StorageAdminClient.deleteOldOrphans(storageId);
+		} else {
+
+			getFileStorageAdminClient(storageId, sc).deleteOldOrphans();
+		}
 
 		return Response.ok().build();
 	}

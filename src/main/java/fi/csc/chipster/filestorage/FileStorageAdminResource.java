@@ -4,11 +4,20 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.StorageUtils;
+import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbClient;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -20,19 +29,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.SecurityContext;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.AdminResource;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDbClient;
-import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.Session;
 
 public class FileStorageAdminResource extends AdminResource {
 
@@ -169,64 +165,23 @@ public class FileStorageAdminResource extends AdminResource {
 
 		logger.info("storage check started");
 
-		HashMap<String, Long> dbFiles = new HashMap<>();
-
 		Files.createDirectories(orphanRootPath);
 
 		// collect storage files first to make sure we don't delete new files
 		HashMap<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
 		HashMap<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);
 
-		// lot of requests and far from atomic
-		for (String user : sessionDbClient.getUsers()) {
-			if (user == null) {
-				logger.info("skip user 'null'");
-				continue;
-			}
-			for (Session session : sessionDbClient.getSessions(user)) {
-				for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
-					if (dataset.getFile() != null) {
-						if (("null".equals(storageId) && dataset.getFile().getStorage() == null) ||
-								(storageId.equals(dataset.getFile().getStorage()))) {
+		HashMap<String, Long> dbFiles = StorageUtils.getDbFiles(storageId, this.sessionDbClient);
 
-							dbFiles.put(dataset.getFile().getFileId().toString(), dataset.getFile().getSize());
-						}
-					}
-				}
-			}
-		}
+		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, dbFiles);
 
-		List<String> correctNameFiles = new HashSet<>(dbFiles.keySet()).stream()
-				.filter(fileName -> storageFiles.containsKey(fileName))
-				.collect(Collectors.toList());
+		moveOrphanFiles(orphanFiles);
 
-		List<String> correctSizeFiles = correctNameFiles.stream()
-				.filter(fileName -> (long) storageFiles.get(fileName) == (long) dbFiles.get(fileName))
-				.collect(Collectors.toList());
+		logger.info(oldOrphanFiles.size() + " old orphan files are in  in " + orphanRootPath);
+		logger.info(orphanFiles.size() + " orphan files moved to " + orphanRootPath);
+	}
 
-		List<String> wrongSizeFiles = correctNameFiles.stream()
-				.filter(fileName -> (long) storageFiles.get(fileName) != (long) dbFiles.get(fileName))
-				.collect(Collectors.toList());
-
-		// why the second iteration without the new HashSet throws a call site
-		// initialization exception?
-		List<String> missingFiles = new HashSet<>(dbFiles.keySet()).stream()
-				.filter(fileName -> !storageFiles.containsKey(fileName))
-				.collect(Collectors.toList());
-
-		List<String> orphanFiles = new HashSet<>(storageFiles.keySet()).stream()
-				.filter(fileName -> !dbFiles.containsKey(fileName))
-				.collect(Collectors.toList());
-
-		for (String fileName : wrongSizeFiles) {
-			logger.info(
-					"wrong size " + fileName + ", db: " + dbFiles.get(fileName) + ", file: " + dbFiles.get(fileName));
-		}
-
-		for (String fileName : missingFiles) {
-			logger.info("missing file " + fileName + ", db: " + dbFiles.get(fileName));
-		}
-
+	private void moveOrphanFiles(List<String> orphanFiles) {
 		for (String fileName : orphanFiles) {
 			try {
 				UUID fileId = UUID.fromString(fileName);
@@ -243,23 +198,6 @@ public class FileStorageAdminResource extends AdminResource {
 				logger.info("couldn't move orphan file " + fileName, e);
 			}
 		}
-
-		long correctSizeTotal = correctSizeFiles.stream().mapToLong(dbFiles::get).sum();
-		long wrongSizeTotal = wrongSizeFiles.stream().mapToLong(dbFiles::get).sum();
-		long missingFilesTotal = missingFiles.stream().mapToLong(dbFiles::get).sum();
-		long orphanFilesTotal = orphanFiles.stream().mapToLong(storageFiles::get).sum();
-		long oldOrphanFilesTotal = oldOrphanFiles.values().stream().mapToLong(s -> s).sum();
-
-		logger.info(correctSizeFiles.size() + " files (" + FileUtils.byteCountToDisplaySize(correctSizeTotal)
-				+ ") are fine");
-		logger.info(wrongSizeFiles.size() + " files (" + FileUtils.byteCountToDisplaySize(wrongSizeTotal)
-				+ ") have wrong size");
-		logger.info(missingFiles.size() + " missing files or created during this check ("
-				+ FileUtils.byteCountToDisplaySize(missingFilesTotal) + ")");
-		logger.info(oldOrphanFiles.size() + " old orphan files ("
-				+ FileUtils.byteCountToDisplaySize(oldOrphanFilesTotal) + ") in " + orphanRootPath);
-		logger.info(orphanFiles.size() + " orphan files (" + FileUtils.byteCountToDisplaySize(orphanFilesTotal)
-				+ ") moved to " + orphanRootPath);
 	}
 
 	private HashMap<String, Long> getFilesAndSizes(java.nio.file.Path root, java.nio.file.Path excludePath)
