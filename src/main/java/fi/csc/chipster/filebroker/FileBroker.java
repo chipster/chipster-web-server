@@ -19,6 +19,7 @@ import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
 public class FileBroker {
@@ -46,6 +47,8 @@ public class FileBroker {
 
 	private S3StorageAdminClient s3StorageAdminClient;
 
+	private SessionDbAdminClient sessionDbAdminClient;
+
 	public FileBroker(Config config) {
 		this.config = config;
 	}
@@ -66,8 +69,9 @@ public class FileBroker {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+		this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
 		this.s3StorageClient = new S3StorageClient(config);
-		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient, sessionDbClient);
+		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
 		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery,
@@ -95,7 +99,7 @@ public class FileBroker {
 		this.httpServer.start();
 
 		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(jerseyStatisticsSource, storageDiscovery,
-				sessionDbClient, s3StorageClient, s3StorageAdminClient);
+				sessionDbAdminClient, s3StorageClient, s3StorageAdminClient);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
 				this.serviceLocator);
 	}

@@ -34,7 +34,7 @@ import fi.csc.chipster.s3storage.EncryptStream;
 import fi.csc.chipster.s3storage.FileEncryption;
 import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.IllegalFileException;
-import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
 
@@ -121,15 +121,15 @@ public class S3StorageClient {
 		return transferManager.getAmazonS3Client().getObject(request).getObjectContent();
 	}
 
-	public InputStream downloadAndDecrypt(Dataset dataset, ByteRange byteRange) {
+	public InputStream downloadAndDecrypt(File file, ByteRange byteRange) {
 
 		Long start = null;
 		Long end = null;
 
-		logger.info("downloadAndEncrypt byte range " + byteRange);
+		logger.info("downloadAndDecrypt byte range " + byteRange);
 
 		if (byteRange != null) {
-			logger.info("downloadAndEncrypt byte range " + byteRange + " [" + byteRange.getStart() + ", "
+			logger.info("downloadAndDecrypt byte range " + byteRange + " [" + byteRange.getStart() + ", "
 					+ byteRange.getEnd() + "]");
 			// because of the encryption, we have to read the file from the beginning, but
 			// we can still use range queries when we don't need the whole file
@@ -152,15 +152,15 @@ public class S3StorageClient {
 		}
 
 		try {
-			SecretKey secretKey = this.fileEncryption.parseKey(dataset.getFile().getEncryptionKey());
-			String fileId = dataset.getFile().getFileId().toString();
-			String bucket = storageIdToBucket(dataset.getFile().getStorage());
+			SecretKey secretKey = this.fileEncryption.parseKey(file.getEncryptionKey());
+			String fileId = file.getFileId().toString();
+			String bucket = storageIdToBucket(file.getStorage());
 
 			S3ObjectInputStream s3Stream = this.download(bucket, fileId, start, end);
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
 
 			if (byteRange == null) {
-				ChecksumStream checksumStream = new ChecksumStream(decryptStream, dataset.getFile().getChecksum());
+				ChecksumStream checksumStream = new ChecksumStream(decryptStream, file.getChecksum());
 
 				return checksumStream;
 			} else {
@@ -177,7 +177,8 @@ public class S3StorageClient {
 		}
 	}
 
-	public ChipsterUpload encryptAndUpload(UUID fileId, InputStream fileStream, Long length, String storageId) {
+	public ChipsterUpload encryptAndUpload(UUID fileId, InputStream fileStream, Long length, String storageId,
+			String expectedChecksum) {
 
 		String bucket = this.storageIdToBucket(storageId);
 
@@ -188,7 +189,7 @@ public class S3StorageClient {
 			long encryptedLength = this.fileEncryption.getEncryptedLength(length);
 
 			CountingInputStream countingInputStream = new CountingInputStream(fileStream);
-			ChecksumStream checksumStream = new ChecksumStream(countingInputStream, null);
+			ChecksumStream checksumStream = new ChecksumStream(countingInputStream, expectedChecksum);
 			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
 					this.fileEncryption.getSecureRandom());
 
@@ -356,5 +357,9 @@ public class S3StorageClient {
 
 	public FileEncryption getFileEncryption() {
 		return this.fileEncryption;
+	}
+
+	public void delete(String storageId, UUID fileId) {
+		this.transferManager.getAmazonS3Client().deleteObject(storageIdToBucket(storageId), fileId.toString());
 	}
 }

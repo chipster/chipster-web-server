@@ -13,6 +13,7 @@ import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
+import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.resource.NewsResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
@@ -113,5 +114,28 @@ public class SessionDbAdminClient {
 
 	public void deleteNews(UUID newsId) throws RestException {
 		RestMethods.delete(getNewsTarget(newsId));
+	}
+
+	// files
+
+	private WebTarget getFilesTarget() {
+		return getSessionDbAdminTarget().path(SessionDbAdminResource.PATH_FILES);
+	}
+
+	private WebTarget getFilesOfStorageTarget(String storageId) {
+		return getFilesTarget().queryParam("storageId", storageId);
+	}
+
+	private WebTarget getFilesTarget(UUID fileId) {
+		return getFilesTarget().path(fileId.toString());
+	}
+
+	public List<File> getFiles(String storageId) throws RestException {
+
+		return RestMethods.getList(getFilesOfStorageTarget(storageId), File.class);
+	}
+
+	public void updateFile(File file) throws RestException {
+		RestMethods.put(getFilesTarget(file.getFileId()), file);
 	}
 }

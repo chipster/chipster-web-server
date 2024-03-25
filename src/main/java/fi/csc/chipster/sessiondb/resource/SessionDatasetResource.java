@@ -19,6 +19,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.FileUtils;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
@@ -218,7 +219,7 @@ public class SessionDatasetResource {
 				sessionDbApi.checkFileModification(requestDataset, getHibernate().session());
 			}
 
-			if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
+			if (FileUtils.isEmpty(requestDataset.getFile())) {
 				// if the client doesn't care about the File, simply keep the db version
 				requestDataset.setFile(dbDatasets.get(requestDataset.getDatasetId()).getFile());
 			}

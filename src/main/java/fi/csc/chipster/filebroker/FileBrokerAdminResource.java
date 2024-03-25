@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +17,7 @@ import fi.csc.chipster.filebroker.filestorageclient.FileStorage;
 import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
 import fi.csc.chipster.filebroker.s3storageclient.S3StorageAdminClient;
 import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
+import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.filestorage.FileStorageAdminClient;
 import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.AdminResource;
@@ -24,10 +25,8 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDbClient;
-import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.model.File;
-import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -51,19 +50,19 @@ public class FileBrokerAdminResource extends AdminResource {
 
 	private FileStorageDiscovery fileStorageDiscovery;
 
-	private SessionDbClient sessionDbClient;
-
 	private S3StorageClient s3StorageClient;
 
 	private S3StorageAdminClient s3StorageAdminClient;
 
+	private SessionDbAdminClient sessionDbAdminClient;
+
 	public FileBrokerAdminResource(StatusSource stats, FileStorageDiscovery storageDiscovery,
-			SessionDbClient sessionDbClient, S3StorageClient s3StorageClient,
+			SessionDbAdminClient sessionDbAdminClient, S3StorageClient s3StorageClient,
 			S3StorageAdminClient s3StorageAdminClient) {
 		super(stats);
 
 		this.fileStorageDiscovery = storageDiscovery;
-		this.sessionDbClient = sessionDbClient;
+		this.sessionDbAdminClient = sessionDbAdminClient;
 		this.s3StorageClient = s3StorageClient;
 		this.s3StorageAdminClient = s3StorageAdminClient;
 	}
@@ -196,47 +195,19 @@ public class FileBrokerAdminResource extends AdminResource {
 			logger.info("copy max " + humanFriendly(maxBytes));
 		}
 
-		HashMap<UUID, File> fileMap = new HashMap<>();
-		HashMap<UUID, UUID> fileSessions = new HashMap<>();
-		HashMap<UUID, UUID> fileDatasets = new HashMap<>();
+		List<File> files = null;
 
-		// lot of requests and far from atomic
 		try {
-			for (String user : sessionDbClient.getUsers()) {
-				if (user == null) {
-					logger.info("skip user 'null'");
-					continue;
-				}
-				try {
-					for (Session session : sessionDbClient.getSessions(user)) {
-						try {
-							for (Dataset dataset : sessionDbClient.getDatasets(session.getSessionId()).values()) {
-								if (dataset.getFile() != null
-										&& ((sourceStorageId == null && dataset.getFile().getStorage() == null) ||
-												(sourceStorageId != null
-														&& sourceStorageId.equals(dataset.getFile().getStorage())))) {
-									fileMap.put(dataset.getFile().getFileId(), dataset.getFile());
-									fileSessions.put(dataset.getFile().getFileId(), session.getSessionId());
-									fileDatasets.put(dataset.getFile().getFileId(), dataset.getDatasetId());
-								}
-							}
-						} catch (RestException e) {
-							logger.warn("get datasets error", e);
-						}
-					}
-				} catch (RestException e) {
-					logger.warn("get sessions error for user " + user, e);
-				}
-			}
+			files = this.sessionDbAdminClient.getFiles(sourceStorageId);
 		} catch (RestException e) {
 			throw new InternalServerErrorException("get users failed", e);
 		}
 
-		logger.info("found " + fileDatasets.size() + " files");
+		logger.info("found " + files.size() + " files");
 
 		long bytesCopied = 0;
 
-		for (File file : fileMap.values()) {
+		for (File file : files) {
 
 			if (bytesCopied + file.getSize() >= maxBytes) {
 				logger.info("copied " + humanFriendly(bytesCopied) + " bytes, maxBytes reached");
@@ -246,47 +217,74 @@ public class FileBrokerAdminResource extends AdminResource {
 			logger.info("copy from '" + sourceStorageId + "' to '" + targetStorageId + "' fileId: " + file.getFileId()
 					+ ", " + humanFriendly(file.getSize()));
 
-			FileStorageClient sourceClient = fileStorageDiscovery.getStorageClientForExistingFile(sourceStorageId);
-			FileStorageClient targetClient = fileStorageDiscovery.getStorageClient(targetStorageId);
-
 			try {
-				InputStream sourceStream = sourceClient.download(file.getFileId(), null);
 
-				Map<String, String> queryParams = new HashMap<>() {
-					{
-						put(FileBrokerResource.FLOW_TOTAL_SIZE, "" + file.getSize());
-					}
-				};
-				long fileLength = targetClient.upload(file.getFileId(), sourceStream, queryParams);
+				InputStream sourceStream = null;
 
-				if (fileLength != file.getSize()) {
-					logger.warn("file length error. storageId '" + sourceStorageId + "', fileId " + file.getFileId()
-							+ ", copied: " + fileLength + " bytes, but size in DB is " + file.getSize()
-							+ ". Keeping both.");
-					if (!ignoreSize) {
-						continue;
+				if (this.s3StorageClient.containsStorageId(sourceStorageId)) {
+
+					sourceStream = s3StorageClient.downloadAndDecrypt(file, null);
+
+				} else {
+					FileStorageClient sourceClient = fileStorageDiscovery
+							.getStorageClientForExistingFile(sourceStorageId);
+					sourceStream = sourceClient.download(file.getFileId(), null);
+				}
+
+				long fileLength = -1;
+
+				if (this.s3StorageClient.containsStorageId(targetStorageId)) {
+
+					// Checksum can be null, if the file has newer been in s3. Then it's simply not
+					// checked.
+					ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(file.getFileId(),
+							sourceStream, file.getSize(), targetStorageId, file.getChecksum());
+
+					fileLength = upload.getFileLength();
+					file.setChecksum(upload.getChecksum());
+					file.setEncryptionKey(upload.getEncryptionKey());
+
+				} else {
+
+					Map<String, String> queryParams = new HashMap<>() {
+						{
+							put(FileBrokerResource.FLOW_TOTAL_SIZE, "" + file.getSize());
+						}
+					};
+
+					FileStorageClient targetClient = fileStorageDiscovery.getStorageClient(targetStorageId);
+					fileLength = targetClient.upload(file.getFileId(), sourceStream, queryParams);
+
+					if (fileLength != file.getSize()) {
+						logger.warn("file length error. storageId '" + sourceStorageId + "', fileId " + file.getFileId()
+								+ ", copied: " + fileLength + " bytes, but size in DB is " + file.getSize()
+								+ ". Keeping both.");
+						if (!ignoreSize) {
+							continue;
+						}
 					}
+
 				}
 
 				file.setSize(fileLength);
 				file.setStorage(targetStorageId);
 
-				UUID sessionId = fileSessions.get(file.getFileId());
-				UUID datasetId = fileDatasets.get(file.getFileId());
-
-				Dataset dataset = sessionDbClient.getDataset(sessionId, datasetId);
-				dataset.setFile(file);
-
 				/*
-				 * File can be in several sessions, but updating it in one of them is enough.
-				 * Other sessions won't get events, but that shouldn't matter, because the
-				 * file-broker
+				 * This won't send events, but that shouldn't matter, because the file-broker
 				 * will get the storage from the session-db anyway.
 				 */
-				sessionDbClient.updateDataset(sessionId, dataset);
-				fileStorageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
+				this.sessionDbAdminClient.updateFile(file);
 
-				bytesCopied += fileLength;
+				if (this.s3StorageClient.containsStorageId(sourceStorageId)) {
+
+					this.s3StorageClient.delete(sourceStorageId, file.getFileId());
+
+				} else {
+					fileStorageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
+				}
+
+				bytesCopied += file.getSize();
+
 			} catch (RestException e) {
 				logger.error("file copy failed", e);
 			}

@@ -13,11 +13,13 @@ import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
-import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.hibernate.annotations.Type;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+
+import fi.csc.chipster.sessiondb.FileUtils;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Entity // db
 @XmlRootElement // rest
@@ -95,7 +97,7 @@ public class Dataset {
 
 	public void setFile(File file) {
 		// jackson creates an empty object even when the client didn't set it
-		if (file != null && !file.isEmpty()) {
+		if (!FileUtils.isEmpty(file)) {
 			this.file = file;
 		} else {
 			this.file = null;

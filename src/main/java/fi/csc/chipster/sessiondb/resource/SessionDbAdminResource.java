@@ -52,6 +52,7 @@ public class SessionDbAdminResource extends AdminResource {
 	private static Logger logger = LogManager.getLogger();
 	public static final String PATH_USERS_SESSIONS = "users/sessions";
 	public static final String PATH_USERS_QUOTA = "users/quota";
+	public static final String PATH_FILES = "files";
 
 	// private final static String SQL_ORPHAN_FILES = "from File f left join Dataset
 	// d on f.fileId = d.file where d.file is null";
@@ -420,6 +421,33 @@ public class SessionDbAdminResource extends AdminResource {
 	public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
 		this.newsApi.delete(id);
+
+		return Response.noContent().build();
+	}
+
+	@GET
+	@Path(PATH_FILES)
+	@RolesAllowed({ Role.FILE_BROKER })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getFiles(@NotNull @QueryParam("storageId") String storageId, @Context SecurityContext sc) {
+
+		List<File> files = sessionDbApi.getFiles(storageId, sc);
+
+		return Response.ok(files).build();
+	}
+
+	@PUT
+	@Path(PATH_FILES + "/{id}")
+	@RolesAllowed({ Role.FILE_BROKER })
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response put(File requestFile, @PathParam("id") UUID fileId, @Context SecurityContext sc) {
+
+		// shouldn't be a problem, because we can trust file-broker
+		requestFile.setFileId(fileId);
+
+		this.sessionDbApi.update(requestFile);
 
 		return Response.noContent().build();
 	}

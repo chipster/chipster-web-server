@@ -71,10 +71,6 @@ public class File {
 	public void setFileCreated(Instant created) {
 	}
 
-	public boolean isEmpty() {
-		return fileId == null && checksum == null && size == -1;
-	}
-
 	public String getStorage() {
 		return storage;
 	}
