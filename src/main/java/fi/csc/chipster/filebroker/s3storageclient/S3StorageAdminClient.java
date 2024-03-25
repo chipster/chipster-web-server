@@ -25,7 +25,8 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import fi.csc.chipster.filebroker.StorageUtils;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
+import fi.csc.chipster.sessiondb.model.File;
 import io.jsonwebtoken.io.IOException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
@@ -38,11 +39,11 @@ public class S3StorageAdminClient {
 
     private S3StorageClient s3StorageClient;
 
-    private SessionDbClient sessionDbClient;
+    private SessionDbAdminClient sessionDbAdminClient;
 
-    public S3StorageAdminClient(S3StorageClient s3StorageClient, SessionDbClient sessionDbClient) {
+    public S3StorageAdminClient(S3StorageClient s3StorageClient, SessionDbAdminClient sessionDbAdminClient) {
         this.s3StorageClient = s3StorageClient;
-        this.sessionDbClient = sessionDbClient;
+        this.sessionDbAdminClient = sessionDbAdminClient;
     }
 
     public String getFileStats(String storageId) {
@@ -129,17 +130,17 @@ public class S3StorageAdminClient {
             Map<String, Long> storageFiles = getFilesAndSizes(storageId);
             Map<String, Long> oldOrphanFiles = getOldOrphanFiles(storageId, storageFiles);
 
-            HashMap<String, Long> dbFiles;
-            dbFiles = StorageUtils.getDbFiles(storageId, this.sessionDbClient);
+            HashMap<String, Long> dbFilesMap = new HashMap<>();
+            List<File> dbFiles = this.sessionDbAdminClient.getFiles(storageId);
 
             // convert to ciphertext sizes
-            for (String dbFile : dbFiles.keySet()) {
-                Long plaintextSize = dbFiles.get(dbFile);
+            for (File dbFile : dbFiles) {
+                Long plaintextSize = dbFile.getSize();
                 long ciphertextSize = s3StorageClient.getFileEncryption().getEncryptedLength(plaintextSize);
-                dbFiles.put(dbFile, ciphertextSize);
+                dbFilesMap.put(dbFile.getFileId().toString(), ciphertextSize);
             }
 
-            List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, dbFiles);
+            List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, dbFilesMap);
 
             saveListOfOrphanFiles(orphanFiles, storageId);
 

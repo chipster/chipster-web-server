@@ -21,6 +21,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.websocket.PubSubServer;
+import fi.csc.chipster.sessiondb.FileUtils;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.DatasetIdPair;
@@ -34,7 +35,9 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.core.SecurityContext;
 
 public class SessionDbApi {
 	private static Logger logger = LogManager.getLogger();
@@ -344,7 +347,7 @@ public class SessionDbApi {
 
 	public void checkFileModification(Dataset dataset, org.hibernate.Session hibernateSession) {
 		// if the file exists, don't allow it to be modified
-		if (dataset.getFile() == null || dataset.getFile().isEmpty()) {
+		if (FileUtils.isEmpty(dataset.getFile())) {
 			return;
 		}
 		File dbFile = hibernateSession.get(File.class, dataset.getFile().getFileId());
@@ -427,5 +430,17 @@ public class SessionDbApi {
 		if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
 			setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);
 		}
+	}
+
+	public List<File> getFiles(@NotNull String storageId, SecurityContext sc) {
+		@SuppressWarnings("unchecked")
+		List<File> files = hibernate.session().createQuery("from File where storage=:storage")
+				.setParameter("storage", storageId).list();
+
+		return files;
+	}
+
+	public void update(File file) {
+		HibernateUtil.update(file, file.getFileId(), hibernate.session());
 	}
 }

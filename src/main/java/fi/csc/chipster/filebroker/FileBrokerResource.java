@@ -116,7 +116,7 @@ public class FileBrokerResource {
 
 			ByteRange byteRange = s3StorageClient.parseByteRange(range);
 
-			fileStream = s3StorageClient.downloadAndDecrypt(dataset, byteRange);
+			fileStream = s3StorageClient.downloadAndDecrypt(dataset.getFile(), byteRange);
 
 		} else {
 
@@ -225,8 +225,9 @@ public class FileBrokerResource {
 
 				logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(storageId));
 
+				// checksum is not available
 				ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(dataset.getFile().getFileId(),
-						fileStream, flowTotalSize, storageId);
+						fileStream, flowTotalSize, storageId, null);
 
 				fileLength = upload.getFileLength();
 				file.setChecksum(upload.getChecksum());
