@@ -81,7 +81,7 @@ public class S3StorageClient {
 		String secret = config.getString(CONF_S3_SECRET_KEY, role);
 		String signerOverride = config.getString(COND_S3_SIGNER_OVERRIDE, role);
 
-		if (endpoint == null || access == null || secret == null) {
+		if (endpoint.isEmpty() || access.isEmpty() || secret.isEmpty()) {
 			logger.warn("S3Storage is not configured");
 			return null;
 		}

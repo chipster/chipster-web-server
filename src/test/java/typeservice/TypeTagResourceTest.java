@@ -8,9 +8,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +24,8 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
 
 public class TypeTagResourceTest {
 
@@ -62,9 +61,12 @@ public class TypeTagResourceTest {
 		tsvDatasetId = sessionDbClient.createDataset(sessionId, tsv);
 		pngDatasetId = sessionDbClient.createDataset(sessionId, png);
 
+		String contents1 = "chip.1	chip.2";
+		String contents2 = "abc";
 		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, tsvDatasetId,
-				RestUtils.toInputStream("chip.1	chip.2"));
-		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, pngDatasetId, RestUtils.toInputStream("abc"));
+				RestUtils.toInputStream(contents1), contents1.length());
+		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, pngDatasetId,
+				RestUtils.toInputStream(contents2), contents2.length());
 	}
 
 	@AfterAll
@@ -124,8 +126,9 @@ public class TypeTagResourceTest {
 
 		// upload a file content, because TypeService skips files without content
 		// why other tests work?
+		String contents = "abc";
 		FileResourceTest.uploadInputStream(launcher.getUser1Target(Role.FILE_BROKER), sessionId, datasetId,
-				IOUtils.toInputStream("abc", "UTF-8"));
+				IOUtils.toInputStream(contents, "UTF-8"), contents.length());
 
 		Response resp = typeServiceTarget1
 				.path("sessions").path(sessionId.toString())

@@ -10,12 +10,6 @@ import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.util.UUID;
 
-import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.commons.io.IOUtils;
 import org.glassfish.jersey.client.ClientProperties;
 import org.junit.jupiter.api.AfterAll;
@@ -29,6 +23,11 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 public class FileResourceTest {
 
@@ -86,22 +85,20 @@ public class FileResourceTest {
 		@SuppressWarnings("resource")
 		InputStream chunk2StreamRef = new DummyInputStream(chunk2Length);
 
-		WebTarget target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId)
+		WebTarget target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, chunk1Length + chunk2Length)
 				.queryParam("flowChunkNumber", "1")
 				.queryParam("flowChunkSize", "" + chunk1Length)
 				.queryParam("flowCurrentChunkSize", "" + chunk1Length)
-				.queryParam("flowTotalSize", "" + (chunk1Length + chunk2Length))
 				.queryParam("flowIdentifier", "JUnit-test-flow")
 				.queryParam("flowFilename", "JUnit-test-flow")
 				.queryParam("flowRelativePath", "JUnit-test-flow")
 				.queryParam("flowTotalChunks", "2");
 		assertEquals(204, putInputStream(target, chunk1Stream).getStatus());
 
-		target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId)
+		target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, chunk1Length + chunk2Length)
 				.queryParam("flowChunkNumber", "2")
 				.queryParam("flowChunkSize", "" + chunk1Length) // default chunk size, but
 				.queryParam("flowCurrentChunkSize", "" + chunk2Length) // the last can be different
-				.queryParam("flowTotalSize", "" + (chunk1Length + chunk2Length))
 				.queryParam("flowIdentifier", "JUnit-test-flow")
 				.queryParam("flowFilename", "JUnit-test-flow")
 				.queryParam("flowRelativePath", "JUnit-test-flow")
@@ -153,20 +150,22 @@ public class FileResourceTest {
 
 	// @Test
 	public void putLargeFile() throws FileNotFoundException, RestException {
+		long length = 6 * 1024 * 1024 * 1024;
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
 		assertEquals(200, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
-				new DummyInputStream(6 * 1024 * 1024 * 1024)).getStatus());
+				new DummyInputStream(length), length).getStatus());
 	}
 
 	private Response uploadFile(WebTarget target, UUID sessionId, UUID datasetId) throws FileNotFoundException {
-		InputStream fileInStream = new FileInputStream(new File(TEST_FILE));
+		File file = new File(TEST_FILE);
+		InputStream fileInStream = new FileInputStream(file);
 
-		return uploadInputStream(target, sessionId, datasetId, fileInStream);
+		return uploadInputStream(target, sessionId, datasetId, fileInStream, file.length());
 	}
 
 	public static Response uploadInputStream(WebTarget target, UUID sessionId, UUID datasetId,
-			InputStream inputStream) {
-		WebTarget chunkedTarget = getChunkedTarget(target, sessionId, datasetId);
+			InputStream inputStream, long length) {
+		WebTarget chunkedTarget = getChunkedTarget(target, sessionId, datasetId, length);
 		return putInputStream(chunkedTarget, inputStream);
 	}
 
@@ -175,11 +174,12 @@ public class FileResourceTest {
 				Response.class);
 	}
 
-	private static WebTarget getChunkedTarget(WebTarget target, UUID sessionId, UUID datasetId) {
+	private static WebTarget getChunkedTarget(WebTarget target, UUID sessionId, UUID datasetId, long length) {
 		// Use chunked encoding to disable buffering. HttpUrlConnector in
 		// Jersey buffers the whole file before sending it by default, which
 		// won't work with big files.
-		target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
+		target = target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
+		target = target.queryParam("flowTotalSize", Long.toString(length));
 		return target.path(getDatasetPath(sessionId, datasetId));
 	}
 
@@ -273,7 +273,11 @@ public class FileResourceTest {
 		String partition = file.getFileId().toString().substring(0, 2);
 		File storageFile = new File(
 				"storage" + File.separator + partition + File.separator + file.getFileId().toString());
-		assertEquals(true, storageFile.exists());
+
+		if (!storageFile.exists()) {
+			throw new RuntimeException(
+					"test doesn't support s3 storage. File not found from file-storage. Is s3 storage enabled?");
+		}
 
 		// remove the dataset
 		sessionDbClient1.deleteDataset(sessionId1, datasetId);
