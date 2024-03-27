@@ -2,12 +2,14 @@ package fi.csc.chipster.sessionworker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.HashMap;
@@ -86,10 +88,13 @@ public class ZipSessionServletTest {
 		fileBrokerClient1.upload(sessionId1, datasetId, new File(TEST_FILE));
 
 		// download the session zip
-		InputStream zipBytes = sessionWorkerClient1.getZipSessionStream(sessionId1);
+		InputStream zipByteStream = sessionWorkerClient1.getZipSessionStream(sessionId1);
+
+		byte[] zipBytes = IOUtils.toByteArray(zipByteStream);
 
 		// upload the session zip
-		UUID sessionId2 = sessionWorkerClient2.uploadZipSession(zipBytes);
+		UUID sessionId2 = sessionWorkerClient2.uploadZipSession(new ByteArrayInputStream(zipBytes),
+				zipBytes.length);
 
 		// find the correct dataset from the extracted session
 		HashMap<UUID, Dataset> datasets = sessionDbClient2.getDatasets(sessionId2);
@@ -166,7 +171,12 @@ public class ZipSessionServletTest {
 
 		// break the session by deleting the file from the file-storage
 		UUID fileId = sessionDbClient1.getDataset(sessionId, datasetId).getFile().getFileId();
-		Files.delete(FileServlet.getStoragePath(Paths.get("storage"), fileId));
+
+		try {
+			Files.delete(FileServlet.getStoragePath(Paths.get("storage"), fileId));
+		} catch (NoSuchFileException e) {
+			throw new RuntimeException("file not found from file-storage. Is S3 storage enabled?");
+		}
 
 		// download the session zip
 		try {
@@ -206,7 +216,7 @@ public class ZipSessionServletTest {
 	}
 
 	@Test
-	public void postWrongUser() throws RestException {
+	public void postWrongUser() throws RestException, IOException {
 
 		UUID sessionId1 = sessionDbClient1.createSession(RestUtils.getRandomSession());
 		UUID sessionId2 = sessionDbClient1.createSession(RestUtils.getRandomSession());
@@ -234,7 +244,7 @@ public class ZipSessionServletTest {
 	}
 
 	@Test
-	public void postAuthFail() throws RestException {
+	public void postAuthFail() throws RestException, IOException {
 
 		SessionWorkerClient client = new SessionWorkerClient(launcher.getAuthFailTarget(Role.SESSION_WORKER),
 				sessionDbClient1, fileBrokerClient1);
@@ -249,7 +259,7 @@ public class ZipSessionServletTest {
 	}
 
 	@Test
-	public void postTokenFail() throws RestException {
+	public void postTokenFail() throws RestException, IOException {
 		SessionWorkerClient client = new SessionWorkerClient(launcher.getWrongTokenTarget(Role.SESSION_WORKER),
 				sessionDbClient1, fileBrokerClient1);
 		this.testPostAuth(client, 401);
@@ -263,7 +273,7 @@ public class ZipSessionServletTest {
 	}
 
 	@Test
-	public void postUnparseableToken() throws RestException {
+	public void postUnparseableToken() throws RestException, IOException {
 		SessionWorkerClient client = new SessionWorkerClient(launcher.getUnparseableTokenTarget(Role.SESSION_WORKER),
 				sessionDbClient1, fileBrokerClient1);
 		this.testPostAuth(client, 401);
@@ -277,7 +287,7 @@ public class ZipSessionServletTest {
 	}
 
 	@Test
-	public void postNoAuth() throws RestException {
+	public void postNoAuth() throws RestException, IOException {
 		SessionWorkerClient client = new SessionWorkerClient(launcher.getNoAuthTarget(Role.SESSION_WORKER),
 				sessionDbClient1, fileBrokerClient1);
 		this.testPostAuth(client, 401);
@@ -287,9 +297,10 @@ public class ZipSessionServletTest {
 	 * Test that setupExctractionTest() works, because other tests rely on it
 	 * 
 	 * @throws RestException
+	 * @throws IOException
 	 */
 	@Test
-	public void setupTest() throws RestException {
+	public void setupTest() throws RestException, IOException {
 
 		Session session = RestUtils.getRandomSession();
 
@@ -320,7 +331,8 @@ public class ZipSessionServletTest {
 		sessionDbClient1.deleteSession(sessionId);
 	}
 
-	public void testPostAuth(SessionWorkerClient sessionWorkerClient, int expectedStatusCode) throws RestException {
+	public void testPostAuth(SessionWorkerClient sessionWorkerClient, int expectedStatusCode)
+			throws RestException, IOException {
 
 		UUID sessionId1 = sessionDbClient1.createSession(RestUtils.getRandomSession());
 		UUID sessionId2 = sessionDbClient1.createSession(RestUtils.getRandomSession());
@@ -341,13 +353,16 @@ public class ZipSessionServletTest {
 		sessionDbClient1.deleteSession(sessionId2);
 	}
 
-	private UUID setupExtactionTest(UUID sourceSession, UUID targetSession) throws RestException {
+	private UUID setupExtactionTest(UUID sourceSession, UUID targetSession) throws RestException, IOException {
 
 		InputStream zipStream = sessionWorkerClient1.getZipSessionStream(sourceSession);
 
+		// copy to array to get the length
+		byte[] bytes = IOUtils.toByteArray(zipStream);
+
 		Dataset zipDataset = new Dataset();
 		UUID zipDatasetId = sessionDbClient1.createDataset(targetSession, zipDataset);
-		fileBrokerClient1.upload(targetSession, zipDatasetId, zipStream);
+		fileBrokerClient1.upload(targetSession, zipDatasetId, new ByteArrayInputStream(bytes), (long) bytes.length);
 
 		return zipDatasetId;
 	}

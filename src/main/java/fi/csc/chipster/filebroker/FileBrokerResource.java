@@ -21,6 +21,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -267,10 +268,18 @@ public class FileBrokerResource {
 		} else {
 
 			String storageId = dataset.getFile().getStorage();
-			FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
 
-			logger.info("PUT file exists in storage '" + storageId + "'");
-			fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
+			if (this.s3StorageClient.containsStorageId(storageId)) {
+
+				// our s3 storage doesn't support appending
+				throw new ConflictException("file exists already");
+			} else {
+
+				FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
+
+				logger.info("PUT file exists in storage '" + storageId + "'");
+				fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
+			}
 		}
 
 		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(fileLength));

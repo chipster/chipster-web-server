@@ -5,9 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,6 +14,8 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
 
 public class SessionWorkerClient {
 
@@ -45,29 +44,30 @@ public class SessionWorkerClient {
 
 	}
 
-	public UUID uploadZipSession(InputStream zipBytes) throws RestException {
+	public UUID uploadZipSession(InputStream zipBytes, long length) throws RestException {
 
 		Session session = new Session();
 
 		UUID sessionId = sessionDbClient.createSession(session);
 
-		return uploadZipSession(zipBytes, sessionId);
+		return uploadZipSession(zipBytes, sessionId, length);
 	}
 
-	public UUID uploadZipSession(InputStream zipBytes, UUID sessionId) throws RestException {
+	public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, long length) throws RestException {
 
 		Dataset zipDataset = new Dataset();
 
 		// create a dataset for the zip upload
 		UUID zipDatasetId = sessionDbClient.createDataset(sessionId, zipDataset);
 
-		return uploadZipSession(zipBytes, sessionId, zipDatasetId);
+		return uploadZipSession(zipBytes, sessionId, zipDatasetId, length);
 	}
 
-	public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, UUID zipDatasetId) throws RestException {
+	public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, UUID zipDatasetId, long length)
+			throws RestException {
 
 		// upload the zip
-		fileBrokerClient.upload(sessionId, zipDatasetId, zipBytes);
+		fileBrokerClient.upload(sessionId, zipDatasetId, zipBytes, length);
 
 		return extractZipSession(sessionId, zipDatasetId);
 	}
