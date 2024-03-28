@@ -5,7 +5,6 @@ import fi.csc.chipster.tools.model.Region;
 
 public class GtfToFeatureConversion {
 
-	@SuppressWarnings("deprecation")
 	public static Exon parseLine(GtfLineParser parser, String line) {
 		if (!parser.setLine(line)) {
 			// header line
@@ -20,7 +19,7 @@ public class GtfToFeatureConversion {
 		String exonString = parser.getAttribute("exon_number");
 		int exonNumber = -1;
 		if (exonString != null) {
-			exonNumber = new Integer(exonString);
+			exonNumber = Integer.valueOf(exonString);
 		}
 		String geneName = parser.getAttribute("gene_name");
 		String transcName = parser.getAttribute("transcript_name");

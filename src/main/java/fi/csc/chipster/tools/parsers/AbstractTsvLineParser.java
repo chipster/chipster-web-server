@@ -1,24 +1,23 @@
 package fi.csc.chipster.tools.parsers;
 
-@SuppressWarnings("deprecation")
 public abstract class AbstractTsvLineParser implements LineParser {
 
 	protected String[] values;
 
 	public Integer getInteger(int column) {
 		String string = values[column];
-		return new Integer(string);
+		return Integer.valueOf(string);
 	}
 
 	public Long getLong(int column) {
 		String string = values[column];
-		return new Long(string);
+		return Long.valueOf(string);
 	}
 
 	public Float getFloat(int column) {
 		String string = values[column];
 		try {
-			return new Float(string);
+			return Float.valueOf(string);
 		} catch (NumberFormatException e) {
 			if ("inf".equals(string.toLowerCase())) {
 				return Float.POSITIVE_INFINITY;
