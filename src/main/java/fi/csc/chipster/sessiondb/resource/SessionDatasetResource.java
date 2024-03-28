@@ -253,7 +253,7 @@ public class SessionDatasetResource {
 			throw new NotFoundException("dataset not found");
 		}
 
-		this.sessionDbApi.deleteDataset(dataset, sessionId, getHibernate().session());
+		this.sessionDbApi.deleteDataset(dataset, sessionId);
 
 		sessionDbApi.sessionModified(session, getHibernate().session());
 
