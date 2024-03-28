@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker.s3storageclient;
+package fi.csc.chipster.s3storage.client;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +25,7 @@ import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.filestorageclient.FileStorage;
+import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.ChecksumStream;

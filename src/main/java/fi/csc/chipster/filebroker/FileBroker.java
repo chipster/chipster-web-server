@@ -10,14 +10,14 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.filestorageclient.FileStorageDiscovery;
-import fi.csc.chipster.filebroker.s3storageclient.S3StorageAdminClient;
-import fi.csc.chipster.filebroker.s3storageclient.S3StorageClient;
+import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.s3storage.client.S3StorageAdminClient;
+import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;

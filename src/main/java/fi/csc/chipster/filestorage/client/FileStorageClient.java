@@ -1,4 +1,4 @@
-package fi.csc.chipster.filestorage;
+package fi.csc.chipster.filestorage.client;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -9,6 +9,21 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.FileBrokerResource;
+import fi.csc.chipster.filestorage.FileServlet;
+import fi.csc.chipster.filestorage.UploadCancelledException;
+import fi.csc.chipster.rest.CredentialsProvider;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.ConflictException;
+import fi.csc.chipster.rest.exception.InsufficientStorageException;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.RestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -18,20 +33,6 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.FileBrokerResource;
-import fi.csc.chipster.rest.CredentialsProvider;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.exception.ConflictException;
-import fi.csc.chipster.rest.exception.InsufficientStorageException;
-import fi.csc.chipster.servicelocator.ServiceLocatorClient;
-import fi.csc.chipster.sessiondb.RestException;
 
 public class FileStorageClient {
 

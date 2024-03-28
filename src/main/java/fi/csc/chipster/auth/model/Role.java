@@ -30,4 +30,5 @@ public class Role {
 	public static final String SESSION_TOKEN = "session-token";
 	public static final String DATASET_TOKEN = "dataset-token";
 	public static final String SINGLE_SHOT_COMP = "single-shot-comp";
+	public static final String S3_STORAGE = "s3-storage";
 }

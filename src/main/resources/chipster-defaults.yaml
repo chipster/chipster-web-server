@@ -14,6 +14,7 @@ service-password-toolbox: toolbox
 service-password-job-history: job-history
 service-password-backup: backup
 service-password-file-storage: file-storage
+service-password-s3-storage: s3-storage
 service-password-type-service: type-service
 
 # Admin accounts
@@ -54,8 +55,9 @@ url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
-# this is really url-admin-int and accessed only through file-broker, but we don't yet hanle it differently in deployment scripts
+# these is really url-admin-int and accessed only through file-broker, but we don't yet hanle it differently in deployment scripts
 url-admin-ext-file-storage: http://{{admin-ip}}:8116
+url-admin-ext-s3-storage: http://{{admin-ip}}:8117
 
 # Address for the server to bind
 
@@ -85,6 +87,7 @@ url-admin-bind-type-service: http://{{admin-bind-ip}}:8110
 url-admin-bind-job-history: http://{{admin-bind-ip}}:8114
 url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 url-admin-bind-file-storage: http://{{bind-ip}}:8116
+url-admin-bind-s3-storage: http://{{bind-ip}}:8117
 
 # use external (public) addresses when connecting to other services
 use-external-addresses: false

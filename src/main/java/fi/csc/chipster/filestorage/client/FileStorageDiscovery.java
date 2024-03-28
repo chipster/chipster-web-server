@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker.filestorageclient;
+package fi.csc.chipster.filestorage.client;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filestorage.FileStorageClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;

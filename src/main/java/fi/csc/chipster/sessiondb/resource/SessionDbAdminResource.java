@@ -437,6 +437,18 @@ public class SessionDbAdminResource extends AdminResource {
 		return Response.ok(files).build();
 	}
 
+	@GET
+	@Path(PATH_FILES + "/{id}")
+	@RolesAllowed({ Role.S3_STORAGE })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getFile(@NotNull @PathParam("fileId") UUID fileId, @Context SecurityContext sc) {
+
+		File file = sessionDbApi.getFile(fileId, sc);
+
+		return Response.ok(file).build();
+	}
+
 	@PUT
 	@Path(PATH_FILES + "/{id}")
 	@RolesAllowed({ Role.FILE_BROKER })
