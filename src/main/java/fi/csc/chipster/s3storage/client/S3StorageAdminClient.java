@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker.s3storageclient;
+package fi.csc.chipster.s3storage.client;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

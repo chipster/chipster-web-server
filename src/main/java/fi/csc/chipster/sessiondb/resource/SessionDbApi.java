@@ -234,8 +234,8 @@ public class SessionDbApi {
 
 	public void deleteDataset(Dataset dataset, UUID sessionId, org.hibernate.Session hibernateSession) {
 
-		// FIXME use parameter hibernateSession? is it still needed?
-		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), hibernate.session());
+		// FIXME is hibernateSession still needed?
+		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), hibernateSession);
 
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
 			UUID fileId = dataset.getFile().getFileId();
@@ -252,8 +252,10 @@ public class SessionDbApi {
 			// can delete it
 			if (fileDatasets.isEmpty()) {
 				// remove from file-broker
+				String json = RestUtils.asJson(dataset.getFile());
 				publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
-						new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE), hibernateSession);
+						new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE, null, json, null),
+						hibernateSession);
 				// remove from db
 				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernateSession);
 			}
@@ -442,5 +444,12 @@ public class SessionDbApi {
 
 	public void update(File file) {
 		HibernateUtil.update(file, file.getFileId(), hibernate.session());
+	}
+
+	public File getFile(@NotNull UUID fileId, SecurityContext sc) {
+
+		File file = hibernate.session().get(File.class, fileId);
+
+		return file;
 	}
 }

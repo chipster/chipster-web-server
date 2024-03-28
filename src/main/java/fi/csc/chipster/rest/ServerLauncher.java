@@ -9,6 +9,7 @@ import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.filestorage.FileStorage;
 import fi.csc.chipster.jobhistory.JobHistoryService;
+import fi.csc.chipster.s3storage.S3Storage;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -42,6 +43,8 @@ public class ServerLauncher {
 
 	private final FileStorage fileStorage;
 
+	private S3Storage s3Storage;
+
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 
 		long t = System.currentTimeMillis();
@@ -69,6 +72,12 @@ public class ServerLauncher {
 		}
 		fileStorage = new FileStorage(config);
 		fileStorage.startServer();
+
+		if (verbose) {
+			logger.info("starting s3-storage");
+		}
+		s3Storage = new S3Storage(config);
+		s3Storage.startServer();
 
 		if (verbose) {
 			logger.info("starting file-broker");
@@ -205,6 +214,13 @@ public class ServerLauncher {
 				fileBroker.close();
 			} catch (Exception e) {
 				logger.warn("closing file-broker failed", e);
+			}
+		}
+		if (s3Storage != null) {
+			try {
+				s3Storage.close();
+			} catch (Exception e) {
+				logger.warn("closing s3-storage failed", e);
 			}
 		}
 		if (fileStorage != null) {

@@ -1,4 +1,4 @@
-package fi.csc.chipster.filebroker.filestorageclient;
+package fi.csc.chipster.filestorage.client;
 
 import java.net.URI;
 
