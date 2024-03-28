@@ -49,7 +49,7 @@ public class BackupArchive {
 		FULL;
 	}
 
-	private Logger logger = LogManager.getLogger();
+	private static Logger logger = LogManager.getLogger();
 
 	private Config config;
 
@@ -484,7 +484,7 @@ public class BackupArchive {
 		logger.info(backupsToDelete.size() + " backups deleted");
 	}
 
-	private TreeMap<Instant, Path> getArchives(Path archiveRootPath, String backupPrefix) throws IOException {
+	private static TreeMap<Instant, Path> getArchives(Path archiveRootPath, String backupPrefix) throws IOException {
 
 		try (Stream<Path> files = Files.list(archiveRootPath)) {
 			List<Path> allFiles = files
@@ -511,7 +511,7 @@ public class BackupArchive {
 	 * @throws IOException
 	 * @throws CleanUpException
 	 */
-	private void removeOldIncrementalArchives(Path archiveRootPath, String backupPrefix, int dayCount)
+	static void removeOldIncrementalArchives(Path archiveRootPath, String backupPrefix, int dayCount)
 			throws IOException, CleanUpException {
 		logger.info("list " + backupPrefix + " archives");
 
@@ -543,7 +543,7 @@ public class BackupArchive {
 		logger.info(backupsToDelete.size() + " backups deleted");
 	}
 
-	private void checkClock(TreeMap<Instant, Path> backupsToDelete) throws CleanUpException {
+	static void checkClock(TreeMap<Instant, Path> backupsToDelete) throws CleanUpException {
 
 		// don't clean up if the clock might be wrong
 		if (!backupsToDelete.isEmpty()) {
