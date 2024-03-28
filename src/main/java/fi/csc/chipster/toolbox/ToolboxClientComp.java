@@ -105,7 +105,7 @@ public class ToolboxClientComp {
 			destDir.mkdir();
 		}
 
-		URL url = new URL(zipFilePath);
+		URL url = new File(zipFilePath).toURI().toURL();
 
 		try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(url.openStream(), 1024))) {
 			ZipEntry entry = zipIn.getNextEntry();

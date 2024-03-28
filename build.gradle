@@ -29,12 +29,16 @@ distTar {
 
 // option to set java version on command line
 // ./gradlew -P javaVersion=8
-ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '21'
-sourceCompatibility = javaVersion
-targetCompatibility = javaVersion
+java {
+    ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '21'
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+}
 
-//mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
-mainClassName = "fi.csc.chipster.rest.ServerLauncher"
+application {
+    //mainClass = "fi.csc.chipster.toolbox.ToolboxService"
+    mainClass = "fi.csc.chipster.rest.ServerLauncher"
+}
 
 jar { 
 	exclude 'log4j2-test.xml' 
