@@ -300,7 +300,7 @@ public class SessionResource {
 		// check authorization
 		Session session = ruleTable.checkSessionReadWriteAuthorization(sc, id);
 
-		this.sessionDbApi.deleteSession(session, getHibernate().session());
+		this.sessionDbApi.deleteSession(session);
 
 		return Response.noContent().build();
 	}

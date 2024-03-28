@@ -156,13 +156,13 @@ public class SessionDbApi {
 
 		if (count == 0) {
 			logger.debug("last rule deleted, delete the session too");
-			deleteSession(session, hibernate.session());
+			deleteSession(session);
 		} else {
 			logger.debug(count + " rules left, session kept");
 		}
 	}
 
-	public void deleteSession(Session session, org.hibernate.Session hibernateSession) {
+	public void deleteSession(Session session) {
 
 		UUID sessionId = session.getSessionId();
 
@@ -184,13 +184,13 @@ public class SessionDbApi {
 		 * between the dataset and the session. This also generates the necessary events
 		 * e.g. to remove files.
 		 */
-		for (Dataset dataset : SessionDbApi.getDatasets(hibernateSession, session)) {
-			deleteDataset(dataset, sessionId, hibernateSession);
+		for (Dataset dataset : SessionDbApi.getDatasets(hibernate.session(), session)) {
+			deleteDataset(dataset, sessionId);
 		}
 
 		// see the note about datasets above
-		for (Job job : getJobs(hibernateSession, session)) {
-			deleteJob(job, sessionId, hibernateSession);
+		for (Job job : getJobs(hibernate.session(), session)) {
+			deleteJob(job, sessionId, hibernate.session());
 		}
 
 		// see the note about datasets above
@@ -200,11 +200,11 @@ public class SessionDbApi {
 			deleteRule(session, rule, hibernate.session(), false);
 		}
 
-		HibernateUtil.delete(session, session.getSessionId(), hibernateSession);
+		HibernateUtil.delete(session, session.getSessionId(), hibernate.session());
 
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,
 				session.getState());
-		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
 	}
 
 	public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
@@ -232,16 +232,15 @@ public class SessionDbApi {
 		this.events = pubSubServer;
 	}
 
-	public void deleteDataset(Dataset dataset, UUID sessionId, org.hibernate.Session hibernateSession) {
+	public void deleteDataset(Dataset dataset, UUID sessionId) {
 
-		// FIXME is hibernateSession still needed?
-		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), hibernateSession);
+		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), hibernate.session());
 
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
 			UUID fileId = dataset.getFile().getFileId();
 
 			@SuppressWarnings("unchecked")
-			List<Dataset> fileDatasets = hibernateSession.createQuery("from Dataset where file=:file")
+			List<Dataset> fileDatasets = hibernate.session().createQuery("from Dataset where file=:file")
 					.setParameter("file", dataset.getFile()).list();
 
 			// don't care about the dataset that is being deleted
@@ -255,15 +254,15 @@ public class SessionDbApi {
 				String json = RestUtils.asJson(dataset.getFile());
 				publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
 						new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE, null, json, null),
-						hibernateSession);
+						hibernate.session());
 				// remove from db
-				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernateSession);
+				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernate.session());
 			}
 
 		}
 		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
 				new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE),
-				hibernateSession);
+				hibernate.session());
 	}
 
 	public void deleteJob(Job job, UUID sessionId, org.hibernate.Session hibernateSession) {
