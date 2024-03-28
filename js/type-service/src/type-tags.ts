@@ -46,6 +46,7 @@ export const Tags = {
   SFF: new Tag("SFF", [".sff"]),
   // RData format used in phyloseq tools
   R_RDA: new Tag("R_RDA", [".Rda"]),
+  MD5: new Tag("MD5", [".md5"]),
 
   // complex types are defined here for autocompletion, but have to be checked separately
   GENELIST: new Tag("GENELIST", []),
@@ -91,6 +92,7 @@ const TEXT_TYPES = new Set([
   Tags.SEQ,
   Tags.WEE,
   Tags.DAT,
+  Tags.MD5
 ]);
 
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
