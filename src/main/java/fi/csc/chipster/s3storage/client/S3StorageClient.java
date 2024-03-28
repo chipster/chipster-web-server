@@ -113,7 +113,7 @@ public class S3StorageClient {
 
 		GetObjectRequest request = new GetObjectRequest(bucket, objectName);
 
-		logger.info("download range: " + start + " " + end);
+		logger.debug("download range: " + start + " " + end);
 		if (start != null || end != null) {
 			request = request.withRange(start, end);
 		}

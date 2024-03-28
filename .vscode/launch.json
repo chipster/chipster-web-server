@@ -6,6 +6,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "S3StorageBackup",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.archive.S3StorageBackup",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
       "name": "Download",
       "request": "launch",
       "mainClass": "fi.csc.chipster.s3storage.cli.Download",
