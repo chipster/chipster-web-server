@@ -148,6 +148,29 @@ public class FileResourceTest {
 		assertEquals(403, uploadFile(fileBrokerTarget1, sessionId2, datasetId).getStatus());
 	}
 
+	@Test
+	public void putAndGetFile() throws RestException, IOException {
+
+		// test different file lengths
+		// lengths from 0 to 20 should be enough to check encryption padding which is 16
+		// bytes (but S3 storage is not enabled by default)
+		for (long length = 0; length < 20; length++) {
+			putAndGetFile(length);
+		}
+	}
+
+	public void putAndGetFile(long length) throws RestException, IOException {
+
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+		assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+				new DummyInputStream(length), length).getStatus());
+
+		InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+				.get(InputStream.class);
+
+		assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+	}
+
 	// @Test
 	public void putLargeFile() throws FileNotFoundException, RestException {
 		long length = 6 * 1024 * 1024 * 1024;
