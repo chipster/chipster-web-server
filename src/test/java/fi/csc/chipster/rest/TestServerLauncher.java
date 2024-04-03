@@ -182,6 +182,11 @@ public class TestServerLauncher {
 				.getCredentials();
 	}
 
+	public CredentialsProvider getS3StorageToken() {
+		return new AuthenticationClient(serviceLocatorClient, Role.S3_STORAGE, Role.S3_STORAGE, Role.SERVER)
+				.getCredentials();
+	}
+
 	public CredentialsProvider getSessionDbToken() {
 		return new AuthenticationClient(serviceLocatorClient, Role.SESSION_DB, Role.SESSION_DB, Role.SERVER)
 				.getCredentials();
