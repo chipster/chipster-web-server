@@ -5,6 +5,8 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -74,7 +76,7 @@ public class ToolboxClientComp {
 		client.close();
 	}
 
-	public void getToolboxModules(File jobToolboxDir) throws IOException {
+	public void getToolboxModules(File jobToolboxDir) throws IOException, URISyntaxException {
 		long startTime = System.currentTimeMillis();
 
 		unzip(baseUri + MODULES_ZIP_PATH, jobToolboxDir);
@@ -98,14 +100,14 @@ public class ToolboxClientComp {
 		});
 	}
 
-	private void unzip(String zipFilePath, File destDirectory) throws IOException {
+	private void unzip(String zipFilePath, File destDirectory) throws IOException, URISyntaxException {
 
 		File destDir = destDirectory;
 		if (!destDir.exists()) {
 			destDir.mkdir();
 		}
 
-		URL url = new File(zipFilePath).toURI().toURL();
+		URL url = new URI(zipFilePath).toURL();
 
 		try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(url.openStream(), 1024))) {
 			ZipEntry entry = zipIn.getNextEntry();

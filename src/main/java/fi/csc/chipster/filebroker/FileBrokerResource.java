@@ -209,77 +209,68 @@ public class FileBrokerResource {
 		}
 
 		long fileLength = -1;
+		File file;
+		String storageId;
 
 		if (dataset.getFile() == null) {
 
 			logger.debug("PUT new file");
 
-			File file = new File();
+			file = new File();
 			// create a new fileId
 			file.setFileId(RestUtils.createUUID());
 			file.setFileCreated(Instant.now());
 			dataset.setFile(file);
 
-			if (this.s3StorageClient.isEnabled() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
+			storageId = getStorage(flowTotalChunks, queryParams);
 
-				String storageId = this.s3StorageClient.getStorageIdForNewFile();
+			file.setStorage(storageId);
 
-				logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(storageId));
-
-				// checksum is not available
-				ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(dataset.getFile().getFileId(),
-						fileStream, flowTotalSize, storageId, null);
-
-				fileLength = upload.getFileLength();
-				file.setChecksum(upload.getChecksum());
-				file.setEncryptionKey(upload.getEncryptionKey());
-
-				file.setStorage(storageId);
-
-			} else {
-
-				logger.info("upload to file-storage");
-
-				for (String storageId : storageDiscovery.getStoragesForNewFile()) {
-					// not synchronized, may fail when storage is lost
-					FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
-
-					logger.info("PUT new file to storage '" + storageId + "' "
-							+ FileBrokerAdminResource.humanFriendly(flowTotalSize));
-					try {
-						storageClient.checkIfUploadAllowed(queryParams);
-						fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream,
-								queryParams);
-
-						file.setStorage(storageId);
-						break;
-					} catch (InsufficientStorageException e) {
-						logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
-					} catch (RestException e) {
-						throw ServletUtils.extractRestException(e);
-					}
-				}
-
-				if (fileLength == -1) {
-					logger.error("insufficient storage on all storages");
-					throw new InsufficientStorageException("insufficient storage on all storages");
-				}
+			// Add the File to the DB before creating the file in storage. Otherwise storage
+			// check could think it's orphan and delete it.
+			try {
+				dataset.getFile().setState(FileState.UPLOADING);
+				this.sessionDbWithFileBrokerCredentials.updateDataset(sessionId, dataset);
+			} catch (RestException e) {
+				throw ServletUtils.extractRestException(e);
 			}
+
 		} else {
 
-			String storageId = dataset.getFile().getStorage();
+			file = dataset.getFile();
+			storageId = file.getStorage();
 
 			if (this.s3StorageClient.containsStorageId(storageId)) {
 
 				// our s3 storage doesn't support appending
 				throw new ConflictException("file exists already");
 			} else {
-
-				FileStorageClient storageClient = storageDiscovery.getStorageClientForExistingFile(storageId);
-
-				logger.info("PUT file exists in storage '" + storageId + "'");
-				fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream, queryParams);
+				logger.info("append to existing file in " + storageId);
 			}
+		}
+
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+
+			logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(storageId));
+
+			// checksum is not available
+			ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(dataset.getFile().getFileId(),
+					fileStream, flowTotalSize, storageId, null);
+
+			fileLength = upload.getFileLength();
+			file.setChecksum(upload.getChecksum());
+			file.setEncryptionKey(upload.getEncryptionKey());
+
+		} else {
+
+			logger.info("PUT file to storage '" + storageId + "' "
+					+ FileBrokerAdminResource.humanFriendly(flowTotalSize));
+
+			// not synchronized, may fail when storage is lost
+			FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
+
+			fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream,
+					queryParams);
 		}
 
 		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(fileLength));
@@ -312,6 +303,36 @@ public class FileBrokerResource {
 			// upload paused
 			return Response.serverError().build();
 		}
+	}
+
+	private String getStorage(Long flowTotalChunks, Map<String, String> queryParams) {
+
+		if (this.s3StorageClient.isEnabled() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
+
+			return this.s3StorageClient.getStorageIdForNewFile();
+
+		} else {
+
+			for (String storageId : storageDiscovery.getStoragesForNewFile()) {
+				// not synchronized, may fail when storage is lost
+				FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
+
+				try {
+					storageClient.checkIfUploadAllowed(queryParams);
+
+					return storageId;
+
+				} catch (InsufficientStorageException e) {
+					logger.warn("insufficient storage in storageId '" + storageId + "', trying others");
+				} catch (RestException e) {
+					throw ServletUtils.extractRestException(e);
+				}
+			}
+
+			logger.error("insufficient storage on all storages");
+			throw new InsufficientStorageException("insufficient storage on all storages");
+		}
+
 	}
 
 	private Dataset getDatasetObject(UUID sessionId, UUID datasetId, String userToken, boolean requireReadWrite)
