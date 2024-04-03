@@ -25,6 +25,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 
@@ -47,6 +48,8 @@ public class FileStorage {
 	private StatusSource stats;
 
 	private StorageBackup backup;
+
+	private SessionDbAdminClient sessionDbAdminClient;
 
 	public FileStorage(Config config) {
 		this.config = config;
@@ -75,6 +78,8 @@ public class FileStorage {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+		this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
+
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		File storage = new File("storage");
@@ -151,7 +156,8 @@ public class FileStorage {
 
 		server.start();
 
-		FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbClient, storage,
+		FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbAdminClient,
+				storage,
 				storageId);
 		adminResource.addFileSystem("storage", storage);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_STORAGE, config, authService,
