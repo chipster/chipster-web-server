@@ -138,9 +138,4 @@ public class SessionDbAdminClient {
 	public void updateFile(File file) throws RestException {
 		RestMethods.put(getFilesTarget(file.getFileId()), file);
 	}
-
-	public File getFile(UUID fileId) throws RestException {
-
-		return RestMethods.get(getFilesTarget(fileId), File.class);
-	}
 }

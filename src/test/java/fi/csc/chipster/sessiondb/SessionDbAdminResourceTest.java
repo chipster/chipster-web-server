@@ -1,11 +1,14 @@
 package fi.csc.chipster.sessiondb;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -19,10 +22,14 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.FileResourceTest;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
+import jakarta.ws.rs.client.WebTarget;
 
 public class SessionDbAdminResourceTest {
 
@@ -30,6 +37,8 @@ public class SessionDbAdminResourceTest {
     private static SessionDbAdminClient adminClient;
     private static SessionDbClient user1Client;
     private static SessionDbClient user2Client;
+    private static SessionDbAdminClient sessionDbClientForFileBroker;
+    private static WebTarget fileBrokerTarget1;
 
     @BeforeAll
     public static void setUp() throws Exception {
@@ -38,8 +47,14 @@ public class SessionDbAdminResourceTest {
 
         adminClient = new SessionDbAdminClient(launcher.getServiceLocatorForAdmin(), launcher.getAdminToken());
 
+        // we can use scheduler's service-locator client to get the internal addresses
+        sessionDbClientForFileBroker = new SessionDbAdminClient(launcher.getServiceLocatorForScheduler(),
+                launcher.getFileBrokerToken());
+
         user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
         user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+
+        fileBrokerTarget1 = launcher.getUser1Target(Role.FILE_BROKER);
     }
 
     @AfterAll
@@ -261,4 +276,86 @@ public class SessionDbAdminResourceTest {
         return sessionList.stream().anyMatch(session -> session.get("sessionId").equals(sessionId));
     }
 
+    @Test
+    public void testFiles() throws IOException, RestException {
+
+        // create sessions for users 1 and 2
+        Session session = RestUtils.getRandomSession();
+        UUID sessionId = user1Client.createSession(session);
+
+        Dataset dataset = RestUtils.getRandomDataset();
+        UUID datasetId = user1Client.createDataset(sessionId, dataset);
+
+        String contents = "abc";
+        FileResourceTest.uploadInputStream(fileBrokerTarget1, sessionId, datasetId,
+                new ByteArrayInputStream(contents.getBytes()), contents.length());
+
+        // file-broker should have added a File object to the Dataset
+        dataset = user1Client.getDataset(sessionId, datasetId);
+
+        File file = dataset.getFile();
+        UUID fileId = file.getFileId();
+        String storageId = file.getStorage();
+
+        // file-broker can get files
+
+        Set<UUID> storageFiles = sessionDbClientForFileBroker.getFiles(storageId).stream()
+                .map(f -> f.getFileId())
+                .collect(Collectors.toSet());
+
+        assertTrue(storageFiles.contains(fileId));
+
+        // check that file-broker can modify Files
+        file.setStorage("fake-storage-id");
+        sessionDbClientForFileBroker.updateFile(file);
+
+        // put back original value
+        file.setStorage(storageId);
+        sessionDbClientForFileBroker.updateFile(file);
+
+        user1Client.deleteSession(sessionId);
+    }
+
+    @Test
+    public void testFileErrors() throws IOException, RestException {
+
+        // create sessions for users 1 and 2
+        Session session = RestUtils.getRandomSession();
+        UUID sessionId = user1Client.createSession(session);
+
+        Dataset dataset = RestUtils.getRandomDataset();
+        UUID datasetId = user1Client.createDataset(sessionId, dataset);
+
+        String contents = "abc";
+        FileResourceTest.uploadInputStream(fileBrokerTarget1, sessionId, datasetId,
+                new ByteArrayInputStream(contents.getBytes()), contents.length());
+
+        // file-broker should have added a File object to the Dataset
+        dataset = user1Client.getDataset(sessionId, datasetId);
+
+        File file = dataset.getFile();
+        String storageId = file.getStorage();
+
+        SessionDbAdminClient sessionDbAdminClientForUser = new SessionDbAdminClient(
+                launcher.getServiceLocatorForScheduler(),
+                launcher.getUser1Token());
+
+        // users never need direct access to File
+        try {
+            sessionDbAdminClientForUser.getFiles(storageId);
+        } catch (RestException e) {
+            assertEquals(403, e.getResponse().getStatus());
+        }
+
+        // users never need direct access to File
+        try {
+            file.setStorage("fake-storage-id");
+            sessionDbAdminClientForUser.updateFile(file);
+
+        } catch (RestException e) {
+            assertEquals(403, e.getResponse().getStatus());
+        }
+
+        user1Client.deleteSession(sessionId);
+    }
 }
