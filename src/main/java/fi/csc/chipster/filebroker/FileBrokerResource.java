@@ -208,11 +208,11 @@ public class FileBrokerResource {
 			throw ServletUtils.extractRestException(e);
 		}
 
-		long fileLength = -1;
 		File file;
-		String storageId;
 
 		if (dataset.getFile() == null) {
+
+			// find storage for new file
 
 			logger.debug("PUT new file");
 
@@ -222,14 +222,12 @@ public class FileBrokerResource {
 			file.setFileCreated(Instant.now());
 			dataset.setFile(file);
 
-			storageId = getStorage(flowTotalChunks, queryParams);
-
-			file.setStorage(storageId);
+			file.setStorage(getStorage(flowTotalChunks, queryParams));
+			file.setState(FileState.UPLOADING);
 
 			// Add the File to the DB before creating the file in storage. Otherwise storage
-			// check could think it's orphan and delete it.
+			// check could think the file in storage is orphan and delete it.
 			try {
-				dataset.getFile().setState(FileState.UPLOADING);
 				this.sessionDbWithFileBrokerCredentials.updateDataset(sessionId, dataset);
 			} catch (RestException e) {
 				throw ServletUtils.extractRestException(e);
@@ -237,59 +235,60 @@ public class FileBrokerResource {
 
 		} else {
 
-			file = dataset.getFile();
-			storageId = file.getStorage();
+			// find the storage of existing file for appending
 
-			if (this.s3StorageClient.containsStorageId(storageId)) {
+			file = dataset.getFile();
+
+			if (this.s3StorageClient.containsStorageId(file.getStorage())) {
 
 				// our s3 storage doesn't support appending
 				throw new ConflictException("file exists already");
 			} else {
-				logger.info("append to existing file in " + storageId);
+				logger.info("append to existing file in " + file.getStorage());
 			}
 		}
 
-		if (this.s3StorageClient.containsStorageId(storageId)) {
+		if (this.s3StorageClient.containsStorageId(file.getStorage())) {
 
-			logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(storageId));
+			logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(file.getStorage()));
 
 			// checksum is not available
 			ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(dataset.getFile().getFileId(),
-					fileStream, flowTotalSize, storageId, null);
+					fileStream, flowTotalSize, file.getStorage(), null);
 
-			fileLength = upload.getFileLength();
+			file.setSize(upload.getFileLength());
 			file.setChecksum(upload.getChecksum());
 			file.setEncryptionKey(upload.getEncryptionKey());
+			file.setState(FileState.COMPLETE);
 
 		} else {
 
-			logger.info("PUT file to storage '" + storageId + "' "
+			logger.info("PUT file to storage '" + file.getStorage() + "' "
 					+ FileBrokerAdminResource.humanFriendly(flowTotalSize));
 
 			// not synchronized, may fail when storage is lost
-			FileStorageClient storageClient = storageDiscovery.getStorageClient(storageId);
+			FileStorageClient storageClient = storageDiscovery.getStorageClient(file.getStorage());
 
-			fileLength = storageClient.upload(dataset.getFile().getFileId(), fileStream,
-					queryParams);
-		}
-
-		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(fileLength));
-
-		if (fileLength >= 0) {
 			// update the file size after each chunk
-			dataset.getFile().setSize(fileLength);
+			file.setSize(storageClient.upload(dataset.getFile().getFileId(), fileStream,
+					queryParams));
 
 			// update File state
 			if (flowTotalSize == null) {
 				logger.warn("flowTotalSize is not available, will assume the file is completed");
-				dataset.getFile().setState(FileState.COMPLETE);
+				file.setState(FileState.COMPLETE);
 
-			} else if (fileLength == flowTotalSize) {
-				dataset.getFile().setState(FileState.COMPLETE);
+			} else if (file.getSize() == flowTotalSize) {
+				file.setState(FileState.COMPLETE);
 
 			} else {
-				dataset.getFile().setState(FileState.UPLOADING);
+				file.setState(FileState.UPLOADING);
 			}
+		}
+
+		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
+
+		if (file.getSize() >= 0) {
 
 			try {
 				logger.debug("PUT " + sessionDbUri + "/sessions/" + sessionId + "/datasets/" + datasetId);
@@ -332,7 +331,6 @@ public class FileBrokerResource {
 			logger.error("insufficient storage on all storages");
 			throw new InsufficientStorageException("insufficient storage on all storages");
 		}
-
 	}
 
 	private Dataset getDatasetObject(UUID sessionId, UUID datasetId, String userToken, boolean requireReadWrite)
