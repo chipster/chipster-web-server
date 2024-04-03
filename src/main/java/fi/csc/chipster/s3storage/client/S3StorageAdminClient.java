@@ -126,7 +126,13 @@ public class S3StorageAdminClient {
         logger.info("storage check started");
 
         try {
-            // collect storage files first to make sure we don't delete new files
+            /*
+             * Collect storage files first to make sure we don't delete new files
+             * 
+             * Files are added to the DB before they are created in storage. Then we know
+             * that all files in storage are also in DB and cannot be considered orphan by
+             * accident.
+             */
             Map<String, Long> storageFiles = getFilesAndSizes(storageId);
             Map<String, Long> oldOrphanFiles = getOldOrphanFiles(storageId, storageFiles);
 
