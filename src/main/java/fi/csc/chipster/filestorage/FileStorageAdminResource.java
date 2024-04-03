@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -17,7 +19,7 @@ import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.sessiondb.RestException;
-import fi.csc.chipster.sessiondb.SessionDbClient;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -36,19 +38,19 @@ public class FileStorageAdminResource extends AdminResource {
 
 	private Logger logger = LogManager.getLogger();
 	private StorageBackup backup;
-	private SessionDbClient sessionDbClient;
+	private SessionDbAdminClient sessionDbAdminClient;
 	private File storage;
 
 	private java.nio.file.Path orphanRootPath;
 
 	private String storageId;
 
-	public FileStorageAdminResource(StatusSource stats, StorageBackup backup, SessionDbClient sessionDbClient,
+	public FileStorageAdminResource(StatusSource stats, StorageBackup backup, SessionDbAdminClient sessionDbAdminClient,
 			File storage, String storageId) {
 		super(stats, backup);
 
 		this.backup = backup;
-		this.sessionDbClient = sessionDbClient;
+		this.sessionDbAdminClient = sessionDbAdminClient;
 		this.storage = storage;
 		this.storageId = storageId;
 
@@ -112,7 +114,7 @@ public class FileStorageAdminResource extends AdminResource {
 			@Override
 			public void run() {
 				try {
-					check(sessionDbClient, storage);
+					check(storage);
 				} catch (RestException | IOException e) {
 					logger.error("storage check error", e);
 				}
@@ -161,17 +163,18 @@ public class FileStorageAdminResource extends AdminResource {
 		return Response.ok().build();
 	}
 
-	private void check(SessionDbClient sessionDbClient, File storage) throws RestException, IOException {
+	private void check(File storage) throws RestException, IOException {
 
 		logger.info("storage check started");
 
 		Files.createDirectories(orphanRootPath);
 
 		// collect storage files first to make sure we don't delete new files
-		HashMap<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
-		HashMap<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);
+		Map<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
+		Map<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);
 
-		HashMap<String, Long> dbFiles = StorageUtils.getDbFiles(storageId, this.sessionDbClient);
+		Map<String, Long> dbFiles = this.sessionDbAdminClient.getFiles(this.storageId).stream()
+				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
 
 		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, dbFiles);
 

@@ -425,9 +425,19 @@ public class SessionDbAdminResource extends AdminResource {
 		return Response.noContent().build();
 	}
 
+	/**
+	 * Get file
+	 * 
+	 * File-broker uses this for storage copies and S3 storage check. File-storage
+	 * uses this for file-storage check.
+	 * 
+	 * @param storageId
+	 * @param sc
+	 * @return
+	 */
 	@GET
 	@Path(PATH_FILES)
-	@RolesAllowed({ Role.FILE_BROKER })
+	@RolesAllowed({ Role.FILE_BROKER, Role.FILE_STORAGE })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getFiles(@NotNull @QueryParam("storageId") String storageId, @Context SecurityContext sc) {
@@ -437,6 +447,16 @@ public class SessionDbAdminResource extends AdminResource {
 		return Response.ok(files).build();
 	}
 
+	/**
+	 * Update file
+	 * 
+	 * File-broker uses this when file is uploaded or moved.
+	 * 
+	 * @param requestFile
+	 * @param fileId
+	 * @param sc
+	 * @return
+	 */
 	@PUT
 	@Path(PATH_FILES + "/{id}")
 	@RolesAllowed({ Role.FILE_BROKER })
