@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -20,12 +21,14 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
+import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -109,12 +112,15 @@ public class FileStorageAdminResource extends AdminResource {
 	@POST
 	@Path("check")
 	@RolesAllowed({ Role.ADMIN })
-	public Response startCheck(@Context SecurityContext sc) {
+	public Response startCheck(@QueryParam("uploadMaxHours") Long uploadMaxHours,
+			@QueryParam("deleteDatasetsOfMissingFiles") Boolean deleteDatasetsOfMissingFiles,
+			@Context SecurityContext sc) {
+
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					check(storage);
+					check(storage, uploadMaxHours, deleteDatasetsOfMissingFiles);
 				} catch (RestException | IOException e) {
 					logger.error("storage check error", e);
 				}
@@ -163,7 +169,8 @@ public class FileStorageAdminResource extends AdminResource {
 		return Response.ok().build();
 	}
 
-	private void check(File storage) throws RestException, IOException {
+	private void check(File storage, Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles)
+			throws RestException, IOException {
 
 		logger.info("storage check started");
 
@@ -173,10 +180,26 @@ public class FileStorageAdminResource extends AdminResource {
 		Map<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
 		Map<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);
 
-		Map<String, Long> dbFiles = this.sessionDbAdminClient.getFiles(this.storageId, null).stream()
-				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
+		List<fi.csc.chipster.sessiondb.model.File> completeDbFiles = this.sessionDbAdminClient.getFiles(storageId,
+				FileState.COMPLETE);
+		List<fi.csc.chipster.sessiondb.model.File> uploadingDbFiles = this.sessionDbAdminClient.getFiles(storageId,
+				FileState.UPLOADING);
 
-		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, dbFiles);
+		Set<fi.csc.chipster.sessiondb.model.File> oldUploads = StorageUtils.deleteOldUploads(uploadingDbFiles,
+				this.sessionDbAdminClient,
+				uploadMaxHours);
+
+		uploadingDbFiles.removeAll(oldUploads);
+
+		Map<String, Long> completeDbFilesMap = completeDbFiles.stream()
+				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
+		;
+		Map<String, Long> uploadingDbFilesMap = uploadingDbFiles.stream()
+				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
+		;
+
+		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
+				completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
 
 		moveOrphanFiles(orphanFiles);
 

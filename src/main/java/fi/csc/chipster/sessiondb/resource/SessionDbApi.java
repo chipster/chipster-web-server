@@ -237,7 +237,6 @@ public class SessionDbApi {
 		HibernateUtil.delete(dataset, dataset.getDatasetIdPair(), hibernate.session());
 
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
-			UUID fileId = dataset.getFile().getFileId();
 
 			@SuppressWarnings("unchecked")
 			List<Dataset> fileDatasets = hibernate.session().createQuery("from Dataset where file=:file")
@@ -250,13 +249,8 @@ public class SessionDbApi {
 			// there isn't anymore anyone using this file and the file-broker
 			// can delete it
 			if (fileDatasets.isEmpty()) {
-				// remove from file-broker
-				String json = RestUtils.asJson(dataset.getFile());
-				publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
-						new SessionEvent(sessionId, ResourceType.FILE, fileId, EventType.DELETE, null, json, null),
-						hibernate.session());
-				// remove from db
-				HibernateUtil.delete(dataset.getFile(), dataset.getFile().getFileId(), hibernate.session());
+				// remove from storage and db
+				this.deleteFile(dataset.getFile());
 			}
 
 		}
@@ -440,9 +434,18 @@ public class SessionDbApi {
 			return hibernate.session().createQuery("from File where storage=:storage")
 					.setParameter("storage", storageId).list();
 		} else {
-			return hibernate.session().createQuery("from File where storage=:storage and state=:state")
+			List<File> files = hibernate.session().createQuery("from File where storage=:storage and state=:state")
 					.setParameter("storage", storageId)
 					.setParameter("state", state).list();
+
+			if (state == FileState.COMPLETE) {
+				// let's assume all old Files in null state are COMPLETE
+				files.addAll(hibernate.session().createQuery("from File where storage=:storage and state=:state")
+						.setParameter("storage", storageId)
+						.setParameter("state", null).list());
+			}
+
+			return files;
 		}
 	}
 
@@ -465,7 +468,7 @@ public class SessionDbApi {
 	 * 
 	 * @param fileId
 	 */
-	public void delete(UUID fileId) {
+	public void deleteFileAndDatasets(UUID fileId) {
 
 		logger.info("delete file " + fileId);
 
@@ -476,6 +479,19 @@ public class SessionDbApi {
 		logger.info("deleted datasets referencing this file: " + datasetsDeleted);
 
 		File file = hibernate.session().get(File.class, fileId);
+
+		this.deleteFile(file);
+	}
+
+	private void deleteFile(File file) {
+
+		// delete from storage
+		String json = RestUtils.asJson(file);
+		publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
+				new SessionEvent(null, ResourceType.FILE, file.getFileId(), EventType.DELETE, null, json, null),
+				hibernate.session());
+
+		// delete from db
 		HibernateUtil.delete(file, file.getFileId(), hibernate.session());
 	}
 }

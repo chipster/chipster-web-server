@@ -2,6 +2,13 @@ package fi.csc.chipster.filestorage;
 
 import java.net.URI;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.rest.CredentialsProvider;
+import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -11,14 +18,6 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.client.Invocation.Builder;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.Response;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.rest.CredentialsProvider;
-import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.exception.NotAuthorizedException;
 
 @Path("admin")
 public class FileStorageAdminClient {
@@ -73,8 +72,19 @@ public class FileStorageAdminClient {
 		post("backup", "schedule");
 	}
 
-	public void startCheck() {
-		post("check");
+	public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles) {
+
+		WebTarget checkTarget = this.target.path("admin").path("check");
+
+		if (uploadMaxHours != null) {
+			checkTarget = checkTarget.queryParam("uploadMaxHours", uploadMaxHours);
+		}
+
+		if (deleteDatasetsOfMissingFiles != null) {
+			checkTarget = checkTarget.queryParam("deleteDatasetsOfMissingFiles", deleteDatasetsOfMissingFiles);
+		}
+
+		post(checkTarget);
 	}
 
 	public void deleteOldOrphans() {
@@ -145,6 +155,11 @@ public class FileStorageAdminClient {
 		for (String path : paths) {
 			target = target.path(path);
 		}
+
+		return post(target);
+	}
+
+	private String post(WebTarget target) {
 
 		logger.info("post " + target.getUri());
 
