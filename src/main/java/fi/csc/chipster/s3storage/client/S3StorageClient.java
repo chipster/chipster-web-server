@@ -18,6 +18,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.ResetException;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -216,7 +217,10 @@ public class S3StorageClient {
 				| InvalidAlgorithmParameterException | InterruptedException e) {
 
 			logger.error("upload failed", e);
-			throw new InternalServerErrorException("upload failed" + e.getClass());
+			throw new InternalServerErrorException("upload failed: " + e.getClass());
+		} catch (ResetException e) {
+			logger.warn("upload cancelled", e.getClass());
+			throw new BadRequestException("upload cancelled: " + e.getClass());
 		}
 	}
 

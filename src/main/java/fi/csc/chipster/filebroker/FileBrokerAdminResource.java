@@ -27,6 +27,7 @@ import fi.csc.chipster.s3storage.client.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -198,7 +199,7 @@ public class FileBrokerAdminResource extends AdminResource {
 		List<File> files = null;
 
 		try {
-			files = this.sessionDbAdminClient.getFiles(sourceStorageId);
+			files = this.sessionDbAdminClient.getFiles(sourceStorageId, FileState.COMPLETE);
 		} catch (RestException e) {
 			throw new InternalServerErrorException("get users failed", e);
 		}
@@ -328,11 +329,12 @@ public class FileBrokerAdminResource extends AdminResource {
 	@POST
 	@Path("storages/{storageId}/check")
 	@RolesAllowed({ Role.ADMIN })
-	public Response startCheck(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
+	public Response startCheck(@PathParam("storageId") String storageId,
+			@QueryParam("uploadMaxHours") Long uploadMaxHours, @Context SecurityContext sc) {
 
 		if (this.s3StorageClient.containsStorageId(storageId)) {
 
-			this.s3StorageAdminClient.startCheck(storageId);
+			this.s3StorageAdminClient.startCheck(storageId, uploadMaxHours);
 		} else {
 
 			getFileStorageAdminClient(storageId, sc).startCheck();

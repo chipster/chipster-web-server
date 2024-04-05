@@ -433,12 +433,17 @@ public class SessionDbApi {
 		}
 	}
 
-	public List<File> getFiles(@NotNull String storageId, SecurityContext sc) {
-		@SuppressWarnings("unchecked")
-		List<File> files = hibernate.session().createQuery("from File where storage=:storage")
-				.setParameter("storage", storageId).list();
+	@SuppressWarnings("unchecked")
+	public List<File> getFiles(@NotNull String storageId, FileState state, SecurityContext sc) {
 
-		return files;
+		if (state == null) {
+			return hibernate.session().createQuery("from File where storage=:storage")
+					.setParameter("storage", storageId).list();
+		} else {
+			return hibernate.session().createQuery("from File where storage=:storage and state=:state")
+					.setParameter("storage", storageId)
+					.setParameter("state", state).list();
+		}
 	}
 
 	public void update(File file) {
@@ -450,5 +455,27 @@ public class SessionDbApi {
 		File file = hibernate.session().get(File.class, fileId);
 
 		return file;
+	}
+
+	/**
+	 * Delete File
+	 * 
+	 * Usually the file is removed when the last Dataset is removed. This method
+	 * should be used only for clean-up purposes, e.g. to remove failed old uploads.
+	 * 
+	 * @param fileId
+	 */
+	public void delete(UUID fileId) {
+
+		logger.info("delete file " + fileId);
+
+		int datasetsDeleted = hibernate.session().createQuery("delete from Dataset where fileId=:fileId")
+				.setParameter("fileId", fileId)
+				.executeUpdate();
+
+		logger.info("deleted datasets referencing this file: " + datasetsDeleted);
+
+		File file = hibernate.session().get(File.class, fileId);
+		HibernateUtil.delete(file, file.getFileId(), hibernate.session());
 	}
 }

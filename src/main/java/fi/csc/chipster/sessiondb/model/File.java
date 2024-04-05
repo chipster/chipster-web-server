@@ -69,6 +69,7 @@ public class File {
 	}
 
 	public void setFileCreated(Instant created) {
+		this.fileCreated = created;
 	}
 
 	public String getStorage() {

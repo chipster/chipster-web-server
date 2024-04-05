@@ -14,6 +14,7 @@ import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.resource.NewsResource;
 import fi.csc.chipster.sessiondb.resource.SessionDbAdminResource;
@@ -122,20 +123,26 @@ public class SessionDbAdminClient {
 		return getSessionDbAdminTarget().path(SessionDbAdminResource.PATH_FILES);
 	}
 
-	private WebTarget getFilesOfStorageTarget(String storageId) {
-		return getFilesTarget().queryParam("storageId", storageId);
+	private WebTarget getFilesOfStorageTarget(String storageId, FileState state) {
+		return getFilesTarget()
+				.queryParam("storageId", storageId)
+				.queryParam("state", state);
 	}
 
 	private WebTarget getFilesTarget(UUID fileId) {
 		return getFilesTarget().path(fileId.toString());
 	}
 
-	public List<File> getFiles(String storageId) throws RestException {
+	public List<File> getFiles(String storageId, FileState state) throws RestException {
 
-		return RestMethods.getList(getFilesOfStorageTarget(storageId), File.class);
+		return RestMethods.getList(getFilesOfStorageTarget(storageId, state), File.class);
 	}
 
 	public void updateFile(File file) throws RestException {
 		RestMethods.put(getFilesTarget(file.getFileId()), file);
+	}
+
+	public void deleteFile(UUID fileId) throws RestException {
+		RestMethods.delete(getFilesTarget(fileId));
 	}
 }

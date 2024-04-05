@@ -25,6 +25,7 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
@@ -440,9 +441,10 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.FILE_BROKER, Role.FILE_STORAGE })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response getFiles(@NotNull @QueryParam("storageId") String storageId, @Context SecurityContext sc) {
+	public Response getFiles(@NotNull @QueryParam("storageId") String storageId, @QueryParam("state") FileState state,
+			@Context SecurityContext sc) {
 
-		List<File> files = sessionDbApi.getFiles(storageId, sc);
+		List<File> files = sessionDbApi.getFiles(storageId, state, sc);
 
 		return Response.ok(files).build();
 	}
@@ -468,6 +470,28 @@ public class SessionDbAdminResource extends AdminResource {
 		requestFile.setFileId(fileId);
 
 		this.sessionDbApi.update(requestFile);
+
+		return Response.noContent().build();
+	}
+
+	/**
+	 * Delete file
+	 * 
+	 * File-broker uses this to delete old uploads
+	 * 
+	 * @param requestFile
+	 * @param fileId
+	 * @param sc
+	 * @return
+	 */
+	@DELETE
+	@Path(PATH_FILES + "/{id}")
+	@RolesAllowed({ Role.FILE_BROKER })
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response deleteFile(@PathParam("id") UUID fileId, @Context SecurityContext sc) {
+
+		this.sessionDbApi.delete(fileId);
 
 		return Response.noContent().build();
 	}
