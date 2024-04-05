@@ -3,6 +3,8 @@ package fi.csc.chipster.s3storage.client;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,6 +30,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import io.jsonwebtoken.io.IOException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
@@ -122,7 +126,7 @@ public class S3StorageAdminClient {
         return RestUtils.asJson(jsonMap);
     }
 
-    public void startCheck(String storageId) {
+    public void startCheck(String storageId, Long uploadMaxHours) {
         logger.info("storage check started");
 
         try {
@@ -137,7 +141,51 @@ public class S3StorageAdminClient {
             Map<String, Long> oldOrphanFiles = getOldOrphanFiles(storageId, storageFiles);
 
             HashMap<String, Long> dbFilesMap = new HashMap<>();
-            List<File> dbFiles = this.sessionDbAdminClient.getFiles(storageId);
+            List<File> completeDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.COMPLETE);
+            List<File> uploadingDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.UPLOADING);
+
+            logger.info("complete files: " + completeDbFiles.size());
+            logger.info("uploading files: " + uploadingDbFiles.size());
+
+            // optionally delete old uploads
+            if (uploadMaxHours != null) {
+                logger.info("delete uploads older than " + uploadMaxHours + " h");
+
+                Set<File> deletedFiles = new HashSet<>();
+
+                for (File file : uploadingDbFiles) {
+
+                    long hours = -1;
+
+                    if (file.getFileCreated() != null) {
+                        hours = Duration.between(file.getFileCreated(), Instant.now()).toHours();
+                    }
+
+                    // delete when equal so that all uploads can be deleted by setting
+                    // uploadMaxHours to 0
+                    if (hours == -1 || hours >= uploadMaxHours) {
+
+                        logger.info("delete upload " + file.getFileId() + " "
+                                + FileUtils.byteCountToDisplaySize(file.getSize()) + ", age: " + hours
+                                + " h exceeds max age " + uploadMaxHours + " h");
+                        logger.info(RestUtils.asJson(file));
+
+                        this.sessionDbAdminClient.deleteFile(file.getFileId());
+                        this.s3StorageClient.getTransferManager().getAmazonS3Client()
+                                .deleteObject(s3StorageClient.storageIdToBucket(file.getStorage()),
+                                        file.getFileId().toString());
+                        deletedFiles.add(file);
+                    }
+                }
+
+                uploadingDbFiles.removeAll(deletedFiles);
+            } else {
+                logger.info("deletion of old uploads was not requested");
+            }
+
+            List<File> dbFiles = new ArrayList<>();
+            dbFiles.addAll(completeDbFiles);
+            dbFiles.addAll(uploadingDbFiles);
 
             // convert to ciphertext sizes
             for (File dbFile : dbFiles) {

@@ -28,6 +28,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.ws.rs.client.WebTarget;
 
@@ -299,7 +300,7 @@ public class SessionDbAdminResourceTest {
 
         // file-broker can get files
 
-        Set<UUID> storageFiles = sessionDbClientForFileBroker.getFiles(storageId).stream()
+        Set<UUID> storageFiles = sessionDbClientForFileBroker.getFiles(storageId, FileState.COMPLETE).stream()
                 .map(f -> f.getFileId())
                 .collect(Collectors.toSet());
 
@@ -342,7 +343,7 @@ public class SessionDbAdminResourceTest {
 
         // users never need direct access to File
         try {
-            sessionDbAdminClientForUser.getFiles(storageId);
+            sessionDbAdminClientForUser.getFiles(storageId, null);
         } catch (RestException e) {
             assertEquals(403, e.getResponse().getStatus());
         }

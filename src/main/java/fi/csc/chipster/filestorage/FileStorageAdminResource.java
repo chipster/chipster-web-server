@@ -173,7 +173,7 @@ public class FileStorageAdminResource extends AdminResource {
 		Map<String, Long> storageFiles = getFilesAndSizes(storage.toPath(), orphanRootPath);
 		Map<String, Long> oldOrphanFiles = getFilesAndSizes(orphanRootPath, null);
 
-		Map<String, Long> dbFiles = this.sessionDbAdminClient.getFiles(this.storageId).stream()
+		Map<String, Long> dbFiles = this.sessionDbAdminClient.getFiles(this.storageId, null).stream()
 				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
 
 		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, dbFiles);
