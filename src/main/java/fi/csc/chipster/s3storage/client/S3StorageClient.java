@@ -202,7 +202,7 @@ public class S3StorageClient {
 
 			if (length == null) {
 				// shouldn't happen, because upload() requires length for now
-				logger.info("original file lentgh not avalaible");
+				logger.info("original file length not avalaible");
 			} else if (length.longValue() != countingInputStream.getByteCount()) {
 				throw new FileLengthException(
 						"file was supposed to be " + length + " bytes, but was " + countingInputStream.getByteCount());

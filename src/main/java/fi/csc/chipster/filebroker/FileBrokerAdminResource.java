@@ -330,14 +330,16 @@ public class FileBrokerAdminResource extends AdminResource {
 	@Path("storages/{storageId}/check")
 	@RolesAllowed({ Role.ADMIN })
 	public Response startCheck(@PathParam("storageId") String storageId,
-			@QueryParam("uploadMaxHours") Long uploadMaxHours, @Context SecurityContext sc) {
+			@QueryParam("uploadMaxHours") Long uploadMaxHours,
+			@QueryParam("deleteDatasetsOfMissingFiles") Boolean deleteDatasetsOfMissingFiles,
+			@Context SecurityContext sc) {
 
 		if (this.s3StorageClient.containsStorageId(storageId)) {
 
-			this.s3StorageAdminClient.startCheck(storageId, uploadMaxHours);
+			this.s3StorageAdminClient.startCheck(storageId, uploadMaxHours, deleteDatasetsOfMissingFiles);
 		} else {
 
-			getFileStorageAdminClient(storageId, sc).startCheck();
+			getFileStorageAdminClient(storageId, sc).startCheck(uploadMaxHours, deleteDatasetsOfMissingFiles);
 		}
 
 		return Response.ok().build();
