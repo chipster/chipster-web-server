@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -231,25 +232,26 @@ public class FileStorageAdminResource extends AdminResource {
 		HashMap<String, Long> result = new HashMap<>();
 
 		if (Files.exists(root)) {
-			Files.list(root)
-					.filter(path -> excludePath == null || !path.startsWith(excludePath))
-					.forEach(partition -> {
-						try {
-							Files.list(partition)
-									.forEach(path -> {
-										String fileName = path.getFileName().toString();
-										Long size;
-										try {
-											size = Files.size(path);
-										} catch (IOException e) {
-											throw new RuntimeException(e);
-										}
-										result.put(fileName, size);
-									});
-						} catch (IOException e) {
-							throw new RuntimeException(e);
-						}
-					});
+			try (Stream<java.nio.file.Path> rootStream = Files.list(root)) {
+
+				rootStream.filter(path -> excludePath == null || !path.startsWith(excludePath)).forEach(partition -> {
+
+					try (Stream<java.nio.file.Path> partitionStream = Files.list(partition)) {
+						partitionStream.forEach(path -> {
+							String fileName = path.getFileName().toString();
+							Long size;
+							try {
+								size = Files.size(path);
+							} catch (IOException e) {
+								throw new RuntimeException(e);
+							}
+							result.put(fileName, size);
+						});
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				});
+			}
 		} else {
 			logger.warn("dir " + root + " not found");
 		}
