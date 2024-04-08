@@ -326,18 +326,36 @@ public class FileBrokerAdminResource extends AdminResource {
 		return Response.ok().build();
 	}
 
+	/**
+	 * Check file-storage data
+	 * 
+	 * Boolean parameters are false by default. Use any value accepted by
+	 * Boolean.valueOf() to set them true in the query string, for example:
+	 * ?deleteDatasetsOfMissingFiles=true .
+	 * 
+	 * @param storageId
+	 * @param uploadMaxHours
+	 * @param deleteDatasetsOfMissingFiles
+	 * @param sc
+	 * @return
+	 */
 	@POST
 	@Path("storages/{storageId}/check")
 	@RolesAllowed({ Role.ADMIN })
 	public Response startCheck(@PathParam("storageId") String storageId,
 			@QueryParam("uploadMaxHours") Long uploadMaxHours,
 			@QueryParam("deleteDatasetsOfMissingFiles") Boolean deleteDatasetsOfMissingFiles,
+			@QueryParam("checksums") Boolean checksums,
 			@Context SecurityContext sc) {
 
 		if (this.s3StorageClient.containsStorageId(storageId)) {
 
-			this.s3StorageAdminClient.startCheck(storageId, uploadMaxHours, deleteDatasetsOfMissingFiles);
+			this.s3StorageAdminClient.startCheck(storageId, uploadMaxHours, deleteDatasetsOfMissingFiles, checksums);
 		} else {
+
+			if (checksums != null && checksums) {
+				logger.warn("checksums are not available in file-storage");
+			}
 
 			getFileStorageAdminClient(storageId, sc).startCheck(uploadMaxHours, deleteDatasetsOfMissingFiles);
 		}

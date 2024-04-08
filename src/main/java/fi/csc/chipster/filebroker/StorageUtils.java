@@ -25,18 +25,19 @@ public class StorageUtils {
         private static Logger logger = LogManager.getLogger();
 
         public static List<String> check(Map<String, Long> storageFiles, Map<String, Long> oldOrphanFiles,
-                        Map<String, Long> uploadingDbFiles, Map<String, Long> completeDbFiles,
+                        Map<String, File> uploadingDbFilesMap, Map<String, File> completeDbFilesMap,
                         Boolean deleteDatasetsOfMissingFiles, SessionDbAdminClient sessionDbAdminClient)
                         throws RestException, IOException {
 
-                checkNameSizeAndMissing(completeDbFiles, storageFiles, FileState.COMPLETE, deleteDatasetsOfMissingFiles,
+                checkNameSizeAndMissing(completeDbFilesMap, storageFiles, FileState.COMPLETE,
+                                deleteDatasetsOfMissingFiles,
                                 sessionDbAdminClient);
-                checkNameSizeAndMissing(uploadingDbFiles, storageFiles, FileState.UPLOADING,
+                checkNameSizeAndMissing(uploadingDbFilesMap, storageFiles, FileState.UPLOADING,
                                 deleteDatasetsOfMissingFiles, sessionDbAdminClient);
 
                 List<String> orphanFiles = new HashSet<>(storageFiles.keySet()).stream()
-                                .filter(fileName -> !completeDbFiles.containsKey(fileName)
-                                                && !uploadingDbFiles.containsKey(fileName))
+                                .filter(fileName -> !completeDbFilesMap.containsKey(fileName)
+                                                && !uploadingDbFilesMap.containsKey(fileName))
                                 .collect(Collectors.toList());
 
                 long orphanFilesTotal = orphanFiles.stream().mapToLong(storageFiles::get).sum();
@@ -49,32 +50,35 @@ public class StorageUtils {
                 return orphanFiles;
         }
 
-        private static void checkNameSizeAndMissing(Map<String, Long> dbFiles, Map<String, Long> storageFiles,
+        private static void checkNameSizeAndMissing(Map<String, File> completeDbFilesMap,
+                        Map<String, Long> storageFiles,
                         FileState state, Boolean deleteDatasetsOfMissingFiles,
                         SessionDbAdminClient sessionDbAdminClient) throws RestException {
 
-                List<String> correctNameFiles = new HashSet<>(dbFiles.keySet()).stream()
+                List<String> correctNameFiles = new HashSet<>(completeDbFilesMap.keySet()).stream()
                                 .filter(fileName -> storageFiles.containsKey(fileName))
                                 .collect(Collectors.toList());
 
                 List<String> correctSizeFiles = correctNameFiles.stream()
-                                .filter(fileName -> (long) storageFiles.get(fileName) == (long) dbFiles.get(fileName))
+                                .filter(fileName -> (long) storageFiles.get(fileName) == (long) completeDbFilesMap
+                                                .get(fileName).getSize())
                                 .collect(Collectors.toList());
 
                 List<String> wrongSizeFiles = correctNameFiles.stream()
-                                .filter(fileName -> (long) storageFiles.get(fileName) != (long) dbFiles.get(fileName))
+                                .filter(fileName -> (long) storageFiles.get(fileName) != (long) completeDbFilesMap
+                                                .get(fileName).getSize())
                                 .collect(Collectors.toList());
 
                 // why the second iteration without the new HashSet throws a call site
                 // initialization exception?
-                List<String> missingFiles = new HashSet<>(dbFiles.keySet()).stream()
+                List<String> missingFiles = new HashSet<>(completeDbFilesMap.keySet()).stream()
                                 .filter(fileName -> !storageFiles.containsKey(fileName))
                                 .collect(Collectors.toList());
 
                 for (String fileName : wrongSizeFiles) {
                         logger.info(
                                         "wrong size " + fileName + ", state: " + state + ", db: "
-                                                        + dbFiles.get(fileName) + ", file: "
+                                                        + completeDbFilesMap.get(fileName) + ", file: "
                                                         + storageFiles.get(fileName));
                 }
 
@@ -83,19 +87,22 @@ public class StorageUtils {
 
                                 logger.info("delete datasets of missing file " + fileName + ", state: " + state
                                                 + ", db: "
-                                                + dbFiles.get(fileName));
+                                                + completeDbFilesMap.get(fileName));
                                 sessionDbAdminClient.deleteFile(UUID.fromString(fileName));
                         } else {
 
                                 logger.info("missing file " + fileName + ", state: " + state + ", db: "
-                                                + dbFiles.get(fileName));
+                                                + completeDbFilesMap.get(fileName));
                         }
 
                 }
 
-                long correctSizeTotal = correctSizeFiles.stream().mapToLong(dbFiles::get).sum();
-                long wrongSizeTotal = wrongSizeFiles.stream().mapToLong(dbFiles::get).sum();
-                long missingFilesTotal = missingFiles.stream().mapToLong(dbFiles::get).sum();
+                long correctSizeTotal = correctSizeFiles.stream()
+                                .mapToLong(fileId -> completeDbFilesMap.get(fileId).getSize()).sum();
+                long wrongSizeTotal = wrongSizeFiles.stream()
+                                .mapToLong(fileId -> completeDbFilesMap.get(fileId).getSize()).sum();
+                long missingFilesTotal = missingFiles.stream()
+                                .mapToLong(fileId -> completeDbFilesMap.get(fileId).getSize()).sum();
 
                 logger.info("state " + state + ", " + correctSizeFiles.size() + " files ("
                                 + FileUtils.byteCountToDisplaySize(correctSizeTotal)

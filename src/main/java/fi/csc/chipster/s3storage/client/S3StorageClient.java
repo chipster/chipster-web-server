@@ -127,7 +127,7 @@ public class S3StorageClient {
 		Long start = null;
 		Long end = null;
 
-		logger.info("downloadAndDecrypt byte range " + byteRange);
+		logger.debug("downloadAndDecrypt byte range " + byteRange);
 
 		if (byteRange != null) {
 			logger.info("downloadAndDecrypt byte range " + byteRange + " [" + byteRange.getStart() + ", "
