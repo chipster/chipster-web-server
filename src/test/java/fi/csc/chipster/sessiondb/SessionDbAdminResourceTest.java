@@ -287,6 +287,9 @@ public class SessionDbAdminResourceTest {
         Dataset dataset = RestUtils.getRandomDataset();
         UUID datasetId = user1Client.createDataset(sessionId, dataset);
 
+        Dataset dataset2 = RestUtils.getRandomDataset();
+        UUID datasetId2 = user1Client.createDataset(sessionId, dataset2);
+
         String contents = "abc";
         FileResourceTest.uploadInputStream(fileBrokerTarget1, sessionId, datasetId,
                 new ByteArrayInputStream(contents.getBytes()), contents.length());
@@ -313,6 +316,18 @@ public class SessionDbAdminResourceTest {
         // put back original value
         file.setStorage(storageId);
         sessionDbClientForFileBroker.updateFile(file);
+
+        sessionDbClientForFileBroker.deleteFile(file.getFileId());
+
+        // dataset shouldn't exist anymore
+        try {
+            user1Client.getDataset(sessionId, datasetId);
+        } catch (RestException e) {
+            assertEquals(404, e.getResponse().getStatus());
+        }
+
+        // other datasets should remain
+        assertTrue(user1Client.getDataset(sessionId, datasetId2) != null);
 
         user1Client.deleteSession(sessionId);
     }
@@ -352,6 +367,14 @@ public class SessionDbAdminResourceTest {
         try {
             file.setStorage("fake-storage-id");
             sessionDbAdminClientForUser.updateFile(file);
+
+        } catch (RestException e) {
+            assertEquals(403, e.getResponse().getStatus());
+        }
+
+        // users never need direct access to File
+        try {
+            sessionDbAdminClientForUser.deleteFile(file.getFileId());
 
         } catch (RestException e) {
             assertEquals(403, e.getResponse().getStatus());
