@@ -74,7 +74,8 @@ public class FileBroker {
 		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
-		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient, storageDiscovery,
+		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient,
+				this.sessionDbAdminClient, storageDiscovery,
 				s3StorageClient, config);
 
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);

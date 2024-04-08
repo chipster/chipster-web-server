@@ -477,8 +477,8 @@ public class SessionDbAdminResource extends AdminResource {
 	/**
 	 * Delete file
 	 * 
-	 * File-broker uses this to delete old uploads. File-storage uses this to delete
-	 * datasets of missing files.
+	 * File-broker uses this to delete old uploads and cancelled S3 uploads.
+	 * File-storage uses this to delete datasets of missing files.
 	 * 
 	 * @param requestFile
 	 * @param fileId
@@ -490,9 +490,16 @@ public class SessionDbAdminResource extends AdminResource {
 	@RolesAllowed({ Role.FILE_BROKER, Role.FILE_STORAGE })
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
-	public Response deleteFile(@PathParam("id") UUID fileId, @Context SecurityContext sc) {
+	public Response deleteFile(@PathParam("id") UUID fileId, @QueryParam("datasets") Boolean datasets,
+			@Context SecurityContext sc) {
 
-		this.sessionDbApi.deleteFileAndDatasets(fileId);
+		if (datasets != null && datasets) {
+
+			this.sessionDbApi.deleteFileAndDatasets(fileId);
+		} else {
+
+			this.sessionDbApi.deleteFile(fileId);
+		}
 
 		return Response.noContent().build();
 	}

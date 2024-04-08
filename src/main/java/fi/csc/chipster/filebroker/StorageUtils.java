@@ -88,7 +88,7 @@ public class StorageUtils {
                                 logger.info("delete datasets of missing file " + fileName + ", state: " + state
                                                 + ", db: "
                                                 + completeDbFilesMap.get(fileName));
-                                sessionDbAdminClient.deleteFile(UUID.fromString(fileName));
+                                sessionDbAdminClient.deleteFileAndDatasets(UUID.fromString(fileName));
                         } else {
 
                                 logger.info("missing file " + fileName + ", state: " + state + ", db: "
@@ -144,7 +144,7 @@ public class StorageUtils {
                                                         + " h exceeds max age " + uploadMaxHours + " h");
                                         logger.info(RestUtils.asJson(file));
 
-                                        sessionDbAdminClient.deleteFile(file.getFileId());
+                                        sessionDbAdminClient.deleteFileAndDatasets(file.getFileId());
 
                                         deletedFiles.add(file);
                                 }

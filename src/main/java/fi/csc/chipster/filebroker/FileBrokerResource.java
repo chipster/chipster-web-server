@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.amazonaws.ResetException;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.filestorage.client.FileStorageClient;
@@ -25,11 +27,13 @@ import fi.csc.chipster.s3storage.client.S3StorageClient.ByteRange;
 import fi.csc.chipster.s3storage.client.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
@@ -62,16 +66,20 @@ public class FileBrokerResource {
 	private String sessionDbEventsUri;
 	private FileStorageDiscovery storageDiscovery;
 	private S3StorageClient s3StorageClient;
+	private SessionDbAdminClient sessionDbAdminClient;
 
 	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient,
-			FileStorageDiscovery storageDiscovery, S3StorageClient s3StorageClient, Config config)
+			SessionDbAdminClient sessionDbAdminClient, FileStorageDiscovery storageDiscovery,
+			S3StorageClient s3StorageClient, Config config)
 			throws NoSuchAlgorithmException {
 
-		this.sessionDbWithFileBrokerCredentials = sessionDbClient;
 		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
 		this.sessionDbEventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
 		this.storageDiscovery = storageDiscovery;
 		this.s3StorageClient = s3StorageClient;
+		// check permissions carefully before using these!
+		this.sessionDbWithFileBrokerCredentials = sessionDbClient;
+		this.sessionDbAdminClient = sessionDbAdminClient;
 	}
 
 	@GET
@@ -241,8 +249,26 @@ public class FileBrokerResource {
 
 			if (this.s3StorageClient.containsStorageId(file.getStorage())) {
 
-				// our s3 storage doesn't support appending
-				throw new ConflictException("file exists already");
+				if (file.getState() == FileState.UPLOADING) {
+
+					/*
+					 * Restart paused upload
+					 * 
+					 * User probably has paused an upload and now continues it.
+					 * This is fine for us, because we use S3 only for one-part uploads,
+					 * so the app will upload the whole file again.
+					 * 
+					 * This doesn't save anything in the network transfers, but now the UI
+					 * doesn't need to know that S3 doesn't support pause and continue.
+					 */
+
+					logger.info("upload restarted");
+
+				} else {
+
+					// don't allow changes to complete files
+					throw new ConflictException("file exists already");
+				}
 			} else {
 				logger.info("append to existing file in " + file.getStorage());
 			}
@@ -253,13 +279,28 @@ public class FileBrokerResource {
 			logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(file.getStorage()));
 
 			// checksum is not available
-			ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(dataset.getFile().getFileId(),
-					fileStream, flowTotalSize, file.getStorage(), null);
+			try {
+				ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(file.getFileId(),
+						fileStream, flowTotalSize, file.getStorage(), null);
 
-			file.setSize(upload.getFileLength());
-			file.setChecksum(upload.getChecksum());
-			file.setEncryptionKey(upload.getEncryptionKey());
-			file.setState(FileState.COMPLETE);
+				file.setSize(upload.getFileLength());
+				file.setChecksum(upload.getChecksum());
+				file.setEncryptionKey(upload.getEncryptionKey());
+				file.setState(FileState.COMPLETE);
+
+			} catch (ResetException e) {
+				logger.warn("upload cancelled", e.getClass());
+
+				try {
+					dataset.setFile(null);
+					this.sessionDbWithFileBrokerCredentials.updateDataset(sessionId, dataset);
+					this.sessionDbAdminClient.deleteFile(file.getFileId());
+				} catch (RestException e1) {
+					logger.error("failed to delete File from DB", e1);
+				}
+
+				throw new BadRequestException("upload cancelled");
+			}
 
 		} else {
 

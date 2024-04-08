@@ -461,7 +461,7 @@ public class SessionDbApi {
 	}
 
 	/**
-	 * Delete File
+	 * Delete File and remove Datasets which reference it
 	 * 
 	 * Usually the file is removed when the last Dataset is removed. This method
 	 * should be used only for clean-up purposes, e.g. to remove failed old uploads.
@@ -470,13 +470,29 @@ public class SessionDbApi {
 	 */
 	public void deleteFileAndDatasets(UUID fileId) {
 
-		logger.info("delete file " + fileId);
-
 		int datasetsDeleted = hibernate.session().createQuery("delete from Dataset where fileId=:fileId")
 				.setParameter("fileId", fileId)
 				.executeUpdate();
 
 		logger.info("deleted datasets referencing this file: " + datasetsDeleted);
+
+		this.deleteFile(fileId);
+	}
+
+	/**
+	 * Delete File
+	 * 
+	 * It's caller's responsibility to take care of any Datasets which reference the
+	 * File before calling this.
+	 * 
+	 * Usually the file is removed when the last Dataset is removed. This method
+	 * should be used only for clean-up purposes, e.g. to remove failed old uploads.
+	 * 
+	 * @param fileId
+	 */
+	public void deleteFile(UUID fileId) {
+
+		logger.info("delete file " + fileId);
 
 		File file = hibernate.session().get(File.class, fileId);
 
