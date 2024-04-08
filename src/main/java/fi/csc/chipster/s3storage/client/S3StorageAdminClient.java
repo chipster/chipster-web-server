@@ -11,9 +11,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.crypto.IllegalBlockSizeException;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.message.internal.NullOutputStream;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -24,6 +27,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import fi.csc.chipster.filebroker.StorageUtils;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.s3storage.ChecksumException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.model.File;
@@ -123,7 +127,8 @@ public class S3StorageAdminClient {
         return RestUtils.asJson(jsonMap);
     }
 
-    public void startCheck(String storageId, Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles) {
+    public void startCheck(String storageId, Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
+            Boolean checksums) {
         logger.info("storage check started");
 
         try {
@@ -145,8 +150,8 @@ public class S3StorageAdminClient {
 
             uploadingDbFiles.removeAll(oldUploads);
 
-            Map<String, Long> completeDbFilesMap = getEncryptedLengthMap(completeDbFiles);
-            Map<String, Long> uploadingDbFilesMap = getEncryptedLengthMap(uploadingDbFiles);
+            Map<String, File> completeDbFilesMap = getEncryptedLengthMap(completeDbFiles);
+            Map<String, File> uploadingDbFilesMap = getEncryptedLengthMap(uploadingDbFiles);
 
             List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
                     completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
@@ -155,21 +160,66 @@ public class S3StorageAdminClient {
 
             logger.info(orphanFiles.size() + " orphan files saved in " + OBJECT_KEY_ORPHAN_FILES);
 
+            if (checksums != null && checksums) {
+                verifyChecksums("state COMPLETE,  ", completeDbFiles);
+                verifyChecksums("state UPLOADING, ", uploadingDbFiles);
+            }
+
         } catch (RestException | java.io.IOException | InterruptedException e) {
             logger.error("storage check failed", e);
             throw new InternalServerErrorException("storage check failed");
         }
     }
 
-    private Map<String, Long> getEncryptedLengthMap(List<File> dbFiles) {
+    private void verifyChecksums(String name, List<File> files) throws java.io.IOException {
+        logger.info(name + "verify checksums");
 
-        HashMap<String, Long> dbFilesMap = new HashMap<>();
+        long okFiles = 0;
+        long wrongChecksum = 0;
+        long missingFile = 0;
+        long illegalBlockSize = 0;
+
+        for (File file : files) {
+
+            try (InputStream is = this.s3StorageClient.downloadAndDecrypt(file, null)) {
+                IOUtils.copyLarge(is, new NullOutputStream());
+                okFiles++;
+            } catch (ChecksumException e) {
+                logger.info("checksum failed: " + file.getFileId());
+                wrongChecksum++;
+            } catch (AmazonS3Exception e) {
+                if (e.getStatusCode() == 404) {
+                    logger.info("cannot verify checksum, object not found: " + file.getFileId());
+                    missingFile++;
+                } else {
+                    throw e;
+                }
+            } catch (java.io.IOException e) {
+                if (e.getCause() instanceof IllegalBlockSizeException) {
+                    logger.info("checksum failed: " + file.getFileId() + " " + e.getCause() + " " + e.getMessage());
+                    illegalBlockSize++;
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        logger.info(name + "verified checksums: " + okFiles);
+        logger.info(name + "wrong checksums:    " + wrongChecksum);
+        logger.info(name + "missing files:      " + missingFile);
+        logger.info(name + "illegel block size: " + illegalBlockSize);
+    }
+
+    private HashMap<String, File> getEncryptedLengthMap(List<File> dbFiles) {
+
+        HashMap<String, File> dbFilesMap = new HashMap<>();
 
         // convert to ciphertext sizes
         for (File dbFile : dbFiles) {
             Long plaintextSize = dbFile.getSize();
             long ciphertextSize = s3StorageClient.getFileEncryption().getEncryptedLength(plaintextSize);
-            dbFilesMap.put(dbFile.getFileId().toString(), ciphertextSize);
+            dbFile.setSize(ciphertextSize);
+            dbFilesMap.put(dbFile.getFileId().toString(), dbFile);
         }
 
         return dbFilesMap;

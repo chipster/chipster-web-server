@@ -191,12 +191,11 @@ public class FileStorageAdminResource extends AdminResource {
 
 		uploadingDbFiles.removeAll(oldUploads);
 
-		Map<String, Long> completeDbFilesMap = completeDbFiles.stream()
-				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
-		;
-		Map<String, Long> uploadingDbFilesMap = uploadingDbFiles.stream()
-				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f.getSize()));
-		;
+		Map<String, fi.csc.chipster.sessiondb.model.File> completeDbFilesMap = completeDbFiles.stream()
+				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f));
+
+		Map<String, fi.csc.chipster.sessiondb.model.File> uploadingDbFilesMap = uploadingDbFiles.stream()
+				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f));
 
 		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
 				completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
