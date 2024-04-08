@@ -317,7 +317,7 @@ public class SessionDbAdminResourceTest {
         file.setStorage(storageId);
         sessionDbClientForFileBroker.updateFile(file);
 
-        sessionDbClientForFileBroker.deleteFile(file.getFileId());
+        sessionDbClientForFileBroker.deleteFileAndDatasets(file.getFileId());
 
         // dataset shouldn't exist anymore
         try {
@@ -374,7 +374,7 @@ public class SessionDbAdminResourceTest {
 
         // users never need direct access to File
         try {
-            sessionDbAdminClientForUser.deleteFile(file.getFileId());
+            sessionDbAdminClientForUser.deleteFileAndDatasets(file.getFileId());
 
         } catch (RestException e) {
             assertEquals(403, e.getResponse().getStatus());

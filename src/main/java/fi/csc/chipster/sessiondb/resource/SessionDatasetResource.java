@@ -217,11 +217,12 @@ public class SessionDatasetResource {
 		for (Dataset requestDataset : requestDatasets) {
 			if (!sc.isUserInRole(Role.FILE_BROKER)) {
 				sessionDbApi.checkFileModification(requestDataset, getHibernate().session());
-			}
 
-			if (FileUtils.isEmpty(requestDataset.getFile())) {
-				// if the client doesn't care about the File, simply keep the db version
-				requestDataset.setFile(dbDatasets.get(requestDataset.getDatasetId()).getFile());
+				// file-broker needs to set File to null when S3 upload is cancelled
+				if (FileUtils.isEmpty(requestDataset.getFile())) {
+					// if the client doesn't care about the File, simply keep the db version
+					requestDataset.setFile(dbDatasets.get(requestDataset.getDatasetId()).getFile());
+				}
 			}
 
 			// make sure a hostile client doesn't set the session

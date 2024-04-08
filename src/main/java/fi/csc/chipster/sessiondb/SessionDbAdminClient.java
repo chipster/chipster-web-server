@@ -142,6 +142,10 @@ public class SessionDbAdminClient {
 		RestMethods.put(getFilesTarget(file.getFileId()), file);
 	}
 
+	public void deleteFileAndDatasets(UUID fileId) throws RestException {
+		RestMethods.delete(getFilesTarget(fileId).queryParam("datasets", Boolean.TRUE));
+	}
+
 	public void deleteFile(UUID fileId) throws RestException {
 		RestMethods.delete(getFilesTarget(fileId));
 	}
