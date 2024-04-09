@@ -74,8 +74,10 @@ public class S3StorageBackup {
 
 		logger.info("list files of " + storageId + " from S3");
 
+		String s3Name = s3StorageClient.storageIdToS3Name(storageId);
 		String bucket = s3StorageClient.storageIdToBucket(storageId);
-		List<S3ObjectSummary> s3Objects = S3Util.getObjects(s3StorageClient.getTransferManager(), bucket);
+
+		List<S3ObjectSummary> s3Objects = S3Util.getObjects(s3StorageClient.getTransferManager(s3Name), bucket);
 
 		List<Path> dirs = Files.list(archiveRootPath)
 				.filter(path -> path.getFileName().toString().startsWith(storageId))
@@ -129,7 +131,7 @@ public class S3StorageBackup {
 
 			logger.info("download " + bucket + "/" + file);
 
-			try (InputStream is = this.s3StorageClient.download(bucket, file, null, null);
+			try (InputStream is = this.s3StorageClient.download(s3Name, bucket, file, null, null);
 					FileOutputStream fos = new FileOutputStream(downloadPath.toFile())) {
 
 				IOUtils.copy(is, fos);
@@ -151,7 +153,7 @@ public class S3StorageBackup {
 
 		String reportJson = RestUtils.asJson(report);
 		try (InputStream reportStream = new ByteArrayInputStream(reportJson.getBytes())) {
-			s3StorageClient.upload(bucket, reportStream, KEY_BACKUP_DONE, reportJson.length());
+			s3StorageClient.upload(s3Name, bucket, reportStream, KEY_BACKUP_DONE, reportJson.length());
 		}
 
 		Files.delete(downloadDir);
@@ -164,6 +166,6 @@ public class S3StorageBackup {
 
 		backup.archiveAndCleanUp(Role.S3_STORAGE);
 
-		backup.s3StorageClient.getTransferManager().shutdownNow();
+		backup.s3StorageClient.close();
 	}
 }

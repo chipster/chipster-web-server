@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.message.internal.NullOutputStream;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.HeadBucketRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -70,10 +71,12 @@ public class S3StorageAdminClient {
 
         HashMap<String, Long> result = new HashMap<>();
 
+        String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        ObjectListing objectListing = this.s3StorageClient.getTransferManager().getAmazonS3Client()
-                .listObjects(bucket);
+        AmazonS3 amazonS3Client = this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client();
+
+        ObjectListing objectListing = amazonS3Client.listObjects(bucket);
 
         do {
             List<S3ObjectSummary> summaries = objectListing.getObjectSummaries();
@@ -83,8 +86,7 @@ public class S3StorageAdminClient {
                 result.put(summary.getKey(), summary.getSize());
             }
 
-            objectListing = this.s3StorageClient.getTransferManager().getAmazonS3Client()
-                    .listNextBatchOfObjects(objectListing);
+            objectListing = amazonS3Client.listNextBatchOfObjects(objectListing);
 
         } while (objectListing.isTruncated());
 
@@ -96,12 +98,13 @@ public class S3StorageAdminClient {
 
     public String getStatus(String storageId) {
 
+        String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
         try {
             // check if bucket exists
             final HeadBucketRequest request = new HeadBucketRequest(bucket);
-            this.s3StorageClient.getTransferManager().getAmazonS3Client().headBucket(request);
+            this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client().headBucket(request);
 
             HashMap<String, Object> jsonMap = new HashMap<>();
             // jsonMap.put("status", null);
@@ -228,6 +231,7 @@ public class S3StorageAdminClient {
     private void saveListOfOrphanFiles(List<String> orphanFiles, String storageId)
             throws InterruptedException, java.io.IOException {
 
+        String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
         String json = RestUtils.asJson(orphanFiles);
@@ -235,15 +239,17 @@ public class S3StorageAdminClient {
 
         try (InputStream is = new ByteArrayInputStream(jsonBytes)) {
 
-            this.s3StorageClient.upload(bucket, is, OBJECT_KEY_ORPHAN_FILES, jsonBytes.length);
+            this.s3StorageClient.upload(s3Name, bucket, is, OBJECT_KEY_ORPHAN_FILES, jsonBytes.length);
         }
     }
 
     private List<String> loadListOfOrphanFiles(String storageId) throws java.io.IOException, InterruptedException {
 
+        String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        try (S3ObjectInputStream is = this.s3StorageClient.download(bucket, OBJECT_KEY_ORPHAN_FILES, null, null)) {
+        try (S3ObjectInputStream is = this.s3StorageClient.download(s3Name, bucket, OBJECT_KEY_ORPHAN_FILES, null,
+                null)) {
 
             String json = IOUtils.toString(is, StandardCharsets.UTF_8.name());
 
@@ -274,6 +280,7 @@ public class S3StorageAdminClient {
 
     public void deleteOldOrphans(String storageId) {
 
+        String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
         try {
@@ -282,7 +289,7 @@ public class S3StorageAdminClient {
 
             for (String orphan : oldOrphans) {
                 logger.info("delete old orphan file " + orphan);
-                this.s3StorageClient.getTransferManager().getAmazonS3Client().deleteObject(bucket, orphan);
+                this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client().deleteObject(bucket, orphan);
             }
 
             logger.info("delete " + oldOrphans.size() + " old orphan files: done");

@@ -6,7 +6,11 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.crypto.NoSuchPaddingException;
@@ -24,7 +28,6 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
@@ -43,53 +46,97 @@ public class S3StorageClient {
 	private final static Logger logger = LogManager.getLogger();
 
 	// avoid too special characters, because admin API uses these in an URL path
-	private static final String S3_STORAGE_ID_PREFIX = "s3-bucket_";
+	private static final String S3_STORAGE_ID_PREFIX = "s3_";
 
-	private static final String CONF_S3_ENDPOINT = "file-broker-s3-endpoint";
-	private static final String CONF_S3_REGION = "file-broker-s3-region";
-	private static final String CONF_S3_ACCESS_KEY = "file-broker-s3-access-key";
-	private static final String CONF_S3_SECRET_KEY = "file-broker-s3-secret-key";
-	private static final String COND_S3_SIGNER_OVERRIDE = "file-broker-s3-signer-override";
-	private static final String CONF_S3_STORAGE_BUCKET_PREFIX = "file-broker-s3-bucket-";
+	private static final String CONF_S3_ENDPOINT = "s3-storage-endpoint";
+	private static final String CONF_S3_REGION = "s3-storage-region";
+	private static final String CONF_S3_ACCESS_KEY = "s3-storage-access-key";
+	private static final String CONF_S3_SECRET_KEY = "s3-storage-secret-key";
+	private static final String CONF_S3_SIGNER_OVERRIDE = "s3-storage-signer-override";
+	private static final String CONF_S3_STORAGE_BUCKET_PREFIX = "s3-storage-bucket-";
 
-	private TransferManager transferManager;
+	private Map<String, TransferManager> transferManagers;
+	private Map<String, ArrayList<String>> buckets = new HashMap<>();
 
 	private FileEncryption fileEncryption;
-
-	private ArrayList<String> buckets;
 
 	private Random random = new Random();
 
 	public S3StorageClient(Config config) throws NoSuchAlgorithmException {
-		this.transferManager = initTransferManager(config, Role.FILE_BROKER);
+
+		this.transferManagers = initTransferManagers(config);
 		this.fileEncryption = new FileEncryption();
 
-		this.buckets = new ArrayList<String>(
-				config.getConfigEntries(CONF_S3_STORAGE_BUCKET_PREFIX).values());
-		// remove the empty value from chipste-defaults.yaml
-		this.buckets.remove("");
+		for (String s3Name : this.transferManagers.keySet()) {
+
+			ArrayList<String> buckets2 = new ArrayList<String>(
+					config.getConfigEntries(CONF_S3_STORAGE_BUCKET_PREFIX + s3Name + "-").values());
+
+			this.buckets.put(s3Name, buckets2);
+
+			for (String bucket : buckets2) {
+				logger.info("s3-storage " + s3Name + " bucket: " + bucket);
+			}
+		}
 	}
 
-	public TransferManager getTransferManager() {
-		return this.transferManager;
+	public TransferManager getTransferManager(String s3Name) {
+		return this.transferManagers.get(s3Name);
 	}
 
-	public static TransferManager initTransferManager(Config config, String role) {
-		String endpoint = config.getString(CONF_S3_ENDPOINT, role);
-		String region = config.getString(CONF_S3_REGION, role);
-		String access = config.getString(CONF_S3_ACCESS_KEY, role);
-		String secret = config.getString(CONF_S3_SECRET_KEY, role);
-		String signerOverride = config.getString(COND_S3_SIGNER_OVERRIDE, role);
+	/**
+	 * Get one transfer manager for CLI utilities
+	 * 
+	 * @param config
+	 * @return
+	 */
+	public static TransferManager getOneTransferManager(Config config) {
+		Map<String, TransferManager> tms = initTransferManagers(config);
 
-		if (endpoint.isEmpty() || access.isEmpty() || secret.isEmpty()) {
-			logger.warn("S3Storage is not configured");
-			return null;
+		if (tms.size() > 1) {
+			logger.warn("multiple s3Names configured");
 		}
 
-		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride);
+		// get one
+		return new ArrayList<>(tms.values()).get(0);
 	}
 
-	public void upload(String bucket, InputStream file, String objectName, long length)
+	public static Map<String, TransferManager> initTransferManagers(Config config) {
+
+		Map<String, TransferManager> transferManagers = new HashMap<>();
+
+		// collect s3Names from all config options
+		// create new set, because the keySet() doesn't support modifications
+		Set<String> s3Names = new HashSet<>(config.getConfigEntries(CONF_S3_ENDPOINT + "-").keySet());
+		s3Names.addAll(config.getConfigEntries(CONF_S3_REGION + "-").keySet());
+		s3Names.addAll(config.getConfigEntries(CONF_S3_ACCESS_KEY + "-").keySet());
+		s3Names.addAll(config.getConfigEntries(CONF_S3_SECRET_KEY + "-").keySet());
+		s3Names.addAll(config.getConfigEntries(CONF_S3_SIGNER_OVERRIDE + "-").keySet());
+
+		for (String s3Name : s3Names) {
+
+			String endpoint = config.getString(CONF_S3_ENDPOINT, s3Name);
+			String region = config.getString(CONF_S3_REGION, s3Name);
+			String access = config.getString(CONF_S3_ACCESS_KEY, s3Name);
+			String secret = config.getString(CONF_S3_SECRET_KEY, s3Name);
+			String signerOverride = config.getString(CONF_S3_SIGNER_OVERRIDE, s3Name);
+
+			if (endpoint.isEmpty() || access.isEmpty() || secret.isEmpty()) {
+				logger.warn("S3Storage is not configured: " + s3Name);
+				continue;
+			}
+
+			logger.info("s3-storage " + s3Name + " endpoint: " + endpoint);
+
+			TransferManager tm = S3Util.getTransferManager(endpoint, region, access, secret, signerOverride);
+
+			transferManagers.put(s3Name, tm);
+		}
+
+		return transferManagers;
+	}
+
+	public void upload(String s3Name, String bucket, InputStream file, String objectName, long length)
 			throws InterruptedException {
 
 		Transfer transfer = null;
@@ -100,7 +147,7 @@ public class S3StorageClient {
 		ObjectMetadata objMeta = new ObjectMetadata();
 		objMeta.setContentLength(length);
 
-		transfer = this.transferManager.upload(bucket, objectName, file, objMeta);
+		transfer = this.transferManagers.get(s3Name).upload(bucket, objectName, file, objMeta);
 
 		AmazonClientException exception = transfer.waitForException();
 		if (exception != null) {
@@ -108,7 +155,7 @@ public class S3StorageClient {
 		}
 	}
 
-	public S3ObjectInputStream download(String bucket, String objectName, Long start, Long end)
+	public S3ObjectInputStream download(String s3Name, String bucket, String objectName, Long start, Long end)
 			throws InterruptedException {
 
 		GetObjectRequest request = new GetObjectRequest(bucket, objectName);
@@ -118,7 +165,7 @@ public class S3StorageClient {
 			request = request.withRange(start, end);
 		}
 
-		return transferManager.getAmazonS3Client().getObject(request).getObjectContent();
+		return transferManagers.get(s3Name).getAmazonS3Client().getObject(request).getObjectContent();
 	}
 
 	public InputStream downloadAndDecrypt(File file, ByteRange byteRange) {
@@ -155,8 +202,9 @@ public class S3StorageClient {
 			SecretKey secretKey = this.fileEncryption.parseKey(file.getEncryptionKey());
 			String fileId = file.getFileId().toString();
 			String bucket = storageIdToBucket(file.getStorage());
+			String s3Name = storageIdToS3Name(file.getStorage());
 
-			S3ObjectInputStream s3Stream = this.download(bucket, fileId, start, end);
+			S3ObjectInputStream s3Stream = this.download(s3Name, bucket, fileId, start, end);
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
 
 			if (byteRange == null) {
@@ -180,6 +228,7 @@ public class S3StorageClient {
 	public ChipsterUpload encryptAndUpload(UUID fileId, InputStream fileStream, Long length, String storageId,
 			String expectedChecksum) {
 
+		String s3Name = this.storageIdToS3Name(storageId);
 		String bucket = this.storageIdToBucket(storageId);
 
 		try {
@@ -193,7 +242,7 @@ public class S3StorageClient {
 			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
 					this.fileEncryption.getSecureRandom());
 
-			this.upload(bucket, encryptStream, fileId.toString(), encryptedLength);
+			this.upload(s3Name, bucket, encryptStream, fileId.toString(), encryptedLength);
 
 			// let's store these in hex to make them easier to handle in command line tools
 			String key = this.fileEncryption.keyToString(secretKey);
@@ -260,24 +309,32 @@ public class S3StorageClient {
 		return false;
 	}
 
-	public boolean isEnabled() {
-		return this.transferManager != null;
+	public boolean isEnabledForNewFiles() {
+		return !this.transferManagers.isEmpty() && !this.buckets.isEmpty();
 	}
 
+	/**
+	 * Select storageId for a new file
+	 * 
+	 * Now selected by random to spread the load. Fancier criterias can be
+	 * added in the future.
+	 * 
+	 * @return
+	 */
 	public String getStorageIdForNewFile() {
-		/*
-		 * StorageId for S3 files
-		 * 
-		 * Let's assume there is only one s3 server for now. Maybe it's better not to
-		 * save the name of the S3 endpoint in strorageId, in case it nees to be
-		 * changed.
-		 */
-		String bucket = this.buckets.get(this.random.nextInt(this.buckets.size()));
-		return bucketToStorageId(bucket);
+
+		// select random s3 server
+		String s3Name = new ArrayList<String>(this.buckets.keySet()).get(this.random.nextInt(this.buckets.size()));
+
+		// select random bucket
+		ArrayList<String> s3NameBuckets = this.buckets.get(s3Name);
+		String bucket = s3NameBuckets.get(this.random.nextInt(s3NameBuckets.size()));
+
+		return bucketToStorageId(s3Name, bucket);
 	}
 
-	public String bucketToStorageId(String bucket) {
-		return S3_STORAGE_ID_PREFIX + bucket;
+	public String bucketToStorageId(String s3Name, String bucket) {
+		return S3_STORAGE_ID_PREFIX + s3Name + "_" + bucket;
 	}
 
 	public boolean containsStorageId(String storageId) {
@@ -288,7 +345,14 @@ public class S3StorageClient {
 		if (!containsStorageId(storageId)) {
 			throw new IllegalArgumentException("not an s3 storageId: " + storageId);
 		}
-		return storageId.substring(S3_STORAGE_ID_PREFIX.length());
+		return storageId.split("_")[2];
+	}
+
+	public String storageIdToS3Name(String storageId) {
+		if (!containsStorageId(storageId)) {
+			throw new IllegalArgumentException("not an s3 storageId: " + storageId);
+		}
+		return storageId.split("_")[1];
 	}
 
 	/**
@@ -348,8 +412,10 @@ public class S3StorageClient {
 	public FileStorage[] getStorages() {
 		ArrayList<FileStorage> storages = new ArrayList<>();
 
-		for (String bucket : buckets) {
-			storages.add(new FileStorage(bucketToStorageId(bucket), null, null, false));
+		for (String s3Name : buckets.keySet()) {
+			for (String bucket : buckets.get(s3Name)) {
+				storages.add(new FileStorage(bucketToStorageId(s3Name, bucket), null, null, false));
+			}
 		}
 
 		return storages.toArray(new FileStorage[0]);
@@ -360,6 +426,16 @@ public class S3StorageClient {
 	}
 
 	public void delete(String storageId, UUID fileId) {
-		this.transferManager.getAmazonS3Client().deleteObject(storageIdToBucket(storageId), fileId.toString());
+
+		String s3Name = storageIdToS3Name(storageId);
+		String bucket = storageIdToBucket(storageId);
+
+		this.transferManagers.get(s3Name).getAmazonS3Client().deleteObject(bucket, fileId.toString());
+	}
+
+	public void close() {
+		for (String s3Name : this.transferManagers.keySet()) {
+			this.transferManagers.get(s3Name).shutdownNow();
+		}
 	}
 }
