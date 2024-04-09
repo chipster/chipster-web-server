@@ -347,7 +347,7 @@ public class FileBrokerResource {
 
 	private String getStorage(Long flowTotalChunks, Map<String, String> queryParams) {
 
-		if (this.s3StorageClient.isEnabled() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
+		if (this.s3StorageClient.isEnabledForNewFiles() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
 
 			return this.s3StorageClient.getStorageIdForNewFile();
 

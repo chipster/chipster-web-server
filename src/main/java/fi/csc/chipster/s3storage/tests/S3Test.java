@@ -12,7 +12,6 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
@@ -85,7 +84,7 @@ public class S3Test {
 		String tmpDirString = tmpDir.getPath();
 
 		Config config = new Config();
-		TransferManager tm = S3StorageClient.initTransferManager(config, Role.FILE_BROKER);
+		TransferManager tm = S3StorageClient.getOneTransferManager(config);
 
 		String bucket = "s3-file-broker-test";
 
