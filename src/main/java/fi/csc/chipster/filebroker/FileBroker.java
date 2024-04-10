@@ -49,6 +49,8 @@ public class FileBroker {
 
 	private SessionDbAdminClient sessionDbAdminClient;
 
+	private FileBrokerApi fileBrokerApi;
+
 	public FileBroker(Config config) {
 		this.config = config;
 	}
@@ -74,9 +76,10 @@ public class FileBroker {
 		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
+		this.fileBrokerApi = new FileBrokerApi(this.s3StorageClient, this.storageDiscovery, this.sessionDbAdminClient);
 		this.fileBrokerResource = new FileBrokerResource(this.serviceLocator, this.sessionDbClient,
 				this.sessionDbAdminClient, storageDiscovery,
-				s3StorageClient, config);
+				s3StorageClient, fileBrokerApi, config);
 
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);
 
@@ -100,7 +103,7 @@ public class FileBroker {
 		this.httpServer.start();
 
 		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(jerseyStatisticsSource, storageDiscovery,
-				sessionDbAdminClient, s3StorageClient, s3StorageAdminClient);
+				sessionDbAdminClient, s3StorageClient, s3StorageAdminClient, fileBrokerApi);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
 				this.serviceLocator);
 	}

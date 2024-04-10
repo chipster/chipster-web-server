@@ -9,12 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,6 +26,11 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.util.IOUtils;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * RestFileBrokerClient is a bridge between the old code written for JMS and the
@@ -116,7 +115,7 @@ public class LegacyRestFileBrokerClient {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
 		WebTarget datasetTarget = getFileBrokerTarget()
 				.path(datasetPath)
-				.queryParam(FileBrokerResource.FLOW_TOTAL_SIZE, size);
+				.queryParam(FileBrokerResource.QP_FLOW_TOTAL_SIZE, size);
 
 		// Use chunked encoding to disable buffering. HttpUrlConnector in
 		// Jersey buffers the whole file before sending it by default, which
