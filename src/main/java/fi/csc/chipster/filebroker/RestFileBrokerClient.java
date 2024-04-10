@@ -7,11 +7,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.UUID;
 
-import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.ClientProperties;
@@ -22,6 +17,10 @@ import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 public class RestFileBrokerClient {
 
@@ -97,7 +96,7 @@ public class RestFileBrokerClient {
 		target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
 
 		if (size != null) {
-			target = target.queryParam(FileBrokerResource.FLOW_TOTAL_SIZE, size);
+			target = target.queryParam(FileBrokerResource.QP_FLOW_TOTAL_SIZE, size);
 		}
 
 		Response response = target.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),

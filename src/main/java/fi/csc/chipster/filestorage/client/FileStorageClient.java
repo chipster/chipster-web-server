@@ -22,6 +22,7 @@ import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
+import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import jakarta.ws.rs.ForbiddenException;
@@ -96,7 +97,7 @@ public class FileStorageClient {
 		}
 	}
 
-	public long upload(UUID fileId, InputStream inputStream, Map<String, String> queryParams) {
+	public long upload(UUID fileId, InputStream inputStream, Map<String, String> queryParams, Long expectedSize) {
 
 		WebTarget target = getFileTarget(fileId);
 
@@ -158,6 +159,11 @@ public class FileStorageClient {
 
 				logger.debug("PUT " + connection.getResponseCode() + " " + connection.getResponseMessage()
 						+ " file size: " + fileContentLength);
+
+				if (expectedSize != null && expectedSize != fileContentLength) {
+					throw new FileLengthException("file length error. fileId " + fileId
+							+ ", uploaded: " + fileContentLength + " bytes, but expected size is " + expectedSize);
+				}
 
 				return fileContentLength;
 

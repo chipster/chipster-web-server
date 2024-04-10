@@ -52,10 +52,11 @@ import jakarta.ws.rs.core.UriInfo;
 @Path("/")
 public class FileBrokerResource {
 
-	public static final String FLOW_TOTAL_CHUNKS = "flowTotalChunks";
-	public static final String FLOW_CHUNK_SIZE = "flowChunkSize";
-	public static final String FLOW_CHUNK_NUMBER = "flowChunkNumber";
-	public static final String FLOW_TOTAL_SIZE = "flowTotalSize";
+	public static final String QP_FLOW_TOTAL_CHUNKS = "flowTotalChunks";
+	public static final String QP_FLOW_CHUNK_SIZE = "flowChunkSize";
+	public static final String QP_FLOW_CHUNK_NUMBER = "flowChunkNumber";
+	public static final String QP_FLOW_TOTAL_SIZE = "flowTotalSize";
+	private static final String QP_TEMPORARY = "temporary";
 
 	public static final String HEADER_RANGE = "Range";
 
@@ -67,10 +68,11 @@ public class FileBrokerResource {
 	private FileStorageDiscovery storageDiscovery;
 	private S3StorageClient s3StorageClient;
 	private SessionDbAdminClient sessionDbAdminClient;
+	private FileBrokerApi fileBrokerApi;
 
 	public FileBrokerResource(ServiceLocatorClient serviceLocator, SessionDbClient sessionDbClient,
 			SessionDbAdminClient sessionDbAdminClient, FileStorageDiscovery storageDiscovery,
-			S3StorageClient s3StorageClient, Config config)
+			S3StorageClient s3StorageClient, FileBrokerApi fileBrokerApi, Config config)
 			throws NoSuchAlgorithmException {
 
 		this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
@@ -80,6 +82,7 @@ public class FileBrokerResource {
 		// check permissions carefully before using these!
 		this.sessionDbWithFileBrokerCredentials = sessionDbClient;
 		this.sessionDbAdminClient = sessionDbAdminClient;
+		this.fileBrokerApi = fileBrokerApi;
 	}
 
 	@GET
@@ -178,9 +181,10 @@ public class FileBrokerResource {
 	@PUT
 	@Path("sessions/{sessionId}/datasets/{datasetId}")
 	public Response putDataset(@PathParam("sessionId") UUID sessionId, @PathParam("datasetId") UUID datasetId,
-			InputStream fileStream, @QueryParam(FLOW_CHUNK_NUMBER) Long chunkNumber,
-			@QueryParam(FLOW_CHUNK_SIZE) Long chunkSize, @QueryParam(FLOW_TOTAL_CHUNKS) Long flowTotalChunks,
-			@QueryParam(FLOW_TOTAL_SIZE) Long flowTotalSize, @Context SecurityContext sc, @Context UriInfo uriInfo) {
+			InputStream fileStream, @QueryParam(QP_FLOW_CHUNK_NUMBER) Long chunkNumber,
+			@QueryParam(QP_FLOW_CHUNK_SIZE) Long chunkSize, @QueryParam(QP_FLOW_TOTAL_CHUNKS) Long flowTotalChunks,
+			@QueryParam(QP_FLOW_TOTAL_SIZE) Long flowTotalSize, @QueryParam(QP_TEMPORARY) Boolean temporary,
+			@Context SecurityContext sc, @Context UriInfo uriInfo) {
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("PUT " + uriInfo.getAbsolutePath() + " " + RestUtils.asJson(uriInfo.getQueryParameters()));
@@ -191,16 +195,16 @@ public class FileBrokerResource {
 		Map<String, String> queryParams = new HashMap<>();
 
 		if (chunkNumber != null) {
-			queryParams.put(FLOW_CHUNK_NUMBER, "" + chunkNumber);
+			queryParams.put(QP_FLOW_CHUNK_NUMBER, "" + chunkNumber);
 		}
 		if (chunkSize != null) {
-			queryParams.put(FLOW_CHUNK_SIZE, "" + chunkSize);
+			queryParams.put(QP_FLOW_CHUNK_SIZE, "" + chunkSize);
 		}
 		if (flowTotalChunks != null) {
-			queryParams.put(FLOW_TOTAL_CHUNKS, "" + flowTotalChunks);
+			queryParams.put(QP_FLOW_TOTAL_CHUNKS, "" + flowTotalChunks);
 		}
 		if (flowTotalSize != null) {
-			queryParams.put(FLOW_TOTAL_SIZE, "" + flowTotalSize);
+			queryParams.put(QP_FLOW_TOTAL_SIZE, "" + flowTotalSize);
 		}
 
 		logger.info("chunkNumber: " + chunkNumber);
@@ -312,7 +316,7 @@ public class FileBrokerResource {
 
 			// update the file size after each chunk
 			file.setSize(storageClient.upload(dataset.getFile().getFileId(), fileStream,
-					queryParams));
+					queryParams, null));
 
 			// update File state
 			if (flowTotalSize == null) {
@@ -329,20 +333,40 @@ public class FileBrokerResource {
 
 		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
 
-		if (file.getSize() >= 0) {
-
-			try {
-				logger.debug("PUT " + sessionDbUri + "/sessions/" + sessionId + "/datasets/" + datasetId);
-				this.sessionDbWithFileBrokerCredentials.updateDataset(sessionId, dataset);
-				return Response.noContent().build();
-
-			} catch (RestException e) {
-				throw ServletUtils.extractRestException(e);
-			}
-		} else {
+		if (file.getSize() < 0) {
 			// upload paused
 			return Response.serverError().build();
 		}
+
+		try {
+			logger.debug("PUT " + sessionDbUri + "/sessions/" + sessionId + "/datasets/" + datasetId);
+			this.sessionDbWithFileBrokerCredentials.updateDataset(sessionId, dataset);
+
+		} catch (RestException e) {
+			throw ServletUtils.extractRestException(e);
+		}
+
+		// move the file to s3-storage, if the file is complete, S3 is enabled and the
+		// file is in file-storage
+
+		// convert Boolean to boolean
+		boolean isTemporary = temporary != null && temporary;
+
+		if (file.getState() == FileState.COMPLETE
+				&& this.s3StorageClient.isEnabledForNewFiles()
+				&& !this.s3StorageClient.containsStorageId(file.getStorage())) {
+
+			if (isTemporary) {
+				logger.info("temporary file, do not move it");
+
+			} else {
+				String newStorageId = this.s3StorageClient.getStorageIdForNewFile();
+
+				this.fileBrokerApi.moveLater(file, newStorageId);
+			}
+		}
+
+		return Response.noContent().build();
 	}
 
 	private String getStorage(Long flowTotalChunks, Map<String, String> queryParams) {
