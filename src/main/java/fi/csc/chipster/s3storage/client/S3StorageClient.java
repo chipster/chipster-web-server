@@ -176,7 +176,7 @@ public class S3StorageClient {
 		logger.debug("downloadAndDecrypt byte range " + byteRange);
 
 		if (byteRange != null) {
-			logger.info("downloadAndDecrypt byte range " + byteRange + " [" + byteRange.getStart() + ", "
+			logger.debug("downloadAndDecrypt byte range " + byteRange + " [" + byteRange.getStart() + ", "
 					+ byteRange.getEnd() + "]");
 			// because of the encryption, we have to read the file from the beginning, but
 			// we can still use range queries when we don't need the whole file
@@ -212,7 +212,7 @@ public class S3StorageClient {
 
 				return checksumStream;
 			} else {
-				logger.info("skip checksum calculation for range request");
+				logger.debug("skip checksum calculation for range request");
 				// there is no point to calculate checksum in range request
 				return decryptStream;
 			}
@@ -296,16 +296,16 @@ public class S3StorageClient {
 	public boolean isOnePartUpload(Long flowTotalChunks) {
 
 		if (flowTotalChunks == null) {
-			logger.info("flowTotalChunks is null, assuming one-part upload");
+			logger.debug("flowTotalChunks is null, assuming one-part upload");
 			return true;
 		}
 
 		if (flowTotalChunks == 1) {
-			logger.info("flowTotalChunks is 1, this is one-part upload");
+			logger.debug("flowTotalChunks is 1, this is one-part upload");
 			return true;
 		}
 
-		logger.info("flowTotalChunks is " + flowTotalChunks + ", this is multipart upload");
+		logger.debug("flowTotalChunks is " + flowTotalChunks + ", this is multipart upload");
 		return false;
 	}
 

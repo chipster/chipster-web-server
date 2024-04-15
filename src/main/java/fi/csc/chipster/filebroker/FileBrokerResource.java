@@ -119,8 +119,14 @@ public class FileBrokerResource {
 		UUID fileId = dataset.getFile().getFileId();
 		String storageId = dataset.getFile().getStorage();
 
-		logger.info("GET from storage '" + storageId + "' "
-				+ FileBrokerAdminResource.humanFriendly(dataset.getFile().getSize()));
+		if (range != null && !range.isEmpty()) {
+
+			logger.info("GET from storage '" + storageId + "', " + range + ", file size: "
+					+ FileBrokerAdminResource.humanFriendly(dataset.getFile().getSize()));
+		} else {
+			logger.info("GET from storage '" + storageId + "', "
+					+ FileBrokerAdminResource.humanFriendly(dataset.getFile().getSize()));
+		}
 
 		InputStream fileStream;
 
@@ -207,10 +213,10 @@ public class FileBrokerResource {
 			queryParams.put(QP_FLOW_TOTAL_SIZE, "" + flowTotalSize);
 		}
 
-		logger.info("chunkNumber: " + chunkNumber);
-		logger.info("chunkSize: " + chunkSize);
-		logger.info("flowTotalChunks: " + flowTotalChunks);
-		logger.info("flowTotalSize: " + flowTotalSize);
+		logger.debug("chunkNumber: " + chunkNumber);
+		logger.debug("chunkSize: " + chunkSize);
+		logger.debug("flowTotalChunks: " + flowTotalChunks);
+		logger.debug("flowTotalSize: " + flowTotalSize);
 
 		// checks authorization
 		Dataset dataset;
@@ -236,6 +242,9 @@ public class FileBrokerResource {
 
 			file.setStorage(getStorage(flowTotalChunks, queryParams));
 			file.setState(FileState.UPLOADING);
+
+			logger.info("PUT new file to storage '" + file.getStorage() + "', chunk: " + chunkNumber + " / "
+					+ flowTotalChunks + ", total size: " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
 
 			// Add the File to the DB before creating the file in storage. Otherwise storage
 			// check could think the file in storage is orphan and delete it.
@@ -274,13 +283,17 @@ public class FileBrokerResource {
 					throw new ConflictException("file exists already");
 				}
 			} else {
-				logger.info("append to existing file in " + file.getStorage());
+
+				logger.info("PUT append to existing file in storage '" + file.getStorage() + "', chunk: " + chunkNumber
+						+ " / " + flowTotalChunks + ", current size:  "
+						+ FileBrokerAdminResource.humanFriendly(file.getSize())
+						+ " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
 			}
 		}
 
 		if (this.s3StorageClient.containsStorageId(file.getStorage())) {
 
-			logger.info("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(file.getStorage()));
+			logger.debug("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(file.getStorage()));
 
 			// checksum is not available
 			try {
@@ -291,6 +304,10 @@ public class FileBrokerResource {
 				file.setChecksum(upload.getChecksum());
 				file.setEncryptionKey(upload.getEncryptionKey());
 				file.setState(FileState.COMPLETE);
+
+				// let's report only errors to keep file-broker logs cleaner, for example when
+				// extracting a zip-session
+				logger.debug("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
 
 			} catch (ResetException e) {
 				logger.warn("upload cancelled", e.getClass());
@@ -308,9 +325,6 @@ public class FileBrokerResource {
 
 		} else {
 
-			logger.info("PUT file to storage '" + file.getStorage() + "' "
-					+ FileBrokerAdminResource.humanFriendly(flowTotalSize));
-
 			// not synchronized, may fail when storage is lost
 			FileStorageClient storageClient = storageDiscovery.getStorageClient(file.getStorage());
 
@@ -324,14 +338,18 @@ public class FileBrokerResource {
 				file.setState(FileState.COMPLETE);
 
 			} else if (file.getSize() == flowTotalSize) {
+				logger.info("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
 				file.setState(FileState.COMPLETE);
 
 			} else {
+				logger.info("PUT chunk completed: " + chunkNumber
+						+ " / " + flowTotalChunks + ", current size:  "
+						+ FileBrokerAdminResource.humanFriendly(file.getSize())
+						+ " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
+
 				file.setState(FileState.UPLOADING);
 			}
 		}
-
-		logger.info("PUT update file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
 
 		if (file.getSize() < 0) {
 			// upload paused
