@@ -32,7 +32,7 @@ public class ChecksumStream extends InputStream {
 
         if (this.expectedChecksum != null) {
             if (this.expectedChecksum.equals(streamChecksum)) {
-                logger.info("checksum ok: " + expectedChecksum);
+                logger.debug("checksum ok: " + expectedChecksum);
             } else {
                 /*
                  * We can log this error, but I don't know how we could tell the client about
@@ -48,7 +48,7 @@ public class ChecksumStream extends InputStream {
                 throw new ChecksumException("checksum error");
             }
         } else {
-            logger.info("checksum not available");
+            logger.debug("checksum not available");
         }
     }
 

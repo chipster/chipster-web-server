@@ -28,8 +28,8 @@ public class ExceptionWriterInterceptor implements WriterInterceptor {
 			context.proceed();
 		} catch (IOException e) {
 			if (e.getCause() instanceof BadPaddingException) {
-				logger.info("cipher stream was not fully read, but it's ok if http range query was used ("
-						+ e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
+				logger.info("cipher stream was not fully read, but it's ok if http range query was used: "
+						+ e.getCause().getClass().getSimpleName());
 			} else {
 				logger.info("download cancelled " + e);
 			}
