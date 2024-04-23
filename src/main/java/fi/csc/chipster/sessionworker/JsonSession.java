@@ -250,6 +250,18 @@ public class JsonSession {
 				})
 				.collect(Collectors.toList());
 
+		/*
+		 * Remove encryption keys
+		 * 
+		 * Just to avoid confusion, as these files will get new encryption keys when
+		 * the session is opened anyway. This has no effect for security, because the
+		 * zip contains the file contents anyway.
+		 */
+
+		for (Dataset dataset : datasets) {
+			dataset.getFile().setEncryptionKey(null);
+		}
+
 		String sessionJson = RestUtils.asJson(session, true);
 		String datasetsJson = RestUtils.asJson(datasets, true);
 		String jobsJson = RestUtils.asJson(jobs, true);
