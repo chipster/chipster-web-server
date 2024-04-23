@@ -112,6 +112,7 @@ backup-s3-region: regionOne
 backup-s3-access-key: ""
 backup-s3-secret-key: ""
 backup-s3-signer-override: S3SignerType
+backup-s3-path-style-access: false
 backup-bucket: ""
 backup-time: 01:10
 
@@ -460,7 +461,8 @@ s3-storage-secret-key: ""
 s3-storage-endpoint: a3s.fi
 s3-storage-region: regionOne
 s3-storage-signer-override: S3SignerType
-# must not contain underscores "_"
+s3-storage-path-style-access: false
+# must not contain underscores "_", because of the simple parsing in S3StorageClient.storageIdToX()
 s3-storage-bucket: ""
 
 # s3-storage configuration example

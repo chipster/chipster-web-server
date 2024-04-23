@@ -53,6 +53,7 @@ public class S3StorageClient {
 	private static final String CONF_S3_ACCESS_KEY = "s3-storage-access-key";
 	private static final String CONF_S3_SECRET_KEY = "s3-storage-secret-key";
 	private static final String CONF_S3_SIGNER_OVERRIDE = "s3-storage-signer-override";
+	private static final String CONF_S3_PATH_STYLE_ACCESS = "s3-storage-path-style-access";
 	private static final String CONF_S3_STORAGE_BUCKET_PREFIX = "s3-storage-bucket-";
 
 	private Map<String, TransferManager> transferManagers;
@@ -112,6 +113,7 @@ public class S3StorageClient {
 		s3Names.addAll(config.getConfigEntries(CONF_S3_ACCESS_KEY + "-").keySet());
 		s3Names.addAll(config.getConfigEntries(CONF_S3_SECRET_KEY + "-").keySet());
 		s3Names.addAll(config.getConfigEntries(CONF_S3_SIGNER_OVERRIDE + "-").keySet());
+		s3Names.addAll(config.getConfigEntries(CONF_S3_PATH_STYLE_ACCESS + "-").keySet());
 
 		for (String s3Name : s3Names) {
 
@@ -120,6 +122,7 @@ public class S3StorageClient {
 			String access = config.getString(CONF_S3_ACCESS_KEY, s3Name);
 			String secret = config.getString(CONF_S3_SECRET_KEY, s3Name);
 			String signerOverride = config.getString(CONF_S3_SIGNER_OVERRIDE, s3Name);
+			boolean pathStyleAccess = config.getBoolean(CONF_S3_PATH_STYLE_ACCESS);
 
 			if (endpoint.isEmpty() || access.isEmpty() || secret.isEmpty()) {
 				logger.warn("S3Storage is not configured: " + s3Name);
@@ -128,7 +131,8 @@ public class S3StorageClient {
 
 			logger.info("s3-storage " + s3Name + " endpoint: " + endpoint);
 
-			TransferManager tm = S3Util.getTransferManager(endpoint, region, access, secret, signerOverride);
+			TransferManager tm = S3Util.getTransferManager(endpoint, region, access, secret, signerOverride,
+					pathStyleAccess);
 
 			transferManagers.put(s3Name, tm);
 		}

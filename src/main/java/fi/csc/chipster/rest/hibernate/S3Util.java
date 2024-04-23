@@ -27,9 +27,10 @@ public class S3Util {
 	private final static Logger logger = LogManager.getLogger();
 
 	public static TransferManager getTransferManager(String endpoint, String region, String access, String secret,
-			String signerOverride) {
+			String signerOverride, boolean pathStyleAccess) {
+
 		TransferManagerBuilder builder = TransferManagerBuilder.standard()
-				.withS3Client(getClient(endpoint, region, access, secret, signerOverride));
+				.withS3Client(getClient(endpoint, region, access, secret, signerOverride, pathStyleAccess));
 
 		builder.setDisableParallelDownloads(true);
 
@@ -42,7 +43,7 @@ public class S3Util {
 	}
 
 	public static AmazonS3 getClient(String endpoint, String region, String access, String secret,
-			String signerOverride) {
+			String signerOverride, boolean pathStyleAccess) {
 
 		AWSCredentials credentials = new BasicAWSCredentials(access, secret);
 
@@ -63,6 +64,7 @@ public class S3Util {
 				// "regionOne"))
 				.withEndpointConfiguration(new EndpointConfiguration(endpoint, region))
 				.withCredentials(new AWSStaticCredentialsProvider(credentials))
+				.withPathStyleAccessEnabled(pathStyleAccess)
 				.build();
 
 		return s3;

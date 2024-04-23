@@ -41,11 +41,12 @@ public class BackupUtils {
 	private final static Logger logger = LogManager.getLogger();
 
 	private static final String CONF_BACKUP_BUCKET = "backup-bucket";
-	private static final String COND_BACKUP_S3_SIGNER_OVERRIDE = "backup-s3-signer-override";
+	private static final String CONF_BACKUP_S3_SIGNER_OVERRIDE = "backup-s3-signer-override";
 	private static final String CONF_BACKUP_S3_SECRET_KEY = "backup-s3-secret-key";
 	private static final String CONF_BACKUP_S3_ACCESS_KEY = "backup-s3-access-key";
 	private static final String CONF_BACKUP_S3_REGION = "backup-s3-region";
 	private static final String CONF_BACKUP_S3_ENDPOINT = "backup-s3-endpoint";
+	private static final String CONF_BACKUP_S3_PATH_STYLE_ACCESS = "backup-s3-path-style-access";
 
 	public static final String CONF_BACKUP_TIME = "backup-time";
 	public static final String CONF_BACKUP_INTERVAL = "backup-interval";
@@ -235,13 +236,14 @@ public class BackupUtils {
 		String region = config.getString(CONF_BACKUP_S3_REGION, role);
 		String access = config.getString(CONF_BACKUP_S3_ACCESS_KEY, role);
 		String secret = config.getString(CONF_BACKUP_S3_SECRET_KEY, role);
-		String signerOverride = config.getString(COND_BACKUP_S3_SIGNER_OVERRIDE, role);
+		String signerOverride = config.getString(CONF_BACKUP_S3_SIGNER_OVERRIDE, role);
+		boolean pathStyleAccess = config.getBoolean(CONF_BACKUP_S3_PATH_STYLE_ACCESS, role);
 
 		if (endpoint == null || region == null || access == null || secret == null) {
 			logger.warn("backups are not configured");
 		}
 
-		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride);
+		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride, pathStyleAccess);
 	}
 
 	public static String getBackupBucket(Config config, String role) {
