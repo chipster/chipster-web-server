@@ -9,8 +9,6 @@ import java.util.zip.Checksum;
 
 import org.apache.commons.io.FileUtils;
 
-import fi.csc.chipster.s3storage.ChipsterChecksums;
-
 public class ChecksumTest {
 
         public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
