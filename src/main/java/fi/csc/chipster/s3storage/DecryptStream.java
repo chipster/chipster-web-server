@@ -7,7 +7,6 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -16,7 +15,7 @@ import org.apache.commons.io.IOUtils;
 
 public class DecryptStream extends InputStream {
 
-    private CipherInputStream cipherInputStream;
+    private ChipsterCipherInputStream cipherInputStream;
 
     public DecryptStream(InputStream in, SecretKey secretKey) throws IOException, IllegalFileException,
             NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
@@ -37,7 +36,7 @@ public class DecryptStream extends InputStream {
         Cipher cipher = Cipher.getInstance(FileEncryption.V1_ALGORITHM);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
 
-        this.cipherInputStream = new CipherInputStream(in, cipher);
+        this.cipherInputStream = new ChipsterCipherInputStream(in, cipher);
     }
 
     @Override

@@ -10,7 +10,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
 import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -36,7 +35,7 @@ public class EncryptStream extends InputStream {
         ByteArrayInputStream headerStream = new ByteArrayInputStream(headerBytes);
         // SequenceInputStream will close all sub-streams
         @SuppressWarnings("resource")
-        CipherInputStream cipherInputStream = new CipherInputStream(in, cipher);
+        ChipsterCipherInputStream cipherInputStream = new ChipsterCipherInputStream(in, cipher);
 
         this.sequenceInputStream = new SequenceInputStream(headerStream, cipherInputStream);
     }
