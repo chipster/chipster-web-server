@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage.tests;
+package fi.csc.chipster.s3storage.benchmark;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +15,7 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
-public class S3Test {
+public class S3Benchmark {
 
 	public static void test(TransferManager tm, String bucket, String name, boolean isUpload, boolean isSerial,
 			int count, String fileName) throws InterruptedException {
@@ -80,7 +80,7 @@ public class S3Test {
 		long largeFileSize = 128l * 1024 * 1024;
 		int smallFilesCount = 10;
 
-		File tmpDir = TestData.generateTestFiles(largeFileSize, smallFilesCount, new ArrayList<File>());
+		File tmpDir = BenchmarkData.generateTestFiles(largeFileSize, smallFilesCount, new ArrayList<File>());
 		String tmpDirString = tmpDir.getPath();
 
 		Config config = new Config();

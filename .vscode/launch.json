@@ -6,6 +6,27 @@
   "configurations": [
     {
       "type": "java",
+      "name": "S3Benchmark",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.benchmark.S3Benchmark",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "EncryptDecryptBenchmark",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.benchmark.EncryptDecryptBenchmark",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
+      "name": "ChecksumBenchmark",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.s3storage.benchmark.ChecksumBenchmark",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
       "name": "S3StorageBackup",
       "request": "launch",
       "mainClass": "fi.csc.chipster.archive.S3StorageBackup",

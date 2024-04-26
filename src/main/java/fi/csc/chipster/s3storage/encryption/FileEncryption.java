@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.encryption;
 
 import java.io.File;
 import java.io.FileInputStream;

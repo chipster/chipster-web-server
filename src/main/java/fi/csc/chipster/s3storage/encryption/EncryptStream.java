@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.encryption;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,7 +35,7 @@ public class EncryptStream extends InputStream {
         ByteArrayInputStream headerStream = new ByteArrayInputStream(headerBytes);
         // SequenceInputStream will close all sub-streams
         @SuppressWarnings("resource")
-        ChipsterCipherInputStream cipherInputStream = new ChipsterCipherInputStream(in, cipher);
+        InputStream cipherInputStream = new BufferedCipherInputStream(in, cipher);
 
         this.sequenceInputStream = new SequenceInputStream(headerStream, cipherInputStream);
     }

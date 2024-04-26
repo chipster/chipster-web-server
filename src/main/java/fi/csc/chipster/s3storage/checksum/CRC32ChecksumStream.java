@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.checksum;
 
 import java.io.InputStream;
 import java.util.zip.CRC32;

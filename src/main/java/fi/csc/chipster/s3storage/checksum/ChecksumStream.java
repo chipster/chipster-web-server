@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.checksum;
 
 import java.io.IOException;
 import java.io.InputStream;

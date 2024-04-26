@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.encryption;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,7 +15,7 @@ import org.apache.commons.io.IOUtils;
 
 public class DecryptStream extends InputStream {
 
-    private ChipsterCipherInputStream cipherInputStream;
+    private BufferedCipherInputStream cipherInputStream;
 
     public DecryptStream(InputStream in, SecretKey secretKey) throws IOException, IllegalFileException,
             NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
@@ -36,7 +36,7 @@ public class DecryptStream extends InputStream {
         Cipher cipher = Cipher.getInstance(FileEncryption.V1_ALGORITHM);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
 
-        this.cipherInputStream = new ChipsterCipherInputStream(in, cipher);
+        this.cipherInputStream = new BufferedCipherInputStream(in, cipher);
     }
 
     @Override
