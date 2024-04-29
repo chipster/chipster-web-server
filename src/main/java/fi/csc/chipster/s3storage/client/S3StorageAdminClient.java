@@ -20,9 +20,9 @@ import org.glassfish.jersey.message.internal.NullOutputStream;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.iterable.S3Objects;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.HeadBucketRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
@@ -76,20 +76,9 @@ public class S3StorageAdminClient {
 
         AmazonS3 amazonS3Client = this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client();
 
-        ObjectListing objectListing = amazonS3Client.listObjects(bucket);
-
-        do {
-            List<S3ObjectSummary> summaries = objectListing.getObjectSummaries();
-
-            for (S3ObjectSummary summary : summaries) {
-
-                result.put(summary.getKey(), summary.getSize());
-            }
-
-            objectListing = amazonS3Client.listNextBatchOfObjects(objectListing);
-
-        } while (objectListing.isTruncated());
-
+        S3Objects.inBucket(amazonS3Client, bucket).forEach((S3ObjectSummary summary) -> {
+            result.put(summary.getKey(), summary.getSize());
+        });
         // remove our list of orphan files
         result.remove(OBJECT_KEY_ORPHAN_FILES);
 
@@ -204,6 +193,11 @@ public class S3StorageAdminClient {
                 } else {
                     throw e;
                 }
+            }
+
+            // show little bit of progress information
+            if (okFiles % 100 == 0) {
+                logger.info(name + "verified checksums: " + okFiles);
             }
         }
 
