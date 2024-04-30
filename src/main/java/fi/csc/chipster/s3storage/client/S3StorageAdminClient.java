@@ -2,6 +2,7 @@ package fi.csc.chipster.s3storage.client;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +17,6 @@ import javax.crypto.IllegalBlockSizeException;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.jersey.message.internal.NullOutputStream;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -174,7 +174,7 @@ public class S3StorageAdminClient {
         for (File file : files) {
 
             try (InputStream is = this.s3StorageClient.downloadAndDecrypt(file, null)) {
-                IOUtils.copyLarge(is, new NullOutputStream());
+                IOUtils.copyLarge(is, OutputStream.nullOutputStream());
                 okFiles++;
             } catch (ChecksumException e) {
                 logger.info("checksum failed: " + file.getFileId());
