@@ -155,7 +155,7 @@ public class ZipSessionServletTest {
 		 */
 		StringBuffer notes = new StringBuffer();
 
-		// write until then notes is 10 MB
+		// write until notes is 10 MB
 		while (notes.length() < 10 * 1024 * 1024) {
 			notes.append(UUID.randomUUID());
 		}

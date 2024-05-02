@@ -153,7 +153,7 @@ public class S3StorageBackup {
 
 		String reportJson = RestUtils.asJson(report);
 		try (InputStream reportStream = new ByteArrayInputStream(reportJson.getBytes())) {
-			s3StorageClient.upload(s3Name, bucket, reportStream, KEY_BACKUP_DONE, reportJson.length());
+			s3StorageClient.upload(s3Name, bucket, reportStream, KEY_BACKUP_DONE, (long) reportJson.length());
 		}
 
 		Files.delete(downloadDir);
