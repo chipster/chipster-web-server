@@ -234,14 +234,18 @@ public class FileBrokerResource {
 
 			logger.debug("PUT new file");
 
+			UUID fileId = RestUtils.createUUID();
+			String storageId = getStorage(flowTotalChunks, queryParams);
+			Instant created = Instant.now();
+
 			file = new File();
 			// create a new fileId
-			file.setFileId(RestUtils.createUUID());
-			file.setFileCreated(Instant.now());
-			dataset.setFile(file);
-
-			file.setStorage(getStorage(flowTotalChunks, queryParams));
+			file.setFileId(fileId);
+			file.setFileCreated(created);
+			file.setStorage(storageId);
 			file.setState(FileState.UPLOADING);
+
+			dataset.setFile(file);
 
 			logger.info("PUT new file to storage '" + file.getStorage() + "', chunk: " + chunkNumber + " / "
 					+ flowTotalChunks + ", total size: " + FileBrokerAdminResource.humanFriendly(flowTotalSize));

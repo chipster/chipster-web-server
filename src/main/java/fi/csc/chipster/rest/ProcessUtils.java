@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.input.CountingInputStream;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -109,20 +109,20 @@ public class ProcessUtils {
 			throws IOException {
 		// only final (effectively) variables can be used inside the function
 		boolean[] isProgressPrinted = new boolean[] { false };
-		try (CountingInputStream is = new CountingInputStream(in)) {
+		try (BoundedInputStream is = BoundedInputStream.builder().setInputStream(in).get()) {
 			Timer timer = new Timer();
 			timer.scheduleAtFixedRate(new TimerTask() {
 				@Override
 				public void run() {
 					isProgressPrinted[0] = true;
-					logger.info(message + " " + FileUtils.byteCountToDisplaySize(is.getByteCount()) + " / "
+					logger.info(message + " " + FileUtils.byteCountToDisplaySize(is.getCount()) + " / "
 							+ FileUtils.byteCountToDisplaySize(totalSize));
 				}
 			}, 1_000, 10_000);
 			IOUtils.copy(is, out);
 			if (isProgressPrinted[0]) {
 				// print once more to show that it completed
-				logger.info(message + " " + FileUtils.byteCountToDisplaySize(is.getByteCount()) + " / "
+				logger.info(message + " " + FileUtils.byteCountToDisplaySize(is.getCount()) + " / "
 						+ FileUtils.byteCountToDisplaySize(totalSize));
 			}
 			timer.cancel();

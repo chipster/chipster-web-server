@@ -33,8 +33,7 @@ public class EncryptStream extends InputStream {
         byte[] headerBytes = ArrayUtils.addAll(FileEncryption.CHIPSTER_ENC_SIG.getBytes(), iv);
 
         ByteArrayInputStream headerStream = new ByteArrayInputStream(headerBytes);
-        // SequenceInputStream will close all sub-streams
-        @SuppressWarnings("resource")
+
         InputStream cipherInputStream = new BufferedCipherInputStream(in, cipher);
 
         this.sequenceInputStream = new SequenceInputStream(headerStream, cipherInputStream);

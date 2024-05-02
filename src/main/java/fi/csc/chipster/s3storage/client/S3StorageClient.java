@@ -17,7 +17,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
 import org.apache.commons.codec.DecoderException;
-import org.apache.commons.io.input.CountingInputStream;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -141,7 +141,7 @@ public class S3StorageClient {
 		return transferManagers;
 	}
 
-	public void upload(String s3Name, String bucket, InputStream file, String objectName, long length)
+	public void upload(String s3Name, String bucket, InputStream file, String objectName, Long length)
 			throws InterruptedException {
 
 		Transfer transfer = null;
@@ -149,6 +149,11 @@ public class S3StorageClient {
 		// TransferManager can handle multipart uploads, but requires a file length in
 		// advance. The lower lever api would support uploads without file length, but
 		// then we have to take care of multipart uploads ourselves
+
+		if (length == null) {
+			throw new IllegalArgumentException("length cannot be null");
+		}
+
 		ObjectMetadata objMeta = new ObjectMetadata();
 		objMeta.setContentLength(length);
 
@@ -242,7 +247,9 @@ public class S3StorageClient {
 			SecretKey secretKey = this.fileEncryption.generateKey();
 			long encryptedLength = this.fileEncryption.getEncryptedLength(length);
 
-			CountingInputStream countingInputStream = new CountingInputStream(fileStream);
+			BoundedInputStream countingInputStream = BoundedInputStream.builder()
+					.setInputStream(fileStream)
+					.get();
 			ChecksumStream checksumStream = new CRC32ChecksumStream(countingInputStream, expectedChecksum);
 			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
 					this.fileEncryption.getSecureRandom());
@@ -256,13 +263,13 @@ public class S3StorageClient {
 			if (length == null) {
 				// shouldn't happen, because upload() requires length for now
 				logger.info("original file length not avalaible");
-			} else if (length.longValue() != countingInputStream.getByteCount()) {
+			} else if (length.longValue() != countingInputStream.getCount()) {
 				throw new FileLengthException(
-						"file was supposed to be " + length + " bytes, but was " + countingInputStream.getByteCount());
+						"file was supposed to be " + length + " bytes, but was " + countingInputStream.getCount());
 			}
 
 			// length of plaintext
-			long fileLength = countingInputStream.getByteCount();
+			long fileLength = countingInputStream.getCount();
 
 			return new ChipsterUpload(fileLength, checksum, key);
 

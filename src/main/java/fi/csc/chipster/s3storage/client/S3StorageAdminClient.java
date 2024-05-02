@@ -233,7 +233,7 @@ public class S3StorageAdminClient {
 
         try (InputStream is = new ByteArrayInputStream(jsonBytes)) {
 
-            this.s3StorageClient.upload(s3Name, bucket, is, OBJECT_KEY_ORPHAN_FILES, jsonBytes.length);
+            this.s3StorageClient.upload(s3Name, bucket, is, OBJECT_KEY_ORPHAN_FILES, (long) jsonBytes.length);
         }
     }
 
