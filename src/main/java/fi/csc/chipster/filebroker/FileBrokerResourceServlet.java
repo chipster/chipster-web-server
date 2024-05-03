@@ -12,7 +12,6 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
-import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import jakarta.servlet.http.HttpServlet;
@@ -36,9 +35,8 @@ import jakarta.ws.rs.core.MediaType;
  * downloading, so we don't have any
  * way in the client side to monitor its progress.
  * 
- * Simply throwing an IOException from the ServletOutputStream seems to be
- * enough
- * in servlet. However, there is a bit more work with parsing the path.
+ * Simply throwing an exception from the ServletOutputStream seems to be
+ * enough in servlet. However, there is a bit more work with parsing the path.
  * 
  * @author klemela
  *
@@ -127,13 +125,16 @@ public class FileBrokerResourceServlet extends HttpServlet {
 
         OutputStream output = response.getOutputStream();
 
-        try {
+        IOUtils.copyLarge(fileStream, output);
 
-            IOUtils.copyLarge(fileStream, output);
-        } catch (ChecksumException e) {
-            throw new IOException("checksum error", e);
-        }
-
+        /*
+         * Close output stream only if the copyLarge() was successful
+         * 
+         * If an exception (ChecksumException, FileLengthException) was thrown, this is
+         * skipped on purpose. Otherwise the connection release is not abortive. So
+         * don't use try-with-resources to close it!
+         */
+        output.close();
     }
 
     @Override
