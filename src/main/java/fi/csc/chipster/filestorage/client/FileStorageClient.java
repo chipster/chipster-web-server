@@ -23,8 +23,10 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.s3storage.FileLengthException;
+import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.model.File;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -240,8 +242,8 @@ public class FileStorageClient {
 		// }
 	}
 
-	public InputStream download(UUID fileId, String range) throws RestException {
-		WebTarget target = getFileTarget(fileId);
+	public InputStream download(File file, String range) throws RestException, IOException {
+		WebTarget target = getFileTarget(file.getFileId());
 		Builder request = target.request();
 
 		if (range != null) {
@@ -253,7 +255,8 @@ public class FileStorageClient {
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("getting input stream failed", response, target.getUri());
 		}
-		return response.readEntity(InputStream.class);
+		InputStream fileStream = response.readEntity(InputStream.class);
+		return new CheckedStream(fileStream, null, null, file.getSize());
 	}
 
 	public void delete(UUID fileId) throws RestException {

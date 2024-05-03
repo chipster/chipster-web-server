@@ -16,7 +16,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
-import fi.csc.chipster.s3storage.checksum.ChecksumStream;
+import fi.csc.chipster.s3storage.checksum.CheckedStream;
 
 public class ChecksumBenchmark {
 
@@ -70,7 +70,7 @@ public class ChecksumBenchmark {
                  * M1), but this is good enough
                  */
                 FileInputStream fileStream = new FileInputStream(testFile);
-                ChecksumStream checksumStream = new ChecksumStream(fileStream, null, crc);
+                CheckedStream checksumStream = new CheckedStream(fileStream, null, crc, null);
 
                 try (checksumStream) {
                         IOUtils.copyLarge(checksumStream, OutputStream.nullOutputStream(), new byte[1 << 16]);

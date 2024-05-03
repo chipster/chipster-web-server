@@ -269,9 +269,13 @@ public class FileResourceTest {
 	@Test
 	public void getError() throws IOException, RestException, CloneNotSupportedException {
 
+		/*
+		 * Eeven Jersey would pass this test with small files, when it can buffer the
+		 * contents.
+		 * 
+		 * Try with large file to make sure errors are reported also when streaming.
+		 */
 		long length = 10 * 1024 * 1024;
-
-		// long length = 10;
 
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
 		assertEquals(204,
@@ -287,7 +291,7 @@ public class FileResourceTest {
 		Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
 		fi.csc.chipster.sessiondb.model.File file = dataset.getFile();
 		fi.csc.chipster.sessiondb.model.File brokenFile = (fi.csc.chipster.sessiondb.model.File) file.clone();
-		brokenFile.setChecksum("aaaaaaaa");
+		brokenFile.setSize(file.getSize() + 1);
 		sessionDbForFileBrokerClient.updateFile(brokenFile);
 
 		try {

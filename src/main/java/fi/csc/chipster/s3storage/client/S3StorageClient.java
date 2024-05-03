@@ -17,7 +17,6 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
 import org.apache.commons.codec.DecoderException;
-import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,9 +30,8 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
-import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.CRC32ChecksumStream;
-import fi.csc.chipster.s3storage.checksum.ChecksumStream;
+import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.s3storage.encryption.DecryptStream;
 import fi.csc.chipster.s3storage.encryption.EncryptStream;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
@@ -218,7 +216,8 @@ public class S3StorageClient {
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
 
 			if (byteRange == null) {
-				ChecksumStream checksumStream = new CRC32ChecksumStream(decryptStream, file.getChecksum());
+				CheckedStream checksumStream = new CRC32ChecksumStream(decryptStream, file.getChecksum(),
+						file.getSize());
 
 				return checksumStream;
 			} else {
@@ -247,29 +246,23 @@ public class S3StorageClient {
 			SecretKey secretKey = this.fileEncryption.generateKey();
 			long encryptedLength = this.fileEncryption.getEncryptedLength(length);
 
-			BoundedInputStream countingInputStream = BoundedInputStream.builder()
-					.setInputStream(fileStream)
-					.get();
-			ChecksumStream checksumStream = new CRC32ChecksumStream(countingInputStream, expectedChecksum);
-			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
+			CheckedStream checkedStream = new CRC32ChecksumStream(fileStream, expectedChecksum, length);
+			EncryptStream encryptStream = new EncryptStream(checkedStream, secretKey,
 					this.fileEncryption.getSecureRandom());
 
 			this.upload(s3Name, bucket, encryptStream, fileId.toString(), encryptedLength);
 
 			// let's store these in hex to make them easier to handle in command line tools
 			String key = this.fileEncryption.keyToString(secretKey);
-			String checksum = checksumStream.getStreamChecksum();
+			String checksum = checkedStream.getStreamChecksum();
 
 			if (length == null) {
 				// shouldn't happen, because upload() requires length for now
 				logger.info("original file length not avalaible");
-			} else if (length.longValue() != countingInputStream.getCount()) {
-				throw new FileLengthException(
-						"file was supposed to be " + length + " bytes, but was " + countingInputStream.getCount());
 			}
 
 			// length of plaintext
-			long fileLength = countingInputStream.getCount();
+			long fileLength = checkedStream.getLength();
 
 			return new ChipsterUpload(fileLength, checksum, key);
 

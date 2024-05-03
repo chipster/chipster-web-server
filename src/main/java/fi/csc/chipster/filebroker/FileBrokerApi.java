@@ -1,5 +1,6 @@
 package fi.csc.chipster.filebroker;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.HashMap;
@@ -66,13 +67,12 @@ public class FileBrokerApi {
     }
 
     public InputStream getDataset(Dataset dataset,
-            String range, String userToken) {
+            String range, String userToken) throws IOException {
 
         if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
             throw new NotFoundException("file id is null");
         }
 
-        UUID fileId = dataset.getFile().getFileId();
         String storageId = dataset.getFile().getStorage();
 
         if (range != null && !range.isEmpty()) {
@@ -97,7 +97,7 @@ public class FileBrokerApi {
             FileStorageClient storageClient = this.fileStorageDiscovery.getStorageClientForExistingFile(storageId);
 
             try {
-                fileStream = storageClient.download(fileId, range);
+                fileStream = storageClient.download(dataset.getFile(), range);
             } catch (RestException e) {
                 throw ServletUtils.extractRestException(e);
             }
@@ -357,7 +357,7 @@ public class FileBrokerApi {
         return type;
     }
 
-    public long move(File file, String targetStorageId, boolean ignoreSize) throws RestException {
+    public long move(File file, String targetStorageId, boolean ignoreSize) throws RestException, IOException {
 
         String sourceStorageId = file.getStorage();
 
@@ -373,7 +373,7 @@ public class FileBrokerApi {
         } else {
             FileStorageClient sourceClient = fileStorageDiscovery
                     .getStorageClientForExistingFile(sourceStorageId);
-            sourceStream = sourceClient.download(file.getFileId(), null);
+            sourceStream = sourceClient.download(file, null);
         }
 
         long fileLength = -1;

@@ -179,7 +179,7 @@ public class FileBrokerAdminResource extends AdminResource {
 			@QueryParam("target") String targetStorageId,
 			@QueryParam("ignoreSize") String ignoreSizeParam,
 			@DefaultValue("" + Long.MAX_VALUE) @QueryParam("maxBytes") long maxBytes,
-			@Context SecurityContext sc) {
+			@Context SecurityContext sc) throws IOException {
 
 		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
 
