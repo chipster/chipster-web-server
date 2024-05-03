@@ -26,7 +26,7 @@ public class ChecksumStream extends InputStream {
         this.checkedInputStream = new CheckedInputStream(in, checksum);
     }
 
-    private void end() {
+    private void end() throws ChecksumException {
 
         this.streamChecksum = Long.toHexString(this.checksum.getValue());
 
@@ -69,6 +69,7 @@ public class ChecksumStream extends InputStream {
         int bytes = checkedInputStream.read(b);
 
         if (bytes == -1) {
+
             end();
         }
 

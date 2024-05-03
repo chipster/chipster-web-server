@@ -9,7 +9,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 
 @Entity // db
-public class File {
+public class File implements Cloneable {
 
 	@Id // db
 	@Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
@@ -92,5 +92,12 @@ public class File {
 		return Objects.equals(fileId, other.fileId) && size == other.size && Objects.equals(checksum, other.checksum)
 				&& Objects.equals(fileCreated, other.fileCreated) && Objects.equals(storage, other.storage)
 				&& state == other.state;
+	}
+
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+
+		// fine for primitive an immutable fields
+		return super.clone();
 	}
 }

@@ -378,6 +378,10 @@ public class RestUtils {
 		response.header("Content-Disposition", "inline; filename=\"" + name + "\"");
 	}
 
+	public static void configureFilename(HttpServletResponse response, String name) {
+		response.setHeader("Content-Disposition", "inline; filename=\"" + name + "\"");
+	}
+
 	public static void configureForDownload(ResponseBuilder response, String name) {
 		response.header("Content-Disposition", "attachment; filename=\"" + name + "\"");
 	}

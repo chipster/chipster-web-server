@@ -1,6 +1,7 @@
 package fi.csc.chipster.filebroker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -11,6 +12,8 @@ import java.io.SequenceInputStream;
 import java.util.UUID;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.ClientProperties;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,6 +24,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import jakarta.ws.rs.NotFoundException;
@@ -31,6 +35,8 @@ import jakarta.ws.rs.core.Response;
 
 public class FileResourceTest {
 
+	private Logger logger = LogManager.getLogger();
+
 	private static final String TEST_FILE = "build.gradle";
 	private static TestServerLauncher launcher;
 	private static WebTarget fileBrokerTarget1;
@@ -39,6 +45,7 @@ public class FileResourceTest {
 	private static SessionDbClient sessionDbClient2;
 	private static UUID sessionId1;
 	private static UUID sessionId2;
+	private static SessionDbAdminClient sessionDbForFileBrokerClient;
 
 	@BeforeAll
 	public static void setUp() throws Exception {
@@ -50,6 +57,10 @@ public class FileResourceTest {
 
 		fileBrokerTarget1 = launcher.getUser1Target(Role.FILE_BROKER);
 		fileBrokerTarget2 = launcher.getUser2Target(Role.FILE_BROKER);
+
+		// file-broker rights allow breaking things to test errors
+		sessionDbForFileBrokerClient = new SessionDbAdminClient(launcher.getServiceLocatorForAdmin(),
+				launcher.getFileBrokerToken());
 
 		sessionId1 = sessionDbClient1.createSession(RestUtils.getRandomSession());
 		sessionId2 = sessionDbClient2.createSession(RestUtils.getRandomSession());
@@ -179,6 +190,12 @@ public class FileResourceTest {
 				new DummyInputStream(length), length).getStatus());
 	}
 
+	private Response uploadLargeFile(WebTarget target, UUID sessionId, UUID datasetId, long length)
+			throws FileNotFoundException {
+
+		return uploadInputStream(target, sessionId, datasetId, new DummyInputStream(length), length);
+	}
+
 	private Response uploadFile(WebTarget target, UUID sessionId, UUID datasetId) throws FileNotFoundException {
 		File file = new File(TEST_FILE);
 		InputStream fileInStream = new FileInputStream(file);
@@ -247,6 +264,57 @@ public class FileResourceTest {
 		// check that file-broker has set the correct size for the dataset
 		Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
 		assertEquals(new File(TEST_FILE).length(), dataset.getFile().getSize());
+	}
+
+	@Test
+	public void getError() throws IOException, RestException, CloneNotSupportedException {
+
+		long length = 10 * 1024 * 1024;
+
+		// long length = 10;
+
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+		assertEquals(204,
+				uploadLargeFile(fileBrokerTarget1, sessionId1, datasetId, length).getStatus());
+
+		// now we can get it
+		InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1,
+				datasetId)).request()
+				.get(InputStream.class);
+		assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+
+		// change size on server
+		Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+		fi.csc.chipster.sessiondb.model.File file = dataset.getFile();
+		fi.csc.chipster.sessiondb.model.File brokenFile = (fi.csc.chipster.sessiondb.model.File) file.clone();
+		brokenFile.setChecksum("aaaaaaaa");
+		sessionDbForFileBrokerClient.updateFile(brokenFile);
+
+		try {
+
+			WebTarget target = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId));
+			Response response = target.request().get(Response.class);
+
+			for (String key : response.getHeaders().keySet()) {
+				System.out.println(key + ": " + response.getHeaders().get(key));
+			}
+
+			if (!RestUtils.isSuccessful(response.getStatus())) {
+				throw new RestException("get zip session stream error", response, target.getUri());
+			}
+
+			remoteStream = response.readEntity(InputStream.class);
+
+			// reading the zip stream should throw IOException: Premature EOF
+			assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+
+			fail("expected exception was not thrown");
+
+		} catch (Exception e) {
+			logger.error("expected error", e);
+			// expected error, test was successful
+		}
+
 	}
 
 	@Test

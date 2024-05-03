@@ -115,7 +115,7 @@ public class LegacyRestFileBrokerClient {
 		String datasetPath = "sessions/" + sessionId.toString() + "/datasets/" + dataId;
 		WebTarget datasetTarget = getFileBrokerTarget()
 				.path(datasetPath)
-				.queryParam(FileBrokerResource.QP_FLOW_TOTAL_SIZE, size);
+				.queryParam(FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE, size);
 
 		// Use chunked encoding to disable buffering. HttpUrlConnector in
 		// Jersey buffers the whole file before sending it by default, which
@@ -150,7 +150,7 @@ public class LegacyRestFileBrokerClient {
 	 * 
 	 * @throws JMSException
 	 * 
-	 * @see fi.csc.microarray.filebroker.FileBrokerClient#getFile(File, URL)
+	 * @see fi.csc.microarray.filebroker.FileBrokerClient#getFile(File, url)
 	 */
 	public void getFile(UUID sessionId, String dataId, File destFile)
 			throws IOException, FileBrokerException {

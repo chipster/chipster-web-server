@@ -15,7 +15,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.FileBrokerResource;
+import fi.csc.chipster.filebroker.FileBrokerResourceServlet;
 import fi.csc.chipster.filestorage.FileServlet;
 import fi.csc.chipster.filestorage.UploadCancelledException;
 import fi.csc.chipster.rest.CredentialsProvider;
@@ -245,7 +245,7 @@ public class FileStorageClient {
 		Builder request = target.request();
 
 		if (range != null) {
-			request.header(FileBrokerResource.HEADER_RANGE, range);
+			request.header(FileBrokerResourceServlet.HEADER_RANGE, range);
 		}
 
 		Response response = request.get(Response.class);
