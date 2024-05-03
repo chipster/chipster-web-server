@@ -96,7 +96,7 @@ public class RestFileBrokerClient {
 		target.property(ClientProperties.REQUEST_ENTITY_PROCESSING, "CHUNKED");
 
 		if (size != null) {
-			target = target.queryParam(FileBrokerResource.QP_FLOW_TOTAL_SIZE, size);
+			target = target.queryParam(FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE, size);
 		}
 
 		Response response = target.request().put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),

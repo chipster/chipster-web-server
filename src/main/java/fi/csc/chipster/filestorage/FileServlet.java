@@ -28,7 +28,7 @@ import fi.csc.chipster.archive.BackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserToken;
-import fi.csc.chipster.filebroker.FileBrokerResource;
+import fi.csc.chipster.filebroker.FileBrokerResourceServlet;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
@@ -308,7 +308,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	private void doGetPutAllowed(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
 		// get query parameters
-		Long totalSize = getParameterLong(request, FileBrokerResource.QP_FLOW_TOTAL_SIZE);
+		Long totalSize = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE);
 
 		allowOnlyFileBroker(request);
 
@@ -326,12 +326,12 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			throws ServletException, IOException {
 
 		// get query parameters
-		Long chunkNumber = getParameterLong(request, FileBrokerResource.QP_FLOW_CHUNK_NUMBER);
-		Long chunkSize = getParameterLong(request, FileBrokerResource.QP_FLOW_CHUNK_SIZE);
+		Long chunkNumber = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_CHUNK_NUMBER);
+		Long chunkSize = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_CHUNK_SIZE);
 		@SuppressWarnings("unused")
-		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.QP_FLOW_TOTAL_CHUNKS);
+		Long flowTotalChunks = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_TOTAL_CHUNKS);
 
-		Long totalSize = getParameterLong(request, FileBrokerResource.QP_FLOW_TOTAL_SIZE);
+		Long totalSize = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE);
 
 		if (logRest) {
 
@@ -461,7 +461,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			if (request.getContentLengthLong() != -1) {
 				size = request.getContentLengthLong();
 			} else {
-				logger.warn("put request doesn't have " + FileBrokerResource.QP_FLOW_TOTAL_SIZE
+				logger.warn("put request doesn't have " + FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE
 						+ " or content length header, cannot ensure disk space");
 				size = 0;
 			}
