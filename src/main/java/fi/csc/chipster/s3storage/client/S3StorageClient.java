@@ -30,7 +30,8 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
-import fi.csc.chipster.s3storage.checksum.CRC32ChecksumStream;
+import fi.csc.chipster.s3storage.FileLengthException;
+import fi.csc.chipster.s3storage.checksum.CRC32CheckedStream;
 import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.s3storage.encryption.DecryptStream;
 import fi.csc.chipster.s3storage.encryption.EncryptStream;
@@ -216,7 +217,7 @@ public class S3StorageClient {
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
 
 			if (byteRange == null) {
-				CheckedStream checksumStream = new CRC32ChecksumStream(decryptStream, file.getChecksum(),
+				CheckedStream checksumStream = new CRC32CheckedStream(decryptStream, file.getChecksum(),
 						file.getSize());
 
 				return checksumStream;
@@ -246,7 +247,7 @@ public class S3StorageClient {
 			SecretKey secretKey = this.fileEncryption.generateKey();
 			long encryptedLength = this.fileEncryption.getEncryptedLength(length);
 
-			CheckedStream checkedStream = new CRC32ChecksumStream(fileStream, expectedChecksum, length);
+			CheckedStream checkedStream = new CRC32CheckedStream(fileStream, expectedChecksum, length);
 			EncryptStream encryptStream = new EncryptStream(checkedStream, secretKey,
 					this.fileEncryption.getSecureRandom());
 
@@ -266,8 +267,19 @@ public class S3StorageClient {
 
 			return new ChipsterUpload(fileLength, checksum, key);
 
+		} catch (AmazonClientException e) {
+
+			// unwrap FileLengthException, because that's what the FileStorageClient throws
+			// too
+			if (e.getCause() instanceof FileLengthException) {
+				throw (FileLengthException) e.getCause();
+			}
+			throw e;
+
 		} catch (IOException | NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
-				| InvalidAlgorithmParameterException | InterruptedException e) {
+				| InvalidAlgorithmParameterException |
+
+				InterruptedException e) {
 
 			logger.error("upload failed", e);
 			throw new InternalServerErrorException("upload failed: " + e.getClass());
@@ -296,6 +308,7 @@ public class S3StorageClient {
 		public String getEncryptionKey() {
 			return encryptionKey;
 		}
+
 	}
 
 	public boolean isOnePartUpload(Long flowTotalChunks) {

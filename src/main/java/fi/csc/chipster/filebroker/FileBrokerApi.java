@@ -3,8 +3,6 @@ package fi.csc.chipster.filebroker;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -109,21 +107,6 @@ public class FileBrokerApi {
     public void putDataset(UUID sessionId, UUID datasetId, InputStream fileStream, Long chunkNumber, Long chunkSize,
             Long flowTotalChunks, Long flowTotalSize, Boolean temporary, String userToken) {
 
-        Map<String, String> queryParams = new HashMap<>();
-
-        if (chunkNumber != null) {
-            queryParams.put(FileBrokerResourceServlet.QP_FLOW_CHUNK_NUMBER, "" + chunkNumber);
-        }
-        if (chunkSize != null) {
-            queryParams.put(FileBrokerResourceServlet.QP_FLOW_CHUNK_SIZE, "" + chunkSize);
-        }
-        if (flowTotalChunks != null) {
-            queryParams.put(FileBrokerResourceServlet.QP_FLOW_TOTAL_CHUNKS, "" + flowTotalChunks);
-        }
-        if (flowTotalSize != null) {
-            queryParams.put(FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE, "" + flowTotalSize);
-        }
-
         logger.debug("chunkNumber: " + chunkNumber);
         logger.debug("chunkSize: " + chunkSize);
         logger.debug("flowTotalChunks: " + flowTotalChunks);
@@ -146,7 +129,7 @@ public class FileBrokerApi {
             logger.debug("PUT new file");
 
             UUID fileId = RestUtils.createUUID();
-            String storageId = getStorage(flowTotalChunks, queryParams);
+            String storageId = getStorage(chunkNumber, chunkSize, flowTotalChunks, flowTotalSize);
             Instant created = Instant.now();
 
             file = new File();
@@ -244,8 +227,8 @@ public class FileBrokerApi {
             FileStorageClient storageClient = this.fileStorageDiscovery.getStorageClient(file.getStorage());
 
             // update the file size after each chunk
-            file.setSize(storageClient.upload(dataset.getFile().getFileId(), fileStream,
-                    queryParams, null));
+            file.setSize(storageClient.upload(dataset.getFile().getFileId(), fileStream, chunkNumber, chunkSize,
+                    flowTotalChunks, flowTotalSize));
 
             // update File state
             if (flowTotalSize == null) {
@@ -300,7 +283,7 @@ public class FileBrokerApi {
         }
     }
 
-    private String getStorage(Long flowTotalChunks, Map<String, String> queryParams) {
+    private String getStorage(Long chunkNumber, Long chunkSize, Long flowTotalChunks, Long flowTotalSize) {
 
         if (this.s3StorageClient.isEnabledForNewFiles() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
 
@@ -313,7 +296,7 @@ public class FileBrokerApi {
                 FileStorageClient storageClient = this.fileStorageDiscovery.getStorageClient(storageId);
 
                 try {
-                    storageClient.checkIfUploadAllowed(queryParams);
+                    storageClient.checkIfUploadAllowed(chunkNumber, chunkSize, flowTotalChunks, flowTotalSize);
 
                     return storageId;
 
@@ -392,14 +375,8 @@ public class FileBrokerApi {
 
             } else {
 
-                Map<String, String> queryParams = new HashMap<>() {
-                    {
-                        put(FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE, "" + file.getSize());
-                    }
-                };
-
                 FileStorageClient targetClient = fileStorageDiscovery.getStorageClient(targetStorageId);
-                fileLength = targetClient.upload(file.getFileId(), sourceStream, queryParams, file.getSize());
+                fileLength = targetClient.upload(file.getFileId(), sourceStream, null, null, null, file.getSize());
             }
         } catch (FileLengthException e) {
             if (ignoreSize) {

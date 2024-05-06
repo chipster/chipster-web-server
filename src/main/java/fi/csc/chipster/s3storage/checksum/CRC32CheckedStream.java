@@ -7,12 +7,12 @@ import java.util.zip.CRC32;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class CRC32ChecksumStream extends CheckedStream {
+public class CRC32CheckedStream extends CheckedStream {
 
     @SuppressWarnings("unused")
     private final static Logger logger = LogManager.getLogger();
 
-    public CRC32ChecksumStream(InputStream in, String expectedChecksum, Long expectedLength) throws IOException {
+    public CRC32CheckedStream(InputStream in, String expectedChecksum, Long expectedLength) throws IOException {
 
         super(in, expectedChecksum, new CRC32(), expectedLength);
     }

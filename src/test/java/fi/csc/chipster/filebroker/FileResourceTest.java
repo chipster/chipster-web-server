@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.SequenceInputStream;
 import java.util.UUID;
 
@@ -182,6 +183,18 @@ public class FileResourceTest {
 		assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
 	}
 
+	@Test
+	public void putError() throws RestException, IOException {
+
+		long length = 100;
+
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+
+		// try to upload a file, but claim a different length in a query parameter
+		assertEquals(400, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+				new DummyInputStream(length), length - 1).getStatus());
+	}
+
 	// @Test
 	public void putLargeFile() throws FileNotFoundException, RestException {
 		long length = 6 * 1024 * 1024 * 1024;
@@ -310,7 +323,7 @@ public class FileResourceTest {
 			remoteStream = response.readEntity(InputStream.class);
 
 			// reading the zip stream should throw IOException: Premature EOF
-			assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+			IOUtils.copyLarge(remoteStream, OutputStream.nullOutputStream());
 
 			fail("expected exception was not thrown");
 
@@ -319,6 +332,7 @@ public class FileResourceTest {
 			// expected error, test was successful
 		}
 
+		sessionDbClient1.deleteDataset(sessionId1, datasetId);
 	}
 
 	@Test
