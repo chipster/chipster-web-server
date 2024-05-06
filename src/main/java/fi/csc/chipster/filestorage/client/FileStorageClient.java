@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -78,11 +79,14 @@ public class FileStorageClient {
 
 	// methods
 
-	public void checkIfUploadAllowed(Map<String, String> queryParams) throws RestException {
+	public void checkIfUploadAllowed(Long chunkNumber, Long chunkSize, Long flowTotalChunks, Long flowTotalSize)
+			throws RestException {
 
 		WebTarget target = fileStorageTarget
 				.path(FileServlet.PATH_FILES)
 				.path(FileServlet.PATH_PUT_ALLOWED);
+
+		Map<String, String> queryParams = getQueryParams(chunkNumber, chunkSize, flowTotalChunks, flowTotalSize);
 
 		for (String key : queryParams.keySet()) {
 			target = target.queryParam(key, queryParams.get(key));
@@ -99,7 +103,29 @@ public class FileStorageClient {
 		}
 	}
 
-	public long upload(UUID fileId, InputStream inputStream, Map<String, String> queryParams, Long expectedSize) {
+	public Map<String, String> getQueryParams(Long chunkNumber, Long chunkSize, Long flowTotalChunks,
+			Long flowTotalSize) {
+
+		Map<String, String> queryParams = new HashMap<>();
+
+		if (chunkNumber != null) {
+			queryParams.put(FileBrokerResourceServlet.QP_FLOW_CHUNK_NUMBER, "" + chunkNumber);
+		}
+		if (chunkSize != null) {
+			queryParams.put(FileBrokerResourceServlet.QP_FLOW_CHUNK_SIZE, "" + chunkSize);
+		}
+		if (flowTotalChunks != null) {
+			queryParams.put(FileBrokerResourceServlet.QP_FLOW_TOTAL_CHUNKS, "" + flowTotalChunks);
+		}
+		if (flowTotalSize != null) {
+			queryParams.put(FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE, "" + flowTotalSize);
+		}
+
+		return queryParams;
+	}
+
+	public long upload(UUID fileId, InputStream inputStream, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
+			Long flowTotalSize) {
 
 		WebTarget target = getFileTarget(fileId);
 
@@ -123,6 +149,8 @@ public class FileStorageClient {
 		try {
 
 			UriBuilder uriBuilder = UriBuilder.fromUri(target.getUri());
+
+			Map<String, String> queryParams = getQueryParams(chunkNumber, chunkSize, flowTotalChunks, flowTotalSize);
 
 			for (String key : queryParams.keySet()) {
 				uriBuilder = uriBuilder.queryParam(key, queryParams.get(key));
@@ -162,9 +190,13 @@ public class FileStorageClient {
 				logger.debug("PUT " + connection.getResponseCode() + " " + connection.getResponseMessage()
 						+ " file size: " + fileContentLength);
 
-				if (expectedSize != null && expectedSize != fileContentLength) {
-					throw new FileLengthException("file length error. fileId " + fileId
-							+ ", uploaded: " + fileContentLength + " bytes, but expected size is " + expectedSize);
+				// if last chunk
+				if (chunkNumber == null || chunkNumber.equals(flowTotalChunks)) {
+					// check the file size
+					if (flowTotalSize != fileContentLength) {
+						throw new FileLengthException("file length error. fileId " + fileId
+								+ ", uploaded: " + fileContentLength + " bytes, but expected size is " + flowTotalSize);
+					}
 				}
 
 				return fileContentLength;
@@ -255,8 +287,16 @@ public class FileStorageClient {
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("getting input stream failed", response, target.getUri());
 		}
+
 		InputStream fileStream = response.readEntity(InputStream.class);
-		return new CheckedStream(fileStream, null, null, file.getSize());
+
+		if (range == null) {
+			return new CheckedStream(fileStream, null, null, file.getSize());
+		}
+
+		// we could check the range size, but we don't use range queries for anything
+		// critical
+		return fileStream;
 	}
 
 	public void delete(UUID fileId) throws RestException {

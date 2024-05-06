@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
+import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import jakarta.servlet.http.HttpServlet;
@@ -125,6 +126,7 @@ public class FileBrokerResourceServlet extends HttpServlet {
 
         OutputStream output = response.getOutputStream();
 
+        // can throw ChecksumException or FileLengthException
         IOUtils.copyLarge(fileStream, output);
 
         /*
@@ -151,10 +153,17 @@ public class FileBrokerResourceServlet extends HttpServlet {
         Long flowTotalSize = NumberUtils.createLong(request.getParameter(QP_FLOW_TOTAL_SIZE));
         Boolean temporary = Boolean.valueOf(request.getParameter(QP_TEMPORARY));
 
-        this.fileBrokerApi.putDataset(idPair.getSessionId(), idPair.getDatasetId(), request.getInputStream(),
-                chunkNumber, chunkSize,
-                flowTotalChunks,
-                flowTotalSize, temporary, userToken);
+        try {
+            this.fileBrokerApi.putDataset(idPair.getSessionId(), idPair.getDatasetId(), request.getInputStream(),
+                    chunkNumber, chunkSize,
+                    flowTotalChunks,
+                    flowTotalSize, temporary, userToken);
+
+        } catch (FileLengthException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getOutputStream().write(e.getMessage().getBytes());
+            return;
+        }
 
         response.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
