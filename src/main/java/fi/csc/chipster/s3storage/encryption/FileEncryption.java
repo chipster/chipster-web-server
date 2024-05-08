@@ -204,7 +204,7 @@ public class FileEncryption {
             InvalidAlgorithmParameterException, IOException, IllegalFileException {
 
         InputStream fileStream = new FileInputStream(input);
-        DecryptStream decryptStream = new DecryptStream(fileStream, secretKey);
+        DecryptStream decryptStream = new DecryptStream(fileStream, secretKey, null);
         OutputStream outputStream = new FileOutputStream(output);
 
         try (decryptStream; outputStream) {

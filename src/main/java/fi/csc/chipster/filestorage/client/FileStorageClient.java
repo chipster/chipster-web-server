@@ -16,11 +16,14 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.FileBrokerAdminResource;
 import fi.csc.chipster.filebroker.FileBrokerResourceServlet;
+import fi.csc.chipster.filebroker.StorageClient;
 import fi.csc.chipster.filestorage.FileServlet;
 import fi.csc.chipster.filestorage.UploadCancelledException;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.s3storage.FileLengthException;
@@ -28,6 +31,7 @@ import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -38,7 +42,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 
-public class FileStorageClient {
+public class FileStorageClient implements StorageClient {
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -274,29 +278,37 @@ public class FileStorageClient {
 		// }
 	}
 
-	public InputStream download(File file, String range) throws RestException, IOException {
-		WebTarget target = getFileTarget(file.getFileId());
-		Builder request = target.request();
+	public InputStream download(File file, String range) {
 
-		if (range != null) {
-			request.header(FileBrokerResourceServlet.HEADER_RANGE, range);
+		try {
+			WebTarget target = getFileTarget(file.getFileId());
+			Builder request = target.request();
+
+			if (range != null) {
+				request.header(FileBrokerResourceServlet.HEADER_RANGE, range);
+			}
+
+			Response response = request.get(Response.class);
+
+			if (!RestUtils.isSuccessful(response.getStatus())) {
+				throw new RestException("getting input stream failed", response, target.getUri());
+			}
+
+			InputStream fileStream = response.readEntity(InputStream.class);
+
+			if (range == null) {
+				return new CheckedStream(fileStream, null, null, file.getSize());
+			}
+
+			// we could check the range size, but we don't use range queries for anything
+			// critical
+			return fileStream;
+
+		} catch (RestException e) {
+			throw ServletUtils.extractRestException(e);
+		} catch (IOException e) {
+			throw new InternalServerErrorException(e.getClass().getSimpleName());
 		}
-
-		Response response = request.get(Response.class);
-
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("getting input stream failed", response, target.getUri());
-		}
-
-		InputStream fileStream = response.readEntity(InputStream.class);
-
-		if (range == null) {
-			return new CheckedStream(fileStream, null, null, file.getSize());
-		}
-
-		// we could check the range size, but we don't use range queries for anything
-		// critical
-		return fileStream;
 	}
 
 	public void delete(UUID fileId) throws RestException {
@@ -308,5 +320,58 @@ public class FileStorageClient {
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("delete file error", response, target.getUri());
 		}
+	}
+
+	@Override
+	public void checkIfAppendAllowed(File file, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
+			Long flowTotalSize) {
+
+		logger.info("PUT append to existing file in storage '" + file.getStorage() + "', chunk: " + chunkNumber
+				+ " / " + flowTotalChunks + ", current size:  "
+				+ FileBrokerAdminResource.humanFriendly(file.getSize())
+				+ " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
+	}
+
+	@Override
+	public File upload(File file, InputStream fileStream, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
+			Long flowTotalSize) {
+
+		// update the file size after each chunk
+		file.setSize(this.upload(file.getFileId(), fileStream, chunkNumber, chunkSize,
+				flowTotalChunks, flowTotalSize));
+
+		// update File state
+		if (flowTotalSize == null) {
+			logger.warn("flowTotalSize is not available, will assume the file is completed");
+			file.setState(FileState.COMPLETE);
+
+		} else if (file.getSize() == flowTotalSize) {
+			logger.info("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
+			file.setState(FileState.COMPLETE);
+
+		} else {
+			logger.info("PUT chunk completed: " + chunkNumber
+					+ " / " + flowTotalChunks + ", current size:  "
+					+ FileBrokerAdminResource.humanFriendly(file.getSize())
+					+ " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
+
+			file.setState(FileState.UPLOADING);
+		}
+
+		if (file.getSize() < 0) {
+			throw new UploadCancelledException("upload paused");
+		}
+
+		return file;
+	}
+
+	@Override
+	public boolean deleteAfterUploadException() {
+		return false;
+	}
+
+	@Override
+	public void delete(File file) throws RestException {
+		this.delete(file.getFileId());
 	}
 }

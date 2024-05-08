@@ -27,8 +27,11 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
+import fi.csc.chipster.filebroker.FileBrokerAdminResource;
+import fi.csc.chipster.filebroker.StorageClient;
 import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.CRC32CheckedStream;
@@ -38,10 +41,11 @@ import fi.csc.chipster.s3storage.encryption.EncryptStream;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
 import fi.csc.chipster.s3storage.encryption.IllegalFileException;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
 
-public class S3StorageClient {
+public class S3StorageClient implements StorageClient {
 
 	private final static Logger logger = LogManager.getLogger();
 
@@ -181,6 +185,7 @@ public class S3StorageClient {
 
 		Long start = null;
 		Long end = null;
+		Long plaintextEnd = null;
 
 		logger.debug("downloadAndDecrypt byte range " + byteRange);
 
@@ -192,16 +197,12 @@ public class S3StorageClient {
 			if (byteRange.getStart() == 0) {
 				start = 0l;
 				/*
-				 * We will get the whole 16 B block. It doesn't matter in our case, because we
-				 * use range queries simply to read the beginning of the file. We could build
-				 * some kind of TruncatingInputStream to remove the extra bytes from the end if
-				 * necessary.
-				 * 
-				 * +16 I'm not sure why we don't get any output on < 16 ranges if we don't get
-				 * the next block too. Perhaps the CipherStream tries to read it for padding?
-				 * -1 because range query end is inclusive
+				 * getEncryptedLength() gets the whole 16 B block. We have to get the next block
+				 * too (+16) to avoid BadBaddingException. This doesn't matter, because
+				 * DecryptStream can cut away the extra bytes.
 				 */
-				end = this.fileEncryption.getEncryptedLength(byteRange.end + 16) - 1;
+				end = this.fileEncryption.getEncryptedLength(byteRange.end + 16);
+				plaintextEnd = byteRange.getEnd() + 1;
 			} else {
 				throw new BadRequestException("start of the range must be 0");
 			}
@@ -214,7 +215,7 @@ public class S3StorageClient {
 			String s3Name = storageIdToS3Name(file.getStorage());
 
 			S3ObjectInputStream s3Stream = this.download(s3Name, bucket, fileId, start, end);
-			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
+			InputStream decryptStream = new DecryptStream(s3Stream, secretKey, plaintextEnd);
 
 			if (byteRange == null) {
 				CheckedStream checksumStream = new CRC32CheckedStream(decryptStream, file.getChecksum(),
@@ -455,5 +456,79 @@ public class S3StorageClient {
 		for (String s3Name : this.transferManagers.keySet()) {
 			this.transferManagers.get(s3Name).shutdownNow();
 		}
+	}
+
+	@Override
+	public InputStream download(File file, String range) {
+		ByteRange byteRange = parseByteRange(range);
+
+		return downloadAndDecrypt(file, byteRange);
+	}
+
+	@Override
+
+	public void checkIfAppendAllowed(File file, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
+			Long flowTotalSize) {
+
+		if (file.getState() == FileState.UPLOADING) {
+
+			/*
+			 * Restart paused upload
+			 * 
+			 * User probably has paused an upload and now continues it.
+			 * This is fine for us, because we use S3 only for one-part uploads,
+			 * so the app will upload the whole file again.
+			 * 
+			 * This doesn't save anything in the network transfers, but now the UI
+			 * doesn't need to know that S3 doesn't support pause and continue.
+			 */
+
+			logger.info("upload restarted");
+
+		} else {
+
+			// don't allow changes to complete files
+			throw new ConflictException("file exists already");
+		}
+	}
+
+	@Override
+	public File upload(File originalFile, InputStream fileStream, Long chunkNumber, Long chunkSize,
+			Long flowTotalChunks,
+			Long flowTotalSize) {
+
+		try {
+			File file = (File) originalFile.clone();
+
+			logger.debug("upload to S3 bucket " + this.storageIdToBucket(file.getStorage()));
+
+			// checksum is not available
+			ChipsterUpload upload = this.encryptAndUpload(file.getFileId(),
+					fileStream, flowTotalSize, file.getStorage(), file.getChecksum());
+
+			file.setSize(upload.getFileLength());
+			file.setChecksum(upload.getChecksum());
+			file.setEncryptionKey(upload.getEncryptionKey());
+			file.setState(FileState.COMPLETE);
+
+			// let's report only errors to keep file-broker logs cleaner, for example when
+			// extracting a zip-session
+			logger.debug("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
+
+			return file;
+
+		} catch (CloneNotSupportedException e) {
+			throw new RuntimeException("clone not supported", e);
+		}
+	}
+
+	@Override
+	public boolean deleteAfterUploadException() {
+		return true;
+	}
+
+	@Override
+	public void delete(File file) {
+		this.delete(file.getStorage(), file.getFileId());
 	}
 }
