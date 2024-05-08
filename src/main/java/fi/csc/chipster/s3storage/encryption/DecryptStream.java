@@ -17,7 +17,7 @@ public class DecryptStream extends InputStream {
 
     private BufferedCipherInputStream cipherInputStream;
 
-    public DecryptStream(InputStream in, SecretKey secretKey) throws IOException, IllegalFileException,
+    public DecryptStream(InputStream in, SecretKey secretKey, Long maxBytes) throws IOException, IllegalFileException,
             NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
 
         byte[] sigBytes = new byte[FileEncryption.CHIPSTER_ENC_SIG.getBytes().length];
@@ -36,7 +36,7 @@ public class DecryptStream extends InputStream {
         Cipher cipher = Cipher.getInstance(FileEncryption.V1_ALGORITHM);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
 
-        this.cipherInputStream = new BufferedCipherInputStream(in, cipher);
+        this.cipherInputStream = new BufferedCipherInputStream(in, cipher, maxBytes);
     }
 
     @Override

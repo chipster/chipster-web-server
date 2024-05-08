@@ -184,6 +184,28 @@ public class FileResourceTest {
 	}
 
 	@Test
+	public void getRange() throws RestException, IOException {
+
+		// S3StorageClient always gets first two 16B blocks, so let's test little bit
+		// more (but S3 storage is not enabled by default)
+		long fileLength = 40l;
+
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+		assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+				new DummyInputStream(fileLength), fileLength).getStatus());
+
+		for (long rangeLength = 1; rangeLength <= fileLength; rangeLength++) {
+
+			InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+					// - 1 because range query end is inclusive
+					.header("range", "bytes=0-" + (rangeLength - 1))
+					.get(InputStream.class);
+
+			assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(rangeLength)));
+		}
+	}
+
+	@Test
 	public void putError() throws RestException, IOException {
 
 		long length = 100;

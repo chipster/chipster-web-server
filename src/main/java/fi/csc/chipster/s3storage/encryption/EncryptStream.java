@@ -34,7 +34,7 @@ public class EncryptStream extends InputStream {
 
         ByteArrayInputStream headerStream = new ByteArrayInputStream(headerBytes);
 
-        InputStream cipherInputStream = new BufferedCipherInputStream(in, cipher);
+        InputStream cipherInputStream = new BufferedCipherInputStream(in, cipher, null);
 
         this.sequenceInputStream = new SequenceInputStream(headerStream, cipherInputStream);
     }

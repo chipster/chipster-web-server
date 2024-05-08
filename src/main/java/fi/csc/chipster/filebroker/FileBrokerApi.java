@@ -10,21 +10,15 @@ import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.amazonaws.ResetException;
-
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filestorage.UploadCancelledException;
 import fi.csc.chipster.filestorage.client.FileStorageClient;
 import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
-import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
-import fi.csc.chipster.s3storage.client.S3StorageClient.ByteRange;
-import fi.csc.chipster.s3storage.client.S3StorageClient.ChipsterUpload;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
@@ -64,6 +58,23 @@ public class FileBrokerApi {
         this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
     }
 
+    public StorageClient getStorageClient(String storageId, boolean fileShouldExist) {
+
+        if (this.s3StorageClient.containsStorageId(storageId)) {
+
+            return s3StorageClient;
+
+        } else {
+
+            if (fileShouldExist) {
+                return this.fileStorageDiscovery.getStorageClientForExistingFile(storageId);
+            }
+
+            // not synchronized, may fail when storage is lost
+            return this.fileStorageDiscovery.getStorageClient(storageId);
+        }
+    }
+
     public InputStream getDataset(Dataset dataset,
             String range, String userToken) throws IOException {
 
@@ -82,26 +93,7 @@ public class FileBrokerApi {
                     + FileBrokerAdminResource.humanFriendly(dataset.getFile().getSize()));
         }
 
-        InputStream fileStream;
-
-        if (this.s3StorageClient.containsStorageId(storageId)) {
-
-            ByteRange byteRange = s3StorageClient.parseByteRange(range);
-
-            fileStream = s3StorageClient.downloadAndDecrypt(dataset.getFile(), byteRange);
-
-        } else {
-
-            FileStorageClient storageClient = this.fileStorageDiscovery.getStorageClientForExistingFile(storageId);
-
-            try {
-                fileStream = storageClient.download(dataset.getFile(), range);
-            } catch (RestException e) {
-                throw ServletUtils.extractRestException(e);
-            }
-        }
-
-        return fileStream;
+        return this.getStorageClient(storageId, true).download(dataset.getFile(), range);
     }
 
     public void putDataset(UUID sessionId, UUID datasetId, InputStream fileStream, Long chunkNumber, Long chunkSize,
@@ -158,56 +150,18 @@ public class FileBrokerApi {
 
             file = dataset.getFile();
 
-            if (this.s3StorageClient.containsStorageId(file.getStorage())) {
-
-                if (file.getState() == FileState.UPLOADING) {
-
-                    /*
-                     * Restart paused upload
-                     * 
-                     * User probably has paused an upload and now continues it.
-                     * This is fine for us, because we use S3 only for one-part uploads,
-                     * so the app will upload the whole file again.
-                     * 
-                     * This doesn't save anything in the network transfers, but now the UI
-                     * doesn't need to know that S3 doesn't support pause and continue.
-                     */
-
-                    logger.info("upload restarted");
-
-                } else {
-
-                    // don't allow changes to complete files
-                    throw new ConflictException("file exists already");
-                }
-            } else {
-
-                logger.info("PUT append to existing file in storage '" + file.getStorage() + "', chunk: " + chunkNumber
-                        + " / " + flowTotalChunks + ", current size:  "
-                        + FileBrokerAdminResource.humanFriendly(file.getSize())
-                        + " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
-            }
+            this.getStorageClient(file.getStorage(), true).checkIfAppendAllowed(file, chunkNumber, chunkSize,
+                    flowTotalChunks, flowTotalSize);
         }
 
-        if (this.s3StorageClient.containsStorageId(file.getStorage())) {
+        StorageClient storageClient = this.getStorageClient(file.getStorage(), false);
 
-            logger.debug("upload to S3 bucket " + this.s3StorageClient.storageIdToBucket(file.getStorage()));
-
-            // checksum is not available
-            try {
-                ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(file.getFileId(),
-                        fileStream, flowTotalSize, file.getStorage(), null);
-
-                file.setSize(upload.getFileLength());
-                file.setChecksum(upload.getChecksum());
-                file.setEncryptionKey(upload.getEncryptionKey());
-                file.setState(FileState.COMPLETE);
-
-                // let's report only errors to keep file-broker logs cleaner, for example when
-                // extracting a zip-session
-                logger.debug("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
-
-            } catch (ResetException e) {
+        try {
+            file = storageClient.upload(file, fileStream, chunkNumber, chunkSize,
+                    flowTotalChunks, flowTotalSize);
+            dataset.setFile(file);
+        } catch (RestException e) {
+            if (storageClient.deleteAfterUploadException()) {
                 logger.warn("upload cancelled", e.getClass());
 
                 try {
@@ -218,41 +172,8 @@ public class FileBrokerApi {
                     logger.error("failed to delete File from DB", e1);
                 }
 
-                throw new BadRequestException("upload cancelled");
             }
-
-        } else {
-
-            // not synchronized, may fail when storage is lost
-            FileStorageClient storageClient = this.fileStorageDiscovery.getStorageClient(file.getStorage());
-
-            // update the file size after each chunk
-            file.setSize(storageClient.upload(dataset.getFile().getFileId(), fileStream, chunkNumber, chunkSize,
-                    flowTotalChunks, flowTotalSize));
-
-            // update File state
-            if (flowTotalSize == null) {
-                logger.warn("flowTotalSize is not available, will assume the file is completed");
-                file.setState(FileState.COMPLETE);
-
-            } else if (file.getSize() == flowTotalSize) {
-                logger.info("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
-                file.setState(FileState.COMPLETE);
-
-            } else {
-                logger.info("PUT chunk completed: " + chunkNumber
-                        + " / " + flowTotalChunks + ", current size:  "
-                        + FileBrokerAdminResource.humanFriendly(file.getSize())
-                        + " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
-
-                file.setState(FileState.UPLOADING);
-            }
-        }
-
-        if (file.getSize() < 0) {
-            // upload paused
-            throw new UploadCancelledException("upload paused");
-            // return Response.serverError().build();
+            throw new BadRequestException("upload cancelled");
         }
 
         try {
@@ -262,24 +183,30 @@ public class FileBrokerApi {
             throw ServletUtils.extractRestException(e);
         }
 
-        // move the file to s3-storage, if the file is complete, S3 is enabled and the
-        // file is in file-storage
-
         // convert Boolean to boolean
         boolean isTemporary = temporary != null && temporary;
 
+        if (isTemporary) {
+            logger.info("temporary file, do not move it");
+        } else {
+            moveAfterUpload(file);
+        }
+    }
+
+    /**
+     * Move the file to s3-storage, if the file is complete, S3 is enabled and the
+     * file is in file-storage
+     * 
+     * @param file
+     */
+    private void moveAfterUpload(File file) {
         if (file.getState() == FileState.COMPLETE
                 && this.s3StorageClient.isEnabledForNewFiles()
                 && !this.s3StorageClient.containsStorageId(file.getStorage())) {
 
-            if (isTemporary) {
-                logger.info("temporary file, do not move it");
+            String newStorageId = this.s3StorageClient.getStorageIdForNewFile();
 
-            } else {
-                String newStorageId = this.s3StorageClient.getStorageIdForNewFile();
-
-                this.moveLater(file, newStorageId);
-            }
+            this.moveLater(file, newStorageId);
         }
     }
 
@@ -340,71 +267,50 @@ public class FileBrokerApi {
         return type;
     }
 
-    public long move(File file, String targetStorageId, boolean ignoreSize) throws RestException, IOException {
+    public long move(File sourceFile, String targetStorageId, boolean ignoreSize) throws RestException, IOException {
 
-        String sourceStorageId = file.getStorage();
+        logger.info("move from '" + sourceFile.getStorage() + "' to '" + targetStorageId + "' fileId: "
+                + sourceFile.getFileId()
+                + ", " + FileBrokerAdminResource.humanFriendly(sourceFile.getSize()));
 
-        logger.info("move from '" + sourceStorageId + "' to '" + targetStorageId + "' fileId: " + file.getFileId()
-                + ", " + FileBrokerAdminResource.humanFriendly(file.getSize()));
+        StorageClient sourceClient = this.getStorageClient(sourceFile.getStorage(), true);
+        InputStream sourceStream = sourceClient.download(sourceFile, null);
 
-        InputStream sourceStream = null;
-
-        if (this.s3StorageClient.containsStorageId(sourceStorageId)) {
-
-            sourceStream = s3StorageClient.downloadAndDecrypt(file, null);
-
-        } else {
-            FileStorageClient sourceClient = fileStorageDiscovery
-                    .getStorageClientForExistingFile(sourceStorageId);
-            sourceStream = sourceClient.download(file, null);
-        }
-
-        long fileLength = -1;
+        File targetFile = null;
 
         try {
-            if (this.s3StorageClient.containsStorageId(targetStorageId)) {
 
-                // Checksum can be null, if the file has newer been in s3. Then it's simply not
-                // checked.
-                ChipsterUpload upload = this.s3StorageClient.encryptAndUpload(file.getFileId(),
-                        sourceStream, file.getSize(), targetStorageId, file.getChecksum());
+            targetFile = (File) sourceFile.clone();
 
-                fileLength = upload.getFileLength();
-                file.setChecksum(upload.getChecksum());
-                file.setEncryptionKey(upload.getEncryptionKey());
+            targetFile.setStorage(targetStorageId);
 
-            } else {
+            StorageClient targetClient = this.getStorageClient(targetStorageId, false);
 
-                FileStorageClient targetClient = fileStorageDiscovery.getStorageClient(targetStorageId);
-                fileLength = targetClient.upload(file.getFileId(), sourceStream, null, null, null, file.getSize());
-            }
+            targetFile = targetClient.upload(targetFile, sourceStream, null, null, null,
+                    targetFile.getSize());
+
         } catch (FileLengthException e) {
             if (ignoreSize) {
-                logger.warn("ignore wrong file length when moving from " + sourceStorageId + " to " + targetStorageId,
+                logger.warn(
+                        "ignore wrong file length when moving from " + sourceFile.getStorage() + " to "
+                                + targetStorageId,
                         e.getMessage());
             } else {
                 throw e;
             }
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException("clone not supported", e);
         }
-
-        file.setSize(fileLength);
-        file.setStorage(targetStorageId);
 
         /*
          * This won't send events, but that shouldn't matter, because the file-broker
          * will get the storage from the session-db anyway.
          */
-        this.sessionDbAdminClient.updateFile(file);
+        this.sessionDbAdminClient.updateFile(targetFile);
 
-        if (this.s3StorageClient.containsStorageId(sourceStorageId)) {
+        sourceClient.delete(sourceFile);
 
-            this.s3StorageClient.delete(sourceStorageId, file.getFileId());
-
-        } else {
-            fileStorageDiscovery.getStorageClient(sourceStorageId).delete(file.getFileId());
-        }
-
-        return file.getSize();
+        return targetFile.getSize();
 
     }
 

@@ -50,8 +50,7 @@ public class CheckedStream extends InputStream {
      *                         length doesn't match it
      * @throws IOException
      */
-    public CheckedStream(InputStream in, String expectedChecksum, Checksum algorithm, Long expectedLength)
-            throws IOException {
+    public CheckedStream(InputStream in, String expectedChecksum, Checksum algorithm, Long expectedLength) throws IOException {
 
         this.expectedLength = expectedLength;
         this.expectedChecksum = expectedChecksum;
