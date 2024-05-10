@@ -1,27 +1,26 @@
 package fi.csc.chipster.rest.hibernate;
 
-import java.net.URL;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.HttpMethod;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 
+/**
+ * Utilities for using S3
+ * 
+ */
 public class S3Util {
 
 	private final static Logger logger = LogManager.getLogger();
@@ -79,20 +78,5 @@ public class S3Util {
 			summaries.addAll(listing.getObjectSummaries());
 		}
 		return summaries;
-	}
-
-	public static URL getPresignedUrl(TransferManager transferManager, String bucket, String key, int secondsToExpire) {
-		java.util.Date expiration = new java.util.Date();
-		long expTimeMillis = expiration.getTime();
-		expTimeMillis += 1000 * 60 * 60;
-		expiration.setTime(expTimeMillis);
-
-		expiration = Instant.now().plus(Duration.standardSeconds(secondsToExpire)).toDate();
-
-		GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucket, key)
-				.withMethod(HttpMethod.GET)
-				.withExpiration(expiration);
-
-		return transferManager.getAmazonS3Client().generatePresignedUrl(generatePresignedUrlRequest);
 	}
 }

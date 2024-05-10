@@ -29,6 +29,31 @@ import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
 
+/**
+ * file-storage component
+ * 
+ * Block devices are easy to implement efficiently (in comparison the shared
+ * file systems), but difficult to scale in size and throughput. file-broker and
+ * file-storage together form a scalable object storage system to overcome both
+ * problems.
+ * 
+ * file-storage stores files in a directory. In a Kubernetes, this
+ * directory is usually a mounted ReadWriteOnce volume. By creating a
+ * StatefulSet, we can create a group of file-storages, each having its own
+ * volume. This allows us to add more storage space simply by adding more
+ * file-storage replicas.
+ * 
+ * However, this creates a new problem, because now the other components would
+ * have to know where to find each file. This is solved by using file-brokers as
+ * stateless reverse proxies, that forward the requests to the correct
+ * file-storage instance. Because file-brokers are stateless, clients can access
+ * any file from any file-broker instance and more file-brokers can be added, if
+ * those become a bottleneck.
+ * 
+ * file-storage listens WebSocket File events from session-db to delete the
+ * real file from the file-system directory when a respective File object
+ * is deleted from the database.
+ */
 public class FileStorage {
 
 	private Logger logger = LogManager.getLogger();
@@ -47,7 +72,7 @@ public class FileStorage {
 
 	private StatusSource stats;
 
-	private StorageBackup backup;
+	private FileStorageBackup backup;
 
 	private SessionDbAdminClient sessionDbAdminClient;
 
@@ -85,7 +110,7 @@ public class FileStorage {
 		File storage = new File("storage");
 		storage.mkdir();
 
-		backup = new StorageBackup(storage.toPath(), true, config, storageId);
+		backup = new FileStorageBackup(storage.toPath(), true, config, storageId);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_STORAGE));
 

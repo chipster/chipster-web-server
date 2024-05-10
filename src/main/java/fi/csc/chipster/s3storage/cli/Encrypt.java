@@ -7,6 +7,12 @@ import javax.crypto.SecretKey;
 import fi.csc.chipster.s3storage.benchmark.EncryptDecryptBenchmark;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
 
+/**
+ * CLI utility program to encrypt a file using Chipster encryption format
+ * 
+ * Chipster has a custom encryption format, so this program is the only way
+ * to work with them on command line.
+ */
 public class Encrypt {
 
     public static void main(String[] args) throws Throwable {

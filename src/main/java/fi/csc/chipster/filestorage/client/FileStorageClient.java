@@ -15,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FileBrokerAdminResource;
 import fi.csc.chipster.filebroker.FileBrokerResourceServlet;
 import fi.csc.chipster.filebroker.StorageClient;
@@ -26,9 +25,8 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
-import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.CheckedStream;
-import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.FileState;
@@ -42,6 +40,13 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 
+/**
+ * Client for accessing file-storage files
+ * 
+ * file-broker creates an instance of this client to access files on a specific
+ * file-storage. Files are accessed using HTTP requests, because file-broker and
+ * file-storage are separate components.
+ */
 public class FileStorageClient implements StorageClient {
 
 	private static final Logger logger = LogManager.getLogger();
@@ -50,28 +55,11 @@ public class FileStorageClient implements StorageClient {
 
 	private WebTarget fileStorageTarget;
 
-	/**
-	 * @param serviceLocator
-	 * @param credentials
-	 * @param role           set to Role.CLIENT to use the public file-broker
-	 *                       address, anything else e.g. Role.SERVER to the internal
-	 *                       address
-	 */
-	public FileStorageClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials) {
+	public FileStorageClient(String fileStorageUri, CredentialsProvider credentials) {
 		this.credentials = credentials;
 
-		// get with credentials from ServiceLocator
-		init(serviceLocator.getInternalService(Role.FILE_STORAGE).getUri());
-	}
-
-	public FileStorageClient(String url, CredentialsProvider credentials) {
-		this.credentials = credentials;
-		init(url);
-	}
-
-	private void init(String fileStorageUri) {
-
-		fileStorageTarget = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
+		this.fileStorageTarget = AuthenticationClient
+				.getClient(credentials.getUsername(), credentials.getPassword(), true)
 				.target(fileStorageUri);
 	}
 
@@ -126,6 +114,40 @@ public class FileStorageClient implements StorageClient {
 		}
 
 		return queryParams;
+	}
+
+	@Override
+	public File upload(File file, InputStream fileStream, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
+			Long flowTotalSize) {
+
+		long size = this.upload(file.getFileId(), fileStream, chunkNumber, chunkSize, flowTotalChunks, flowTotalSize);
+
+		// update the file size after each chunk
+		file.setSize(size);
+
+		// update File state
+		if (flowTotalSize == null) {
+			logger.warn("flowTotalSize is not available, will assume the file is completed");
+			file.setState(FileState.COMPLETE);
+
+		} else if (file.getSize() == flowTotalSize) {
+			logger.info("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
+			file.setState(FileState.COMPLETE);
+
+		} else {
+			logger.info("PUT chunk completed: " + chunkNumber
+					+ " / " + flowTotalChunks + ", current size:  "
+					+ FileBrokerAdminResource.humanFriendly(file.getSize())
+					+ " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
+
+			file.setState(FileState.UPLOADING);
+		}
+
+		if (file.getSize() < 0) {
+			throw new UploadCancelledException("upload paused");
+		}
+
+		return file;
 	}
 
 	public long upload(UUID fileId, InputStream inputStream, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
@@ -278,6 +300,7 @@ public class FileStorageClient implements StorageClient {
 		// }
 	}
 
+	@Override
 	public InputStream download(File file, String range) {
 
 		try {
@@ -311,8 +334,10 @@ public class FileStorageClient implements StorageClient {
 		}
 	}
 
-	public void delete(UUID fileId) throws RestException {
-		WebTarget target = getFileTarget(fileId);
+	@Override
+	public void delete(File file) throws RestException {
+
+		WebTarget target = getFileTarget(file.getFileId());
 		Builder request = target.request();
 
 		Response response = request.delete(Response.class);
@@ -333,45 +358,7 @@ public class FileStorageClient implements StorageClient {
 	}
 
 	@Override
-	public File upload(File file, InputStream fileStream, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
-			Long flowTotalSize) {
-
-		// update the file size after each chunk
-		file.setSize(this.upload(file.getFileId(), fileStream, chunkNumber, chunkSize,
-				flowTotalChunks, flowTotalSize));
-
-		// update File state
-		if (flowTotalSize == null) {
-			logger.warn("flowTotalSize is not available, will assume the file is completed");
-			file.setState(FileState.COMPLETE);
-
-		} else if (file.getSize() == flowTotalSize) {
-			logger.info("PUT file completed, file size " + FileBrokerAdminResource.humanFriendly(file.getSize()));
-			file.setState(FileState.COMPLETE);
-
-		} else {
-			logger.info("PUT chunk completed: " + chunkNumber
-					+ " / " + flowTotalChunks + ", current size:  "
-					+ FileBrokerAdminResource.humanFriendly(file.getSize())
-					+ " / " + FileBrokerAdminResource.humanFriendly(flowTotalSize));
-
-			file.setState(FileState.UPLOADING);
-		}
-
-		if (file.getSize() < 0) {
-			throw new UploadCancelledException("upload paused");
-		}
-
-		return file;
-	}
-
-	@Override
 	public boolean deleteAfterUploadException() {
 		return false;
-	}
-
-	@Override
-	public void delete(File file) throws RestException {
-		this.delete(file.getFileId());
 	}
 }

@@ -7,6 +7,11 @@ import java.util.zip.CRC32;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Count and verify stream length and CRC32 checksum
+ * 
+ * @see CheckedStream
+ */
 public class CRC32CheckedStream extends CheckedStream {
 
     @SuppressWarnings("unused")

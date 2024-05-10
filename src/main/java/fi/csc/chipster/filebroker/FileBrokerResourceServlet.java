@@ -12,7 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
-import fi.csc.chipster.s3storage.FileLengthException;
+import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import jakarta.servlet.http.HttpServlet;
@@ -31,10 +31,9 @@ import jakarta.ws.rs.core.MediaType;
  * https://github.com/eclipse-ee4j/jersey/issues/3850.
  * 
  * It is important to show this error for the user, because otherwise the user
- * might
- * think that he/she has a complete copy of the file. The browser does the
- * downloading, so we don't have any
- * way in the client side to monitor its progress.
+ * might think that he/she has a complete copy of the file. The browser does the
+ * downloading, so we don't have any way in the client side to monitor its
+ * progress.
  * 
  * Simply throwing an exception from the ServletOutputStream seems to be
  * enough in servlet. However, there is a bit more work with parsing the path.
@@ -63,6 +62,22 @@ public class FileBrokerResourceServlet extends HttpServlet {
         this.fileBrokerApi = fileBrokerApi;
     }
 
+    /**
+     * Download a file
+     * 
+     * Expects path in form of sessions/SESSION_ID/datasets/DATASET_ID.
+     * 
+     * Query parameters:
+     * download: set a header to ask browser to download this file instead of
+     * showing it
+     * type: set content-type header to inform browser about the type of this file
+     * 
+     * Supports HTTP range requests (s3-storage only from start) to get only a
+     * specific part of the file.
+     * 
+     * In case of errors, e.g. file cheksum doesn't match, connection release is
+     * abortive to inform the browser that something went wrong.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
@@ -139,6 +154,16 @@ public class FileBrokerResourceServlet extends HttpServlet {
         output.close();
     }
 
+    /**
+     * Upload a file
+     * 
+     * Expects path in form of sessions/SESSION_ID/datasets/DATASET_ID. Client must
+     * create a new Dataset before making this request.
+     * 
+     * Implements query parameters for flow.js to pause and resume uploads. All
+     * uploads must provide the query parameter flowTotalSize to tell the size if
+     * the file at the start of the request.
+     */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
@@ -168,6 +193,15 @@ public class FileBrokerResourceServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
 
+    /**
+     * Parse request paths in this servlet
+     * 
+     * Higher level frameworks like Jersey would do this for us, but in a servlet we
+     * have to do it ourselves.
+     * 
+     * @param request
+     * @return
+     */
     private DatasetIdPair parsePath(HttpServletRequest request) {
 
         String pathInfo = request.getPathInfo();

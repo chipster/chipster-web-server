@@ -77,8 +77,8 @@ public class BackupArchive {
 	}
 
 	private HashSet<String> findStorageBackups(String startsWith, String delimiter, String role) {
-		String bucket = BackupUtils.getBackupBucket(config, Role.FILE_STORAGE);
-		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
+		String bucket = GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE);
+		TransferManager transferManager = GpgBackupUtils.getTransferManager(config, role);
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 		List<String> backups = findBackups(objects, startsWith, BACKUP_INFO);
 
@@ -99,10 +99,10 @@ public class BackupArchive {
 
 		Path archiveRootPath = Paths.get("backup-archive");
 
-		TransferManager transferManager = BackupUtils.getTransferManager(config, role);
+		TransferManager transferManager = GpgBackupUtils.getTransferManager(config, role);
 		logger.info("find " + backupPrefix + " from S3");
 
-		String bucket = BackupUtils.getBackupBucket(config, role);
+		String bucket = GpgBackupUtils.getBackupBucket(config, role);
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 
 		// archive all starting from the oldest
@@ -202,7 +202,8 @@ public class BackupArchive {
 		}
 
 		String key = backupName + "/" + BACKUP_INFO;
-		Map<Path, InfoLine> backupInfoMap = BackupUtils.infoFileToMap(transferManager, bucket, key, currentBackupPath);
+		Map<Path, InfoLine> backupInfoMap = GpgBackupUtils.infoFileToMap(transferManager, bucket, key,
+				currentBackupPath);
 
 		List<String> backupObjects = objects.stream()
 				.map(o -> o.getKey())

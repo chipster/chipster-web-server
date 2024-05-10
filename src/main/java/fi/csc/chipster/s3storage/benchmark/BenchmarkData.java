@@ -13,6 +13,9 @@ import org.apache.commons.io.IOUtils;
 
 import io.jsonwebtoken.io.IOException;
 
+/**
+ * Generate a some test data for the benchmarks in this package
+ */
 public class BenchmarkData {
     public static File generateTestFiles(long fileSize, long smallFileCount, List<File> smallTestFiles)
             throws IOException, java.io.IOException {

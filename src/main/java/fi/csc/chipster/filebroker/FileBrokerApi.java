@@ -17,8 +17,8 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
-import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
+import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -33,6 +33,12 @@ import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.MediaType;
 
+/**
+ * file-broker API
+ * 
+ * Class for file-broker functionality that is needed in
+ * FileBrokerResource(Servlet). Partly used also in FileBrokerAdminResource.
+ */
 public class FileBrokerApi {
 
     private Logger logger = LogManager.getLogger();

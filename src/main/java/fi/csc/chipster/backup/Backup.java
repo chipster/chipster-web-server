@@ -13,7 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 
-import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -88,7 +88,7 @@ public class Backup {
 
 	public void start() {
 
-		this.backupTimer = BackupUtils.startBackupTimer(new TimerTask() {
+		this.backupTimer = GpgBackupUtils.startBackupTimer(new TimerTask() {
 			@Override
 			public void run() {
 				try {
@@ -105,7 +105,8 @@ public class Backup {
 
 		dbBackups.stream().forEach(b -> {
 			logger.info(
-					"save " + b.getRole() + " backups to bucket:  " + BackupUtils.getBackupBucket(config, b.getRole()));
+					"save " + b.getRole() + " backups to bucket:  "
+							+ GpgBackupUtils.getBackupBucket(config, b.getRole()));
 		});
 	}
 

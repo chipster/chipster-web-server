@@ -11,6 +11,12 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
+/**
+ * CLI utility program to upload a file to S3
+ * 
+ * Sometimes it's handy to have a program which uses Chipster configuration
+ * directly. Could be useful also for debugging and performance tests too.
+ */
 public class Upload {
 
 	public static void main(String args[]) throws InterruptedException, IOException {

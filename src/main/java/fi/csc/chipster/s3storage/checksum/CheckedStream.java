@@ -9,8 +9,16 @@ import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.s3storage.FileLengthException;
-
+/**
+ * Count and verify stream length and checksum
+ * 
+ * If the stream length or checksum are known, this stream can be used to verify
+ * that the stream matches them. Otherwise, this stream can be used to calculate
+ * them.
+ * 
+ * Throws FileLengthException or ChecksumException at the end of the stream, if
+ * the expected values were given and the stream doesn't match them.
+ */
 public class CheckedStream extends InputStream {
 
     private final static Logger logger = LogManager.getLogger();
@@ -30,11 +38,6 @@ public class CheckedStream extends InputStream {
     private InputStream sourceStream;
 
     /**
-     * Count and verify stream length and checksum
-     * 
-     * If the stream length or checksum are known, this stream can be used to verify
-     * that the stream matches them. Otherwise, this stream can be used to calculate
-     * them.
      * 
      * Stream length is always calculated. Checksum is calculated if algorithm is
      * given.
@@ -50,7 +53,8 @@ public class CheckedStream extends InputStream {
      *                         length doesn't match it
      * @throws IOException
      */
-    public CheckedStream(InputStream in, String expectedChecksum, Checksum algorithm, Long expectedLength) throws IOException {
+    public CheckedStream(InputStream in, String expectedChecksum, Checksum algorithm, Long expectedLength)
+            throws IOException {
 
         this.expectedLength = expectedLength;
         this.expectedChecksum = expectedChecksum;

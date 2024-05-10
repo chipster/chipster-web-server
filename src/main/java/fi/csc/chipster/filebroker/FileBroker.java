@@ -17,6 +17,7 @@ import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -74,6 +75,8 @@ public class FileBroker {
 		this.fileBrokerApi = new FileBrokerApi(this.s3StorageClient, this.storageDiscovery, this.sessionDbAdminClient,
 				this.sessionDbClient, this.serviceLocator);
 
+		// FileBrokerResourceServlet is implemented as servlet to be able report errors
+		// to browser
 		ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 		servletHandler.setContextPath("/");
 
@@ -86,12 +89,6 @@ public class FileBroker {
 				"/*", null);
 		servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), "/*", null);
 
-		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(null, storageDiscovery,
-				sessionDbAdminClient, s3StorageClient, fileBrokerApi);
-
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
-				this.serviceLocator);
-
 		httpServer = new Server();
 		RestUtils.configureJettyThreads(httpServer, Role.FILE_BROKER, config);
 
@@ -102,8 +99,15 @@ public class FileBroker {
 
 		httpServer.setHandler(servletHandler);
 
+		StatusSource stats = RestUtils.createStatisticsListener(httpServer);
+
 		httpServer.start();
 
+		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, storageDiscovery,
+				sessionDbAdminClient, s3StorageClient, fileBrokerApi);
+
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
+				this.serviceLocator);
 	}
 
 	/**

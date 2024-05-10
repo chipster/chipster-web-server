@@ -30,6 +30,26 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
+/**
+ * Backup s3-storage
+ * 
+ * This aims to get the similar end result, what FileStorageBackup and
+ * BackupArchive do together, i.e. create a copy of the files in Chipster and
+ * keep deleted files available for 60 days or so.
+ * 
+ * With s3-storage this is much more simpler, because the files are already
+ * encrypted in S3, so we don't need to encrypt them with GPG. Because he files
+ * are stored already in S3, we don't have to upload them. FileStorageBackup
+ * and BackupArchive need file listings to achieve incremental copies, but here
+ * we can get the file listing directly from S3.
+ * 
+ * Basically we only have to do the part of BackupArchive, i.e. download files
+ * and organize them in folders. Backup copies are stored on a
+ * filesystem.
+ * 
+ * The encryption is different from GPG. Use Decrypt.java to decrypt the files
+ * if necessary.
+ */
 public class S3StorageBackup {
 
 	private static final String KEY_BACKUP_DONE = "backup-done.json";

@@ -66,8 +66,10 @@ public class SessionDbTokenTest {
 
 		jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
 
-		fileBrokerClient1.upload(sessionId1, datasetId1, RestUtils.toInputStream(TEST_FILE_CONTENT));
-		fileBrokerClient2.upload(sessionId2, datasetId2, RestUtils.toInputStream(TEST_FILE_CONTENT));
+		fileBrokerClient1.upload(sessionId1, datasetId1, RestUtils.toInputStream(TEST_FILE_CONTENT),
+				(long) TEST_FILE_CONTENT.length());
+		fileBrokerClient2.upload(sessionId2, datasetId2, RestUtils.toInputStream(TEST_FILE_CONTENT),
+				(long) TEST_FILE_CONTENT.length());
 	}
 
 	@AfterAll
@@ -269,7 +271,8 @@ public class SessionDbTokenTest {
 			RestFileBrokerClient fileBroker = new RestFileBrokerClient(
 					launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);
 			// DatasetToken is for read-only operations
-			fileBroker.upload(sessionId1, datasetId, RestUtils.toInputStream(TEST_FILE_CONTENT));
+			fileBroker.upload(sessionId1, datasetId, RestUtils.toInputStream(TEST_FILE_CONTENT),
+					(long) TEST_FILE_CONTENT.length());
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());

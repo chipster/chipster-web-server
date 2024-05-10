@@ -11,6 +11,13 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
+/**
+ * CLI utility prgram to download file from S3
+ * 
+ * Sometimes it's handy to have a program which uses Chipster configuration
+ * directly. Could be useful also for debugging and performance tests too.
+ * 
+ */
 public class Download {
 
 	public static void main(String args[]) throws InterruptedException, IOException {

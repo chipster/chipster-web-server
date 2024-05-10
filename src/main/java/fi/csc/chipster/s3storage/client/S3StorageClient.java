@@ -33,10 +33,10 @@ import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.hibernate.S3Util;
-import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.CRC32CheckedStream;
 import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
+import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.s3storage.encryption.DecryptStream;
 import fi.csc.chipster.s3storage.encryption.EncryptStream;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
@@ -46,6 +46,13 @@ import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
 
+/**
+ * Client for accessing s3-storage files
+ * 
+ * This is used in file-broker to do access files in S3. It
+ * uses aws-sdk library to make rquests directly to the S3 API, without going
+ * through the s3-storage component (which is needed only for file deletion).
+ */
 public class S3StorageClient implements StorageClient {
 
 	private final static Logger logger = LogManager.getLogger();

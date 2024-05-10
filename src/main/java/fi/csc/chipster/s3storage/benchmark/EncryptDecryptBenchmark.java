@@ -16,6 +16,27 @@ import org.apache.commons.io.FileUtils;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
 import fi.csc.chipster.s3storage.encryption.IllegalFileException;
 
+/**
+ * Test the performance of AES encryption and decryption in Java
+ * 
+ * Here are some results. These were from ealier version, but should be still
+ * comparable.
+ * 
+ * Apple M1:
+ * 
+ * java encrypt aes 588 MB/s
+ * java decrypt aes 1154 MB/s
+ * 
+ * Intel Skylake:
+ * 
+ * java encrypt aes 148 MB/s
+ * java decrypt aes 230 MB/s
+ * 
+ * AMD EPYC:
+ * 
+ * java encrypt aes 408 MB/s
+ * java decrypt aes 662 MB/s
+ */
 public class EncryptDecryptBenchmark {
 
     public static void main(String[] args) throws Throwable {

@@ -83,10 +83,6 @@ public class RestFileBrokerClient {
 		}
 	}
 
-	public void upload(UUID sessionId, UUID datasetId, InputStream inputStream) throws RestException {
-		this.upload(sessionId, datasetId, inputStream, null);
-	}
-
 	public void upload(UUID sessionId, UUID datasetId, InputStream inputStream, Long size) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
 
