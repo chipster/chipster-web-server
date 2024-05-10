@@ -26,8 +26,10 @@ import com.amazonaws.services.s3.model.HeadBucketRequest;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
+import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.filebroker.StorageUtils;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
@@ -37,7 +39,7 @@ import io.jsonwebtoken.io.IOException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 
-public class S3StorageAdminClient {
+public class S3StorageAdminClient implements StorageAdminClient {
 
     private static final String OBJECT_KEY_ORPHAN_FILES = "chipster-orphan-files.json";
 
@@ -47,14 +49,18 @@ public class S3StorageAdminClient {
 
     private SessionDbAdminClient sessionDbAdminClient;
 
-    public S3StorageAdminClient(S3StorageClient s3StorageClient, SessionDbAdminClient sessionDbAdminClient) {
+    private String storageId;
+
+    public S3StorageAdminClient(S3StorageClient s3StorageClient, SessionDbAdminClient sessionDbAdminClient,
+            String storageId) {
         this.s3StorageClient = s3StorageClient;
         this.sessionDbAdminClient = sessionDbAdminClient;
+        this.storageId = storageId;
     }
 
-    public String getFileStats(String storageId) {
+    public String getFileStats() {
 
-        HashMap<String, Long> files = getFilesAndSizes(storageId);
+        HashMap<String, Long> files = getFilesAndSizes();
         long fileBytes = files.values().stream()
                 .mapToLong(l -> l).sum();
 
@@ -67,7 +73,7 @@ public class S3StorageAdminClient {
         return RestUtils.asJson(jsonMap);
     }
 
-    private HashMap<String, Long> getFilesAndSizes(String storageId) throws IOException {
+    private HashMap<String, Long> getFilesAndSizes() throws IOException {
 
         HashMap<String, Long> result = new HashMap<>();
 
@@ -85,7 +91,7 @@ public class S3StorageAdminClient {
         return result;
     }
 
-    public String getStatus(String storageId) {
+    public String getStatus() {
 
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
@@ -111,15 +117,7 @@ public class S3StorageAdminClient {
         }
     }
 
-    public String getStorageId(String storageId) {
-
-        HashMap<String, Object> jsonMap = new HashMap<>();
-        jsonMap.put("storageId", storageId);
-
-        return RestUtils.asJson(jsonMap);
-    }
-
-    public void startCheck(String storageId, Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
+    public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
             Boolean checksums) {
         logger.info("storage check started");
 
@@ -131,8 +129,8 @@ public class S3StorageAdminClient {
              * that all files in storage are also in DB and cannot be considered orphan by
              * accident.
              */
-            Map<String, Long> storageFiles = getFilesAndSizes(storageId);
-            Map<String, Long> oldOrphanFiles = getOldOrphanFiles(storageId, storageFiles);
+            Map<String, Long> storageFiles = getFilesAndSizes();
+            Map<String, Long> oldOrphanFiles = getOldOrphanFiles(storageFiles);
 
             List<File> completeDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.COMPLETE);
             List<File> uploadingDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.UPLOADING);
@@ -148,7 +146,7 @@ public class S3StorageAdminClient {
             List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
                     completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
 
-            saveListOfOrphanFiles(orphanFiles, storageId);
+            saveListOfOrphanFiles(orphanFiles);
 
             logger.info(orphanFiles.size() + " orphan files saved in " + OBJECT_KEY_ORPHAN_FILES);
 
@@ -157,7 +155,7 @@ public class S3StorageAdminClient {
                 verifyChecksums("state UPLOADING, ", uploadingDbFiles);
             }
 
-        } catch (RestException | java.io.IOException | InterruptedException e) {
+        } catch (RestException | java.io.IOException | InterruptedException | CloneNotSupportedException e) {
             logger.error("storage check failed", e);
             throw new InternalServerErrorException("storage check failed");
         }
@@ -167,62 +165,80 @@ public class S3StorageAdminClient {
         logger.info(name + "verify checksums");
 
         long okFiles = 0;
+        long nullKeyFiles = 0;
+        long wrongSize = 0;
         long wrongChecksum = 0;
         long missingFile = 0;
         long illegalBlockSize = 0;
 
         for (File file : files) {
 
-            try (InputStream is = this.s3StorageClient.downloadAndDecrypt(file, null)) {
-                IOUtils.copyLarge(is, OutputStream.nullOutputStream());
-                okFiles++;
-            } catch (ChecksumException e) {
-                logger.info("checksum failed: " + file.getFileId());
-                wrongChecksum++;
-            } catch (AmazonS3Exception e) {
-                if (e.getStatusCode() == 404) {
-                    logger.info("cannot verify checksum, object not found: " + file.getFileId());
-                    missingFile++;
-                } else {
-                    throw e;
-                }
-            } catch (java.io.IOException e) {
-                if (e.getCause() instanceof IllegalBlockSizeException) {
-                    logger.info("checksum failed: " + file.getFileId() + " " + e.getCause() + " " + e.getMessage());
-                    illegalBlockSize++;
-                } else {
-                    throw e;
+            if (file.getEncryptionKey() == null) {
+                nullKeyFiles++;
+
+            } else {
+
+                try (InputStream is = this.s3StorageClient.downloadAndDecrypt(file, null)) {
+                    IOUtils.copyLarge(is, OutputStream.nullOutputStream());
+                    okFiles++;
+                } catch (FileLengthException e) {
+                    logger.info("wrong file size: " + file.getFileId() + "(" + e.getMessage() + ")");
+                    wrongSize++;
+
+                } catch (ChecksumException e) {
+                    logger.info("checksum failed: " + file.getFileId());
+                    wrongChecksum++;
+                } catch (AmazonS3Exception e) {
+                    if (e.getStatusCode() == 404) {
+                        logger.info("cannot verify checksum, object not found: " + file.getFileId());
+                        missingFile++;
+                    } else {
+                        throw e;
+                    }
+                } catch (java.io.IOException e) {
+                    if (e.getCause() instanceof IllegalBlockSizeException) {
+                        logger.info("checksum failed: " + file.getFileId() + " " + e.getCause() + " " + e.getMessage());
+                        illegalBlockSize++;
+                    } else {
+                        throw e;
+                    }
                 }
             }
 
             // show little bit of progress information
+            // we may see this several times, when there are non-ok files
             if (okFiles % 100 == 0) {
                 logger.info(name + "verified checksums: " + okFiles);
             }
         }
 
         logger.info(name + "verified checksums: " + okFiles);
+        logger.info(name + "null key files:     " + nullKeyFiles);
+        logger.info(name + "wrong file sizes:   " + wrongSize);
         logger.info(name + "wrong checksums:    " + wrongChecksum);
         logger.info(name + "missing files:      " + missingFile);
         logger.info(name + "illegel block size: " + illegalBlockSize);
     }
 
-    private HashMap<String, File> getEncryptedLengthMap(List<File> dbFiles) {
+    private HashMap<String, File> getEncryptedLengthMap(List<File> dbFiles) throws CloneNotSupportedException {
 
-        HashMap<String, File> dbFilesMap = new HashMap<>();
+        HashMap<String, File> s3FilesMap = new HashMap<>();
 
         // convert to ciphertext sizes
         for (File dbFile : dbFiles) {
+            // don't modify the original dbFile, because the original plaintext size may be
+            // needed in checksum verification
+            File s3File = (File) dbFile.clone();
             Long plaintextSize = dbFile.getSize();
             long ciphertextSize = s3StorageClient.getFileEncryption().getEncryptedLength(plaintextSize);
-            dbFile.setSize(ciphertextSize);
-            dbFilesMap.put(dbFile.getFileId().toString(), dbFile);
+            s3File.setSize(ciphertextSize);
+            s3FilesMap.put(s3File.getFileId().toString(), s3File);
         }
 
-        return dbFilesMap;
+        return s3FilesMap;
     }
 
-    private void saveListOfOrphanFiles(List<String> orphanFiles, String storageId)
+    private void saveListOfOrphanFiles(List<String> orphanFiles)
             throws InterruptedException, java.io.IOException {
 
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
@@ -237,7 +253,7 @@ public class S3StorageAdminClient {
         }
     }
 
-    private List<String> loadListOfOrphanFiles(String storageId) throws java.io.IOException, InterruptedException {
+    private List<String> loadListOfOrphanFiles() throws java.io.IOException, InterruptedException {
 
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
@@ -260,9 +276,9 @@ public class S3StorageAdminClient {
         }
     }
 
-    private Map<String, Long> getOldOrphanFiles(String storageId, Map<String, Long> storageFiles)
+    private Map<String, Long> getOldOrphanFiles(Map<String, Long> storageFiles)
             throws java.io.IOException, InterruptedException {
-        Set<String> fileNames = new HashSet<String>(this.loadListOfOrphanFiles(storageId));
+        Set<String> fileNames = new HashSet<String>(this.loadListOfOrphanFiles());
 
         Map<String, Long> oldOrphansFiles = storageFiles.entrySet().stream()
                 .filter(entry -> fileNames.contains(entry.getKey()))
@@ -272,13 +288,13 @@ public class S3StorageAdminClient {
         return oldOrphansFiles;
     }
 
-    public void deleteOldOrphans(String storageId) {
+    public void deleteOldOrphans() {
 
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
         try {
-            List<String> oldOrphans = loadListOfOrphanFiles(storageId);
+            List<String> oldOrphans = loadListOfOrphanFiles();
             logger.info("delete " + oldOrphans.size() + " old orphan files");
 
             for (String orphan : oldOrphans) {
@@ -292,5 +308,18 @@ public class S3StorageAdminClient {
             logger.error("failed to delete old orphan files", e);
             throw new InternalServerErrorException("failed to delete old orphan files");
         }
+    }
+
+    /**
+     * s3-storage doesn't have separate replicas for each storageId, so file-broker
+     * and s3-storage cannot disagree about the ID
+     */
+    @Override
+    public String getStorageId() {
+
+        HashMap<String, Object> jsonMap = new HashMap<>();
+        jsonMap.put("storageId", storageId);
+
+        return RestUtils.asJson(jsonMap);
     }
 }

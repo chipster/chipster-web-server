@@ -10,8 +10,8 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
-import fi.csc.chipster.filestorage.FileStorageAdminClient;
 import fi.csc.chipster.filestorage.client.FileStorage;
+import fi.csc.chipster.filestorage.client.FileStorageAdminClient;
 import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.StaticCredentials;
@@ -48,21 +48,18 @@ public class FileBrokerAdminResource extends AdminResource {
 
 	private S3StorageClient s3StorageClient;
 
-	private S3StorageAdminClient s3StorageAdminClient;
-
 	private SessionDbAdminClient sessionDbAdminClient;
 
 	private FileBrokerApi fileBrokerApi;
 
 	public FileBrokerAdminResource(StatusSource stats, FileStorageDiscovery storageDiscovery,
 			SessionDbAdminClient sessionDbAdminClient, S3StorageClient s3StorageClient,
-			S3StorageAdminClient s3StorageAdminClient, FileBrokerApi fileBrokerApi) {
+			FileBrokerApi fileBrokerApi) {
 		super(stats);
 
 		this.fileStorageDiscovery = storageDiscovery;
 		this.sessionDbAdminClient = sessionDbAdminClient;
 		this.s3StorageClient = s3StorageClient;
-		this.s3StorageAdminClient = s3StorageAdminClient;
 		this.fileBrokerApi = fileBrokerApi;
 	}
 
@@ -103,6 +100,14 @@ public class FileBrokerAdminResource extends AdminResource {
 		return new FileStorageAdminClient(url, creds);
 	}
 
+	private StorageAdminClient getStorageAdminClient(String storageId, SecurityContext sc) {
+		if (this.s3StorageClient.containsStorageId(storageId)) {
+			return new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient, storageId);
+		} else {
+			return getFileStorageAdminClient(storageId, sc);
+		}
+	}
+
 	// unauthenticated but firewalled monitoring tap
 	@GET
 	@Path("storages/{storageId}/monitoring/backup")
@@ -122,13 +127,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response getBackup(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		String json = null;
-
-		if (this.s3StorageClient.containsStorageId(storageId)) {
-			json = this.s3StorageAdminClient.getStatus(storageId);
-		} else {
-			json = getFileStorageAdminClient(storageId, sc).getStatus();
-		}
+		String json = getStorageAdminClient(storageId, sc).getStatus();
 
 		return Response.ok(json).build();
 	}
@@ -139,15 +138,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response getStorageId(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		String json = null;
-
-		if (this.s3StorageClient.containsStorageId(storageId)) {
-
-			json = this.s3StorageAdminClient.getStorageId(storageId);
-		} else {
-
-			json = getFileStorageAdminClient(storageId, sc).getStorageId();
-		}
+		String json = getStorageAdminClient(storageId, sc).getStorageId();
 
 		return Response.ok(json).build();
 	}
@@ -158,33 +149,43 @@ public class FileBrokerAdminResource extends AdminResource {
 	@RolesAllowed({ Role.ADMIN })
 	public Response getFileStats(@PathParam("storageId") String storageId, @Context SecurityContext sc) {
 
-		String json = null;
-
-		if (this.s3StorageClient.containsStorageId(storageId)) {
-
-			json = this.s3StorageAdminClient.getFileStats(storageId);
-		} else {
-
-			json = getFileStorageAdminClient(storageId, sc).getFileStats();
-		}
+		String json = getStorageAdminClient(storageId, sc).getFileStats();
 
 		return Response.ok(json).build();
 	}
 
+	/**
+	 * 
+	 * 
+	 * @param sourceStorageId
+	 * @param targetStorageId
+	 * @param continueDespiteWrongSizeParam     There is no UI for this, but can be
+	 *                                          used for manually fixing broken
+	 *                                          files.
+	 * @param continueDespiteWrongChecksumParam There is no UI for this, but can be
+	 *                                          used for manually fixing broken
+	 *                                          files.
+	 * @param maxBytes
+	 * @param sc
+	 * @return
+	 * @throws IOException
+	 */
 	@POST
 	@Path("storages/copy")
 	@RolesAllowed({ Role.ADMIN })
 	public Response copy(
 			@QueryParam("source") String sourceStorageId,
 			@QueryParam("target") String targetStorageId,
-			@QueryParam("ignoreSize") String ignoreSizeParam,
+			@QueryParam("continueDespiteWrongSize") String continueDespiteWrongSizeParam,
+			@QueryParam("continueDespiteWrongChecksum") String continueDespiteWrongChecksumParam,
 			@DefaultValue("" + Long.MAX_VALUE) @QueryParam("maxBytes") long maxBytes,
 			@Context SecurityContext sc) throws IOException {
 
 		logger.info("copy files from storage '" + sourceStorageId + "' to '" + targetStorageId);
 
 		// false by default
-		boolean ignoreSize = ignoreSizeParam != null;
+		boolean continueDespiteWrongSize = continueDespiteWrongSizeParam != null;
+		boolean continueDespiteWrongChecksum = continueDespiteWrongChecksumParam != null;
 
 		if ("null".equals(sourceStorageId)) {
 			sourceStorageId = null;
@@ -214,7 +215,9 @@ public class FileBrokerAdminResource extends AdminResource {
 			}
 
 			try {
-				bytesCopied += this.fileBrokerApi.move(file, targetStorageId, ignoreSize);
+				this.fileBrokerApi.move(file, targetStorageId, continueDespiteWrongSize, continueDespiteWrongChecksum);
+
+				bytesCopied += file.getSize();
 
 			} catch (RestException e) {
 				logger.error("file move failed", e);
@@ -264,8 +267,10 @@ public class FileBrokerAdminResource extends AdminResource {
 	 * ?deleteDatasetsOfMissingFiles=true .
 	 * 
 	 * @param storageId
-	 * @param uploadMaxHours
-	 * @param deleteDatasetsOfMissingFiles
+	 * @param uploadMaxHours               UI sets this to 24. Set to 0 to delete
+	 *                                     all uploads.
+	 * @param deleteDatasetsOfMissingFiles There is no UI for this, but can be used
+	 *                                     for manually fixing broken files.
 	 * @param sc
 	 * @return
 	 */
@@ -278,17 +283,8 @@ public class FileBrokerAdminResource extends AdminResource {
 			@QueryParam("checksums") Boolean checksums,
 			@Context SecurityContext sc) {
 
-		if (this.s3StorageClient.containsStorageId(storageId)) {
-
-			this.s3StorageAdminClient.startCheck(storageId, uploadMaxHours, deleteDatasetsOfMissingFiles, checksums);
-		} else {
-
-			if (checksums != null && checksums) {
-				logger.warn("checksums are not available in file-storage");
-			}
-
-			getFileStorageAdminClient(storageId, sc).startCheck(uploadMaxHours, deleteDatasetsOfMissingFiles);
-		}
+		this.getStorageAdminClient(storageId, sc).startCheck(uploadMaxHours, deleteDatasetsOfMissingFiles,
+				checksums);
 
 		return Response.ok().build();
 	}
@@ -299,13 +295,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response deleteOldOrphans(@PathParam("storageId") String storageId, @Context SecurityContext sc)
 			throws IOException {
 
-		if (this.s3StorageClient.containsStorageId(storageId)) {
-
-			this.s3StorageAdminClient.deleteOldOrphans(storageId);
-		} else {
-
-			getFileStorageAdminClient(storageId, sc).deleteOldOrphans();
-		}
+		this.getStorageAdminClient(storageId, sc).deleteOldOrphans();
 
 		return Response.ok().build();
 	}
