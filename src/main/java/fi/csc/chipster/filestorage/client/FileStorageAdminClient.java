@@ -20,6 +20,12 @@ import jakarta.ws.rs.client.Invocation.Builder;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.Response;
 
+/**
+ * Admin client for file-storage
+ * 
+ * Used on file-broker to call FileStorageAdminResource. File-storages are
+ * separate components, so calls are made using HTTP requests.
+ */
 @Path("admin")
 public class FileStorageAdminClient implements StorageAdminClient {
 

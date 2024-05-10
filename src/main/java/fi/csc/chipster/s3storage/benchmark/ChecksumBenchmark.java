@@ -18,6 +18,37 @@ import org.apache.commons.io.IOUtils;
 
 import fi.csc.chipster.s3storage.checksum.CheckedStream;
 
+/**
+ * Test the performance of different checksum algorithms in Java
+ * 
+ * There are big throughput differences between different checksum algorithms on
+ * different architectures. This benchmark can be used to make sure the checksum
+ * calculation won't become a bottleneck in file transfers.
+ * 
+ * Results (with an earlier implementation without nested InputStreams, current
+ * implementation tops out around 1.5 GiB/s):
+ * 
+ * Checksum performance on M1:
+ * 
+ * CRC32: 2400 MB/s
+ * CRC32C: 2600 MB/s
+ * MD5: 500 MB/s
+ * SHA-512: 1000 MB/s
+ * 
+ * Checksum performance on Intel Skylake:
+ * 
+ * CRC32: 554 MB/s
+ * CRC32C: 1595 MB/s
+ * MD5: 358 MB/s
+ * SHA-512: 295 MB/s
+ * 
+ * Checksum performance on AMD EPYC:
+ * 
+ * CRC32: 3000 MB/s
+ * CRC32C: 3900 MB/s
+ * MD5: 549 MB/s
+ * SHA-512: 485 MB/s
+ */
 public class ChecksumBenchmark {
 
         public static void main(String[] args) throws IOException, NoSuchAlgorithmException {

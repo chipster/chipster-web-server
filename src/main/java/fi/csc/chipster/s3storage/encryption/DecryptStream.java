@@ -13,6 +13,14 @@ import javax.crypto.spec.IvParameterSpec;
 
 import org.apache.commons.io.IOUtils;
 
+/**
+ * Decrypt Chipster encrypted file
+ * 
+ * Read file format signature and IV data from the start of the stream before
+ * using BufferedCipherInputStream to decrypt the actual file contents.
+ * 
+ * @see FileEncryption
+ */
 public class DecryptStream extends InputStream {
 
     private BufferedCipherInputStream cipherInputStream;
@@ -25,6 +33,10 @@ public class DecryptStream extends InputStream {
 
         // check file format signature
         if (IOUtils.read(in, sigBytes) != sigBytes.length) {
+            throw new IllegalFileException("not enough data for file format signature");
+        }
+
+        if (!FileEncryption.CHIPSTER_ENC_SIG.equals(new String(sigBytes))) {
             throw new IllegalFileException("wrong file format signature");
         }
 

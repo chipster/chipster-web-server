@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import fi.csc.chipster.s3storage.benchmark.BenchmarkData;
 import io.jsonwebtoken.io.IOException;
 
+/**
+ * CLI utility program to generate test files
+ */
 public class GenerateTestData {
     public static void main(String args[]) throws IOException, java.io.IOException {
 

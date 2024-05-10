@@ -27,10 +27,9 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import fi.csc.chipster.filebroker.StorageAdminClient;
-import fi.csc.chipster.filebroker.StorageUtils;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
+import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.model.File;
@@ -39,6 +38,13 @@ import io.jsonwebtoken.io.IOException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 
+/**
+ * Admin client for s3-storage
+ * 
+ * This is used in file-broker to do admin operations for the S3. It
+ * uses aws-sdk library to make rquests directly to the S3 API, without going
+ * through the s3-storage component (which is needed only for file deletion).
+ */
 public class S3StorageAdminClient implements StorageAdminClient {
 
     private static final String OBJECT_KEY_ORPHAN_FILES = "chipster-orphan-files.json";
@@ -135,7 +141,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
             List<File> completeDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.COMPLETE);
             List<File> uploadingDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.UPLOADING);
 
-            Set<File> oldUploads = StorageUtils.deleteOldUploads(uploadingDbFiles, this.sessionDbAdminClient,
+            Set<File> oldUploads = StorageAdminClient.deleteOldUploads(uploadingDbFiles, this.sessionDbAdminClient,
                     uploadMaxHours);
 
             uploadingDbFiles.removeAll(oldUploads);
@@ -143,7 +149,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
             Map<String, File> completeDbFilesMap = getEncryptedLengthMap(completeDbFiles);
             Map<String, File> uploadingDbFilesMap = getEncryptedLengthMap(uploadingDbFiles);
 
-            List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
+            List<String> orphanFiles = StorageAdminClient.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
                     completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
 
             saveListOfOrphanFiles(orphanFiles);

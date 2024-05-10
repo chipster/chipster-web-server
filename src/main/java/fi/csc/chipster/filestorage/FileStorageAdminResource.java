@@ -16,7 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.StorageUtils;
+import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
@@ -36,12 +36,15 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.SecurityContext;
 
+/**
+ * Rest API resource for admin functions of file-storage component
+ */
 public class FileStorageAdminResource extends AdminResource {
 
 	private static final String PATH_ORPHAN = "orphan";
 
 	private Logger logger = LogManager.getLogger();
-	private StorageBackup backup;
+	private FileStorageBackup backup;
 	private SessionDbAdminClient sessionDbAdminClient;
 	private File storage;
 
@@ -49,7 +52,8 @@ public class FileStorageAdminResource extends AdminResource {
 
 	private String storageId;
 
-	public FileStorageAdminResource(StatusSource stats, StorageBackup backup, SessionDbAdminClient sessionDbAdminClient,
+	public FileStorageAdminResource(StatusSource stats, FileStorageBackup backup,
+			SessionDbAdminClient sessionDbAdminClient,
 			File storage, String storageId) {
 		super(stats, backup);
 
@@ -186,7 +190,7 @@ public class FileStorageAdminResource extends AdminResource {
 		List<fi.csc.chipster.sessiondb.model.File> uploadingDbFiles = this.sessionDbAdminClient.getFiles(storageId,
 				FileState.UPLOADING);
 
-		Set<fi.csc.chipster.sessiondb.model.File> oldUploads = StorageUtils.deleteOldUploads(uploadingDbFiles,
+		Set<fi.csc.chipster.sessiondb.model.File> oldUploads = StorageAdminClient.deleteOldUploads(uploadingDbFiles,
 				this.sessionDbAdminClient,
 				uploadMaxHours);
 
@@ -198,7 +202,7 @@ public class FileStorageAdminResource extends AdminResource {
 		Map<String, fi.csc.chipster.sessiondb.model.File> uploadingDbFilesMap = uploadingDbFiles.stream()
 				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f));
 
-		List<String> orphanFiles = StorageUtils.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
+		List<String> orphanFiles = StorageAdminClient.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
 				completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
 
 		moveOrphanFiles(orphanFiles);

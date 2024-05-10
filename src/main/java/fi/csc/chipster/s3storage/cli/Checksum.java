@@ -8,6 +8,12 @@ import java.util.zip.CRC32C;
 
 import fi.csc.chipster.s3storage.benchmark.ChecksumBenchmark;
 
+/**
+ * CLI utility program to calculate checksum of a file
+ * 
+ * Useful for debugging, performance tests or fixing database checksums manually
+ * after unexpected errors.
+ */
 public class Checksum {
 
         public static void main(String[] args) throws IOException, NoSuchAlgorithmException {

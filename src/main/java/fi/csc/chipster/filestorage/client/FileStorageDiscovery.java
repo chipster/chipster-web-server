@@ -29,6 +29,13 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.servicelocator.resource.Service;
 import jakarta.ws.rs.InternalServerErrorException;
 
+/**
+ * Provide and update list of current file-storages
+ * 
+ * List of file-storages can be static configuration, but when file-storages
+ * are deployed as a StatefulSet in Kubernetes, we can conveniently keep the
+ * list updated using a DNS query.
+ */
 public class FileStorageDiscovery {
 
 	private static Logger logger = LogManager.getLogger();

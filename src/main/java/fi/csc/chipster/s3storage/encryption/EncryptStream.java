@@ -16,6 +16,14 @@ import javax.crypto.spec.IvParameterSpec;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+/**
+ * Encrypt a stream using Chipster encryption format
+ * 
+ * A random IV is generated for each file. The file format signature and IV are
+ * written to the beginning of the output.
+ * 
+ * @see FileEncryption
+ */
 public class EncryptStream extends InputStream {
 
     private SequenceInputStream sequenceInputStream;

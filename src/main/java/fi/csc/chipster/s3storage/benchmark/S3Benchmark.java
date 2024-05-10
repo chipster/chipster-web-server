@@ -15,6 +15,9 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
+/**
+ * Test the performance of S3 file transfer using aws-sdk library in Java
+ */
 public class S3Benchmark {
 
 	public static void test(TransferManager tm, String bucket, String name, boolean isUpload, boolean isSerial,

@@ -92,7 +92,7 @@ import org.apache.commons.io.IOUtils;
  * https://github.com/bcgit/bc-java/blob/main/pg/src/main/java/org/bouncycastle/
  * , but the following changes were made to improve the troughput:
  * <ul>
- * <li>>armor: false,
+ * <li>armor: false,
  * <li>integrity: true
  * <li>CEST5 -> AES256,
  * <li>without BC provider
@@ -110,26 +110,32 @@ import org.apache.commons.io.IOUtils;
  * 
  * Apple M1:
  * 
- * java encrypt pgp 294 MB/s
- * java decrypt pgp 146 MB/s
- * java encrypt aes 588 MB/s
- * java decrypt aes 1154 MB/s
- * native gpg encrypt: 204 MB/s
+ * <ul>
+ * <li>java encrypt pgp 294 MB/s
+ * <li>java decrypt pgp 146 MB/s
+ * <li>java encrypt aes 588 MB/s
+ * <li>java decrypt aes 1154 MB/s
+ * <li>native gpg encrypt: 204 MB/s
+ * </ul>
  * 
  * Intel Skylake:
  * 
- * java encrypt pgp 73 MB/s
- * java decrypt pgp 33 MB/s
- * java encrypt aes 148 MB/s
- * java decrypt aes 230 MB/s
- * native gpg encrypt: 165 MB/s
+ * <ul>
+ * <li>java encrypt pgp 73 MB/s
+ * <li>java decrypt pgp 33 MB/s
+ * <li>java encrypt aes 148 MB/s
+ * <li>java decrypt aes 230 MB/s
+ * <li>native gpg encrypt: 165 MB/s
+ * </ul>
  * 
  * AMD EPYC:
  * 
- * java encrypt pgp 188 MB/s
- * java decrypt pgp 82 MB/s
- * java encrypt aes 408 MB/s
- * java decrypt aes 662 MB/s
+ * <ul>
+ * <li>java encrypt pgp 188 MB/s
+ * <li>java decrypt pgp 82 MB/s
+ * <li>java encrypt aes 408 MB/s
+ * <li>java decrypt aes 662 MB/s
+ * </ul>
  */
 public class FileEncryption {
 

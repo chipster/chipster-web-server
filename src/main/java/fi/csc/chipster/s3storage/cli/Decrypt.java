@@ -7,6 +7,12 @@ import javax.crypto.SecretKey;
 import fi.csc.chipster.s3storage.benchmark.EncryptDecryptBenchmark;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
 
+/**
+ * CLI utitlity program to decrypt a file in Chipster encryption format
+ * 
+ * Chipster has a custom encryption format, so this program is needed to check
+ * or restore individual files in backup.
+ */
 public class Decrypt {
 
     public static void main(String[] args) throws Throwable {

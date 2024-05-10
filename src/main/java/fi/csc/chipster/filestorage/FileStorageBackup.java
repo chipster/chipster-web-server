@@ -34,14 +34,14 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.archive.ArchiveException;
 import fi.csc.chipster.archive.BackupArchive;
-import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.archive.InfoLine;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
-public class StorageBackup implements StatusSource {
+public class FileStorageBackup implements StatusSource {
 
 	private Logger logger = LogManager.getLogger();
 
@@ -66,20 +66,20 @@ public class StorageBackup implements StatusSource {
 
 	private Future<?> manualBackup;
 
-	public StorageBackup(Path storage, boolean scheduleTimer, Config config, String storageId)
+	public FileStorageBackup(Path storage, boolean scheduleTimer, Config config, String storageId)
 			throws IOException, InterruptedException {
 
 		this.storage = storage;
 		this.role = Role.FILE_STORAGE;
-		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
+		this.gpgPassphrase = config.getString(GpgBackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
 		this.fileStorageBackupNamePrefix = storageId + "_";
 
 		this.config = config;
-		this.bucket = BackupUtils.getBackupBucket(config, role);
+		this.bucket = GpgBackupUtils.getBackupBucket(config, role);
 
-		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
+		this.gpgRecipient = GpgBackupUtils.importPublicKey(config, role);
 
-		this.transferManager = BackupUtils.getTransferManager(config, role);
+		this.transferManager = GpgBackupUtils.getTransferManager(config, role);
 
 		// easier to check later
 		if (this.gpgPassphrase == null || this.gpgPassphrase.isBlank()) {
@@ -145,7 +145,7 @@ public class StorageBackup implements StatusSource {
 	}
 
 	private Calendar getNextBackupTime() {
-		String backupTimeString = config.getString(BackupUtils.CONF_BACKUP_TIME, role);
+		String backupTimeString = config.getString(GpgBackupUtils.CONF_BACKUP_TIME, role);
 
 		int startHour = Integer.parseInt(backupTimeString.split(":")[0]);
 		int startMinute = Integer.parseInt(backupTimeString.split(":")[1]);
@@ -176,12 +176,12 @@ public class StorageBackup implements StatusSource {
 			}
 		};
 
-		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		int backupInterval = Integer.parseInt(config.getString(GpgBackupUtils.CONF_BACKUP_INTERVAL, role));
 
 		Calendar nextBackupTime = this.getNextBackupTime();
 
 		logger.info("next " + role + " backup is scheduled at " + nextBackupTime.getTime().toString());
-		logger.info("save " + role + " backups to bucket:  " + BackupUtils.getBackupBucket(config, role));
+		logger.info("save " + role + " backups to bucket:  " + GpgBackupUtils.getBackupBucket(config, role));
 
 		synchronized (executorLock) {
 
@@ -223,14 +223,14 @@ public class StorageBackup implements StatusSource {
 		logger.info("find archived backups");
 		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
 
-		String archiveInfoKey = BackupUtils.findLatest(objects, this.fileStorageBackupNamePrefix,
+		String archiveInfoKey = GpgBackupUtils.findLatest(objects, this.fileStorageBackupNamePrefix,
 				BackupArchive.ARCHIVE_INFO);
 		Map<Path, InfoLine> archiveInfoMap = new HashMap<>();
 		String archiveName = null;
 
 		if (archiveInfoKey != null) {
 			archiveName = archiveInfoKey.substring(0, archiveInfoKey.indexOf("/"));
-			archiveInfoMap = BackupUtils.infoFileToMap(transferManager, bucket, archiveInfoKey, backupDir);
+			archiveInfoMap = GpgBackupUtils.infoFileToMap(transferManager, bucket, archiveInfoKey, backupDir);
 
 			logger.info("found an archive " + archiveName);
 		} else {
@@ -349,7 +349,7 @@ public class StorageBackup implements StatusSource {
 				+ " files disappeared during the backup (probably deleted)");
 
 		// finally upload the backup info to signal that the backup is complete
-		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
+		GpgBackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 
 		FileUtils.deleteDirectory(backupDir.toFile());
 
@@ -397,7 +397,7 @@ public class StorageBackup implements StatusSource {
 				// file not found from the archive
 				filesToBackup.put(filePath, currentFileInfo);
 
-			} else if (!BackupUtils.getPackageGpgPath(filePath).equals(archiveFileInfo.getGpgPath())) {
+			} else if (!GpgBackupUtils.getPackageGpgPath(filePath).equals(archiveFileInfo.getGpgPath())) {
 				logger.warn("package paths have changed");
 				filesToBackup.put(filePath, currentFileInfo);
 
@@ -502,8 +502,8 @@ public class StorageBackup implements StatusSource {
 			groupInfo += "encrypt";
 		} else {
 			groupInfo += "package";
-			logger.info("encryption disabled: neither " + BackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY + " or "
-					+ BackupUtils.CONF_BACKUP_GPG_PASSPHRASE + " is configured");
+			logger.info("encryption disabled: neither " + GpgBackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY + " or "
+					+ GpgBackupUtils.CONF_BACKUP_GPG_PASSPHRASE + " is configured");
 		}
 
 		groupInfo += " group " + (groupIndex + 1) + "/" + groupCount;
@@ -515,7 +515,7 @@ public class StorageBackup implements StatusSource {
 		logger.info(groupInfo + ", " + smallFiles.size() + " small files ("
 				+ FileUtils.byteCountToDisplaySize(smallFilesTotal) + ")");
 		if (!smallFiles.isEmpty()) {
-			BackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir,
+			GpgBackupUtils.backupFilesAsTar(prefix + "_small_files", storage, smallFiles.keySet(), backupDir,
 					transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		}
 
@@ -524,7 +524,7 @@ public class StorageBackup implements StatusSource {
 		logger.info(groupInfo + ", " + mediumFiles.size() + " medium files ("
 				+ FileUtils.byteCountToDisplaySize(mediumFilesTotal) + ")");
 		if (!mediumFiles.isEmpty()) {
-			BackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir,
+			GpgBackupUtils.backupFilesAsTar(prefix + "_medium_files", storage, mediumFiles.keySet(), backupDir,
 					transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		}
 
@@ -532,13 +532,13 @@ public class StorageBackup implements StatusSource {
 		logger.info(groupInfo + ", " + largeFiles.size() + " large files ("
 				+ FileUtils.byteCountToDisplaySize(largeFilesTotal) + ")");
 		for (Path file : largeFiles.keySet()) {
-			BackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager,
+			GpgBackupUtils.backupFileAsTar(file.getFileName().toString(), storage, file, backupDir, transferManager,
 					bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		}
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		new StorageBackup(Paths.get("storage"), false, new Config(), "file-storage");
+		new FileStorageBackup(Paths.get("storage"), false, new Config(), "file-storage");
 	}
 
 	@Override
@@ -552,9 +552,9 @@ public class StorageBackup implements StatusSource {
 
 	public boolean monitoringCheck() {
 
-		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		int backupInterval = Integer.parseInt(config.getString(GpgBackupUtils.CONF_BACKUP_INTERVAL, role));
 
-		Instant backupTime = BackupUtils.getLatestArchive(transferManager, this.fileStorageBackupNamePrefix, bucket);
+		Instant backupTime = GpgBackupUtils.getLatestArchive(transferManager, this.fileStorageBackupNamePrefix, bucket);
 
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));

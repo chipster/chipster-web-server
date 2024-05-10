@@ -24,7 +24,7 @@ import org.eclipse.jetty.server.InclusiveByteRange;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.servlet.DefaultServlet;
 
-import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserToken;
@@ -99,7 +99,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 		this.preserveSpace = config.getFloat(CONF_KEY_FILE_STORAGE_PRESERVE_SPACE);
 		this.backupPreserveSpace = config.getFloat(CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE);
-		this.isBackupEnabled = !BackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
+		this.isBackupEnabled = !GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);

@@ -34,7 +34,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.S3Util;
 
-public class BackupUtils {
+public class GpgBackupUtils {
 
 	private static final String ENV_GPG_PASSPHRASE = "GPG_PASSPHRASE";
 
@@ -276,7 +276,7 @@ public class BackupUtils {
 
 	public static String importPublicKey(Config config, String role) throws IOException, InterruptedException {
 
-		String gpgPublicKey = config.getString(BackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY, role);
+		String gpgPublicKey = config.getString(GpgBackupUtils.CONF_BACKUP_GPG_PUBLIC_KEY, role);
 		if (gpgPublicKey.isEmpty()) {
 			logger.warn(CONF_BACKUP_GPG_PUBLIC_KEY + " is not configured");
 			return null;

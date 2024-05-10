@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.SequenceInputStream;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 import org.apache.commons.io.IOUtils;
@@ -20,10 +21,13 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
+import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -391,7 +395,7 @@ public class FileResourceTest {
 	}
 
 	@Test
-	public void delete() throws IOException, InterruptedException, RestException {
+	public void delete() throws IOException, InterruptedException, RestException, NoSuchAlgorithmException {
 
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
 		assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
@@ -405,9 +409,11 @@ public class FileResourceTest {
 		File storageFile = new File(
 				"storage" + File.separator + partition + File.separator + file.getFileId().toString());
 
+		S3StorageClient s3StorageClient = null;
+
 		if (!storageFile.exists()) {
-			throw new RuntimeException(
-					"test doesn't support s3 storage. File not found from file-storage. Is s3 storage enabled?");
+			// apparently this installation is configured to use s3-storage
+			s3StorageClient = new S3StorageClient(new Config());
 		}
 
 		// remove the dataset
@@ -415,7 +421,19 @@ public class FileResourceTest {
 
 		// wait a while and check that the file is removed also
 		Thread.sleep(100);
-		assertEquals(false, storageFile.exists());
+
+		if (s3StorageClient == null) {
+			// check the file was removed from disk
+			assertEquals(false, storageFile.exists());
+		} else {
+			// check that file was removed from S3
+			try {
+				s3StorageClient.downloadAndDecrypt(file, null);
+				fail("expected exception was not thrown");
+			} catch (AmazonS3Exception e) {
+				assertEquals("NoSuchKey", e.getErrorCode());
+			}
+		}
 	}
 
 	private void checkFile(UUID sessionId, UUID datasetId) throws IOException {

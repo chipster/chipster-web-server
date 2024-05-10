@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.UUID;
@@ -29,6 +30,7 @@ import fi.csc.chipster.filestorage.FileServlet;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
+import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -132,9 +134,10 @@ public class ZipSessionServletTest {
 	 * @throws RestException
 	 * @throws IOException
 	 * @throws InterruptedException
+	 * @throws NoSuchAlgorithmException
 	 */
 	@Test
-	public void compressionError() throws RestException, IOException, InterruptedException {
+	public void compressionError() throws RestException, IOException, InterruptedException, NoSuchAlgorithmException {
 
 		Session session = RestUtils.getRandomSession();
 
@@ -170,12 +173,14 @@ public class ZipSessionServletTest {
 		fileBrokerClient1.upload(sessionId, datasetId, new File(TEST_FILE));
 
 		// break the session by deleting the file from the file-storage
-		UUID fileId = sessionDbClient1.getDataset(sessionId, datasetId).getFile().getFileId();
+		fi.csc.chipster.sessiondb.model.File file = sessionDbClient1.getDataset(sessionId, datasetId).getFile();
 
 		try {
-			Files.delete(FileServlet.getStoragePath(Paths.get("storage"), fileId));
+			Files.delete(FileServlet.getStoragePath(Paths.get("storage"), file.getFileId()));
 		} catch (NoSuchFileException e) {
-			throw new RuntimeException("file not found from file-storage. Is S3 storage enabled?");
+			// apparently this installation is configured to use s3-storage
+			S3StorageClient s3StorageClient = new S3StorageClient(new Config());
+			s3StorageClient.delete(file);
 		}
 
 		// download the session zip

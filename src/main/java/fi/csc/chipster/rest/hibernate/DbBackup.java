@@ -30,7 +30,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.archive.BackupArchive;
-import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
@@ -82,16 +82,16 @@ public class DbBackup implements StatusSource {
 		backupPrefix = role + BACKUP_OBJECT_NAME_PART;
 		backupPostfixUncompressed = BACKUP_NAME_POSTFIX_UNCOMPRESSED;
 
-		this.gpgRecipient = BackupUtils.importPublicKey(config, role);
-		this.gpgPassphrase = config.getString(BackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
+		this.gpgRecipient = GpgBackupUtils.importPublicKey(config, role);
+		this.gpgPassphrase = config.getString(GpgBackupUtils.CONF_BACKUP_GPG_PASSPHRASE, role);
 
-		this.bucket = BackupUtils.getBackupBucket(config, role);
+		this.bucket = GpgBackupUtils.getBackupBucket(config, role);
 		if (bucket.isEmpty()) {
 			logger.warn("no backup configuration for " + role + " db");
 			return;
 		}
 
-		this.transferManager = BackupUtils.getTransferManager(config, role);
+		this.transferManager = GpgBackupUtils.getTransferManager(config, role);
 
 		Configuration hibernateConf = HibernateUtil.getHibernateConf(new ArrayList<Class<?>>(), url, "none", user,
 				password, config, role);
@@ -157,11 +157,11 @@ public class DbBackup implements StatusSource {
 
 		stats.put("lastBackupUncompressedSize", Files.size(backupFileUncompressed));
 
-		BackupUtils.backupFileAsTar(backupFileBasename, backupDir, backupFileUncompressed.getFileName(), backupDir,
+		GpgBackupUtils.backupFileAsTar(backupFileBasename, backupDir, backupFileUncompressed.getFileName(), backupDir,
 				transferManager, bucket, backupName, backupInfoPath, gpgRecipient, gpgPassphrase, config);
 		// the backupInfo is not really necessary because there is only one file, but
 		// the BackupArchiver expects it
-		BackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
+		GpgBackupUtils.uploadBackupInfo(transferManager, bucket, backupName, backupInfoPath);
 
 		FileUtils.deleteDirectory(backupDir.toFile());
 
@@ -248,9 +248,9 @@ public class DbBackup implements StatusSource {
 
 	public boolean monitoringCheck() {
 
-		int backupInterval = Integer.parseInt(config.getString(BackupUtils.CONF_BACKUP_INTERVAL, role));
+		int backupInterval = Integer.parseInt(config.getString(GpgBackupUtils.CONF_BACKUP_INTERVAL, role));
 
-		Instant backupTime = BackupUtils.getLatestArchive(transferManager, backupPrefix, bucket);
+		Instant backupTime = GpgBackupUtils.getLatestArchive(transferManager, backupPrefix, bucket);
 
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));

@@ -20,6 +20,18 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 
+/**
+ * S3Storage component
+ * 
+ * Listen to WebSocket File events from session-db and delete a S3 object from
+ * S3 when a respective File object is deleted from the database. There should
+ * be only one replica of this component.
+ * 
+ * file-brokers can directly access the objects in S3, so there is no need to
+ * transfer all data through this component (unlike in file-storage). This
+ * component exists only to be able to delete S3 objects just once, even when
+ * there are multiple file-broker replicas.
+ */
 public class S3Storage {
 
 	private Logger logger = LogManager.getLogger();
