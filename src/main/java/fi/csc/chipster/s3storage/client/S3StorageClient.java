@@ -36,6 +36,7 @@ import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.FileLengthException;
 import fi.csc.chipster.s3storage.checksum.CRC32CheckedStream;
 import fi.csc.chipster.s3storage.checksum.CheckedStream;
+import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.encryption.DecryptStream;
 import fi.csc.chipster.s3storage.encryption.EncryptStream;
 import fi.csc.chipster.s3storage.encryption.FileEncryption;
@@ -164,6 +165,20 @@ public class S3StorageClient implements StorageClient {
 
 		AmazonClientException exception = transfer.waitForException();
 		if (exception != null) {
+
+			if (exception instanceof AmazonClientException) {
+
+				// unwrap FileLengthException, because that's what the FileStorageClient throws
+				// too
+				if (exception.getCause() instanceof FileLengthException) {
+					throw (FileLengthException) exception.getCause();
+				}
+
+				if (exception.getCause() instanceof ChecksumException) {
+					throw (ChecksumException) exception.getCause();
+				}
+			}
+
 			throw exception;
 		}
 	}
@@ -258,24 +273,10 @@ public class S3StorageClient implements StorageClient {
 			String key = this.fileEncryption.keyToString(secretKey);
 			String checksum = checkedStream.getStreamChecksum();
 
-			if (length == null) {
-				// shouldn't happen, because upload() requires length for now
-				logger.info("original file length not avalaible");
-			}
-
 			// length of plaintext
 			long fileLength = checkedStream.getLength();
 
 			return new ChipsterUpload(fileLength, checksum, key);
-
-		} catch (AmazonClientException e) {
-
-			// unwrap FileLengthException, because that's what the FileStorageClient throws
-			// too
-			if (e.getCause() instanceof FileLengthException) {
-				throw (FileLengthException) e.getCause();
-			}
-			throw e;
 
 		} catch (IOException | NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException
 				| InvalidAlgorithmParameterException |
@@ -466,7 +467,6 @@ public class S3StorageClient implements StorageClient {
 	}
 
 	@Override
-
 	public void checkIfAppendAllowed(File file, Long chunkNumber, Long chunkSize, Long flowTotalChunks,
 			Long flowTotalSize) {
 

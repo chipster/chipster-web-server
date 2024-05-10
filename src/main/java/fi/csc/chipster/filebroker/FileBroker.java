@@ -18,7 +18,6 @@ import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
-import fi.csc.chipster.s3storage.client.S3StorageAdminClient;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
@@ -43,8 +42,6 @@ public class FileBroker {
 	private FileStorageDiscovery storageDiscovery;
 
 	private S3StorageClient s3StorageClient;
-
-	private S3StorageAdminClient s3StorageAdminClient;
 
 	private SessionDbAdminClient sessionDbAdminClient;
 
@@ -72,7 +69,6 @@ public class FileBroker {
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
 		this.s3StorageClient = new S3StorageClient(config);
-		this.s3StorageAdminClient = new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
 		this.fileBrokerApi = new FileBrokerApi(this.s3StorageClient, this.storageDiscovery, this.sessionDbAdminClient,
@@ -91,7 +87,7 @@ public class FileBroker {
 		servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), "/*", null);
 
 		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(null, storageDiscovery,
-				sessionDbAdminClient, s3StorageClient, s3StorageAdminClient, fileBrokerApi);
+				sessionDbAdminClient, s3StorageClient, fileBrokerApi);
 
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
 				this.serviceLocator);

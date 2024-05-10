@@ -1,4 +1,4 @@
-package fi.csc.chipster.filestorage;
+package fi.csc.chipster.filestorage.client;
 
 import java.net.URI;
 
@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationClient;
+import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
@@ -20,7 +21,7 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.Response;
 
 @Path("admin")
-public class FileStorageAdminClient {
+public class FileStorageAdminClient implements StorageAdminClient {
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -72,7 +73,13 @@ public class FileStorageAdminClient {
 		post("backup", "schedule");
 	}
 
-	public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles) {
+	@Override
+	public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
+			Boolean checksums) {
+
+		if (checksums != null && checksums) {
+			logger.warn("checksums are not available in file-storage");
+		}
 
 		WebTarget checkTarget = this.target.path("admin").path("check");
 
@@ -87,19 +94,23 @@ public class FileStorageAdminClient {
 		post(checkTarget);
 	}
 
+	@Override
 	public void deleteOldOrphans() {
 
 		post("delete-orphans");
 	}
 
+	@Override
 	public String getStatus() {
 		return getJson(true, "status");
 	}
 
+	@Override
 	public String getStorageId() {
 		return getJson(true, "id");
 	}
 
+	@Override
 	public String getFileStats() {
 		return getJson(true, "filestats");
 	}

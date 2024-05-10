@@ -18,6 +18,7 @@ import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.s3storage.FileLengthException;
+import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
@@ -267,7 +268,8 @@ public class FileBrokerApi {
         return type;
     }
 
-    public long move(File sourceFile, String targetStorageId, boolean ignoreSize) throws RestException, IOException {
+    public void move(File sourceFile, String targetStorageId, boolean continueDespiteWrongSize,
+            boolean continueDespiteWrongChecksum) throws RestException, IOException {
 
         logger.info("move from '" + sourceFile.getStorage() + "' to '" + targetStorageId + "' fileId: "
                 + sourceFile.getFileId()
@@ -289,29 +291,33 @@ public class FileBrokerApi {
             targetFile = targetClient.upload(targetFile, sourceStream, null, null, null,
                     targetFile.getSize());
 
+            /*
+             * This won't send events, but that shouldn't matter, because the file-broker
+             * will get the storage from the session-db anyway.
+             */
+            this.sessionDbAdminClient.updateFile(targetFile);
+
+            sourceClient.delete(sourceFile);
+
         } catch (FileLengthException e) {
-            if (ignoreSize) {
+            if (continueDespiteWrongSize) {
                 logger.warn(
-                        "ignore wrong file length when moving from " + sourceFile.getStorage() + " to "
-                                + targetStorageId,
-                        e.getMessage());
+                        "continue despite wrong file length when moving from " + sourceFile.getStorage() + " to "
+                                + targetStorageId + "(" + e.getMessage() + ")");
+            } else {
+                throw e;
+            }
+        } catch (ChecksumException e) {
+            if (continueDespiteWrongChecksum) {
+                logger.warn(
+                        "continue despite wrong file checksum when moving from " + sourceFile.getStorage() + " to "
+                                + targetStorageId + "(" + e.getMessage() + ")");
             } else {
                 throw e;
             }
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("clone not supported", e);
         }
-
-        /*
-         * This won't send events, but that shouldn't matter, because the file-broker
-         * will get the storage from the session-db anyway.
-         */
-        this.sessionDbAdminClient.updateFile(targetFile);
-
-        sourceClient.delete(sourceFile);
-
-        return targetFile.getSize();
-
     }
 
     public void moveLater(File file, String targetStorageId) {
@@ -322,7 +328,7 @@ public class FileBrokerApi {
                     String sourceStorage = file.getStorage();
                     long t = System.currentTimeMillis();
 
-                    move(file, targetStorageId, false);
+                    move(file, targetStorageId, false, false);
 
                     long dt = (System.currentTimeMillis() - t);
                     String speed = FileBrokerAdminResource.humanFriendly(file.getSize() * 1000 / dt) + "/s";
