@@ -118,18 +118,17 @@ public class ZipSessionServletTest {
 	}
 
 	/**
-	 * Check that the HTTP transfer end is abortive (instead of orderly)
-	 * when an error happens during the compression and download of the zip package.
+	 * Check that browser is informed when an error happens during the compression
+	 * and download of the zip package
+	 * 
 	 * See {@link ZipSessionServlet}.
 	 * 
-	 * See
+	 * I didn't find a way to do an abortive connection release in servlet:
 	 * https://docs.oracle.com/javase/8/docs/technotes/guides/net/articles/connection_release.html
 	 * 
-	 * A valid chunked transfer encoding ends with a zero sized chunk. If the server
-	 * has already sent
-	 * the status code 200, it can still signal about the error by finishing the TCP
-	 * connection
-	 * without that empty chunk.
+	 * However, a valid chunked transfer encoding ends with a zero sized chunk. If
+	 * the server has already sent the status code 200, it can still signal about
+	 * the error by finishing the TCP connection without that empty chunk.
 	 * 
 	 * @throws RestException
 	 * @throws IOException
