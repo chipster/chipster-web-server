@@ -75,8 +75,10 @@ public class FileBrokerResourceServlet extends HttpServlet {
      * Supports HTTP range requests (s3-storage only from start) to get only a
      * specific part of the file.
      * 
-     * In case of errors, e.g. file cheksum doesn't match, connection release is
-     * abortive to inform the browser that something went wrong.
+     * In case of errors, e.g. file cheksum doesn't match, small files respond with
+     * HTTP error code. With large files, connection is closed without sending the
+     * last empty chunk of chunked transfer-encoding to inform the browser that
+     * something went wrong.
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -102,17 +104,7 @@ public class FileBrokerResourceServlet extends HttpServlet {
             throw ServletUtils.extractRestException(e);
         }
 
-        if (range == null || range.isEmpty()) {
-            /*
-             * Set content-length header
-             * 
-             * This is not strictly needed, but it's difficult to report errors after the
-             * response code has been sent, but at
-             * least Firefox seems to show the download as blocked or failed if the stream
-             * doesn't have as many bytes as we say here.
-             */
-            // response.header("content-length", dataset.getFile().getSize());
-        }
+        // response.setHeader("Transfer-Encoding", "chunked");
 
         // configure filename for response
         if (!download) {
@@ -128,8 +120,8 @@ public class FileBrokerResourceServlet extends HttpServlet {
             /*
              * HTTP messages should contain content-type. but it's not required. The old
              * servlet implementation didn't set it and the browsers were guessing it fine.
-             * I didn't find a way to remove the header in Jersey, but the wildcard
-             * content-type seems to cause the same end result.
+             * I didn't find a way to remove the header (when this was still in Jersey), but
+             * the wildcard content-type seems to cause the same end result.
              */
             response.setContentType(MediaType.WILDCARD_TYPE.getType());
         }
@@ -141,15 +133,23 @@ public class FileBrokerResourceServlet extends HttpServlet {
 
         OutputStream output = response.getOutputStream();
 
-        // can throw ChecksumException or FileLengthException
+        /*
+         * Can throw ChecksumException or FileLengthException. Error messages in
+         * browsers' download view:
+         * 
+         * Chrome: "Check internet connection"
+         * Safari: "cannot parse response"
+         * Firefox: "failed"
+         */
         IOUtils.copyLarge(fileStream, output);
 
         /*
          * Close output stream only if the copyLarge() was successful
          * 
          * If an exception (ChecksumException, FileLengthException) was thrown, this is
-         * skipped on purpose. Otherwise the connection release is not abortive. So
-         * don't use try-with-resources to close it!
+         * skipped on purpose. Otherwise the Jetty writes and empty chunk, marking the
+         * end of the chunked transfer-encoding and browser doesn't know that something
+         * went wrong. So don't use try-with-resources to close it!
          */
         output.close();
     }

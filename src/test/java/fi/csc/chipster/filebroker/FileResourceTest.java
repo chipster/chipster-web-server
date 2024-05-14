@@ -306,6 +306,39 @@ public class FileResourceTest {
 	}
 
 	@Test
+	public void noContentLength() throws IOException, RestException {
+
+		/*
+		 * Check that content-length is not set for large responses (see below).
+		 * 
+		 * For small responses, Jetty tries to buffer the whole body. It will set a
+		 * content-length header, but that doesn't matter, because it can report the
+		 * exceptions directly with HTTP response codes.
+		 */
+		long length = 10l * 1024 * 1024;
+
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+		assertEquals(204, uploadLargeFile(fileBrokerTarget1, sessionId1, datasetId, length).getStatus());
+
+		Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+				.get(Response.class);
+
+		assertEquals(true, IOUtils.contentEquals((InputStream) response.getEntity(), new DummyInputStream(length)));
+
+		/*
+		 * content-length must not be set
+		 * 
+		 * Otherwise the browsers don't notice server errros like FileLenghtException or
+		 * ChecksumException. We communicate errors now by closing the connection
+		 * without the empty chunk at the end of chunked-encoding. If content-length is
+		 * set, Jetty won't use chunked-encoding and browser's won't notice the error.
+		 */
+		assertEquals(null, response.getHeaderString("content-length"));
+
+		sessionDbClient1.deleteDataset(sessionId1, datasetId);
+	}
+
+	@Test
 	public void getError() throws IOException, RestException, CloneNotSupportedException {
 
 		/*

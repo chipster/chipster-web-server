@@ -19,15 +19,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipOutputStream;
 
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.core.MediaType;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -37,8 +28,8 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
@@ -52,6 +43,14 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionState;
 import fi.csc.chipster.sessionworker.xml.XmlSession;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.MediaType;
 
 /**
  * Servlet for compressing and extracting session zip files
@@ -62,17 +61,15 @@ import fi.csc.chipster.sessionworker.xml.XmlSession;
  * https://github.com/eclipse-ee4j/jersey/issues/3850.
  * 
  * It is important to show this error for the user, because otherwise the user
- * might
- * think that he/she has a complete copy of the session when only part of the
- * files were copied. The browser does the downloading, so we don't have any
+ * might think that he/she has a complete copy of the session when only part of
+ * the files were copied. The browser does the downloading, so we don't have any
  * way in the client side to monitor its progress. We could implement a new REST
  * endpoint, where the javascript could follow the progress of the download,
  * but handling that state information would be a lot of work, when several
  * session-workers are running behind a load balancer.
  * 
  * Simply throwing an IOException from the ServletOutputStream seems to be
- * enough
- * in servlet. However, there is a bit more work with parsing the path.
+ * enough in servlet. However, there is a bit more work with parsing the path.
  * 
  * @author klemela
  *
