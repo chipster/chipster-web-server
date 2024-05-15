@@ -48,17 +48,22 @@ import org.apache.commons.io.IOUtils;
  * (https://crypto.stackexchange.com/questions/31793/plain-text-size-limits-for-aes-gcm-mode-just-64gb).
  * TLS apparently gets around this by updating keys after certain amount of data
  * has been encrypted. However, there doesn't seem to exists a standard file
- * format for storing a stream of GCM records on disk. Additionally, it would be
- * daunting to rotate the encryption IV ourselves.
+ * format for storing a stream of GCM records on disk.
  * </p>
  * 
  * <p>
- * The CBC mode seems to offer a good balance here. It doesn't have known
- * catastrophic vulnerabilities, when we create a separate random key
- * and IV for each file. It doesn't offer authentication, but that's not a
- * problem if our primary threat model is the accidental publication of the
- * object storage bucket. It neither has a standard file format, but without
- * practical file size limit
+ * The CBC mode seems to offer a good balance here. Padding oracle attacs are
+ * not a problem here, because for that attacker would have to repeatedly alter
+ * the ciphertext, trigger the decryption and observe when the padding is
+ * correct. Firstly, our threat model does not include the write access in the
+ * S3. Secondly, the decryption can be triggered only by users who already have
+ * necessary access rights to see the file contents. CBC doesn't
+ * offer authentication, but that's not a problem if our primary threat model is
+ * only the accidental publication of the object storage bucket.
+ * </p>
+ * 
+ * <p>
+ * CBC neither has a standard file format, but without practical file size limit
  * (https://crypto.stackexchange.com/questions/51518/maximum-number-of-blocks-to-be-encrypted-under-one-key-in-cbc-and-ctr-mode),
  * we can simply concatenate the IV and the ciphertext, without the need for
  * any additional record structures.
