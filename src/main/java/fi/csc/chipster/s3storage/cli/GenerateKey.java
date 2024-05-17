@@ -2,7 +2,7 @@ package fi.csc.chipster.s3storage.cli;
 
 import javax.crypto.SecretKey;
 
-import fi.csc.chipster.s3storage.FileEncryption;
+import fi.csc.chipster.s3storage.encryption.FileEncryption;
 
 public class GenerateKey {
 

@@ -4,8 +4,8 @@ import java.io.File;
 
 import javax.crypto.SecretKey;
 
-import fi.csc.chipster.s3storage.FileEncryption;
-import fi.csc.chipster.s3storage.tests.EncryptDecryptTest;
+import fi.csc.chipster.s3storage.benchmark.EncryptDecryptBenchmark;
+import fi.csc.chipster.s3storage.encryption.FileEncryption;
 
 public class Decrypt {
 
@@ -22,6 +22,6 @@ public class Decrypt {
         File output = new File(args[1]);
         SecretKey secretKey = enc.parseKey(args[2]);
 
-        EncryptDecryptTest.testLarge(false, input, output, secretKey, enc);
+        EncryptDecryptBenchmark.testLarge(false, input, output, secretKey, enc);
     }
 }

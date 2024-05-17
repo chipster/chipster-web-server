@@ -3,7 +3,7 @@ package fi.csc.chipster.s3storage.cli;
 import java.io.File;
 import java.util.ArrayList;
 
-import fi.csc.chipster.s3storage.tests.TestData;
+import fi.csc.chipster.s3storage.benchmark.BenchmarkData;
 import io.jsonwebtoken.io.IOException;
 
 public class GenerateTestData {
@@ -17,7 +17,8 @@ public class GenerateTestData {
         long largeFileSize = Long.parseLong(args[0]);
         int smallFileCount = Integer.parseInt(args[1]);
 
-        File tmpDir = TestData.generateTestFiles(largeFileSize * 1024 * 1024, smallFileCount, new ArrayList<File>());
+        File tmpDir = BenchmarkData.generateTestFiles(largeFileSize * 1024 * 1024, smallFileCount,
+                new ArrayList<File>());
 
         System.out.println(tmpDir.getPath());
     }

@@ -28,7 +28,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import fi.csc.chipster.filebroker.StorageUtils;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.s3storage.ChecksumException;
+import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.model.File;

@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage.tests;
+package fi.csc.chipster.s3storage.benchmark;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,7 +13,7 @@ import org.apache.commons.io.IOUtils;
 
 import io.jsonwebtoken.io.IOException;
 
-public class TestData {
+public class BenchmarkData {
     public static File generateTestFiles(long fileSize, long smallFileCount, List<File> smallTestFiles)
             throws IOException, java.io.IOException {
 

@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.zip.CRC32;
 import java.util.zip.CRC32C;
 
-import fi.csc.chipster.s3storage.tests.ChecksumTest;
+import fi.csc.chipster.s3storage.benchmark.ChecksumBenchmark;
 
 public class Checksum {
 
@@ -22,11 +22,11 @@ public class Checksum {
                 File file = new File(args[1]);
 
                 if ("CRC32".equals(type)) {
-                        ChecksumTest.test(new CRC32(), null, file);
+                        ChecksumBenchmark.test(new CRC32(), null, file);
                 } else if ("CRC32C".equals(type)) {
-                        ChecksumTest.test(new CRC32C(), null, file);
+                        ChecksumBenchmark.test(new CRC32C(), null, file);
                 } else {
-                        ChecksumTest.test(null, type, file);
+                        ChecksumBenchmark.test(null, type, file);
                 }
         }
 }

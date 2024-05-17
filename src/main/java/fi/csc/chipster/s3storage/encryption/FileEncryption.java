@@ -1,6 +1,5 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.encryption;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -47,10 +46,10 @@ import org.apache.commons.io.IOUtils;
  * More modern inspiration could be taken from TLS and it's use of AES-256-GCM,
  * but it shouldn't be used for records larger than 64 GB
  * (https://crypto.stackexchange.com/questions/31793/plain-text-size-limits-for-aes-gcm-mode-just-64gb).
- * TLS apparently gets around this by diving the message into 16kiB records.
- * However, there doesn't seem to exists a standard file format for storing a
- * stream of GCM records on disk. Additionally, it would be daunting to rotate
- * the encryption IV ourselves.
+ * TLS apparently gets around this by updating keys after certain amount of data
+ * has been encrypted. However, there doesn't seem to exists a standard file
+ * format for storing a stream of GCM records on disk. Additionally, it would be
+ * daunting to rotate the encryption IV ourselves.
  * </p>
  * 
  * <p>
@@ -191,11 +190,12 @@ public class FileEncryption {
     public void encrypt(SecretKey secretKey, File input, File output) throws InvalidKeyException,
             NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
 
-        InputStream fileStream = new BufferedInputStream(new FileInputStream(input), 1 << 16);
+        InputStream fileStream = new FileInputStream(input);
         EncryptStream encryptStream = new EncryptStream(fileStream, secretKey, this.secureRandom);
+        OutputStream outputStream = new FileOutputStream(output);
 
-        try (encryptStream; OutputStream outputStream = new FileOutputStream(output)) {
-            IOUtils.copyLarge(encryptStream, outputStream);
+        try (encryptStream; outputStream) {
+            IOUtils.copyLarge(encryptStream, outputStream, new byte[1 << 16]);
         }
     }
 
@@ -203,11 +203,12 @@ public class FileEncryption {
             throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException,
             InvalidAlgorithmParameterException, IOException, IllegalFileException {
 
-        InputStream fileStream = new BufferedInputStream(new FileInputStream(input), 1 << 16);
+        InputStream fileStream = new FileInputStream(input);
         DecryptStream decryptStream = new DecryptStream(fileStream, secretKey);
+        OutputStream outputStream = new FileOutputStream(output);
 
-        try (decryptStream; OutputStream outputStream = new FileOutputStream(output)) {
-            IOUtils.copyLarge(decryptStream, outputStream);
+        try (decryptStream; outputStream) {
+            IOUtils.copyLarge(decryptStream, outputStream, new byte[1 << 16]);
         }
     }
 }

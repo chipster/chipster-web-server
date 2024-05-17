@@ -31,12 +31,13 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.S3Util;
-import fi.csc.chipster.s3storage.ChecksumStream;
-import fi.csc.chipster.s3storage.DecryptStream;
-import fi.csc.chipster.s3storage.EncryptStream;
-import fi.csc.chipster.s3storage.FileEncryption;
 import fi.csc.chipster.s3storage.FileLengthException;
-import fi.csc.chipster.s3storage.IllegalFileException;
+import fi.csc.chipster.s3storage.checksum.CRC32ChecksumStream;
+import fi.csc.chipster.s3storage.checksum.ChecksumStream;
+import fi.csc.chipster.s3storage.encryption.DecryptStream;
+import fi.csc.chipster.s3storage.encryption.EncryptStream;
+import fi.csc.chipster.s3storage.encryption.FileEncryption;
+import fi.csc.chipster.s3storage.encryption.IllegalFileException;
 import fi.csc.chipster.sessiondb.model.File;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -212,7 +213,7 @@ public class S3StorageClient {
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey);
 
 			if (byteRange == null) {
-				ChecksumStream checksumStream = new ChecksumStream(decryptStream, file.getChecksum());
+				ChecksumStream checksumStream = new CRC32ChecksumStream(decryptStream, file.getChecksum());
 
 				return checksumStream;
 			} else {
@@ -242,7 +243,7 @@ public class S3StorageClient {
 			long encryptedLength = this.fileEncryption.getEncryptedLength(length);
 
 			CountingInputStream countingInputStream = new CountingInputStream(fileStream);
-			ChecksumStream checksumStream = new ChecksumStream(countingInputStream, expectedChecksum);
+			ChecksumStream checksumStream = new CRC32ChecksumStream(countingInputStream, expectedChecksum);
 			EncryptStream encryptStream = new EncryptStream(checksumStream, secretKey,
 					this.fileEncryption.getSecureRandom());
 

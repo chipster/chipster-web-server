@@ -1,9 +1,9 @@
-package fi.csc.chipster.s3storage;
+package fi.csc.chipster.s3storage.checksum;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
+import java.util.zip.Checksum;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,22 +13,22 @@ public class ChecksumStream extends InputStream {
     private final static Logger logger = LogManager.getLogger();
 
     private CheckedInputStream checkedInputStream;
-    private CRC32 crc32;
+    private Checksum checksum;
 
     private String expectedChecksum;
     private String streamChecksum;
 
-    public ChecksumStream(InputStream in, String expectedChecksum) {
+    public ChecksumStream(InputStream in, String expectedChecksum, Checksum checksum) {
 
         this.expectedChecksum = expectedChecksum;
-        this.crc32 = new CRC32();
+        this.checksum = checksum;
 
-        this.checkedInputStream = new CheckedInputStream(in, crc32);
+        this.checkedInputStream = new CheckedInputStream(in, checksum);
     }
 
     private void end() {
 
-        this.streamChecksum = Long.toHexString(this.crc32.getValue());
+        this.streamChecksum = Long.toHexString(this.checksum.getValue());
 
         if (this.expectedChecksum != null) {
             if (this.expectedChecksum.equals(streamChecksum)) {

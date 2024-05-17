@@ -1,4 +1,4 @@
-package fi.csc.chipster.s3storage.tests;
+package fi.csc.chipster.s3storage.benchmark;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,10 +13,10 @@ import javax.crypto.SecretKey;
 
 import org.apache.commons.io.FileUtils;
 
-import fi.csc.chipster.s3storage.FileEncryption;
-import fi.csc.chipster.s3storage.IllegalFileException;
+import fi.csc.chipster.s3storage.encryption.FileEncryption;
+import fi.csc.chipster.s3storage.encryption.IllegalFileException;
 
-public class EncryptDecryptTest {
+public class EncryptDecryptBenchmark {
 
     public static void main(String[] args) throws Throwable {
 
@@ -26,7 +26,7 @@ public class EncryptDecryptTest {
 
         List<File> smallTestFiles = new ArrayList<File>();
 
-        File tmpDir = TestData.generateTestFiles(fileSize, smallFileCount, smallTestFiles);
+        File tmpDir = BenchmarkData.generateTestFiles(fileSize, smallFileCount, smallTestFiles);
 
         File largeTestFile = new File(tmpDir, "rand");
         File largeTestFileAes = new File(tmpDir, "rand.aes");
