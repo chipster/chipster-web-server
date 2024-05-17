@@ -55,8 +55,9 @@ url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
+url-admin-ext-s3-storage: http://{{admin-ip}}:8117
 
-# admin internal addresses, for services calling admin API of other services
+# internal admin addresses, when admin API is called by other services
 url-admin-int-session-db: http://{{admin-ip}}:8104
 url-admin-int-file-storage: http://{{admin-ip}}:8116
 
