@@ -65,26 +65,29 @@ public class ServiceLocator {
 		Map<String, String> intServices = config.getInternalServiceUrls();
 		Map<String, String> extServices = config.getExternalServiceUrls();
 		Map<String, String> adminServices = config.getAdminServiceUrls();
+		Map<String, String> internalAdminServices = config.getInternalAdminServiceUrls();
 
 		// all services having internal, external or admin address
 		HashSet<String> services = new HashSet<>();
 		services.addAll(intServices.keySet());
 		services.addAll(extServices.keySet());
 		services.addAll(adminServices.keySet());
+		services.addAll(internalAdminServices.keySet());
 
 		ArrayList<Service> publicServices = new ArrayList<>();
 		ArrayList<Service> allServices = new ArrayList<>();
 
 		for (String service : services) {
 
-			publicServices.add(new Service(service, null, extServices.get(service), null));
+			publicServices.add(new Service(service, null, extServices.get(service), null, null));
 
 			// map returns null for missing addresses
 			allServices.add(new Service(
 					service,
 					intServices.get(service),
 					extServices.get(service),
-					adminServices.get(service)));
+					adminServices.get(service),
+					internalAdminServices.get(service)));
 		}
 
 		TokenRequestFilter tokenRequestFilter = new TokenRequestFilter(authService);

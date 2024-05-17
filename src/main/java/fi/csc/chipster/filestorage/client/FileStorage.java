@@ -6,18 +6,18 @@ public class FileStorage {
 
 	private String storageId;
 	private URI uri;
-	private URI adminUri;
+	private URI internalAdminUri;
 	private boolean readOnly;
 
-	public FileStorage(String storageId, URI uri, URI adminUri, boolean readOnly) {
+	public FileStorage(String storageId, URI uri, URI internalAdminUri, boolean readOnly) {
 		this.storageId = storageId;
 		this.uri = uri;
-		this.adminUri = adminUri;
+		this.internalAdminUri = internalAdminUri;
 		this.readOnly = readOnly;
 	}
 
 	public FileStorage(FileStorage storage) {
-		this(storage.getStorageId(), storage.getUri(), storage.getAdminUri(), storage.isReadOnly());
+		this(storage.getStorageId(), storage.getUri(), storage.getInternalAdminUri(), storage.isReadOnly());
 	}
 
 	public String getStorageId() {
@@ -36,12 +36,12 @@ public class FileStorage {
 		this.uri = uri;
 	}
 
-	public URI getAdminUri() {
-		return adminUri;
+	public URI getInternalAdminUri() {
+		return internalAdminUri;
 	}
 
-	public void setAdminUri(URI adminUri) {
-		this.adminUri = adminUri;
+	public void setInternalAdminUri(URI adminUri) {
+		this.internalAdminUri = adminUri;
 	}
 
 	public boolean isReadOnly() {

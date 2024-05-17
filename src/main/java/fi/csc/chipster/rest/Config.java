@@ -34,6 +34,7 @@ public class Config {
 	private static final String DB_URL_PREFIX = "db-url-";
 	private static final String URL_INT_PREFIX = "url-int-";
 	private static final String URL_EXT_PREFIX = "url-ext-";
+	private static final String URL_ADMIN_INT_PREFIX = "url-admin-int-";
 	private static final String URL_ADMIN_EXT_PREFIX = "url-admin-ext-";
 	private static final String URL_BIND_PREFIX = "url-bind-";
 	private static final String URL_ADMIN_BIND_PREFIX = "url-admin-bind-";
@@ -357,6 +358,16 @@ public class Config {
 	 */
 	public Map<String, String> getAdminServiceUrls() {
 		return removeEmptyValues(getConfigEntriesFixed(URL_ADMIN_EXT_PREFIX));
+	}
+
+	/**
+	 * Services having an internal admin address
+	 * 
+	 * @return a map where keys are the service names and values are their admin
+	 *         addresses
+	 */
+	public Map<String, String> getInternalAdminServiceUrls() {
+		return removeEmptyValues(getConfigEntriesFixed(URL_ADMIN_INT_PREFIX));
 	}
 
 	/**

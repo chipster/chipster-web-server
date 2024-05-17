@@ -84,7 +84,7 @@ public class FileBrokerAdminResource extends AdminResource {
 			throw new NotFoundException("storage " + id + " not found");
 		}
 
-		URI url = fileStorageDiscovery.getStorages().get(id).getAdminUri();
+		URI url = fileStorageDiscovery.getStorages().get(id).getInternalAdminUri();
 
 		if (url == null) {
 			throw new NotFoundException("storage " + id + " has no admin address");

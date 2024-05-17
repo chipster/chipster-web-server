@@ -46,7 +46,7 @@ public class SessionDbAdminClient {
 				.filter(s -> Role.SESSION_DB.equals(s.getRole()))
 				.collect(Collectors.toList());
 
-		sessionDbAdminUri = internalServices.get(0).getAdminUri();
+		sessionDbAdminUri = internalServices.get(0).getInternalAdminUri();
 	}
 
 	private WebTarget getSessionDbAdminTarget() {

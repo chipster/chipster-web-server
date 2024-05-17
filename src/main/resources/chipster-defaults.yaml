@@ -55,9 +55,10 @@ url-admin-ext-session-worker: http://{{admin-ip}}:8109
 url-admin-ext-type-service: http://{{admin-ip}}:8110
 url-admin-ext-backup: http://{{admin-ip}}:8115
 url-admin-ext-job-history: http://{{admin-ip}}:8114
-# these is really url-admin-int and accessed only through file-broker, but we don't yet hanle it differently in deployment scripts
-url-admin-ext-file-storage: http://{{admin-ip}}:8116
-url-admin-ext-s3-storage: http://{{admin-ip}}:8117
+
+# admin internal addresses, for services calling admin API of other services
+url-admin-int-session-db: http://{{admin-ip}}:8104
+url-admin-int-file-storage: http://{{admin-ip}}:8116
 
 # Address for the server to bind
 

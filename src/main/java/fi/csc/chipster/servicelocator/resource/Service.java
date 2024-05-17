@@ -7,15 +7,23 @@ public class Service {
 
 	private String serviceId;
 	private String role;
-	private String uri;
-	private String publicUri;
-	private String adminUri;
 
-	public Service(String role, String uri, String publicUri, String adminUri) {
+	// inconsistent naming for historical reasons
+	// internal address of the client API
+	private String uri;
+	// external address of the client API
+	private String publicUri;
+	// external address of the admin/m2m API
+	private String adminUri;
+	// internal address of the admin/m2m API
+	private String internalAdminUri;
+
+	public Service(String role, String uri, String publicUri, String adminUri, String internalAdminUri) {
 		this.role = role;
 		this.uri = uri;
 		this.publicUri = publicUri;
 		this.adminUri = adminUri;
+		this.internalAdminUri = internalAdminUri;
 	}
 
 	public Service() {
@@ -64,5 +72,13 @@ public class Service {
 
 	public void setAdminUri(String adminUri) {
 		this.adminUri = adminUri;
+	}
+
+	public String getInternalAdminUri() {
+		return internalAdminUri;
+	}
+
+	public void setInternalAdminUri(String privateAdminUri) {
+		this.internalAdminUri = privateAdminUri;
 	}
 }

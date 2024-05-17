@@ -205,8 +205,8 @@ public class FileStorageDiscovery {
 
 				URI adminUri = null;
 
-				if (storage.getAdminUri() != null) {
-					adminUri = new URI(storage.getAdminUri());
+				if (storage.getInternalAdminUri() != null) {
+					adminUri = new URI(storage.getInternalAdminUri());
 				}
 
 				boolean readOnly = readOnlyStorages.contains(id);
