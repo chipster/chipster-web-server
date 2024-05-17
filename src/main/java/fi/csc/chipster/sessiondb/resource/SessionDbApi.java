@@ -440,9 +440,10 @@ public class SessionDbApi {
 
 			if (state == FileState.COMPLETE) {
 				// let's assume all old Files in null state are COMPLETE
-				files.addAll(hibernate.session().createQuery("from File where storage=:storage and state=:state")
-						.setParameter("storage", storageId)
-						.setParameter("state", null).list());
+				List<File> nullStates = hibernate.session()
+						.createQuery("from File where storage=:storage and state is NULL")
+						.setParameter("storage", storageId).list();
+				files.addAll(nullStates);
 			}
 
 			return files;
