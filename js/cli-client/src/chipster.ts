@@ -115,7 +115,7 @@ export default class CliClient {
 
     let sessionUploadSubparser = sessionSubparsers.add_parser("upload");
     sessionUploadSubparser.add_argument("file", {
-      help: "session file to upload or - for stdin",
+      help: "session file to upload",
     });
     sessionUploadSubparser.add_argument("--name", {
       help: "session name (affects only the old session format)",
@@ -144,7 +144,7 @@ export default class CliClient {
 
     let datasetCreateSubparser = datasetSubparsers.add_parser("upload");
     datasetCreateSubparser.add_argument("file", {
-      help: "file to read or - for stdin",
+      help: "file to read",
     });
     datasetCreateSubparser.add_argument("--name", { help: "dataset name" });
 
