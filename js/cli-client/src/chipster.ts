@@ -38,6 +38,7 @@ import { fileURLToPath } from "url";
 import YAML from "yamljs";
 import path from "path";
 import argparse from "argparse";
+import * as fs from "fs";
 
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 export default class CliClient {
@@ -975,6 +976,14 @@ export default class CliClient {
   }
 }
 
-if (import.meta.url.endsWith(process.argv[1])) {
+/*
+Check if this is the main script
+
+NPM creates a symlink "chipster", because we defined it in the bin section of package.json.
+You can use command "npm link" to test it. 
+
+Use fs.realpathSync() to resolve the possible symlink.
+*/
+if (fileURLToPath(import.meta.url) === fs.realpathSync(process.argv[1])) {
   new CliClient();
 }
