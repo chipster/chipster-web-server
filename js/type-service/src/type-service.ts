@@ -36,7 +36,7 @@ export default class TypeService {
     this.username = "type-service";
     this.password = this.config.get("service-password-type-service");
 
-    this.serverRestClient = new RestClient(false, null);
+    this.serverRestClient = new RestClient(false, null, null);
     this.serverRestClient
       .getToken(this.username, this.password)
       .subscribe((serverToken) => {
@@ -147,7 +147,7 @@ export default class TypeService {
      * Maybe we should impelement the token validation here and use server
      * token the check the access rights from the session-db.
      */
-    let clientRestClient = new RestClient(false, clientToken);
+    let clientRestClient = new RestClient(false, clientToken, null);
     clientRestClient.services = this.serverRestClient.services;
 
     let datasets$;
@@ -334,7 +334,7 @@ export default class TypeService {
     let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
     // Configure RestClient to use internal addresses but client's token
-    let clientRestClient = new RestClient(false, clientToken);
+    let clientRestClient = new RestClient(false, clientToken, null);
     clientRestClient.services = this.serverRestClient.services;
 
     return clientRestClient

@@ -15,11 +15,11 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import rfs from "rotating-file-stream";
 import argparse from "argparse";
+
 const logger = Logger.getLogger(
   fileURLToPath(import.meta.url),
   "logs/chipster.log",
 );
-
 export default class ReplayServer {
   resultsPath: string;
   influxdbUrl: string;

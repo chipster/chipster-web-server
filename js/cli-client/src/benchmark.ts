@@ -100,7 +100,7 @@ export default class Benchmark {
 
     console.log("login as", args.username);
 
-    this.restClient = new RestClient(true);
+    this.restClient = new RestClient(true, null, null);
 
     let benchmark = ChipsterUtils.getToken(
       args.URL,
