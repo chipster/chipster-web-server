@@ -129,6 +129,9 @@ backup-gpg-program: gpg2
 # use symmetric encryption for the backups
 backup-gpg-passphrase: ""
 
+# Java default is used when this is empty string. Set to TLSv1.2 to downgrade TLS version.
+tls-version: ""
+
 # JWS keys
 
 # jws signing key, can be generated with the following command (https://connect2id.com/products/nimbus-jose-jwt/openssl-key-generation):

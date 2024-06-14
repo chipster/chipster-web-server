@@ -69,7 +69,7 @@ public class FileBroker {
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
 		this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
-		this.s3StorageClient = new S3StorageClient(config);
+		this.s3StorageClient = new S3StorageClient(config, Role.FILE_BROKER);
 
 		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
 		this.fileBrokerApi = new FileBrokerApi(this.s3StorageClient, this.storageDiscovery, this.sessionDbAdminClient,

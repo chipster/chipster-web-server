@@ -63,7 +63,7 @@ public class S3Storage {
 		String username = Role.S3_STORAGE;
 		String password = config.getPassword(username);
 
-		this.s3StorageClient = new S3StorageClient(config);
+		this.s3StorageClient = new S3StorageClient(config, Role.S3_STORAGE);
 
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);

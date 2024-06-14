@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Arrays;
@@ -59,10 +60,10 @@ public class S3StorageBackup {
 	private Config config;
 	private S3StorageClient s3StorageClient;
 
-	public S3StorageBackup() throws NoSuchAlgorithmException {
+	public S3StorageBackup(String role) throws NoSuchAlgorithmException, KeyManagementException {
 
 		this.config = new Config();
-		this.s3StorageClient = new S3StorageClient(config);
+		this.s3StorageClient = new S3StorageClient(config, role);
 	}
 
 	private void archiveAndCleanUp(String role) {
@@ -181,8 +182,8 @@ public class S3StorageBackup {
 		logger.info("s3 backup done: " + storageId);
 	}
 
-	public static void main(String[] args) throws NoSuchAlgorithmException {
-		S3StorageBackup backup = new S3StorageBackup();
+	public static void main(String[] args) throws NoSuchAlgorithmException, KeyManagementException {
+		S3StorageBackup backup = new S3StorageBackup(Role.S3_STORAGE);
 
 		backup.archiveAndCleanUp(Role.S3_STORAGE);
 

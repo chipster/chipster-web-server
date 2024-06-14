@@ -1,6 +1,10 @@
 package fi.csc.chipster.rest.hibernate;
 
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
+
+import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +21,8 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 
+import fi.csc.chipster.rest.Config;
+
 /**
  * Utilities for using S3
  * 
@@ -24,6 +30,7 @@ import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 public class S3Util {
 
 	private final static Logger logger = LogManager.getLogger();
+	private static final String CONF_TLS_VERSION = "tls-version";
 
 	public static TransferManager getTransferManager(String endpoint, String region, String access, String secret,
 			String signerOverride, boolean pathStyleAccess) {
@@ -78,5 +85,61 @@ public class S3Util {
 			summaries.addAll(listing.getObjectSummaries());
 		}
 		return summaries;
+	}
+
+	/**
+	 * Configure TLS version
+	 * 
+	 * Option for disabling TLSv1.3, because downloads from ha-proxy (a3s.fi) fail
+	 * at key update after 128 GiB.
+	 * 
+	 * Unfortunately AWS SDK expects this to be changed globally:
+	 * https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/security-java-tls.html
+	 * .
+	 * 
+	 * This has to be called early enough (before any use of SSLContext?) to have an
+	 * effect.
+	 * 
+	 * @param config
+	 * @param role
+	 * @throws KeyManagementException
+	 * @throws NoSuchAlgorithmException
+	 */
+	public static void configureTLSVersion(Config config, String role)
+			throws KeyManagementException, NoSuchAlgorithmException {
+
+		String tlsVersion = config.getString(CONF_TLS_VERSION, role);
+
+		if (tlsVersion != null && !tlsVersion.isEmpty()) {
+
+			logger.info("configure TLS version " + tlsVersion);
+
+			// start with -Djavax.net.debug=ssl:handshake to check results
+			System.setProperty("jdk.tls.client.protocols", tlsVersion);
+		}
+	}
+
+	public static void checkTLSVersion(Config config, String role) throws NoSuchAlgorithmException {
+
+		String configuredTlsVersion = config.getString(CONF_TLS_VERSION, role);
+		String[] enabledVersions = SSLContext.getDefault().getDefaultSSLParameters().getProtocols();
+
+		String joindedEnabledVersions = String.join(",", enabledVersions);
+
+		// doesn't care about array order. May show error if multiple versions are
+		// configured
+		if (configuredTlsVersion != null && !configuredTlsVersion.isEmpty()
+				&& !configuredTlsVersion.equals(joindedEnabledVersions)) {
+
+			logger.error("TLS version was configured too late (most likely this has to be fixed in source code)");
+			logger.error("TLS versions in configuration: " + configuredTlsVersion);
+			logger.error("TLS versions in use:           " + joindedEnabledVersions);
+			try {
+				// make error more visible
+				Thread.sleep(10_000);
+			} catch (InterruptedException e) {
+				// don't care
+			}
+		}
 	}
 }

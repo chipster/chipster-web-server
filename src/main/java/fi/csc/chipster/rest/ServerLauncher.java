@@ -9,6 +9,7 @@ import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.filestorage.FileStorage;
 import fi.csc.chipster.jobhistory.JobHistoryService;
+import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.S3Storage;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
@@ -46,6 +47,15 @@ public class ServerLauncher {
 	private S3Storage s3Storage;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
+
+		/*
+		 * Configure TLS version
+		 * 
+		 * This is used only in S3StorageClient, but it's too late to configure it there
+		 * when ServerLauncher is used. This is also a global settings, so we cannot
+		 * limit its effect only to file-broker
+		 */
+		S3Util.configureTLSVersion(config, null);
 
 		long t = System.currentTimeMillis();
 

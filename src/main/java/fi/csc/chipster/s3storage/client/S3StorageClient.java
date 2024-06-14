@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,7 +76,10 @@ public class S3StorageClient implements StorageClient {
 
 	private Random random = new Random();
 
-	public S3StorageClient(Config config) throws NoSuchAlgorithmException {
+	public S3StorageClient(Config config, String role) throws NoSuchAlgorithmException, KeyManagementException {
+
+		S3Util.configureTLSVersion(config, role);
+		S3Util.checkTLSVersion(config, role);
 
 		this.transferManagers = initTransferManagers(config);
 		this.fileEncryption = new FileEncryption();

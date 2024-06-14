@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HashMap;
@@ -134,9 +135,11 @@ public class ZipSessionServletTest {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 * @throws NoSuchAlgorithmException
+	 * @throws KeyManagementException
 	 */
 	@Test
-	public void compressionError() throws RestException, IOException, InterruptedException, NoSuchAlgorithmException {
+	public void compressionError()
+			throws RestException, IOException, InterruptedException, NoSuchAlgorithmException, KeyManagementException {
 
 		Session session = RestUtils.getRandomSession();
 
@@ -178,7 +181,7 @@ public class ZipSessionServletTest {
 			Files.delete(FileServlet.getStoragePath(Paths.get("storage"), file.getFileId()));
 		} catch (NoSuchFileException e) {
 			// apparently this installation is configured to use s3-storage
-			S3StorageClient s3StorageClient = new S3StorageClient(new Config());
+			S3StorageClient s3StorageClient = new S3StorageClient(new Config(), null);
 			s3StorageClient.delete(file);
 		}
 

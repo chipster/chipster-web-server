@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.SequenceInputStream;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
@@ -428,7 +429,8 @@ public class FileResourceTest {
 	}
 
 	@Test
-	public void delete() throws IOException, InterruptedException, RestException, NoSuchAlgorithmException {
+	public void delete()
+			throws IOException, InterruptedException, RestException, NoSuchAlgorithmException, KeyManagementException {
 
 		UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
 		assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
@@ -446,7 +448,7 @@ public class FileResourceTest {
 
 		if (!storageFile.exists()) {
 			// apparently this installation is configured to use s3-storage
-			s3StorageClient = new S3StorageClient(new Config());
+			s3StorageClient = new S3StorageClient(new Config(), null);
 		}
 
 		// remove the dataset
