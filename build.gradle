@@ -125,7 +125,9 @@ dependencies {
     implementation "org.postgresql:postgresql:+"
     
     // flyway
-    implementation "org.flywaydb:flyway-core:7.+"
+    implementation "org.flywaydb:flyway-core:10.+"
+    implementation "org.flywaydb:flyway-database-postgresql:10.+"
+
     
     // db backups
     implementation "com.amazonaws:aws-java-sdk-s3:+"
