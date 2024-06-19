@@ -239,8 +239,12 @@ public class GpgBackupUtils {
 		String signerOverride = config.getString(CONF_BACKUP_S3_SIGNER_OVERRIDE, role);
 		boolean pathStyleAccess = config.getBoolean(CONF_BACKUP_S3_PATH_STYLE_ACCESS, role);
 
-		if (endpoint == null || region == null || access == null || secret == null) {
+		if (endpoint == null || endpoint.isEmpty() ||
+				region == null || region.isEmpty() ||
+				access == null || access.isEmpty() ||
+				secret == null || secret.isEmpty()) {
 			logger.warn("backups are not configured");
+			return null;
 		}
 
 		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride, pathStyleAccess);
