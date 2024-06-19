@@ -109,7 +109,8 @@ db-export-schema: false
 
 # db backups
 
-backup-s3-endpoint: object.pouta.csc.fi
+# S3 endpoint, e.g. a3s.fi
+backup-s3-endpoint: ""
 backup-s3-region: regionOne
 backup-s3-access-key: ""
 backup-s3-secret-key: ""
