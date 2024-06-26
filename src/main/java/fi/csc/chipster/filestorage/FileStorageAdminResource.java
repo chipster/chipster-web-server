@@ -203,7 +203,7 @@ public class FileStorageAdminResource extends AdminResource {
 				.collect(Collectors.toMap(f -> f.getFileId().toString(), f -> f));
 
 		List<String> orphanFiles = StorageAdminClient.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
-				completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
+				completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient, storageId);
 
 		moveOrphanFiles(orphanFiles);
 
@@ -221,7 +221,7 @@ public class FileStorageAdminResource extends AdminResource {
 				Files.createDirectories(orphanFilePath.getParent());
 				Files.move(storageFilePath, orphanFilePath);
 			} catch (IllegalArgumentException e) {
-				logger.warn("orpah file " + fileName + " in storage is not valid UUID (" + e.getClass().getName() + " "
+				logger.warn("orphan file " + fileName + " in storage is not valid UUID (" + e.getClass().getName() + " "
 						+ e.getMessage() + ")");
 
 			} catch (IOException e) {

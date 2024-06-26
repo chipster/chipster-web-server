@@ -125,7 +125,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
     public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
             Boolean checksums) {
-        logger.info("storage check started");
+        logger.info(storageId + " storage check started");
 
         try {
             /*
@@ -150,15 +150,15 @@ public class S3StorageAdminClient implements StorageAdminClient {
             Map<String, File> uploadingDbFilesMap = getEncryptedLengthMap(uploadingDbFiles);
 
             List<String> orphanFiles = StorageAdminClient.check(storageFiles, oldOrphanFiles, uploadingDbFilesMap,
-                    completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient);
+                    completeDbFilesMap, deleteDatasetsOfMissingFiles, sessionDbAdminClient, storageId);
 
             saveListOfOrphanFiles(orphanFiles);
 
-            logger.info(orphanFiles.size() + " orphan files saved in " + OBJECT_KEY_ORPHAN_FILES);
+            logger.info(storageId + " " + orphanFiles.size() + " orphan files saved in " + OBJECT_KEY_ORPHAN_FILES);
 
             if (checksums != null && checksums) {
-                verifyChecksums("state COMPLETE,  ", completeDbFiles);
-                verifyChecksums("state UPLOADING, ", uploadingDbFiles);
+                verifyChecksums(storageId + " state COMPLETE,  ", completeDbFiles);
+                verifyChecksums(storageId + " state UPLOADING, ", uploadingDbFiles);
             }
 
         } catch (RestException | java.io.IOException | InterruptedException | CloneNotSupportedException e) {
