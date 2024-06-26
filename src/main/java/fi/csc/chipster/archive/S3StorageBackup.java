@@ -53,7 +53,7 @@ import fi.csc.chipster.s3storage.client.S3StorageClient;
  */
 public class S3StorageBackup {
 
-	private static final String KEY_BACKUP_DONE = "backup-done.json";
+	public static final String KEY_BACKUP_DONE = "backup-done.json";
 
 	private Logger logger = LogManager.getLogger();
 

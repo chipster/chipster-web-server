@@ -13,6 +13,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.archive.S3StorageBackup;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
@@ -66,7 +67,8 @@ public interface StorageAdminClient {
 
                 List<String> orphanFiles = new HashSet<>(storageFiles.keySet()).stream()
                                 .filter(fileName -> !completeDbFilesMap.containsKey(fileName)
-                                                && !uploadingDbFilesMap.containsKey(fileName))
+                                                && !uploadingDbFilesMap.containsKey(fileName)
+                                                && !S3StorageBackup.KEY_BACKUP_DONE.equals(fileName))
                                 .collect(Collectors.toList());
 
                 long orphanFilesTotal = orphanFiles.stream().mapToLong(storageFiles::get).sum();
