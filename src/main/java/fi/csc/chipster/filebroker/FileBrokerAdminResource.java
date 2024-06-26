@@ -116,7 +116,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	public Response backupMonitoring(@PathParam("storageId") String storageId) {
 
 		// pass null for the sc because we don't have credentials
-		getFileStorageAdminClient(storageId, null).checkBackup();
+		getStorageAdminClient(storageId, null).checkBackup();
 
 		return Response.ok().build();
 	}

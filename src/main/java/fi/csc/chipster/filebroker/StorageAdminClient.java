@@ -193,4 +193,6 @@ public interface StorageAdminClient {
 
                 return deletedFiles;
         }
+
+        void checkBackup();
 }

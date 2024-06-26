@@ -26,6 +26,7 @@ import com.amazonaws.services.s3.model.HeadBucketRequest;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
+import fi.csc.chipster.archive.S3StorageBackup;
 import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
@@ -327,5 +328,18 @@ public class S3StorageAdminClient implements StorageAdminClient {
         jsonMap.put("storageId", storageId);
 
         return RestUtils.asJson(jsonMap);
+    }
+
+    @Override
+    public void checkBackup() {
+
+        String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
+        String bucket = this.s3StorageClient.storageIdToBucket(storageId);
+
+        if (!this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client().doesObjectExist(bucket,
+                S3StorageBackup.KEY_BACKUP_DONE)) {
+
+            throw new NotFoundException();
+        }
     }
 }
