@@ -1,4 +1,4 @@
-import { forkJoin, of as observableOf } from "rxjs";
+import { from, of as observableOf } from "rxjs";
 import { map, mergeMap } from "rxjs/operators";
 import { Tag, Tags, TypeTags } from "./type-tags.js";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
@@ -165,6 +165,9 @@ export default class TypeService {
 
     let t0 = Date.now();
 
+    // array of [datasetId, typeTags] tuples
+    var allTypes = [];
+
     datasets$
       .pipe(
         mergeMap((datasets: any[]) => {
@@ -173,13 +176,32 @@ export default class TypeService {
             this.getTypeTags(sessionId, dataset, clientToken)
           );
 
-          // wait for all observables to complete and return an array of tuples
-          return types$.length ? forkJoin(types$) : observableOf([]);
+          // some results of a local test:
+          // 1: type tagging 1072 datasets took 19312ms
+          // 2: type tagging 1072 datasets took 9827ms
+          // 4: type tagging 1072 datasets took 5931ms
+          // 8: type tagging 1072 datasets took 4535ms
+          // 16: type tagging 1072 datasets took 3500ms
+          // 32: type tagging 1072 datasets took 3300ms
+          // 64: type tagging 1072 datasets took 3853ms
+          // 128: ECONNRESET
+          const maxConcurrent = 16;
+
+          return from(types$).pipe(
+            mergeMap((observable) => observable, maxConcurrent)
+          );
         })
       )
       .subscribe(
-        (typesArray) => {
-          let types = this.tupleArrayToObject(typesArray);
+        // wait for all observables to complete and collect an array of tuples
+        (oneResult) => {
+          allTypes.push(oneResult);
+        },
+        (err) => {
+          this.respondError(next, err);
+        },
+        () => {
+          let types = this.tupleArrayToObject(allTypes);
           res.contentType = "json";
           res.send(types);
           next();
@@ -187,14 +209,11 @@ export default class TypeService {
           // logger.info("response", JSON.stringify(types));
           logger.info(
             "type tagging " +
-              typesArray.length +
+              allTypes.length +
               " datasets took " +
               (Date.now() - t0) +
               "ms"
           );
-        },
-        (err) => {
-          this.respondError(next, err);
         }
       );
   }
