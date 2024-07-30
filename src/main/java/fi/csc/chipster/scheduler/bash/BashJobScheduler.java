@@ -95,6 +95,7 @@ public class BashJobScheduler implements JobScheduler {
 	private ThreadPoolExecutor bashExecutor;
 
 	private Logger logger = LogManager.getLogger();
+	private Logger compJobLogger = LogManager.getLogger("fi.csc.chipster.scheduler.bash.compLog");
 
 	private JobSchedulerCallback scheduler;
 	private String runScript;
@@ -671,6 +672,9 @@ public class BashJobScheduler implements JobScheduler {
 
 	@Override
 	public void removeFinishedJob(IdPair idPair) {
+
+		// collect the comp log before the pod is deleted
+		this.compJobLogger.info("comp log of " + idPair + "\n" + this.getLog(idPair));
 
 		BashJob job = null;
 
