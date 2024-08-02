@@ -22,19 +22,15 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.s3.transfer.Download;
-import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.s3.transfer.Upload;
-
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.BackupRotation2;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.S3Util;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class BackupArchive {
 
@@ -78,8 +74,8 @@ public class BackupArchive {
 
 	private HashSet<String> findStorageBackups(String startsWith, String delimiter, String role) {
 		String bucket = GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE);
-		TransferManager transferManager = GpgBackupUtils.getTransferManager(config, role);
-		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		S3AsyncClient s3Client = GpgBackupUtils.getS3Client(config, role);
+		List<S3Object> objects = S3Util.getObjects(s3Client, bucket);
 		List<String> backups = findBackups(objects, startsWith, BACKUP_INFO);
 
 		HashSet<String> backupPrefixes = new HashSet<>();
@@ -99,11 +95,12 @@ public class BackupArchive {
 
 		Path archiveRootPath = Paths.get("backup-archive");
 
-		TransferManager transferManager = GpgBackupUtils.getTransferManager(config, role);
+		S3AsyncClient s3AsyncClient = GpgBackupUtils.getS3Client(config, role);
+		S3TransferManager transferManager = S3Util.getTransferManager(s3AsyncClient);
 		logger.info("find " + backupPrefix + " from S3");
 
 		String bucket = GpgBackupUtils.getBackupBucket(config, role);
-		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
 
 		// archive all starting from the oldest
 		List<String> backups = findBackups(objects, backupPrefix, BACKUP_INFO);
@@ -120,7 +117,8 @@ public class BackupArchive {
 				logger.info("archive backup " + backupName);
 
 				try {
-					archive(transferManager, backupPrefix, archiveRootPath, role, backupName, bucket, objects);
+					archive(s3AsyncClient, transferManager, backupPrefix, archiveRootPath, role, backupName, bucket,
+							objects);
 
 					if (type == BackupType.FULL) {
 						removeOldFullArchives(archiveRootPath, backupPrefix, dailyCount, monthlyCount);
@@ -133,23 +131,22 @@ public class BackupArchive {
 				}
 			}
 
-			cleanUpS3(transferManager, backupPrefix, role, bucket);
+			cleanUpS3(s3AsyncClient, backupPrefix, role, bucket);
 		} catch (ArchiveException e) {
 			// hopefully this is enough if the archiving takes longer than 24 hours to
 			// protect against multiple processes moving the files
 			// at the same time
 			logger.error("archive error, skip all " + backupPrefix, e);
-		} finally {
-			transferManager.shutdownNow();
 		}
 	}
 
-	private void cleanUpS3(TransferManager transferManager, String backupNamePrefix, String role, String bucket) {
+	private void cleanUpS3(S3AsyncClient s3AsyncClient, String backupNamePrefix,
+			String role, String bucket) {
 
 		logger.info("clean up archived S3 backups of " + backupNamePrefix);
 
 		// get objects to find also those that we just archived
-		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
 		List<String> archivedBackups = findBackups(objects, backupNamePrefix, ARCHIVE_INFO);
 
 		// delete all but the latest
@@ -161,7 +158,7 @@ public class BackupArchive {
 			for (String backupName : archivedBackups.subList(0, archivedBackups.size() - 1)) {
 				logger.info("delete backup " + backupName + " from S3");
 				Set<String> objectsOfBackup = objects.stream()
-						.map(obj -> obj.getKey())
+						.map(obj -> obj.key())
 						.filter(key -> key.startsWith(backupName + "/"))
 						.collect(Collectors.toSet());
 
@@ -172,11 +169,11 @@ public class BackupArchive {
 		for (int i = 0; i < 10 && !objectsToDelete.isEmpty(); i++) {
 			logger.info("delete " + objectsToDelete.size() + " objects from S3, attempt " + i);
 			objectsToDelete.stream()
-					.forEach(key -> transferManager.getAmazonS3Client().deleteObject(bucket, key));
+					.forEach(key -> S3Util.deleteObject(s3AsyncClient, bucket, key));
 
-			Set<String> keys = transferManager.getAmazonS3Client().listObjects(bucket).getObjectSummaries().stream()
-					.map(obj -> obj.getKey())
-					.collect(Collectors.toSet());
+			List<String> keys = S3Util.getObjects(s3AsyncClient, bucket).stream()
+					.map(obj -> obj.key())
+					.collect(Collectors.toList());
 
 			Set<String> remaining = objectsToDelete.stream()
 					.filter(key -> keys.contains(key))
@@ -189,8 +186,9 @@ public class BackupArchive {
 		logger.info("clean up done");
 	}
 
-	private void archive(TransferManager transferManager, String backupNamePrefix, Path archiveRootPath, String role,
-			String backupName, String bucket, List<S3ObjectSummary> objects)
+	private void archive(S3AsyncClient s3AsyncClient, S3TransferManager transferManager, String backupNamePrefix,
+			Path archiveRootPath, String role,
+			String backupName, String bucket, List<S3Object> objects)
 			throws IOException, InterruptedException, ArchiveException {
 
 		Path currentBackupPath = archiveRootPath.resolve(backupName);
@@ -206,7 +204,7 @@ public class BackupArchive {
 				currentBackupPath);
 
 		List<String> backupObjects = objects.stream()
-				.map(o -> o.getKey())
+				.map(o -> o.key())
 				.filter(name -> name.startsWith(backupName + "/"))
 				.collect(Collectors.toList());
 
@@ -245,15 +243,15 @@ public class BackupArchive {
 				+ " for next incremental backup");
 		Path archiveInfoPath = writeArchiveInfo(currentBackupPath, backupInfoMap);
 
-		Upload upload = transferManager.upload(bucket, backupName + "/" + ARCHIVE_INFO, archiveInfoPath.toFile());
-		upload.waitForCompletion();
+		S3Util.uploadFile(transferManager, bucket, backupName + "/" + ARCHIVE_INFO, archiveInfoPath);
+
 		logger.info("backup archiving done");
 	}
 
-	private List<String> findBackups(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
+	private List<String> findBackups(List<S3Object> objects, String backupNamePrefix, String fileName) {
 
 		return objects.stream()
-				.map(o -> o.getKey())
+				.map(o -> o.key())
 				.filter(name -> name.startsWith(backupNamePrefix))
 				// only completed backups (the file info list uploaded in the end)
 				.filter(name -> name.endsWith("/" + fileName))
@@ -391,37 +389,30 @@ public class BackupArchive {
 		Files.move(source, target);
 	}
 
-	private void downloadFiles(List<String> backupObjects, String bucket, TransferManager transferManager,
+	private void downloadFiles(List<String> backupObjects, String bucket, S3TransferManager transferManager,
 			Path downloadDirPath)
-			throws AmazonServiceException, AmazonClientException, InterruptedException, IOException {
+			throws InterruptedException, IOException {
+
 		for (String key : backupObjects) {
 
 			String filename = Paths.get(key).getFileName().toString();
 			Path downloadFilePath = downloadDirPath.resolve(filename);
 
-			int maxRetries = 10;
-			for (int i = 0; i < maxRetries; i++) {
-				logger.info("download " + bucket + "/" + key);
-				try {
-					Download download = transferManager.download(bucket, key, downloadFilePath.toFile());
-					// download.addProgressListener(new ProgressListener() {
-					// @Override
-					// public void progressChanged(ProgressEvent progressEvent) {
-					// logger.info("download progress " + progressEvent.getEventType().name()
-					// + " bytes: " + FileUtils.byteCountToDisplaySize(progressEvent.getBytes())
-					// + " transferred: " +
-					// FileUtils.byteCountToDisplaySize(progressEvent.getBytesTransferred()));
-					// }
-					// });
-					download.waitForCompletion();
-					break;
-				} catch (AmazonClientException e) {
-					logger.warn("download try " + i + " failed with exception", e);
-					if (i == maxRetries - 1) {
-						throw e;
-					}
-				}
-			}
+			// int maxRetries = 10;
+			// for (int i = 0; i < maxRetries; i++) {
+			logger.info("download " + bucket + "/" + key);
+			// try {
+
+			S3Util.downloadFile(transferManager, bucket, key, downloadFilePath);
+
+			// break;
+			// } catch (AmazonClientException e) {
+			// logger.warn("download try " + i + " failed with exception", e);
+			// if (i == maxRetries - 1) {
+			// throw e;
+			// }
+			// }
+			// }
 
 			if (key.endsWith(".tar")) {
 				extract(downloadFilePath, downloadDirPath);

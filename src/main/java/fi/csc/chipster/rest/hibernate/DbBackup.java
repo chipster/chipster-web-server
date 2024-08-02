@@ -25,10 +25,6 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.transfer.TransferManager;
-
 import fi.csc.chipster.archive.BackupArchive;
 import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.model.Role;
@@ -37,6 +33,8 @@ import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.DatabaseConnectionRefused;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class DbBackup implements StatusSource {
 
@@ -66,9 +64,11 @@ public class DbBackup implements StatusSource {
 
 	private Map<String, Object> stats = new HashMap<String, Object>();
 
-	private TransferManager transferManager;
+	private S3TransferManager transferManager;
 
 	private String bucket;
+
+	private S3AsyncClient s3AsyncClient;
 
 	public DbBackup(Config config, String role, String url, String user, String password, Path backupRoot)
 			throws IOException, InterruptedException {
@@ -91,7 +91,8 @@ public class DbBackup implements StatusSource {
 			return;
 		}
 
-		this.transferManager = GpgBackupUtils.getTransferManager(config, role);
+		this.s3AsyncClient = GpgBackupUtils.getS3Client(config, role);
+		this.transferManager = S3Util.getTransferManager(this.s3AsyncClient);
 
 		Configuration hibernateConf = HibernateUtil.getHibernateConf(new ArrayList<Class<?>>(), url, "none", user,
 				password, config, role);
@@ -113,7 +114,7 @@ public class DbBackup implements StatusSource {
 		}
 		try {
 			backup();
-		} catch (IOException | AmazonClientException | InterruptedException e) {
+		} catch (IOException | InterruptedException e) {
 			logger.error(role + " db backup failed", e);
 		}
 	}
@@ -131,7 +132,7 @@ public class DbBackup implements StatusSource {
 		ProcessUtils.run(null, null, env, true, new String[] { "vacuumlo", "-U", this.user, dbUrl });
 	}
 
-	private void backup() throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
+	private void backup() throws IOException, InterruptedException {
 
 		if (this.sessionFactory == null) {
 			throw new IllegalStateException("no backup configuration for " + role);
@@ -250,7 +251,7 @@ public class DbBackup implements StatusSource {
 
 		int backupInterval = Integer.parseInt(config.getString(GpgBackupUtils.CONF_BACKUP_INTERVAL, role));
 
-		Instant backupTime = GpgBackupUtils.getLatestArchive(transferManager, backupPrefix, bucket);
+		Instant backupTime = GpgBackupUtils.getLatestArchive(s3AsyncClient, backupPrefix, bucket);
 
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));

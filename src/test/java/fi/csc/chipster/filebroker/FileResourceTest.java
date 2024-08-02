@@ -1,6 +1,7 @@
 package fi.csc.chipster.filebroker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
@@ -13,6 +14,7 @@ import java.io.SequenceInputStream;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -21,8 +23,6 @@ import org.glassfish.jersey.client.ClientProperties;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import com.amazonaws.services.s3.model.AmazonS3Exception;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
@@ -38,6 +38,7 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 public class FileResourceTest {
 
@@ -465,8 +466,9 @@ public class FileResourceTest {
 			try {
 				s3StorageClient.downloadAndDecrypt(file, null);
 				fail("expected exception was not thrown");
-			} catch (AmazonS3Exception e) {
-				assertEquals("NoSuchKey", e.getErrorCode());
+			} catch (CompletionException e) {
+				// expected
+				assertTrue(e.getCause() instanceof NoSuchKeyException);
 			}
 		}
 	}

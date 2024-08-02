@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
@@ -20,13 +23,6 @@ import javax.crypto.SecretKey;
 import org.apache.commons.codec.DecoderException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.s3.transfer.Transfer;
-import com.amazonaws.services.s3.transfer.TransferManager;
 
 import fi.csc.chipster.filebroker.FileBrokerAdminResource;
 import fi.csc.chipster.filebroker.StorageClient;
@@ -46,6 +42,17 @@ import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest.Builder;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.Upload;
+import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 
 /**
  * Client for accessing s3-storage files
@@ -69,19 +76,28 @@ public class S3StorageClient implements StorageClient {
 	private static final String CONF_S3_PATH_STYLE_ACCESS = "s3-storage-path-style-access";
 	private static final String CONF_S3_STORAGE_BUCKET_PREFIX = "s3-storage-bucket-";
 
-	private Map<String, TransferManager> transferManagers;
+	private Map<String, S3AsyncClient> s3AsyncClients;
+	private Map<String, S3TransferManager> transferManagers;
 	private Map<String, ArrayList<String>> buckets = new HashMap<>();
 
 	private FileEncryption fileEncryption;
 
 	private Random random = new Random();
 
+	private ExecutorService uploadExecutor;
+
 	public S3StorageClient(Config config, String role) throws NoSuchAlgorithmException, KeyManagementException {
 
 		S3Util.configureTLSVersion(config, role);
 		S3Util.checkTLSVersion(config, role);
 
-		this.transferManagers = initTransferManagers(config);
+		this.s3AsyncClients = initS3AsyncClients(config);
+		this.transferManagers = new HashMap<>();
+
+		for (String s3Name : this.s3AsyncClients.keySet()) {
+			this.transferManagers.put(s3Name, S3Util.getTransferManager(this.s3AsyncClients.get(s3Name)));
+		}
+
 		this.fileEncryption = new FileEncryption();
 
 		for (String s3Name : this.transferManagers.keySet()) {
@@ -95,10 +111,12 @@ public class S3StorageClient implements StorageClient {
 				logger.info("s3-storage " + s3Name + " bucket: " + bucket);
 			}
 		}
+
+		uploadExecutor = Executors.newCachedThreadPool();
 	}
 
-	public TransferManager getTransferManager(String s3Name) {
-		return this.transferManagers.get(s3Name);
+	public S3AsyncClient getS3AsyncClient(String s3Name) {
+		return this.s3AsyncClients.get(s3Name);
 	}
 
 	/**
@@ -107,20 +125,20 @@ public class S3StorageClient implements StorageClient {
 	 * @param config
 	 * @return
 	 */
-	public static TransferManager getOneTransferManager(Config config) {
-		Map<String, TransferManager> tms = initTransferManagers(config);
+	public static S3TransferManager getOneTransferManager(Config config) {
+		Map<String, S3AsyncClient> clients = initS3AsyncClients(config);
 
-		if (tms.size() > 1) {
+		if (clients.size() > 1) {
 			logger.warn("multiple s3Names configured");
 		}
 
 		// get one
-		return new ArrayList<>(tms.values()).get(0);
+		return S3Util.getTransferManager(clients.values().iterator().next());
 	}
 
-	public static Map<String, TransferManager> initTransferManagers(Config config) {
+	public static Map<String, S3AsyncClient> initS3AsyncClients(Config config) {
 
-		Map<String, TransferManager> transferManagers = new HashMap<>();
+		Map<String, S3AsyncClient> clients = new HashMap<>();
 
 		// collect s3Names from all config options
 		// create new set, because the keySet() doesn't support modifications
@@ -147,19 +165,17 @@ public class S3StorageClient implements StorageClient {
 
 			logger.info("s3-storage " + s3Name + " endpoint: " + endpoint);
 
-			TransferManager tm = S3Util.getTransferManager(endpoint, region, access, secret, signerOverride,
+			S3AsyncClient client = S3Util.getClient(endpoint, region, access, secret, signerOverride,
 					pathStyleAccess);
 
-			transferManagers.put(s3Name, tm);
+			clients.put(s3Name, client);
 		}
 
-		return transferManagers;
+		return clients;
 	}
 
 	public void upload(String s3Name, String bucket, InputStream file, String objectName, Long length)
 			throws InterruptedException {
-
-		Transfer transfer = null;
 
 		// TransferManager can handle multipart uploads, but requires a file length in
 		// advance. The lower lever api would support uploads without file length, but
@@ -169,42 +185,47 @@ public class S3StorageClient implements StorageClient {
 			throw new IllegalArgumentException("length cannot be null");
 		}
 
-		ObjectMetadata objMeta = new ObjectMetadata();
-		objMeta.setContentLength(length);
+		UploadRequest uploadRequest = UploadRequest.builder()
+				.requestBody(AsyncRequestBody.fromInputStream(file, length, uploadExecutor))
+				.putObjectRequest(req -> req.bucket(bucket).key(objectName))
+				.build();
 
-		transfer = this.transferManagers.get(s3Name).upload(bucket, objectName, file, objMeta);
+		Upload upload = this.transferManagers.get(s3Name).upload(uploadRequest);
 
-		AmazonClientException exception = transfer.waitForException();
-		if (exception != null) {
+		try {
+			upload.completionFuture().join();
 
-			if (exception instanceof AmazonClientException) {
+		} catch (CompletionException ce) {
+			if (ce.getCause() instanceof SdkClientException) {
+				SdkClientException exception = (SdkClientException) ce.getCause();
 
-				// unwrap FileLengthException, because that's what the FileStorageClient throws
-				// too
 				if (exception.getCause() instanceof FileLengthException) {
+					// unwrap FileLengthException, because that's what the FileStorageClient
 					throw (FileLengthException) exception.getCause();
-				}
 
-				if (exception.getCause() instanceof ChecksumException) {
+				} else if (exception.getCause() instanceof ChecksumException) {
 					throw (ChecksumException) exception.getCause();
 				}
 			}
-
-			throw exception;
+			throw ce;
 		}
 	}
 
-	public S3ObjectInputStream download(String s3Name, String bucket, String objectName, Long start, Long end)
+	public ResponseInputStream<GetObjectResponse> download(String s3Name, String bucket, String objectName, Long start,
+			Long end)
 			throws InterruptedException {
 
-		GetObjectRequest request = new GetObjectRequest(bucket, objectName);
+		Builder request = GetObjectRequest.builder()
+				.bucket(bucket)
+				.key(objectName);
 
 		logger.debug("download range: " + start + " " + end);
 		if (start != null || end != null) {
-			request = request.withRange(start, end);
+			request = request.range(new ByteRange(start, end).toHttpHeaderString());
 		}
 
-		return transferManagers.get(s3Name).getAmazonS3Client().getObject(request).getObjectContent();
+		return s3AsyncClients.get(s3Name).getObject(request.build(), AsyncResponseTransformer.toBlockingInputStream())
+				.join();
 	}
 
 	public InputStream downloadAndDecrypt(File file, ByteRange byteRange) {
@@ -240,7 +261,7 @@ public class S3StorageClient implements StorageClient {
 			String bucket = storageIdToBucket(file.getStorage());
 			String s3Name = storageIdToS3Name(file.getStorage());
 
-			S3ObjectInputStream s3Stream = this.download(s3Name, bucket, fileId, start, end);
+			ResponseInputStream<GetObjectResponse> s3Stream = this.download(s3Name, bucket, fileId, start, end);
 			InputStream decryptStream = new DecryptStream(s3Stream, secretKey, plaintextEnd);
 
 			if (byteRange == null) {
@@ -438,6 +459,10 @@ public class S3StorageClient implements StorageClient {
 		public String toString() {
 			return "[" + getStart() + ", " + getEnd() + "]";
 		}
+
+		public String toHttpHeaderString() {
+			return "bytes=" + getStart() + "-" + getEnd();
+		}
 	}
 
 	public FileStorage[] getStorages() {
@@ -461,13 +486,10 @@ public class S3StorageClient implements StorageClient {
 		String s3Name = storageIdToS3Name(storageId);
 		String bucket = storageIdToBucket(storageId);
 
-		this.transferManagers.get(s3Name).getAmazonS3Client().deleteObject(bucket, fileId.toString());
+		S3Util.deleteObject(this.s3AsyncClients.get(s3Name), bucket, fileId.toString());
 	}
 
 	public void close() {
-		for (String s3Name : this.transferManagers.keySet()) {
-			this.transferManagers.get(s3Name).shutdownNow();
-		}
 	}
 
 	@Override

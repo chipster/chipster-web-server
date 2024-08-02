@@ -23,13 +23,12 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * Backup s3-storage
@@ -98,7 +97,7 @@ public class S3StorageBackup {
 		String s3Name = s3StorageClient.storageIdToS3Name(storageId);
 		String bucket = s3StorageClient.storageIdToBucket(storageId);
 
-		List<S3ObjectSummary> s3Objects = S3Util.getObjects(s3StorageClient.getTransferManager(s3Name), bucket);
+		List<S3Object> s3Objects = S3Util.getObjects(s3StorageClient.getS3AsyncClient(s3Name), bucket);
 
 		List<Path> dirs = Files.list(archiveRootPath)
 				.filter(path -> path.getFileName().toString().startsWith(storageId))
@@ -123,8 +122,8 @@ public class S3StorageBackup {
 		Set<String> filesToMove = new HashSet<>();
 		Set<String> filesToDownload = new HashSet<>();
 
-		for (S3ObjectSummary s3Object : s3Objects) {
-			String objectKey = s3Object.getKey();
+		for (S3Object s3Object : s3Objects) {
+			String objectKey = s3Object.key();
 
 			if (filesMap.containsKey(objectKey)) {
 				filesToMove.add(objectKey);

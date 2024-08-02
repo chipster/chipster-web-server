@@ -4,7 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.rmi.NoSuchObjectException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,17 +18,10 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.iterable.S3Objects;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.HeadBucketRequest;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-
 import fi.csc.chipster.archive.S3StorageBackup;
 import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;
@@ -38,6 +31,10 @@ import fi.csc.chipster.sessiondb.model.FileState;
 import io.jsonwebtoken.io.IOException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * Admin client for s3-storage
@@ -87,11 +84,12 @@ public class S3StorageAdminClient implements StorageAdminClient {
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        AmazonS3 amazonS3Client = this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client();
+        S3AsyncClient amazonS3Client = this.s3StorageClient.getS3AsyncClient(s3Name);
 
-        S3Objects.inBucket(amazonS3Client, bucket).forEach((S3ObjectSummary summary) -> {
-            result.put(summary.getKey(), summary.getSize());
-        });
+        S3Util.getObjects(amazonS3Client, bucket).stream()
+                .forEach((S3Object summary) -> {
+                    result.put(summary.key(), summary.size());
+                });
         // remove our list of orphan files
         result.remove(OBJECT_KEY_ORPHAN_FILES);
 
@@ -105,19 +103,22 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
         try {
             // check if bucket exists
-            final HeadBucketRequest request = new HeadBucketRequest(bucket);
-            this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client().headBucket(request);
+            if (S3Util.exists(this.s3StorageClient.getS3AsyncClient(s3Name), bucket)) {
 
-            HashMap<String, Object> jsonMap = new HashMap<>();
-            // jsonMap.put("status", null);
+                HashMap<String, Object> jsonMap = new HashMap<>();
+                // jsonMap.put("status", null);
 
-            return RestUtils.asJson(jsonMap);
-
-        } catch (AmazonServiceException e) {
-            if (e.getStatusCode() == 404 | e.getStatusCode() == 403 || e.getStatusCode() == 301) {
+                return RestUtils.asJson(jsonMap);
+            } else {
                 throw new NotFoundException();
             }
-            throw e;
+
+            // } catch (AmazonServiceException e) {
+            // if (e.getStatusCode() == 404 | e.getStatusCode() == 403 || e.getStatusCode()
+            // == 301) {
+            // throw new NotFoundException();
+            // }
+            // throw e;
         } catch (Exception e) {
             logger.error("failed to check bucket status", e);
             throw e;
@@ -195,13 +196,9 @@ public class S3StorageAdminClient implements StorageAdminClient {
                 } catch (ChecksumException e) {
                     logger.info("checksum failed: " + file.getFileId());
                     wrongChecksum++;
-                } catch (AmazonS3Exception e) {
-                    if (e.getStatusCode() == 404) {
-                        logger.info("cannot verify checksum, object not found: " + file.getFileId());
-                        missingFile++;
-                    } else {
-                        throw e;
-                    }
+                } catch (NoSuchObjectException e) {
+                    logger.info("cannot verify checksum, object not found: " + file.getFileId());
+                    missingFile++;
                 } catch (java.io.IOException e) {
                     if (e.getCause() instanceof IllegalBlockSizeException) {
                         logger.info("checksum failed: " + file.getFileId() + " " + e.getCause() + " " + e.getMessage());
@@ -265,7 +262,8 @@ public class S3StorageAdminClient implements StorageAdminClient {
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        try (S3ObjectInputStream is = this.s3StorageClient.download(s3Name, bucket, OBJECT_KEY_ORPHAN_FILES, null,
+        try (ResponseInputStream<GetObjectResponse> is = this.s3StorageClient.download(s3Name, bucket,
+                OBJECT_KEY_ORPHAN_FILES, null,
                 null)) {
 
             String json = IOUtils.toString(is, StandardCharsets.UTF_8.name());
@@ -274,13 +272,14 @@ public class S3StorageAdminClient implements StorageAdminClient {
             List<String> orphanFiles = RestUtils.parseJson(List.class, String.class, json);
 
             return orphanFiles;
-        } catch (AmazonS3Exception e) {
-            if (e.getStatusCode() == 404) {
-                // no old orphan files, because the file doesn't exist
-                return new ArrayList<String>();
-            }
-            throw e;
         }
+        // catch (AmazonS3Exception e) {
+        // if (e.getStatusCode() == 404) {
+        // // no old orphan files, because the file doesn't exist
+        // return new ArrayList<String>();
+        // }
+        // throw e;
+        // }
     }
 
     private Map<String, Long> getOldOrphanFiles(Map<String, Long> storageFiles)
@@ -306,7 +305,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
             for (String orphan : oldOrphans) {
                 logger.info("delete old orphan file " + orphan);
-                this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client().deleteObject(bucket, orphan);
+                S3Util.deleteObject(this.s3StorageClient.getS3AsyncClient(s3Name), bucket, orphan);
             }
 
             logger.info("delete " + oldOrphans.size() + " old orphan files: done");
@@ -336,7 +335,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        if (!this.s3StorageClient.getTransferManager(s3Name).getAmazonS3Client().doesObjectExist(bucket,
+        if (!S3Util.exists(this.s3StorageClient.getS3AsyncClient(s3Name), bucket,
                 S3StorageBackup.KEY_BACKUP_DONE)) {
 
             throw new NotFoundException();

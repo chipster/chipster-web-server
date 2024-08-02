@@ -4,23 +4,23 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import org.apache.commons.io.FileUtils;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.transfer.Transfer;
-import com.amazonaws.services.s3.transfer.TransferManager;
-
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.Transfer;
 
 /**
  * Test the performance of S3 file transfer using aws-sdk library in Java
  */
 public class S3Benchmark {
 
-	public static void test(TransferManager tm, String bucket, String name, boolean isUpload, boolean isSerial,
+	public static void test(S3TransferManager tm, String bucket, String name, boolean isUpload, boolean isSerial,
 			int count, String fileName) throws InterruptedException {
 
 		long t = System.currentTimeMillis();
@@ -34,16 +34,25 @@ public class S3Benchmark {
 			if (isUpload) {
 				// same file is fine for uploads
 				File file = new File(fileName);
-				transfer = tm.upload(bucket, "rand_4k_" + i, file);
+
+				transfer = S3Util.uploadFileAsync(tm, bucket, "rand_4k_" + i, file.toPath());
 			} else {
 				File file = new File(fileName + i + ".s3");
-				transfer = tm.download(bucket, "rand_4k_" + i, file);
+
+				transfer = S3Util.downloadFileAsync(tm, bucket, "rand_4k_" + i, file.toPath());
 			}
 
 			if (isSerial) {
-				AmazonClientException exception = transfer.waitForException();
-				if (exception != null) {
-					throw exception;
+				try {
+					transfer.completionFuture().join();
+				} catch (CompletionException e) {
+					if (e.getCause() instanceof S3Exception) {
+						S3Exception s3e = (S3Exception) e.getCause();
+						System.out.println("status code: " + s3e.statusCode());
+						System.out.println("message: " + s3e.getMessage());
+						System.out.println("error details: " + s3e.awsErrorDetails());
+					}
+					throw e;
 				}
 			} else {
 				transfers.add(transfer);
@@ -52,10 +61,7 @@ public class S3Benchmark {
 
 		if (!isSerial) {
 			for (Transfer transfer : transfers) {
-				AmazonClientException exception = transfer.waitForException();
-				if (exception != null) {
-					throw exception;
-				}
+				transfer.completionFuture().join();
 			}
 		}
 
@@ -80,44 +86,36 @@ public class S3Benchmark {
 
 		// long largeFileSize = 1l * 1024 * 1024 * 1024;
 		// int smallFilesCount = 100;
-		long largeFileSize = 128l * 1024 * 1024;
+		long largeFileSize = 10l * 1024 * 1024;
+		// long largeFileSize = 128l * 1024 * 1024;
 		int smallFilesCount = 10;
 
 		File tmpDir = BenchmarkData.generateTestFiles(largeFileSize, smallFilesCount, new ArrayList<File>());
 		String tmpDirString = tmpDir.getPath();
 
 		Config config = new Config();
-		TransferManager tm = S3StorageClient.getOneTransferManager(config);
+		S3TransferManager tm = S3StorageClient.getOneTransferManager(config);
 
 		String bucket = "s3-file-broker-test";
 
-		try {
+		test(tm, bucket, "warm-up", true, true, smallFilesCount, tmpDirString + "/rand_4k_0");
 
-			test(tm, bucket, "warm-up", true, true, smallFilesCount, tmpDirString + "/rand_4k_0");
+		test(tm, bucket, "4k", true, true, smallFilesCount, tmpDirString + "/rand_4k_0");
 
-			test(tm, bucket, "4k", true, true, smallFilesCount, tmpDirString + "/rand_4k_0");
+		test(tm, bucket, "4k", true, false, smallFilesCount, tmpDirString + "/rand_4k_0");
 
-			test(tm, bucket, "4k", true, false, smallFilesCount, tmpDirString + "/rand_4k_0");
+		test(tm, bucket, "4k", false, true, smallFilesCount, tmpDirString + "/rand_4k_");
 
-			test(tm, bucket, "4k", false, true, smallFilesCount, tmpDirString + "/rand_4k_");
+		test(tm, bucket, "4k", false, false, smallFilesCount, tmpDirString + "/rand_4k_");
 
-			test(tm, bucket, "4k", false, false, smallFilesCount, tmpDirString + "/rand_4k_");
+		test(tm, bucket, "large", true, true, 1, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", true, true, 1, tmpDirString + "/rand");
+		test(tm, bucket, "large", false, true, 1, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", false, true, 1, tmpDirString + "/rand");
+		test(tm, bucket, "large", true, false, 4, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", true, false, 4, tmpDirString + "/rand");
+		test(tm, bucket, "large", false, false, 4, tmpDirString + "/rand");
 
-			test(tm, bucket, "large", false, false, 4, tmpDirString + "/rand");
-
-			FileUtils.deleteDirectory(tmpDir);
-
-		} catch (AmazonServiceException e) {
-			e.printStackTrace();
-			System.err.println(e.getErrorMessage());
-			System.exit(1);
-		}
-		tm.shutdownNow();
+		FileUtils.deleteDirectory(tmpDir);
 	}
 }

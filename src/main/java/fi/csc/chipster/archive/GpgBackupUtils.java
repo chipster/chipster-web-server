@@ -23,16 +23,12 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.s3.transfer.Download;
-import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.s3.transfer.Upload;
-
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.S3Util;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class GpgBackupUtils {
 
@@ -55,13 +51,13 @@ public class GpgBackupUtils {
 	public static final String CONF_BACKUP_GPG_PUBLIC_KEY = "backup-gpg-public-key";
 	public static final String CONF_BACKUP_GPG_PROGRAM = "backup-gpg-program";
 
-	public static Map<Path, InfoLine> infoFileToMap(TransferManager transferManager, String bucket, String key,
+	public static Map<Path, InfoLine> infoFileToMap(S3TransferManager transferManager, String bucket, String key,
 			Path tempDir)
-			throws AmazonServiceException, AmazonClientException, InterruptedException, IOException, ArchiveException {
+			throws InterruptedException, IOException, ArchiveException {
 
 		Path infoPath = tempDir.resolve(key);
-		Download download = transferManager.download(bucket, key, infoPath.toFile());
-		download.waitForCompletion();
+
+		S3Util.downloadFile(transferManager, bucket, key, infoPath);
 
 		try {
 			Map<Path, InfoLine> map = (HashMap<Path, InfoLine>) Files.lines(infoPath)
@@ -77,7 +73,7 @@ public class GpgBackupUtils {
 	}
 
 	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir,
-			TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient,
+			S3TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient,
 			String gpgPassphrase, Config config) throws IOException, InterruptedException {
 		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, transferManager, bucket, backupName,
 				backupInfoPath, recipient, gpgPassphrase, config);
@@ -88,7 +84,7 @@ public class GpgBackupUtils {
 	}
 
 	public static void backupFilesAsTar(String name, Path storage, Set<Path> files, Path backupDir,
-			TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient,
+			S3TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient,
 			String gpgPassphrase, Config config) throws IOException, InterruptedException {
 
 		Path tarPath = backupDir.resolve(name + ".tar");
@@ -198,14 +194,14 @@ public class GpgBackupUtils {
 		Files.delete(tarPath);
 	}
 
-	private static void upload(TransferManager transferManager, String bucket, String bucketDir, Path filePath,
-			boolean verbose) throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
+	private static void upload(S3TransferManager transferManager, String bucket, String bucketDir, Path filePath,
+			boolean verbose) throws IOException, InterruptedException {
 		if (verbose) {
 			logger.info("upload " + filePath.getFileName() + " to " + bucket + "/" + bucketDir + " ("
 					+ FileUtils.byteCountToDisplaySize(Files.size(filePath)) + ")");
 		}
-		Upload upload = transferManager.upload(bucket, bucketDir + "/" + filePath.getFileName(), filePath.toFile());
-		upload.waitForCompletion();
+
+		S3Util.uploadFile(transferManager, bucket, bucketDir + "/" + filePath, filePath);
 	}
 
 	public static Path getPackageGpgPath(Path packageFilePath) {
@@ -224,14 +220,14 @@ public class GpgBackupUtils {
 		return parts[0];
 	}
 
-	public static void uploadBackupInfo(TransferManager transferManager, String bucket, String backupName,
-			Path backupInfoPath) throws AmazonServiceException, AmazonClientException, InterruptedException {
-		Upload upload = transferManager.upload(bucket, backupName + "/" + BackupArchive.BACKUP_INFO,
-				backupInfoPath.toFile());
-		upload.waitForCompletion();
+	public static void uploadBackupInfo(S3TransferManager transferManager, String bucket, String backupName,
+			Path backupInfoPath) throws InterruptedException {
+
+		S3Util.uploadFile(transferManager, bucket, backupName + "/" + BackupArchive.BACKUP_INFO, backupInfoPath);
 	}
 
-	public static TransferManager getTransferManager(Config config, String role) {
+	public static S3AsyncClient getS3Client(Config config, String role) {
+
 		String endpoint = config.getString(CONF_BACKUP_S3_ENDPOINT, role);
 		String region = config.getString(CONF_BACKUP_S3_REGION, role);
 		String access = config.getString(CONF_BACKUP_S3_ACCESS_KEY, role);
@@ -247,7 +243,7 @@ public class GpgBackupUtils {
 			return null;
 		}
 
-		return S3Util.getTransferManager(endpoint, region, access, secret, signerOverride, pathStyleAccess);
+		return S3Util.getClient(endpoint, region, access, secret, signerOverride, pathStyleAccess);
 	}
 
 	public static String getBackupBucket(Config config, String role) {
@@ -326,9 +322,9 @@ public class GpgBackupUtils {
 		return recipient;
 	}
 
-	public static String findLatest(List<S3ObjectSummary> objects, String backupNamePrefix, String fileName) {
+	public static String findLatest(List<S3Object> objects, String backupNamePrefix, String fileName) {
 		List<String> fileBrokerBackups = objects.stream()
-				.map(o -> o.getKey())
+				.map(o -> o.key())
 				.filter(name -> name.startsWith(backupNamePrefix))
 				// only completed backups (the file info list uploaded in the end)
 				.filter(name -> name.endsWith("/" + fileName))
@@ -345,8 +341,8 @@ public class GpgBackupUtils {
 		return fileBrokerBackups.get(fileBrokerBackups.size() - 1);
 	}
 
-	public static Instant getLatestArchive(TransferManager transferManager, String backupNamePrefix, String bucket) {
-		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+	public static Instant getLatestArchive(S3AsyncClient s3AsyncClient, String backupNamePrefix, String bucket) {
+		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
 
 		String archiveInfoKey = findLatest(objects, backupNamePrefix, BackupArchive.ARCHIVE_INFO);
 

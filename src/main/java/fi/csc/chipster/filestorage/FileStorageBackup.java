@@ -27,11 +27,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.services.s3.transfer.TransferManager;
-
 import fi.csc.chipster.archive.ArchiveException;
 import fi.csc.chipster.archive.BackupArchive;
 import fi.csc.chipster.archive.GpgBackupUtils;
@@ -40,6 +35,9 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.S3Util;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class FileStorageBackup implements StatusSource {
 
@@ -55,7 +53,7 @@ public class FileStorageBackup implements StatusSource {
 
 	private Map<String, Object> stats = new HashMap<String, Object>();
 
-	private TransferManager transferManager;
+	private S3TransferManager transferManager;
 
 	private String fileStorageBackupNamePrefix;
 
@@ -65,6 +63,8 @@ public class FileStorageBackup implements StatusSource {
 	private ScheduledFuture<?> scheduledBackup;
 
 	private Future<?> manualBackup;
+
+	private S3AsyncClient s3AsyncClient;
 
 	public FileStorageBackup(Path storage, boolean scheduleTimer, Config config, String storageId)
 			throws IOException, InterruptedException {
@@ -77,9 +77,15 @@ public class FileStorageBackup implements StatusSource {
 		this.config = config;
 		this.bucket = GpgBackupUtils.getBackupBucket(config, role);
 
+		if (bucket.isEmpty()) {
+			logger.warn("no backup configuration for " + role);
+			return;
+		}
+
 		this.gpgRecipient = GpgBackupUtils.importPublicKey(config, role);
 
-		this.transferManager = GpgBackupUtils.getTransferManager(config, role);
+		this.s3AsyncClient = GpgBackupUtils.getS3Client(config, role);
+		this.transferManager = S3Util.getTransferManager(this.s3AsyncClient);
 
 		// easier to check later
 		if (this.gpgPassphrase == null || this.gpgPassphrase.isBlank()) {
@@ -88,11 +94,6 @@ public class FileStorageBackup implements StatusSource {
 
 		if (this.gpgRecipient == null || this.gpgRecipient.isBlank()) {
 			this.gpgRecipient = null;
-		}
-
-		if (bucket.isEmpty()) {
-			logger.warn("no backup configuration for " + role);
-			return;
 		}
 
 		this.initExecutor();
@@ -206,7 +207,7 @@ public class FileStorageBackup implements StatusSource {
 	}
 
 	public void backup()
-			throws IOException, InterruptedException, AmazonServiceException, AmazonClientException, ArchiveException {
+			throws IOException, InterruptedException, ArchiveException {
 
 		stats.clear();
 		long startTime = System.currentTimeMillis();
@@ -221,7 +222,7 @@ public class FileStorageBackup implements StatusSource {
 		backupDir.toFile().mkdir();
 
 		logger.info("find archived backups");
-		List<S3ObjectSummary> objects = S3Util.getObjects(transferManager, bucket);
+		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
 
 		String archiveInfoKey = GpgBackupUtils.findLatest(objects, this.fileStorageBackupNamePrefix,
 				BackupArchive.ARCHIVE_INFO);
@@ -554,7 +555,7 @@ public class FileStorageBackup implements StatusSource {
 
 		int backupInterval = Integer.parseInt(config.getString(GpgBackupUtils.CONF_BACKUP_INTERVAL, role));
 
-		Instant backupTime = GpgBackupUtils.getLatestArchive(transferManager, this.fileStorageBackupNamePrefix, bucket);
+		Instant backupTime = GpgBackupUtils.getLatestArchive(s3AsyncClient, this.fileStorageBackupNamePrefix, bucket);
 
 		// false if there is no success during two backupIntervals
 		return backupTime != null && backupTime.isAfter(Instant.now().minus(2 * backupInterval, ChronoUnit.HOURS));

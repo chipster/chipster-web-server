@@ -3,13 +3,10 @@ package fi.csc.chipster.s3storage.cli;
 import java.io.File;
 import java.io.IOException;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.transfer.Transfer;
-import com.amazonaws.services.s3.transfer.TransferManager;
-
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 /**
  * CLI utility prgram to download file from S3
@@ -32,31 +29,17 @@ public class Download {
 		File file = new File(args[2]);
 
 		Config config = new Config();
-		TransferManager tm = S3StorageClient.getOneTransferManager(config);
+		S3TransferManager tm = S3StorageClient.getOneTransferManager(config);
 
-		try {
-
-			download(tm, bucket, file, objectKey);
-
-		} catch (AmazonServiceException e) {
-			e.printStackTrace();
-			System.err.println(e.getErrorMessage());
-			System.exit(1);
-		}
-		tm.shutdownNow();
+		download(tm, bucket, file, objectKey);
 	}
 
-	public static void download(TransferManager tm, String bucket, File file, String objectKey)
+	public static void download(S3TransferManager tm, String bucket, File file, String objectKey)
 			throws InterruptedException {
 
 		long t = System.currentTimeMillis();
 
-		Transfer transfer = tm.download(bucket, objectKey, file);
-
-		AmazonClientException exception = transfer.waitForException();
-		if (exception != null) {
-			throw exception;
-		}
+		S3Util.downloadFile(tm, bucket, objectKey, file.toPath());
 
 		long dt = System.currentTimeMillis() - t;
 

@@ -464,7 +464,7 @@ file-broker-shutdown-timeout: 3600
 # Default settings for s3-storages. See the configuration example below.
 s3-storage-access-key: ""
 s3-storage-secret-key: ""
-s3-storage-endpoint: a3s.fi
+s3-storage-endpoint: ""
 s3-storage-region: regionOne
 s3-storage-signer-override: S3SignerType
 s3-storage-path-style-access: false
@@ -479,7 +479,7 @@ s3-storage-bucket: ""
 # Existing files will be used from the current buckets even when buckets are not configured. If you don't
 # set any buckets for a S3 server, it won't be used for new files.
 
-# s3-storage-endpoint-allas: a3s.fi
+# s3-storage-endpoint-allas: https://a3s.fi
 # s3-storage-access-key-allas: <access_key>
 # s3-storage-secret-key-allas: <secret-key>
 # s3-storage-bucket-allas-0: "storage-test-0"
