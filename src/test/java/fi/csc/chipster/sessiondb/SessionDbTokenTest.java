@@ -139,6 +139,10 @@ public class SessionDbTokenTest {
 				throw e;
 			}
 		}
+
+		// comp may delete datasets when it retries uploads
+		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+		tokenClient.deleteDataset(sessionId1, datasetId);
 	}
 
 	@Test
@@ -492,13 +496,6 @@ public class SessionDbTokenTest {
 
 		try {
 			tokenClient.updateDataset(sessionId1, user1Client.getDataset(sessionId1, datasetId1));
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(403, e.getResponse().getStatus());
-		}
-
-		try {
-			tokenClient.deleteDataset(sessionId1, datasetId1);
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());

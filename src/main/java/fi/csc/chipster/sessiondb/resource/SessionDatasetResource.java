@@ -240,8 +240,17 @@ public class SessionDatasetResource {
 		sessionDbApi.sessionModified(session, getHibernate().session());
 	}
 
+	/**
+	 * Delete dataset
+	 * 
+	 * Deletion with session token is needed in comp when it retries failed uploads.
+	 * 
+	 * @param datasetId
+	 * @param sc
+	 * @return
+	 */
 	@DELETE
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
 	@Path("{id}")
 	@Transaction
 	public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {

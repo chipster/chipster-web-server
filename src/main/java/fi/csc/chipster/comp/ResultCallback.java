@@ -7,7 +7,8 @@ package fi.csc.chipster.comp;
 
 import java.io.File;
 
-import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
+import fi.csc.chipster.filebroker.RestFileBrokerClient;
+import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.toolbox.ToolboxClientComp;
 
 /**
@@ -35,7 +36,9 @@ public interface ResultCallback {
 
 	public void removeRunningJob(CompJob job);
 
-	public LegacyRestFileBrokerClient getFileBrokerClient() throws Exception;
+	public RestFileBrokerClient getFileBrokerClient() throws Exception;
 
 	public ToolboxClientComp getToolboxClient();
+
+	public SessionDbClient getSessionDbClient();
 }
