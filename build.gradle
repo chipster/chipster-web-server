@@ -137,6 +137,7 @@ dependencies {
 	// other
     implementation "commons-io:commons-io:+"
     implementation "org.apache.commons:commons-text:+"
+    implementation "commons-codec:commons-codec:+"
     
     // rxJava
     implementation "io.reactivex.rxjava3:rxjava:3.+"
