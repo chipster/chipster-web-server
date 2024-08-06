@@ -26,7 +26,6 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.S3Util;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
@@ -97,7 +96,7 @@ public class S3StorageBackup {
 		String s3Name = s3StorageClient.storageIdToS3Name(storageId);
 		String bucket = s3StorageClient.storageIdToBucket(storageId);
 
-		List<S3Object> s3Objects = S3Util.getObjects(s3StorageClient.getS3AsyncClient(s3Name), bucket);
+		List<S3Object> s3Objects = s3StorageClient.getChipsterS3Client(s3Name).getObjects(bucket);
 
 		List<Path> dirs = Files.list(archiveRootPath)
 				.filter(path -> path.getFileName().toString().startsWith(storageId))

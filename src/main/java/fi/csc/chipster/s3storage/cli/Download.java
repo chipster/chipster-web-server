@@ -4,9 +4,8 @@ import java.io.File;
 import java.io.IOException;
 
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.S3Util;
+import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 /**
  * CLI utility prgram to download file from S3
@@ -29,17 +28,17 @@ public class Download {
 		File file = new File(args[2]);
 
 		Config config = new Config();
-		S3TransferManager tm = S3StorageClient.getOneTransferManager(config);
+		ChipsterS3Client s3 = S3StorageClient.getOneChipsterS3Client(config);
 
-		download(tm, bucket, file, objectKey);
+		download(s3, bucket, file, objectKey);
 	}
 
-	public static void download(S3TransferManager tm, String bucket, File file, String objectKey)
-			throws InterruptedException {
+	public static void download(ChipsterS3Client s3Client, String bucket, File file, String objectKey)
+			throws InterruptedException, IOException {
 
 		long t = System.currentTimeMillis();
 
-		S3Util.downloadFile(tm, bucket, objectKey, file.toPath());
+		s3Client.downloadFile(bucket, objectKey, file);
 
 		long dt = System.currentTimeMillis() - t;
 

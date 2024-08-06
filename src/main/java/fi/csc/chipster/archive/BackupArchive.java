@@ -26,11 +26,9 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.BackupRotation2;
+import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.rest.hibernate.DbBackup;
-import fi.csc.chipster.rest.hibernate.S3Util;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class BackupArchive {
 
@@ -74,8 +72,8 @@ public class BackupArchive {
 
 	private HashSet<String> findStorageBackups(String startsWith, String delimiter, String role) {
 		String bucket = GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE);
-		S3AsyncClient s3Client = GpgBackupUtils.getS3Client(config, role);
-		List<S3Object> objects = S3Util.getObjects(s3Client, bucket);
+		ChipsterS3Client s3Client = GpgBackupUtils.getS3Client(config, role);
+		List<S3Object> objects = s3Client.getObjects(bucket);
 		List<String> backups = findBackups(objects, startsWith, BACKUP_INFO);
 
 		HashSet<String> backupPrefixes = new HashSet<>();
@@ -95,12 +93,11 @@ public class BackupArchive {
 
 		Path archiveRootPath = Paths.get("backup-archive");
 
-		S3AsyncClient s3AsyncClient = GpgBackupUtils.getS3Client(config, role);
-		S3TransferManager transferManager = S3Util.getTransferManager(s3AsyncClient);
+		ChipsterS3Client s3Client = GpgBackupUtils.getS3Client(config, role);
 		logger.info("find " + backupPrefix + " from S3");
 
 		String bucket = GpgBackupUtils.getBackupBucket(config, role);
-		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
+		List<S3Object> objects = s3Client.getObjects(bucket);
 
 		// archive all starting from the oldest
 		List<String> backups = findBackups(objects, backupPrefix, BACKUP_INFO);
@@ -117,7 +114,7 @@ public class BackupArchive {
 				logger.info("archive backup " + backupName);
 
 				try {
-					archive(s3AsyncClient, transferManager, backupPrefix, archiveRootPath, role, backupName, bucket,
+					archive(s3Client, backupPrefix, archiveRootPath, role, backupName, bucket,
 							objects);
 
 					if (type == BackupType.FULL) {
@@ -131,7 +128,7 @@ public class BackupArchive {
 				}
 			}
 
-			cleanUpS3(s3AsyncClient, backupPrefix, role, bucket);
+			cleanUpS3(s3Client, backupPrefix, role, bucket);
 		} catch (ArchiveException e) {
 			// hopefully this is enough if the archiving takes longer than 24 hours to
 			// protect against multiple processes moving the files
@@ -140,13 +137,13 @@ public class BackupArchive {
 		}
 	}
 
-	private void cleanUpS3(S3AsyncClient s3AsyncClient, String backupNamePrefix,
+	private void cleanUpS3(ChipsterS3Client s3Client, String backupNamePrefix,
 			String role, String bucket) {
 
 		logger.info("clean up archived S3 backups of " + backupNamePrefix);
 
 		// get objects to find also those that we just archived
-		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
+		List<S3Object> objects = s3Client.getObjects(bucket);
 		List<String> archivedBackups = findBackups(objects, backupNamePrefix, ARCHIVE_INFO);
 
 		// delete all but the latest
@@ -169,9 +166,9 @@ public class BackupArchive {
 		for (int i = 0; i < 10 && !objectsToDelete.isEmpty(); i++) {
 			logger.info("delete " + objectsToDelete.size() + " objects from S3, attempt " + i);
 			objectsToDelete.stream()
-					.forEach(key -> S3Util.deleteObject(s3AsyncClient, bucket, key));
+					.forEach(key -> s3Client.deleteObject(bucket, key));
 
-			List<String> keys = S3Util.getObjects(s3AsyncClient, bucket).stream()
+			List<String> keys = s3Client.getObjects(bucket).stream()
 					.map(obj -> obj.key())
 					.collect(Collectors.toList());
 
@@ -186,7 +183,7 @@ public class BackupArchive {
 		logger.info("clean up done");
 	}
 
-	private void archive(S3AsyncClient s3AsyncClient, S3TransferManager transferManager, String backupNamePrefix,
+	private void archive(ChipsterS3Client s3Client, String backupNamePrefix,
 			Path archiveRootPath, String role,
 			String backupName, String bucket, List<S3Object> objects)
 			throws IOException, InterruptedException, ArchiveException {
@@ -200,7 +197,7 @@ public class BackupArchive {
 		}
 
 		String key = backupName + "/" + BACKUP_INFO;
-		Map<Path, InfoLine> backupInfoMap = GpgBackupUtils.infoFileToMap(transferManager, bucket, key,
+		Map<Path, InfoLine> backupInfoMap = GpgBackupUtils.infoFileToMap(s3Client, bucket, key,
 				currentBackupPath);
 
 		List<String> backupObjects = objects.stream()
@@ -233,7 +230,7 @@ public class BackupArchive {
 
 		downloadPath.toFile().mkdirs();
 
-		downloadFiles(backupObjects, bucket, transferManager, downloadPath);
+		downloadFiles(backupObjects, bucket, s3Client, downloadPath);
 
 		collectFiles(archiveRootPath, currentBackupPath, downloadPath, backupInfoMap, backupName, backupNamePrefix);
 
@@ -243,7 +240,7 @@ public class BackupArchive {
 				+ " for next incremental backup");
 		Path archiveInfoPath = writeArchiveInfo(currentBackupPath, backupInfoMap);
 
-		S3Util.uploadFile(transferManager, bucket, backupName + "/" + ARCHIVE_INFO, archiveInfoPath);
+		s3Client.uploadFile(bucket, backupName + "/" + ARCHIVE_INFO, archiveInfoPath);
 
 		logger.info("backup archiving done");
 	}
@@ -389,7 +386,7 @@ public class BackupArchive {
 		Files.move(source, target);
 	}
 
-	private void downloadFiles(List<String> backupObjects, String bucket, S3TransferManager transferManager,
+	private void downloadFiles(List<String> backupObjects, String bucket, ChipsterS3Client s3Client,
 			Path downloadDirPath)
 			throws InterruptedException, IOException {
 
@@ -403,7 +400,7 @@ public class BackupArchive {
 			logger.info("download " + bucket + "/" + key);
 			// try {
 
-			S3Util.downloadFile(transferManager, bucket, key, downloadFilePath);
+			s3Client.downloadFile(bucket, key, downloadFilePath.toFile());
 
 			// break;
 			// } catch (AmazonClientException e) {

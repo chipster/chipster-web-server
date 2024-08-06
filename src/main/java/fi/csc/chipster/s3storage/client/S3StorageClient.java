@@ -13,9 +13,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
@@ -29,7 +28,7 @@ import fi.csc.chipster.filebroker.StorageClient;
 import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.exception.ConflictException;
-import fi.csc.chipster.rest.hibernate.S3Util;
+import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.checksum.CRC32CheckedStream;
 import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
@@ -43,16 +42,9 @@ import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.async.AsyncRequestBody;
-import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.core.exception.SdkClientException;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest.Builder;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.Upload;
-import software.amazon.awssdk.transfer.s3.model.UploadRequest;
+import software.amazon.awssdk.services.s3.model.S3Response;
 
 /**
  * Client for accessing s3-storage files
@@ -72,35 +64,26 @@ public class S3StorageClient implements StorageClient {
 	private static final String CONF_S3_REGION = "s3-storage-region";
 	private static final String CONF_S3_ACCESS_KEY = "s3-storage-access-key";
 	private static final String CONF_S3_SECRET_KEY = "s3-storage-secret-key";
-	private static final String CONF_S3_SIGNER_OVERRIDE = "s3-storage-signer-override";
 	private static final String CONF_S3_PATH_STYLE_ACCESS = "s3-storage-path-style-access";
 	private static final String CONF_S3_STORAGE_BUCKET_PREFIX = "s3-storage-bucket-";
 
-	private Map<String, S3AsyncClient> s3AsyncClients;
-	private Map<String, S3TransferManager> transferManagers;
+	private Map<String, ChipsterS3Client> s3Clients;
 	private Map<String, ArrayList<String>> buckets = new HashMap<>();
 
 	private FileEncryption fileEncryption;
 
 	private Random random = new Random();
 
-	private ExecutorService uploadExecutor;
-
 	public S3StorageClient(Config config, String role) throws NoSuchAlgorithmException, KeyManagementException {
 
-		S3Util.configureTLSVersion(config, role);
-		S3Util.checkTLSVersion(config, role);
+		ChipsterS3Client.configureTLSVersion(config, role);
+		ChipsterS3Client.checkTLSVersion(config, role);
 
-		this.s3AsyncClients = initS3AsyncClients(config);
-		this.transferManagers = new HashMap<>();
-
-		for (String s3Name : this.s3AsyncClients.keySet()) {
-			this.transferManagers.put(s3Name, S3Util.getTransferManager(this.s3AsyncClients.get(s3Name)));
-		}
+		this.s3Clients = initChipsterS3Clients(config);
 
 		this.fileEncryption = new FileEncryption();
 
-		for (String s3Name : this.transferManagers.keySet()) {
+		for (String s3Name : this.s3Clients.keySet()) {
 
 			ArrayList<String> buckets2 = new ArrayList<String>(
 					config.getConfigEntries(CONF_S3_STORAGE_BUCKET_PREFIX + s3Name + "-").values());
@@ -111,34 +94,32 @@ public class S3StorageClient implements StorageClient {
 				logger.info("s3-storage " + s3Name + " bucket: " + bucket);
 			}
 		}
-
-		uploadExecutor = Executors.newCachedThreadPool();
 	}
 
-	public S3AsyncClient getS3AsyncClient(String s3Name) {
-		return this.s3AsyncClients.get(s3Name);
+	public ChipsterS3Client getChipsterS3Client(String s3Name) {
+		return this.s3Clients.get(s3Name);
 	}
 
 	/**
-	 * Get one transfer manager for CLI utilities
+	 * Get one S3Client for CLI utilities
 	 * 
 	 * @param config
 	 * @return
 	 */
-	public static S3TransferManager getOneTransferManager(Config config) {
-		Map<String, S3AsyncClient> clients = initS3AsyncClients(config);
+	public static ChipsterS3Client getOneChipsterS3Client(Config config) {
+		Map<String, ChipsterS3Client> clients = initChipsterS3Clients(config);
 
 		if (clients.size() > 1) {
 			logger.warn("multiple s3Names configured");
 		}
 
 		// get one
-		return S3Util.getTransferManager(clients.values().iterator().next());
+		return clients.values().iterator().next();
 	}
 
-	public static Map<String, S3AsyncClient> initS3AsyncClients(Config config) {
+	public static Map<String, ChipsterS3Client> initChipsterS3Clients(Config config) {
 
-		Map<String, S3AsyncClient> clients = new HashMap<>();
+		Map<String, ChipsterS3Client> clients = new HashMap<>();
 
 		// collect s3Names from all config options
 		// create new set, because the keySet() doesn't support modifications
@@ -146,7 +127,6 @@ public class S3StorageClient implements StorageClient {
 		s3Names.addAll(config.getConfigEntries(CONF_S3_REGION + "-").keySet());
 		s3Names.addAll(config.getConfigEntries(CONF_S3_ACCESS_KEY + "-").keySet());
 		s3Names.addAll(config.getConfigEntries(CONF_S3_SECRET_KEY + "-").keySet());
-		s3Names.addAll(config.getConfigEntries(CONF_S3_SIGNER_OVERRIDE + "-").keySet());
 		s3Names.addAll(config.getConfigEntries(CONF_S3_PATH_STYLE_ACCESS + "-").keySet());
 
 		for (String s3Name : s3Names) {
@@ -155,7 +135,6 @@ public class S3StorageClient implements StorageClient {
 			String region = config.getString(CONF_S3_REGION, s3Name);
 			String access = config.getString(CONF_S3_ACCESS_KEY, s3Name);
 			String secret = config.getString(CONF_S3_SECRET_KEY, s3Name);
-			String signerOverride = config.getString(CONF_S3_SIGNER_OVERRIDE, s3Name);
 			boolean pathStyleAccess = config.getBoolean(CONF_S3_PATH_STYLE_ACCESS);
 
 			if (endpoint.isEmpty() || access.isEmpty() || secret.isEmpty()) {
@@ -165,7 +144,7 @@ public class S3StorageClient implements StorageClient {
 
 			logger.info("s3-storage " + s3Name + " endpoint: " + endpoint);
 
-			S3AsyncClient client = S3Util.getClient(endpoint, region, access, secret, signerOverride,
+			ChipsterS3Client client = new ChipsterS3Client(endpoint, region, access, secret,
 					pathStyleAccess);
 
 			clients.put(s3Name, client);
@@ -177,23 +156,26 @@ public class S3StorageClient implements StorageClient {
 	public void upload(String s3Name, String bucket, InputStream file, String objectName, Long length)
 			throws InterruptedException {
 
-		// TransferManager can handle multipart uploads, but requires a file length in
-		// advance. The lower lever api would support uploads without file length, but
-		// then we have to take care of multipart uploads ourselves
+		/*
+		 * Require file size
+		 * 
+		 * aws-sdk v2 should support multipart uploads without file length, but the
+		 * current radosgw wants to get a content-length for each part.
+		 * 
+		 * Uploads with unknown length could be implemented by buffering each part, but
+		 * then we would have to use much smaller part sizes, which would limit the
+		 * throughput.
+		 */
 
 		if (length == null) {
 			throw new IllegalArgumentException("length cannot be null");
 		}
 
-		UploadRequest uploadRequest = UploadRequest.builder()
-				.requestBody(AsyncRequestBody.fromInputStream(file, length, uploadExecutor))
-				.putObjectRequest(req -> req.bucket(bucket).key(objectName))
-				.build();
-
-		Upload upload = this.transferManagers.get(s3Name).upload(uploadRequest);
+		CompletableFuture<? extends S3Response> upload = this.s3Clients.get(s3Name).uploadAsync(bucket, objectName,
+				file, length);
 
 		try {
-			upload.completionFuture().join();
+			upload.join();
 
 		} catch (CompletionException ce) {
 			if (ce.getCause() instanceof SdkClientException) {
@@ -215,16 +197,9 @@ public class S3StorageClient implements StorageClient {
 			Long end)
 			throws InterruptedException {
 
-		Builder request = GetObjectRequest.builder()
-				.bucket(bucket)
-				.key(objectName);
+		ByteRange range = null;
 
-		logger.debug("download range: " + start + " " + end);
-		if (start != null || end != null) {
-			request = request.range(new ByteRange(start, end).toHttpHeaderString());
-		}
-
-		return s3AsyncClients.get(s3Name).getObject(request.build(), AsyncResponseTransformer.toBlockingInputStream())
+		return s3Clients.get(s3Name).downloadAsync(bucket, objectName, range)
 				.join();
 	}
 
@@ -362,7 +337,7 @@ public class S3StorageClient implements StorageClient {
 	}
 
 	public boolean isEnabledForNewFiles() {
-		return !this.transferManagers.isEmpty() && !this.buckets.isEmpty();
+		return !this.s3Clients.isEmpty() && !this.buckets.isEmpty();
 	}
 
 	/**
@@ -486,10 +461,13 @@ public class S3StorageClient implements StorageClient {
 		String s3Name = storageIdToS3Name(storageId);
 		String bucket = storageIdToBucket(storageId);
 
-		S3Util.deleteObject(this.s3AsyncClients.get(s3Name), bucket, fileId.toString());
+		this.s3Clients.get(s3Name).deleteObject(bucket, fileId.toString());
 	}
 
 	public void close() {
+		for (ChipsterS3Client s3 : this.s3Clients.values()) {
+			s3.close();
+		}
 	}
 
 	@Override

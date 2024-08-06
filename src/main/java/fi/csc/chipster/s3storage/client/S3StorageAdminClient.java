@@ -21,7 +21,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.archive.S3StorageBackup;
 import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.S3Util;
+import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;
@@ -32,7 +32,6 @@ import io.jsonwebtoken.io.IOException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
@@ -84,9 +83,9 @@ public class S3StorageAdminClient implements StorageAdminClient {
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        S3AsyncClient amazonS3Client = this.s3StorageClient.getS3AsyncClient(s3Name);
+        ChipsterS3Client s3Client = this.s3StorageClient.getChipsterS3Client(s3Name);
 
-        S3Util.getObjects(amazonS3Client, bucket).stream()
+        s3Client.getObjects(bucket).stream()
                 .forEach((S3Object summary) -> {
                     result.put(summary.key(), summary.size());
                 });
@@ -103,7 +102,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
         try {
             // check if bucket exists
-            if (S3Util.exists(this.s3StorageClient.getS3AsyncClient(s3Name), bucket)) {
+            if (this.s3StorageClient.getChipsterS3Client(s3Name).exists(bucket)) {
 
                 HashMap<String, Object> jsonMap = new HashMap<>();
                 // jsonMap.put("status", null);
@@ -305,7 +304,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
             for (String orphan : oldOrphans) {
                 logger.info("delete old orphan file " + orphan);
-                S3Util.deleteObject(this.s3StorageClient.getS3AsyncClient(s3Name), bucket, orphan);
+                this.s3StorageClient.getChipsterS3Client(s3Name).deleteObject(bucket, orphan);
             }
 
             logger.info("delete " + oldOrphans.size() + " old orphan files: done");
@@ -335,7 +334,7 @@ public class S3StorageAdminClient implements StorageAdminClient {
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        if (!S3Util.exists(this.s3StorageClient.getS3AsyncClient(s3Name), bucket,
+        if (!this.s3StorageClient.getChipsterS3Client(s3Name).exists(bucket,
                 S3StorageBackup.KEY_BACKUP_DONE)) {
 
             throw new NotFoundException();

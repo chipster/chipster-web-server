@@ -1,5 +1,6 @@
 package fi.csc.chipster.archive;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -25,10 +26,8 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
-import fi.csc.chipster.rest.hibernate.S3Util;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
+import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class GpgBackupUtils {
 
@@ -37,7 +36,6 @@ public class GpgBackupUtils {
 	private final static Logger logger = LogManager.getLogger();
 
 	private static final String CONF_BACKUP_BUCKET = "backup-bucket";
-	private static final String CONF_BACKUP_S3_SIGNER_OVERRIDE = "backup-s3-signer-override";
 	private static final String CONF_BACKUP_S3_SECRET_KEY = "backup-s3-secret-key";
 	private static final String CONF_BACKUP_S3_ACCESS_KEY = "backup-s3-access-key";
 	private static final String CONF_BACKUP_S3_REGION = "backup-s3-region";
@@ -51,13 +49,13 @@ public class GpgBackupUtils {
 	public static final String CONF_BACKUP_GPG_PUBLIC_KEY = "backup-gpg-public-key";
 	public static final String CONF_BACKUP_GPG_PROGRAM = "backup-gpg-program";
 
-	public static Map<Path, InfoLine> infoFileToMap(S3TransferManager transferManager, String bucket, String key,
+	public static Map<Path, InfoLine> infoFileToMap(ChipsterS3Client s3Client, String bucket, String key,
 			Path tempDir)
 			throws InterruptedException, IOException, ArchiveException {
 
 		Path infoPath = tempDir.resolve(key);
 
-		S3Util.downloadFile(transferManager, bucket, key, infoPath);
+		s3Client.downloadFile(bucket, key, infoPath.toFile());
 
 		try {
 			Map<Path, InfoLine> map = (HashMap<Path, InfoLine>) Files.lines(infoPath)
@@ -73,9 +71,9 @@ public class GpgBackupUtils {
 	}
 
 	public static void backupFileAsTar(String name, Path storage, Path file, Path backupDir,
-			S3TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient,
+			ChipsterS3Client s3Client, String bucket, String backupName, Path backupInfoPath, String recipient,
 			String gpgPassphrase, Config config) throws IOException, InterruptedException {
-		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, transferManager, bucket, backupName,
+		backupFilesAsTar(name, storage, Collections.singleton(file), backupDir, s3Client, bucket, backupName,
 				backupInfoPath, recipient, gpgPassphrase, config);
 	}
 
@@ -84,7 +82,7 @@ public class GpgBackupUtils {
 	}
 
 	public static void backupFilesAsTar(String name, Path storage, Set<Path> files, Path backupDir,
-			S3TransferManager transferManager, String bucket, String backupName, Path backupInfoPath, String recipient,
+			ChipsterS3Client s3Client, String bucket, String backupName, Path backupInfoPath, String recipient,
 			String gpgPassphrase, Config config) throws IOException, InterruptedException {
 
 		Path tarPath = backupDir.resolve(name + ".tar");
@@ -189,19 +187,19 @@ public class GpgBackupUtils {
 					StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 		}
 
-		upload(transferManager, bucket, backupName, tarPath, true);
+		upload(s3Client, bucket, backupName, tarPath, true);
 
 		Files.delete(tarPath);
 	}
 
-	private static void upload(S3TransferManager transferManager, String bucket, String bucketDir, Path filePath,
+	private static void upload(ChipsterS3Client s3Client, String bucket, String bucketDir, Path filePath,
 			boolean verbose) throws IOException, InterruptedException {
 		if (verbose) {
 			logger.info("upload " + filePath.getFileName() + " to " + bucket + "/" + bucketDir + " ("
 					+ FileUtils.byteCountToDisplaySize(Files.size(filePath)) + ")");
 		}
 
-		S3Util.uploadFile(transferManager, bucket, bucketDir + "/" + filePath, filePath);
+		s3Client.uploadFile(bucket, bucketDir + "/" + filePath, filePath);
 	}
 
 	public static Path getPackageGpgPath(Path packageFilePath) {
@@ -220,19 +218,18 @@ public class GpgBackupUtils {
 		return parts[0];
 	}
 
-	public static void uploadBackupInfo(S3TransferManager transferManager, String bucket, String backupName,
-			Path backupInfoPath) throws InterruptedException {
+	public static void uploadBackupInfo(ChipsterS3Client s3Client, String bucket, String backupName,
+			Path backupInfoPath) throws InterruptedException, FileNotFoundException, IOException {
 
-		S3Util.uploadFile(transferManager, bucket, backupName + "/" + BackupArchive.BACKUP_INFO, backupInfoPath);
+		s3Client.uploadFile(bucket, backupName + "/" + BackupArchive.BACKUP_INFO, backupInfoPath);
 	}
 
-	public static S3AsyncClient getS3Client(Config config, String role) {
+	public static ChipsterS3Client getS3Client(Config config, String role) {
 
 		String endpoint = config.getString(CONF_BACKUP_S3_ENDPOINT, role);
 		String region = config.getString(CONF_BACKUP_S3_REGION, role);
 		String access = config.getString(CONF_BACKUP_S3_ACCESS_KEY, role);
 		String secret = config.getString(CONF_BACKUP_S3_SECRET_KEY, role);
-		String signerOverride = config.getString(CONF_BACKUP_S3_SIGNER_OVERRIDE, role);
 		boolean pathStyleAccess = config.getBoolean(CONF_BACKUP_S3_PATH_STYLE_ACCESS, role);
 
 		if (endpoint == null || endpoint.isEmpty() ||
@@ -243,7 +240,7 @@ public class GpgBackupUtils {
 			return null;
 		}
 
-		return S3Util.getClient(endpoint, region, access, secret, signerOverride, pathStyleAccess);
+		return new ChipsterS3Client(endpoint, region, access, secret, pathStyleAccess);
 	}
 
 	public static String getBackupBucket(Config config, String role) {
@@ -341,8 +338,8 @@ public class GpgBackupUtils {
 		return fileBrokerBackups.get(fileBrokerBackups.size() - 1);
 	}
 
-	public static Instant getLatestArchive(S3AsyncClient s3AsyncClient, String backupNamePrefix, String bucket) {
-		List<S3Object> objects = S3Util.getObjects(s3AsyncClient, bucket);
+	public static Instant getLatestArchive(ChipsterS3Client s3Client, String backupNamePrefix, String bucket) {
+		List<S3Object> objects = s3Client.getObjects(bucket);
 
 		String archiveInfoKey = findLatest(objects, backupNamePrefix, BackupArchive.ARCHIVE_INFO);
 

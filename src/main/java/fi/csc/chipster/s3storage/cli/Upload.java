@@ -1,12 +1,12 @@
 package fi.csc.chipster.s3storage.cli;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.S3Util;
+import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 /**
  * CLI utility program to upload a file to S3
@@ -28,17 +28,17 @@ public class Upload {
 		String objectKey = args[2];
 
 		Config config = new Config();
-		S3TransferManager tm = S3StorageClient.getOneTransferManager(config);
+		ChipsterS3Client s3Client = S3StorageClient.getOneChipsterS3Client(config);
 
-		upload(tm, bucket, file, objectKey);
+		upload(s3Client, bucket, file, objectKey);
 	}
 
-	public static void upload(S3TransferManager tm, String bucket, File file, String objectKey)
-			throws InterruptedException {
+	public static void upload(ChipsterS3Client s3Client, String bucket, File file, String objectKey)
+			throws InterruptedException, FileNotFoundException, IOException {
 
 		long t = System.currentTimeMillis();
 
-		S3Util.uploadFile(tm, bucket, objectKey, file.toPath());
+		s3Client.uploadFile(bucket, objectKey, file.toPath());
 
 		long dt = System.currentTimeMillis() - t;
 
