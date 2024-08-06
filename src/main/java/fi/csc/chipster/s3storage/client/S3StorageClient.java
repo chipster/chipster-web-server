@@ -171,10 +171,9 @@ public class S3StorageClient implements StorageClient {
 			throw new IllegalArgumentException("length cannot be null");
 		}
 
-		CompletableFuture<? extends S3Response> upload = this.s3Clients.get(s3Name).uploadAsync(bucket, objectName,
-				file, length);
-
 		try {
+			CompletableFuture<? extends S3Response> upload = this.s3Clients.get(s3Name).uploadAsync(bucket, objectName,
+					file, length);
 			upload.join();
 
 		} catch (CompletionException ce) {
@@ -190,6 +189,12 @@ public class S3StorageClient implements StorageClient {
 				}
 			}
 			throw ce;
+		} finally {
+			try {
+				file.close();
+			} catch (Exception e) {
+				logger.error("failed to close InputStream", e);
+			}
 		}
 	}
 

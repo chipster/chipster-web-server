@@ -3,18 +3,17 @@ package fi.csc.chipster.s3storage.benchmark;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import org.apache.commons.io.FileUtils;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Response;
 
 /**
@@ -30,6 +29,7 @@ public class S3Benchmark {
 		long t = System.currentTimeMillis();
 
 		List<CompletableFuture<? extends S3Response>> transfers = new ArrayList<>();
+		List<InputStream> inputStreams = new ArrayList<>();
 
 		long bytes = 0l;
 
@@ -43,10 +43,11 @@ public class S3Benchmark {
 
 			if (isUpload) {
 
-				transfer = s3Client.uploadAsync(bucket, s3Key, new FileInputStream(uploadFile),
+				FileInputStream inputStream = new FileInputStream(uploadFile);
+				transfer = s3Client.uploadAsync(bucket, s3Key, inputStream,
 						Files.size(uploadFile.toPath()));
+				inputStreams.add(inputStream);
 			} else {
-
 				transfer = s3Client.downloadFileAsync(bucket, s3Key, downloadFile);
 			}
 
@@ -67,7 +68,26 @@ public class S3Benchmark {
 			}
 		}
 
+		for (InputStream is : inputStreams) {
+			is.close();
+		}
+
 		long dt = System.currentTimeMillis() - t;
+
+		// check and remove results after download, (time not included)
+		if (!isUpload) {
+			for (int i = 0; i < count; i++) {
+
+				File uploadFile = uploadFiles.get(i);
+				File downloadFile = downloadFiles.get(i);
+				if (!FileUtils.contentEquals(uploadFile, downloadFile)) {
+					throw new IllegalStateException(
+							"files differ after upload and download: " + uploadFile + " " + downloadFile);
+				}
+
+				downloadFile.delete();
+			}
+		}
 
 		String serialType = isSerial ? "serial" : "parallel";
 		String transferType = isUpload ? "upload" : "download";
@@ -79,7 +99,7 @@ public class S3Benchmark {
 
 	public static void main(String args[]) throws InterruptedException, IOException {
 
-		// long largeFileSize = 1l * 1024 * 1024 * 1024;
+		// long largeFileSize = 6l * 1024 * 1024 * 1024;
 		// int smallFilesCount = 1000;
 		long largeFileSize = 128l * 1024 * 1024;
 		int smallFilesCount = 10;

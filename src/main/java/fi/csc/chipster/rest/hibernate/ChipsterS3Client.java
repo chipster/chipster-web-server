@@ -19,7 +19,6 @@ import java.util.concurrent.Executors;
 
 import javax.net.ssl.SSLContext;
 
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
@@ -177,7 +176,7 @@ public class ChipsterS3Client {
 		}
 	}
 
-	public CompletableFuture<CompleteMultipartUploadResponse> uploadMultipartAsync(String bucket, String key,
+	private CompletableFuture<CompleteMultipartUploadResponse> uploadMultipartAsync(String bucket, String key,
 			InputStream inputStream, long length) {
 
 		CompletableFuture<CompleteMultipartUploadResponse> cf = new CompletableFuture<>();
@@ -340,6 +339,12 @@ public class ChipsterS3Client {
 		return uploadId;
 	}
 
+	/**
+	 * Upload InputStream, return immediately
+	 * 
+	 * Caller should close the given InputStream after the returned
+	 * CompletableFuture has completed.
+	 */
 	public CompletableFuture<? extends S3Response> uploadAsync(String bucket, String key,
 			InputStream inputStream, long length) {
 
@@ -366,8 +371,9 @@ public class ChipsterS3Client {
 	public void uploadFile(String bucket, String key, Path source)
 			throws FileNotFoundException, IOException {
 
-		uploadAsync(bucket, key, new FileInputStream(source.toFile()), Files.size(source))
-				.join();
+		try (InputStream is = new FileInputStream(source.toFile())) {
+			uploadAsync(bucket, key, is, Files.size(source)).join();
+		}
 	}
 
 	public CompletableFuture<GetObjectResponse> downloadFileAsync(String bucket, String key,
@@ -377,10 +383,7 @@ public class ChipsterS3Client {
 
 		this.executor.submit(() -> {
 			try {
-				logger.info("start download " + bucket + " " + key + " to " + destination.toString());
 				GetObjectResponse res = downloadFile(bucket, key, destination);
-				logger.info("ended download " + bucket + " " + key + " to " + destination.toString()
-						+ " " + destination.length() + " B");
 				cf.complete(res);
 			} catch (Exception e) {
 				logger.error("downloadFileAsync failed", e);
@@ -396,11 +399,22 @@ public class ChipsterS3Client {
 
 		ResponseInputStream<GetObjectResponse> is = downloadAsync(bucket, key, null).join();
 
+		// closes the InputStream
 		FileUtils.copyInputStreamToFile(is, destination);
 
 		return is.response();
 	}
 
+	/**
+	 * Get a InputStream of S3 object for downloading
+	 * 
+	 * Caller should close the returned InputStream after reading it.
+	 * 
+	 * @param bucket
+	 * @param key
+	 * @param range
+	 * @return
+	 */
 	public CompletableFuture<ResponseInputStream<GetObjectResponse>> downloadAsync(String bucket, String key,
 			ByteRange range) {
 
