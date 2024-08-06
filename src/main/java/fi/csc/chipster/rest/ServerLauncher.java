@@ -9,7 +9,6 @@ import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.filestorage.FileStorage;
 import fi.csc.chipster.jobhistory.JobHistoryService;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.S3Storage;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;

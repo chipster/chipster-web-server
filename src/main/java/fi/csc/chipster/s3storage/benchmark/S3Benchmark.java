@@ -11,8 +11,8 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.io.FileUtils;
 
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import software.amazon.awssdk.services.s3.model.S3Response;
 

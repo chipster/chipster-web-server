@@ -1,4 +1,4 @@
-package fi.csc.chipster.rest.hibernate;
+package fi.csc.chipster.rest;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,7 +24,6 @@ import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.s3storage.client.S3StorageClient.ByteRange;
 import jakarta.ws.rs.InternalServerErrorException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;

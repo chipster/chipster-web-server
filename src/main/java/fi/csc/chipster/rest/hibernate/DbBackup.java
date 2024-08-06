@@ -28,6 +28,7 @@ import org.hibernate.cfg.Configuration;
 import fi.csc.chipster.archive.BackupArchive;
 import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.StatusSource;

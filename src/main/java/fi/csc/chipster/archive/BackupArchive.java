@@ -23,10 +23,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
 import fi.csc.chipster.rest.hibernate.BackupRotation2;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import software.amazon.awssdk.services.s3.model.S3Object;
 

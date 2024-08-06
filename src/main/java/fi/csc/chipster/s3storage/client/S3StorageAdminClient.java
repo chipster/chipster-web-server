@@ -20,8 +20,8 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.archive.S3StorageBackup;
 import fi.csc.chipster.filebroker.StorageAdminClient;
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.checksum.FileLengthException;
 import fi.csc.chipster.sessiondb.RestException;

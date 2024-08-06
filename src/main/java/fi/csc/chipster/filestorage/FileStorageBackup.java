@@ -32,9 +32,9 @@ import fi.csc.chipster.archive.BackupArchive;
 import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.archive.InfoLine;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class FileStorageBackup implements StatusSource {

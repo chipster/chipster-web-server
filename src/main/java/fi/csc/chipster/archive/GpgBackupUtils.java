@@ -24,9 +24,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ProcessUtils;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class GpgBackupUtils {

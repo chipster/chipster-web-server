@@ -3,8 +3,8 @@ package fi.csc.chipster.s3storage.cli;
 import java.io.File;
 import java.io.IOException;
 
+import fi.csc.chipster.rest.ChipsterS3Client;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.hibernate.ChipsterS3Client;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 
 /**
