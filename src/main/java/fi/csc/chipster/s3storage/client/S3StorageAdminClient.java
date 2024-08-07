@@ -38,6 +38,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsResponse;
 import software.amazon.awssdk.services.s3.model.MultipartUpload;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
@@ -329,14 +330,10 @@ public class S3StorageAdminClient implements StorageAdminClient {
             List<String> orphanFiles = RestUtils.parseJson(List.class, String.class, json);
 
             return orphanFiles;
+        } catch (NoSuchKeyException e) {
+            // no old orphan files, because the file doesn't exist
+            return new ArrayList<String>();
         }
-        // catch (AmazonS3Exception e) {
-        // if (e.getStatusCode() == 404) {
-        // // no old orphan files, because the file doesn't exist
-        // return new ArrayList<String>();
-        // }
-        // throw e;
-        // }
     }
 
     private Map<String, Long> getOldOrphanFiles(Map<String, Long> storageFiles)
