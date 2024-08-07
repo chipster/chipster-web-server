@@ -36,6 +36,7 @@ import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
@@ -49,6 +50,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest.Builder;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListMultipartUploadsRequest;
+import software.amazon.awssdk.services.s3.model.ListMultipartUploadsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
@@ -259,11 +262,7 @@ public class ChipsterS3Client {
 			try {
 				logger.info(
 						"abort multipart upload to bucket: " + bucket + ", key: " + key);
-				this.s3.abortMultipartUpload(AbortMultipartUploadRequest.builder()
-						.bucket(bucket)
-						.key(key)
-						.uploadId(uploadId)
-						.build()).join();
+				this.abortMultipartUpload(bucket, key, uploadId);
 			} catch (Exception e) {
 				logger.error("failed to abort multipart upload to bucket: " + bucket + ", key: " + key, e);
 			}
@@ -472,5 +471,23 @@ public class ChipsterS3Client {
 
 	public void close() {
 		this.executor.shutdown();
+	}
+
+	public S3AsyncClient getS3AsyncClient() {
+		return this.s3;
+	}
+
+	public ListMultipartUploadsResponse listMultipartUploads(String bucket) {
+		return this.s3.listMultipartUploads(ListMultipartUploadsRequest.builder()
+				.bucket(bucket)
+				.build()).join();
+	}
+
+	public AbortMultipartUploadResponse abortMultipartUpload(String bucket, String key, String uploadId) {
+		return this.s3.abortMultipartUpload(AbortMultipartUploadRequest.builder()
+				.bucket(bucket)
+				.key(key)
+				.uploadId(uploadId)
+				.build()).join();
 	}
 }

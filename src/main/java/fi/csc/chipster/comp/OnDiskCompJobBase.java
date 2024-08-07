@@ -2,9 +2,11 @@ package fi.csc.chipster.comp;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -18,6 +20,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,6 +30,9 @@ import com.nimbusds.jose.shaded.gson.GsonBuilder;
 import fi.csc.chipster.comp.ToolDescription.InputDescription;
 import fi.csc.chipster.comp.ToolDescription.OutputDescription;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.sessiondb.RestException;
+import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 
 /**
  * Provides functionality for transferring input files from file broker to job
@@ -34,6 +40,8 @@ import fi.csc.chipster.rest.RestUtils;
  *
  */
 public abstract class OnDiskCompJobBase extends CompJob {
+
+    private static final long PHENODATA_FILE_MAX_SIZE = FileUtils.ONE_MB;
 
     class VersionJson {
         @SuppressWarnings("unused")
@@ -194,7 +202,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
                     String nameInClient = nameMap.get(outputFile.getName());
                     String nameInSessionDb = nameInClient != null ? nameInClient : outputFile.getName();
-                    String dataId = resultHandler.getFileBrokerClient().addFile(
+                    String dataId = addFile(
                             UUID.fromString(inputMessage.getJobId()), inputMessage.getSessionId(), outputFile,
                             nameInSessionDb, fileDescription.isMeta(), phenodataFileForThisOutput);
                     // put dataId to result message. Preserve the order of outputs in tool
@@ -250,6 +258,88 @@ public abstract class OnDiskCompJobBase extends CompJob {
         }
 
         super.postExecute();
+    }
+
+    public String addFile(UUID jobId, UUID sessionId, File file, String datasetName, boolean isMetaOutput,
+            File phenodataFile)
+            throws IOException, FileBrokerException {
+
+        if (!file.exists()) {
+            throw new FileNotFoundException(file.getPath());
+        }
+
+        // phenodata files not added as datasets
+        if (isMetaOutput) {
+            return null;
+        }
+
+        // read phenodata file
+        List<MetadataFile> metadataFiles = new ArrayList<>();
+        if (phenodataFile != null) {
+            if (phenodataFile.length() > PHENODATA_FILE_MAX_SIZE) {
+                throw new RuntimeException("Phenodata file size too large: " + phenodataFile.getName() + " "
+                        + FileUtils.byteCountToDisplaySize(phenodataFile.length()) + " bytes, limit is "
+                        + FileUtils.byteCountToDisplaySize(PHENODATA_FILE_MAX_SIZE) + " bytes");
+            }
+
+            String phenodata = PhenodataUtils.processPhenodata(phenodataFile.toPath());
+            metadataFiles.add(new MetadataFile("phenodata.tsv", phenodata));
+        }
+
+        return uploadWithRetries(sessionId, file, jobId, datasetName, metadataFiles);
+    }
+
+    private String uploadWithRetries(UUID sessionId, File file, UUID jobId, String datasetName,
+            List<MetadataFile> metadataFiles) throws FileBrokerException {
+        UUID datasetId = null;
+
+        int retries = 3;
+
+        for (int i = 0; i < retries; i++) {
+
+            Dataset dataset = new Dataset();
+            dataset.setSourceJob(jobId);
+            dataset.setName(datasetName);
+            dataset.setMetadataFiles(metadataFiles);
+
+            try {
+                if (datasetId != null) {
+                    logger.info("delete dataset of previous failed attempt " + datasetId);
+                    resultHandler.getSessionDbClient().deleteDataset(sessionId, datasetId);
+                }
+
+                logger.info("create dataset " + datasetName);
+                datasetId = resultHandler.getSessionDbClient().createDataset(sessionId, dataset);
+            } catch (RestException e) {
+                throw new FileBrokerException("failed to create a result dataset", e);
+            }
+
+            logger.info("upload datasetId " + datasetId.toString());
+
+            try (InputStream inputStream = new FileInputStream(file)) {
+
+                resultHandler.getFileBrokerClient().upload(sessionId, datasetId, inputStream, file.length());
+                logger.info("uploaded datasetId " + datasetId.toString());
+                break;
+
+            } catch (Exception e) {
+                if (i < retries - 1) {
+                    /*
+                     * Retry upload
+                     * 
+                     * For some reason some uplaods (< 0.1 %) get stuck for 30 seconds after which
+                     * ha-proxy timeouts and we get
+                     * java.lang.IllegalStateException: Entity input stream has already been closed.
+                     */
+                    logger.warn("upload attempt " + i + " failed. Max retries: " + retries, e);
+                } else {
+                    logger.error("give up");
+                    throw new FileBrokerException("gave up after trying " + retries + " times", e);
+                }
+            }
+        }
+
+        return datasetId.toString();
     }
 
     protected String getVersionsJson() {
@@ -397,12 +487,12 @@ public abstract class OnDiskCompJobBase extends CompJob {
             cancelCheck();
 
             // get url and output file
-            String dataId = inputMessage.getId(fileName);
+            UUID dataId = UUID.fromString(inputMessage.getId(fileName));
             File localFile = new File(jobDataDir, fileName);
 
             // make local file available, by downloading, copying or symlinking
-            resultHandler.getFileBrokerClient().getFile(inputMessage.getSessionId(), dataId,
-                    new File(jobDataDir, fileName));
+            downloadWithRetries(inputMessage.getSessionId(), dataId, new File(jobDataDir, fileName));
+
             logger.debug("made available local file: " + localFile.getName() + " " + localFile.length());
 
             nameMap.put(fileName, inputMessage.getName(fileName));
@@ -411,6 +501,29 @@ public abstract class OnDiskCompJobBase extends CompJob {
         ToolUtils.writeInputDescription(new File(jobDataDir, "chipster-inputs.tsv"), nameMap);
 
         inputMessage.preExecute(jobDataDir);
+    }
+
+    private void downloadWithRetries(UUID sessionId, UUID dataId, File file) throws FileBrokerException {
+
+        int retries = 3;
+
+        for (int i = 0; i < retries; i++) {
+            try {
+                logger.info("download file " + file);
+                resultHandler.getFileBrokerClient().download(sessionId, dataId, file);
+                break;
+            } catch (Exception e) {
+                if (i < retries - 1) {
+                    logger.warn("download attempt " + i + " failed. Max retries: " + retries, e);
+                    if (file.exists()) {
+                        file.delete();
+                    }
+                } else {
+                    logger.error("give up");
+                    throw new FileBrokerException("gave up after trying " + i + " times", e);
+                }
+            }
+        }
     }
 
     /**

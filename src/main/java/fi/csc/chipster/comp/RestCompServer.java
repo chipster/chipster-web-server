@@ -26,7 +26,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring;
 import fi.csc.chipster.comp.resourcemonitor.legacy.ResourceMonitor;
 import fi.csc.chipster.comp.resourcemonitor.legacy.ResourceMonitor.ProcessProvider;
-import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
+import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -98,7 +98,7 @@ public class RestCompServer
 
 	private ToolboxClientComp toolboxClient;
 
-	private LegacyRestFileBrokerClient fileBroker;
+	private RestFileBrokerClient fileBroker;
 
 	/**
 	 * Java utility for multithreading.
@@ -215,7 +215,7 @@ public class RestCompServer
 		schedulerClient = new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client",
 				authClient.getCredentials());
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
-		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
+		fileBroker = new RestFileBrokerClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
 
 		logger.info("starting the admin rest server");
 
@@ -444,8 +444,13 @@ public class RestCompServer
 	}
 
 	@Override
-	public LegacyRestFileBrokerClient getFileBrokerClient() {
+	public RestFileBrokerClient getFileBrokerClient() {
 		return this.fileBroker;
+	}
+
+	@Override
+	public SessionDbClient getSessionDbClient() {
+		return this.sessionDbClient;
 	}
 
 	@Override

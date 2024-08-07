@@ -16,7 +16,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring;
 import fi.csc.chipster.comp.resourcemonitor.singleshot.SingleShotResourceMonitor;
 import fi.csc.chipster.comp.resourcemonitor.singleshot.SingleShotResourceMonitor.SingleShotProcessProvider;
-import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
+import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
@@ -80,7 +80,7 @@ public class SingleShotComp
 
 	private ToolboxClientComp toolboxClient;
 
-	private LegacyRestFileBrokerClient fileBroker;
+	private RestFileBrokerClient fileBroker;
 
 	/**
 	 * Java utility for multithreading.
@@ -156,7 +156,7 @@ public class SingleShotComp
 		resourceMonitor = new SingleShotResourceMonitor(this, monitoringInterval);
 
 		sessionDbClient = new SessionDbClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
-		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, sessionTokenCredentials);
+		fileBroker = new RestFileBrokerClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
 
 		this.hostname = InetAddress.getLocalHost().getHostName();
 	}
@@ -310,8 +310,13 @@ public class SingleShotComp
 	}
 
 	@Override
-	public LegacyRestFileBrokerClient getFileBrokerClient() {
+	public RestFileBrokerClient getFileBrokerClient() {
 		return this.fileBroker;
+	}
+
+	@Override
+	public SessionDbClient getSessionDbClient() {
+		return this.sessionDbClient;
 	}
 
 	@Override

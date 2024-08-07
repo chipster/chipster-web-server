@@ -44,6 +44,8 @@ import jakarta.ws.rs.InternalServerErrorException;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Response;
 
 /**
@@ -204,8 +206,18 @@ public class S3StorageClient implements StorageClient {
 
 		ByteRange range = null;
 
-		return s3Clients.get(s3Name).downloadAsync(bucket, objectName, range)
-				.join();
+		try {
+			return s3Clients.get(s3Name).downloadAsync(bucket, objectName, range)
+					.join();
+		} catch (CompletionException e) {
+			if (e.getCause() instanceof NoSuchBucketException) {
+				throw (NoSuchBucketException) e.getCause();
+			}
+			if (e.getCause() instanceof NoSuchKeyException) {
+				throw (NoSuchKeyException) e.getCause();
+			}
+			throw new RuntimeException("download failed", e.getCause());
+		}
 	}
 
 	public InputStream downloadAndDecrypt(File file, ByteRange byteRange) {
@@ -258,6 +270,16 @@ public class S3StorageClient implements StorageClient {
 		} catch (IOException | InterruptedException | NoSuchAlgorithmException | InvalidKeyException
 				| NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalFileException
 				| DecoderException e) {
+			/*
+			 * Catch all uninteresting (checked) exceptions, so that we don't have to carry
+			 * them in method signatures. Don't give the original error message to the
+			 * client, because these are unexpected situations and the message could
+			 * potentially reveal too much information.
+			 * 
+			 * Keep throwing possibly interesting (like NoSuchKeyException) unchecked
+			 * exceptions so that callers can react to them if necessary. ExceptionMappers
+			 * will convert them to InternalServerErrorException eventually anyway.
+			 */
 			logger.error("download failed", e);
 			throw new InternalServerErrorException("download failed: " + e.getClass());
 		}

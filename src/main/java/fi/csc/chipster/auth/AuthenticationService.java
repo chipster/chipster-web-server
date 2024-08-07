@@ -7,7 +7,7 @@ import java.net.URL;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.http.client.utils.URIBuilder;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
@@ -135,13 +135,8 @@ public class AuthenticationService {
 
 		URL bindUrl = URI.create(config.getBindUrl(Role.AUTH)).toURL();
 
-		URIBuilder builder = new URIBuilder();
-		builder.setScheme(bindUrl.getProtocol());
-		builder.setHost("localhost");
-		builder.setPort(bindUrl.getPort());
-		builder.setPath(bindUrl.getFile());
-
-		String localhostUrl = builder.build().toString();
+		String localhostUrl = new URI(bindUrl.getProtocol(), null, "localhost", bindUrl.getPort(), bindUrl.getFile(),
+				null, null).toString();
 
 		AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH,
 				config.getPassword(Role.AUTH), Role.SERVER);

@@ -1,7 +1,6 @@
 package fi.csc.chipster.filebroker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
@@ -14,7 +13,6 @@ import java.io.SequenceInputStream;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import java.util.concurrent.CompletionException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -466,9 +464,8 @@ public class FileResourceTest {
 			try {
 				s3StorageClient.downloadAndDecrypt(file, null);
 				fail("expected exception was not thrown");
-			} catch (CompletionException e) {
+			} catch (NoSuchKeyException e) {
 				// expected
-				assertTrue(e.getCause() instanceof NoSuchKeyException);
 			}
 		}
 	}
