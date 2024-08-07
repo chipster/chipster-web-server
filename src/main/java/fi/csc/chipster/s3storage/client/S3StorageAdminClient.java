@@ -5,6 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.rmi.NoSuchObjectException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +36,8 @@ import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListMultipartUploadsResponse;
+import software.amazon.awssdk.services.s3.model.MultipartUpload;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
@@ -142,8 +147,22 @@ public class S3StorageAdminClient implements StorageAdminClient {
             List<File> completeDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.COMPLETE);
             List<File> uploadingDbFiles = this.sessionDbAdminClient.getFiles(storageId, FileState.UPLOADING);
 
+            // delete old uploads from DB and S3 objects
             Set<File> oldUploads = StorageAdminClient.deleteOldUploads(uploadingDbFiles, this.sessionDbAdminClient,
                     uploadMaxHours);
+
+            String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
+            String bucket = this.s3StorageClient.storageIdToBucket(storageId);
+            ListMultipartUploadsResponse multipartUploads = s3StorageClient.getChipsterS3Client(s3Name)
+                    .listMultipartUploads(bucket);
+            if (multipartUploads.isTruncated()) {
+                logger.info(storageId + " > " + multipartUploads.uploads().size() + " multipart uploads");
+            } else {
+                logger.info(storageId + " " + multipartUploads.uploads().size() + " multipart uploads");
+            }
+
+            // delete old S3 multipart uploads
+            deleteOldMultipartUploads(storageId, s3Name, bucket, uploadMaxHours);
 
             uploadingDbFiles.removeAll(oldUploads);
 
@@ -165,6 +184,45 @@ public class S3StorageAdminClient implements StorageAdminClient {
         } catch (RestException | java.io.IOException | InterruptedException | CloneNotSupportedException e) {
             logger.error("storage check failed", e);
             throw new InternalServerErrorException("storage check failed");
+        }
+    }
+
+    private void deleteOldMultipartUploads(String storageId, String s3Name, String bucket, Long uploadMaxHours) {
+
+        if (uploadMaxHours != null) {
+
+            // max 1000, but that should be enough
+            ListMultipartUploadsResponse multipartUploads = s3StorageClient.getChipsterS3Client(s3Name)
+                    .listMultipartUploads(bucket);
+
+            ArrayList<MultipartUpload> uploadsToDelete = new ArrayList<>();
+
+            logger.info(storageId + " found " + multipartUploads.uploads().size() + " multipart uploads");
+
+            for (MultipartUpload upload : multipartUploads.uploads()) {
+
+                long hours = -1;
+
+                if (upload.initiated() != null) {
+                    hours = Duration.between(upload.initiated(), Instant.now()).toHours();
+                }
+
+                // delete when equal so that all uploads can be deleted by setting
+                // uploadMaxHours to 0
+                if (hours == -1 || hours >= uploadMaxHours) {
+                    uploadsToDelete.add(upload);
+                }
+            }
+
+            logger.info(storageId + " abort " + uploadsToDelete.size() + " multipart uploads older than "
+                    + uploadMaxHours);
+
+            for (MultipartUpload upload : uploadsToDelete) {
+                logger.info(storageId + " abort multipart upload, key: " + upload.key() + ", uploadId: "
+                        + upload.uploadId());
+                s3StorageClient.getChipsterS3Client(s3Name).abortMultipartUpload(bucket, upload.key(),
+                        upload.uploadId());
+            }
         }
     }
 
