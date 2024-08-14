@@ -12,13 +12,13 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.websocket.jakarta.server.internal.JakartaWebSocketCreator;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.internal.JakartaWebSocketCreator;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import jakarta.websocket.ClientEndpoint;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.MessageHandler;
+import jakarta.websocket.MessageHandler.Whole;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnOpen;
@@ -143,7 +143,7 @@ public class PubSubEndpoint {
 			this.server.subscribe(topic, subscriber);
 
 			// listen for client replies
-			MessageHandler messageHandler = this.server.getMessageHandler();
+			Whole<String> messageHandler = this.server.getMessageHandler();
 			if (messageHandler != null) {
 				session.addMessageHandler(messageHandler);
 			}

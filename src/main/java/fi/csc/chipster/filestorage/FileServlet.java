@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,10 +20,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.ee10.servlet.ResourceServlet;
+import org.eclipse.jetty.http.ByteRange;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.server.InclusiveByteRange;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.DefaultServlet;
 
 import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -63,7 +64,7 @@ import jakarta.ws.rs.NotFoundException;
  * DefaultServlet supports range queries by default.
  * </p>
  */
-public class FileServlet extends DefaultServlet implements SessionEventListener {
+public class FileServlet extends ResourceServlet implements SessionEventListener {
 
 	public static final String PATH_PUT_ALLOWED = "putAllowed";
 
@@ -94,6 +95,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
+		super();
+
 		this.storageRoot = storageRoot;
 		this.authService = authService;
 
@@ -111,7 +114,6 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 		public RewrittenRequest(HttpServletRequest request, String newPath) {
 			super(request);
-
 			this.newPath = newPath;
 		}
 
@@ -213,10 +215,10 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		long length = f.length();
 
 		// parse the range header for the log message
-		List<InclusiveByteRange> ranges = InclusiveByteRange
-				.satisfiableRanges(request.getHeaders(HttpHeader.RANGE.asString()), f.length());
+		List<ByteRange> ranges = ByteRange
+				.parse(Collections.list(request.getHeaders(HttpHeader.RANGE.asString())), f.length());
 		if (ranges != null && ranges.size() == 1) {
-			length = ranges.get(0).getLast() - ranges.get(0).getFirst();
+			length = ranges.get(0).last() - ranges.get(0).first();
 		}
 
 		Duration duration = Duration.between(before, Instant.now());
@@ -233,12 +235,8 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 			if (logger.isDebugEnabled()) {
 				logger.debug("connection created "
 						+ (System.currentTimeMillis()
-								- jettyRequest.getHttpChannel().getConnection().getCreatedTimeStamp())
-						+ " ms ago" +
-						", request complete " + jettyRequest.getHttpChannel().isRequestCompleted() +
-						", response complte " + jettyRequest.getHttpChannel().isResponseCompleted() +
-						", channel state " + jettyRequest.getHttpChannel().getState() +
-						", channel persistent " + jettyRequest.getHttpChannel().isPersistent());
+								- jettyRequest.getConnectionMetaData().getConnection().getCreatedTimeStamp())
+						+ " ms ago");
 			}
 		}
 	}

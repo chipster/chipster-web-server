@@ -6,8 +6,6 @@ import java.net.URISyntaxException;
 import java.util.Timer;
 import java.util.concurrent.TimeoutException;
 
-import jakarta.ws.rs.core.UriBuilder;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,6 +19,7 @@ import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.MessageHandler.Whole;
 import jakarta.websocket.Session;
 import jakarta.websocket.WebSocketContainer;
+import jakarta.ws.rs.core.UriBuilder;
 
 public class WebSocketClient implements EndpointListener {
 
@@ -101,7 +100,7 @@ public class WebSocketClient implements EndpointListener {
 			// Attempt Connect
 			session = container.connectToServer(endpoint, cec, new URI(uriBuilder.toString()));
 
-		} catch (DeploymentException | IOException | URISyntaxException e) {
+		} catch (IOException | URISyntaxException | DeploymentException e) {
 			throw new WebSocketErrorException(e);
 		}
 
@@ -144,6 +143,7 @@ public class WebSocketClient implements EndpointListener {
 		endpoint.ping();
 	}
 
+	@Override
 	public void onOpen(Session session, EndpointConfig config) {
 		logger.info("websocket client " + name + " connected succesfully: " + uri);
 		if (retryHandler != null) {
@@ -151,6 +151,7 @@ public class WebSocketClient implements EndpointListener {
 		}
 	}
 
+	@Override
 	public void onClose(Session session, CloseReason reason) {
 		logger.info("websocket client " + name + " closed: " + reason.getReasonPhrase());
 		if (retryHandler != null) {
@@ -166,6 +167,7 @@ public class WebSocketClient implements EndpointListener {
 		}
 	}
 
+	@Override
 	public void onError(Session session, Throwable thr) {
 		logger.warn("websocket client " + name + " error: " + thr.getMessage(), thr);
 		if (retryHandler != null) {

@@ -38,7 +38,6 @@ import fi.csc.chipster.toolbox.ToolboxClientComp;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.chipster.toolbox.runtime.Runtime;
 import jakarta.servlet.ServletException;
-import jakarta.websocket.DeploymentException;
 
 public class Scheduler implements SessionEventListener, StatusSource, JobSchedulerCallback {
 
@@ -81,7 +80,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	}
 
 	public void startServer()
-			throws ServletException, DeploymentException, InterruptedException, RestException, IOException {
+			throws ServletException, InterruptedException, RestException, IOException {
 
 		String username = Role.SCHEDULER;
 		String password = config.getPassword(username);

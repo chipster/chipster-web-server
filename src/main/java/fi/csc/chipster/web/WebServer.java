@@ -2,6 +2,7 @@ package fi.csc.chipster.web;
 
 import java.io.File;
 import java.net.URI;
+import java.nio.file.Path;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -9,10 +10,10 @@ import org.eclipse.jetty.rewrite.handler.HeaderPatternRule;
 import org.eclipse.jetty.rewrite.handler.RewriteHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SymlinkAllowedResourceAliasChecker;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerList;
+import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -69,18 +70,16 @@ public class WebServer {
             throw new IllegalArgumentException("web root " + rootPath + " doesn't exist");
         }
 
-        // let the app handle pushState URLs
-        ForwardingResourceHandler forwardingResourceHandler = new ForwardingResourceHandler();
-        forwardingResourceHandler.setDirectoriesListed(false);
-        forwardingResourceHandler.setWelcomeFiles(new String[] { INDEX_HTML });
+        ResourceHandler resourceHandler = new ResourceHandler();
+        resourceHandler.setDirAllowed(false);
+        resourceHandler.setWelcomeFiles(new String[] { INDEX_HTML });
 
-        // some ContextHandler is needed to enable symlinks
+        // let the app handle pushState URLs
+        server.setErrorHandler(new PushStateErrorHandler(Path.of(rootPath).resolve(INDEX_HTML)));
+        // ContextHandler is needed only to set the base resource as path
         ContextHandler contextHandler = new ContextHandler("/");
-        contextHandler.setResourceBase(rootPath);
-        contextHandler.setHandler(forwardingResourceHandler);
-        // how should SymlinkAllowedResourceAliasChecker be used? At least this
-        // seems to work...
-        contextHandler.addAliasCheck(new SymlinkAllowedResourceAliasChecker(contextHandler));
+        contextHandler.setBaseResourceAsPath(root.toPath());
+        contextHandler.setHandler(resourceHandler);
 
         // generate a better error message if the ErrorHandler page is missing instead
         // of the
@@ -94,26 +93,30 @@ public class WebServer {
         // communication
         RewriteHandler cacheRewrite = new RewriteHandler();
         HeaderPatternRule cacheRule = new HeaderPatternRule();
-        cacheRule.setPattern("*.html");
-        cacheRule.setName("Cache-Control");
-        cacheRule.setValue("no-store");
+        cacheRule.setPattern("/*");
+        cacheRule.setHeaderName("Cache-Control");
+        cacheRule.setHeaderValue("no-store");
         cacheRewrite.addRule(cacheRule);
 
-        HandlerList handlers = new HandlerList();
+        /*
+         * The contexHandler serving the resources must be inside
+         * cacheRewrite in the handler tree for both to have an effect.
+         * Having them both in handler collection doesn't work, because
+         * the request is considered handled after first handle() method
+         * returns true.
+         */
+        cacheRewrite.setHandler(contextHandler);
+
+        ContextHandlerCollection handlers = new ContextHandlerCollection();
         handlers.addHandler(cacheRewrite);
-        handlers.addHandler(contextHandler);
         handlers.addHandler(new DefaultHandler());
         server.setHandler(handlers);
 
+        server.setDumpAfterStart(true);
+
         StatusSource stats = RestUtils.createStatisticsListener(server);
 
-        // Start things up! By using the server.join() the server thread will join with
-        // the current thread.
-        // See
-        // "http://docs.oracle.com/javase/1.5.0/docs/api/java/lang/Thread.html#join()"
-        // for more details.
         server.start();
-        // server.join();
 
         adminServer = RestUtils.startAdminServer(Role.WEB_SERVER, config, authService, this.serviceLocator, stats);
     }

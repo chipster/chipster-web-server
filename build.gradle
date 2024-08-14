@@ -102,14 +102,16 @@ dependencies {
     implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.5"  
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty:jetty-servlet:11.0.19"
-    implementation "org.eclipse.jetty:jetty-server:11.0.19"
+    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.12"
+    implementation "org.eclipse.jetty:jetty-server:12.0.12"
 
     // websockets 
-    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.19"
+    // API 2.1.0 == ee10
+    implementation "jakarta.websocket:jakarta.websocket-api:2.1.0"
+    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.0.12"
     
     // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:11.0.19"    
+    implementation "org.eclipse.jetty:jetty-rewrite:12.0.12"    
     
         
     // jackson

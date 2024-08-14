@@ -6,9 +6,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.Response;
-
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,6 +18,8 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.RestException;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
 
 public class WebServerTest {
 
@@ -65,7 +64,7 @@ public class WebServerTest {
 		// in the dev setup the web server is serving just the src folder
 		// the app won't work without the build, but the content is enough for these
 		// tests
-		Response resp = webServerTarget.path("main.ts").request().get();
+		Response resp = webServerTarget.path("index.html").request().get();
 
 		assertEquals(200, resp.getStatus());
 
@@ -92,7 +91,7 @@ public class WebServerTest {
 		Response resp404 = webServerTarget.path("not-existing-file").request().get();
 
 		assertEquals(200, respIndex.getStatus());
-		assertEquals(200, resp404.getStatus());
+		assertEquals(404, resp404.getStatus());
 
 		String bodyIndex = RestUtils.toString((InputStream) respIndex.getEntity());
 		String body404 = RestUtils.toString((InputStream) resp404.getEntity());

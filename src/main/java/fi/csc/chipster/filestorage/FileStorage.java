@@ -4,18 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
+import java.nio.file.Files;
 
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.CustomRequestLog;
-import org.eclipse.jetty.server.HttpChannel;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.grizzly.http.server.HttpServer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -110,6 +108,13 @@ public class FileStorage {
 		File storage = new File("storage");
 		storage.mkdir();
 
+		// resolve symlinks before giving it to Jetty, because AliasCheck fails if the
+		// served file is outside of the base path
+		if (Files.isSymbolicLink(storage.toPath())) {
+			storage = storage.toPath().toRealPath().toFile();
+			logger.info("resolved symlink 'storage' to " + storage);
+		}
+
 		backup = new FileStorageBackup(storage.toPath(), true, config, storageId);
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_STORAGE));
@@ -121,48 +126,17 @@ public class FileStorage {
 		connector.setPort(baseUri.getPort());
 		connector.setHost(baseUri.getHost());
 
-		connector.addBean(new HttpChannel.Listener() {
-
-			public void onDispatchFailure(Request request, Throwable failure) {
-				logger.info("onDispatchFailure " + request.getMethod() + " " + request.getRequestURI() + "\n"
-						+ ExceptionUtils.getStackTrace(failure));
-			}
-
-			public void onRequestFailure(Request request, Throwable failure) {
-				logger.info("onRequestFailure " + request.getMethod() + " " + request.getRequestURI() + "\n"
-						+ ExceptionUtils.getStackTrace(failure));
-			}
-
-			public void onResponseFailure(Request request, Throwable failure) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("onResponseFailure " + request.getMethod() + " " + request.getRequestURI() + "\n"
-							+ ExceptionUtils.getStackTrace(failure));
-				} else {
-					// produce concise log line without stack trace.
-					// there seems to be three separate exceptions now
-					String msg = "request cancelled " + request.getMethod() + " " + request.getRequestURI() + "\n"
-							+ failure.getClass().getSimpleName();
-					if (failure.getMessage() != null) {
-						msg += " " + failure.getMessage();
-					}
-					if (failure.getCause() != null) {
-						msg += " caused by " + failure.getCause();
-						if (failure.getCause().getMessage() != null) {
-							msg += " " + failure.getCause().getMessage();
-						}
-					}
-					logger.info(msg);
-				}
-			}
-		});
 		server.addConnector(connector);
 
-		ServletContextHandler contextHandler = new ServletContextHandler(server, "/", false, false);
-		contextHandler.setResourceBase(storage.getPath());
+		ServletContextHandler contextHandler = new ServletContextHandler("/", false, false);
+
+		contextHandler.setBaseResourceAsPath(storage.toPath().toRealPath());
 
 		FileServlet fileServlet = new FileServlet(storage, authService, config);
 		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
 		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
+
+		server.setHandler(contextHandler);
 
 		CustomRequestLog requestLog = new CustomRequestLog("logs/yyyy_mm_dd.request.log",
 				"%t %{client}a %{x-forwarded-for}i \"%r\" %k %X %s %{ms}T ms %{CLF}I B %{CLF}O B %{connection}i %{connection}o");
