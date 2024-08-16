@@ -111,25 +111,25 @@ public class FileBrokerResourceServlet extends HttpServlet {
             RestUtils.configureFilename(response, dataset.getName());
         } else {
             RestUtils.configureForDownload(response, dataset.getName());
+
+            // otherwise firefox opens pdf files when trying to download it
+            response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         }
 
         if (type) {
-            // rendenring a html file in an iFrame requires the Content-Type header
-            response.setContentType(this.fileBrokerApi.getType(dataset).toString());
+            // rendering a html file in an iFrame requires the Content-Type header
+            // and Chrome needs it to open pdf file in new tab
+            response.setContentType(this.fileBrokerApi.getType(dataset));
         } else {
             /*
              * HTTP messages should contain content-type. but it's not required. The old
              * servlet implementation didn't set it and the browsers were guessing it fine.
-             * I didn't find a way to remove the header (when this was still in Jersey), but
-             * the wildcard content-type seems to cause the same end result.
              */
-            response.setContentType(MediaType.WILDCARD_TYPE.getType());
         }
 
         InputStream fileStream = this.fileBrokerApi.getDataset(dataset, range, userToken);
 
         response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
         OutputStream output = response.getOutputStream();
 

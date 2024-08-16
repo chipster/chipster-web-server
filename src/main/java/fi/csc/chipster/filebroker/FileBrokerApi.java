@@ -264,12 +264,15 @@ public class FileBrokerApi {
         return dataset;
     }
 
-    MediaType getType(Dataset dataset) {
-        MediaType type = null;
+    String getType(Dataset dataset) {
+        String type = null;
         // we should store the recognized type so that client could rely on it
         if (dataset.getName().toLowerCase().endsWith(".html")) {
             // required for visualizing html files in an iFrame
-            type = MediaType.TEXT_HTML_TYPE;
+            type = MediaType.TEXT_HTML_TYPE.toString();
+        } else if (dataset.getName().toLowerCase().endsWith(".pdf")) {
+            // required for visualizing html files in an iFrame
+            type = "application/pdf";
         }
         return type;
     }
