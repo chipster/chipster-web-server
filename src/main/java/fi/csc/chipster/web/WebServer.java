@@ -112,8 +112,6 @@ public class WebServer {
         handlers.addHandler(new DefaultHandler());
         server.setHandler(handlers);
 
-        server.setDumpAfterStart(true);
-
         StatusSource stats = RestUtils.createStatisticsListener(server);
 
         server.start();
