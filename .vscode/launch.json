@@ -6,6 +6,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "HttpDownload",
+      "request": "launch",
+      "mainClass": "fi.csc.chipster.util.HttpDownload",
+      "projectName": "chipster-web-server"
+    },
+    {
+      "type": "java",
       "name": "ChipsterJavaClient",
       "request": "launch",
       "mainClass": "fi.csc.chipster.util.ChipsterJavaClient",
