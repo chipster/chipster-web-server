@@ -13,8 +13,10 @@ import org.glassfish.jersey.client.ClientProperties;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.filebroker.FinickyHttpClient.Verbosity;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import jakarta.ws.rs.client.Entity;
@@ -32,6 +34,14 @@ public class RestFileBrokerClient {
 	private CredentialsProvider credentials;
 
 	private WebTarget fileBrokerTarget;
+
+	private String downloadTlsVersion;
+
+	private boolean downloadHttp2;
+
+	private String downloadCipher;
+
+	private FinickyHttpClient finickyHttpClient;
 
 	/**
 	 * @param serviceLocator
@@ -57,6 +67,16 @@ public class RestFileBrokerClient {
 		init(fileBrokerUri);
 	}
 
+	public RestFileBrokerClient(ServiceLocatorClient serviceLocator2, StaticCredentials sessionTokenCredentials,
+			String server, String downloadTlsVersion, boolean downloadHttp2, String downloadCipher) {
+
+		this(serviceLocator2, sessionTokenCredentials, server);
+
+		this.downloadTlsVersion = downloadTlsVersion;
+		this.downloadHttp2 = downloadHttp2;
+		this.downloadCipher = downloadCipher;
+	}
+
 	private void init(String fileBrokerUri) {
 
 		if (credentials != null) {
@@ -66,6 +86,10 @@ public class RestFileBrokerClient {
 			// for testing
 			fileBrokerTarget = AuthenticationClient.getClient().target(fileBrokerUri);
 		}
+
+		this.finickyHttpClient = new FinickyHttpClient(credentials.getUsername(), credentials.getPassword(),
+				downloadTlsVersion, downloadHttp2, downloadCipher,
+				Verbosity.CHOSEN_VERSIONS);
 	}
 
 	// targets
@@ -111,10 +135,17 @@ public class RestFileBrokerClient {
 
 	public InputStream download(UUID sessionId, UUID datasetId) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
-		Response response = target.request().get(Response.class);
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("getting input stream failed", response, target.getUri());
-		}
-		return response.readEntity(InputStream.class);
+
+		// FinickyHttpClient configured to use specific protocol versions
+		return this.finickyHttpClient.dowloadInputStream(target.getUri());
+
+		// simple download with the default client:
+
+		// Response response = target.request().get(Response.class);
+		// if (!RestUtils.isSuccessful(response.getStatus())) {
+		// throw new RestException("getting input stream failed", response,
+		// target.getUri());
+		// }
+		// return response.readEntity(InputStream.class);
 	}
 }

@@ -129,7 +129,7 @@ backup-gpg-program: gpg2
 # use symmetric encryption for the backups
 backup-gpg-passphrase: ""
 
-# Java default is used when this is empty string. Set to TLSv1.2 to downgrade TLS version.
+# Java default is used when this is empty string. Set to TLSv1.2 to downgrade TLS version in file-broker and S3StorageBackup
 tls-version: ""
 
 # JWS keys
@@ -267,6 +267,13 @@ comp-job-timeout: 604800 # a week
 comp-chipster-root-dir: "."
 # cancel job if its storage usage grows larger than this, in gigabytes. Empty string "" disables the limit
 comp-max-storage: 200
+
+# set non-default TLS version e.g. "TLSv1.2" when the comp downloads input files and file-broker url starts with https://
+comp-input-file-tls-version: ""
+# set to true to use http2 to download input files in comp when file-broker url starts with https://
+comp-input-file-http2: false
+# use this specific TLS cipher to download input files in comp when file-broker url starts with https://
+comp-input-file-cipher: ""
 
 # scheduler
 

@@ -235,7 +235,7 @@ public class SessionDbTokenTest {
 			fileBroker.download(sessionId1, datasetId1);
 			assertEquals(true, false);
 		} catch (RestException e) {
-			assertEquals(401, e.getResponse().getStatus());
+			assertEquals(401, e.getStatus());
 		}
 	}
 
@@ -249,7 +249,7 @@ public class SessionDbTokenTest {
 			fileBroker.download(sessionId1, datasetId1);
 			assertEquals(true, false);
 		} catch (RestException e) {
-			assertEquals(401, e.getResponse().getStatus());
+			assertEquals(401, e.getStatus());
 		}
 	}
 
@@ -263,7 +263,7 @@ public class SessionDbTokenTest {
 			fileBroker.download(sessionId1, datasetId1);
 			assertEquals(true, false);
 		} catch (RestException e) {
-			assertEquals(401, e.getResponse().getStatus());
+			assertEquals(401, e.getStatus());
 		}
 	}
 

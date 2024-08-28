@@ -59,6 +59,10 @@ public class SingleShotComp
 	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
 	public static final String KEY_COMP_MAX_STORAGE = "comp-max-storage";
 
+	public static final String KEY_COMP_INPUT_FILE_TLS_VERSION = "comp-input-file-tls-version";
+	public static final String KEY_COMP_INPUT_FILE_HTTP = "comp-input-file-http2";
+	public static final String KEY_COMP_INPUT_FILE_CIPHER = "comp-input-file-cipher";
+
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
 
@@ -100,6 +104,9 @@ public class SingleShotComp
 	private String hostname;
 	private final Config config;
 	private Long storageLimit;
+	private String inputFileTlsVersion;
+	private boolean inputFileHttp2;
+	private String inputFileCipher;
 
 	/**
 	 * 
@@ -117,6 +124,20 @@ public class SingleShotComp
 		// Initialise instance variables
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
+		this.inputFileTlsVersion = config.getString(KEY_COMP_INPUT_FILE_TLS_VERSION);
+		this.inputFileHttp2 = config.getBoolean(KEY_COMP_INPUT_FILE_HTTP);
+		this.inputFileCipher = config.getString(KEY_COMP_INPUT_FILE_CIPHER);
+
+		if (this.inputFileTlsVersion.isEmpty()) {
+			this.inputFileTlsVersion = null;
+		}
+		if (this.inputFileCipher.isEmpty()) {
+			this.inputFileCipher = null;
+		}
+
+		logger.info("inputFileTlsVersion: " + inputFileTlsVersion);
+		logger.info("inputFileHttp2: " + inputFileHttp2);
+		logger.info("inputFileCipher: " + inputFileCipher);
 
 		if (config.getString(KEY_COMP_MAX_STORAGE).isEmpty()) {
 
@@ -156,7 +177,8 @@ public class SingleShotComp
 		resourceMonitor = new SingleShotResourceMonitor(this, monitoringInterval);
 
 		sessionDbClient = new SessionDbClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
-		fileBroker = new RestFileBrokerClient(serviceLocator, sessionTokenCredentials, Role.SERVER);
+		fileBroker = new RestFileBrokerClient(serviceLocator, sessionTokenCredentials, Role.SERVER, inputFileTlsVersion,
+				inputFileHttp2, inputFileCipher);
 
 		this.hostname = InetAddress.getLocalHost().getHostName();
 	}
