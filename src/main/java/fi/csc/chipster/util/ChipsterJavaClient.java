@@ -67,8 +67,7 @@ public class ChipsterJavaClient {
         SessionDbClient sessionDb = new SessionDbClient(serviceLocator.getPublicUri(Role.SESSION_DB),
                 Role.SESSION_DB_EVENTS, auth.getCredentials());
 
-        RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator.getPublicUri(Role.FILE_BROKER),
-                auth.getCredentials());
+        RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, auth.getCredentials(), Role.CLIENT);
 
         ArrayList<Long> durations = new ArrayList<>();
 

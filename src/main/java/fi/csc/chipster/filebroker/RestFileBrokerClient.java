@@ -16,7 +16,6 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FinickyHttpClient.Verbosity;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
-import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import jakarta.ws.rs.client.Entity;
@@ -29,17 +28,7 @@ public class RestFileBrokerClient {
 	@SuppressWarnings("unused")
 	private static final Logger logger = LogManager.getLogger();
 
-	@SuppressWarnings("unused")
-	private ServiceLocatorClient serviceLocator;
-	private CredentialsProvider credentials;
-
 	private WebTarget fileBrokerTarget;
-
-	private String downloadTlsVersion;
-
-	private boolean downloadHttp2;
-
-	private String downloadCipher;
 
 	private FinickyHttpClient finickyHttpClient;
 
@@ -51,33 +40,21 @@ public class RestFileBrokerClient {
 	 *                       address
 	 */
 	public RestFileBrokerClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials, String role) {
-		this.serviceLocator = serviceLocator;
-		this.credentials = credentials;
+
+		this(serviceLocator, credentials, role, null, false, null);
+	}
+
+	public RestFileBrokerClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials,
+			String role, String downloadTlsVersion, boolean downloadHttp2, String downloadCipher) {
+
+		String fileBrokerUri = null;
 
 		if (Role.CLIENT.equals(role)) {
-			init(serviceLocator.getPublicUri(Role.FILE_BROKER));
+			fileBrokerUri = serviceLocator.getPublicUri(Role.FILE_BROKER);
 		} else {
 			// get with credentials in ServiceLocator
-			init(serviceLocator.getInternalService(Role.FILE_BROKER).getUri());
+			fileBrokerUri = serviceLocator.getInternalService(Role.FILE_BROKER).getUri();
 		}
-	}
-
-	public RestFileBrokerClient(String fileBrokerUri, CredentialsProvider credentials) {
-		this.credentials = credentials;
-		init(fileBrokerUri);
-	}
-
-	public RestFileBrokerClient(ServiceLocatorClient serviceLocator2, StaticCredentials sessionTokenCredentials,
-			String server, String downloadTlsVersion, boolean downloadHttp2, String downloadCipher) {
-
-		this(serviceLocator2, sessionTokenCredentials, server);
-
-		this.downloadTlsVersion = downloadTlsVersion;
-		this.downloadHttp2 = downloadHttp2;
-		this.downloadCipher = downloadCipher;
-	}
-
-	private void init(String fileBrokerUri) {
 
 		if (credentials != null) {
 			fileBrokerTarget = AuthenticationClient

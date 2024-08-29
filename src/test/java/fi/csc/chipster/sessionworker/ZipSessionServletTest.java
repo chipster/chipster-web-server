@@ -62,10 +62,10 @@ public class ZipSessionServletTest {
 		sessionDbClient1 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		sessionDbClient2 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 
-		fileBrokerClient1 = new RestFileBrokerClient(launcher.getUser1Target(Role.FILE_BROKER).getUri().toString(),
-				launcher.getUser1Token());
-		fileBrokerClient2 = new RestFileBrokerClient(launcher.getUser2Target(Role.FILE_BROKER).getUri().toString(),
-				launcher.getUser2Token());
+		fileBrokerClient1 = new RestFileBrokerClient(launcher.getServiceLocator(), launcher.getUser1Token(),
+				Role.CLIENT);
+		fileBrokerClient2 = new RestFileBrokerClient(launcher.getServiceLocator(), launcher.getUser2Token(),
+				Role.CLIENT);
 
 		sessionWorkerClient1 = new SessionWorkerClient(launcher.getUser1Target(Role.SESSION_WORKER), sessionDbClient1,
 				fileBrokerClient1);
