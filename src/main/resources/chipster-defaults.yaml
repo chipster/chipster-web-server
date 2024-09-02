@@ -536,6 +536,8 @@ file-broker-storage-read-only-0: ""
 # The file-storage configured here won't be used for writing new files.
 file-broker-storage-null: ""
 
+file-broker-chunked-encoding: true
+
 # file-storage
 
 # how many percentages of the total space must remain empty after an upload (to allow other parallel uploads)

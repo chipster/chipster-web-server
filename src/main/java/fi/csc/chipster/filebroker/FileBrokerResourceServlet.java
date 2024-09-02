@@ -57,9 +57,11 @@ public class FileBrokerResourceServlet extends HttpServlet {
     private static Logger logger = LogManager.getLogger();
 
     private FileBrokerApi fileBrokerApi;
+    private boolean useChunkedEncoding;
 
-    public FileBrokerResourceServlet(FileBrokerApi fileBrokerApi) {
+    public FileBrokerResourceServlet(FileBrokerApi fileBrokerApi, boolean useChunkedEncoding) {
         this.fileBrokerApi = fileBrokerApi;
+        this.useChunkedEncoding = useChunkedEncoding;
     }
 
     /**
@@ -130,6 +132,11 @@ public class FileBrokerResourceServlet extends HttpServlet {
         InputStream fileStream = this.fileBrokerApi.getDataset(dataset, range, userToken);
 
         response.setStatus(HttpServletResponse.SC_OK);
+
+        if (!useChunkedEncoding && range == null) {
+            logger.info("set content-length: " + dataset.getFile().getSize());
+            response.setContentLengthLong(dataset.getFile().getSize());
+        }
 
         OutputStream output = response.getOutputStream();
 

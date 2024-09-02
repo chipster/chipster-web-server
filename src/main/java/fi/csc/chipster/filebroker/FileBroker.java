@@ -26,6 +26,8 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 
 public class FileBroker {
 
+	private static final String CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING = "file-broker-chunked-encoding";
+
 	private Logger logger = LogManager.getLogger();
 
 	private AuthenticationClient authService;
@@ -82,8 +84,10 @@ public class FileBroker {
 
 		URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
 
+		boolean useChunkedEncoding = this.config.getBoolean(CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING);
+
 		servletHandler.addServlet(
-				new ServletHolder(new FileBrokerResourceServlet(this.fileBrokerApi)),
+				new ServletHolder(new FileBrokerResourceServlet(this.fileBrokerApi, useChunkedEncoding)),
 				"/*");
 		servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()),
 				"/*", null);
