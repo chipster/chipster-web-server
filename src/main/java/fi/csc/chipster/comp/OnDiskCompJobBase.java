@@ -295,7 +295,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
         int retries = 3;
 
-        for (int i = 0; i < retries; i++) {
+        // start from 1 to make log messages more understandable
+        for (int i = 1; i <= retries; i++) {
 
             Dataset dataset = new Dataset();
             dataset.setSourceJob(jobId);
@@ -323,7 +324,7 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 break;
 
             } catch (Exception e) {
-                if (i < retries - 1) {
+                if (i < retries) {
                     /*
                      * Retry upload
                      * 
@@ -507,15 +508,17 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
         int retries = 3;
 
-        for (int i = 0; i < retries; i++) {
+        // start from 1 to make log messages more understandable
+        for (int i = 1; i <= retries; i++) {
             try {
                 logger.info("download file " + file);
                 resultHandler.getFileBrokerClient().download(sessionId, dataId, file);
                 break;
             } catch (Exception e) {
-                if (i < retries - 1) {
+                if (i < retries) {
                     logger.warn("download attempt " + i + " failed. Max retries: " + retries, e);
                     if (file.exists()) {
+                        logger.info("file size: " + FileUtils.byteCountToDisplaySize(file.length()));
                         file.delete();
                     }
                 } else {
