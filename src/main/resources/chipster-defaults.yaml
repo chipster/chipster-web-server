@@ -536,7 +536,8 @@ file-broker-storage-read-only-0: ""
 # The file-storage configured here won't be used for writing new files.
 file-broker-storage-null: ""
 
-file-broker-chunked-encoding: true
+# chunked encoding seems to interrupt TLS downloads from haproxy randomly. We could probably drop support for it
+file-broker-chunked-encoding: false
 
 # file-storage
 
