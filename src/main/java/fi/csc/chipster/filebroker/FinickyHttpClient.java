@@ -1,5 +1,6 @@
 package fi.csc.chipster.filebroker;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.concurrent.ExecutionException;
@@ -26,6 +27,7 @@ import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.io.ssl.SslHandshakeListener;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
+import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.sessiondb.RestException;
 
 /**
@@ -129,7 +131,21 @@ public class FinickyHttpClient {
             // Look at the response before streaming the content.
             if (response.getStatus() == HttpStatus.OK_200) {
 
-                return listener.getInputStream();
+                InputStream remoteStream = listener.getInputStream();
+
+                // if server sends a content-length, check that the stream length matches
+                // otherwise rely on server closing the connection without sending the last
+                // empty chunk
+                String contentLengthString = response.getHeaders().get("Content-Length");
+
+                if (contentLengthString != null) {
+                    long contentLength = Long.parseLong(contentLengthString);
+                    if (verbosity == Verbosity.ENABLED_VERSIONS || verbosity == Verbosity.CHOSEN_VERSIONS) {
+                        logger.info("Content-Length: " + contentLength);
+                    }
+                    remoteStream = new CheckedStream(remoteStream, null, null, contentLength);
+                }
+                return remoteStream;
 
             } else {
 
@@ -141,7 +157,7 @@ public class FinickyHttpClient {
                 throw exception;
 
             }
-        } catch (InterruptedException | TimeoutException | ExecutionException e) {
+        } catch (InterruptedException | TimeoutException | ExecutionException | IOException e) {
             throw new RuntimeException("getting input stream failed", e);
         }
     }
