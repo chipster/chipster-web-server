@@ -5,14 +5,19 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -40,6 +45,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionState;
 import fi.csc.chipster.sessionworker.xml.XmlSession;
@@ -79,6 +85,8 @@ public class ZipSessionServlet extends HttpServlet {
 
 	private static final Object PATH_DATASETS = "datasets";
 
+	public static final String TEMPORARY_ZIP_EXPORT = "temporary-zip-export";
+
 	private static Logger logger = LogManager.getLogger();
 
 	private ServiceLocatorClient serviceLocator;
@@ -86,6 +94,8 @@ public class ZipSessionServlet extends HttpServlet {
 	private File tempDir;
 
 	private AuthenticationClient authService;
+
+	private ExecutorService executor;
 
 	public ZipSessionServlet(ServiceLocatorClient serviceLocator, AuthenticationClient authService) {
 		this.serviceLocator = serviceLocator;
@@ -100,6 +110,8 @@ public class ZipSessionServlet extends HttpServlet {
 		for (File file : tempDir.listFiles()) {
 			file.delete();
 		}
+
+		this.executor = Executors.newCachedThreadPool();
 	}
 
 	@Override
@@ -140,13 +152,53 @@ public class ZipSessionServlet extends HttpServlet {
 			JsonSession.packageSession(sessionDb, fileBroker, session, sessionId, entries);
 
 			response.setStatus(HttpServletResponse.SC_OK);
-			response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
-			RestUtils.configureForDownload(response, session.getName() + ".zip");
+			if (false) {
+				response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
-			OutputStream output = response.getOutputStream();
+				RestUtils.configureForDownload(response, session.getName() + ".zip");
 
-			streamZip(entries, output);
+				OutputStream output = response.getOutputStream();
+
+				streamZip(entries, output);
+
+			} else {
+
+				MetadataFile metadataFile = new MetadataFile();
+				metadataFile.setName(TEMPORARY_ZIP_EXPORT);
+
+				Dataset zipDataset = new Dataset();
+				zipDataset.setName(session.getName() + ".zip");
+				zipDataset.setMetadataFiles(List.of(metadataFile));
+				UUID datasetId = sessionDb.createDataset(sessionId, zipDataset);
+
+				OutputStream output2 = new PipedOutputStream();
+				PipedInputStream in = new PipedInputStream((PipedOutputStream) output2);
+
+				executor.submit(() -> {
+					try {
+						fileBroker.upload(sessionId, datasetId, in, null, true);
+					} catch (RestException e) {
+						logger.error("upload failed", e);
+					}
+				});
+
+				executor.submit(() -> {
+					try {
+						streamZip(entries, output2);
+					} catch (IOException e) {
+						logger.error("upload failed", e);
+					}
+				});
+
+				response.setContentType(MediaType.APPLICATION_JSON);
+
+				OutputStream respoonseOutput = response.getOutputStream();
+				HashMap<String, String> json = new HashMap<>();
+				json.put("datasetId", datasetId.toString());
+				respoonseOutput.write(RestUtils.asJson(json).getBytes());
+				respoonseOutput.close();
+			}
 
 		} catch (RestException e) {
 			throw ServletUtils.extractRestException(e);

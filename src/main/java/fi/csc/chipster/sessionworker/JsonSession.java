@@ -23,6 +23,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class JsonSession {
@@ -245,6 +246,20 @@ public class JsonSession {
 						logger.info("skipping null dataset, sessionId " + session.getSessionId() + " datasetId "
 								+ d.getDatasetId());
 						return false;
+					}
+					return true;
+				})
+				.collect(Collectors.toList());
+
+		// skip zip exports
+		datasets = datasets.stream()
+				.filter(d -> {
+					for (MetadataFile mf : d.getMetadataFiles()) {
+						if (ZipSessionServlet.TEMPORARY_ZIP_EXPORT.equals(mf.getName())) {
+							logger.info("skipping zip export, sessionId " + session.getSessionId() + " datasetId "
+									+ d.getDatasetId());
+							return false;
+						}
 					}
 					return true;
 				})

@@ -219,7 +219,12 @@ public class FileBrokerApi {
 
     private String getStorage(Long chunkNumber, Long chunkSize, Long flowTotalChunks, Long flowTotalSize) {
 
-        if (this.s3StorageClient.isEnabledForNewFiles() && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
+        if (flowTotalSize == null) {
+            logger.info("total size is null, will use file-storage");
+        }
+
+        if (flowTotalSize != null && this.s3StorageClient.isEnabledForNewFiles()
+                && this.s3StorageClient.isOnePartUpload(flowTotalChunks)) {
 
             return this.s3StorageClient.getStorageIdForNewFile();
 

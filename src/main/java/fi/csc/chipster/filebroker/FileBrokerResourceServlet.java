@@ -106,8 +106,6 @@ public class FileBrokerResourceServlet extends HttpServlet {
             throw ServletUtils.extractRestException(e);
         }
 
-        // response.setHeader("Transfer-Encoding", "chunked");
-
         // configure filename for response
         if (!download) {
             RestUtils.configureFilename(response, dataset.getName());
@@ -134,8 +132,12 @@ public class FileBrokerResourceServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_OK);
 
         if (!useChunkedEncoding && range == null) {
+            // if content-lenth is set, browsers notice interrupted downloads
             logger.info("set content-length: " + dataset.getFile().getSize());
             response.setContentLengthLong(dataset.getFile().getSize());
+        } else {
+            // Jetty sets this automatically
+            // response.setHeader("Transfer-Encoding", "chunked");
         }
 
         OutputStream output = response.getOutputStream();
