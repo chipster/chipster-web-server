@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserToken;
+import fi.csc.chipster.filebroker.FileBrokerApi;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
@@ -164,12 +165,26 @@ public class ZipSessionServlet extends HttpServlet {
 
 			} else {
 
-				MetadataFile metadataFile = new MetadataFile();
-				metadataFile.setName(TEMPORARY_ZIP_EXPORT);
+				/*
+				 * File-broker will delete the file after it's downloaded once.
+				 * 
+				 * File-broker could just react on the TEMPORARY_ZIP_EXPORT, but architecturally
+				 * it's cleaner if only session-worker depends on file-broker and not the other
+				 * way round. Maybe this could be useful somewhere else too.
+				 */
+				MetadataFile delAfterMF = new MetadataFile();
+				delAfterMF.setName(FileBrokerApi.MF_DELETE_AFTER_DOWNLOAD);
+
+				/*
+				 * Special tag for exactly this use, so that client knows it can safely
+				 * delete any remainging files with this MetadataFile name.
+				 */
+				MetadataFile tempZipMF = new MetadataFile();
+				tempZipMF.setName(TEMPORARY_ZIP_EXPORT);
 
 				Dataset zipDataset = new Dataset();
 				zipDataset.setName(session.getName() + ".zip");
-				zipDataset.setMetadataFiles(List.of(metadataFile));
+				zipDataset.setMetadataFiles(List.of(tempZipMF, delAfterMF));
 				UUID datasetId = sessionDb.createDataset(sessionId, zipDataset);
 
 				OutputStream output2 = new PipedOutputStream();

@@ -161,6 +161,8 @@ public class FileBrokerResourceServlet extends HttpServlet {
          * went wrong. So don't use try-with-resources to close it!
          */
         output.close();
+
+        this.fileBrokerApi.afterDownload(dataset);
     }
 
     /**

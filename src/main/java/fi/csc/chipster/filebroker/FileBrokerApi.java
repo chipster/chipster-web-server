@@ -27,6 +27,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.FileState;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
@@ -42,6 +43,8 @@ import jakarta.ws.rs.core.MediaType;
 public class FileBrokerApi {
 
     private Logger logger = LogManager.getLogger();
+
+    public static final String MF_DELETE_AFTER_DOWNLOAD = "delete-after-download";
 
     private S3StorageClient s3StorageClient;
     private FileStorageDiscovery fileStorageDiscovery;
@@ -354,5 +357,30 @@ public class FileBrokerApi {
                 }
             }
         });
+    }
+
+    public void afterDownload(Dataset dataset) {
+        if (dataset.getMetadataFiles().stream()
+                .map((MetadataFile mf) -> mf.getName())
+                .anyMatch(name -> MF_DELETE_AFTER_DOWNLOAD.equals(name))) {
+
+            logger.info("dataset is marked to be deleted after download");
+            try {
+                /*
+                 * Special file which should be deleted after it's downloaded once
+                 * 
+                 * Let's use file-broker credentials to delete it, so that this works even if
+                 * the downloading was done with read-only token.
+                 * 
+                 * This is an exception in the security model when a read-only token can change
+                 * the session, but let's consider in a way that the real change happened when
+                 * somebody marked the dataset with MF_DELETE_AFTER_DOWNLOAD with read-write
+                 * rights and this is more an automated action happening after it.
+                 */
+                this.sessionDbWithFileBrokerCredentials.deleteDataset(dataset.getSessionId(), dataset.getDatasetId());
+            } catch (RestException e) {
+                logger.error("failed to delete dataset");
+            }
+        }
     }
 }
