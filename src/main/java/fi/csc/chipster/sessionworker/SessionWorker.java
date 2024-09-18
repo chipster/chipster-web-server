@@ -39,32 +39,25 @@ import fi.csc.chipster.sessiondb.model.Session;
  * 
  * The session-worker is a service for all kind of session management jobs
  * that need to be run on the server. Some of these jobs may potentially be
- * quite long
- * running, like the download and upload of the session files.
+ * quite long running, like the extraction and packaging of the session files.
  * 
  * In the strive to keep session-db as simple simple as possible, which isn't
- * very
- * simple anyway, this is the place for all other session-related functionality.
+ * very simple anyway, this is the place for all other session-related
+ * functionality.
  * 
  * At the moment there are two API endpoints. There is {@link SupportResource}
- * for
- * handling the support requests and {@link ZipSessionServlet} handling the
- * download and upload of the zip sessions. The first one is
- * a Jersey/JAX-RS resource but the latter had to be
- * implemented as a servlet for the reasons explained in
- * {@link ZipSessionServlet}.
+ * for handling the support requests and {@link ZipSessionServlet} handling the
+ * extraction and packaging of the zip sessions. The first one is a
+ * Jersey/JAX-RS resource but the latter had to be implemented as a servlet for
+ * the reasons explained in {@link ZipSessionServlet}.
  * 
  * Normally we would deploy Jersey resources to a Grizzly web server, but here
- * we
- * need a support for servlets too. Luckily it seems to be possible to deploy
- * both
- * Jersey and servlets to Jetty.
+ * we need a support for servlets too. Luckily it seems to be possible to deploy
+ * both Jersey and servlets to Jetty.
  * 
  * These two endpoints aren't really related, so in a true microservice
- * architecture
- * these would probably separate services. Let's think about that when the
- * resource
- * overheads of a service are negligible.
+ * architecture these would probably separate services. Let's think about that
+ * when the resource overheads of a service are negligible.
  */
 public class SessionWorker {
 

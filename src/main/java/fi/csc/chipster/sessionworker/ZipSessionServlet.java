@@ -56,23 +56,26 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
 
 /**
- * Servlet for compressing and extracting session zip files
+ * Servlet for compressing and extracting session zip session files
  * 
- * This is implemented as a servlet to show error in the browser when
- * an exception during the download. I wasn't able to create the error in Jersey
- * and others have had the same problem too:
- * https://github.com/eclipse-ee4j/jersey/issues/3850.
+ * This component can package a live server session to a zip file or extract a
+ * zip file to a live server session. In both directions, this service can
+ * handle zip files only when they are stored as a Dataset within the live
+ * server session. This makes it easy for the client to upload and download the
+ * zip files using the same APIs that it uses for individual files. Furthermore,
+ * this allows us to know the file size when the browser starts the download,
+ * avoiding the use of chunked encoding, which seems to be problematic in the
+ * possible forward proxy.
  * 
- * It is important to show this error for the user, because otherwise the user
- * might think that he/she has a complete copy of the session when only part of
- * the files were copied. The browser does the downloading, so we don't have any
- * way in the client side to monitor its progress. We could implement a new REST
- * endpoint, where the javascript could follow the progress of the download,
- * but handling that state information would be a lot of work, when several
- * session-workers are running behind a load balancer.
+ * The packaging and extraction methods send a simple json response when the
+ * process is completed. Before that they send a stream of extra space
+ * characters to prevent possible forward proxies (HAproxy in Openshift) from
+ * closing the idle connection.
  * 
- * Simply throwing an IOException from the ServletOutputStream seems to be
- * enough in servlet. However, there is a bit more work with parsing the path.
+ * This is implemented as a servlet, because that allowed us to report errors
+ * when we were still doing packaging on the fly and used chunked encoding.
+ * Nowadays this could probably be a regualr Jersey endpoint as well. which
+ * would parse the request path for us.
  * 
  * @author klemela
  *
