@@ -124,7 +124,7 @@ public class SessionWorker {
 		ServletHolder jerseyHolder = new ServletHolder(new ServletContainer(rc));
 
 		servletHandler.addServlet(jerseyHolder, "/*");
-		servletHandler.addServlet(new ServletHolder(new ZipSessionServlet(this.serviceLocator, this.authService)),
+		servletHandler.addServlet(new ServletHolder(new ZipSessionServlet(this.serviceLocator)),
 				PATH_SPEC_SESSIONS);
 		servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), PATH_SPEC_SESSIONS, null);
 		servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), PATH_SPEC_SESSIONS, null);

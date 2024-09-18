@@ -8,7 +8,6 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,9 +31,7 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.filebroker.FileBrokerApi;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.RestUtils;
@@ -54,7 +51,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
@@ -94,13 +90,10 @@ public class ZipSessionServlet extends HttpServlet {
 
 	private File tempDir;
 
-	private AuthenticationClient authService;
-
 	private ExecutorService executor;
 
-	public ZipSessionServlet(ServiceLocatorClient serviceLocator, AuthenticationClient authService) {
+	public ZipSessionServlet(ServiceLocatorClient serviceLocator) {
 		this.serviceLocator = serviceLocator;
-		this.authService = authService;
 
 		// all files in this directory will be deleted
 		tempDir = new File("tmp/session-worker");
@@ -115,29 +108,8 @@ public class ZipSessionServlet extends HttpServlet {
 		this.executor = Executors.newCachedThreadPool();
 	}
 
-	@Override
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-
-		StaticCredentials credentials = getUserCredentials(request);
-
-		String pathInfo = request.getPathInfo();
-
-		if (pathInfo == null) {
-			throw new NotFoundException();
-		}
-
-		// parse path
-		String[] path = pathInfo.split("/");
-
-		if (path.length != 2) {
-			throw new NotFoundException();
-		}
-
-		if (!"".equals(path[0])) {
-			throw new BadRequestException("path doesn't start with slash");
-		}
-
-		UUID sessionId = UUID.fromString(path[1]);
+	private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId)
+			throws IOException {
 
 		// use client creds for the actual file operations (to check the access rights)
 		// but use the server creds (stored in serviceLocator) to get the internal
@@ -154,66 +126,86 @@ public class ZipSessionServlet extends HttpServlet {
 
 			response.setStatus(HttpServletResponse.SC_OK);
 
-			if (false) {
-				response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+			ArrayList<String> errors = new ArrayList<>();
 
-				RestUtils.configureForDownload(response, session.getName() + ".zip");
+			/*
+			 * File-broker will delete the file after it's downloaded once.
+			 * 
+			 * File-broker could just react on the TEMPORARY_ZIP_EXPORT, but architecturally
+			 * it's cleaner if only session-worker depends on file-broker and not the other
+			 * way round. Maybe this could be useful somewhere else too.
+			 */
+			MetadataFile delAfterMF = new MetadataFile();
+			delAfterMF.setName(FileBrokerApi.MF_DELETE_AFTER_DOWNLOAD);
 
-				OutputStream output = response.getOutputStream();
+			/*
+			 * Special tag for exactly this use, so that client knows it can safely
+			 * delete any remainging files with this MetadataFile name.
+			 */
+			MetadataFile tempZipMF = new MetadataFile();
+			tempZipMF.setName(TEMPORARY_ZIP_EXPORT);
 
-				streamZip(entries, output);
+			Dataset zipDataset = new Dataset();
+			zipDataset.setName(session.getName() + ".zip");
+			zipDataset.setMetadataFiles(List.of(tempZipMF, delAfterMF));
+			UUID datasetId = sessionDb.createDataset(sessionId, zipDataset);
 
-			} else {
+			OutputStream output2 = new PipedOutputStream();
+			PipedInputStream in = new PipedInputStream((PipedOutputStream) output2);
 
-				/*
-				 * File-broker will delete the file after it's downloaded once.
-				 * 
-				 * File-broker could just react on the TEMPORARY_ZIP_EXPORT, but architecturally
-				 * it's cleaner if only session-worker depends on file-broker and not the other
-				 * way round. Maybe this could be useful somewhere else too.
-				 */
-				MetadataFile delAfterMF = new MetadataFile();
-				delAfterMF.setName(FileBrokerApi.MF_DELETE_AFTER_DOWNLOAD);
+			CountDownLatch latch = new CountDownLatch(1);
 
-				/*
-				 * Special tag for exactly this use, so that client knows it can safely
-				 * delete any remainging files with this MetadataFile name.
-				 */
-				MetadataFile tempZipMF = new MetadataFile();
-				tempZipMF.setName(TEMPORARY_ZIP_EXPORT);
+			OutputStream respoonseOutput = response.getOutputStream();
 
-				Dataset zipDataset = new Dataset();
-				zipDataset.setName(session.getName() + ".zip");
-				zipDataset.setMetadataFiles(List.of(tempZipMF, delAfterMF));
-				UUID datasetId = sessionDb.createDataset(sessionId, zipDataset);
+			keepAliveWithSpaces(respoonseOutput, latch);
 
-				OutputStream output2 = new PipedOutputStream();
-				PipedInputStream in = new PipedInputStream((PipedOutputStream) output2);
+			// start creating the zip stream in background thread (may complete before all
+			// data is uploaded)
+			executor.submit(() -> {
+				try {
+					streamZip(entries, output2);
+				} catch (IOException e) {
+					logger.error("failed to package zip session", e);
+					errors.add("failed to package zip session: " + e.getMessage());
+				}
+			});
 
-				executor.submit(() -> {
-					try {
-						fileBroker.upload(sessionId, datasetId, in, null, true);
-					} catch (RestException e) {
-						logger.error("upload failed", e);
-					}
-				});
+			// upload in the zip stream in this thread, so that we send response to this
+			// servlet request only after the upload has really completed
+			try {
+				fileBroker.upload(sessionId, datasetId, in, null, true);
 
-				executor.submit(() -> {
-					try {
-						streamZip(entries, output2);
-					} catch (IOException e) {
-						logger.error("upload failed", e);
-					}
-				});
-
-				response.setContentType(MediaType.APPLICATION_JSON);
-
-				OutputStream respoonseOutput = response.getOutputStream();
-				HashMap<String, String> json = new HashMap<>();
-				json.put("datasetId", datasetId.toString());
-				respoonseOutput.write(RestUtils.asJson(json).getBytes());
-				respoonseOutput.close();
+			} catch (RestException e) {
+				logger.error("upload failed", e);
+				errors.add("failed to package zip session: " + e.getMessage());
 			}
+
+			String datasetIdString = null;
+
+			if (errors.isEmpty()) {
+				// only return datasetId after success
+				datasetIdString = datasetId.toString();
+			} else {
+				// something went wrong, delete the zip dataset
+				logger.info("something went wrong, delete the incomplete zip dataset");
+				try {
+					sessionDb.deleteDataset(sessionId, datasetId);
+				} catch (RestException e1) {
+					logger.error("unable to clean up: " + e1);
+				}
+			}
+
+			response.setContentType(MediaType.APPLICATION_JSON);
+
+			HashMap<String, Object> json = new HashMap<>();
+			json.put("datasetId", datasetIdString);
+			json.put("errors", errors);
+
+			logger.info("response: " + RestUtils.asJson(json, true));
+
+			latch.countDown();
+			respoonseOutput.write(RestUtils.asJson(json).getBytes());
+			respoonseOutput.close();
 
 		} catch (RestException e) {
 			throw ServletUtils.extractRestException(e);
@@ -245,9 +237,10 @@ public class ZipSessionServlet extends HttpServlet {
 				zos.putNextEntry(zipEntry);
 				zos.setLevel(entry.getCompressionLevel());
 
-				InputStream entryStream = entry.getInputStreamCallable().call();
-				IOUtils.copy(entryStream, zos);
-				entryStream.close();
+				try (InputStream entryStream = entry.getInputStreamCallable().call()) {
+
+					IOUtils.copy(entryStream, zos);
+				}
 
 				zos.closeEntry();
 			}
@@ -257,18 +250,11 @@ public class ZipSessionServlet extends HttpServlet {
 
 		} catch (Exception e) {
 
-			// error happened. Do not close zip so at least the file isn't a valid zip
-			// format
-			logger.error("error in copying dataset input stream to zip output stream", e);
+			// error happened. Close the output stream without closing the zip stream so
+			// that the file isn't a valid zip format
 
-			/*
-			 * show error in the browser's download
-			 * 
-			 * "Network error" in Chrome,
-			 * "cannot parse response" in Safari,
-			 * "source file could not be read" in Firefox
-			 */
-			throw new IOException("error in copying dataset input stream to zip output stream");
+			output.close();
+			throw new IOException("error in copying dataset input stream to zip output stream", e);
 		}
 	}
 
@@ -281,10 +267,6 @@ public class ZipSessionServlet extends HttpServlet {
 
 		StaticCredentials credentials = getUserCredentials(request);
 
-		// don't allow SessionDbTokens
-		UserToken parsedToken = this.authService.validateUserToken(credentials.getPassword());
-		rolesAllowed(parsedToken, Role.CLIENT, Role.SERVER);
-
 		String pathInfo = request.getPathInfo();
 
 		if (pathInfo == null) {
@@ -294,7 +276,7 @@ public class ZipSessionServlet extends HttpServlet {
 		// parse path
 		String[] path = pathInfo.split("/");
 
-		if (path.length != 4) {
+		if (path.length < 2) {
 			throw new NotFoundException();
 		}
 
@@ -304,11 +286,36 @@ public class ZipSessionServlet extends HttpServlet {
 
 		UUID sessionId = UUID.fromString(path[1]);
 
-		if (!PATH_DATASETS.equals(path[2])) {
-			throw new NotFoundException();
-		}
+		if (path.length == 2) {
 
-		UUID zipDatasetId = UUID.fromString(path[3]);
+			// curl
+			// localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a -I -X POST
+			// --user token:<TOKEN>
+
+			this.packageSession(response, credentials, sessionId);
+
+		} else {
+
+			// curl
+			// localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a/datasets/8997e0d1-1c0a-4295-af3f-f191c96e589a
+			// -I -X POST --user token:<TOKEN>
+
+			if (path.length != 4) {
+				throw new NotFoundException();
+			}
+
+			if (!PATH_DATASETS.equals(path[2])) {
+				throw new NotFoundException();
+			}
+
+			UUID zipDatasetId = UUID.fromString(path[3]);
+
+			extractSession(response, credentials, sessionId, zipDatasetId);
+		}
+	}
+
+	private void extractSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,
+			UUID zipDatasetId) throws IOException {
 
 		// use client creds for the actual file operations (to check the access rights)
 		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
@@ -333,31 +340,8 @@ public class ZipSessionServlet extends HttpServlet {
 		CountDownLatch latch = new CountDownLatch(1);
 
 		try {
-			// keep sending 1k bytes every second to keep the connection open
-			// jersey will buffer for 8kB and the OpenShift router expects to get the first
-			// bytes in 30 seconds
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						// respond with space characters that will be ignored in json deserialization
-						String spaces = " ";
 
-						for (int i = 0; i < 10; i++) {
-							spaces = spaces + spaces;
-						}
-
-						spaces += "\n";
-
-						while (!latch.await(1, TimeUnit.SECONDS)) {
-							output.write(spaces.getBytes());
-							output.flush();
-						}
-					} catch (InterruptedException | IOException e) {
-						logger.error("error in keep-alive thread", e);
-					}
-				}
-			}, "session-worker-response-keep-alive").start();
+			keepAliveWithSpaces(output, latch);
 
 			ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
 
@@ -401,16 +385,30 @@ public class ZipSessionServlet extends HttpServlet {
 
 	}
 
-	private void rolesAllowed(UserToken parsedToken, String... roles) throws NotAuthorizedException {
+	private void keepAliveWithSpaces(OutputStream output, CountDownLatch latch) {
+		// keep sending 1k bytes every second to keep the connection open
+		// jersey will buffer for 8kB and the OpenShift router expects to get the first
+		// bytes in 30 seconds
+		this.executor.submit(() -> {
 
-		for (String allowedRole : Arrays.asList(roles)) {
-			if (parsedToken.getRoles().contains(allowedRole)) {
-				// suitable role found;
-				return;
+			try {
+				// respond with space characters that will be ignored in json deserialization
+				String spaces = " ";
+
+				for (int i = 0; i < 10; i++) {
+					spaces = spaces + spaces;
+				}
+
+				spaces += "\n";
+
+				while (!latch.await(1, TimeUnit.SECONDS)) {
+					output.write(spaces.getBytes());
+					output.flush();
+				}
+			} catch (InterruptedException | IOException e) {
+				logger.error("error in keep-alive thread", e);
 			}
-		}
-
-		throw new NotAuthorizedException("wrong role");
+		});
 	}
 
 	private StaticCredentials getUserCredentials(HttpServletRequest request) {
