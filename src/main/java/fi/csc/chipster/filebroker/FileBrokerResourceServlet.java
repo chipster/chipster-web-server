@@ -25,18 +25,16 @@ import jakarta.ws.rs.core.MediaType;
 /**
  * Servlet for uploading and downloading files
  * 
- * This is implemented as a servlet to show error in the browser when
- * an exception during the download. I wasn't able to create the error in Jersey
- * and others have had the same problem too:
- * https://github.com/eclipse-ee4j/jersey/issues/3850.
+ * This is implemented as a servlet, because that allowed us to report errors to
+ * client, when we were still using chunked encoding (because ZipSessionServlet
+ * needed it). Now when we don't use chunked encoding anymore (Or do we
+ * in range requests?), it might be possible to implement this with some higher
+ * level API, like Jersey. It would make it easier to parse the request path.
  * 
- * It is important to show this error for the user, because otherwise the user
+ * It is important to show errors for the user, because otherwise the user
  * might think that he/she has a complete copy of the file. The browser does the
  * downloading, so we don't have any way in the client side to monitor its
  * progress.
- * 
- * Simply throwing an exception from the ServletOutputStream seems to be
- * enough in servlet. However, there is a bit more work with parsing the path.
  * 
  * @author klemela
  *
@@ -78,9 +76,11 @@ public class FileBrokerResourceServlet extends HttpServlet {
      * specific part of the file.
      * 
      * In case of errors, e.g. file cheksum doesn't match, small files respond with
-     * HTTP error code. With large files, connection is closed without sending the
-     * last empty chunk of chunked transfer-encoding to inform the browser that
-     * something went wrong.
+     * HTTP error code. With large files, the client notices a problem only if we
+     * send too few bytes. Luckily this is probably the most common error. If we
+     * have already sent the correct amount of bytes when we notice a checksum
+     * error, we can't inform the client anymore. Or we could if would use chunked
+     * encoding, but that has its own problems, explained in ZipSerssionServlet.
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -105,8 +105,6 @@ public class FileBrokerResourceServlet extends HttpServlet {
         } catch (RestException e) {
             throw ServletUtils.extractRestException(e);
         }
-
-        // response.setHeader("Transfer-Encoding", "chunked");
 
         // configure filename for response
         if (!download) {
@@ -134,8 +132,12 @@ public class FileBrokerResourceServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_OK);
 
         if (!useChunkedEncoding && range == null) {
+            // if content-lenth is set, browsers notice interrupted downloads
             logger.info("set content-length: " + dataset.getFile().getSize());
             response.setContentLengthLong(dataset.getFile().getSize());
+        } else {
+            // Jetty sets this automatically
+            // response.setHeader("Transfer-Encoding", "chunked");
         }
 
         OutputStream output = response.getOutputStream();
@@ -159,6 +161,8 @@ public class FileBrokerResourceServlet extends HttpServlet {
          * went wrong. So don't use try-with-resources to close it!
          */
         output.close();
+
+        this.fileBrokerApi.afterDownload(dataset);
     }
 
     /**

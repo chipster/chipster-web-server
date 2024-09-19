@@ -26,6 +26,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
+import fi.csc.chipster.s3storage.checksum.CheckedStream;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
@@ -380,6 +381,14 @@ public class FileResourceTest {
 			}
 
 			remoteStream = response.readEntity(InputStream.class);
+
+			String contentLengthString = response.getHeaderString("Content-Length");
+
+			if (contentLengthString != null) {
+				long contentLength = Long.parseLong(contentLengthString);
+
+				remoteStream = new CheckedStream(remoteStream, null, null, contentLength);
+			}
 
 			// reading the zip stream should throw IOException: Premature EOF
 			IOUtils.copyLarge(remoteStream, OutputStream.nullOutputStream());

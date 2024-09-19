@@ -218,10 +218,16 @@ public class FileStorageClient implements StorageClient {
 
 				// if last chunk
 				if (chunkNumber == null || chunkNumber.equals(flowTotalChunks)) {
-					// check the file size
-					if (flowTotalSize != fileContentLength) {
-						throw new FileLengthException("file length error. fileId " + fileId
-								+ ", uploaded: " + fileContentLength + " bytes, but expected size is " + flowTotalSize);
+					if (flowTotalSize == null) {
+						logger.info("cannot check content length because flow total size is null. fileContentLength is "
+								+ fileContentLength);
+					} else {
+						// check the file size
+						if (flowTotalSize != fileContentLength) {
+							throw new FileLengthException("file length error. fileId " + fileId
+									+ ", uploaded: " + fileContentLength + " bytes, but expected size is "
+									+ flowTotalSize);
+						}
 					}
 				}
 

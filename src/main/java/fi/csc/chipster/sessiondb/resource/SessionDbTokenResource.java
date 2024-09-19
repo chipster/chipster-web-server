@@ -58,13 +58,25 @@ public class SessionDbTokenResource {
 	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction
 	public Response postSessionToken(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString,
-			@Context SecurityContext sc) throws IOException {
+			@QueryParam("readWrite") String readWriteString, @Context SecurityContext sc) throws IOException {
 
 		AuthPrincipal authPrincipal = (AuthPrincipal) sc.getUserPrincipal();
 
+		boolean readWrite = false;
+
+		if (readWriteString != null) {
+			readWrite = Boolean.parseBoolean(readWriteString);
+		}
+
 		// client can create read-only tokens for session-worker
 		String username = sc.getUserPrincipal().getName();
-		Access access = Access.READ_ONLY;
+		Access access;
+
+		if (readWrite) {
+			access = Access.READ_WRITE;
+		} else {
+			access = Access.READ_ONLY;
+		}
 
 		// scheduler can create read-write tokens for jobs
 		if (authPrincipal.getRoles().contains(Role.SCHEDULER)) {

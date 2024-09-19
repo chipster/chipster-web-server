@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
@@ -91,7 +90,9 @@ public class ZipSessionServletTest {
 		fileBrokerClient1.upload(sessionId1, datasetId, new File(TEST_FILE));
 
 		// download the session zip
-		InputStream zipByteStream = sessionWorkerClient1.getZipSessionStream(sessionId1);
+		UUID zipDatasetId = sessionWorkerClient1.packageSessionToZip(sessionId1);
+
+		InputStream zipByteStream = fileBrokerClient1.download(sessionId1, zipDatasetId);
 
 		byte[] zipBytes = IOUtils.toByteArray(zipByteStream);
 
@@ -119,17 +120,8 @@ public class ZipSessionServletTest {
 	}
 
 	/**
-	 * Check that browser is informed when an error happens during the compression
+	 * Check that client is informed when an error happens during the compression
 	 * and download of the zip package
-	 * 
-	 * See {@link ZipSessionServlet}.
-	 * 
-	 * I didn't find a way to do an abortive connection release in servlet:
-	 * https://docs.oracle.com/javase/8/docs/technotes/guides/net/articles/connection_release.html
-	 * 
-	 * However, a valid chunked transfer encoding ends with a zero sized chunk. If
-	 * the server has already sent the status code 200, it can still signal about
-	 * the error by finishing the TCP connection without that empty chunk.
 	 * 
 	 * @throws RestException
 	 * @throws IOException
@@ -142,30 +134,6 @@ public class ZipSessionServletTest {
 			throws RestException, IOException, InterruptedException, NoSuchAlgorithmException, KeyManagementException {
 
 		Session session = RestUtils.getRandomSession();
-
-		/*
-		 * If the response is short, Jetty simply buffers it, notices the exception and
-		 * responds with status code 500. The situation is more difficult, when
-		 * the status code has been already sent.
-		 * 
-		 * Easiest way to cause the error
-		 * is to remove the file from the file-storage, but we need to somehow
-		 * make sure that that response before that error has exceeded the buffering
-		 * limit. Adding
-		 * other large files is unreliable, because we don't know the order of the
-		 * files in the zip packge. However, we know that that metadata is written
-		 * to the beginning of the zip package. Add a huge notes to the metadata,
-		 * to make sure that the Jetty has flushed the start of the response, before
-		 * it encounters the missing file.
-		 */
-		StringBuffer notes = new StringBuffer();
-
-		// write until notes is 10 MB
-		while (notes.length() < 10 * 1024 * 1024) {
-			notes.append(UUID.randomUUID());
-		}
-
-		session.setNotes(notes.toString());
 
 		UUID sessionId = sessionDbClient1.createSession(session);
 
@@ -188,17 +156,11 @@ public class ZipSessionServletTest {
 		// download the session zip
 		try {
 
-			InputStream body = sessionWorkerClient1.getZipSessionStream(sessionId);
-
-			// reading the zip stream should throw IOException: Premature EOF
-			IOUtils.copy(body, OutputStream.nullOutputStream());
-
-			assertEquals(true, false);
+			// the server should return some errors in the json and this should throw an
+			// exception
+			sessionWorkerClient1.packageSessionToZip(sessionId);
 
 		} catch (RestException e) {
-			throw new RuntimeException("test is broken, Jetty didn't start streaming yet", e);
-
-		} catch (IOException e) {
 			// this is expected
 			e.printStackTrace();
 		}
@@ -212,8 +174,8 @@ public class ZipSessionServletTest {
 		UUID sessionId = sessionDbClient1.createSession(RestUtils.getRandomSession());
 
 		try {
-			// user2 shouldn't be able to get the zip of user1
-			sessionWorkerClient2.getZipSessionStream(sessionId);
+			// user2 shouldn't be able to create a zip for user1
+			sessionWorkerClient2.packageSessionToZip(sessionId);
 			Assertions.fail();
 		} catch (RestException e) {
 			assertEquals(403, e.getResponse().getStatus());
@@ -330,7 +292,7 @@ public class ZipSessionServletTest {
 		UUID sessionId = sessionDbClient1.createSession(RestUtils.getRandomSession());
 
 		try {
-			client.getZipSessionStream(sessionId);
+			client.packageSessionToZip(sessionId);
 			Assertions.fail();
 		} catch (RestException e) {
 			assertEquals(expectedStatusCode, e.getResponse().getStatus());
@@ -362,7 +324,9 @@ public class ZipSessionServletTest {
 
 	private UUID setupExtactionTest(UUID sourceSession, UUID targetSession) throws RestException, IOException {
 
-		InputStream zipStream = sessionWorkerClient1.getZipSessionStream(sourceSession);
+		UUID zipDatasetIdForDownload = sessionWorkerClient1.packageSessionToZip(sourceSession);
+
+		InputStream zipStream = fileBrokerClient1.download(sourceSession, zipDatasetIdForDownload);
 
 		// copy to array to get the length
 		byte[] bytes = IOUtils.toByteArray(zipStream);

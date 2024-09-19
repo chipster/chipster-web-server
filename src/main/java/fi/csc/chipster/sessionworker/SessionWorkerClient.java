@@ -32,16 +32,25 @@ public class SessionWorkerClient {
 		this.fileBrokerClient = fileBrokerClient1;
 	}
 
-	public InputStream getZipSessionStream(UUID sessionId1) throws RestException {
+	public UUID packageSessionToZip(UUID sessionId1) throws RestException {
 		WebTarget target = sessionWorkerTarget.path("sessions").path(sessionId1.toString());
-		Response response = target.request().get(Response.class);
+		Response response = target.request().post(null);
 
 		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("get zip session stream error", response, target.getUri());
+			throw new RestException("packaging session zip failed", response, target.getUri());
 		}
 
-		return response.readEntity(InputStream.class);
+		@SuppressWarnings("unchecked")
+		HashMap<String, Object> responseMap = response.readEntity(HashMap.class);
 
+		@SuppressWarnings("unchecked")
+		List<String> errors = (List<String>) responseMap.get("errors");
+
+		if (!errors.isEmpty()) {
+			throw new RestException("packaging session zip failed: " + RestUtils.asJson(errors));
+		}
+
+		return UUID.fromString((String) responseMap.get("datasetId"));
 	}
 
 	public UUID uploadZipSession(InputStream zipBytes, long length) throws RestException {
