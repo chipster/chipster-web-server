@@ -165,12 +165,6 @@ dependencies {
             //'org.bouncycastle:bcprov-jdk15on:1.60',
             'io.jsonwebtoken:jjwt-jackson:+'
             
-    // LDAP authentication with LdapExtLoginModule
-    implementation("org.picketbox:picketbox:+") {
-    	// don't install dependencies to avoid conflicts and we only want that one class
-        transitive = false
-    }
-            
     // Chipster Java tools
 	implementation "com.github.samtools:htsjdk:2.6.1"
  
