@@ -53,8 +53,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsRequest;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -114,13 +113,20 @@ public class ChipsterS3Client {
 
 	public List<S3Object> getObjects(String bucket) {
 
-		ListObjectsRequest listObjects = ListObjectsRequest
+		ListObjectsV2Request listObjects = ListObjectsV2Request
 				.builder()
 				.bucket(bucket)
 				.build();
 
-		CompletableFuture<ListObjectsResponse> res = this.s3.listObjects(listObjects);
-		return res.join().contents();
+		List<S3Object> resultList = new ArrayList<>();
+
+		CompletableFuture<Void> cf = this.s3.listObjectsV2Paginator(listObjects).subscribe(response -> {
+			resultList.addAll(response.contents());
+		});
+
+		cf.join();
+
+		return resultList;
 	}
 
 	/**
