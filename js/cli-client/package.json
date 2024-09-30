@@ -1,7 +1,7 @@
 {
   "name": "chipster-cli-js",
   "type": "module",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Command line client for Chipster",
   "private": false,
   "main": "lib/chipster.js",
@@ -22,13 +22,13 @@
     "argparse": "^2.0.1",
     "bufferutil": "^4.0.3",
     "chipster-js-common": "^1.5.0",
-    "chipster-nodejs-core": "^0.7.0",
+    "chipster-nodejs-core": "^0.8.1",
     "express": "^4.17.1",
     "humanize-duration": "^3.27.0",
     "lodash-es": "^4.17.21",
     "morgan": "^1.10.0",
     "node-schedule": "^2.0.0",
-    "read": "^3.0.1",
+    "read": "^4.0.0",
     "rotating-file-stream": "^3.2.1",
     "rxjs": "^7.8.1",
     "serve-index": "^1.9.1",
@@ -48,6 +48,6 @@
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.4",
     "ts-node": "^10.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "5.5.4"
   }
 }

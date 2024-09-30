@@ -13,7 +13,7 @@ import morgan = require("morgan");
 import { fileURLToPath } from "url";
 
 import fs from "fs";
-import rfs from "rotating-file-stream";
+import * as rfs from "rotating-file-stream";
 import argparse from "argparse";
 
 const logger = Logger.getLogger(
