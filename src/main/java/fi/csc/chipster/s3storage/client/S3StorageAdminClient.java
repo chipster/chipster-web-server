@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.rmi.NoSuchObjectException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.archive.S3StorageBackup;
 import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.ChipsterS3Client;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.checksum.FileLengthException;
@@ -36,6 +38,7 @@ import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsResponse;
 import software.amazon.awssdk.services.s3.model.MultipartUpload;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -52,6 +55,8 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
     private static final String OBJECT_KEY_ORPHAN_FILES = "chipster-orphan-files.json";
 
+    private static final String CONF_KEY_BACKUP_AGE_LIMIT = "s3-storage-backup-age-limit";
+
     private Logger logger = LogManager.getLogger();
 
     private S3StorageClient s3StorageClient;
@@ -60,11 +65,15 @@ public class S3StorageAdminClient implements StorageAdminClient {
 
     private String storageId;
 
+    private long backupAgeLimit;
+
     public S3StorageAdminClient(S3StorageClient s3StorageClient, SessionDbAdminClient sessionDbAdminClient,
-            String storageId) {
+            String storageId, Config config) {
         this.s3StorageClient = s3StorageClient;
         this.sessionDbAdminClient = sessionDbAdminClient;
         this.storageId = storageId;
+
+        this.backupAgeLimit = config.getLong(CONF_KEY_BACKUP_AGE_LIMIT);
     }
 
     public String getFileStats() {
@@ -389,10 +398,25 @@ public class S3StorageAdminClient implements StorageAdminClient {
         String s3Name = this.s3StorageClient.storageIdToS3Name(storageId);
         String bucket = this.s3StorageClient.storageIdToBucket(storageId);
 
-        if (!this.s3StorageClient.getChipsterS3Client(s3Name).exists(bucket,
-                S3StorageBackup.KEY_BACKUP_DONE)) {
+        HeadObjectResponse headObject = this.s3StorageClient.getChipsterS3Client(s3Name).getHeadObject(bucket,
+                S3StorageBackup.KEY_BACKUP_DONE);
 
-            throw new NotFoundException();
+        if (headObject == null) {
+            throw new NotFoundException("s3 object not found");
         }
+
+        Instant backupTime = headObject.lastModified();
+
+        if (backupTime == null) {
+            throw new NotFoundException("last modified is null");
+        }
+
+        long age = ChronoUnit.HOURS.between(backupTime, Instant.now());
+
+        if (age > backupAgeLimit) {
+            throw new NotFoundException("backup age " + age + " is older than limit " + backupAgeLimit + " hours");
+        }
+
+        // backup is fine
     }
 }

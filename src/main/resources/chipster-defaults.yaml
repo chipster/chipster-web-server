@@ -475,6 +475,8 @@ s3-storage-region: regionOne
 s3-storage-path-style-access: false
 # must not contain underscores "_", because of the simple parsing in S3StorageClient.storageIdToX()
 s3-storage-bucket: ""
+# endpoint admin/storages/S3_STORAGE_ID/monitoring/backup in file-broker admin API responds with non-200 response code if the latest backup archive is older than this, in hours
+s3-storage-backup-age-limit: 48
 
 # s3-storage configuration example
 #

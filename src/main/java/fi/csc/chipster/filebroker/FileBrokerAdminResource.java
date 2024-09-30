@@ -14,6 +14,7 @@ import fi.csc.chipster.filestorage.client.FileStorage;
 import fi.csc.chipster.filestorage.client.FileStorageAdminClient;
 import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.hibernate.Transaction;
@@ -52,15 +53,18 @@ public class FileBrokerAdminResource extends AdminResource {
 
 	private FileBrokerApi fileBrokerApi;
 
+	private Config config;
+
 	public FileBrokerAdminResource(StatusSource stats, FileStorageDiscovery storageDiscovery,
 			SessionDbAdminClient sessionDbAdminClient, S3StorageClient s3StorageClient,
-			FileBrokerApi fileBrokerApi) {
+			FileBrokerApi fileBrokerApi, Config config) {
 		super(stats);
 
 		this.fileStorageDiscovery = storageDiscovery;
 		this.sessionDbAdminClient = sessionDbAdminClient;
 		this.s3StorageClient = s3StorageClient;
 		this.fileBrokerApi = fileBrokerApi;
+		this.config = config;
 	}
 
 	@GET
@@ -102,7 +106,7 @@ public class FileBrokerAdminResource extends AdminResource {
 
 	private StorageAdminClient getStorageAdminClient(String storageId, SecurityContext sc) {
 		if (this.s3StorageClient.containsStorageId(storageId)) {
-			return new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient, storageId);
+			return new S3StorageAdminClient(s3StorageClient, sessionDbAdminClient, storageId, config);
 		} else {
 			return getFileStorageAdminClient(storageId, sc);
 		}

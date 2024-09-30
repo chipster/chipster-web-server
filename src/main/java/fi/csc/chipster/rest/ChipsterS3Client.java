@@ -50,6 +50,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest.Builder;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsRequest;
 import software.amazon.awssdk.services.s3.model.ListMultipartUploadsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
@@ -454,7 +455,7 @@ public class ChipsterS3Client {
 		}
 	}
 
-	public boolean exists(String bucket, String key) {
+	public HeadObjectResponse getHeadObject(String bucket, String key) {
 		try {
 
 			HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
@@ -462,10 +463,9 @@ public class ChipsterS3Client {
 					.key(key)
 					.build();
 
-			this.s3.headObject(headObjectRequest).join();
-			return true;
+			return this.s3.headObject(headObjectRequest).join();
 		} catch (NoSuchKeyException e) {
-			return false;
+			return null;
 		}
 	}
 

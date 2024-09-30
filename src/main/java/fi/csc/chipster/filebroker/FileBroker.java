@@ -108,7 +108,7 @@ public class FileBroker {
 		httpServer.start();
 
 		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, storageDiscovery,
-				sessionDbAdminClient, s3StorageClient, fileBrokerApi);
+				sessionDbAdminClient, s3StorageClient, fileBrokerApi, config);
 
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
 				this.serviceLocator);
