@@ -1,7 +1,7 @@
 {
   "name": "chipster-cli-js",
   "type": "module",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Command line client for Chipster",
   "private": false,
   "main": "lib/chipster.js",
@@ -29,6 +29,7 @@
     "morgan": "^1.10.0",
     "node-schedule": "^2.0.0",
     "read": "^4.0.0",
+    "restify-errors": "^8.0.2",
     "rotating-file-stream": "^3.2.1",
     "rxjs": "^7.8.1",
     "serve-index": "^1.9.1",
