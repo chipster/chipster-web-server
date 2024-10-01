@@ -1,8 +1,10 @@
 
+    set client_min_messages = WARNING;
+
     drop table if exists user_table cascade;
 
     create table user_table (
-       auth varchar(255) not null,
+        auth varchar(255) not null,
         username varchar(255) not null,
         accessed timestamp(6) with time zone,
         created timestamp(6) with time zone,
