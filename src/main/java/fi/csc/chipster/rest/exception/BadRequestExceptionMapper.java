@@ -13,11 +13,11 @@ import jakarta.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class BadRequestExceptionMapper implements ExceptionMapper<BadRequestException> {	
-	
+public class BadRequestExceptionMapper implements ExceptionMapper<BadRequestException> {
+
 	@Override
 	public Response toResponse(BadRequestException e) {
 		// client error, no need to log
-		return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();	
+		return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
 	}
 }

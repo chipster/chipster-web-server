@@ -15,7 +15,7 @@ import jakarta.ws.rs.core.Response;
 public class RuntimeResource {
 
     public static final String PATH_RUNTIMES = "runtimes";
-	private Toolbox toolbox;
+    private Toolbox toolbox;
 
     public RuntimeResource(Toolbox toolbox) throws IOException {
         this.toolbox = toolbox;
@@ -24,13 +24,12 @@ public class RuntimeResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public final Response getRuntimes() throws IOException {
-    	
-    	return Response.ok(this.toolbox.getRuntimes()).build();
+
+        return Response.ok(this.toolbox.getRuntimes()).build();
     }
 
-	public void setToolbox(Toolbox newToolbox) {
-		this.toolbox = newToolbox;
-	}
+    public void setToolbox(Toolbox newToolbox) {
+        this.toolbox = newToolbox;
+    }
 
 }
-

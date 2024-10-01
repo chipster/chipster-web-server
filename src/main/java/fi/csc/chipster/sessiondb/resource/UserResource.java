@@ -6,7 +6,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.GET;
@@ -25,10 +24,10 @@ public class UserResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
-	private HibernateUtil hibernate;
+	private RuleTable ruleTable;
 
-	public UserResource(HibernateUtil hibernate) {
-		this.hibernate = hibernate;
+	public UserResource(RuleTable ruleTable) {
+		this.ruleTable = ruleTable;
 	}
 
 	@GET
@@ -36,12 +35,7 @@ public class UserResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getAll(@Context SecurityContext sc) {
-
-		List<String> users = hibernate.session().createQuery("select distinct(username) from Rule", String.class).list();
-
-		// everyone isn't a real user
-		users.remove(RuleTable.EVERYONE);
-
+		List<String> users = ruleTable.getUsers();
 		return Response.ok(users).build();
 	}
 

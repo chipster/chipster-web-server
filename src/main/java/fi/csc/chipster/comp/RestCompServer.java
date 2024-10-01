@@ -9,6 +9,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -25,11 +26,12 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring;
 import fi.csc.chipster.comp.resourcemonitor.legacy.ResourceMonitor;
 import fi.csc.chipster.comp.resourcemonitor.legacy.ResourceMonitor.ProcessProvider;
-import fi.csc.chipster.filebroker.LegacyRestFileBrokerClient;
+import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
 import fi.csc.chipster.rest.websocket.WebSocketClosedException;
 import fi.csc.chipster.rest.websocket.WebSocketErrorException;
@@ -65,10 +67,10 @@ public class RestCompServer
 	public static final String KEY_COMP_MODULE_FILTER_MODE = "comp-module-filter-mode";
 	public static final String KEY_COMP_RESOURCE_MONITORING_INTERVAL = "comp-resource-monitoring-interval";
 	public static final String KEY_COMP_JOB_TIMEOUT = "comp-job-timeout";
-	
+
 	public static final String DESCRIPTION_OUTPUT_NAME = "description";
 	public static final String SOURCECODE_OUTPUT_NAME = "sourcecode";
-	
+
 	public static final String KEY_COMP_OFFER_DELAY = "comp-offer-delay-running-slots";
 	private static final String PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS = "comp-offer-delay-requested-slots-";
 
@@ -80,7 +82,7 @@ public class RestCompServer
 	/**
 	 * Directory for storing input and output files.
 	 */
-	private int scheduleTimeout;	
+	private int scheduleTimeout;
 	private int timeoutCheckInterval;
 	private int compStatusInterval;
 	private boolean sweepWorkDir;
@@ -90,13 +92,13 @@ public class RestCompServer
 	/**
 	 * Id of the comp server instance.
 	 */
-	private UUID compId = UUID.randomUUID();
+	private final UUID compId = UUID.randomUUID();
 
 	private File workDir;
 
 	private ToolboxClientComp toolboxClient;
 
-	private LegacyRestFileBrokerClient fileBroker;
+	private RestFileBrokerClient fileBroker;
 
 	/**
 	 * Java utility for multithreading.
@@ -104,9 +106,9 @@ public class RestCompServer
 	private ExecutorService executorService;
 
 	// synchronize with this object when accessing the job maps below
-	private Object jobsLock = new Object();
-	private LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<String, CompJob>();
-	private LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<String, CompJob>();
+	private final Object jobsLock = new Object();
+	private final LinkedHashMap<String, CompJob> scheduledJobs = new LinkedHashMap<>();
+	private final LinkedHashMap<String, CompJob> runningJobs = new LinkedHashMap<>();
 	private Timer timeoutTimer;
 	private Timer compAvailableTimer;
 	@SuppressWarnings("unused")
@@ -121,7 +123,7 @@ public class RestCompServer
 	private WebSocketClient schedulerClient;
 	private String schedulerUri;
 
-	private Config config;
+	private final Config config;
 	private AuthenticationClient authClient;
 	private SessionDbClient sessionDbClient;
 
@@ -129,14 +131,14 @@ public class RestCompServer
 	private int monitoringInterval;
 	private HttpServer adminServer;
 	private String hostname;
-	
+
 	private int offerDelayRunningSlots;
 	private HashMap<Integer, Long> offerDelayRequestedSlots;
 	private Timer heartbeatTimer;
 	private int compHeartbeatInterval;
 
 	/**
-	 * 
+	 * @param configURL
 	 * @param config
 	 * @throws Exception
 	 */
@@ -149,7 +151,7 @@ public class RestCompServer
 			throws CompException, IOException, InterruptedException, WebSocketErrorException, WebSocketClosedException {
 
 		logger = LogManager.getLogger();
-		
+
 		// Initialise instance variables
 		this.scheduleTimeout = config.getInt(KEY_COMP_SCHEDULE_TIMEOUT);
 		this.offerDelayRunningSlots = config.getInt(KEY_COMP_OFFER_DELAY);
@@ -164,8 +166,8 @@ public class RestCompServer
 		this.moduleFilterMode = config.getString(KEY_COMP_MODULE_FILTER_MODE);
 		this.monitoringInterval = config.getInt(KEY_COMP_RESOURCE_MONITORING_INTERVAL);
 		this.jobTimeout = config.getInt(KEY_COMP_JOB_TIMEOUT);
-		
-		this.offerDelayRequestedSlots = getOfferDelayRequestedSlots(config); 				
+
+		this.offerDelayRequestedSlots = getOfferDelayRequestedSlots(config);
 
 		// initialize working directory
 		logger.info("starting compute service...");
@@ -195,30 +197,33 @@ public class RestCompServer
 		timeoutTimer = new Timer("timeout timer", true);
 		timeoutTimer.schedule(new TimeoutTimerTask(), timeoutCheckInterval, timeoutCheckInterval);
 
-		/* Send heartbeats frequently enough (every 10 seconds) to be able timeout soon
+		/*
+		 * Send heartbeats frequently enough (every 10 seconds) to be able timeout soon
 		 * when something goes wrong (30 seconds).
 		 */
 		heartbeatTimer = new Timer(true);
 		heartbeatTimer.schedule(new HeartbeatTask(), compHeartbeatInterval, compHeartbeatInterval);
-		
-		// send comp available messages only every 30 seconds, because rescheduling all waiting jobs is quite messy
+
+		// send comp available messages only every 30 seconds, because rescheduling all
+		// waiting jobs is quite messy
 		compAvailableTimer = new Timer(true);
 		compAvailableTimer.schedule(new CompAvailableTask(), compStatusInterval, compStatusInterval);
 
 		resourceMonitor = new ResourceMonitor(this, monitoringInterval);
 
-		schedulerUri = UriBuilder.fromUri(schedulerUrl).path("events").toString();
+		schedulerUri = UriBuilder.fromUri(schedulerUrl).queryParam(PubSubEndpoint.TOPIC_KEY, "events").toString();
 		schedulerClient = new WebSocketClient(schedulerUri, this, true, "comps-scheduler-client",
 				authClient.getCredentials());
 		sessionDbClient = new SessionDbClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
-		fileBroker = new LegacyRestFileBrokerClient(sessionDbClient, serviceLocator, authClient);
+		fileBroker = new RestFileBrokerClient(serviceLocator, authClient.getCredentials(), Role.SERVER);
 
 		logger.info("starting the admin rest server");
 
 		AdminResource adminResource = new AdminResource(this);
 		adminResource.addFileSystem("work", workDir);
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient, serviceLocator);
-		
+		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient,
+				serviceLocator);
+
 		this.hostname = InetAddress.getLocalHost().getHostName();
 
 		sendCompAvailable();
@@ -238,30 +243,30 @@ public class RestCompServer
 			JobCommand schedulerMsg = RestUtils.parseJson(JobCommand.class, message);
 
 			switch (schedulerMsg.getCommand()) {
-			case SCHEDULE:
-				logger.info("received a schedule message for a job " + schedulerMsg.getJobId());
-				scheduleJob(schedulerMsg);
+				case SCHEDULE:
+					logger.info("received a schedule message for a job " + schedulerMsg.getJobId());
+					scheduleJob(schedulerMsg);
 
-				break;
-			case CHOOSE:
+					break;
+				case CHOOSE:
 
-				if (compId.equals(schedulerMsg.getCompId())) {
-					runJob(schedulerMsg);
-					logger.info("offer chosen, running the job...");
-				} else {
-					removeScheduled(schedulerMsg.getJobId().toString());
-					logger.info("offer rejected");
-				}
-				break;
+					if (compId.equals(schedulerMsg.getCompId())) {
+						runJob(schedulerMsg);
+						logger.info("offer chosen, running the job...");
+					} else {
+						removeScheduled(schedulerMsg.getJobId().toString());
+						logger.info("offer rejected");
+					}
+					break;
 
-			case CANCEL:
-				logger.info("cancelling the job...");
-				cancelJob(schedulerMsg.getJobId().toString());
-				break;
+				case CANCEL:
+					logger.info("cancelling the job...");
+					cancelJob(schedulerMsg.getJobId().toString());
+					break;
 
-			default:
-				logger.warn("unknown command: " + schedulerMsg.getCommand());
-				break;
+				default:
+					logger.warn("unknown command: " + schedulerMsg.getCommand());
+					break;
 			}
 			updateStatus();
 
@@ -323,14 +328,17 @@ public class RestCompServer
 
 	}
 
+	@Override
 	public File getWorkDir() {
 		return workDir;
 	}
 
+	@Override
 	public boolean shouldSweepWorkDir() {
 		return sweepWorkDir;
 	}
 
+	@Override
 	public void removeRunningJob(CompJob job) {
 		String hostname = RestUtils.getHostname();
 
@@ -340,7 +348,8 @@ public class RestCompServer
 					+ job.getState() + delimiter + job.getInputMessage().getUsername() + delimiter +
 					// job.getExecutionStartTime().toString() + delimiter +
 					// job.getExecutionEndTime().toString() + delimiter +
-					hostname + delimiter + ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
+					hostname + delimiter
+					+ ProcessMonitoring.humanFriendly(resourceMonitor.getMaxMem(job.getProcess())));
 		} catch (Exception e) {
 			logger.warn("got exception when logging a job to be removed", e);
 		}
@@ -356,7 +365,7 @@ public class RestCompServer
 	private void checkStopGracefully() {
 		if (stopGracefully) {
 			synchronized (jobsLock) {
-				if (this.scheduledJobs.size() == 0 && this.runningJobs.size() == 0) {
+				if (this.scheduledJobs.isEmpty() && this.runningJobs.isEmpty()) {
 					shutdown();
 					System.exit(0);
 				}
@@ -371,8 +380,10 @@ public class RestCompServer
 	 * 
 	 * For this reason, all the data must be sent before this method returns.
 	 * 
-	 * 
+	 * @param jobMessage
+	 * @param result
 	 */
+	@Override
 	public void sendResultMessage(GenericJobMessage jobMessage, GenericResultMessage result) {
 
 		if (result.getState() == JobState.CANCELLED) {
@@ -381,7 +392,7 @@ public class RestCompServer
 		}
 
 		CompJob compJob = null;
-		
+
 		try {
 			JobCommand jobCommand = ((RestJobMessage) jobMessage).getJobCommand();
 			Job dbJob = sessionDbClient.getJob(jobCommand.getSessionId(), jobCommand.getJobId());
@@ -399,14 +410,24 @@ public class RestCompServer
 			dbJob.setStateDetail(details);
 			dbJob.setSourceCode(result.getSourceCode());
 			dbJob.setComp(this.hostname);
-			
+
+			// tool versions
+			CompUtils.addVersionsToDbJob(result, dbJob);
+
+			// comp fills in parameters, because client can send only partial list
+			if (result.getParameters() != null) {
+				dbJob.setParameters(List.copyOf(result.getParameters().values()));
+			}
+
 			compJob = this.runningJobs.get(jobMessage.getJobId());
 			if (compJob != null) {
 				dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem(compJob.getProcess()));
 			}
-						
+
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
-			
+
+			logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
+
 		} catch (RestException e) {
 			if (e.getResponse().getStatus() == 403) {
 				logger.warn("unable to update job, cancel it (" + e.getMessage() + ")");
@@ -417,15 +438,22 @@ public class RestCompServer
 			} else {
 				logger.error("could not update the job", e);
 			}
+		} catch (Exception e) {
+			logger.error("failed to send result message", e);
 		}
-
-		logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
 	}
 
-	public LegacyRestFileBrokerClient getFileBrokerClient() {
+	@Override
+	public RestFileBrokerClient getFileBrokerClient() {
 		return this.fileBroker;
 	}
 
+	@Override
+	public SessionDbClient getSessionDbClient() {
+		return this.sessionDbClient;
+	}
+
+	@Override
 	public ToolboxClientComp getToolboxClient() {
 		return this.toolboxClient;
 	}
@@ -495,7 +523,7 @@ public class RestCompServer
 
 		try {
 			JobFactory jobFactory = RuntimeRepository.getJobFactory(runtime, config, workDir, toolId);
-			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob);
+			job = jobFactory.createCompJob(jobMessage, toolboxTool, this, jobTimeout, dbJob, runtime);
 
 		} catch (CompException e) {
 			logger.warn("could not create job for " + dbJob.getToolId(), e);
@@ -540,7 +568,8 @@ public class RestCompServer
 		return slots;
 	}
 
-	private void scheduleJob(final CompJob job, final JobCommand cmd, int runningSlots, int scheduledSlots, int requestedSlots) {
+	private void scheduleJob(final CompJob job, final JobCommand cmd, int runningSlots, int scheduledSlots,
+			int requestedSlots) {
 		synchronized (jobsLock) {
 			job.setScheduleTime(new Date());
 			scheduledJobs.put(job.getId(), job);
@@ -549,14 +578,14 @@ public class RestCompServer
 		// delaying sending of the offer message can be used for
 		// prioritising comp instances
 		long delay = offerDelayRunningSlots * (runningSlots + scheduledSlots);
-		
-		// comp can avoid jobs of certain size		
-		Long slotDelay = offerDelayRequestedSlots.get((Integer)requestedSlots);
-		
+
+		// comp can avoid jobs of certain size
+		Long slotDelay = offerDelayRequestedSlots.get((Integer) requestedSlots);
+
 		if (slotDelay != null) {
 			delay = delay + slotDelay;
 		}
-		
+
 		if (delay > 0) {
 			Timer timer = new Timer("offer-delay-timer", true);
 			timer.schedule(new TimerTask() {
@@ -621,15 +650,16 @@ public class RestCompServer
 			logger.error("unable to send " + cmd.getCommand() + " message", e);
 		}
 	}
-	
+
 	private static HashMap<Integer, Long> getOfferDelayRequestedSlots(Config config) {
-		
-		HashMap<Integer, Long> parsedEntries = new HashMap<Integer, Long>();
-		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS).entrySet()) {
+
+		HashMap<Integer, Long> parsedEntries = new HashMap<>();
+		for (Entry<String, String> entry : config.getConfigEntries(PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS)
+				.entrySet()) {
 			String slotsString = entry.getKey();
 			String confKey = PREFIX_COMP_OFFER_DELAY_REQUESTED_SLOTS + slotsString;
 			int slots;
-			try {						
+			try {
 				slots = Integer.parseInt(slotsString);
 			} catch (NumberFormatException e) {
 				logger.warn("cannot parse slot count from configuration key " + confKey);
@@ -646,7 +676,6 @@ public class RestCompServer
 		return parsedEntries;
 	}
 
-
 	/**
 	 * The order of the jobs in the receivedJobs and scheduledJobs is FIFO. Because
 	 * of synchronizations this does not necessarily strictly correspond to the
@@ -656,7 +685,7 @@ public class RestCompServer
 	 * enough job is found as the following jobs are newer (almost always, see
 	 * above).
 	 * 
-	 * TODO send BUSY if timeout?
+	 * todo send BUSY if timeout?
 	 * 
 	 */
 	private class TimeoutTimerTask extends TimerTask {
@@ -666,7 +695,7 @@ public class RestCompServer
 			try {
 				synchronized (jobsLock) {
 
-					ArrayList<CompJob> jobsToBeRemoved = new ArrayList<CompJob>();
+					ArrayList<CompJob> jobsToBeRemoved = new ArrayList<>();
 
 					// get old scheduled jobs
 					jobsToBeRemoved.clear();
@@ -694,7 +723,7 @@ public class RestCompServer
 	public class HeartbeatTask extends TimerTask {
 
 		@Override
-		public void run() {			
+		public void run() {
 			try {
 				synchronized (jobsLock) {
 					for (CompJob job : runningJobs.values()) {
@@ -707,14 +736,14 @@ public class RestCompServer
 			}
 		}
 	}
-	
+
 	public class CompAvailableTask extends TimerTask {
 
 		@Override
-		public void run() {			
+		public void run() {
 			try {
 				synchronized (jobsLock) {
-					
+
 					if (runningJobs.size() + scheduledJobs.size() < maxJobs) {
 						sendCompAvailable();
 					}
@@ -724,7 +753,6 @@ public class RestCompServer
 			}
 		}
 	}
-
 
 	public void shutdown() {
 		logger.info("shutdown requested");
@@ -751,7 +779,7 @@ public class RestCompServer
 
 	@SuppressWarnings("unused")
 	private synchronized ArrayList<CompJob> getAllJobs() {
-		ArrayList<CompJob> allJobs = new ArrayList<CompJob>();
+		ArrayList<CompJob> allJobs = new ArrayList<>();
 		allJobs.addAll(scheduledJobs.values());
 		allJobs.addAll(runningJobs.values());
 
@@ -773,12 +801,13 @@ public class RestCompServer
 		}
 	}
 
+	@Override
 	public HashMap<String, Object> getStatus() {
 		HashMap<String, Object> status = new HashMap<>();
 		synchronized (jobsLock) {
 			status.put("runningJobCount", runningJobs.size());
 			status.put("scheduledJobCount", scheduledJobs.size());
-			
+
 			status.put("runningSlotCount", getSlotSum(runningJobs.values()));
 			status.put("scheduledSlotCount", getSlotSum(scheduledJobs.values()));
 		}
@@ -793,9 +822,9 @@ public class RestCompServer
 
 		try {
 			server.startServer();
-			
+
 			RestUtils.waitForShutdown("comp service", server.adminServer);
-			
+
 		} catch (Exception e) {
 			System.err.println("comp startup failed, exiting");
 			e.printStackTrace(System.err);

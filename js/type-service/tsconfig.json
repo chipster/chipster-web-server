@@ -3,14 +3,10 @@
     "src/**/*"
   ],
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "target": "es5",
-    "lib": [
-      // rxjs references staff from DOM
-      "DOM",
-      "ES5",
-      "ES2016"
-    ]
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "target": "es2020",
+    // keep generated files in separate folder
+    "outDir": "./lib"
   }
 }

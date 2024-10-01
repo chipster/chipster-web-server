@@ -17,7 +17,7 @@ import fi.csc.chipster.auth.model.UserToken;
  *
  */
 public class AuthPrincipal implements Principal {
-	
+
 	// are remoteAddress and details used anymore?
 	private String remoteAddress;
 	private Map<String, String> details = new HashMap<>();
@@ -27,18 +27,18 @@ public class AuthPrincipal implements Principal {
 	public AuthPrincipal(String role) {
 		this(null, null, new HashSet<String>(Arrays.asList(role)));
 	}
-	
+
 	public AuthPrincipal(String username, Set<String> roles) {
 		this(username, null, roles);
 	}
-	
+
 	public AuthPrincipal(String username, String tokenKey, Set<String> roles) {
-		
+
 		this(new UserToken(username, null, null, roles), tokenKey);
 	}
 
 	public AuthPrincipal(ChipsterToken token, String tokenKey) {
-		
+
 		this.token = token;
 		this.tokenKey = tokenKey;
 	}
@@ -59,7 +59,7 @@ public class AuthPrincipal implements Principal {
 	public void setRemoteAddress(String remoteAddr) {
 		this.remoteAddress = remoteAddr;
 	}
-	
+
 	public String getRemoteAddress() {
 		return this.remoteAddress;
 	}

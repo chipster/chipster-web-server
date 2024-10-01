@@ -17,8 +17,8 @@ import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
 import fi.csc.chipster.rest.Config;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.SignatureAlgorithm;
 
 public class JwsUtils {
 
@@ -28,7 +28,7 @@ public class JwsUtils {
 	private static final String KEY_JWS_ALGORITHM = "jws-algorithm";
 
 	public static SignatureAlgorithm getSignatureAlgorithm(Config config, String role) {
-		return SignatureAlgorithm.forName(config.getString(KEY_JWS_ALGORITHM, role));
+		return (SignatureAlgorithm) Jwts.SIG.get().get(config.getString(KEY_JWS_ALGORITHM, role));
 	}
 
 	public static KeyPair getOrGenerateKeyPair(Config config, String role, SignatureAlgorithm signatureAlgorithm)
@@ -54,7 +54,7 @@ public class JwsUtils {
 			 * openssl ecparam -genkey -name secp521r1 -noout -out ec512-key-pair.pem
 			 * 
 			 */
-			keyPair = Keys.keyPairFor(signatureAlgorithm);
+			keyPair = signatureAlgorithm.keyPair().build();
 		}
 
 		logger.info(role + " jws private key:" + keyPair.getPrivate().getAlgorithm() + " "

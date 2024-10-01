@@ -1,9 +1,12 @@
 package fi.csc.chipster.comp;
 
 import java.io.File;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
+
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Parameter;
 
 /**
  * Use this interface instead of the original JobMessage on the comp. The
@@ -13,6 +16,8 @@ import java.util.UUID;
  * @author klemela
  */
 public interface GenericJobMessage {
+
+	public Job getJob();
 
 	public String getJobId();
 
@@ -26,7 +31,8 @@ public interface GenericJobMessage {
 
 	public String getName(String fileName);
 
-	public List<String> getParameters(ParameterSecurityPolicy securityPolicy, ToolDescription description) throws ParameterValidityException;
+	public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy,
+			ToolDescription description) throws ParameterValidityException;
 
 	public UUID getSessionId();
 

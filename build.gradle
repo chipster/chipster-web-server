@@ -29,12 +29,16 @@ distTar {
 
 // option to set java version on command line
 // ./gradlew -P javaVersion=8
-ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '11'
-sourceCompatibility = javaVersion
-targetCompatibility = javaVersion
+java {
+    ext.javaVersion = project.hasProperty('javaVersion') ? project.getProperty('javaVersion') : '21'
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+}
 
-//mainClassName = "fi.csc.chipster.toolbox.ToolboxService"
-mainClassName = "fi.csc.chipster.rest.ServerLauncher"
+application {
+    //mainClass = "fi.csc.chipster.toolbox.ToolboxService"
+    mainClass = "fi.csc.chipster.rest.ServerLauncher"
+}
 
 jar { 
 	exclude 'log4j2-test.xml' 
@@ -82,30 +86,45 @@ task checkTools(type: JavaExec) {
 dependencies {
 
 	// logging
-    implementation "org.apache.logging.log4j:log4j-api:+"
-    implementation "org.apache.logging.log4j:log4j-core:+"
-    implementation "org.apache.logging.log4j:log4j-jul:+"
-    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:+"
+	// stay in 2.+ , because 3.0.0-beta1 is compiled with Java 17 
+    implementation "org.apache.logging.log4j:log4j-api:2.+"
+    implementation "org.apache.logging.log4j:log4j-core:2.+"
+    implementation "org.apache.logging.log4j:log4j-jul:2.+"
+    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.+"
 
     // jersey
-    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.1"
-    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.1"
-    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.1"
-    
+    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.8"
+    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.8"
+    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.8"
+    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.8" // @NonNull needs this 
+        
     // Jersey in Jetty (session-worker)            
-    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.1"    
+    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.8"  
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty:jetty-servlet:11.0.14"
-    implementation "org.eclipse.jetty:jetty-server:11.0.14"
+    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.13"
+    implementation "org.eclipse.jetty:jetty-server:12.0.13"
+
+    // jetty client for file downloads with specific HTTP, cipher or TLS versions
+    implementation "org.eclipse.jetty:jetty-client:12.0.13"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.0.13"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.0.13"
+
+    // websockets 
+    // API 2.1.0 == ee10
+    implementation "jakarta.websocket:jakarta.websocket-api:2.1.1"
+    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.0.13"
+    
+    // cache settings in web-server
+    implementation "org.eclipse.jetty:jetty-rewrite:12.0.13"    
     
         
     // jackson
-	implementation "com.fasterxml.jackson.core:jackson-core:2.14.2"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2"
+	implementation "com.fasterxml.jackson.core:jackson-core:2.18.0"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.0"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.14.2"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.0"
 	
     // hibernate
     implementation "org.hibernate.orm:hibernate-core:6.1.7.Final"
@@ -115,20 +134,19 @@ dependencies {
     implementation "org.postgresql:postgresql:+"
     
     // flyway
-    implementation "org.flywaydb:flyway-core:9.+"
-    
-    // db backups
-    implementation "com.amazonaws:aws-java-sdk-s3:+"
+    implementation "org.flywaydb:flyway-core:10.+"
+    implementation "org.flywaydb:flyway-database-postgresql:10.+"
 
-    // websockets 
-    implementation "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.14"
     
-    // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:11.0.14"
+    // S3StorageClient and db backups
+    implementation "software.amazon.awssdk:s3:+"
+    implementation "software.amazon.awssdk:s3-transfer-manager:+"
+    implementation "software.amazon.awssdk.crt:aws-crt:+"
 
 	// other
     implementation "commons-io:commons-io:+"
     implementation "org.apache.commons:commons-text:+"
+    implementation "commons-codec:commons-codec:+"
     
     // rxJava
     implementation "io.reactivex.rxjava3:rxjava:3.+"
@@ -149,14 +167,8 @@ dependencies {
             //'org.bouncycastle:bcprov-jdk15on:1.60',
             'io.jsonwebtoken:jjwt-jackson:+'
             
-    // LDAP authentication with LdapExtLoginModule
-    implementation("org.picketbox:picketbox:+") {
-    	// don't install dependencies to avoid conflicts and we only want that one class
-        transitive = false
-    }
-            
     // Chipster Java tools
-	implementation "com.github.samtools:htsjdk:2.6.1"            
+	implementation "com.github.samtools:htsjdk:2.6.1"
  
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
 }

@@ -2,18 +2,13 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Root;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,6 +34,11 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.MediaType;
@@ -142,10 +142,21 @@ public class RuleTable {
 				.setParameter("sharedBy", userIdString).list();
 	}
 
+	List<String> getUsers() {
+		List<String> users = hibernate.session().createQuery("select distinct(username) from Rule", String.class)
+				.list();
+
+		// everyone isn't a real user
+		users.remove(RuleTable.EVERYONE);
+
+		return users;
+	}
+
 	/**
 	 * Stream the whole table as a json array
 	 * 
-	 * This is not used at the moment, but let's keep this as an example for now in case we need to 
+	 * This is not used at the moment, but let's keep this as an example for now in
+	 * case we need to
 	 * stream through any of the larger tables in the future.
 	 * 
 	 * @return
@@ -486,5 +497,23 @@ public class RuleTable {
 			org.hibernate.Session hibernateSession, boolean allowAdmin) {
 		ChipsterToken token = getChipsterToken(sc);
 		return checkSessionAuthorization(token, sessionId, requireReadWrite, hibernateSession, allowAdmin);
+	}
+
+	public long getTotalSize(String username) {
+		// use native query, because Hibernate 5 doesn't support subqueries in from or
+		// join clauses
+		BigDecimal size = (BigDecimal) hibernate.session().createNativeQuery(
+				"select sum(size) from file inner join ("
+						+ "    select distinct dataset.fileid from rule "
+						+ "        inner join dataset on rule.sessionid=dataset.sessionid "
+						+ "    where rule.username=:username and readWrite=true) as dataset_fileid on dataset_fileid.fileid=file.fileid",
+				BigDecimal.class)
+				.setParameter("username", username).getSingleResult();
+
+		if (size == null) {
+			// no sessions or datasets
+			return 0;
+		}
+		return size.longValue();
 	}
 }

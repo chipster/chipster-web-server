@@ -5,6 +5,8 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -43,13 +45,12 @@ public class ToolboxClientComp {
 	private Client client;
 
 	private final static String MODULES_ZIP_PATH = "/modules/zip";
-	
+
 	// set file mode to 755 for these file types when unzipping modules
 	private final static String[] executableExtensions = { "sh", "bash", "py" };
-	
+
 	private static Logger logger = LogManager.getLogger();
-	
-	
+
 	public ToolboxClientComp(String toolboxUri) {
 		this.baseUri = toolboxUri;
 		this.client = ClientBuilder.newClient();
@@ -59,7 +60,7 @@ public class ToolboxClientComp {
 
 		WebTarget serviceTarget = client.target(baseUri).path("tools/" + toolId);
 
-		String json; 
+		String json;
 		try {
 			json = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 		} catch (NotFoundException nfe) {
@@ -75,8 +76,7 @@ public class ToolboxClientComp {
 		client.close();
 	}
 
-	
-	public void getToolboxModules(File jobToolboxDir) throws IOException {
+	public void getToolboxModules(File jobToolboxDir) throws IOException, URISyntaxException {
 		long startTime = System.currentTimeMillis();
 
 		unzip(baseUri + MODULES_ZIP_PATH, jobToolboxDir);
@@ -84,8 +84,7 @@ public class ToolboxClientComp {
 
 		logger.info("get toolbox took " + (System.currentTimeMillis() - startTime) + " ms");
 	}
-	
-	
+
 	private void fixPermissions(File jobToolboxDir) throws IOException {
 		Files.walkFileTree(jobToolboxDir.toPath(), new SimpleFileVisitor<Path>() {
 			@Override
@@ -101,14 +100,14 @@ public class ToolboxClientComp {
 		});
 	}
 
-	private void unzip(String zipFilePath, File destDirectory) throws IOException {
+	private void unzip(String zipFilePath, File destDirectory) throws IOException, URISyntaxException {
 
 		File destDir = destDirectory;
 		if (!destDir.exists()) {
 			destDir.mkdir();
 		}
 
-		URL url = new URL(zipFilePath);
+		URL url = new URI(zipFilePath).toURL();
 
 		try (ZipInputStream zipIn = new ZipInputStream(new BufferedInputStream(url.openStream(), 1024))) {
 			ZipEntry entry = zipIn.getNextEntry();
@@ -133,6 +132,7 @@ public class ToolboxClientComp {
 
 	/**
 	 * Extracts a zip entry (file entry)
+	 * 
 	 * @param zipIn
 	 * @param filePath
 	 * @throws IOException
@@ -146,32 +146,32 @@ public class ToolboxClientComp {
 			}
 		}
 	}
-	
+
 	public static Set<PosixFilePermission> get755Permissions() {
 		Set<PosixFilePermission> perms = new HashSet<PosixFilePermission>();
 
-		//add owners permission
+		// add owners permission
 		perms.add(PosixFilePermission.OWNER_READ);
 		perms.add(PosixFilePermission.OWNER_WRITE);
 		perms.add(PosixFilePermission.OWNER_EXECUTE);
-		
-		//add group permissions
+
+		// add group permissions
 		perms.add(PosixFilePermission.GROUP_READ);
 		perms.add(PosixFilePermission.GROUP_EXECUTE);
 
-		//add others permissions
+		// add others permissions
 		perms.add(PosixFilePermission.OTHERS_READ);
 		perms.add(PosixFilePermission.OTHERS_EXECUTE);
 
 		return perms;
 	}
-	
+
 	public static void main(String args[]) throws JsonParseException, JsonMappingException, IOException {
-		
+
 		ToolboxClientComp toolboxClient = new ToolboxClientComp("http://localhost:8008/toolbox");
 		try {
 			ToolboxTool tool = toolboxClient.getTool("norm-affy.R");
-		
+
 			System.out.println(tool.getSadlString());
 		} finally {
 			toolboxClient.close();
@@ -180,18 +180,18 @@ public class ToolboxClientComp {
 
 	public HashMap<String, Runtime> getRuntimes() throws RestException {
 		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path(RuntimeResource.PATH_RUNTIMES);
-		
+
 		List<Runtime> runtimeList = RestMethods.getList(serviceTarget, Runtime.class);
-		
+
 		HashMap<String, Runtime> map = new HashMap<>();
-		
+
 		for (Runtime runtime : runtimeList) {
 			map.put(runtime.getName(), runtime);
 		}
 
 		return map;
 	}
-	
+
 	public Runtime getRuntime(String runtimeName) throws RestException {
 		return getRuntimes().get(runtimeName);
 	}

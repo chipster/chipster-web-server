@@ -22,73 +22,74 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 public class AuthUserResourceTest {
 
 	private static TestServerLauncher launcher;
-	
-    @BeforeAll
-    public static void setUp() throws Exception {
-    	Config config = new Config();
-    	launcher = new TestServerLauncher(config);
-            
-    	// login two users to add them to the User table
-		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
-    }
 
-    @AfterAll
-    public static void tearDown() throws Exception {
-    	launcher.stop();
-    }
-	
+	@BeforeAll
+	public static void setUp() throws Exception {
+		Config config = new Config();
+		launcher = new TestServerLauncher(config);
+
+		// login two users to add them to the User table
+		new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+	}
+
+	@AfterAll
+	public static void tearDown() throws Exception {
+		launcher.stop();
+	}
+
 	@Test
-    public void get() throws IOException, RestException {
-		UserId userId = new UserId(launcher.getUser1Credentials().getUsername());		
+	public void get() throws IOException, RestException {
+		UserId userId = new UserId(launcher.getUser1Credentials().getUsername());
 		User user = AuthenticationClient.getUser(userId, launcher.getUser1Client(), launcher.getServiceLocator());
-		
+
 		assertEquals(userId.toUserIdString(), user.getUserId().toUserIdString());
-		// we don't have proper LDAP queries yet, so the name is simply the username 
+		// we don't have proper LDAP queries yet, so the name is simply the username
 		assertEquals(userId.getUsername(), user.getName());
-				
+
 		// wrong user
 		testGetUser(403, userId, launcher.getUser2Client());
-		
+
 		// auth tests
 		testGetUser(401, userId, launcher.getUnparseableTokenClient());
-		testGetUser(403, userId, launcher.getWrongTokenClient());		
+		testGetUser(403, userId, launcher.getWrongTokenClient());
 		testGetUser(403, userId, launcher.getNoAuthClient());
-		// launcher.getAuthFailClient() would pass, because AuthenticationService allows password logins
-    }
-	
+		// launcher.getAuthFailClient() would pass, because AuthenticationService allows
+		// password logins
+	}
+
 	public static void testGetUser(int expected, UserId userId, Client client) {
 		try {
 			AuthenticationClient.getUser(userId, client, launcher.getServiceLocator());
-    		assertEquals(true, false);
-    	} catch (RestException e) {
-    		assertEquals(expected, e.getResponse().getStatus());
-    	}
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(expected, e.getResponse().getStatus());
+		}
 	}
-	
+
 	public static void testGetUsers(int expected, Client client) {
 		try {
 			AuthenticationClient.getUsers(client, launcher.getServiceLocator());
-    		assertEquals(true, false);
-    	} catch (RestException e) {
-    		assertEquals(expected, e.getResponse().getStatus());
-    	}
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(expected, e.getResponse().getStatus());
+		}
 	}
-	
+
 	@Test
-    public void getAll() throws RestException {
-		
+	public void getAll() throws RestException {
+
 		// admin can get all
 		List<User> users = AuthenticationClient.getUsers(launcher.getAdminClient(), launcher.getServiceLocator());
-		
+
 		assertEquals(false, users.isEmpty());
-				
+
 		// not allowed for normal users
 		testGetUsers(403, launcher.getUser1Client());
-		
+
 		// auth tests
 		testGetUsers(401, launcher.getUnparseableTokenClient());
 		testGetUsers(403, launcher.getWrongTokenClient());
 		testGetUsers(403, launcher.getAuthFailClient());
 		testGetUsers(403, launcher.getNoAuthClient());
-    }
+	}
 }

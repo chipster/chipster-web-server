@@ -13,8 +13,8 @@ import jakarta.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenException> {	
-	
+public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenException> {
+
 	@Override
 	public Response toResponse(ForbiddenException e) {
 		// client error, no need to log

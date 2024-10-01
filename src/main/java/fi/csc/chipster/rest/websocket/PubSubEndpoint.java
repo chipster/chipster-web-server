@@ -12,13 +12,13 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.websocket.jakarta.server.internal.JakartaWebSocketCreator;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.internal.JakartaWebSocketCreator;
 
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import jakarta.websocket.ClientEndpoint;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.MessageHandler;
+import jakarta.websocket.MessageHandler.Whole;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnOpen;
@@ -28,8 +28,9 @@ import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 
 /**
- * A endpoint class for javax.websocket API. Assumes the PubSubConfigurator has set the PubSubServer 
- * instance which will do the most of the actual work. 
+ * A endpoint class for javax.websocket API. Assumes the PubSubConfigurator has
+ * set the PubSubServer
+ * instance which will do the most of the actual work.
  * 
  * @author klemela
  */
@@ -40,7 +41,7 @@ public class PubSubEndpoint {
 
 	public static final Logger logger = LogManager.getLogger();
 
-	public static final String TOPIC_KEY = "topic-name";
+	public static final String TOPIC_KEY = "topic";
 
 	private PubSubServer server;
 
@@ -52,27 +53,29 @@ public class PubSubEndpoint {
 		Map<String, List<String>> requestParameters = session.getRequestParameterMap();
 		Map<String, Object> userProperties = session.getUserProperties();
 
-		InetSocketAddress remoteSocketAddress = (InetSocketAddress) userProperties.get(JakartaWebSocketCreator.PROP_REMOTE_ADDRESS);
+		InetSocketAddress remoteSocketAddress = (InetSocketAddress) userProperties
+				.get(JakartaWebSocketCreator.PROP_REMOTE_ADDRESS);
 		String remoteAddress = remoteSocketAddress.getAddress().getHostAddress();
 		Map<String, String> details = new HashMap<>();
-		details.put(PubSubConfigurator.X_FORWARDED_FOR, (String)userProperties.get(PubSubConfigurator.X_FORWARDED_FOR));
-
+		details.put(PubSubConfigurator.X_FORWARDED_FOR,
+				(String) userProperties.get(PubSubConfigurator.X_FORWARDED_FOR));
 
 		List<String> tokenParameters = requestParameters.get("token");
-		
+
 		try {
 			if (tokenParameters == null) {
 				logger.debug("no token parameter");
-				/* 
-				 * Throwing an exception allows a clear way to interrupt execution of this method
+				/*
+				 * Throwing an exception allows a clear way to interrupt execution of this
+				 * method
 				 * before the connnection is subscribed to get any real content.
 				 * 
 				 * session.close(); return; would work too, but it would be too easy forget the
-				 * return clause. 
+				 * return clause.
 				 */
 				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
 			}
-			
+
 			String tokenKey = tokenParameters.get(0);
 
 			if (tokenKey == null) {
@@ -80,32 +83,42 @@ public class PubSubEndpoint {
 				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
 			}
 
-			// doesn't have to be a Principal anymore, because it's not passed in ServletRequest, ValidToken would enough
+			// doesn't have to be a Principal anymore, because it's not passed in
+			// ServletRequest, ValidToken would enough
 			AuthPrincipal principal = null;
 
 			try {
 				principal = server.getTopicConfig().getUserPrincipal(tokenKey);
-				
+
 			} catch (NotFoundException e) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "not found: " + e.getMessage());
-				
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
+						"not found: " + e.getMessage());
+
 			} catch (ForbiddenException e) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "forbidden: " + e.getMessage());
-				
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
+						"forbidden: " + e.getMessage());
+
 			} catch (jakarta.ws.rs.NotAuthorizedException e) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "not authorized: " + e.getMessage());
-				
+				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
+						"not authorized: " + e.getMessage());
+
 			} catch (Exception e) {
 				logger.error("error in websocket authentication", e);
-				throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION, "internal server error");
+				throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION,
+						"internal server error");
 			}
 
 			if (principal == null) {
 				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "access denied");
 			}
 
-			// get topic from path params    
-			String topic = getTopic(session);
+			// get topic
+			List<String> topics = requestParameters.get(TOPIC_KEY);
+			String topic = null;
+
+			if (topics != null && topics.size() == 1) {
+				topic = decodeTopic(topics.get(0));
+			}
 
 			boolean isAuthorized = this.server.isTopicAuthorized(principal, topic);
 
@@ -122,7 +135,7 @@ public class PubSubEndpoint {
 			// subscribe for server messages
 
 			Subscriber subscriber = new Subscriber(
-					session.getBasicRemote(), 
+					session.getBasicRemote(),
 					remoteAddress,
 					details,
 					principal.getName());
@@ -130,7 +143,7 @@ public class PubSubEndpoint {
 			this.server.subscribe(topic, subscriber);
 
 			// listen for client replies
-			MessageHandler messageHandler = this.server.getMessageHandler();
+			Whole<String> messageHandler = this.server.getMessageHandler();
 			if (messageHandler != null) {
 				session.addMessageHandler(messageHandler);
 			}
@@ -142,11 +155,6 @@ public class PubSubEndpoint {
 				logger.warn("websocket close failed", e2);
 			}
 		}
-	}
-
-	private String getTopic(Session session) {
-		String topic = session.getPathParameters().get(TOPIC_KEY);    	
-		return decodeTopic(topic);
 	}
 
 	public static String decodeTopic(String topic) {
@@ -164,7 +172,7 @@ public class PubSubEndpoint {
 	}
 
 	private void unsubscribe(Session session) {
-		String topic = getTopic(session);
+		String topic = (String) session.getUserProperties().get(TOPIC_KEY);
 		this.server.unsubscribe(topic, session.getBasicRemote());
 	}
 
@@ -177,11 +185,12 @@ public class PubSubEndpoint {
 	@OnError
 	public void onError(Session session, Throwable thr) {
 		if (thr instanceof SocketTimeoutException) {
-			logger.warn("idle timeout, unsubscribe a pub-sub client " + ((AuthPrincipal)session.getUserPrincipal()).getRemoteAddress()); 
+			logger.warn("idle timeout, unsubscribe a pub-sub client "
+					+ ((AuthPrincipal) session.getUserPrincipal()).getRemoteAddress());
 		} else {
 			logger.error("websocket error", thr);
 		}
-		unsubscribe(session);    	
+		unsubscribe(session);
 	}
 
 	public void setServer(PubSubServer server) {

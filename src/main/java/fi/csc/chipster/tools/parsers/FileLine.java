@@ -9,11 +9,11 @@ public class FileLine {
 
 		for (int i = 0; i < columns.length; i += 2) {
 			String name = columns[i];
-			String value = columns[i+1];
+			String value = columns[i + 1];
 
-			//Unfortunately also null is converted to string sometimes
+			// Unfortunately also null is converted to string sometimes
 			if (!"null".equals(value)) {
-				//builder.append("   ");
+				// builder.append(" ");
 				builder.append(name);
 				builder.append("\t");
 				builder.append(value);

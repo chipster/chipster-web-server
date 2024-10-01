@@ -20,13 +20,11 @@ import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
-import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.PubSubServer;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
-import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -51,8 +49,6 @@ import fi.csc.chipster.sessiondb.resource.UserResource;
 public class SessionDb {
 
 	private Logger logger = LogManager.getLogger();
-
-	public static final String EVENTS_PATH = "events";
 
 	private static HibernateUtil hibernate;
 
@@ -120,15 +116,14 @@ public class SessionDb {
 		this.datasetTokenResource = new SessionDbTokenResource(ruleTable, authService);
 		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
 		this.globalJobResource = new GlobalJobResource(hibernate);
-		this.userResource = new UserResource(hibernate);
+		this.userResource = new UserResource(ruleTable);
 		this.newsApi = new NewsApi(hibernate, sessionDbApi);
 		this.newsResource = new NewsResource(newsApi);
 
 		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
-		String path = EVENTS_PATH + "/{" + PubSubEndpoint.TOPIC_KEY + "}";
 
 		SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(authService, hibernate, sessionResource);
-		this.pubSubServer = new PubSubServer(pubSubUri, path, null, topicConfig, "session-db-events");
+		this.pubSubServer = new PubSubServer(pubSubUri, null, topicConfig, "session-db-events");
 		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
 		this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
 		this.pubSubServer.start();
@@ -143,12 +138,12 @@ public class SessionDb {
 				.register(userResource)
 				.register(newsResource)
 				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
-//				.register(RestUtils.getLoggingFeature("session-db"))
+				// .register(RestUtils.getLoggingFeature("session-db"))
 				.register(tokenRequestFilter);
 
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
-				hibernateClasses.toArray(new Class[0]), newsApi);
+				hibernateClasses.toArray(new Class[0]), newsApi, sessionDbApi, ruleTable);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI

@@ -25,12 +25,15 @@ public class Subscriber {
 	public Basic getRemote() {
 		return remote;
 	}
+
 	public void setRemote(Basic remote) {
 		this.remote = remote;
 	}
+
 	public String getRemoteAddress() {
 		return remoteAddress;
 	}
+
 	public void setRemoteAddress(String remoteAddress) {
 		this.remoteAddress = remoteAddress;
 	}

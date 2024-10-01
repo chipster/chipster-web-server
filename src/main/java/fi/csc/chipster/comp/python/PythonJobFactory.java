@@ -15,6 +15,7 @@ import fi.csc.chipster.comp.ToolDescription;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
+import fi.csc.chipster.toolbox.runtime.Runtime;
 
 /**
  * Handler for analysis tools written in Python.
@@ -25,7 +26,7 @@ import fi.csc.chipster.toolbox.ToolboxTool;
 public class PythonJobFactory extends InterpreterJobFactory {
 
 	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();	
+	private static Logger logger = LogManager.getLogger();
 
 	public PythonJobFactory(HashMap<String, String> parameters, Config config)
 			throws IOException {
@@ -34,9 +35,9 @@ public class PythonJobFactory extends InterpreterJobFactory {
 
 	@Override
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout, Job dbJob) throws CompException {
-		ToolDescription description = createToolDescription(tool, dbJob);
-		
+			int jobTimeout, Job dbJob, Runtime runtime) throws CompException {
+		ToolDescription description = createToolDescription(tool, dbJob, runtime);
+
 		PythonCompJob analysisJob = new PythonCompJob();
 		analysisJob.construct(message, description, resultHandler, jobTimeout);
 		analysisJob.setProcessPool(this.processPool);
@@ -48,10 +49,8 @@ public class PythonJobFactory extends InterpreterJobFactory {
 		return PythonCompJob.STRING_DELIMETER;
 	}
 
-
 	@Override
 	protected String getVariableNameSeparator() {
 		return "_";
 	}
-
 }

@@ -19,7 +19,7 @@ import fi.csc.chipster.sessiondb.RestException;
  *
  */
 public class RestMethods {
-	
+
 	@SuppressWarnings("unchecked")
 	public static <T> List<T> getList(WebTarget target, Class<T> type) throws RestException {
 		Response response = target.request().get(Response.class);
@@ -29,24 +29,34 @@ public class RestMethods {
 		String json = response.readEntity(String.class);
 		return RestUtils.parseJson(List.class, type, json);
 	}
-	
+
+	public static String getJson(WebTarget target) throws RestException {
+		Response response = target.request().get(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			throw new RestException("get json failed ", response, target.getUri());
+		}
+		String json = response.readEntity(String.class);
+		return json;
+	}
+
 	public static <T> T get(WebTarget target, Class<T> type) throws RestException {
 		Response response = target.request().get(Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("get " + type.getSimpleName() + " failed ", response, target.getUri());
-		}		
+		}
 		return response.readEntity(type);
 	}
-	
+
 	public static UUID post(WebTarget target, Object obj) throws RestException {
 		Response response = target.request().post(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("post " + obj.getClass().getSimpleName() + " failed ", response, target.getUri());
 		}
-		return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));		
+		return UUID.fromString(RestUtils.basename(response.getLocation().getPath()));
 	}
-	
-	public static <T> T postWithObjectResponse(WebTarget target, Object obj, Class<T> responseType) throws RestException {
+
+	public static <T> T postWithObjectResponse(WebTarget target, Object obj, Class<T> responseType)
+			throws RestException {
 		Entity<Object> entity = null;
 		if (obj != null) {
 			entity = Entity.entity(obj, MediaType.APPLICATION_JSON);
@@ -55,12 +65,13 @@ public class RestMethods {
 		}
 		Response response = target.request().post(entity, Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("post " + (obj == null ? null : obj.getClass().getSimpleName()) + " failed ", response, target.getUri());
+			throw new RestException("post " + (obj == null ? null : obj.getClass().getSimpleName()) + " failed ",
+					response, target.getUri());
 		}
-		
-		return response.readEntity(responseType);		
+
+		return response.readEntity(responseType);
 	}
-		
+
 	public static Response put(WebTarget target, Object obj) throws RestException {
 		Response response = target.request().put(Entity.entity(obj, MediaType.APPLICATION_JSON), Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
@@ -68,11 +79,24 @@ public class RestMethods {
 		}
 		return response;
 	}
-	
+
 	public static void delete(WebTarget target) throws RestException {
 		Response response = target.request().delete(Response.class);
 		if (!RestUtils.isSuccessful(response.getStatus())) {
 			throw new RestException("delete failed ", response, target.getUri());
 		}
 	}
+
+	public static String deleteJson(WebTarget target) throws RestException {
+		Response response = target.request().delete(Response.class);
+		if (!RestUtils.isSuccessful(response.getStatus())) {
+			// use this to have the entity available at later code
+			response.bufferEntity();
+			throw new RestException("delete failed ", response, target.getUri());
+		}
+		String json = response.readEntity(String.class);
+		return json;
+
+	}
+
 }

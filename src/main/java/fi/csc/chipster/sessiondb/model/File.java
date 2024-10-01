@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.model;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -8,17 +9,36 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
 @Entity // db
-public class File {
+public class File implements Cloneable {
 
 	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	@Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
 	private UUID fileId;
 	private long size = -1;
 	private String checksum;
 	private Instant fileCreated;
 	private String storage;
-	
-	public File() {} // JAXB needs this	
+	private FileState state;
+	private String encryptionKey;
+
+	public String getEncryptionKey() {
+		return encryptionKey;
+	}
+
+	public void setEncryptionKey(String encryptionKey) {
+		this.encryptionKey = encryptionKey;
+	}
+
+	public FileState getState() {
+		return state;
+	}
+
+	public void setState(FileState state) {
+		this.state = state;
+	}
+
+	public File() {
+	} // JAXB needs this
 
 	public long getSize() {
 		return size;
@@ -47,12 +67,9 @@ public class File {
 	public Instant getFileCreated() {
 		return fileCreated;
 	}
-	
-	public void setFileCreated(Instant created) {
-	}
 
-	public boolean isEmpty() {
-		return fileId == null && checksum == null && size == -1;
+	public void setFileCreated(Instant created) {
+		this.fileCreated = created;
 	}
 
 	public String getStorage() {
@@ -72,28 +89,15 @@ public class File {
 		if (getClass() != obj.getClass())
 			return false;
 		File other = (File) obj;
-		if (checksum == null) {
-			if (other.checksum != null)
-				return false;
-		} else if (!checksum.equals(other.checksum))
-			return false;
-		if (fileCreated == null) {
-			if (other.fileCreated != null)
-				return false;
-		} else if (!fileCreated.equals(other.fileCreated))
-			return false;
-		if (fileId == null) {
-			if (other.fileId != null)
-				return false;
-		} else if (!fileId.equals(other.fileId))
-			return false;
-		if (size != other.size)
-			return false;
-		if (storage == null) {
-			if (other.storage != null)
-				return false;
-		} else if (!storage.equals(other.storage))
-			return false;
-		return true;
+		return Objects.equals(fileId, other.fileId) && size == other.size && Objects.equals(checksum, other.checksum)
+				&& Objects.equals(fileCreated, other.fileCreated) && Objects.equals(storage, other.storage)
+				&& state == other.state;
+	}
+
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+
+		// fine for primitive an immutable fields
+		return super.clone();
 	}
 }

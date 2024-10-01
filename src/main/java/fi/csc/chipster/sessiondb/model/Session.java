@@ -16,10 +16,11 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement // REST
 public class Session {
 
-	public Session() {} // JAXB needs this
-	
+	public Session() {
+	} // JAXB needs this
+
 	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
+	@Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
 	private UUID sessionId;
 	private String name;
 	@Lob
@@ -27,11 +28,10 @@ public class Session {
 	private Instant created;
 	private Instant accessed;
 	private SessionState state;
-	
-	@OneToMany(fetch = FetchType.LAZY, mappedBy="session")
+
+	@OneToMany(fetch = FetchType.LAZY, mappedBy = "session")
 	private Set<Rule> rules;
-	
-	
+
 	public UUID getSessionId() {
 		return this.sessionId;
 	}
@@ -87,5 +87,5 @@ public class Session {
 	public void setState(SessionState state) {
 		this.state = state;
 	}
-	
+
 }

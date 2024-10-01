@@ -20,16 +20,16 @@ import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
 
 public class ServiceLocatorClient {
-	
+
 	public static final String CONF_KEY_USE_EXTERNAL_ADDRESSES = "use-external-addresses";
-	
+
 	private static final Logger logger = LogManager.getLogger();
 
 	private String baseUri;
 	private CredentialsProvider credentials;
 
 	private boolean useExternalAddresses;
-	
+
 	public ServiceLocatorClient(Config config) throws IOException {
 		this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
 		this.useExternalAddresses = config.getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
@@ -48,89 +48,88 @@ public class ServiceLocatorClient {
 	 * @return
 	 */
 	public List<Service> getPublicServices() {
-		
+
 		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri)
-					.path(ServiceResource.PATH_SERVICES);	
+				.path(ServiceResource.PATH_SERVICES);
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
-		
+
 		@SuppressWarnings("unchecked")
 		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
 
 		return services;
 	}
-	
+
 	public List<Service> getInternalServices() {
 		if (credentials == null) {
 			throw new IllegalArgumentException("only public URIs are available without the authentication");
 		}
-		
-		return getInternalServices(credentials.getUsername(), credentials.getPassword());		
+
+		return getInternalServices(credentials.getUsername(), credentials.getPassword());
 	}
-	
+
 	public List<Service> getInternalServices(String username, String password) {
-		
+
 		WebTarget serviceTarget = AuthenticationClient.getClient(username, password, true)
 				.target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
 
 		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
-		
+
 		@SuppressWarnings("unchecked")
 		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
-		
-		// use external addresses in the services that don't run in the same private network
+
+		// use external addresses in the services that don't run in the same private
+		// network
 		if (this.useExternalAddresses) {
 			for (Service service : services) {
 				if (service.getPublicUri() != null) {
 					service.setUri(service.getPublicUri());
 				}
-			}			
+			}
 		}
 
 		return services;
 	}
-	
-		
+
 	/**
-	 * Public URIs are available without authentication 
+	 * Public URIs are available without authentication
 	 * 
 	 * @param role
 	 * @return
 	 */
 	public String getPublicUri(String role) {
-		
+
 		return filterByRole(getPublicServices(), role).getPublicUri();
-	}	
-	
+	}
+
 	public Service getInternalService(String role) {
 
 		return filterByRole(getInternalServices(), role);
 	}
 
 	public Set<Service> getPublicServices(String role) {
-		
+
 		return getPublicServices().stream()
 				.filter(s -> s.getRole().startsWith(role))
 				.collect(Collectors.toSet());
 	}
-	
+
 	public Set<Service> getInternalServices(String role) {
-		
+
 		return getInternalServices().stream()
 				.filter(s -> s.getRole().startsWith(role))
 				.collect(Collectors.toSet());
 	}
 
-	
 	public Set<String> getPublicUris(String role) {
-		
+
 		return getPublicServices(role).stream()
 				.map(s -> s.getPublicUri())
 				.collect(Collectors.toSet());
 	}
-	
+
 	public Set<String> getInternalUris(String role) {
-		
+
 		return getInternalServices(role).stream()
 				.map(s -> s.getPublicUri())
 				.collect(Collectors.toSet());
@@ -138,24 +137,24 @@ public class ServiceLocatorClient {
 
 	private Service filterByRole(List<Service> services, String role) {
 		services = services.stream()
-			.filter(s -> role.equals(s.getRole()))
-			.collect(Collectors.toList());
-		
+				.filter(s -> role.equals(s.getRole()))
+				.collect(Collectors.toList());
+
 		if (services.isEmpty()) {
 			throw new IllegalStateException("service " + role + " not found");
 		}
-		
+
 		if (services.size() > 1) {
 			logger.warn(services.size() + " " + role + " services, using the first one");
 		}
-		
+
 		return services.get(0);
 	}
 
 	public void setCredentials(CredentialsProvider credentials) {
 		this.credentials = credentials;
 	}
-	
+
 	public String getBaseUri() {
 		return this.baseUri;
 	}

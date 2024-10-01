@@ -32,27 +32,27 @@ public class Topic {
 		// http://stackoverflow.com/questions/26264508/websocket-async-send-can-result-in-blocked-send-once-queue-filled
 		synchronized (this) {
 			logger.debug("publish to " + subscribers.size() + " subscribers: " + msg);
-			for (Subscriber s: subscribers.values()) {
+			for (Subscriber s : subscribers.values()) {
 				try {
 					logger.debug("send to " + s.getRemoteAddress());
 					s.getRemote().sendText(msg);
 				} catch (IOException e) {
-					// nothing to worry about if the client just unsubscribed 
+					// nothing to worry about if the client just unsubscribed
 					logger.warn("failed to publish a message to " + s.getRemoteAddress(), e);
 				}
 			}
 		}
 	}
-	
+
 	public void ping() {
 		synchronized (this) {
 			logger.debug("ping " + subscribers.size() + " subscribers");
-			for (Subscriber s: subscribers.values()) {
+			for (Subscriber s : subscribers.values()) {
 				try {
 					logger.debug("send to " + s.getRemoteAddress());
 					s.getRemote().sendPing(null);
 				} catch (IOException e) {
-					// nothing to worry about if the client just unsubscribed 
+					// nothing to worry about if the client just unsubscribed
 					logger.warn("failed to ping " + s.getRemoteAddress(), e);
 				}
 			}

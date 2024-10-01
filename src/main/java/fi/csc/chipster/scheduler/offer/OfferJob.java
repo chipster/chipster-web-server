@@ -8,22 +8,22 @@ public class OfferJob {
 	private Instant lastScheduleTimestamp;
 	private Instant heartbeatTimestamp;
 	private Instant runnableTimestamp;
-	
+
 	public OfferJob() {
 		this.lastScheduleTimestamp = Instant.now();
 	}
-	
+
 	public Instant getLastScheduleTimestamp() {
 		return lastScheduleTimestamp;
 	}
-		
+
 	public Instant getHeartbeatTimestamp() {
 		return heartbeatTimestamp;
 	}
-	
+
 	public void setHeartbeatTimestamp() {
 		this.heartbeatTimestamp = Instant.now();
-	}		
+	}
 
 	/**
 	 * Check if the job is in SCHEDULED state, i.e. doesn't have heartbeat yet

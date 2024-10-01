@@ -3,9 +3,8 @@ package fi.csc.chipster.tools.model;
 import java.util.Collection;
 import java.util.TreeSet;
 
-
 public class Transcript extends TreeSet<Exon> implements Comparable<Transcript> {
-	
+
 	@SuppressWarnings("unused")
 	private Gene gene;
 	private Region region;
@@ -20,11 +19,10 @@ public class Transcript extends TreeSet<Exon> implements Comparable<Transcript> 
 
 	public int compareTo(Transcript other) {
 
-		
 		return this.id.compareTo(other.id);
-//		int regionComparison = this.region.compareTo(other.region);
-//		
-//		return regionComparison;
+		// int regionComparison = this.region.compareTo(other.region);
+		//
+		// return regionComparison;
 	}
 
 	@Override
@@ -40,10 +38,10 @@ public class Transcript extends TreeSet<Exon> implements Comparable<Transcript> 
 			return false;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
-		
+
 		return region.toString(true) + ", " + name;
 	}
 
@@ -52,17 +50,17 @@ public class Transcript extends TreeSet<Exon> implements Comparable<Transcript> 
 	}
 
 	public void addExon(Exon exon, String transcId) {
-		
+
 		this.add(exon);
-		
-		if(region == null) {
+
+		if (region == null) {
 			try {
 				region = exon.getRegion().clone();
 			} catch (CloneNotSupportedException e) {
 				e.printStackTrace();
 			}
 		} else {
-			
+
 			this.region = region.fill(exon.getRegion());
 		}
 	}
@@ -70,10 +68,11 @@ public class Transcript extends TreeSet<Exon> implements Comparable<Transcript> 
 	public String getName() {
 		return name;
 	}
-	
+
 	public String getId() {
 		return id;
 	}
+
 	public Collection<Exon> getExons() {
 		return this;
 	}

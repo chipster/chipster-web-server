@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,16 +20,16 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.ee10.servlet.ResourceServlet;
+import org.eclipse.jetty.http.ByteRange;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.server.InclusiveByteRange;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.DefaultServlet;
 
-import fi.csc.chipster.archive.BackupUtils;
+import fi.csc.chipster.archive.GpgBackupUtils;
 import fi.csc.chipster.auth.AuthenticationClient;
-import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.filebroker.FileBrokerResource;
+import fi.csc.chipster.auth.model.UserToken;
+import fi.csc.chipster.filebroker.FileBrokerResourceServlet;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.exception.ConflictException;
@@ -63,8 +64,7 @@ import jakarta.ws.rs.NotFoundException;
  * DefaultServlet supports range queries by default.
  * </p>
  */
-public class FileServlet extends DefaultServlet implements SessionEventListener {
-
+public class FileServlet extends ResourceServlet implements SessionEventListener {
 
 	public static final String PATH_PUT_ALLOWED = "putAllowed";
 
@@ -95,12 +95,14 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
+		super();
+
 		this.storageRoot = storageRoot;
 		this.authService = authService;
-		
+
 		this.preserveSpace = config.getFloat(CONF_KEY_FILE_STORAGE_PRESERVE_SPACE);
 		this.backupPreserveSpace = config.getFloat(CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE);
-		this.isBackupEnabled = !BackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
+		this.isBackupEnabled = !GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);
@@ -112,7 +114,6 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 		public RewrittenRequest(HttpServletRequest request, String newPath) {
 			super(request);
-
 			this.newPath = newPath;
 		}
 
@@ -129,54 +130,53 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		if (("/" + PATH_FILES + "/" + PATH_PUT_ALLOWED).equals(request.getPathInfo())) {
 			doGetPutAllowed(request, response);
 		} else {
-			doGetFile(request, response); 
+			doGetFile(request, response);
 		}
 	}
 
 	protected void doGetFile(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		
+
 		try {
-						
+
 			if (logRest) {
 				logger.info("GET " + request.getRequestURI());
 			}
-		
+
 			allowOnlyFileBroker(request);
-	
+
 			UUID fileId = parsePath(request.getPathInfo());
-	
+
 			// get the file
-	
+
 			java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
-	
+
 			if (!Files.exists(f)) {
 				throw new NotFoundException("no such file");
 			}
-	
+
 			// remove "storage/" from the beginning
 			java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
-	
+
 			RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
-		
-			Instant before = Instant.now();						
-	
+
+			Instant before = Instant.now();
+
 			// delegate to super class
 			super.doGet(rewrittenRequest, response);
-			
+
 			// log performance
 			if (logRest) {
 				logAsyncGet(request, response, f.toFile(), before);
 			}
-			
+
 		} catch (IOException | ServletException e) {
 			// make sure all errors are logged
 			logger.error("GET error", e);
 			throw e;
 		}
 	}
-	
-	
+
 	private void logAsyncGet(HttpServletRequest request, HttpServletResponse response, File f, Instant before) {
 
 		// addListener() complains about an illegal state, if we do this before
@@ -215,10 +215,10 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		long length = f.length();
 
 		// parse the range header for the log message
-		List<InclusiveByteRange> ranges = InclusiveByteRange
-				.satisfiableRanges(request.getHeaders(HttpHeader.RANGE.asString()), f.length());
+		List<ByteRange> ranges = ByteRange
+				.parse(Collections.list(request.getHeaders(HttpHeader.RANGE.asString())), f.length());
 		if (ranges != null && ranges.size() == 1) {
-			length = ranges.get(0).getLast() - ranges.get(0).getFirst();
+			length = ranges.get(0).last() - ranges.get(0).first();
 		}
 
 		Duration duration = Duration.between(before, Instant.now());
@@ -228,18 +228,17 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 				+ FileUtils.byteCountToDisplaySize(length) + " | " + FileUtils.byteCountToDisplaySize(f.length())
 				+ " | " + DurationFormatUtils.formatDurationHMS(duration.toMillis()) + " | "
 				+ new DecimalFormat("###.##").format(rate) + " MB/s");
-		
+
 		if (request instanceof Request) {
 			Request jettyRequest = (Request) request;
-	
+
 			if (logger.isDebugEnabled()) {
-				logger.debug("connection created " + (System.currentTimeMillis() - jettyRequest.getHttpChannel().getConnection().getCreatedTimeStamp()) + " ms ago" + 
-					", request complete " + jettyRequest.getHttpChannel().isRequestCompleted() + 
-					", response complte " + jettyRequest.getHttpChannel().isResponseCompleted() +  
-					", channel state " + jettyRequest.getHttpChannel().getState() + 
-					", channel persistent " + jettyRequest.getHttpChannel().isPersistent());
+				logger.debug("connection created "
+						+ (System.currentTimeMillis()
+								- jettyRequest.getConnectionMetaData().getConnection().getCreatedTimeStamp())
+						+ " ms ago");
 			}
-		}		
+		}
 	}
 
 	private UUID parsePath(String pathInfo) {
@@ -253,7 +252,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		if (!"".equals(path[0])) {
 			throw new BadRequestException("path doesn't start with slash");
 		}
-		
+
 		if (!PATH_FILES.equals(path[1])) {
 			throw new NotFoundException("path not found");
 		}
@@ -292,65 +291,67 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 		}
 		return null;
 	}
-	
+
 	private void allowOnlyFileBroker(HttpServletRequest request) {
 		// user's token set by TokenServletFilter
 		String tokenString = ServletUtils.getToken(request);
 		UserToken token = authService.validateUserToken(tokenString);
-		
+
 		// check authorization
 		if (!token.getRoles().contains(Role.FILE_BROKER)) {
 			throw new NotAuthorizedException("wrong role");
 		}
 	}
-	
+
 	private void doGetPutAllowed(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		
+
 		// get query parameters
-		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
+		Long totalSize = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE);
 
 		allowOnlyFileBroker(request);
-		
+
 		checkDiskSpace(totalSize, request);
-		
+
 		response.setStatus(200);
 		response.setHeader("Content-Type", "text/plain");
 		PrintWriter out = response.getWriter();
 		out.print("put is allowed");
-		out.flush();   
+		out.flush();
 	}
 
 	@Override
 	protected void doPut(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		
+
 		// get query parameters
-		Long chunkNumber = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_NUMBER);
-		Long chunkSize = getParameterLong(request, FileBrokerResource.FLOW_CHUNK_SIZE);
+		Long chunkNumber = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_CHUNK_NUMBER);
+		Long chunkSize = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_CHUNK_SIZE);
 		@SuppressWarnings("unused")
-		Long flowTotalChunks = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_CHUNKS);
-		Long totalSize = getParameterLong(request, FileBrokerResource.FLOW_TOTAL_SIZE);
-		
+		Long flowTotalChunks = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_TOTAL_CHUNKS);
+
+		Long totalSize = getParameterLong(request, FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE);
+
 		if (logRest) {
-			
+
 			String displaySize = "-";
-			
+
 			if (totalSize != null) {
 				displaySize = FileUtils.byteCountToDisplaySize(totalSize);
 			}
-			
-			logger.info("PUT " + request.getRequestURI() + " totalSize: " + displaySize + ", chunkNumber: " + chunkNumber);
+
+			logger.info(
+					"PUT " + request.getRequestURI() + " totalSize: " + displaySize + ", chunkNumber: " + chunkNumber);
 		}
 
 		allowOnlyFileBroker(request);
-		
+
 		try {
 			logger.debug("chunkNumber " + chunkNumber + " uploading");
 
-			UUID fileId = parsePath(request.getPathInfo());			
+			UUID fileId = parsePath(request.getPathInfo());
 
 			if (chunkNumber == null || chunkNumber == 1) {
-									
+
 				InputStream inputStream = request.getInputStream();
 
 				// create a new file
@@ -378,7 +379,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 
 				// append to the old file
 				File f = getStorageFile(fileId);
-				
+
 				InputStream inputStream = request.getInputStream();
 
 				if (f.exists()) {
@@ -386,7 +387,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 						throw new ConflictException("missing query parameters");
 					} else {
 						if (isChunkReady(f, chunkNumber, chunkSize)) {
-							// we have this chunk already							
+							// we have this chunk already
 							inputStream.close();
 							response.setStatus(HttpServletResponse.SC_OK);
 							return;
@@ -424,11 +425,12 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 					}
 
 					logger.debug("file size after copy: " + f.length());
-					
+
 					response.setStatus(HttpServletResponse.SC_NO_CONTENT);
 
 				} catch (EOFException e) {
-					logger.info("upload paused in file-storage: " + e.getClass().getSimpleName() + " " + e.getMessage());					
+					logger.info(
+							"upload paused in file-storage: " + e.getClass().getSimpleName() + " " + e.getMessage());
 					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 				} finally {
 					if (chunkFile.exists()) {
@@ -449,32 +451,33 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	}
 
 	private void checkDiskSpace(Long flowTotalSize, HttpServletRequest request) {
-		
+
 		long size;
 		if (flowTotalSize != null) {
 			size = flowTotalSize;
 		} else {
 			if (request.getContentLengthLong() != -1) {
 				size = request.getContentLengthLong();
- 			} else {
-				logger.warn("put request doesn't have " + FileBrokerResource.FLOW_TOTAL_SIZE + " or content length header, cannot ensure disk space");
+			} else {
+				logger.warn("put request doesn't have " + FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE
+						+ " or content length header, cannot ensure disk space");
 				size = 0;
- 			}
+			}
 		}
-		
+
 		long preserveBytes = (long) (storageRoot.getTotalSpace() * this.preserveSpace / 100);
-		
+
 		if (isBackupEnabled) {
 			size = (long) (size * this.backupPreserveSpace);
 		}
-		
+
 		if (size + preserveBytes > storageRoot.getUsableSpace()) {
 			throw new InsufficientStorageException("insufficient storage");
 		} else {
-			logger.debug("upload size: " + size + ", preserve size: " + preserveBytes + ", available: " + storageRoot.getUsableSpace());
+			logger.debug("upload size: " + size + ", preserve size: " + preserveBytes + ", available: "
+					+ storageRoot.getUsableSpace());
 		}
 	}
-
 
 	private boolean isChunkReady(File f, Long chunkNumber, Long chunkSize) {
 		long expectedSize = chunkNumber * chunkSize;
@@ -485,10 +488,13 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	/**
 	 * Delete file when it's deleted from the DB
 	 * 
-	 * Handle events here in file-storage, because there could be multiple file-brokers and it would be
-	 * messy if all those would start making delete requests to the file-storage in parallel.
+	 * Handle events here in file-storage, because there could be multiple
+	 * file-brokers and it would be
+	 * messy if all those would start making delete requests to the file-storage in
+	 * parallel.
 	 * 
-	 * Unfortunately we don't know if the file was supposed to be in this file-storage replica, because
+	 * Unfortunately we don't know if the file was supposed to be in this
+	 * file-storage replica, because
 	 * the DB object has been deleted already.
 	 *
 	 */
@@ -502,7 +508,7 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 					// otherwise probably just a file on some other file-storage replica
 					if (storageFile.exists()) {
 						storageFile.delete();
-					}					
+					}
 				} else {
 					logger.warn("received a file deletion event with null id");
 				}
@@ -524,31 +530,32 @@ public class FileServlet extends DefaultServlet implements SessionEventListener 
 	/**
 	 * Delete file
 	 * 
-	 * Only used in storage migrations, normally files are deleted based on session-db events.
+	 * Only used in storage migrations, normally files are deleted based on
+	 * session-db events.
 	 */
 	@Override
 	protected void doDelete(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		
-		try {			
-		
+
+		try {
+
 			this.allowOnlyFileBroker(request);
-	
+
 			UUID fileId = parsePath(request.getPathInfo());
-			
+
 			logger.info("delete file " + fileId);
-	
+
 			// get the file
 			java.nio.file.Path f = getStoragePath(storageRoot.toPath(), fileId);
-	
+
 			if (!Files.exists(f)) {
 				throw new NotFoundException("no such file");
 			}
-			
+
 			Files.delete(f);
 
 			response.setStatus(204);
-			
+
 		} catch (IOException e) {
 			// make sure all errors are logged
 			logger.error("DELETE error", e);

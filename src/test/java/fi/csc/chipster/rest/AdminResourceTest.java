@@ -59,12 +59,12 @@ public class AdminResourceTest {
 	@Test
 	public void getAlive() throws IOException {
 		for (String role : getRolesWithAdminUrl()) {
-			
+
 			if (Role.COMP.equals(role)) {
 				// comp is not started anymore
 				continue;
 			}
-			
+
 			System.out.println(role);
 			// doesn't require authentication
 			assertEquals(200, getAdminResponse(launcher.getNoAuthClient(), role, "alive").getStatus());
@@ -78,7 +78,7 @@ public class AdminResourceTest {
 				// FXIME type service doesn't authenticate
 				continue;
 			}
-			
+
 			if (Role.COMP.equals(role)) {
 				// comp is not started anymore
 				continue;

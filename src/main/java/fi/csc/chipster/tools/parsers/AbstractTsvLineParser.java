@@ -1,25 +1,23 @@
 package fi.csc.chipster.tools.parsers;
 
-
-@SuppressWarnings("deprecation")
 public abstract class AbstractTsvLineParser implements LineParser {
-	
+
 	protected String[] values;
 
 	public Integer getInteger(int column) {
 		String string = values[column];
-		return new Integer(string);		
+		return Integer.valueOf(string);
 	}
-	
+
 	public Long getLong(int column) {
 		String string = values[column];
-		return new Long(string);		
+		return Long.valueOf(string);
 	}
-	
+
 	public Float getFloat(int column) {
 		String string = values[column];
 		try {
-			return new Float(string);
+			return Float.valueOf(string);
 		} catch (NumberFormatException e) {
 			if ("inf".equals(string.toLowerCase())) {
 				return Float.POSITIVE_INFINITY;
@@ -29,22 +27,22 @@ public abstract class AbstractTsvLineParser implements LineParser {
 			return Float.NaN;
 		}
 	}
-	
+
 	public String getString(int column) {
 		return values[column];
 	}
-	
+
 	@Override
 	public boolean setLine(String line) {
 		if (getHeaderStart() != null && line.startsWith(getHeaderStart())) {
 			this.values = null;
 			return false;
 		} else {
-			this.values = line.split("\t"); 
-			return true; 
+			this.values = line.split("\t");
+			return true;
 		}
 	}
-	
+
 	@Override
 	public boolean isContentLine() {
 		return values != null;

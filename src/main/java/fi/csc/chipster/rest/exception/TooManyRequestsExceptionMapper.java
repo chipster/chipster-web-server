@@ -10,8 +10,8 @@ import jakarta.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class TooManyRequestsExceptionMapper implements ExceptionMapper<TooManyRequestsException> {	
-	
+public class TooManyRequestsExceptionMapper implements ExceptionMapper<TooManyRequestsException> {
+
 	@Override
 	public Response toResponse(TooManyRequestsException e) {
 		return e.getResponse();

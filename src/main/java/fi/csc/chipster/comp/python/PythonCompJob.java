@@ -6,11 +6,16 @@ package fi.csc.chipster.comp.python;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +26,7 @@ import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.comp.Exceptions;
 import fi.csc.chipster.comp.JobCancelledException;
+import fi.csc.chipster.comp.JobMessageUtils;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.comp.OnDiskCompJobBase;
 import fi.csc.chipster.comp.ParameterSecurityPolicy;
@@ -28,7 +34,8 @@ import fi.csc.chipster.comp.ParameterValidityException;
 import fi.csc.chipster.comp.ProcessMonitor;
 import fi.csc.chipster.comp.ProcessPool;
 import fi.csc.chipster.comp.ToolDescription;
-import fi.csc.chipster.comp.ToolDescription.ParameterDescription;
+import fi.csc.chipster.comp.ToolUtils;
+import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 import fi.csc.chipster.util.IOUtils;
 
 /**
@@ -39,6 +46,7 @@ import fi.csc.chipster.util.IOUtils;
 public class PythonCompJob extends OnDiskCompJobBase {
 
 	public static final String STRING_DELIMETER = "'";
+	public static final String CHIPSTER_VARIABLES_FILE = "chipster_variables.py";
 
 	public static final String ERROR_MESSAGE_TOKEN = "Traceback";
 	private static final Pattern SUCCESS_STRING_PATTERN = Pattern.compile("^" + SCRIPT_SUCCESSFUL_STRING + "$");
@@ -82,7 +90,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		 * @see ParameterSecurityPolicy#isValueValid(String, ParameterDescription)
 		 */
 		@Override
-		public boolean isValueValid(String value, ParameterDescription parameterDescription) {
+		public boolean isValueValid(String value, Parameter parameterDescription) {
 
 			// unset parameters are fine
 			if (value == null) {
@@ -95,7 +103,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			}
 
 			// Check parameter content (Python injection protection)
-			if (parameterDescription.isNumeric()) {
+			if (parameterDescription.getType().isNumeric()) {
 
 				// Numeric value must match the strictly specified pattern
 				return value.matches(NUMERIC_VALUE_PATTERN);
@@ -122,9 +130,9 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 	public static PythonParameterSecurityPolicy PARAMETER_SECURITY_POLICY = new PythonParameterSecurityPolicy();
 
-	private static Logger logger = LogManager.getLogger();
+	private static final Logger logger = LogManager.getLogger();
 
-	private CountDownLatch waitProcessLatch = new CountDownLatch(1);
+	private final CountDownLatch waitProcessLatch = new CountDownLatch(1);
 
 	// injected by handler at right after creation
 	private ProcessPool processPool;
@@ -137,29 +145,64 @@ public class PythonCompJob extends OnDiskCompJobBase {
 	/**
 	 * Executes the analysis.
 	 * 
-	 * @throws IOException
-	 * @throws MicroarrayException
-	 * @throws InterruptedException
+	 * @throws JobCancelledException
 	 */
+	@Override
 	protected void execute() throws JobCancelledException {
+
+		logger.debug("PythonCompJob.execute()");
+
 		cancelCheck();
+
 		updateState(JobState.RUNNING, "initialising Python");
 
-		List<BufferedReader> inputReaders = new ArrayList<BufferedReader>();
+		List<BufferedReader> inputReaders = new ArrayList<>();
 
 		// load handler initialiser
 		inputReaders.add(new BufferedReader(new StringReader(toolDescription.getInitialiser())));
 
 		// load work dir initialiser
 		logger.debug("job dir: " + jobDir.getPath());
-		inputReaders.add(
-				new BufferedReader(new StringReader("import os\nos.chdir('" + jobDataDir.getAbsolutePath() + "')\n")));
+		String importOs = "import os\n";
+		String chDir = "os.chdir('" + jobDataDir.getAbsolutePath() + "')\n";
+		String importSys = "import sys\n";
+
+		// possibly needs to be absolute because "__main__ script cannot use relative
+		// imports"
+		String appendSysPath = "sys.path.append(os.path.join(os.getcwd(), chipster_common_lib_path))\n";
+
+		// write chipster variables to a file so that they can be imported in python lib
+		// files
+		// such as version_utils.py
+		Path variablesFilePath = new File(jobDataDir, CHIPSTER_VARIABLES_FILE).toPath();
+
+		try {
+			Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE);
+
+		} catch (IOException e) {
+			this.setErrorMessage("Writing variables file failed");
+			this.setOutputText(Exceptions.getStackTrace(e));
+			updateState(JobState.ERROR);
+			return;
+		}
+
+		String importVersionUtils = "import version_utils\n";
+		String documentVersions = "version_utils.document_python_version()\n";
+
+		// String importVersionUtils = "from version_utils import *\n";
+		// String documentVersions = "document_python_version()\n";
+
+		inputReaders.add(new BufferedReader(new StringReader(importOs + chDir + importSys + appendSysPath
+				+ importVersionUtils + documentVersions)));
 
 		// load input parameters
-		int i = 0;
-		List<String> parameterValues;
+		LinkedHashMap<String, fi.csc.chipster.sessiondb.model.Parameter> parameters;
 		try {
-			parameterValues = inputMessage.getParameters(PARAMETER_SECURITY_POLICY, toolDescription);
+			parameters = inputMessage.getParameters(PARAMETER_SECURITY_POLICY, toolDescription);
+
+			// update parameters in the db, in case comp added displayNames and descriptions
+			// (cli client, replay-test)
+			this.setParameters(parameters);
 
 		} catch (ParameterValidityException e) {
 			this.setErrorMessage(e.getMessage()); // always has a message
@@ -167,20 +210,14 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			updateState(JobState.FAILED_USER_ERROR);
 			return;
 		}
-		for (ToolDescription.ParameterDescription param : toolDescription.getParameters()) {
-			String value = parameterValues.get(i);
-			String pythonSnippet = transformVariable(param, value);
+
+		for (fi.csc.chipster.sessiondb.model.Parameter param : parameters.values()) {
+			String value = param.getValue();
+			Parameter toolParameter = toolDescription.getParameters().get(param.getParameterId());
+			String pythonSnippet = transformVariable(toolParameter, value);
 			logger.debug("added parameter (" + pythonSnippet + ")");
 			inputReaders.add(new BufferedReader(new StringReader(pythonSnippet)));
-			i++;
 		}
-
-		/*
-		 * Enable importing of common scripts. Python won't know the dir of the script
-		 * file, because it gets it from standard input.
-		 */
-		String setCommonsDir = "import sys\n" + "sys.path.append(chipster_common_path)\n";
-		inputReaders.add(new BufferedReader(new StringReader(setCommonsDir)));
 
 		// load input script
 		String script = (String) toolDescription.getImplementation();
@@ -192,7 +229,6 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		// get a process
 		cancelCheck();
 		logger.debug("getting a process.");
-		;
 		try {
 			this.process = processPool.getProcess();
 		} catch (Exception e) {
@@ -232,7 +268,8 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		try {
 			for (BufferedReader reader : inputReaders) {
 				for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-					inputStringBuilder.append(line + "\n");
+					inputStringBuilder.append(line);
+					inputStringBuilder.append("\n");
 				}
 			}
 		} catch (IOException ioe) {
@@ -269,7 +306,7 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		// wait for the script to finish
 		cancelCheck();
 		logger.debug("waiting for the script to finish.");
-		boolean finishedBeforeTimeout = false;
+		boolean finishedBeforeTimeout;
 		try {
 			finishedBeforeTimeout = waitProcessLatch.await(getTimeout(), TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
@@ -293,10 +330,12 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		super.preExecute();
 	}
 
+	@Override
 	protected void postExecute() throws JobCancelledException {
 		super.postExecute();
 	}
 
+	@Override
 	protected void cleanUp() {
 		try {
 			// release the process (don't recycle)
@@ -312,29 +351,33 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 	/**
 	 * Converts a name-value -pair into Python variable definition.
+	 * 
+	 * @param param
+	 * @param value
+	 * @return String
 	 */
-	public static String transformVariable(ToolDescription.ParameterDescription param, String value) {
+	public static String transformVariable(Parameter param, String value) {
 
 		// Escape strings and such
-		if (!param.isNumeric()) {
+		if (!param.getType().isNumeric()) {
 			if (value == null) {
 				value = "None";
-			} else if (param.isChecked()) {
+			} else if (JobMessageUtils.isChecked(param)) {
 				value = STRING_DELIMETER + value + STRING_DELIMETER;
 			} else {
 				// we promised to handle this safely when we implemented the method
 				// ParameterSecurityPolicy.allowUncheckedParameters()
-				value = STRING_DELIMETER + toUnicodeEscapes(value) + STRING_DELIMETER;
+				value = STRING_DELIMETER + ToolUtils.toUnicodeEscapes(value) + STRING_DELIMETER;
 			}
 		}
 
 		// If numeric, check for empty value
-		if (param.isNumeric() && value.trim().isEmpty()) {
+		if (param.getType().isNumeric() && value.trim().isEmpty()) {
 			value = "float('NaN')";
 		}
 
 		// Sanitize parameter name (remove spaces)
-		String name = param.getName();
+		String name = param.getName().getID();
 		name = name.replaceAll(" ", "_");
 
 		// Construct and return parameter assignment
@@ -404,29 +447,4 @@ public class PythonCompJob extends OnDiskCompJobBase {
 			this.waitProcessLatch.countDown();
 		}
 	}
-
-	/**
-	 * Convert a string to unicode escape characters
-	 * 
-	 * Python script allows string literals as unicode hex values, when escaped with
-	 * "\" and "u" (16 bit, 4 character hex) or \U (32 bit, 8 character hex). The
-	 * back slash has to be escaped too with an additional backslash.
-	 * 
-	 * @param input
-	 * @return
-	 */
-	public static String toUnicodeEscapes(String input) {
-		String escapedValue = "";
-		for (int i = 0; i < input.length(); i++) {
-			// get the unicode value of the character (even if it wouldn't fit in the char
-			// type)
-			int codePoint = Character.codePointAt(input, i);
-			// convert to 8 character hex with leading zeroes
-			String hex = String.format("%08X", codePoint);
-			// escape for python code
-			escapedValue += "\\U" + hex;
-		}
-		return escapedValue;
-	}
-
 }

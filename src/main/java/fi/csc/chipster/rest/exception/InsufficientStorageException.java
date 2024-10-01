@@ -9,6 +9,5 @@ public class InsufficientStorageException extends jakarta.ws.rs.WebApplicationEx
 
 	public InsufficientStorageException(String message) {
 		super(Response.status(STATUS_CODE).entity(message).type(MediaType.TEXT_PLAIN).build());
-	}	
+	}
 }
-

@@ -22,20 +22,22 @@ public class SessionLoaderImpl2 {
 
 	public static SessionType parseXml(InputStream metadataStream) throws JAXBException, SAXException, ZipException {
 		if (metadataStream == null) {
-			throw new ZipException("session file corrupted, entry " + UserSession.SESSION_DATA_FILENAME + " was missing");
+			throw new ZipException(
+					"session file corrupted, entry " + UserSession.SESSION_DATA_FILENAME + " was missing");
 		}
-		
+
 		// parse the metadata xml to java objects using jaxb
 		Unmarshaller unmarshaller = UserSession.getJAXBContext().createUnmarshaller();
 		unmarshaller.setSchema(UserSession.getSchema());
 		NonStoppingValidationEventHandler validationEventHandler = new NonStoppingValidationEventHandler();
 		unmarshaller.setEventHandler(validationEventHandler);
-		SessionType sessionType = unmarshaller.unmarshal(new StreamSource(metadataStream), SessionType.class).getValue();
-		
+		SessionType sessionType = unmarshaller.unmarshal(new StreamSource(metadataStream), SessionType.class)
+				.getValue();
+
 		if (validationEventHandler.hasEvents()) {
 			throw new JAXBException("Invalid session file:\n" + validationEventHandler.getValidationEventsAsString());
 		}
-		
+
 		return sessionType;
 	}
 }

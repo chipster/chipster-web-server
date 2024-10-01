@@ -26,19 +26,19 @@ public class Toolbox {
 	private List<ToolboxModule> modules = new LinkedList<ToolboxModule>();
 	private byte[] zipContents;
 
-	private List<Runtime> runtimes;	
+	private List<Runtime> runtimes;
 
 	/**
 	 * Loads tools.
 	 * 
 	 * @param modulesDir
 	 * @param toolsBin
-	 * @param runtimeRepository 
-	 * @param config 
+	 * @param runtimeRepository
+	 * @param config
 	 * @throws IOException
 	 */
 	public Toolbox(final Path modulesDir, File toolsBin, RuntimeRepository runtimeRepository) throws IOException {
-		
+
 		// load tools
 		this.modules.addAll(loadModuleDescriptions(modulesDir, toolsBin, runtimeRepository));
 		this.runtimes = runtimeRepository.getRuntimes();
@@ -80,30 +80,33 @@ public class Toolbox {
 		return null;
 	}
 
-//	/**
-//	 * @return a list of DescriptionMessages about available tool modules that can
-//	 *         be sent to client.
-//	 */
-//	public List<ModuleDescriptionMessage> getModuleDescriptions() {
-//
-//		LinkedList<ModuleDescriptionMessage> moduleDescriptions = new LinkedList<ModuleDescriptionMessage>();
-//
-//		for (ToolboxModule module : modules) {
-//			moduleDescriptions.add(module.getModuleDescriptionMessage());
-//		}
-//
-//		return moduleDescriptions;
-//	}
+	// /**
+	// * @return a list of DescriptionMessages about available tool modules that can
+	// * be sent to client.
+	// */
+	// public List<ModuleDescriptionMessage> getModuleDescriptions() {
+	//
+	// LinkedList<ModuleDescriptionMessage> moduleDescriptions = new
+	// LinkedList<ModuleDescriptionMessage>();
+	//
+	// for (ToolboxModule module : modules) {
+	// moduleDescriptions.add(module.getModuleDescriptionMessage());
+	// }
+	//
+	// return moduleDescriptions;
+	// }
 
 	/**
 	 * Load all the tool modules in this toolbox. Put them to the modules list.
-	 * @param runtimeRepository 
+	 * 
+	 * @param runtimeRepository
 	 * 
 	 * @param toolsBin2
 	 * 
 	 * @throws IOException
 	 */
-	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, File toolsBin, RuntimeRepository runtimeRepository) throws IOException {
+	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, File toolsBin,
+			RuntimeRepository runtimeRepository) throws IOException {
 
 		// Iterate over all module directories, and over all module files inside
 		// them
@@ -196,7 +199,7 @@ public class Toolbox {
 
 		if (toolId.endsWith(".py")) {
 			return new HeaderAsCommentParser("#", RuntimeRepository.TOOL_DIR_PYTHON);
-			
+
 		} else if (toolId.endsWith(".java")) {
 			return new JavaParser();
 

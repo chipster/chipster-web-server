@@ -13,15 +13,15 @@ import fi.csc.chipster.rest.token.TokenRequestFilter;
 import fi.csc.chipster.sessiondb.RestException;
 
 public class ServletUtils {
-	
+
 	public static String getToken(HttpServletRequest request) {
-    	
+
 		String tokenParameter = request.getParameter(TokenRequestFilter.QUERY_PARAMETER_TOKEN);
 		String tokenHeader = request.getHeader(TokenRequestFilter.HEADER_AUTHORIZATION);
 
 		return getToken(tokenHeader, tokenParameter);
 	}
-	
+
 	public static WebApplicationException extractRestException(RestException e) {
 		int statusCode = e.getResponse().getStatus();
 		String msg = e.getMessage();
@@ -35,7 +35,7 @@ public class ServletUtils {
 			return new InternalServerErrorException(e);
 		}
 	}
-	
+
 	public static String getToken(String authHeader, String authParameter) {
 		if (authHeader != null) {
 			BasicAuthParser parser = new BasicAuthParser(authHeader);

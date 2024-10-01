@@ -15,10 +15,9 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import fi.csc.chipster.sessiondb.model.JobIdPair;
 
-
 @Entity
-@Table(indexes={
-		@Index(columnList="created DESC", name="job_history_created_index")
+@Table(indexes = {
+		@Index(columnList = "created DESC", name = "job_history_created_index")
 })
 @XmlRootElement
 public class JobHistory {
@@ -28,7 +27,7 @@ public class JobHistory {
 	private String toolId;
 	private String toolName;
 	private String comp;
-	@Column(name="startTime")
+	@Column(name = "startTime")
 	private Instant startTime;
 	private Instant endTime;
 	private Instant created;
@@ -38,6 +37,7 @@ public class JobHistory {
 	private String state;
 	private String stateDetail;
 	private Long memoryUsage;
+	private Long storageUsage;
 	private String module;
 
 	public JobHistory() {
@@ -150,5 +150,13 @@ public class JobHistory {
 
 	public void setModule(String module) {
 		this.module = module;
+	}
+
+	public Long getStorageUsage() {
+		return storageUsage;
+	}
+
+	public void setStorageUsage(Long storageUsage) {
+		this.storageUsage = storageUsage;
 	}
 }

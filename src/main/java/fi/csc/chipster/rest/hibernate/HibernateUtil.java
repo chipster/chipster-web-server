@@ -79,7 +79,7 @@ public class HibernateUtil {
 				role);
 
 		try {
-		    
+
 			// test connection first to make errors easier to catch
 			testConnection(url, user, password);
 
@@ -104,7 +104,7 @@ public class HibernateUtil {
 
 			throw new RuntimeException(role + " db not available\n"
 					+ "Install postgres: \n"
-			        + "  brew install postgresql@15\n"
+					+ "  brew install postgresql@15\n"
 					+ "  brew services start postgresql@15\n"
 					+ "  createuser user\n"
 					+ "  createdb auth_db\n"
@@ -164,8 +164,10 @@ public class HibernateUtil {
 																				// in startup
 		hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
 		// following two for debugging connection leaks
-//		hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces", "true");
-//		hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout", "30");
+		// hibernateConf.setProperty("hibernate.c3p0.debugUnreturnedConnectionStackTraces",
+		// "true");
+		// hibernateConf.setProperty("hibernate.c3p0.unreturnedConnectionTimeout",
+		// "30");
 
 		for (Class<?> c : hibernateClasses) {
 			hibernateConf.addAnnotatedClass(c);
@@ -251,7 +253,8 @@ public class HibernateUtil {
 			session.getTransaction().rollback();
 			session.close();
 		} else {
-			// why the sessions is null e.g. when an exception happens when the result is mapped to json
+			// why the sessions is null e.g. when an exception happens when the result is
+			// mapped to json
 			logger.warn("cannot rollback Hibernate session, because it's null");
 		}
 	}
@@ -329,7 +332,7 @@ public class HibernateUtil {
 	public static <T> void update(T value, Serializable id, Session session) {
 
 		@SuppressWarnings("unchecked")
-        T dbObject = (T) session.getReference(value.getClass(), id);
+		T dbObject = (T) session.getReference(value.getClass(), id);
 		session.setReadOnly(dbObject, false);
 		session.merge(value);
 		session.flush();
@@ -346,7 +349,7 @@ public class HibernateUtil {
 	public static <T> void delete(T value, Serializable id, Session session) {
 
 		@SuppressWarnings("unchecked")
-        T dbObject = (T) session.getReference(value.getClass(), id);
+		T dbObject = (T) session.getReference(value.getClass(), id);
 		session.setReadOnly(dbObject, false);
 		session.remove(dbObject);
 		session.flush();

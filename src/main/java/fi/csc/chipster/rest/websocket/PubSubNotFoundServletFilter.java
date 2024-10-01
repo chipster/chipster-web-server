@@ -19,7 +19,8 @@ import jakarta.servlet.http.HttpServletResponse;
  * 
  * It's easy to make mistakes in the encoding of the topic, but it's difficult
  * to understand what is happening, because the WebSocket endpoint methods won't
- * get called at all. This filter prints a clear warning to the server log to make it
+ * get called at all. This filter prints a clear warning to the server log to
+ * make it
  * clearer.
  * 
  * This filter is not called at all for the succesful WebSocket requests.
@@ -28,29 +29,31 @@ import jakarta.servlet.http.HttpServletResponse;
  *
  */
 public class PubSubNotFoundServletFilter implements Filter {
-	
+
 	private static final Logger logger = LogManager.getLogger();
-    
-    public PubSubNotFoundServletFilter() {
+
+	public PubSubNotFoundServletFilter() {
 	}
 
 	@Override
-    public void init(FilterConfig filterConfig) throws ServletException {}
+	public void init(FilterConfig filterConfig) throws ServletException {
+	}
 
-    @Override
-    public void doFilter(ServletRequest servletRequest, 
-                         ServletResponse servletResponse, 
-                         FilterChain filterChain) throws IOException, ServletException {
-    	    	
-    	HttpServletRequest request = (HttpServletRequest) servletRequest;
-    	HttpServletResponse response = (HttpServletResponse) servletResponse;
-    	
-    	logger.warn("WebSocket request path not found: " + request.getRequestURI());
-    	    		
-    	response.sendError(HttpServletResponse.SC_NOT_FOUND, "not found: " + request.getRequestURI());
-    	return;
-    }
-        	
 	@Override
-    public void destroy() {}
+	public void doFilter(ServletRequest servletRequest,
+			ServletResponse servletResponse,
+			FilterChain filterChain) throws IOException, ServletException {
+
+		HttpServletRequest request = (HttpServletRequest) servletRequest;
+		HttpServletResponse response = (HttpServletResponse) servletResponse;
+
+		logger.warn("WebSocket request path not found: " + request.getRequestURI());
+
+		response.sendError(HttpServletResponse.SC_NOT_FOUND, "not found: " + request.getRequestURI());
+		return;
+	}
+
+	@Override
+	public void destroy() {
+	}
 }

@@ -103,7 +103,7 @@ public class ToolboxService {
 			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBin.getPath()
 					+ " doesn't exist");
 		}
-		
+
 		this.runtimeRepository = new RuntimeRepository(this.config);
 
 		// load toolbox
@@ -139,7 +139,7 @@ public class ToolboxService {
 
 		// found tools zip
 		else {
-			FileSystem fs = FileSystems.newFileSystem(foundPath, null);
+			FileSystem fs = FileSystems.newFileSystem(foundPath, (ClassLoader) null);
 			Path toolsPath = fs.getPath(TOOLS_DIR_NAME);
 			box = new Toolbox(toolsPath, toolsBin, runtimeRepository);
 

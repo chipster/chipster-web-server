@@ -69,9 +69,9 @@ public class XmlSession {
 			Map<UUID, Job> jobMap = null;
 			HashMap<String, String> entryToDatasetIdMap = null;
 			Map<String, String> screenOutputMap = new HashMap<>();
-			
+
 			ArrayList<String> warnings = new ArrayList<>();
-	    	ArrayList<String> errors = new ArrayList<>();
+			ArrayList<String> errors = new ArrayList<>();
 
 			/*
 			 * The default zip implementation can't read from InputStream over 4 GB files
@@ -126,14 +126,15 @@ public class XmlSession {
 							dummyDataset.setDatasetIdPair(sessionId, datasetId);
 
 							sessionDb.createDataset(sessionId, dummyDataset);
-														
-							/* Size should be available
+
+							/*
+							 * Size should be available
 							 * 
 							 * When reading the zip from a file, ZipFile can read the
 							 * size from the directory in the end of the file.
 							 */
 							Long size = null;
-							
+
 							if (entry.getSize() >= 0) {
 								size = entry.getSize();
 							}
@@ -378,40 +379,42 @@ public class XmlSession {
 	}
 
 	private static Map<UUID, Dataset> getDatasets(List<DataType> dataTypes, ArrayList<String> warnings) {
-		
+
 		/*
-		 * A few customer sessions have had duplicate dataIds. Created by session merge perhaps?
+		 * A few customer sessions have had duplicate dataIds. Created by session merge
+		 * perhaps?
 		 */
 		List<String> duplicateIds = dataTypes.stream()
-			.collect(Collectors.groupingBy(DataType::getDataId, Collectors.counting()))
-			.entrySet()
-			.stream()
+				.collect(Collectors.groupingBy(DataType::getDataId, Collectors.counting()))
+				.entrySet()
+				.stream()
 				.filter(e -> e.getValue() > 1)
 				.map(Map.Entry::getKey)
-				.collect(Collectors.toList());			
-		
+				.collect(Collectors.toList());
+
 		if (!duplicateIds.isEmpty()) {
-			
-			for (String dataId : duplicateIds) {				
-				
+
+			for (String dataId : duplicateIds) {
+
 				List<DataType> duplicates = dataTypes.stream()
-					.filter(d -> dataId.equals(d.getDataId()))
-					.collect(Collectors.toList());
-				
-				List<String> duplicateNames = duplicates.stream()
-						.map(d ->  d.getName())
+						.filter(d -> dataId.equals(d.getDataId()))
 						.collect(Collectors.toList());
-								
+
+				List<String> duplicateNames = duplicates.stream()
+						.map(d -> d.getName())
+						.collect(Collectors.toList());
+
 				dataTypes.removeAll(duplicates);
 				dataTypes.add(duplicates.get(0));
-				
-				String warning = "merged datasets: " + String.join(", ", duplicateNames) + " because those had the same dataId";
-				
+
+				String warning = "merged datasets: " + String.join(", ", duplicateNames)
+						+ " because those had the same dataId";
+
 				logger.warn(warning + " " + dataId);
 				warnings.add(warning);
-			}			
+			}
 		}
-		
+
 		return dataTypes.stream().map(XmlSession::getDataset).collect(Collectors.toMap(Dataset::getDatasetId, d -> d));
 	}
 

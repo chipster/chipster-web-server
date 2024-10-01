@@ -16,19 +16,45 @@ public class SessionEvent {
 	private String serverId;
 	private long eventNumber;
 	private UUID resourceId;
+
+	/*
+	 * Optionally, pass to old and/or new state of the whole object as json
+	 * 
+	 * So far this isn't used much. Adding the whole objects would increase
+	 * the message sizes, but also make it easier for clients to follow what really
+	 * changed.
+	 * 
+	 * At the moment this is used only when a File is deleted and s3-storage needs
+	 * to know its S3 bucket.
+	 * 
+	 */
+	private String oldObject;
+	private String newObject;
+
 	/**
 	 * Object specific state, e.g. session is being imported or job is running
 	 */
 	private String state;
-	
-	public enum EventType { CREATE, UPDATE, DELETE }
-	public enum ResourceType { RULE, DATASET, JOB, FILE, SESSION, NEWS }
+
+	public enum EventType {
+		CREATE, UPDATE, DELETE
+	}
+
+	public enum ResourceType {
+		RULE, DATASET, JOB, FILE, SESSION, NEWS
+	}
 
 	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {
 		this(sessionId, resource, resourceId, type, null);
 	}
-	
-	public <E extends Enum<E>> SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type, Enum<E> state) {
+
+	public <E extends Enum<E>> SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type,
+			Enum<E> state) {
+		this(sessionId, resource, resourceId, type, state, null, null);
+	}
+
+	public <E extends Enum<E>> SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type,
+			Enum<E> state, String oldObject, String newObject) {
 		this.resource = resource;
 		this.sessionId = sessionId;
 		this.resourceId = resourceId;
@@ -36,8 +62,10 @@ public class SessionEvent {
 		if (state != null) {
 			this.setState(state.toString());
 		}
+		this.oldObject = oldObject;
+		this.newObject = newObject;
 	}
-	
+
 	public SessionEvent() {
 		// JAXB needs this
 	}
@@ -96,5 +124,13 @@ public class SessionEvent {
 
 	public void setState(String state) {
 		this.state = state;
+	}
+
+	public String getOldObject() {
+		return oldObject;
+	}
+
+	public String getNewObject() {
+		return newObject;
 	}
 }

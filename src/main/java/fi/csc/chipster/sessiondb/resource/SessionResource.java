@@ -5,6 +5,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.Hibernate;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -103,8 +105,17 @@ public class SessionResource {
 			throw new NotFoundException();
 		}
 
-		// FIXME what should initialize this?
-		dbSession.getRules().size();
+		/*
+		 * Make sure rules are loaded
+		 * 
+		 * All json contents must be loaded from DB, because json serialization happens
+		 * after Hibernate session is closed (@See HibernateResponseFilter). When this
+		 * method call is authenticated with UserToken, checkSessionReadAuthorization()
+		 * above loads these rules. However, when this method is called with
+		 * SessionToken, authorization checks don't need the rules and we have to load
+		 * them ourselves.
+		 */
+		Hibernate.initialize(dbSession.getRules());
 
 		// client can suggest not updating the access date by adding the query parameter
 		// "preview"
@@ -289,9 +300,27 @@ public class SessionResource {
 		// check authorization
 		Session session = ruleTable.checkSessionReadWriteAuthorization(sc, id);
 
-		this.sessionDbApi.deleteSession(session, getHibernate().session());
+		this.sessionDbApi.deleteSession(session);
 
 		return Response.noContent().build();
+	}
+
+	@GET
+	@Path("stats")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getStats(@Context SecurityContext sc) {
+
+		String authenticatedUserId = sc.getUserPrincipal().getName();
+
+		HashMap<String, Object> responseObj = new HashMap<String, Object>() {
+			{
+				put("size", ruleTable.getTotalSize(authenticatedUserId));
+			}
+		};
+
+		return Response.ok(responseObj).build();
 	}
 
 	/**

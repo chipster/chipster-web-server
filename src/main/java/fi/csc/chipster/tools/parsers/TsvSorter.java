@@ -25,29 +25,30 @@ public class TsvSorter {
 		public String normaliseChromosome(String chromosomeName) {
 
 			// Leave prefix as it is
-			
+
 			// Remove postfix, if present
-//			String SEPARATOR = ".";
-//			if (chromosomeName.contains(SEPARATOR)) {
-//				chromosomeName = chromosomeName.substring(0, chromosomeName.indexOf(SEPARATOR));
-//			}
-			
+			// String SEPARATOR = ".";
+			// if (chromosomeName.contains(SEPARATOR)) {
+			// chromosomeName = chromosomeName.substring(0,
+			// chromosomeName.indexOf(SEPARATOR));
+			// }
+
 			return chromosomeName;
 		}
 	};
-	
+
 	private AbstractTsvLineParser parser;
-	
+
 	public void sort(File in, File out, int chrColumn, int startColumn) throws Exception {
 		this.chrCol = chrColumn;
 		this.bpCol = startColumn;
 		externalSort(in, out);
 	}
-	
+
 	public void sort(File in, File out, int chrColumn, int startColumn, AbstractTsvLineParser parser) throws Exception {
 		this.parser = parser;
 		sort(in, out, chrColumn, startColumn);
-	}	
+	}
 
 	private class Row extends BpCoord {
 
@@ -59,7 +60,7 @@ public class TsvSorter {
 			this.line = line;
 			String[] splitted = line.split("\t");
 			String chrStr = splitted.length > chrCol ? splitted[chrCol] : "";
-			
+
 			// If chromosome name exists, normalise it
 			if (!chrStr.isEmpty()) {
 				chrStr = chromosomeNormaliser.normaliseChromosome(chrStr);
@@ -77,7 +78,7 @@ public class TsvSorter {
 			}
 		}
 	}
-	
+
 	/**
 	 * Combines strings into one string by placing a delimeter between them.
 	 * Works with objects by calling toString() for them.
@@ -94,11 +95,12 @@ public class TsvSorter {
 				result += (delimeter + object);
 			}
 		}
-		return result;		
+		return result;
 	}
 
 	/**
-	 * Based on http://www.codeodor.com/index.cfm/2007/5/14/Re-Sorting-really-BIG-files---the-Java-source-code/1208
+	 * Based on
+	 * http://www.codeodor.com/index.cfm/2007/5/14/Re-Sorting-really-BIG-files---the-Java-source-code/1208
 	 * 
 	 * @param infile
 	 * @param outfile
@@ -106,34 +108,35 @@ public class TsvSorter {
 	 * @throws GBrowserException
 	 */
 	private void externalSort(File infile, File outfile) throws IOException, GBrowserException {
-		
+
 		// Start reading
 		BufferedReader initReader = new BufferedReader(new FileReader(infile));
-		
+
 		// Read header, if exists
 		String header = "";
 
 		if (parser != null) {
-			
+
 			String line;
 			while ((line = initReader.readLine()) != null) {
-				
+
 				parser.setLine(line);
 				if (parser.isContentLine()) {
 					break;
 
 				} else {
 					header += line + "\n";
-				}			
+				}
 			}
-			
-			//First content line is already consumed. Open file again, but do not read content yet.
+
+			// First content line is already consumed. Open file again, but do not read
+			// content yet.
 			initReader.close();
 			initReader = new BufferedReader(new FileReader(infile));
-					
+
 			for (int i = 0; i < StringUtils.countMatches(header, "\n"); i++) {
 				initReader.readLine();
-			}					
+			}
 		}
 
 		// Create and sort chunks
@@ -187,9 +190,9 @@ public class TsvSorter {
 		initReader.close();
 	}
 
-	private void mergeFiles(String inputFilePath, File outputFilePath, int numChunkFiles, String header) throws IOException, GBrowserException {
+	private void mergeFiles(String inputFilePath, File outputFilePath, int numChunkFiles, String header)
+			throws IOException, GBrowserException {
 
-		
 		// Initialise
 		ArrayList<BufferedReader> mergefbr = new ArrayList<BufferedReader>();
 		ArrayList<Row> filerows = new ArrayList<Row>();
@@ -199,8 +202,8 @@ public class TsvSorter {
 		try {
 			// Write header, if needed
 			if (!header.isEmpty()) {
-				bw.append(header);	
-			}		
+				bw.append(header);
+			}
 
 			// Merge chunks
 			boolean someFileStillHasRows = false;
@@ -268,10 +271,11 @@ public class TsvSorter {
 					someFileStillHasRows = false;
 					if (filerows.get(i) != null) {
 						if (minIndex < 0) {
-							
+
 							bw.close();
-							
-							throw new GBrowserException("Error in sorting: " + "mindex lt 0 and found row not null" + filerows.get(i));
+
+							throw new GBrowserException(
+									"Error in sorting: " + "mindex lt 0 and found row not null" + filerows.get(i));
 						}
 						someFileStillHasRows = true;
 						break;
@@ -295,7 +299,7 @@ public class TsvSorter {
 			}
 		} finally {
 
-			// close all the files			
+			// close all the files
 			IOUtils.closeIfPossible(bw);
 			IOUtils.closeIfPossible(fw);
 		}
@@ -313,23 +317,23 @@ public class TsvSorter {
 	public static void main(String[] args) throws Exception {
 
 		try {
-		
-		File in = new File(args[0]);
-		File out = new File(args[1]);
-		int chr = Integer.parseInt(args[2]);
-		int start = Integer.parseInt(args[3]);
-		
-		new TsvSorter().sort(in, out, chr, start);
-		
+
+			File in = new File(args[0]);
+			File out = new File(args[1]);
+			int chr = Integer.parseInt(args[2]);
+			int start = Integer.parseInt(args[3]);
+
+			new TsvSorter().sort(in, out, chr, start);
+
 		} catch (Exception e) {
 			e.printStackTrace();
-						
+
 			System.out.println(
 					"usage: \n" +
-					"  TsvSorter <file-in> <file-out> <chr-column> <start-position-column>\n" +
-					"  Column indexes start from 0\n\n" +
-					"example:\n " +
-					"  java -cp chipster-2.7.1.jar fi.csc.microarray.client.visualisation.methods.gbrowser.util.TsvSorter Homo_sapiens.GRCh37.70.gtf Homo_sapiens.GRCh37.70-sort.gtf 0 3");
-		}				
+							"  TsvSorter <file-in> <file-out> <chr-column> <start-position-column>\n" +
+							"  Column indexes start from 0\n\n" +
+							"example:\n " +
+							"  java -cp chipster-2.7.1.jar fi.csc.microarray.client.visualisation.methods.gbrowser.util.TsvSorter Homo_sapiens.GRCh37.70.gtf Homo_sapiens.GRCh37.70-sort.gtf 0 3");
+		}
 	}
 }

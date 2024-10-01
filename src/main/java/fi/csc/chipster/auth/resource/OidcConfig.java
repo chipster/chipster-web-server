@@ -116,7 +116,7 @@ public class OidcConfig {
 
 	public void setClaimUserId(String claimUserId) {
 		this.claimUserId = claimUserId;
-	}	
+	}
 
 	public String getParameter() {
 		return parameter;
@@ -153,7 +153,7 @@ public class OidcConfig {
 	public void setDescription(String description) {
 		this.description = description;
 	}
-	
+
 	public String getDescription() {
 		return this.description;
 	}

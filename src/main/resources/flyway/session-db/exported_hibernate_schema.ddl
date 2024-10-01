@@ -34,8 +34,10 @@
     create table File (
        fileId uuid not null,
         checksum varchar(255),
+        encryptionKey varchar(255),
         fileCreated timestamp(6) with time zone,
         size bigint not null,
+        state smallint,
         storage varchar(255),
         primary key (fileId)
     );
@@ -53,6 +55,7 @@
         memoryUsage bigint,
         metadataFiles jsonb,
         module varchar(255),
+        outputs jsonb,
         parameters jsonb,
         screenOutput oid,
         sourceCode oid,

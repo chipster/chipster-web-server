@@ -12,7 +12,7 @@ import jakarta.ws.rs.ext.Provider;
  * @author klemela
  */
 @Provider
-public class ConflictExceptionMapper implements ExceptionMapper<ConflictException> {	
+public class ConflictExceptionMapper implements ExceptionMapper<ConflictException> {
 
 	@Override
 	public Response toResponse(ConflictException e) {

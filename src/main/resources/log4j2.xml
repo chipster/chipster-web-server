@@ -55,6 +55,12 @@ developing, without having to worry about committing them accidentally.
       </PatternLayout>
     </File>
 
+    <File name="comp" fileName="logs/comp.log">
+      <PatternLayout>
+        <Pattern>[%d] %m (in %C{1}:%L)%n</Pattern>
+      </PatternLayout>
+    </File>
+
 
   
   </Appenders>
@@ -101,6 +107,9 @@ developing, without having to worry about committing them accidentally.
  		<AppenderRef ref="toolbox"/>
  	</Logger>	
 
+  <Logger name="fi.csc.chipster.scheduler.bash.compLog" level="info" additivity="false">
+ 		<AppenderRef ref="comp"/>
+ 	</Logger>	
         
     <!--  We want to hide these when running tests, but the TestServerLauncher 
     is only able to modify existing loggers. Without this it will get the 

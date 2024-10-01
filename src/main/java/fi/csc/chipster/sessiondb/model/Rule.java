@@ -16,27 +16,28 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(indexes = {
-        @Index(columnList = "username", name = "rule_username_index"),
-        @Index(columnList = "sessionId", name = "rule_sessionid_index"),
-        @Index(columnList = "sharedBy", name = "rule_sharedby_index"),
+		@Index(columnList = "username", name = "rule_username_index"),
+		@Index(columnList = "sessionId", name = "rule_sessionid_index"),
+		@Index(columnList = "sharedBy", name = "rule_sharedby_index"),
 })
 public class Rule {
-	
+
 	@Id // db
-	@Column( columnDefinition = "uuid", updatable = false ) // uuid instead of binary
-	private UUID ruleId;	 
+	@Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
+	private UUID ruleId;
 	private String username;
-	
-	@ManyToOne(fetch=FetchType.EAGER)
-	@JoinColumn(name="sessionId")
+
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "sessionId")
 	private Session session;
-	
+
 	private boolean readWrite;
 	private String sharedBy;
 	private Instant created;
-	
-	public Rule() { } // hibernate needs this			
-	
+
+	public Rule() {
+	} // hibernate needs this
+
 	public Rule(Rule o) {
 		this.ruleId = o.ruleId;
 		this.username = o.username;
@@ -45,35 +46,38 @@ public class Rule {
 		this.sharedBy = o.sharedBy;
 		this.created = o.created;
 	}
-	
+
 	public Rule(String username, boolean readWrite) {
 		this(username, readWrite, null);
 	}
-	
+
 	public Rule(String username, boolean readWrite, String authorizedBy) {
 		this.username = username;
 		this.readWrite = readWrite;
 		this.sharedBy = authorizedBy;
 	}
+
 	public String getUsername() {
 		return username;
 	}
+
 	public void setUsername(String username) {
 		this.username = username;
 	}
-	
+
 	public UUID getRuleId() {
 		return ruleId;
 	}
+
 	public void setRuleId(UUID authorizationId) {
 		this.ruleId = authorizationId;
 	}
-	
+
 	@JsonIgnore
 	public Session getSession() {
 		return session;
 	}
-	
+
 	public void setSession(Session session) {
 		this.session = session;
 	}
@@ -100,5 +104,5 @@ public class Rule {
 
 	public void setCreated(Instant created) {
 		this.created = created;
-	}	
+	}
 }

@@ -12,13 +12,14 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 /**
  * Generic CORS filter
  * 
- * Used both in CORSResponseFilter for Jersey and CORSServletFilter for file-broker's FileServlet.
+ * Used both in CORSResponseFilter for Jersey and CORSServletFilter for
+ * file-broker's FileServlet.
  * 
  * @author klemela
  *
  */
 public class CORSFilter {
-	
+
 	public static final String HEADER_KEY_ORIGIN = "Origin";
 
 	private Logger logger = LogManager.getLogger();
@@ -28,17 +29,19 @@ public class CORSFilter {
 	private volatile boolean isRequesting;
 
 	public CORSFilter(ServiceLocatorClient serviceLocator) {
-		// get web-server uri only when it's needed, because auth initializes this before the service locator is running
-		this.serviceLocator = serviceLocator; 
+		// get web-server uri only when it's needed, because auth initializes this
+		// before the service locator is running
+		this.serviceLocator = serviceLocator;
 	}
 
 	public HashMap<String, String> getCorsHeaders(String origin) {
 
-		// double checked locking with volatile field http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
+		// double checked locking with volatile field
+		// http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
 		// to make this safe and relatively fast for multi-thread usage
-		if (webServerUris == null && !isRequesting) {			
+		if (webServerUris == null && !isRequesting) {
 			synchronized (CORSResponseFilter.class) {
-				
+
 				if (webServerUris == null) {
 					isRequesting = true;
 					webServerUris = getWebServerUris(serviceLocator);
@@ -52,13 +55,13 @@ public class CORSFilter {
 
 			if (webServerUris.contains(origin)) {
 
-				headers.put("Access-Control-Allow-Origin", origin);		
-				headers.put("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");			
+				headers.put("Access-Control-Allow-Origin", origin);
+				headers.put("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");
 				headers.put("Access-Control-Allow-Headers", "authorization, content-type, range"); // request
 				headers.put("Access-Control-Expose-Headers", "location, Accept-Ranges, Retry-After"); // response
 				headers.put("Access-Control-Allow-Credentials", "true");
 				headers.put("Access-Control-Max-Age", "" + (60 * 60 * 24)); // in seconds, 1 day
-				//headers.put("Access-Control-Max-Age", "1"); // makes debugging easier
+				// headers.put("Access-Control-Max-Age", "1"); // makes debugging easier
 
 			} else {
 				if (origin != null) {
@@ -69,7 +72,6 @@ public class CORSFilter {
 		return headers;
 
 	}
-
 
 	private Set<String> getWebServerUris(ServiceLocatorClient serviceLocator) {
 		long t = 0;

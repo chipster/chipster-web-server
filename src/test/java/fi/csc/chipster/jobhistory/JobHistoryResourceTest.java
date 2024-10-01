@@ -34,7 +34,7 @@ public class JobHistoryResourceTest {
 		launcher = new TestServerLauncher(config);
 
 		sessionDBClient1 = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
-		
+
 		jobHistoryClient2 = new JobHistoryClient(launcher.getServiceLocatorForAdmin(), launcher.getAdminToken());
 
 		sessionDBClient1.createSession(RestUtils.getRandomSession());
@@ -81,17 +81,19 @@ public class JobHistoryResourceTest {
 		long endTime = System.nanoTime();
 		System.out.println(endTime - startTime);
 	}
-	
-	/*
-	@Test
-	public void testSaveJobDbPerformance() throws InterruptedException, RestException {
-		for (int i = 0; i < 10; i++) {
-			sessionDBClient1.createJob(sessionID, RestUtils.getRandomJob());
-			Thread.sleep(100);
 
-		}
-		assertEquals(true, jobHistoryClient2.getJobHistoryList().size() > 10);
-	}*/
+	/*
+	 * @Test
+	 * public void testSaveJobDbPerformance() throws InterruptedException,
+	 * RestException {
+	 * for (int i = 0; i < 10; i++) {
+	 * sessionDBClient1.createJob(sessionID, RestUtils.getRandomJob());
+	 * Thread.sleep(100);
+	 * 
+	 * }
+	 * assertEquals(true, jobHistoryClient2.getJobHistoryList().size() > 10);
+	 * }
+	 */
 
 	private Instant getRandomTimeStamp() {
 		long offset = Timestamp.valueOf("2018-09-11 00:00:00").getTime();

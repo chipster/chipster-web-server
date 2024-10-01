@@ -10,6 +10,7 @@ import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
+import fi.csc.chipster.sessiondb.FileUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -96,7 +97,7 @@ public class Dataset {
 
 	public void setFile(File file) {
 		// jackson creates an empty object even when the client didn't set it
-		if (file != null && !file.isEmpty()) {
+		if (!FileUtils.isEmpty(file)) {
 			this.file = file;
 		} else {
 			this.file = null;

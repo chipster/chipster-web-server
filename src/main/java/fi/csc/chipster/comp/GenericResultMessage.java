@@ -1,13 +1,15 @@
 package fi.csc.chipster.comp;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.sessiondb.model.Parameter;
 
 /**
  * Generic result message, independent of the communication method used.
@@ -21,7 +23,7 @@ public class GenericResultMessage {
 	 */
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
-		
+
 	private String jobId;
 	private JobState state;
 	private String stateDetail;
@@ -30,26 +32,48 @@ public class GenericResultMessage {
 	private String sourceCode;
 	private Instant startTime;
 	private Instant endTime;
-	
-	private Map<String, String> ids = new HashMap<String, String>();
-	private Map<String, String> names = new HashMap<String, String>();
-	
+	private LinkedHashMap<String, Parameter> parameters;
+
+	private String versionsJson;
+
+	// preserve tool's output order in job.outputs
+	private final LinkedHashMap<String, String> outputIdToDatasetIdMap = new LinkedHashMap<>();
+	private final Map<String, String> outputIdToDatasetNameMap = new HashMap<>();
+	private final Map<String, String> outputIdToDisplayNameMap = new HashMap<>();
+
 	public GenericResultMessage(String jobId, JobState state, String stateDetail, String errorMessage,
 			String outputText) {
-		
+
 		this.jobId = jobId;
-        this.state = state;
+		this.state = state;
 		this.stateDetail = stateDetail;
 		this.errorMessage = errorMessage;
 		this.outputText = outputText;
 	}
-	
+
 	public GenericResultMessage() {
 		super();
 	}
-	
+
+	public String getVersionsJson() {
+		return versionsJson;
+	}
+
+	public void setVersionsJson(String versionsJson) {
+		this.versionsJson = versionsJson;
+	}
+
+	public void setParameters(LinkedHashMap<String, Parameter> parameters) {
+		this.parameters = parameters;
+	}
+
+	public LinkedHashMap<String, Parameter> getParameters() {
+		return parameters;
+	}
+
 	/**
-	 * Return error message in case of failed job execution. 
+	 * @return Return error message in case of failed job execution.
+	 * 
 	 */
 	public String getErrorMessage() {
 		return errorMessage;
@@ -57,13 +81,15 @@ public class GenericResultMessage {
 
 	/**
 	 * @see #getErrorMessage()
+	 * @param errorMessage
 	 */
 	public void setErrorMessage(String errorMessage) {
 		this.errorMessage = errorMessage;
 	}
 
 	/**
-	 * Return the exit state of the job.
+	 * @return Return the exit state of the job.
+	 * 
 	 */
 	public JobState getState() {
 		return state;
@@ -71,13 +97,14 @@ public class GenericResultMessage {
 
 	/**
 	 * @see #getState()
+	 * @param exitState
 	 */
 	public void setState(JobState exitState) {
 		this.state = exitState;
 	}
 
 	/**
-	 * Returns the text output (sysout) of the job. 
+	 * @return Returns the text output (sysout) of the job.
 	 */
 	public String getOutputText() {
 		return outputText;
@@ -93,11 +120,11 @@ public class GenericResultMessage {
 	public void setSourceCode(String sourceCode) {
 		this.sourceCode = sourceCode;
 	}
-	
+
 	public String getSourceCode() {
 		return this.sourceCode;
 	}
-	
+
 	public String getStateDetail() {
 		return stateDetail;
 	}
@@ -113,25 +140,28 @@ public class GenericResultMessage {
 	public void setJobId(String jobId) {
 		this.jobId = jobId;
 	}
-	
-	public void addDataset(String outputName, String id, String name) {
-		ids.put(outputName, id);
-		names.put(outputName, name);
-	}
-	
-	public Set<String> getOutputNames() {
-		HashSet<String> keys = new HashSet<>();
-		keys.addAll(ids.keySet());
-		keys.addAll(names.keySet());
-		return keys;
-	}
-	
-	public String getDatasetId(String outputName) {
-		return ids.get(outputName);
+
+	public void addDataset(String outputId, String datasetId, String datasetName, String outputDisplayName) {
+		outputIdToDatasetIdMap.put(outputId, datasetId);
+		outputIdToDatasetNameMap.put(outputId, datasetName);
+		outputIdToDisplayNameMap.put(outputId, outputDisplayName);
 	}
 
-	public String getDatasetName(String outputName) {
-		return names.get(outputName);
+	public ArrayList<String> getOutputIds() {
+		// preserve order of LinkedHashMap
+		return new ArrayList<String>(outputIdToDatasetIdMap.keySet());
+	}
+
+	public String getDatasetId(String outputId) {
+		return outputIdToDatasetIdMap.get(outputId);
+	}
+
+	public String getDatasetName(String outputId) {
+		return outputIdToDatasetNameMap.get(outputId);
+	}
+
+	public String getOutputDisplayName(String outputId) {
+		return outputIdToDisplayNameMap.get(outputId);
 	}
 
 	public Instant getStartTime() {
@@ -150,7 +180,4 @@ public class GenericResultMessage {
 		this.endTime = endTime;
 	}
 
-
 }
-	
-

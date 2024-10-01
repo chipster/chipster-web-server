@@ -12,7 +12,7 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 public class SmtpEmails {
-	
+
 	private String host;
 	private String username;
 	private String password;
@@ -24,7 +24,7 @@ public class SmtpEmails {
 
 	public SmtpEmails(String host, int port, String username, String password, boolean tls, boolean auth, String from,
 			String fromName) {
-		
+
 		this.host = host;
 		this.port = port;
 		this.username = username;
@@ -35,34 +35,35 @@ public class SmtpEmails {
 		this.fromName = fromName;
 	}
 
-	public void send(String subject, String body, String to, String replyTo) throws MessagingException, UnsupportedEncodingException {
+	public void send(String subject, String body, String to, String replyTo)
+			throws MessagingException, UnsupportedEncodingException {
 
-    	Properties props = System.getProperties();
-    	props.put("mail.transport.protocol", "smtp");
-    	props.put("mail.smtp.port", this.port); 
-    	props.put("mail.smtp.starttls.enable", Boolean.toString(this.tls));
-    	props.put("mail.smtp.auth", Boolean.toString(this.auth));
- 
-    	Session session = Session.getDefaultInstance(props);
- 
-        MimeMessage msg = new MimeMessage(session);
-        msg.setFrom(new InternetAddress(this.from, this.fromName));
-        msg.setRecipient(Message.RecipientType.TO, new InternetAddress(to));
-        msg.setSubject(subject, StandardCharsets.UTF_8.name());
-        msg.setText(body, StandardCharsets.UTF_8.name());
-        
-        if (replyTo != null) {
-            msg.addHeader("Reply-To", replyTo);
-        }
-            
-        Transport transport = session.getTransport();
-                    
-        try {
-            transport.connect(this.host, this.username, this.password);        
-            transport.sendMessage(msg, msg.getAllRecipients());
-            System.out.println("Email sent!");
-        } finally {
-            transport.close();
-        }
+		Properties props = System.getProperties();
+		props.put("mail.transport.protocol", "smtp");
+		props.put("mail.smtp.port", this.port);
+		props.put("mail.smtp.starttls.enable", Boolean.toString(this.tls));
+		props.put("mail.smtp.auth", Boolean.toString(this.auth));
+
+		Session session = Session.getDefaultInstance(props);
+
+		MimeMessage msg = new MimeMessage(session);
+		msg.setFrom(new InternetAddress(this.from, this.fromName));
+		msg.setRecipient(Message.RecipientType.TO, new InternetAddress(to));
+		msg.setSubject(subject, StandardCharsets.UTF_8.name());
+		msg.setText(body, StandardCharsets.UTF_8.name());
+
+		if (replyTo != null) {
+			msg.addHeader("Reply-To", replyTo);
+		}
+
+		Transport transport = session.getTransport();
+
+		try {
+			transport.connect(this.host, this.username, this.password);
+			transport.sendMessage(msg, msg.getAllRecipients());
+			System.out.println("Email sent!");
+		} finally {
+			transport.close();
+		}
 	}
 }

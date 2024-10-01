@@ -1,15 +1,21 @@
-import { Dataset, Tool, ToolInput } from "chipster-js-common";
-import MetadataFile from "chipster-js-common/lib/model/metadata-file";
+import {
+  Dataset,
+  MetadataFile,
+  Tool,
+  ToolInput,
+  ToolParameter,
+} from "chipster-js-common";
 import { RestClient } from "chipster-nodejs-core";
-import * as _ from "lodash";
-import { Observable, Subject } from "rxjs";
+import { padStart } from "lodash-es";
+import { Observable, Subject, from } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
-import { VError } from "verror";
+import VError from "verror";
 
 import path = require("path");
-import read = require("read");
+import { read } from "read";
 
 export const missingInputError = "MissingInputError";
+
 export default class ChipsterUtils {
   static printStatus(args, status, value = null) {
     if (!args.quiet) {
@@ -57,24 +63,19 @@ export default class ChipsterUtils {
   static getPrompt(prompt, defaultValue = "", silent = false) {
     const subject = new Subject();
 
-    read({ prompt: prompt, silent: silent, default: defaultValue }, function(
-      err,
-      line
-    ) {
-      if (err) {
-        subject.error(err);
-      }
-      subject.next(line);
-      subject.complete();
-    });
-
-    return subject;
+    return from(
+      read({
+        prompt: prompt,
+        silent: silent,
+        default: defaultValue,
+      }),
+    );
   }
 
   static parseArgArray(array) {
     const map = new Map();
     if (array) {
-      array.forEach(inputArg => {
+      array.forEach((inputArg) => {
         const key = inputArg.slice(0, inputArg.indexOf("="));
         const value = inputArg.slice(inputArg.indexOf("=") + 1);
         map.set(key, value);
@@ -98,14 +99,14 @@ export default class ChipsterUtils {
   static configureRestClient(
     webServerUri: string,
     token: string,
-    restClient: RestClient
+    restClient: RestClient,
   ) {
     return restClient.getServiceLocator(webServerUri).pipe(
-      map(serviceLocatorUri => {
+      map((serviceLocatorUri) => {
         restClient.setServiceLocatorUri(serviceLocatorUri);
         restClient.setToken(token);
         return restClient;
-      })
+      }),
     );
   }
 
@@ -113,7 +114,7 @@ export default class ChipsterUtils {
     webServerUri: string,
     username: string,
     password: string,
-    restClient: RestClient
+    restClient: RestClient,
   ) {
     // get the service locator address
     return restClient.getServiceLocator(webServerUri).pipe(
@@ -122,7 +123,7 @@ export default class ChipsterUtils {
       mergeMap((serviceLocatorUrl: any) => {
         restClient.setServiceLocatorUri(serviceLocatorUrl);
         return restClient.getToken(username, password);
-      })
+      }),
     );
   }
 
@@ -130,7 +131,7 @@ export default class ChipsterUtils {
     restClient: RestClient,
     file: string,
     name: string,
-    printStatus: boolean
+    printStatus: boolean,
   ): Observable<string> {
     const datasetName = path.basename(file);
     const sessionName = name || datasetName.replace(".zip", "");
@@ -138,20 +139,22 @@ export default class ChipsterUtils {
     let datasetId;
 
     return restClient.postSession({ name: sessionName }).pipe(
-      tap(id => (sessionId = id)),
-      tap(id => {
+      tap((id) => (sessionId = id)),
+      tap((id) => {
         if (printStatus) {
           console.log("SessionID:", id);
         }
       }),
       mergeMap(() => restClient.postDataset(sessionId, { name: datasetName })),
-      tap(id => (datasetId = id)),
+      tap((id) => (datasetId = id)),
       tap(() => {
         if (printStatus) {
           console.log("Uploading");
         }
       }),
-      mergeMap(datasetId => restClient.uploadFile(sessionId, datasetId, file)),
+      mergeMap((datasetId) =>
+        restClient.uploadFile(sessionId, datasetId, file),
+      ),
       tap(() => {
         if (printStatus) {
           console.log("Extracting");
@@ -165,7 +168,7 @@ export default class ChipsterUtils {
         }
       }),
       mergeMap(() => restClient.deleteDataset(sessionId, datasetId)),
-      map(() => sessionId)
+      map(() => sessionId),
     );
   }
 
@@ -177,7 +180,9 @@ export default class ChipsterUtils {
     return restClient
       .postDataset(sessionId, { name: name })
       .pipe(
-        mergeMap(datasetId => restClient.uploadFile(sessionId, datasetId, file))
+        mergeMap((datasetId) =>
+          restClient.uploadFile(sessionId, datasetId, file),
+        ),
       );
   }
 
@@ -186,7 +191,7 @@ export default class ChipsterUtils {
     sessionId: string,
     tool: Tool,
     paramMap: Map<string, string>,
-    inputMap: Map<string, Dataset>
+    inputMap: Map<string, Dataset>,
   ) {
     return ChipsterUtils.jobRunWithMetadata(
       restClient,
@@ -194,7 +199,7 @@ export default class ChipsterUtils {
       tool,
       paramMap,
       inputMap,
-      null
+      null,
     );
   }
 
@@ -204,7 +209,7 @@ export default class ChipsterUtils {
     tool: Tool,
     paramMap: Map<string, string>,
     inputMap: Map<string, Dataset>,
-    metadata: MetadataFile[]
+    metadata: MetadataFile[],
   ) {
     if (metadata == null) {
       metadata = [];
@@ -218,32 +223,25 @@ export default class ChipsterUtils {
       state: "NEW",
       parameters: [],
       inputs: [],
-      metadataFiles: metadata
+      metadataFiles: metadata,
     };
 
-    tool.parameters.forEach(p => {
-      const param = {
-        parameterId: p.name.id,
-        displayName: p.name.displayName,
-        description: p.name.description,
-        type: p.type,
-        value: p.defaultValue
-      };
-      if (paramMap.has(p.name.id)) {
-        param.value = paramMap.get(p.name.id);
-      }
-      job.parameters.push(param);
+    paramMap.forEach((value, parameterId) => {
+      // comp will fill in display name etc.
+      job.parameters.push({
+        parameterId: parameterId,
+        value: value,
+      });
     });
 
-    tool.inputs.forEach(i => {
+    tool.inputs.forEach((i) => {
       if (i.name.id === "phenodata.tsv" || i.name.id === "phenodata2.tsv") {
         // phenodata will be generated in comp
         return;
       } else if (i.name.spliced) {
         // multi input
         for (let j = 1; j < 1000; j++) {
-          const inputId =
-            i.name.prefix + _.padStart(j, 3, "0") + i.name.postfix;
+          const inputId = i.name.prefix + padStart(j, 3, "0") + i.name.postfix;
           if (inputMap.has(inputId)) {
             const input = ChipsterUtils.getInput(inputId, i, inputMap);
             job.inputs.push(input);
@@ -267,20 +265,20 @@ export default class ChipsterUtils {
   static getInput(
     inputId: string,
     toolInput: ToolInput,
-    inputMap: Map<string, Dataset>
+    inputMap: Map<string, Dataset>,
   ) {
     const input = {
       inputId: inputId,
-      // apparently the app sends something here, because comp throws if this is null
-      displayName: "dataset-name-placeholder",
+      displayName: null,
       description: toolInput.name.description,
       type: toolInput.type.name,
-      datasetId: null
+      datasetId: null,
+      datasetName: null,
     };
 
     if (inputMap.has(inputId)) {
       input.datasetId = inputMap.get(inputId).datasetId;
-      input.displayName = inputMap.get(inputId).name;
+      input.datasetName = inputMap.get(inputId).name;
     } else if (toolInput.optional) {
       return null;
     } else {
@@ -288,10 +286,10 @@ export default class ChipsterUtils {
         {
           name: missingInputError,
           info: {
-            inputId: inputId
-          }
+            inputId: inputId,
+          },
         },
-        'non-optional input "' + inputId + '" has no dataset'
+        'non-optional input "' + inputId + '" has no dataset',
       );
     }
     return input;
@@ -299,10 +297,13 @@ export default class ChipsterUtils {
 
   // https://stackoverflow.com/a/2117523
   static uuidv4(): string {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-      const r = (Math.random() * 16) | 0,
-        v = c == "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0,
+          v = c == "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      },
+    );
   }
 }

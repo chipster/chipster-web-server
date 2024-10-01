@@ -18,10 +18,11 @@ import java.net.HttpURLConnection;
  */
 public class IOUtils {
 
-	private static final int BUFFER_SIZE = 16*1024; 
-	
+	private static final int BUFFER_SIZE = 16 * 1024;
+
 	/**
-	 * Closes Reader if it is not null. Ignores all exceptions. Useful for those finally-blocks.
+	 * Closes Reader if it is not null. Ignores all exceptions. Useful for those
+	 * finally-blocks.
 	 */
 	public static void closeIfPossible(Reader reader) {
 		if (reader != null) {
@@ -34,7 +35,8 @@ public class IOUtils {
 	}
 
 	/**
-	 * Closes Writer if it is not null. Ignores all exceptions. Useful for those finally-blocks.
+	 * Closes Writer if it is not null. Ignores all exceptions. Useful for those
+	 * finally-blocks.
 	 */
 	public static void closeIfPossible(Writer writer) {
 		if (writer != null) {
@@ -47,7 +49,8 @@ public class IOUtils {
 	}
 
 	/**
-	 * Closes InputStream if it is not null. Ignores all exceptions. Useful for those finally-blocks.
+	 * Closes InputStream if it is not null. Ignores all exceptions. Useful for
+	 * those finally-blocks.
 	 */
 	public static void closeIfPossible(InputStream stream) {
 		if (stream != null) {
@@ -60,7 +63,8 @@ public class IOUtils {
 	}
 
 	/**
-	 * Closes OutputStream if it is not null. Ignores all exceptions. Useful for those finally-blocks.
+	 * Closes OutputStream if it is not null. Ignores all exceptions. Useful for
+	 * those finally-blocks.
 	 */
 	public static void closeIfPossible(OutputStream stream) {
 		if (stream != null) {
@@ -77,25 +81,25 @@ public class IOUtils {
 			connection.disconnect();
 		}
 	}
-	
+
 	/**
 	 * 
 	 * Copies stream contents of source to target and reports progress.
 	 * 
-	 * @param source input stream
-	 * @param target output stream
+	 * @param source           input stream
+	 * @param target           output stream
 	 * @param progressListener can be null
 	 * 
 	 * @throws IOException all exceptions from underlying IO are passed through
 	 */
 	public static void copy(InputStream source, OutputStream target) throws IOException {
-		
+
 		BufferedInputStream bSource = new BufferedInputStream(source);
 		BufferedOutputStream bTarget = new BufferedOutputStream(target);
-		
+
 		// initialise
 		byte buffer[] = new byte[BUFFER_SIZE];
-		int len = BUFFER_SIZE;	
+		int len = BUFFER_SIZE;
 
 		// copy while there is content
 		while (true) {
@@ -103,12 +107,12 @@ public class IOUtils {
 			if (len < 0) {
 				break;
 			}
-			
-			bTarget.write(buffer, 0, len);	
+
+			bTarget.write(buffer, 0, len);
 		}
 		bTarget.flush();
-	}	
-	
+	}
+
 	public static void copy(InputStream source, File target) throws IOException {
 		FileOutputStream out = new FileOutputStream(target);
 		try {

@@ -1,7 +1,7 @@
 package fi.csc.chipster.rest;
 
 public enum LogType {
-	
+
 	API("api"),
 	ADMIN("admin");
 
@@ -10,7 +10,7 @@ public enum LogType {
 	LogType(String type) {
 		this.type = type;
 	}
-	
+
 	public String getType() {
 		return this.type;
 	}

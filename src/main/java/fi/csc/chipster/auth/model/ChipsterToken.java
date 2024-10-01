@@ -14,30 +14,34 @@ import jakarta.xml.bind.annotation.XmlRootElement;
  */
 @XmlRootElement // json
 public class ChipsterToken {
-	
+
 	private String username;
-	private Instant	validUntil;
+	private Instant validUntil;
 	private Set<String> roles;
 
 	public ChipsterToken() {
 		// JAX-B needs this
 	}
-	
+
 	public ChipsterToken(String username,
 			Instant validUntil, Set<String> roles) {
 		this.username = username;
 		this.validUntil = validUntil;
 		this.roles = roles;
 	}
-	
+
 	public ChipsterToken(String username, Instant valid, String role) {
-		this(username, valid, new HashSet<String>() {{ add(role); }});
+		this(username, valid, new HashSet<String>() {
+			{
+				add(role);
+			}
+		});
 	}
 
 	public String getUsername() {
 		return username;
 	}
-	
+
 	public void setUsername(String username) {
 		this.username = username;
 	}

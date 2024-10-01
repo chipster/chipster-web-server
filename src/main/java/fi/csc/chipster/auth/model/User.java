@@ -19,8 +19,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @Entity // db
 @XmlRootElement // json
 @Table(name = "user_table") // user is reserved word in Postgres
-public class User {		
-		
+public class User {
+
 	@EmbeddedId // db
 	@JsonUnwrapped // rest
 	private UserId userId;
@@ -28,25 +28,24 @@ public class User {
 	private String mail;
 	private String organization;
 	private String name;
-	
+
 	// terms of use
 	private int termsVersion;
 	private Instant termsAccepted;
-	
+
 	private UUID latestSession;
 
 	@Version
 	private long version;
-	
-	private Instant	created;
-	private Instant	modified;
-	private Instant	accessed;
-	
+
+	private Instant created;
+	private Instant modified;
+	private Instant accessed;
+
 	@Column
 	@JdbcTypeCode(SqlTypes.JSON)
 	private JsonNode preferences;
-	
-	
+
 	public User() {
 		// JAX-B needs this
 	}
@@ -54,7 +53,7 @@ public class User {
 	public User(String username, String mail, String organization, String name) {
 		this(null, username, mail, organization, name);
 	}
-	
+
 	public User(String auth, String username, String mail, String organization, String name) {
 		this.userId = new UserId(auth, username);
 		this.mail = mail;
@@ -65,7 +64,6 @@ public class User {
 	public String getMail() {
 		return mail;
 	}
-
 
 	public void setMail(String mail) {
 		this.mail = mail;
@@ -79,21 +77,17 @@ public class User {
 		this.latestSession = latestSession;
 	}
 
-
 	public String getOrganization() {
 		return organization;
 	}
-
 
 	public void setOrganization(String organization) {
 		this.organization = organization;
 	}
 
-
 	public long getVersion() {
 		return version;
 	}
-
 
 	public void setVersion(long version) {
 		this.version = version;
@@ -103,26 +97,21 @@ public class User {
 		return created;
 	}
 
-
 	public void setCreated(Instant created) {
 		this.created = created;
 	}
-
 
 	public Instant getModified() {
 		return modified;
 	}
 
-
 	public void setModified(Instant modified) {
 		this.modified = modified;
 	}
 
-
 	public Instant getAccessed() {
 		return accessed;
 	}
-
 
 	public void setAccessed(Instant accessed) {
 		this.accessed = accessed;
@@ -131,7 +120,6 @@ public class User {
 	public String getName() {
 		return name;
 	}
-
 
 	public void setName(String name) {
 		this.name = name;

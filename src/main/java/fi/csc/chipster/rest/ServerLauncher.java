@@ -9,6 +9,7 @@ import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
 import fi.csc.chipster.filestorage.FileStorage;
 import fi.csc.chipster.jobhistory.JobHistoryService;
+import fi.csc.chipster.s3storage.S3Storage;
 import fi.csc.chipster.scheduler.Scheduler;
 import fi.csc.chipster.servicelocator.ServiceLocator;
 import fi.csc.chipster.sessiondb.SessionDb;
@@ -21,28 +22,39 @@ public class ServerLauncher {
 	// this must not be static, otherwise logging configuration fails
 	private final Logger logger = LogManager.getLogger();
 
-	private AuthenticationService auth;
-	private ServiceLocator serviceLocator;
-	private SessionDb sessionDb;
-	private Scheduler scheduler;
-	private ToolboxService toolbox;
-	private FileBroker fileBroker;
-	private WebServer web;
+	private final AuthenticationService auth;
+	private final ServiceLocator serviceLocator;
+	private final SessionDb sessionDb;
+	private final Scheduler scheduler;
+	private final ToolboxService toolbox;
+	private final FileBroker fileBroker;
+	private final WebServer web;
 
 	private RestCompServer comp;
 
 	private SessionDb sessionDbSlave;
 
-	private SessionWorker sessionWorker;
-	private JavascriptService typeService;
+	private final SessionWorker sessionWorker;
+	private final JavascriptService typeService;
 
-	private JobHistoryService jobHistoryService;
+	private final JobHistoryService jobHistoryService;
 
-	private Backup backup;
+	private final Backup backup;
 
-	private FileStorage fileStorage;
+	private final FileStorage fileStorage;
+
+	private S3Storage s3Storage;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
+
+		/*
+		 * Configure TLS version
+		 * 
+		 * This is used only in S3StorageClient, but it's too late to configure it there
+		 * when ServerLauncher is used. This is also a global settings, so we cannot
+		 * limit its effect only to file-broker
+		 */
+		ChipsterS3Client.configureTLSVersion(config, null);
 
 		long t = System.currentTimeMillis();
 
@@ -69,7 +81,13 @@ public class ServerLauncher {
 		}
 		fileStorage = new FileStorage(config);
 		fileStorage.startServer();
-		
+
+		if (verbose) {
+			logger.info("starting s3-storage");
+		}
+		s3Storage = new S3Storage(config);
+		s3Storage.startServer();
+
 		if (verbose) {
 			logger.info("starting file-broker");
 		}
@@ -87,19 +105,18 @@ public class ServerLauncher {
 		}
 		toolbox = new ToolboxService(config);
 		toolbox.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting scheduler");
 		}
 		scheduler = new Scheduler(config);
 		scheduler.startServer();
 
-
-//		if (verbose) {
-//			logger.info("starting comp");
-//		}
-//		comp = new RestCompServer(null, config);
-//		comp.startServer();
+		// if (verbose) {
+		// logger.info("starting comp");
+		// }
+		// comp = new RestCompServer(null, config);
+		// comp.startServer();
 
 		if (verbose) {
 			logger.info("starting web server");
@@ -118,13 +135,12 @@ public class ServerLauncher {
 		}
 		typeService = new JavascriptService("js/type-service");
 		typeService.startServer();
-		
+
 		if (verbose) {
 			logger.info("starting backup service");
 		}
 		backup = new Backup(config);
 		backup.start();
-
 
 		if (verbose) {
 			logger.info("up and running ("
@@ -139,7 +155,7 @@ public class ServerLauncher {
 		System.exit(0);
 	}
 
-	public void stop() {
+	public final void stop() {
 
 		if (backup != null) {
 			try {
@@ -148,7 +164,7 @@ public class ServerLauncher {
 				logger.warn("closing backup service failed", e);
 			}
 		}
-		
+
 		if (web != null) {
 			try {
 				web.close();
@@ -209,6 +225,13 @@ public class ServerLauncher {
 				logger.warn("closing file-broker failed", e);
 			}
 		}
+		if (s3Storage != null) {
+			try {
+				s3Storage.close();
+			} catch (Exception e) {
+				logger.warn("closing s3-storage failed", e);
+			}
+		}
 		if (fileStorage != null) {
 			try {
 				fileStorage.close();
@@ -243,7 +266,7 @@ public class ServerLauncher {
 			} catch (Exception e) {
 				logger.warn("closing auth failed", e);
 			}
-		}		
+		}
 	}
 
 	public static void main(String[] args) throws Exception {

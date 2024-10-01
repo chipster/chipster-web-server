@@ -62,6 +62,10 @@ public class Job {
 
 	@Column
 	@JdbcTypeCode(SqlTypes.JSON)
+	private List<Output> outputs = new ArrayList<>();
+
+	@Column
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<MetadataFile> metadataFiles = new ArrayList<>();
 
 	public UUID getJobId() {
@@ -256,5 +260,13 @@ public class Job {
 
 	public void setCpuLimit(Integer cpuLimit) {
 		this.cpuLimit = cpuLimit;
+	}
+
+	public List<Output> getOutputs() {
+		return outputs;
+	}
+
+	public void setOutputs(List<Output> outputs) {
+		this.outputs = outputs;
 	}
 }

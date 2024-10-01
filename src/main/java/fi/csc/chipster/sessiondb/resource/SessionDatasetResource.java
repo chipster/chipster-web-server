@@ -19,6 +19,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.sessiondb.FileUtils;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
@@ -216,11 +217,12 @@ public class SessionDatasetResource {
 		for (Dataset requestDataset : requestDatasets) {
 			if (!sc.isUserInRole(Role.FILE_BROKER)) {
 				sessionDbApi.checkFileModification(requestDataset, getHibernate().session());
-			}
 
-			if (requestDataset.getFile() == null || requestDataset.getFile().isEmpty()) {
-				// if the client doesn't care about the File, simply keep the db version
-				requestDataset.setFile(dbDatasets.get(requestDataset.getDatasetId()).getFile());
+				// file-broker needs to set File to null when S3 upload is cancelled
+				if (FileUtils.isEmpty(requestDataset.getFile())) {
+					// if the client doesn't care about the File, simply keep the db version
+					requestDataset.setFile(dbDatasets.get(requestDataset.getDatasetId()).getFile());
+				}
 			}
 
 			// make sure a hostile client doesn't set the session
@@ -238,8 +240,17 @@ public class SessionDatasetResource {
 		sessionDbApi.sessionModified(session, getHibernate().session());
 	}
 
+	/**
+	 * Delete dataset
+	 * 
+	 * Deletion with session token is needed in comp when it retries failed uploads.
+	 * 
+	 * @param datasetId
+	 * @param sc
+	 * @return
+	 */
 	@DELETE
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // don't allow Role.UNAUTHENTICATED
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
 	@Path("{id}")
 	@Transaction
 	public Response delete(@PathParam("id") UUID datasetId, @Context SecurityContext sc) {
@@ -252,7 +263,7 @@ public class SessionDatasetResource {
 			throw new NotFoundException("dataset not found");
 		}
 
-		this.sessionDbApi.deleteDataset(dataset, sessionId, getHibernate().session());
+		this.sessionDbApi.deleteDataset(dataset, sessionId);
 
 		sessionDbApi.sessionModified(session, getHibernate().session());
 
