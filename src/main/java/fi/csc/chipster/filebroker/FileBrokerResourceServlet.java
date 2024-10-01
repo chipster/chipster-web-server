@@ -51,7 +51,6 @@ public class FileBrokerResourceServlet extends HttpServlet {
 
     public static final String HEADER_RANGE = "Range";
 
-    @SuppressWarnings("unused")
     private static Logger logger = LogManager.getLogger();
 
     private FileBrokerApi fileBrokerApi;
