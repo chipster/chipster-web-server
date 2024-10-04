@@ -85,14 +85,19 @@ public class ToolboxService {
 		File toolsBinPath = new File(config.getString(KEY_TOOLBOX_TOOLS_BIN_PATH));
 		String toolsBinUrl = config.getString(KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL);
 
-		if (toolsBinUrl != null) {
+		if (toolsBinUrl != null && !toolsBinUrl.isEmpty()) {
 
 			this.toolsBin = new URlFileList(toolsBinUrl);
-		} else if (toolsBinPath.exists()) {
-			this.toolsBin = new DirFileList(toolsBinPath);
 		} else {
-			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBinPath
-					+ " doesn't exist or configuration key " + KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL + " is not set");
+			this.toolsBin = new DirFileList(toolsBinPath);
+
+			if (!toolsBinPath.exists()) {
+
+				// path doesn't exist, but keep the DirFileList created above to avoid npe in
+				// SADLReplacements
+				logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBinPath
+						+ " doesn't exist or configuration key " + KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL + " is not set");
+			}
 		}
 
 		initialise();
