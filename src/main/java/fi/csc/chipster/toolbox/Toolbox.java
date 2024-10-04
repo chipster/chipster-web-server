@@ -1,7 +1,6 @@
 package fi.csc.chipster.toolbox;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.DirectoryStream;
@@ -37,7 +36,7 @@ public class Toolbox {
 	 * @param config
 	 * @throws IOException
 	 */
-	public Toolbox(final Path modulesDir, File toolsBin, RuntimeRepository runtimeRepository) throws IOException {
+	public Toolbox(final Path modulesDir, FileList toolsBin, RuntimeRepository runtimeRepository) throws IOException {
 
 		// load tools
 		this.modules.addAll(loadModuleDescriptions(modulesDir, toolsBin, runtimeRepository));
@@ -105,7 +104,7 @@ public class Toolbox {
 	 * 
 	 * @throws IOException
 	 */
-	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, File toolsBin,
+	public static List<ToolboxModule> loadModuleDescriptions(Path modulesDir, FileList toolsBin,
 			RuntimeRepository runtimeRepository) throws IOException {
 
 		// Iterate over all module directories, and over all module files inside

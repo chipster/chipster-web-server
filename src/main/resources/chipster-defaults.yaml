@@ -375,7 +375,10 @@ web-server-web-root-path: web-root
 
 # toolbox
 
+# fill in parameter options according to files in this directory
 toolbox-tools-bin-path: /opt/chipster/tools
+# fill in parameter options accroding the file list in this URL, in a format what 'find . -printf "%p\t%l\n"' would output in the tools-bin root directory
+toolbox-tools-bin-file-list-url: ""
 
 # default values for runtimes
 toolbox-runtime-job-factory: fi.csc.chipster.comp.r.RJobFactory

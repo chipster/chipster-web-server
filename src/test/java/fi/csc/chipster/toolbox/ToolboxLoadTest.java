@@ -14,12 +14,12 @@ public class ToolboxLoadTest {
 
 	@Test
 	public void loadToolbox() throws IOException, URISyntaxException {
-		Toolbox.loadModuleDescriptions(Paths.get("../chipster-tools/tools"), new File("."),
+		Toolbox.loadModuleDescriptions(Paths.get("../chipster-tools/tools"), new DirFileList(new File(".")),
 				new RuntimeRepository(new Config()));
 	}
 
 	public static void main(String[] args) throws IOException {
-		Toolbox.loadModuleDescriptions(Paths.get("../chipster-tools/tools"), new File("."),
+		Toolbox.loadModuleDescriptions(Paths.get("../chipster-tools/tools"), new DirFileList(new File(".")),
 				new RuntimeRepository(new Config()));
 	}
 

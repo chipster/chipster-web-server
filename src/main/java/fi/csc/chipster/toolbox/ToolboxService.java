@@ -50,6 +50,9 @@ import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
  */
 public class ToolboxService {
 
+	public static final String KEY_TOOLBOX_TOOLS_BIN_PATH = "toolbox-tools-bin-path";
+	public static final String KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL = "toolbox-tools-bin-file-list-url";
+
 	private static final String TOOLS_DIR_NAME = "tools";
 	public static final String TOOLS_ZIP_NAME = TOOLS_DIR_NAME + ".zip";
 	private static final String[] TOOLS_SEARCH_LOCATIONS = { ".", "../chipster-tools",
@@ -68,7 +71,7 @@ public class ToolboxService {
 
 	private ToolResource toolResource;
 	private ModuleResource moduleResource;
-	private File toolsBin;
+	private FileList toolsBin;
 	private ServiceLocatorClient serviceLocator;
 	private AuthenticationClient authService;
 	private HttpServer adminServer;
@@ -78,7 +81,19 @@ public class ToolboxService {
 	public ToolboxService(Config config) throws IOException, URISyntaxException {
 		this.config = config;
 		this.url = config.getBindUrl(Role.TOOLBOX);
-		this.toolsBin = new File(config.getString(Config.KEY_TOOLBOX_TOOLS_BIN_PATH));
+
+		File toolsBinPath = new File(config.getString(KEY_TOOLBOX_TOOLS_BIN_PATH));
+		String toolsBinUrl = config.getString(KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL);
+
+		if (toolsBinUrl != null) {
+
+			this.toolsBin = new URlFileList(toolsBinUrl);
+		} else if (toolsBinPath.exists()) {
+			this.toolsBin = new DirFileList(toolsBinPath);
+		} else {
+			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBinPath
+					+ " doesn't exist or configuration key " + KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL + " is not set");
+		}
 
 		initialise();
 	}
@@ -93,16 +108,12 @@ public class ToolboxService {
 	public ToolboxService(String url, String toolsBinPath) throws IOException, URISyntaxException {
 		this.config = new Config();
 		this.url = url;
-		this.toolsBin = new File(toolsBinPath);
+		this.toolsBin = new DirFileList(new File(toolsBinPath));
 		initialise();
 	}
 
 	private void initialise() throws IOException, URISyntaxException {
 		logger.info("starting toolbox service...");
-		if (!toolsBin.exists()) {
-			logger.warn("unable to fill tool parameters from files because tools-bin path " + toolsBin.getPath()
-					+ " doesn't exist");
-		}
 
 		this.runtimeRepository = new RuntimeRepository(this.config);
 

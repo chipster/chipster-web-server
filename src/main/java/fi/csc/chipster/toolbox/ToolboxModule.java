@@ -1,7 +1,6 @@
 
 package fi.csc.chipster.toolbox;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,8 +25,8 @@ import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
-import fi.csc.chipster.toolbox.runtime.ToolLoadException;
 import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
+import fi.csc.chipster.toolbox.runtime.ToolLoadException;
 import fi.csc.chipster.toolbox.sadl.SADLDescription;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Input;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Name;
@@ -100,7 +99,7 @@ public class ToolboxModule {
 
 	}
 
-	public ToolboxModule(Path moduleDir, Path moduleFile, File toolsBin, RuntimeRepository runtimeRepository)
+	public ToolboxModule(Path moduleDir, Path moduleFile, FileList toolsBin, RuntimeRepository runtimeRepository)
 			throws ParserConfigurationException, FileNotFoundException, SAXException, IOException {
 		this.moduleFile = moduleFile;
 		this.moduleDir = moduleDir;

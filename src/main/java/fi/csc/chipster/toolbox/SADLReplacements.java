@@ -1,9 +1,6 @@
 package fi.csc.chipster.toolbox;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -23,10 +20,10 @@ public class SADLReplacements {
 	public static final String FILES = "FILES";
 	public static final String SYMLINK_TARGET = "SYMLINK_TARGET";
 
-	private File toolsBin;
+	private FileList toolsBin;
 
-	public SADLReplacements(File toolsBin) {
-		this.toolsBin = toolsBin;
+	public SADLReplacements(FileList toolsBin2) {
+		this.toolsBin = toolsBin2;
 	}
 
 	public Name[] processNames(Collection<Name> options) throws IOException {
@@ -92,11 +89,11 @@ public class SADLReplacements {
 
 	private ArrayList<String> getFiles(String path, String endsWith) throws IOException {
 		ArrayList<String> basenames = new ArrayList<>();
-		File dir = new File(toolsBin, path);
-		if (!dir.exists()) {
-			throw new IOException("failed to get enum options from files, file not found: " + dir.getPath());
+
+		if (!toolsBin.exists(path)) {
+			throw new IOException("failed to get enum options from files, file not found: " + path);
 		}
-		for (String fileName : dir.list()) {
+		for (String fileName : toolsBin.list(path)) {
 			if (fileName.endsWith(endsWith)) {
 				String basename = fileName.substring(0, fileName.length() - endsWith.length());
 				basenames.add(basename);
@@ -110,13 +107,9 @@ public class SADLReplacements {
 	}
 
 	private String getSymlinkTarget(String path, String fileExtension) throws IOException {
-		Path symlink = new File(toolsBin, path).toPath();
-		if (Files.isSymbolicLink(symlink)) {
-			String target = Files.readSymbolicLink(symlink).getFileName().toString();
-			target = StringUtils.removeEnd(target, fileExtension);
-			return target;
-		} else {
-			throw new IOException("failed to get symlink target, not a symlink: " + path);
-		}
+
+		String target = toolsBin.getSymlinkTarget(path);
+		target = StringUtils.removeEnd(target, fileExtension);
+		return target;
 	}
 }
