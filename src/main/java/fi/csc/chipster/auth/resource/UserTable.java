@@ -40,11 +40,6 @@ public class UserTable {
         return get(userId, this.hibernate.session());
     }
 
-    @SuppressWarnings("unchecked")
-    public List<User> getAll() {
-        return this.hibernate.session().createQuery("from " + User.class.getSimpleName()).list();
-    }
-
     public void addOrUpdateFromLogin(UserId userId, String email, String organization, String name) {
 
         this.addOrUpdateFromLogin(userId, email, organization, name, this.hibernate.session());
@@ -132,4 +127,7 @@ public class UserTable {
         HibernateUtil.update(user, user.getUserId(), hibernateSession);
     }
 
+	public List<User> getAll() {
+		return this.hibernate.session().createQuery("from " + User.class.getSimpleName(), User.class).list();
+	}
 }

@@ -2,7 +2,7 @@ package fi.csc.chipster.auth.model;
 
 import java.io.Serializable;
 
-import javax.persistence.Embeddable;
+import jakarta.persistence.Embeddable;
 
 @Embeddable
 public class UserId implements Serializable {

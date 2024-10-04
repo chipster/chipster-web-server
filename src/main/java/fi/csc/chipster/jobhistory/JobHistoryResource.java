@@ -9,15 +9,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.query.Query;
-import org.hibernate.type.DateType;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
@@ -116,18 +116,17 @@ public class JobHistoryResource extends AdminResource {
 
 		params.remove(FILTER_ATTRIBUTE_PAGE);
 
-		CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
-		CriteriaQuery<JobHistory> criteria = builder.createQuery(JobHistory.class);
-		Root<JobHistory> root = criteria.from(JobHistory.class);
-
 		if (params.size() > 0) {
 			try {
+			    CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
+			    CriteriaQuery<Long> criteria = builder.createQuery(Long.class);     
+			    Root<JobHistory> root = criteria.from(JobHistory.class);			        
 				List<Predicate> predicate = createPredicate(params, root, builder);
-				CriteriaQuery<Long> q = builder.createQuery(Long.class);
-				q.select(builder.count(q.from(JobHistory.class)));
-				getHibernate().session().createQuery(q);
-				q.where(predicate.toArray(new Predicate[] {}));
-				Long count = getHibernate().session().createQuery(q).getSingleResult();
+				
+				criteria.select(builder.count(root));
+				criteria.where(predicate.toArray(new Predicate[] {}));
+				Query<Long> query = getHibernate().session().createQuery(criteria);
+				Long count = query.getSingleResult();
 				return Response.ok(count).build();
 			} catch (Exception e) {
 				logger.error("failed to get job history row count", e);
@@ -194,10 +193,10 @@ public class JobHistoryResource extends AdminResource {
 		}
 		sql = sql + " ;";
 
-		Query query = hibernate.session().createNativeQuery(sql);
+		Query query = hibernate.session().createNativeQuery(sql, BigInteger.class);
 
-		query = query.setParameter("starttime", startTime, DateType.INSTANCE).setParameter("endtime", endTime,
-				DateType.INSTANCE);
+		query = query.setParameter("starttime", startTime, TemporalType.TIMESTAMP).setParameter("endtime", endTime,
+		        TemporalType.TIMESTAMP);
 
 		if (useModuleFilter) {
 			query = query.setParameter("module", module);

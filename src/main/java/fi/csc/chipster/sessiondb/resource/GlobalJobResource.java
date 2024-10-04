@@ -3,6 +3,15 @@ package fi.csc.chipster.sessiondb.resource;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
+import fi.csc.chipster.rest.hibernate.HibernateUtil;
+import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.scheduler.IdPair;
+import fi.csc.chipster.sessiondb.model.Job;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -13,16 +22,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.SecurityContext;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.comp.JobState;
-import fi.csc.chipster.rest.hibernate.HibernateUtil;
-import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.scheduler.IdPair;
-import fi.csc.chipster.sessiondb.model.Job;
 
 @Path("jobs")
 public class GlobalJobResource {
@@ -50,9 +49,8 @@ public class GlobalJobResource {
 			// throws if invalid
 			JobState state = JobState.valueOf(stateString);
 
-			@SuppressWarnings("unchecked")
 			List<Job> jobs = hibernate.session()
-					.createQuery("from Job where state=:state")
+					.createQuery("from Job where state=:state", Job.class)
 					.setParameter("state", state)
 					.list();
 

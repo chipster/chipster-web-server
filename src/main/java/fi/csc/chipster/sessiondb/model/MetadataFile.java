@@ -1,6 +1,6 @@
 package fi.csc.chipster.sessiondb.model;
 
-import javax.persistence.Lob;
+import jakarta.persistence.Lob;
 
 import fi.csc.chipster.rest.hibernate.DeepCopyable;
 

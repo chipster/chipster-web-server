@@ -3,15 +3,14 @@ package fi.csc.chipster.sessiondb.model;
 import java.time.Instant;
 import java.util.UUID;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import fi.csc.chipster.rest.hibernate.JsonNodeJsonType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Entity // db
@@ -35,7 +34,7 @@ public class News {
 	 * needed.
 	 */
 	@Column
-	@Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
+	@JdbcTypeCode(SqlTypes.JSON)
 	private JsonNode contents;
 
 	public UUID getNewsId() {

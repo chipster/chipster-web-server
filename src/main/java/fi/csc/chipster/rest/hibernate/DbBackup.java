@@ -191,16 +191,18 @@ public class DbBackup implements StatusSource {
 		return HibernateUtil.runInTransaction(new HibernateRunnable<Map<String, Long>>() {
 			@Override
 			public Map<String, Long> run(Session hibernateSession) {
-				@SuppressWarnings("unchecked")
+
 				List<String> tables = hibernateSession
-						.createNativeQuery("SELECT tablename FROM pg_catalog.pg_tables where schemaname='public'")
+						.createNativeQuery("SELECT tablename FROM pg_catalog.pg_tables where schemaname='public'",
+								String.class)
 						.getResultList();
 
 				Map<String, Long> tableRows = new LinkedHashMap<>();
 
 				for (String table : tables) {
-					BigInteger rows = (BigInteger) hibernateSession
-							.createNativeQuery("SELECT count(*) FROM \"" + table + "\"").getSingleResult();
+					BigInteger rows = hibernateSession
+							.createNativeQuery("SELECT count(*) FROM \"" + table + "\"", BigInteger.class)
+							.getSingleResult();
 					tableRows.put(table, rows.longValue());
 				}
 				return tableRows;

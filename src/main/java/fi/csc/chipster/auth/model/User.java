@@ -3,18 +3,17 @@ package fi.csc.chipster.auth.model;
 import java.time.Instant;
 import java.util.UUID;
 
-import javax.persistence.Column;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Entity;
-import javax.persistence.Table;
-import javax.persistence.Version;
-
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import fi.csc.chipster.rest.hibernate.JsonNodeJsonType;
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Entity // db
@@ -44,7 +43,7 @@ public class User {
 	private Instant accessed;
 
 	@Column
-	@Type(type = JsonNodeJsonType.JSON_NODE_JSON_TYPE)
+	@JdbcTypeCode(SqlTypes.JSON)
 	private JsonNode preferences;
 
 	public User() {

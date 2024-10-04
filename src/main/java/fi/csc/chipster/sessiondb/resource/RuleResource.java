@@ -176,7 +176,8 @@ public class RuleResource {
 		Session session = null;
 
 		// everybody is allowed remove their own rules, even if they are read-only
-		boolean isOwnRule = ruleToDelete.getUsername().equals(sc.getUserPrincipal().getName());
+		// avoid npe. It used to be possible to create a Rule with null username.  
+		boolean isOwnRule = ruleToDelete.getUsername() != null && ruleToDelete.getUsername().equals(sc.getUserPrincipal().getName());
 		// everybody is allowed remove rules shared by them
 		boolean isSharedBy = ruleToDelete.getSharedBy() != null
 				&& ruleToDelete.getSharedBy().equals(sc.getUserPrincipal().getName());

@@ -3,8 +3,8 @@ package fi.csc.chipster.sessionworker.xml;
 import java.io.InputStream;
 import java.util.zip.ZipException;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.transform.stream.StreamSource;
 
 import org.apache.logging.log4j.LogManager;

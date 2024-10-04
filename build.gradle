@@ -127,8 +127,10 @@ dependencies {
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.0"
 	
     // hibernate
-    implementation "org.hibernate:hibernate-core:5.4.25.Final"
-    implementation "org.hibernate:hibernate-c3p0:5.4.25.Final"
+    implementation "org.hibernate.orm:hibernate-core:6.6.1.Final"
+    implementation "org.hibernate.orm:hibernate-c3p0:6.6.1.Final"
+    // schema export
+    implementation "org.hibernate.orm:hibernate-ant:6.6.1.Final"
     implementation "org.postgresql:postgresql:+"
     
     // flyway

@@ -18,7 +18,6 @@ import org.hibernate.cfg.Environment;
 import org.hibernate.tool.hbm2ddl.SchemaExport;
 import org.hibernate.tool.schema.TargetType;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
-import org.hibernate.usertype.UserType;
 
 public class DbSchema {
 
@@ -53,6 +52,8 @@ public class DbSchema {
 	 * 
 	 * @param hibernateClasses
 	 * @param file
+	 * @param dialect
+	 * @param driver
 	 * @param driver
 	 * @param url
 	 * @param url
@@ -60,12 +61,14 @@ public class DbSchema {
 	 * @throws IOException
 	 * @throws SQLException
 	 */
-	public void exportHibernateSchema(List<Class<?>> hibernateClasses, String file, String dialect) {
+	public void exportHibernateSchema(List<Class<?>> hibernateClasses, String file, String dialect, String driver) {
 
-		logger.info("export hibernate schema " + dialect + " to " + file);
+		logger.info("export hibernate schema to " + file);
 
-		Map<String, String> settings = new HashMap<>();
+		Map<String, Object> settings = new HashMap<>();
+
 		settings.put(Environment.DIALECT, dialect);
+		settings.put(Environment.DRIVER, driver);
 
 		/*
 		 * Do not start connection pool
@@ -74,6 +77,8 @@ public class DbSchema {
 		 * least in
 		 * Hibernate 5.4.25. This magic configuration in JdbcEnvironmentInitiator seems
 		 * to disable it.
+		 * 
+		 * Update: still does in Hibernate 6.1.7
 		 */
 		settings.put("hibernate.temp.use_jdbc_metadata_defaults", "false");
 
@@ -88,11 +93,6 @@ public class DbSchema {
 
 		MetadataBuilder metadataBuilder = metadata.getMetadataBuilder();
 
-		HashMap<String, UserType> types = HibernateUtil.getUserTypes();
-		for (String name : types.keySet()) {
-			metadataBuilder.applyBasicType(types.get(name), name);
-		}
-
 		File exportFile = new File(file);
 		if (exportFile.exists()) {
 			exportFile.delete();
@@ -105,9 +105,9 @@ public class DbSchema {
 				.create(EnumSet.of(TargetType.SCRIPT), metadataBuilder.build());
 	}
 
-	public void export(List<Class<?>> hibernateClasses, String dialect) {
+	public void export(List<Class<?>> hibernateClasses, String dialect, String driver) {
 		String exportFile = getExportFile();
-		this.exportHibernateSchema(hibernateClasses, exportFile, dialect);
+		this.exportHibernateSchema(hibernateClasses, exportFile, dialect, driver);
 	}
 
 	private String getExportFile() {

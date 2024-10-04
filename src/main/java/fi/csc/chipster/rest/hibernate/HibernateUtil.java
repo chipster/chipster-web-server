@@ -4,12 +4,9 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
-
-import javax.persistence.EntityManager;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,14 +18,10 @@ import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.context.internal.ManagedSessionContext;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
-import org.hibernate.usertype.UserType;
 import org.postgresql.util.PSQLException;
 
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.sessiondb.model.Input;
-import fi.csc.chipster.sessiondb.model.MetadataFile;
-import fi.csc.chipster.sessiondb.model.Output;
-import fi.csc.chipster.sessiondb.model.Parameter;
+import jakarta.persistence.EntityManager;
 
 public class HibernateUtil {
 
@@ -77,6 +70,8 @@ public class HibernateUtil {
 		String url = config.getString(CONF_DB_URL, role);
 		String user = config.getString(CONF_DB_USER, role);
 		String password = config.getString(CONF_DB_PASS, role);
+		String dialect = config.getString(CONF_DB_DIALECT, role);
+		String driver = config.getString(CONF_DB_DRIVER, role);
 
 		// make sure the Flyway migrations match with the current Hibernate classes
 		String hbm2ddlAuto = "validate";
@@ -84,6 +79,7 @@ public class HibernateUtil {
 				role);
 
 		try {
+
 			// test connection first to make errors easier to catch
 			testConnection(url, user, password);
 
@@ -91,7 +87,7 @@ public class HibernateUtil {
 			this.dbSchema = new DbSchema(role);
 
 			if (config.getBoolean(CONF_DB_EXPORT_SCHEMA, role)) {
-				this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+				this.dbSchema.export(hibernateClasses, dialect, driver);
 			}
 
 			this.dbSchema.migrate(url, user, password);
@@ -107,14 +103,18 @@ public class HibernateUtil {
 		} catch (DatabaseConnectionRefused e) {
 
 			throw new RuntimeException(role + " db not available\n"
-					+ "Install postgres: \n" + "  brew install postgres\n"
-					+ "  pg_ctl -D /usr/local/var/postgres start\n" + "  createuser user\n" + "  createdb auth_db\n"
-					+ "  createdb session_db_db\n" + "  createdb job_history_db\n" + "\n", e);
+					+ "Install postgres: \n"
+					+ "  brew install postgresql@15\n"
+					+ "  brew services start postgresql@15\n"
+					+ "  createuser user\n"
+					+ "  createdb auth_db\n"
+					+ "  createdb session_db_db\n"
+					+ "  createdb job_history_db\n" + "\n", e);
 
 		} catch (SchemaManagementException e) {
 
 			this.dbSchema.printSchemaError(e);
-			this.dbSchema.export(hibernateClasses, ChipsterPostgreSQL95Dialect.class.getName());
+			this.dbSchema.export(hibernateClasses, dialect, driver);
 			throw e;
 		}
 	}
@@ -173,51 +173,7 @@ public class HibernateUtil {
 			hibernateConf.addAnnotatedClass(c);
 		}
 
-		hibernateConf.setProperty(Environment.DIALECT, ChipsterPostgreSQL95Dialect.class.getName());
-		// hibernateConf.setProperty(Environment.URL, url +
-		// "?reWriteBatchedInserts=true");
-
-		registerTypeOverrides(hibernateConf);
-
-		/*
-		 * Allow hibernate to make inserts and updates in batches to overcome the
-		 * network latency. It's crucial when e.g. a dataset may have 600
-		 * MetadataEntries. However, this doesn't help if there are other
-		 * queries/updates for each row, like for getting the next sequence id for the
-		 * object or updating the object references.
-		 */
-		// hibernateConf.setProperty("hibernate.jdbc.batch_size", "1000");
-		// hibernateConf.setProperty("hibernate.order_inserts", "true");
-		// hibernateConf.setProperty("hibernate.order_updates", "true");
-		// hibernateConf.setProperty("hibernate.jdbc.batch_versioned_data", "true");
-
-		// hibernateConf.setProperty("hibernate.default_batch_fetch_size", "100");
-
 		return hibernateConf;
-	}
-
-	public static void registerTypeOverrides(Configuration hibernateConf) {
-
-		HashMap<String, UserType> types = getUserTypes();
-
-		for (String name : types.keySet()) {
-			hibernateConf.registerTypeOverride(types.get(name), new String[] { name });
-		}
-	}
-
-	public static HashMap<String, UserType> getUserTypes() {
-
-		// store these child objects as json
-		return new HashMap<String, UserType>() {
-			{
-				put(Parameter.PARAMETER_LIST_JSON_TYPE, new ListJsonType<Parameter>(Parameter.class));
-				put(Input.INPUT_LIST_JSON_TYPE, new ListJsonType<Input>(Input.class));
-				put(Output.OUTPUT_LIST_JSON_TYPE, new ListJsonType<Output>(Output.class));
-				put(MetadataFile.METADATA_FILE_LIST_JSON_TYPE,
-						new ListJsonType<MetadataFile>(MetadataFile.class));
-				put(JsonNodeJsonType.JSON_NODE_JSON_TYPE, new JsonNodeJsonType());
-			}
-		};
 	}
 
 	public static SessionFactory buildSessionFactory(Configuration hibernateConf) {
@@ -246,7 +202,6 @@ public class HibernateUtil {
 	private static org.hibernate.Session beginTransaction(SessionFactory sessionFactory2) {
 
 		Session session = sessionFactory2.withOptions()
-				// .interceptor(new LoggingInterceptor())
 				.openSession();
 
 		// update db only explicitly
@@ -377,7 +332,7 @@ public class HibernateUtil {
 	public static <T> void update(T value, Serializable id, Session session) {
 
 		@SuppressWarnings("unchecked")
-		T dbObject = (T) session.load(value.getClass(), id);
+		T dbObject = (T) session.getReference(value.getClass(), id);
 		session.setReadOnly(dbObject, false);
 		session.merge(value);
 		session.flush();
@@ -394,9 +349,9 @@ public class HibernateUtil {
 	public static <T> void delete(T value, Serializable id, Session session) {
 
 		@SuppressWarnings("unchecked")
-		T dbObject = (T) session.load(value.getClass(), id);
+		T dbObject = (T) session.getReference(value.getClass(), id);
 		session.setReadOnly(dbObject, false);
-		session.delete(dbObject);
+		session.remove(dbObject);
 		session.flush();
 	}
 

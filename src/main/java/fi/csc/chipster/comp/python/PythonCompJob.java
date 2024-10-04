@@ -37,7 +37,6 @@ import fi.csc.chipster.comp.ToolDescription;
 import fi.csc.chipster.comp.ToolUtils;
 import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 import fi.csc.chipster.util.IOUtils;
-import net.bytebuddy.description.method.ParameterDescription;
 
 /**
  * Uses Python to run actual analysis operations.

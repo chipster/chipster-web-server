@@ -3,6 +3,10 @@ echo "run in process, slots: $SLOTS, image: $IMAGE, pod name: $POD_NAME"
 echo "source .bash_profile to set JAVA_HOME when using sdkman"
 source ~/.bash_profile
 
+# otherwise old libs are never removed
+echo "delete previous builds"
+rm -rf build/tmp/chipster-web-server
+
 echo "build SingleShotComp"
 ./gradlew clean
 ./gradlew distTar

@@ -3,7 +3,7 @@ package fi.csc.chipster.sessiondb.model;
 import java.io.Serializable;
 import java.util.UUID;
 
-import javax.persistence.Column;
+import jakarta.persistence.Column;
 
 public class DatasetIdPair implements Serializable {
 

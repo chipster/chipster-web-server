@@ -5,20 +5,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import javax.persistence.Column;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Entity;
-import javax.persistence.Index;
-import javax.persistence.JoinColumn;
-import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import fi.csc.chipster.sessiondb.FileUtils;
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
 @Entity // db
@@ -35,7 +35,7 @@ public class Dataset {
 	private String notes;
 
 	@Column
-	@Type(type = MetadataFile.METADATA_FILE_LIST_JSON_TYPE)
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<MetadataFile> metadataFiles = new ArrayList<>();
 
 	private Integer x;

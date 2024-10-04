@@ -8,11 +8,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Root;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.BaseSessionEventListener;
@@ -35,7 +30,12 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.SecurityContext;
 
@@ -103,12 +103,17 @@ public class SessionDbApi {
 				hibernate.session());
 
 		Set<String> usernames = sessionRules.stream()
+				.filter(r -> r.getUsername() != null)
 				// don't inform about the example sessions
 				.filter(r -> !RuleTable.EVERYONE.equals(r.getUsername())).map(r -> r.getUsername())
 				.collect(Collectors.toSet());
 
-		// when session is being shared, the recipient is not in the session yet
-		usernames.add(rule.getUsername());
+		// it seems to be possible to create a Rule with null username by leaving the
+		// recipient empty
+		if (rule.getUsername() != null) {
+			// when session is being shared, the recipient is not in the session yet
+			usernames.add(rule.getUsername());
+		}
 
 		// send events to username topics to update the session list
 		for (String username : usernames) {
@@ -238,8 +243,7 @@ public class SessionDbApi {
 
 		if (dataset.getFile() != null && dataset.getFile().getFileId() != null) {
 
-			@SuppressWarnings("unchecked")
-			List<Dataset> fileDatasets = hibernate.session().createQuery("from Dataset where file=:file")
+			List<Dataset> fileDatasets = hibernate.session().createQuery("from Dataset where file=:file", Dataset.class)
 					.setParameter("file", dataset.getFile()).list();
 
 			// don't care about the dataset that is being deleted
@@ -295,7 +299,7 @@ public class SessionDbApi {
 		r.fetch("file", JoinType.LEFT);
 		c.select(r);
 		c.where(cb.equal(r.get("datasetIdPair").get("sessionId"), session.getSessionId()));
-		List<Dataset> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();
+		List<Dataset> datasets = hibernateSession.createQuery(c).getResultList();
 
 		return datasets;
 	}
@@ -366,7 +370,7 @@ public class SessionDbApi {
 		Root<Job> r = c.from(Job.class);
 		c.select(r);
 		c.where(cb.equal(r.get("jobIdPair").get("sessionId"), session.getSessionId()));
-		List<Job> datasets = HibernateUtil.getEntityManager(hibernateSession).createQuery(c).getResultList();
+		List<Job> datasets = hibernateSession.createQuery(c).getResultList();
 
 		return datasets;
 	}
@@ -398,6 +402,11 @@ public class SessionDbApi {
 
 	public UUID createRule(Rule newRule, Session session) {
 
+		// it doesn't make sense to share to null
+		if (newRule.getUsername() == null) {
+			throw new BadRequestException("username cannot be null");
+		}
+
 		newRule.setRuleId(RestUtils.createUUID());
 
 		// make sure a hostile client doesn't set the session
@@ -413,8 +422,7 @@ public class SessionDbApi {
 	}
 
 	public List<Session> getSessions(String userId) {
-		@SuppressWarnings("unchecked")
-		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username")
+		List<Rule> rules = hibernate.session().createQuery("from Rule where username=:username", Rule.class)
 				.setParameter("username", userId).list();
 
 		List<Session> sessions = rules.stream().map(rule -> rule.getSession()).collect(Collectors.toList());
@@ -427,21 +435,21 @@ public class SessionDbApi {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<File> getFiles(@NotNull String storageId, FileState state, SecurityContext sc) {
 
 		if (state == null) {
-			return hibernate.session().createQuery("from File where storage=:storage")
+			return hibernate.session().createQuery("from File where storage=:storage", File.class)
 					.setParameter("storage", storageId).list();
 		} else {
-			List<File> files = hibernate.session().createQuery("from File where storage=:storage and state=:state")
+			List<File> files = hibernate.session()
+					.createQuery("from File where storage=:storage and state=:state", File.class)
 					.setParameter("storage", storageId)
 					.setParameter("state", state).list();
 
 			if (state == FileState.COMPLETE) {
 				// let's assume all old Files in null state are COMPLETE
 				List<File> nullStates = hibernate.session()
-						.createQuery("from File where storage=:storage and state is NULL")
+						.createQuery("from File where storage=:storage and state is NULL", File.class)
 						.setParameter("storage", storageId).list();
 				files.addAll(nullStates);
 			}
@@ -471,7 +479,8 @@ public class SessionDbApi {
 	 */
 	public void deleteFileAndDatasets(UUID fileId) {
 
-		int datasetsDeleted = hibernate.session().createQuery("delete from Dataset where fileId=:fileId")
+		int datasetsDeleted = hibernate.session()
+				.createQuery("delete from Dataset where file.fileId=:fileId", null)
 				.setParameter("fileId", fileId)
 				.executeUpdate();
 

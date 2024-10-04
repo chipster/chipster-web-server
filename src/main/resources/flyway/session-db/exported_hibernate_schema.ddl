@@ -20,13 +20,13 @@
     create table Dataset (
        datasetId uuid not null,
         sessionId uuid not null,
-        created timestamp,
+        created timestamp(6) with time zone,
         metadataFiles jsonb,
         name varchar(255),
         notes oid,
         sourceJob uuid,
-        x int4,
-        y int4,
+        x integer,
+        y integer,
         fileId uuid,
         primary key (datasetId, sessionId)
     );
@@ -35,9 +35,9 @@
        fileId uuid not null,
         checksum varchar(255),
         encryptionKey varchar(255),
-        fileCreated timestamp,
-        size int8 not null,
-        state int4,
+        fileCreated timestamp(6) with time zone,
+        size bigint not null,
+        state smallint,
         storage varchar(255),
         primary key (fileId)
     );
@@ -46,23 +46,23 @@
        jobId uuid not null,
         sessionId uuid not null,
         comp varchar(255),
-        cpuLimit int4,
-        created timestamp,
+        cpuLimit integer,
+        created timestamp(6) with time zone,
         createdBy varchar(255),
-        endTime timestamp,
+        endTime timestamp(6) with time zone,
         inputs jsonb,
-        memoryLimit int8,
-        memoryUsage int8,
+        memoryLimit bigint,
+        memoryUsage bigint,
         metadataFiles jsonb,
         module varchar(255),
         outputs jsonb,
         parameters jsonb,
         screenOutput oid,
         sourceCode oid,
-        startTime timestamp,
-        state int4,
+        startTime timestamp(6) with time zone,
+        state smallint,
         stateDetail oid,
-        storageUsage int8,
+        storageUsage bigint,
         toolCategory varchar(255),
         toolDescription oid,
         toolId varchar(255),
@@ -73,14 +73,14 @@
     create table News (
        newsId uuid not null,
         contents jsonb,
-        created timestamp,
-        modified timestamp,
+        created timestamp(6) with time zone,
+        modified timestamp(6) with time zone,
         primary key (newsId)
     );
 
     create table Rule (
        ruleId uuid not null,
-        created timestamp,
+        created timestamp(6) with time zone,
         readWrite boolean not null,
         sharedBy varchar(255),
         username varchar(255),
@@ -90,11 +90,11 @@
 
     create table Session (
        sessionId uuid not null,
-        accessed timestamp,
-        created timestamp,
+        accessed timestamp(6) with time zone,
+        created timestamp(6) with time zone,
         name varchar(255),
         notes oid,
-        state int4,
+        state smallint,
         primary key (sessionId)
     );
 create index dataset_fileid_index on Dataset (fileId);
