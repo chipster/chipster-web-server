@@ -9,6 +9,7 @@ public class ChipsterPostgreSQLDialect extends PostgreSQLDialect {
 
         // otherwise the schema export would use default version is 8 where the column
         // type for json is "text" instead of "jsonb"
-        super(DatabaseVersion.make(11, 0));
+        // seems to work even if K3s has Postgres 11
+        super(DatabaseVersion.make(14, 0));
     }
 }
