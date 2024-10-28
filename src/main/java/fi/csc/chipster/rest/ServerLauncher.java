@@ -146,10 +146,12 @@ public class ServerLauncher {
 			logger.info("up and running ("
 					+ ((System.currentTimeMillis() - t) / 1000) + " seconds)");
 			logger.info("---------------------------");
-			logger.info("press enter to stop");
-		}
+			logger.info("press Ctrl + C to stop");
 
-		System.in.read();
+			// any way of keeping this thread alive would do, but Jetty happens to have the
+			// nice method join() for this
+			sessionWorker.getHttpServer().join();
+		}
 
 		stop();
 		System.exit(0);
@@ -271,6 +273,7 @@ public class ServerLauncher {
 
 	public static void main(String[] args) throws Exception {
 		Config config = new Config();
+
 		new ServerLauncher(config, true);
 	}
 
