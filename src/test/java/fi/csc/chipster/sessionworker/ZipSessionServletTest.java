@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -112,8 +113,15 @@ public class ZipSessionServletTest {
 		InputStream fileStream = new FileInputStream(new File(TEST_FILE));
 		assertEquals(true, IOUtils.contentEquals(remoteStream, fileStream));
 
-		// check that a timestamp was preserved
-		assertEquals(originalDataset.getCreated(), resultDataset.getCreated());
+		/*
+		 * Check that a timestamp was preserved (with enough accuracy)
+		 * 
+		 * On CI runner the original timestamp has accuracy of nanoseconds (10^-9), but
+		 * the extracted one only microseconds (10^-6). Didn't check where the change
+		 * happens exactly.
+		 */
+		assertEquals(originalDataset.getCreated().truncatedTo(ChronoUnit.MILLIS),
+				resultDataset.getCreated().truncatedTo(ChronoUnit.MILLIS));
 
 		sessionDbClient1.deleteSession(sessionId1);
 		sessionDbClient2.deleteSession(sessionId2);

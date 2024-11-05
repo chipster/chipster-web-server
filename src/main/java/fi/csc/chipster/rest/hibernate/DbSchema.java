@@ -68,7 +68,7 @@ public class DbSchema {
 		Map<String, Object> settings = new HashMap<>();
 
 		settings.put(Environment.DIALECT, dialect);
-		settings.put(Environment.DRIVER, driver);
+		settings.put(Environment.JAKARTA_JDBC_DRIVER, driver);
 
 		/*
 		 * Do not start connection pool

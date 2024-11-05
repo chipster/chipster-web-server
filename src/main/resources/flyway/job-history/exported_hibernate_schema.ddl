@@ -1,8 +1,10 @@
 
+    set client_min_messages = WARNING;
+
     drop table if exists JobHistory cascade;
 
     create table JobHistory (
-       jobId uuid not null,
+        jobId uuid not null,
         sessionId uuid not null,
         comp varchar(255),
         created timestamp(6) with time zone,
@@ -19,4 +21,6 @@
         toolName varchar(255),
         primary key (jobId, sessionId)
     );
-create index job_history_created_index on JobHistory (created desc);
+
+    create index job_history_created_index 
+       on JobHistory (created desc);

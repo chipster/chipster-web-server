@@ -1,4 +1,6 @@
 
+    set client_min_messages = WARNING;
+
     alter table if exists Dataset 
        drop constraint if exists FKtnwjerv439jr4lmc37uvdp6ha;
 
@@ -18,7 +20,7 @@
     drop table if exists Session cascade;
 
     create table Dataset (
-       datasetId uuid not null,
+        datasetId uuid not null,
         sessionId uuid not null,
         created timestamp(6) with time zone,
         metadataFiles jsonb,
@@ -32,18 +34,18 @@
     );
 
     create table File (
-       fileId uuid not null,
+        fileId uuid not null,
         checksum varchar(255),
         encryptionKey varchar(255),
         fileCreated timestamp(6) with time zone,
         size bigint not null,
-        state smallint,
+        state smallint check (state between 0 and 1),
         storage varchar(255),
         primary key (fileId)
     );
 
     create table Job (
-       jobId uuid not null,
+        jobId uuid not null,
         sessionId uuid not null,
         comp varchar(255),
         cpuLimit integer,
@@ -60,7 +62,7 @@
         screenOutput oid,
         sourceCode oid,
         startTime timestamp(6) with time zone,
-        state smallint,
+        state smallint check (state between 0 and 12),
         stateDetail oid,
         storageUsage bigint,
         toolCategory varchar(255),
@@ -71,7 +73,7 @@
     );
 
     create table News (
-       newsId uuid not null,
+        newsId uuid not null,
         contents jsonb,
         created timestamp(6) with time zone,
         modified timestamp(6) with time zone,
@@ -79,7 +81,7 @@
     );
 
     create table Rule (
-       ruleId uuid not null,
+        ruleId uuid not null,
         created timestamp(6) with time zone,
         readWrite boolean not null,
         sharedBy varchar(255),
@@ -89,20 +91,32 @@
     );
 
     create table Session (
-       sessionId uuid not null,
+        sessionId uuid not null,
         accessed timestamp(6) with time zone,
         created timestamp(6) with time zone,
         name varchar(255),
         notes oid,
-        state smallint,
+        state smallint check (state between 0 and 4),
         primary key (sessionId)
     );
-create index dataset_fileid_index on Dataset (fileId);
-create index dataset_sessionid_index on Dataset (sessionId);
-create index job_sessionid_index on Job (sessionId);
-create index rule_username_index on Rule (username);
-create index rule_sessionid_index on Rule (sessionId);
-create index rule_sharedby_index on Rule (sharedBy);
+
+    create index dataset_fileid_index 
+       on Dataset (fileId);
+
+    create index dataset_sessionid_index 
+       on Dataset (sessionId);
+
+    create index job_sessionid_index 
+       on Job (sessionId);
+
+    create index rule_username_index 
+       on Rule (username);
+
+    create index rule_sessionid_index 
+       on Rule (sessionId);
+
+    create index rule_sharedby_index 
+       on Rule (sharedBy);
 
     alter table if exists Dataset 
        add constraint FKtnwjerv439jr4lmc37uvdp6ha 

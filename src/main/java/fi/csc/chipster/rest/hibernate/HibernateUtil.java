@@ -150,10 +150,10 @@ public class HibernateUtil {
 
 		final org.hibernate.cfg.Configuration hibernateConf = new org.hibernate.cfg.Configuration();
 
-		hibernateConf.setProperty(Environment.DRIVER, config.getString(CONF_DB_DRIVER, role));
-		hibernateConf.setProperty(Environment.URL, url);
-		hibernateConf.setProperty(Environment.USER, user);
-		hibernateConf.setProperty(Environment.PASS, password);
+		hibernateConf.setProperty(Environment.JAKARTA_JDBC_DRIVER, config.getString(CONF_DB_DRIVER, role));
+		hibernateConf.setProperty(Environment.JAKARTA_JDBC_URL, url);
+		hibernateConf.setProperty(Environment.JAKARTA_JDBC_USER, user);
+		hibernateConf.setProperty(Environment.JAKARTA_JDBC_PASSWORD, password);
 		hibernateConf.setProperty(Environment.DIALECT, config.getString(CONF_DB_DIALECT, role));
 		hibernateConf.setProperty(Environment.SHOW_SQL, config.getString(CONF_DB_SHOW_SQL, role));
 		hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
