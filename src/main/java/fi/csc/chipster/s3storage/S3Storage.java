@@ -10,6 +10,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -32,7 +33,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
  * component exists only to be able to delete S3 objects just once, even when
  * there are multiple file-broker replicas.
  */
-public class S3Storage {
+public class S3Storage implements ServerComponent {
 
 	private Logger logger = LogManager.getLogger();
 
@@ -144,14 +145,16 @@ public class S3Storage {
 	}
 
 	public void close() {
-		RestUtils.shutdown("s3-storage-admin", adminServer);
 
 		try {
 			if (sessionDbClient != null) {
 				sessionDbClient.close();
 			}
+			authService.close();
 		} catch (IOException e) {
 			logger.warn("failed to shutdown session-db client", e);
 		}
+
+		RestUtils.shutdown("s3-storage-admin", adminServer);
 	}
 }

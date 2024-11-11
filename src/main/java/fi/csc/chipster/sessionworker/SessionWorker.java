@@ -25,6 +25,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
@@ -59,7 +60,7 @@ import fi.csc.chipster.sessiondb.model.Session;
  * architecture these would probably separate services. Let's think about that
  * when the resource overheads of a service are negligible.
  */
-public class SessionWorker {
+public class SessionWorker implements ServerComponent {
 
 	private static final String PATH_SPEC_SESSIONS = "/sessions/*";
 
@@ -206,6 +207,8 @@ public class SessionWorker {
 		RestUtils.shutdown("session-worker-admin", adminServer);
 		try {
 			httpServer.stop();
+
+			authService.close();
 		} catch (Exception e) {
 			logger.warn("failed to stop the session-worker", e);
 		}

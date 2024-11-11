@@ -20,10 +20,11 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 
-public class WebServer {
+public class WebServer implements ServerComponent {
 
     private static final String INDEX_HTML = "index.html";
 
@@ -131,6 +132,8 @@ public class WebServer {
         RestUtils.shutdown("web-server-admin", adminServer);
         try {
             server.stop();
+
+            authService.close();
         } catch (Exception e) {
             logger.warn("failed to stop the web server", e);
         }

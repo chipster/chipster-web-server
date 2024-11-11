@@ -38,6 +38,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.RuntimeResource;
@@ -48,7 +49,7 @@ import fi.csc.chipster.toolbox.runtime.RuntimeRepository;
  * Toolbox rest service.
  *
  */
-public class ToolboxService {
+public class ToolboxService implements ServerComponent {
 
 	public static final String KEY_TOOLBOX_TOOLS_BIN_PATH = "toolbox-tools-bin-path";
 	public static final String KEY_TOOLBOX_TOOLS_BIN_FILE_LIST_URL = "toolbox-tools-bin-file-list-url";
@@ -294,6 +295,8 @@ public class ToolboxService {
 		RestUtils.shutdown("toolbox-admin", adminServer);
 		closeReloadWatcher();
 		RestUtils.shutdown("toolbox", httpServer);
+
+		authService.close();
 	}
 
 	private void closeReloadWatcher() {

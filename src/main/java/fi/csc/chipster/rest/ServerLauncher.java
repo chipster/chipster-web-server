@@ -1,9 +1,12 @@
 package fi.csc.chipster.rest;
 
+import java.util.HashMap;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.AuthenticationService;
+import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.backup.Backup;
 import fi.csc.chipster.comp.RestCompServer;
 import fi.csc.chipster.filebroker.FileBroker;
@@ -22,28 +25,28 @@ public class ServerLauncher {
 	// this must not be static, otherwise logging configuration fails
 	private final Logger logger = LogManager.getLogger();
 
-	private final AuthenticationService auth;
-	private final ServiceLocator serviceLocator;
-	private final SessionDb sessionDb;
-	private final Scheduler scheduler;
-	private final ToolboxService toolbox;
-	private final FileBroker fileBroker;
-	private final WebServer web;
+	private AuthenticationService auth = null;
+	private ServiceLocator serviceLocator = null;
+	private SessionDb sessionDb = null;
+	private Scheduler scheduler = null;
+	private ToolboxService toolbox = null;
+	private FileBroker fileBroker = null;
+	private WebServer web = null;
 
-	private RestCompServer comp;
+	private RestCompServer comp = null;
 
-	private SessionDb sessionDbSlave;
+	private SessionDb sessionDbSlave = null;
 
-	private final SessionWorker sessionWorker;
-	private final JavascriptService typeService;
+	private SessionWorker sessionWorker = null;
+	private JavascriptService typeService = null;
 
-	private final JobHistoryService jobHistoryService;
+	private JobHistoryService jobHistoryService = null;
 
-	private final Backup backup;
+	private Backup backup = null;
 
-	private final FileStorage fileStorage;
+	private FileStorage fileStorage = null;
 
-	private S3Storage s3Storage;
+	private S3Storage s3Storage = null;
 
 	public ServerLauncher(Config config, boolean verbose) throws Exception {
 
@@ -148,127 +151,77 @@ public class ServerLauncher {
 			logger.info("---------------------------");
 			logger.info("press Ctrl + C to stop");
 
+			addShutdownHook(this);
+
 			// any way of keeping this thread alive would do, but Jetty happens to have the
 			// nice method join() for this
 			sessionWorker.getHttpServer().join();
 		}
+	}
 
-		stop();
-		System.exit(0);
+	private void addShutdownHook(ServerLauncher serverLauncher) {
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+
+				serverLauncher.stop();
+			}
+		});
+	}
+
+	public void stopComponents(HashMap<String, ServerComponent> components) {
+		for (String role : components.keySet()) {
+
+			ServerComponent component = components.get(role);
+
+			if (component != null) {
+				new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						try {
+							logger.debug("close " + role);
+							component.close();
+						} catch (Exception e) {
+							logger.warn("closing " + role + " failed", e);
+						}
+					}
+				}).start();
+			}
+		}
 	}
 
 	public final void stop() {
 
-		if (backup != null) {
-			try {
-				backup.close();
-			} catch (Exception e) {
-				logger.warn("closing backup service failed", e);
-			}
-		}
+		HashMap<String, ServerComponent> components = new HashMap<String, ServerComponent>();
 
-		if (web != null) {
-			try {
-				web.close();
-			} catch (Exception e) {
-				logger.warn("closing web server failed", e);
-			}
-		}
+		/*
+		 * Something breaks WebSocket connections soon after Ctrl+C is pressed and I
+		 * couldn't figure out what.
+		 * 
+		 * Stop components with websocket connection first to avoid ugly stack traces.
+		 */
+		components.put(Role.FILE_STORAGE, fileStorage);
+		components.put(Role.S3_STORAGE, s3Storage);
+		components.put(Role.SCHEDULER, scheduler);
 
-		if (jobHistoryService != null) {
-			try {
-				jobHistoryService.close();
-			} catch (Exception e) {
-				logger.warn("closing job history service failed");
-			}
-		}
+		stopComponents(components);
+		components.clear();
 
-		if (typeService != null) {
-			try {
-				typeService.close();
-			} catch (Exception e) {
-				logger.warn("closing type service failed");
-			}
-		}
+		components.put(Role.BACKUP, backup);
+		components.put(Role.WEB_SERVER, web);
+		components.put(Role.JOB_HISTORY, jobHistoryService);
+		components.put(Role.TYPE_SERVICE, typeService);
+		components.put(Role.COMP, comp);
+		components.put(Role.TOOLBOX, toolbox);
+		components.put(Role.SESSION_WORKER, sessionWorker);
+		components.put(Role.FILE_BROKER, fileBroker);
+		components.put("session-db-slave", sessionDbSlave);
+		components.put(Role.SESSION_DB, sessionDb);
+		components.put(Role.SERVICE_LOCATOR, serviceLocator);
+		components.put(Role.AUTH, auth);
 
-		if (comp != null) {
-			try {
-				comp.shutdown();
-			} catch (Exception e) {
-				logger.warn("closing toolbox failed", e);
-			}
-		}
-
-		if (scheduler != null) {
-			try {
-				scheduler.close();
-			} catch (Exception e) {
-				logger.warn("closing scheduler failed", e);
-			}
-		}
-		if (toolbox != null) {
-			try {
-				toolbox.close();
-			} catch (Exception e) {
-				logger.warn("closing toolbox failed", e);
-			}
-		}
-		if (sessionWorker != null) {
-			try {
-				sessionWorker.close();
-			} catch (Exception e) {
-				logger.warn("closing session-worker failed");
-			}
-		}
-		if (fileBroker != null) {
-			try {
-				fileBroker.close();
-			} catch (Exception e) {
-				logger.warn("closing file-broker failed", e);
-			}
-		}
-		if (s3Storage != null) {
-			try {
-				s3Storage.close();
-			} catch (Exception e) {
-				logger.warn("closing s3-storage failed", e);
-			}
-		}
-		if (fileStorage != null) {
-			try {
-				fileStorage.close();
-			} catch (Exception e) {
-				logger.warn("closing file-storage failed", e);
-			}
-		}
-		if (sessionDbSlave != null) {
-			try {
-				sessionDbSlave.close();
-			} catch (Exception e) {
-				logger.warn("closing session-db slave failed", e);
-			}
-		}
-		if (sessionDb != null) {
-			try {
-				sessionDb.close();
-			} catch (Exception e) {
-				logger.warn("closing session-db failed", e);
-			}
-		}
-		if (serviceLocator != null) {
-			try {
-				serviceLocator.close();
-			} catch (Exception e) {
-				logger.warn("closing service-locator failed", e);
-			}
-		}
-		if (auth != null) {
-			try {
-				auth.close();
-			} catch (Exception e) {
-				logger.warn("closing auth failed", e);
-			}
-		}
+		stopComponents(components);
 	}
 
 	public static void main(String[] args) throws Exception {

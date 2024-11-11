@@ -18,6 +18,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.hibernate.DbBackup;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -32,7 +33,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
  * @author klemela
  *
  */
-public class Backup {
+public class Backup implements ServerComponent {
 
 	private Logger logger = LogManager.getLogger();
 
@@ -120,5 +121,6 @@ public class Backup {
 
 	public void close() {
 		RestUtils.shutdown("backup-admin", adminServer);
+		authService.close();
 	}
 }

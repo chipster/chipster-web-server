@@ -30,6 +30,7 @@ import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import fi.csc.chipster.rest.websocket.WebSocketClient;
@@ -55,7 +56,7 @@ import jakarta.ws.rs.core.UriBuilder;
  * @author Taavi Hupponen, Aleksi Kallio, Petri Klemela
  */
 public class RestCompServer
-		implements ResultCallback, MessageHandler.Whole<String>, ProcessProvider, StatusSource {
+		implements ResultCallback, MessageHandler.Whole<String>, ProcessProvider, StatusSource, ServerComponent {
 
 	public static final String KEY_COMP_MAX_JOBS = "comp-max-jobs";
 	public static final String KEY_COMP_SCHEDULE_TIMEOUT = "comp-schedule-timeout";
@@ -366,7 +367,7 @@ public class RestCompServer
 		if (stopGracefully) {
 			synchronized (jobsLock) {
 				if (this.scheduledJobs.isEmpty() && this.runningJobs.isEmpty()) {
-					shutdown();
+					close();
 					System.exit(0);
 				}
 			}
@@ -754,7 +755,7 @@ public class RestCompServer
 		}
 	}
 
-	public void shutdown() {
+	public void close() {
 		logger.info("shutdown requested");
 
 		RestUtils.shutdown("comp-admin", adminServer);
@@ -773,6 +774,8 @@ public class RestCompServer
 		} catch (Exception e) {
 			logger.warn("failed to shutdown session-db client: " + e.getMessage());
 		}
+
+		authClient.close();
 
 		logger.info("shutting down");
 	}
@@ -828,7 +831,7 @@ public class RestCompServer
 		} catch (Exception e) {
 			System.err.println("comp startup failed, exiting");
 			e.printStackTrace(System.err);
-			server.shutdown();
+			server.close();
 			System.exit(1);
 		}
 	}

@@ -16,6 +16,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -46,7 +47,7 @@ import fi.csc.chipster.sessiondb.resource.UserResource;
  *
  */
 @SuppressWarnings("unused")
-public class SessionDb {
+public class SessionDb implements ServerComponent {
 
 	private Logger logger = LogManager.getLogger();
 
@@ -192,6 +193,8 @@ public class SessionDb {
 		getPubSubServer().stop();
 		hibernate.getSessionFactory().close();
 		RestUtils.shutdown("session-db", httpServer);
+
+		authService.close();
 	}
 
 	public HttpServer getHttpServer() {

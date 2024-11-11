@@ -492,4 +492,8 @@ public class AuthenticationClient {
 		return AuthTokens.isTokenClass(claims, tokenClass);
 	}
 
+	public void close() {
+		this.tokenRefreshTimer.cancel();
+	}
+
 }

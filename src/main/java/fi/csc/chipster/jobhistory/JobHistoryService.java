@@ -21,6 +21,7 @@ import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -38,7 +39,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import jakarta.websocket.MessageHandler;
 
-public class JobHistoryService implements SessionEventListener, MessageHandler {
+public class JobHistoryService implements SessionEventListener, MessageHandler, ServerComponent {
 
 	private Logger logger = LogManager.getLogger();
 	private HttpServer httpServer;
@@ -247,16 +248,19 @@ public class JobHistoryService implements SessionEventListener, MessageHandler {
 	}
 
 	public void close() {
-		RestUtils.shutdown("job-history-admin", jobHistoryAdminServer);
-		RestUtils.shutdown("job-history", httpServer);
 
 		try {
 			if (sessionDbClient != null) {
+				// shutdown websocket first (see ServerLauncher.stop())
 				sessionDbClient.close();
 			}
+			authService.close();
 		} catch (IOException e) {
 			logger.warn("failed to shutdown session-db client", e);
 		}
 		hibernate.getSessionFactory().close();
+
+		RestUtils.shutdown("job-history-admin", jobHistoryAdminServer);
+		RestUtils.shutdown("job-history", httpServer);
 	}
 }

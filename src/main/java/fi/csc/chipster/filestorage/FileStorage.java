@@ -20,6 +20,7 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -52,7 +53,7 @@ import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
  * real file from the file-system directory when a respective File object
  * is deleted from the database.
  */
-public class FileStorage {
+public class FileStorage implements ServerComponent {
 
 	private Logger logger = LogManager.getLogger();
 
@@ -187,12 +188,13 @@ public class FileStorage {
 	}
 
 	public void close() {
-		RestUtils.shutdown("file-storage-admin", adminServer);
 		try {
 			try {
 				if (sessionDbClient != null) {
+					// shutdown websocket first (see ServerLauncher.stop())
 					sessionDbClient.close();
 				}
+				authService.close();
 			} catch (IOException e) {
 				logger.warn("failed to shutdown session-db client", e);
 			}
@@ -200,5 +202,6 @@ public class FileStorage {
 		} catch (Exception e) {
 			logger.warn("failed to stop the file-storage", e);
 		}
+		RestUtils.shutdown("file-storage-admin", adminServer);
 	}
 }

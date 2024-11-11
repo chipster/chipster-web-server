@@ -213,6 +213,7 @@ public class PubSubServer implements StatusSource {
 
 	public void stop() {
 		try {
+			logger.info("stopping pub-sub server " + name);
 			stopPingTimer();
 			this.server.stop();
 			while (!this.server.isStopped()) {
@@ -220,7 +221,7 @@ public class PubSubServer implements StatusSource {
 
 				Thread.sleep(1000);
 			}
-			logger.info("stopped a pub-sub server: " + name);
+			logger.debug("stopped a pub-sub server: " + name);
 		} catch (Exception e) {
 			logger.warn("failed to stop the pub-sub server", e);
 		}

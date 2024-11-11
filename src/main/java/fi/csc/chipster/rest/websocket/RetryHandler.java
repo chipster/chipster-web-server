@@ -47,7 +47,7 @@ public class RetryHandler {
 		}
 		counter++;
 		if (retries < 0 || counter <= retries) {
-			logger.info("reconnecting... (" + counter + "/" + retries + ")");
+			logger.info("reconnecting " + name + "... (" + counter + "/" + retries + ")");
 			return true;
 		} else {
 			return false;
@@ -55,6 +55,11 @@ public class RetryHandler {
 	}
 
 	public boolean onConnectFailure(Exception exception) {
+
+		if (this.close) {
+			logger.debug("websocket client " + name + " closed");
+			return false;
+		}
 		logger.info("websocket client " + name + " connection failure", exception);
 
 		// how to check HTTP upgrade request errors?
@@ -93,6 +98,7 @@ public class RetryHandler {
 	}
 
 	public void close() {
+		logger.debug("RetryHandler " + name + " closing");
 		this.close = true;
 	}
 

@@ -5,6 +5,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.net.URLDecoder;
+import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -178,7 +179,7 @@ public class PubSubEndpoint {
 
 	@OnClose
 	public void onClose(Session session, CloseReason closeReason) {
-		logger.debug("client has closed the websocket: " + closeReason.getReasonPhrase());
+		logger.info("client has closed the websocket: " + closeReason.getReasonPhrase());
 		unsubscribe(session);
 	}
 
@@ -187,6 +188,11 @@ public class PubSubEndpoint {
 		if (thr instanceof SocketTimeoutException) {
 			logger.warn("idle timeout, unsubscribe a pub-sub client "
 					+ ((AuthPrincipal) session.getUserPrincipal()).getRemoteAddress());
+
+		} else if (thr instanceof ClosedChannelException) {
+			// don't print stacktrace when ServerLauncher is closed
+			logger.error("websocket error: " + thr.getClass().getSimpleName() + " " + thr.getMessage() + ", topic: "
+					+ session.getUserProperties().get(TOPIC_KEY));
 		} else {
 			logger.error("websocket error", thr);
 		}

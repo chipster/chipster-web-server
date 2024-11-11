@@ -22,6 +22,7 @@ import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.scheduler.bash.BashJobScheduler;
 import fi.csc.chipster.scheduler.offer.OfferJobScheduler;
@@ -39,7 +40,7 @@ import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.chipster.toolbox.runtime.Runtime;
 import jakarta.servlet.ServletException;
 
-public class Scheduler implements SessionEventListener, StatusSource, JobSchedulerCallback {
+public class Scheduler implements SessionEventListener, StatusSource, JobSchedulerCallback, ServerComponent {
 
 	private Logger logger = LogManager.getLogger();
 
@@ -289,9 +290,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	public void close() {
 
-		RestUtils.shutdown("scheduler-admin", adminServer);
-
 		try {
+			// close websocket first, see ServerLauncher.stop()
 			sessionDbClient.close();
 		} catch (IOException e) {
 			logger.warn("failed to stop the session-db client", e);
@@ -300,6 +300,10 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		if (this.offerJobScheduler != null) {
 			this.offerJobScheduler.close();
 		}
+
+		authService.close();
+
+		RestUtils.shutdown("scheduler-admin", adminServer);
 	}
 
 	@Override

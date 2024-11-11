@@ -13,7 +13,7 @@ import org.apache.logging.log4j.Logger;
  * Main class.
  *
  */
-public class JavascriptService {
+public class JavascriptService implements ServerComponent {
 
 	private static Logger logger = LogManager.getLogger();
 
@@ -51,15 +51,6 @@ public class JavascriptService {
 		// wait a bit to show startup log messages in correct order
 		Thread.sleep(2000);
 
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-			public void run() {
-				try {
-					close();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		});
 	}
 
 	public ProcessBuilder getProcessBuilder(String... command) {
@@ -110,10 +101,14 @@ public class JavascriptService {
 		server.process.waitFor();
 	}
 
-	public void close() throws InterruptedException {
-		logger.info("JavaScript service shutting down");
+	public void close() {
+		logger.debug("JavaScript service shutting down");
 		this.process.destroy();
-		this.process.waitFor();
-		logger.info("JavaScript service stopped");
+		try {
+			this.process.waitFor();
+		} catch (InterruptedException e) {
+			logger.error("exception when waiting for javascript service to stop", e);
+		}
+		logger.debug("JavaScript service stopped");
 	}
 }

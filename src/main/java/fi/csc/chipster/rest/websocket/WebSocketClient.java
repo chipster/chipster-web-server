@@ -3,6 +3,7 @@ package fi.csc.chipster.rest.websocket;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.channels.ClosedChannelException;
 import java.util.Timer;
 import java.util.concurrent.TimeoutException;
 
@@ -38,6 +39,8 @@ public class WebSocketClient implements EndpointListener {
 	private CredentialsProvider credentials;
 
 	private Session session;
+
+	private boolean close;
 
 	public WebSocketClient(final String uri, final Whole<String> messageHandler, boolean retry, final String name,
 			CredentialsProvider credentials)
@@ -124,6 +127,9 @@ public class WebSocketClient implements EndpointListener {
 
 	public void shutdown() throws IOException {
 		logger.debug("shutdown websocket client " + name);
+
+		this.close = true;
+
 		if (retryHandler != null) {
 			retryHandler.close();
 		}
@@ -169,12 +175,21 @@ public class WebSocketClient implements EndpointListener {
 
 	@Override
 	public void onError(Session session, Throwable thr) {
-		logger.warn("websocket client " + name + " error: " + thr.getMessage(), thr);
+		if (this.close && thr instanceof ClosedChannelException) {
+			// don't print stack trace when ServerLauncher is closed
+			logger.debug(
+					"websocket client " + name + " error: " + thr.getClass().getSimpleName() + " " + thr.getMessage());
+		} else {
+			logger.warn("websocket client " + name + " error: " + thr.getMessage(), thr);
+		}
 		if (retryHandler != null) {
 			while (retryHandler.onConnectFailure((Exception) thr)) {
 				try {
 					Thread.sleep(retryHandler.getDelay() * 1000);
-					this.connect();
+					// check if this was closed during the sleep
+					if (!this.close) {
+						this.connect();
+					}
 					break;
 				} catch (WebSocketErrorException | InterruptedException | WebSocketClosedException e) {
 					logger.error("error in reconnection", e);

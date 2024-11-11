@@ -29,6 +29,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -38,7 +39,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
  * Main class.
  *
  */
-public class AuthenticationService {
+public class AuthenticationService implements ServerComponent {
 
 	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
 
@@ -53,6 +54,8 @@ public class AuthenticationService {
 	private HttpServer adminServer;
 
 	private JaasAuthenticationProvider jaasAuthProvider;
+
+	private AuthenticationClient adminAuthClient;
 
 	public static List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
 			User.class,
@@ -138,11 +141,11 @@ public class AuthenticationService {
 		String localhostUrl = new URI(bindUrl.getProtocol(), null, "localhost", bindUrl.getPort(), bindUrl.getFile(),
 				null, null).toString();
 
-		AuthenticationClient authClient = new AuthenticationClient(localhostUrl, Role.AUTH,
+		this.adminAuthClient = new AuthenticationClient(localhostUrl, Role.AUTH,
 				config.getPassword(Role.AUTH), Role.SERVER);
 		this.adminServer = RestUtils.startAdminServer(
 				authAdminResource, hibernate,
-				Role.AUTH, config, authClient, serviceLocator);
+				Role.AUTH, config, adminAuthClient, serviceLocator);
 	}
 
 	/**
@@ -179,5 +182,6 @@ public class AuthenticationService {
 		RestUtils.shutdown("auth-admin", adminServer);
 		RestUtils.shutdown("auth", httpServer);
 		hibernate.getSessionFactory().close();
+		adminAuthClient.close();
 	}
 }

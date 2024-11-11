@@ -17,6 +17,7 @@ import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.CORSServletFilter;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.rest.exception.ExceptionServletFilter;
 import fi.csc.chipster.s3storage.client.S3StorageClient;
@@ -24,7 +25,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
-public class FileBroker {
+public class FileBroker implements ServerComponent {
 
 	private static final String CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING = "file-broker-chunked-encoding";
 
@@ -141,6 +142,7 @@ public class FileBroker {
 		RestUtils.shutdown("file-broker-admin", adminServer);
 		try {
 			httpServer.stop();
+			authService.close();
 		} catch (Exception e) {
 			logger.warn("failed to stop the file-broker", e);
 		}
