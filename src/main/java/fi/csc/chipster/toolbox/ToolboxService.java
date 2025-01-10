@@ -39,6 +39,7 @@ import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerComponent;
+import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.toolbox.resource.ModuleResource;
 import fi.csc.chipster.toolbox.resource.RuntimeResource;
@@ -198,29 +199,8 @@ public class ToolboxService implements ServerComponent {
 
 	}
 
-	/**
-	 * Starts only the Grizzly HTTP server exposing JAX-RS resources defined in this
-	 * application. Used by the 'old' Chipster.
-	 * 
-	 * @return Grizzly HTTP server.
-	 * @throws URISyntaxException
-	 */
-	public void startServerWithoutStatsAndAdminServer() throws IOException, URISyntaxException {
-		startServer(false);
-		;
-	}
-
 	public void startServer() throws IOException, URISyntaxException {
-		startServer(true);
-	}
 
-	/**
-	 * 
-	 * @param enableStatsAndAdminServer
-	 * @throws IOException
-	 * @throws URISyntaxException
-	 */
-	private void startServer(boolean enableStatsAndAdminServer) throws IOException, URISyntaxException {
 		this.toolResource = new ToolResource(this.toolbox);
 		this.moduleResource = new ModuleResource(toolbox);
 		this.runtimeResource = new RuntimeResource(toolbox);
@@ -230,12 +210,9 @@ public class ToolboxService implements ServerComponent {
 		String username = Role.TOOLBOX;
 		String password = config.getPassword(username);
 
-		// don't start these in the old Chipster
-		if (enableStatsAndAdminServer) {
-			this.serviceLocator = new ServiceLocatorClient(config);
-			this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-			this.serviceLocator.setCredentials(authService.getCredentials());
-		}
+		this.serviceLocator = new ServiceLocatorClient(config);
+		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
 				.register(this.toolResource)
@@ -243,13 +220,16 @@ public class ToolboxService implements ServerComponent {
 				.register(runtimeResource);
 		// .register(new LoggingFilter())
 
-		// don't start these in the old Chipster
-		if (enableStatsAndAdminServer) {
+		// this must be called before the server is started, otherwise throws an
+		// IllegalStateException
+		jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 
-			// this must be called before the server is started, otherwise throws an
-			// IllegalStateException
-			jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		}
+		StatusSource toolsBinVersionStatusSource = new StatusSource() {
+			@Override
+			public Map<String, Object> getStatus() {
+				return Map.of("toolsBinVersion", config.getString(RuntimeRepository.CONF_RUNTIME_TOOLS_BIN_NAME));
+			}
+		};
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
@@ -258,11 +238,9 @@ public class ToolboxService implements ServerComponent {
 		RestUtils.configureGrizzlyThreads(httpServer, Role.TOOLBOX, false, config);
 		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.TOOLBOX, LogType.API);
 
-		if (enableStatsAndAdminServer) {
-			jerseyStatisticsSource.collectConnectionStatistics(httpServer);
-			this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, this.serviceLocator,
-					jerseyStatisticsSource);
-		}
+		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+		this.adminServer = RestUtils.startAdminServer(Role.TOOLBOX, config, authService, this.serviceLocator,
+				jerseyStatisticsSource, toolsBinVersionStatusSource);
 
 		this.httpServer.start();
 		logger.info("toolbox service running at " + baseUri);
@@ -271,7 +249,7 @@ public class ToolboxService implements ServerComponent {
 	/**
 	 * Main method.
 	 * 
-	 * @throws URISyntaxException
+	 * @throws URISyntaxExceptionp
 	 */
 	public static void main(String[] args) throws IOException, URISyntaxException {
 

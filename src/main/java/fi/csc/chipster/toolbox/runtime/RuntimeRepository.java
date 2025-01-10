@@ -26,7 +26,7 @@ public class RuntimeRepository {
 	private static final String CONF_RUNTIME_PARAMETERS = "toolbox-runtime-parameters";
 	private static final String CONF_RUNTIME_IMAGE = "toolbox-runtime-image";
 	private static final String CONF_RUNTIME_JOB_FACTORY = "toolbox-runtime-job-factory";
-	private static final String CONF_RUNTIME_TOOLS_BIN_NAME = "toolbox-runtime-tools-bin-name";
+	public static final String CONF_RUNTIME_TOOLS_BIN_NAME = "toolbox-runtime-tools-bin-name";
 	private static final String CONF_RUNTIME_TOOLS_BIN_PATH = "toolbox-runtime-tools-bin-path";
 
 	private static final String CONF_DEFAULT_RUNTIME_NAME = "toolbox-default-runtime-name";

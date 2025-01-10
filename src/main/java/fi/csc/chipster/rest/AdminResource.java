@@ -47,13 +47,17 @@ public class AdminResource {
 		this.hibernate = hibernate;
 		this.dbTables = dbTables;
 		if (stats != null) {
-			this.statusSources = Arrays.asList(stats);
+			this.statusSources = new ArrayList(Arrays.asList(stats));
+		} else {
+			this.statusSources = new ArrayList<StatusSource>();
 		}
 		this.fileSystems.put("root", new File("."));
 
 		if (this.hibernate != null) {
 			hibernate.getSessionFactory().getStatistics().setStatisticsEnabled(true);
 		}
+
+		this.statusSources.add(new BuildVersionStatusSource());
 	}
 
 	public AdminResource(StatusSource... stats) {
