@@ -1,5 +1,6 @@
 package fi.csc.chipster.comp;
 
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.toolbox.ToolboxTool;
 import fi.csc.chipster.toolbox.runtime.Runtime;
@@ -17,7 +18,7 @@ public interface JobFactory {
 	 * @param config
 	 */
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout, Job dbJob, Runtime runtime) throws CompException;
+			int jobTimeout, Job dbJob, Runtime runtime, Config config) throws CompException;
 
 	/**
 	 * Returns true if the handler is unable to create jobs. Handler is still able

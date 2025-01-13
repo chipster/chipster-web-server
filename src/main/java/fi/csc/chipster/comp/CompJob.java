@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 /**
@@ -76,6 +77,7 @@ public abstract class CompJob implements Runnable {
 	private String stateDetail;
 	private boolean toBeCanceled = false;
 	private final GenericResultMessage outputMessage;
+	public Config config;
 
 	public CompJob() {
 		outputMessage = new GenericResultMessage();
@@ -83,12 +85,13 @@ public abstract class CompJob implements Runnable {
 	}
 
 	public void construct(GenericJobMessage inputMessage, ToolDescription analysis,
-			ResultCallback resultHandler, int jobTimeout) {
+			ResultCallback resultHandler, int jobTimeout, Config config) {
 		this.constructed = true;
 		this.toolDescription = analysis;
 		this.inputMessage = inputMessage;
 		this.resultHandler = resultHandler;
 		this.jobTimeout = jobTimeout;
+		this.config = config;
 
 		// initialize result message
 		outputMessage.setJobId(this.getId());

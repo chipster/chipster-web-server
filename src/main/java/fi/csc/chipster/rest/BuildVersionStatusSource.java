@@ -8,7 +8,7 @@ import org.apache.logging.log4j.Logger;
 
 public class BuildVersionStatusSource implements StatusSource {
 
-    private static final String CONF_CHIPSTER_BUILD_VERSION = "chipster-build-version";
+    public static final String CONF_CHIPSTER_BUILD_VERSION = "chipster-build-version";
 
     private static Logger logger = LogManager.getLogger();
 

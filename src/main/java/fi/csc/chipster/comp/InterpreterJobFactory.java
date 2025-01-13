@@ -34,7 +34,7 @@ public abstract class InterpreterJobFactory implements JobFactory {
 	protected String infoDir = "info";
 	protected String versionsString = "versions";
 
-	private Config config;
+	public Config config;
 
 	public static final String CONF_CHIPSTER_ROOT_DIR = "comp-chipster-root-dir";
 
@@ -65,7 +65,8 @@ public abstract class InterpreterJobFactory implements JobFactory {
 
 	@Override
 	public abstract CompJob createCompJob(GenericJobMessage message, ToolboxTool tool,
-			ResultCallback resultHandler, int jobTimeout, Job dbJob, Runtime runtime) throws CompException;
+			ResultCallback resultHandler, int jobTimeout, Job dbJob, Runtime runtime, Config config)
+			throws CompException;
 
 	protected abstract String getStringDelimeter();
 

@@ -29,6 +29,8 @@ import com.nimbusds.jose.shaded.gson.GsonBuilder;
 
 import fi.csc.chipster.comp.ToolDescription.InputDescription;
 import fi.csc.chipster.comp.ToolDescription.OutputDescription;
+import fi.csc.chipster.rest.BuildVersionStatusSource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.Dataset;
@@ -72,8 +74,8 @@ public abstract class OnDiskCompJobBase extends CompJob {
 
     @Override
     public void construct(GenericJobMessage inputMessage, ToolDescription toolDescription, ResultCallback resultHandler,
-            int jobTimeout) {
-        super.construct(inputMessage, toolDescription, resultHandler, jobTimeout);
+            int jobTimeout, Config config) {
+        super.construct(inputMessage, toolDescription, resultHandler, jobTimeout, config);
         this.jobDir = new File(resultHandler.getWorkDir(), getId());
         this.jobDataDir = new File(this.jobDir, JOB_DATA_DIR_NAME);
         this.jobToolboxDir = new File(this.jobDir, JOB_TOOLBOX_DIR_NAME);
@@ -363,6 +365,12 @@ public abstract class OnDiskCompJobBase extends CompJob {
                 }
                 return new VersionJson(file.getName().replaceAll("\\.txt$", ""), fileContent);
             }).filter(Objects::nonNull).collect(Collectors.toList());
+        }
+
+        String chipsterBuildVersion = this.config.getString(BuildVersionStatusSource.CONF_CHIPSTER_BUILD_VERSION);
+
+        if (chipsterBuildVersion != null && !chipsterBuildVersion.isBlank()) {
+            jsonList.add(new VersionJson("Chipster", chipsterBuildVersion));
         }
 
         if (jsonList.size() < 1) {

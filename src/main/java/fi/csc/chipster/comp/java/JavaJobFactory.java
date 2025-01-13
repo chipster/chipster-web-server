@@ -33,13 +33,13 @@ public class JavaJobFactory implements JobFactory {
 
 	@SuppressWarnings(value = "unchecked")
 	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout, Job dbJob, Runtime runtime) throws CompException {
+			int jobTimeout, Job dbJob, Runtime runtime, Config config) throws CompException {
 		ToolDescription description = createToolDescription(tool);
 
 		try {
 			Class<? extends Object> jobClass = (Class<? extends Object>) description.getImplementation();
 			JavaCompJobBase analysisJob = (JavaCompJobBase) jobClass.getDeclaredConstructor().newInstance();
-			analysisJob.construct(message, description, resultHandler, jobTimeout);
+			analysisJob.construct(message, description, resultHandler, jobTimeout, config);
 			return analysisJob;
 
 		} catch (Exception e) {
