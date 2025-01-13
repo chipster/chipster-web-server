@@ -220,7 +220,7 @@ public class RestCompServer
 
 		logger.info("starting the admin rest server");
 
-		AdminResource adminResource = new AdminResource(this);
+		AdminResource adminResource = new AdminResource(this.config, this);
 		adminResource.addFileSystem("work", workDir);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.COMP, config, authClient,
 				serviceLocator);

@@ -3,6 +3,15 @@ package fi.csc.chipster.backup;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.StatusSource;
+import fi.csc.chipster.rest.hibernate.DbBackup;
+import fi.csc.chipster.rest.hibernate.Transaction;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
@@ -13,17 +22,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.core.Response.Status;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.auth.model.Role;
-import fi.csc.chipster.rest.AdminResource;
-import fi.csc.chipster.rest.StatusSource;
-import fi.csc.chipster.rest.hibernate.DbBackup;
-import fi.csc.chipster.rest.hibernate.Transaction;
+import jakarta.ws.rs.core.SecurityContext;
 
 public class BackupAdminResource extends AdminResource {
 
@@ -32,8 +32,8 @@ public class BackupAdminResource extends AdminResource {
 
 	private List<DbBackup> dbBackups;
 
-	public BackupAdminResource(List<DbBackup> dbBackups) {
-		super(dbBackups.toArray(new StatusSource[0]));
+	public BackupAdminResource(List<DbBackup> dbBackups, Config config) {
+		super(config, dbBackups.toArray(new StatusSource[0]));
 
 		this.dbBackups = dbBackups;
 	}

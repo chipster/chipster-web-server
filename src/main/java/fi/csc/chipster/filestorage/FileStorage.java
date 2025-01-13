@@ -158,7 +158,7 @@ public class FileStorage implements ServerComponent {
 
 		FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbAdminClient,
 				storage,
-				storageId);
+				storageId, config);
 		adminResource.addFileSystem("storage", storage);
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_STORAGE, config, authService,
 				this.serviceLocator);

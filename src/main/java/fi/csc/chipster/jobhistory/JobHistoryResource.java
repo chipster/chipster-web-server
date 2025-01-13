@@ -9,12 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.persistence.TemporalType;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.query.Query;
@@ -25,6 +19,11 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -54,7 +53,7 @@ public class JobHistoryResource extends AdminResource {
 	public static final String FILTER_ATTRIBUTE_PAGE = "page";
 
 	public JobHistoryResource(HibernateUtil hibernate, Config config) {
-		super();
+		super(config);
 		this.config = config;
 		this.hibernate = hibernate;
 	}
@@ -118,11 +117,11 @@ public class JobHistoryResource extends AdminResource {
 
 		if (params.size() > 0) {
 			try {
-			    CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
-			    CriteriaQuery<Long> criteria = builder.createQuery(Long.class);     
-			    Root<JobHistory> root = criteria.from(JobHistory.class);			        
+				CriteriaBuilder builder = getHibernate().session().getCriteriaBuilder();
+				CriteriaQuery<Long> criteria = builder.createQuery(Long.class);
+				Root<JobHistory> root = criteria.from(JobHistory.class);
 				List<Predicate> predicate = createPredicate(params, root, builder);
-				
+
 				criteria.select(builder.count(root));
 				criteria.where(predicate.toArray(new Predicate[] {}));
 				Query<Long> query = getHibernate().session().createQuery(criteria);
@@ -196,7 +195,7 @@ public class JobHistoryResource extends AdminResource {
 		Query query = hibernate.session().createNativeQuery(sql, BigInteger.class);
 
 		query = query.setParameter("starttime", startTime, TemporalType.TIMESTAMP).setParameter("endtime", endTime,
-		        TemporalType.TIMESTAMP);
+				TemporalType.TIMESTAMP);
 
 		if (useModuleFilter) {
 			query = query.setParameter("module", module);

@@ -147,7 +147,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 		logger.info("starting the admin rest server");
 
-		this.adminServer = RestUtils.startAdminServer(new AdminResource(this, offerJobScheduler.getPubSubServer()),
+		this.adminServer = RestUtils.startAdminServer(
+				new AdminResource(config, this, offerJobScheduler.getPubSubServer()),
 				null, Role.SCHEDULER,
 				config, authService, this.serviceLocator);
 

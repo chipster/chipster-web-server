@@ -10,6 +10,7 @@ import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.exception.NotFoundRollbackException;
@@ -35,8 +36,8 @@ public class AuthAdminResource extends AdminResource {
 	private UserTable userTable;
 
 	public AuthAdminResource(HibernateUtil hibernate,
-			List<Class<?>> classes, JerseyStatisticsSource jerseyStats, UserTable userTable) {
-		super(hibernate, classes, jerseyStats);
+			List<Class<?>> classes, JerseyStatisticsSource jerseyStats, UserTable userTable, Config config) {
+		super(hibernate, classes, jerseyStats, config);
 		this.userTable = userTable;
 		this.hibernate = hibernate;
 	}

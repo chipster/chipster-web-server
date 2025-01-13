@@ -151,6 +151,8 @@ server-threads-worker-max: ""
 server-threads-worker-min-file-broker: 2
 server-threads-worker-max-file-broker: 100
 
+chipster-build-version: ""
+
 # auth
 
 auth-monitoring-password: monitoring

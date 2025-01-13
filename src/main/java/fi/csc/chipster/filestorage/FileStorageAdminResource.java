@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Logger;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.StorageAdminClient;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.sessiondb.RestException;
@@ -54,8 +55,8 @@ public class FileStorageAdminResource extends AdminResource {
 
 	public FileStorageAdminResource(StatusSource stats, FileStorageBackup backup,
 			SessionDbAdminClient sessionDbAdminClient,
-			File storage, String storageId) {
-		super(stats, backup);
+			File storage, String storageId, Config config) {
+		super(config, stats, backup);
 
 		this.backup = backup;
 		this.sessionDbAdminClient = sessionDbAdminClient;

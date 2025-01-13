@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.AdminResource;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.JerseyStatisticsSource;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -94,8 +95,8 @@ public class SessionDbAdminResource extends AdminResource {
 	 */
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
 			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi,
-			SessionDbApi sessionDbApi, RuleTable ruleTable) {
-		super(hibernate, Arrays.asList(classes), jerseyStats, pubSubServer);
+			SessionDbApi sessionDbApi, RuleTable ruleTable, Config config) {
+		super(hibernate, Arrays.asList(classes), jerseyStats, config, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
 		this.newsApi = newsApi;

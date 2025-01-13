@@ -81,7 +81,7 @@ public class Backup implements ServerComponent {
 		}).collect(Collectors.toList());
 
 		logger.info("starting the admin rest server");
-		BackupAdminResource adminResource = new BackupAdminResource(dbBackups);
+		BackupAdminResource adminResource = new BackupAdminResource(dbBackups, config);
 		adminResource.addFileSystem("db-backup", backupRoot.toFile());
 		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.BACKUP, config, authService,
 				serviceLocator);

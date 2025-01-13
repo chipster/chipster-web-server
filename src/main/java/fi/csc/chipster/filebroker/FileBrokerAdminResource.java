@@ -58,7 +58,7 @@ public class FileBrokerAdminResource extends AdminResource {
 	public FileBrokerAdminResource(StatusSource stats, FileStorageDiscovery storageDiscovery,
 			SessionDbAdminClient sessionDbAdminClient, S3StorageClient s3StorageClient,
 			FileBrokerApi fileBrokerApi, Config config) {
-		super(stats);
+		super(config, stats);
 
 		this.fileStorageDiscovery = storageDiscovery;
 		this.sessionDbAdminClient = sessionDbAdminClient;

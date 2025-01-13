@@ -1,8 +1,5 @@
 package fi.csc.chipster.rest;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,23 +8,17 @@ import org.apache.logging.log4j.Logger;
 
 public class BuildVersionStatusSource implements StatusSource {
 
+    private static final String CONF_CHIPSTER_BUILD_VERSION = "chipster-build-version";
+
     private static Logger logger = LogManager.getLogger();
 
     private String buildVersion;
 
-    public BuildVersionStatusSource() {
+    public BuildVersionStatusSource(Config config) {
 
-        File buildVersionFile = new File("conf/build-version.txt");
+        this.buildVersion = config.getString(CONF_CHIPSTER_BUILD_VERSION);
 
-        if (buildVersionFile.exists()) {
-            try {
-                this.buildVersion = Files.readString(buildVersionFile.toPath());
-            } catch (IOException e) {
-                logger.error("failed to read build version", e);
-            }
-        } else {
-            logger.info("build version file not found " + buildVersionFile);
-        }
+        logger.info("chipster build version: " + this.buildVersion);
     }
 
     @Override

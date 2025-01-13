@@ -397,7 +397,7 @@ public class RestUtils {
 
 	public static HttpServer startAdminServer(String role, Config config, AuthenticationClient authService,
 			ServiceLocatorClient serviceLocator, StatusSource... stats) throws IOException {
-		return startAdminServer(new AdminResource(stats), null, role, config, authService, serviceLocator);
+		return startAdminServer(new AdminResource(config, stats), null, role, config, authService, serviceLocator);
 	}
 
 	public static HttpServer startAdminServer(Object adminResource, HibernateUtil hibernate, String role, Config config,

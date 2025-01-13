@@ -115,7 +115,7 @@ public class AuthenticationService implements ServerComponent {
 		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 
 		AuthAdminResource authAdminResource = new AuthAdminResource(hibernate, hibernateClasses, jerseyStatisticsSource,
-				userTable);
+				userTable, this.config);
 
 		// create and start a new instance of grizzly http server
 		// exposing the Jersey application at BASE_URI
