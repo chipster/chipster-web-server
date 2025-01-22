@@ -46,6 +46,7 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Response;
 
 /**
@@ -189,6 +190,12 @@ public class S3StorageClient implements StorageClient {
 				} else if (exception.getCause() instanceof ChecksumException) {
 					throw (ChecksumException) exception.getCause();
 				}
+			} else if (ce.getCause() instanceof S3Exception) {
+				// S3Exception doesn't show the awsErrorDetails (like XAmzContentSHA256Mismatc)
+				// by default
+				S3Exception s3e = (S3Exception) ce.getCause();
+				throw new RuntimeException(
+						s3e.getClass().getSimpleName() + ", " + s3e.getMessage() + ", " + s3e.awsErrorDetails(), s3e);
 			}
 			throw ce;
 		} finally {
