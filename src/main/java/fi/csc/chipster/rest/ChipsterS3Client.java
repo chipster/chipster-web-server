@@ -306,7 +306,8 @@ public class ChipsterS3Client {
 				.bucket(bucket)
 				.key(key)
 				.uploadId(uploadId)
-				.partNumber(partNumber).build();
+				.partNumber(partNumber)
+				.build();
 
 		AsyncRequestBodyFromInputStreamConfiguration isc = AsyncRequestBodyFromInputStreamConfiguration
 				.builder()
@@ -370,22 +371,8 @@ public class ChipsterS3Client {
 				.executor(this.executor)
 				.build();
 
-		/*
-		 * Starting from v2.30.0 aws-sdk calculates a checksum:
-		 * https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/s3-checksums.
-		 * html
-		 * 
-		 * Radosgw doesn't like it and reponds with XAmzContentSHA256Mismatch, even if
-		 * we ask aws-sdk to calculate SHA256 with
-		 * checksumAlgorithm(ChecksumAlgorithm.SHA256).
-		 * 
-		 * We could calculate the checksum beforehand, but then we would have to use
-		 * smaller this.maxPartSize, which would lower the throughput. Luckily giving a
-		 * empty string "" seems to make both happy, at least for now.
-		 * 
-		 */
 		return this.s3.putObject(
-				r -> r.bucket(bucket).key(key).checksumSHA256(""),
+				r -> r.bucket(bucket).key(key),
 				AsyncRequestBody.fromInputStream(isc));
 	}
 

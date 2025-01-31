@@ -140,11 +140,24 @@ dependencies {
 
     
     // S3StorageClient and db backups
-    // update from 2.29.51 to 2.30.0 broke uploads of small files
-    // maybe it's better to use fixed versions
-    implementation "software.amazon.awssdk:s3:2.30.2"
-    implementation "software.amazon.awssdk:s3-transfer-manager:2.30.2"
-    implementation "software.amazon.awssdk.crt:aws-crt:0.33.9"
+    /*
+    * Starting from v2.30.0 aws-sdk calculates a checksum:
+    * https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/s3-checksums.
+    * html
+    * 
+    * Radosgw doesn't like it and reponds with XAmzContentSHA256Mismatch, even if
+    * we ask aws-sdk to calculate SHA256 with
+    * checksumAlgorithm(ChecksumAlgorithm.SHA256).
+    * 
+    * We could calculate the checksum beforehand, but then we would have to use
+    * smaller this.maxPartSize, which would lower the throughput.
+
+    * Setting checksumAlgorithm("") works for single-part uploads, but not for multipart.
+    */
+    implementation "software.amazon.awssdk:s3:2.29.51"
+    implementation "software.amazon.awssdk:s3-transfer-manager:2.29.51"
+    implementation "software.amazon.awssdk.crt:aws-crt:0.33.7"
+
 
 	// other
     implementation "commons-io:commons-io:+"
