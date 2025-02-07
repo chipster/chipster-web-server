@@ -18,6 +18,10 @@ public class ChipsterInputTypes {
 	public static final InputType MOTHUR_GROUPS = new InputType("MOTHUR_GROUPS");
 	public static final InputType MOTHUR_STABILITY = new InputType("MOTHUR_STABILITY");
 	public static final InputType MOTHUR_COUNT = new InputType("MOTHUR_COUNT");
+	public static final InputType TAR = new InputType("TAR");
+	public static final InputType TEXT = new InputType("TEXT");
+	public static final InputType TEXT_STRICT = new InputType("TEXT_STRICT");
+
 	//
 	// public static boolean isTypeOf(DataBean dataBean, InputType type) {
 	//

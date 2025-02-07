@@ -30,6 +30,9 @@ public class ChipsterSADLParser extends SADLParser {
 		addInputType(ChipsterInputTypes.MOTHUR_GROUPS);
 		addInputType(ChipsterInputTypes.MOTHUR_STABILITY);
 		addInputType(ChipsterInputTypes.MOTHUR_COUNT);
+		addInputType(ChipsterInputTypes.TAR);
+		addInputType(ChipsterInputTypes.TEXT);
+		addInputType(ChipsterInputTypes.TEXT_STRICT);
 		;
 	}
 

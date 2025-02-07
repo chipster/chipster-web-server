@@ -10,9 +10,12 @@ export class Tag {
 // tags in an object for code completion
 export const Tags = {
   // simple types are recognized with the file extension
-
   // list for other text types below
+  // also any other file that can be shown as ascii text
   TEXT: new Tag("TEXT", [".txt"]),
+  // only files with .txt file extension
+  TEXT_ONLY: new Tag("TEXT_ONLY", [".txt"]),
+  TAR: new Tag("TAR", [".tar"]),
   DAT: new Tag("DAT", [".dat"]),
   WEE: new Tag("WEE", [".wee"]),
   SEQ: new Tag("SEQ", [".seq"]),
@@ -92,7 +95,7 @@ const TEXT_TYPES = new Set([
   Tags.SEQ,
   Tags.WEE,
   Tags.DAT,
-  Tags.MD5
+  Tags.MD5,
 ]);
 
 const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
