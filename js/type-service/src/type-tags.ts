@@ -14,7 +14,7 @@ export const Tags = {
   // also any other file that can be shown as ascii text
   TEXT: new Tag("TEXT", [".txt"]),
   // only files with .txt file extension
-  TEXT_ONLY: new Tag("TEXT_ONLY", [".txt"]),
+  TEXT_STRICT: new Tag("TEXT_STRICT", [".txt"]),
   TAR: new Tag("TAR", [".tar"]),
   DAT: new Tag("DAT", [".dat"]),
   WEE: new Tag("WEE", [".wee"]),
