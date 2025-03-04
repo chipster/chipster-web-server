@@ -210,14 +210,21 @@ public class FileBrokerApi {
      * @param file
      */
     private void moveAfterUpload(File file) {
-        if (file.getState() == FileState.COMPLETE
-                && this.s3StorageClient.isEnabledForNewFiles()
-                && !this.s3StorageClient.containsStorageId(file.getStorage())) {
-
-            String newStorageId = this.s3StorageClient.getStorageIdForNewFile();
-
-            this.moveLater(file, newStorageId);
+        if (file.getState() != FileState.COMPLETE) {
+            logger.info("do not move the file yet because state is " + file.getState());
+            return;
+        } else if (!this.s3StorageClient.isEnabledForNewFiles()) {
+            logger.info("do not move the file, because S3 storage is not enabled for new files");
+            return;
+        } else if (this.s3StorageClient.containsStorageId(file.getStorage())) {
+            logger.info("no need to move the file, because it is already in S3: " + file.getStorage());
+            return;
         }
+
+        logger.info("going to move the file");
+        String newStorageId = this.s3StorageClient.getStorageIdForNewFile();
+
+        this.moveLater(file, newStorageId);
     }
 
     private String getStorage(Long chunkNumber, Long chunkSize, Long flowTotalChunks, Long flowTotalSize) {

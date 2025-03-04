@@ -112,7 +112,7 @@ public interface StorageAdminClient {
                 for (String fileName : wrongSizeFiles) {
                         logger.info(storageId +
                                         " wrong size " + fileName + ", state: " + state + ", db: "
-                                        + completeDbFilesMap.get(fileName) + ", file: "
+                                        + completeDbFilesMap.get(fileName).getSize() + ", file: "
                                         + storageFiles.get(fileName));
                 }
 
