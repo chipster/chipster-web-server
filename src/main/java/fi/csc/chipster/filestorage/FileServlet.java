@@ -167,9 +167,14 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 			if (request.isAsyncStarted()) {
 				/*
-				 * By default the async timeout is enabled. Everything works, but onTimeout()
-				 * listener is called after 30 seconds and jetty logs an IllegalStateException
-				 * in ServletChannelState.java.
+				 * By default the async timeout is enabled. Amost everything works, but
+				 * onTimeout() listener is called after 30 seconds and jetty logs an
+				 * IllegalStateException in ServletChannelState.java.
+				 * 
+				 * This caused problems only when > 4 GiB file was uploaded to file-storage
+				 * and then moved to S3. The request to delete the file from file-storage got
+				 * stuck. Perhaps because the async timeout had left a connection to a bad
+				 * state.
 				 * 
 				 * Apparently we are supposed to turn of timeout when handling large files:
 				 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=447472 . Let's see if we have
