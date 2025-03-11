@@ -165,6 +165,19 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 			// delegate to super class
 			super.doGet(rewrittenRequest, response);
 
+			if (request.isAsyncStarted()) {
+				/*
+				 * By default the async timeout is enabled. Everything works, but onTimeout()
+				 * listener is called after 30 seconds and jetty logs an IllegalStateException
+				 * in ServletChannelState.java.
+				 * 
+				 * Apparently we are supposed to turn of timeout when handling large files:
+				 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=447472 . Let's see if we have
+				 * to implement some kind of own timeouts too.
+				 */
+				request.getAsyncContext().setTimeout(0);
+			}
+
 			// log performance
 			if (logRest) {
 				logAsyncGet(request, response, f.toFile(), before);
@@ -192,6 +205,7 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 				@Override
 				public void onStartAsync(AsyncEvent event) throws IOException {
+					logger.info("onStartAsync()");
 				}
 
 				@Override

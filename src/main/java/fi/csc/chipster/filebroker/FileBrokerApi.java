@@ -321,6 +321,7 @@ public class FileBrokerApi {
              */
             this.sessionDbAdminClient.updateFile(targetFile);
 
+            logger.info("delete file in " + sourceFile.getStorage());
             sourceClient.delete(sourceFile);
 
         } catch (FileLengthException e) {
