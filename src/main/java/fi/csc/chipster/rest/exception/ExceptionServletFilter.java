@@ -2,6 +2,11 @@ package fi.csc.chipster.rest.exception;
 
 import java.io.IOException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import fi.csc.chipster.filebroker.DownloadCancelledException;
+import fi.csc.chipster.filestorage.UploadCancelledException;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -13,11 +18,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import fi.csc.chipster.filestorage.UploadCancelledException;
 
 public class ExceptionServletFilter implements Filter {
 
@@ -49,6 +49,10 @@ public class ExceptionServletFilter implements Filter {
 			// logged already in FileServlet
 			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
 			return;
+		} catch (DownloadCancelledException e) {
+			// logged already in FileBrokerResourceServlet
+			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+			return;
 		} catch (BadRequestException e) {
 			logger.error("servlet error", e);
 			sendError(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
@@ -75,8 +79,8 @@ public class ExceptionServletFilter implements Filter {
 
 			return;
 		} catch (Exception e) {
-			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
 			logger.error("servlet error", e);
+			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
 			// abort download from session-worker if there is an error. Otherwise the user
 			// thinks
 			// that the download was successful

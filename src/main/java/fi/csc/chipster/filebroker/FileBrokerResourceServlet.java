@@ -9,6 +9,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.io.EofException;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
@@ -126,42 +127,56 @@ public class FileBrokerResourceServlet extends HttpServlet {
              */
         }
 
-        InputStream fileStream = this.fileBrokerApi.getDataset(dataset, range, userToken);
+        try (InputStream fileStream = this.fileBrokerApi.getDataset(dataset, range, userToken)) {
 
-        response.setStatus(HttpServletResponse.SC_OK);
+            response.setStatus(HttpServletResponse.SC_OK);
 
-        if (!useChunkedEncoding && range == null) {
-            // if content-lenth is set, browsers notice interrupted downloads
-            logger.info("set content-length: " + dataset.getFile().getSize());
-            response.setContentLengthLong(dataset.getFile().getSize());
-        } else {
-            // Jetty sets this automatically
-            // response.setHeader("Transfer-Encoding", "chunked");
+            if (!useChunkedEncoding && range == null) {
+                // if content-lenth is set, browsers notice interrupted downloads
+                logger.info("set content-length: " + dataset.getFile().getSize());
+                response.setContentLengthLong(dataset.getFile().getSize());
+            } else {
+                // Jetty sets this automatically
+                // response.setHeader("Transfer-Encoding", "chunked");
+            }
+
+            OutputStream output = response.getOutputStream();
+
+            /*
+             * Can throw ChecksumException or FileLengthException. Error messages in
+             * browsers' download view:
+             * 
+             * Chrome: "Check internet connection"
+             * Safari: "cannot parse response"
+             * Firefox: "failed"
+             */
+            IOUtils.copyLarge(fileStream, output);
+
+            /*
+             * Close output stream only if the copyLarge() was successful
+             * 
+             * If an exception (ChecksumException, FileLengthException) was thrown, this is
+             * skipped on purpose. Otherwise the Jetty writes and empty chunk, marking the
+             * end of the chunked transfer-encoding and browser doesn't know that something
+             * went wrong. So don't use try-with-resources to close it!
+             */
+            output.close();
+
+            this.fileBrokerApi.afterDownload(dataset);
+        } catch (EofException e) {
+            // try-with-resources will close the input stream. Otherwise S3StorageClient
+            // will consume arbitrary amounts of memory, if job is downloading file from S3
+            // and the job is cancelled (test with small -Xmx, which is enough in normal
+            // operations).
+            logger.warn(
+                    "client closed connection before reading the whole response");
+            throw new DownloadCancelledException(e);
+
+        } catch (Exception e) {
+            logger.warn(
+                    "error while serving a GET file request: " + e.getClass().getSimpleName() + " " + e.getMessage());
+            throw e;
         }
-
-        OutputStream output = response.getOutputStream();
-
-        /*
-         * Can throw ChecksumException or FileLengthException. Error messages in
-         * browsers' download view:
-         * 
-         * Chrome: "Check internet connection"
-         * Safari: "cannot parse response"
-         * Firefox: "failed"
-         */
-        IOUtils.copyLarge(fileStream, output);
-
-        /*
-         * Close output stream only if the copyLarge() was successful
-         * 
-         * If an exception (ChecksumException, FileLengthException) was thrown, this is
-         * skipped on purpose. Otherwise the Jetty writes and empty chunk, marking the
-         * end of the chunked transfer-encoding and browser doesn't know that something
-         * went wrong. So don't use try-with-resources to close it!
-         */
-        output.close();
-
-        this.fileBrokerApi.afterDownload(dataset);
     }
 
     /**
