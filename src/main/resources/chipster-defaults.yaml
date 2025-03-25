@@ -437,6 +437,10 @@ toolbox-runtime-command-R-4.4.3-asv: /opt/chipster/tools/R-4.4.3/bin/R
 toolbox-runtime-image-R-4.4.3-asv: comp-r-4-4-3-asv
 toolbox-runtime-tools-bin-path-R-4.4.3-asv: tools-bin
 
+toolbox-runtime-command-R-4.4.3-phyloseq: /opt/chipster/tools/R-4.4.3/bin/R
+toolbox-runtime-image-R-4.4.3-phyloseq: comp-r-4-4-3-phyloseq
+toolbox-runtime-tools-bin-path-R-4.4.3-phyloseq: tools-bin
+
 toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
 toolbox-runtime-image-R-4.1.1-asv: comp-20-04-asv
 
