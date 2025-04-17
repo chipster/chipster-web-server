@@ -328,6 +328,30 @@ public class SessionDbClient {
 		return jobMap;
 	}
 
+	/**
+	 * Use list of jobIds to get the jobs
+	 * 
+	 * ID list and returned job list have same length. Jobs are saved in the
+	 * returned list to the same index, where the corresponding ID was in the ID
+	 * list. If the job was not found, the returned list will include a null in its
+	 * place.
+	 * 
+	 */
+	public List<Job> getJobs(UUID sessionId, List<UUID> jobIds) throws RestException {
+
+		String jobsListString = RestMethods.postWithObjectResponse(getJobsTarget(sessionId).path("arrayGet"),
+				jobIds, String.class);
+
+		@SuppressWarnings("unchecked")
+		List<Job> jobs = RestUtils.parseJson(List.class, Job.class, jobsListString);
+
+		return jobs;
+	}
+
+	public List<UUID> getJobIds(UUID sessionId) throws RestException {
+		return RestMethods.getList(getJobsTarget(sessionId).path("ids"), UUID.class);
+	}
+
 	public Job getJob(UUID sessionId, UUID jobId) throws RestException {
 		return RestMethods.get(getJobTarget(sessionId, jobId), Job.class);
 	}

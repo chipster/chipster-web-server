@@ -63,14 +63,20 @@ public class SessionJobResource {
 	}
 
 	// CRUD
+
+	/*
+	 * Get individual job
+	 * 
+	 * Used heavily after components get a WebSocket notification about Job
+	 * modification.
+	 * 
+	 */
 	@GET
 	@Path("{id}")
 	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response get(@PathParam("id") UUID jobId, @Context SecurityContext sc) {
-
-		// logger.info(sc.getUserPrincipal().getName());
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId, true);
@@ -84,6 +90,63 @@ public class SessionJobResource {
 		return Response.ok(result).build();
 	}
 
+	/*
+	 * Get job IDs in one session
+	 * 
+	 * App uses this to request jobs in chunks to avoid exceeding Ingress' 30 second
+	 * timeout.
+	 * 
+	 */
+	@GET
+	@Path("ids")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getIds(@Context SecurityContext sc) {
+
+		// checks authorization
+		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId);
+
+		List<UUID> result = SessionDbApi.getJobIds(getHibernate().session(), session);
+
+		// if nothing is found, just return 200 (OK) and an empty list
+		return Response.ok(result).build();
+	}
+
+	/*
+	 * Get list of jobs
+	 * 
+	 * Used by app to get jobs in chunks to avoid exceeding the Ingress' 30 second
+	 * timeout.
+	 * 
+	 * This should be GET, but browsers don't allow having a body in a GET request
+	 * 
+	 */
+	@POST
+	@Path("arrayGet")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN }) // don't allow Role.UNAUTHENTICATED
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response getArray(List<UUID> jobIds, @Context SecurityContext sc) {
+
+		if (jobIds == null) {
+			throw new BadRequestException("no job IDs given");
+		}
+		// checks authorization
+		Session session = sessionResource.getRuleTable().checkSessionReadAuthorization(sc, sessionId, true);
+
+		List<Job> jobs = SessionDbApi.getJobs(getHibernate().session(), session, jobIds);
+
+		return Response.ok(jobs).build();
+	}
+
+	/*
+	 * Get all jobs of the session in one request
+	 * 
+	 * Useful for server components that do not communicate through Ingress and
+	 * don't have to get response in 30 seconds.
+	 */
 	@GET
 	@RolesAllowed({ Role.CLIENT, Role.SERVER, Role.SESSION_TOKEN })
 	@Produces(MediaType.APPLICATION_JSON)
@@ -305,6 +368,8 @@ public class SessionJobResource {
 
 		// checks authorization
 		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
+
+		// we need the whole job object to send the Job state to the WebSocket
 		Job dbJob = SessionDbApi.getJob(sessionId, jobId, getHibernate().session());
 
 		if (dbJob == null || !dbJob.getSessionId().equals(session.getSessionId())) {

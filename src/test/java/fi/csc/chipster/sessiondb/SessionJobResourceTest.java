@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
@@ -133,6 +134,55 @@ public class SessionJobResourceTest {
 	}
 
 	@Test
+	public void getIds() throws RestException {
+
+		UUID id1 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+		UUID id2 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+
+		assertEquals(true, user1Client.getJobIds(sessionId1).contains(id1));
+		assertEquals(true, user1Client.getJobIds(sessionId1).contains(id2));
+
+		// wrong user
+
+		testGetJobIds(403, sessionId1, user2Client);
+
+		// wrong session
+		assertEquals(false, user2Client.getJobIds(sessionId2).contains(id1));
+	}
+
+	@Test
+	public void getJobsWithIds() throws RestException {
+
+		UUID id1 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+		UUID id2 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+		ArrayList<UUID> idList = new ArrayList<UUID>() {
+			{
+				add(id1);
+				add(UUID.randomUUID());
+				add(id2);
+			}
+		};
+
+		List<Job> jobs = user1Client.getJobs(sessionId1, idList);
+
+		assertEquals(3, jobs.size());
+
+		assertEquals(id1, jobs.removeFirst().getJobId());
+		// job doesn't exist, should be null
+		assertEquals(null, jobs.removeFirst());
+		assertEquals(id2, jobs.removeFirst().getJobId());
+
+		// existing jobId, but wrong session
+		assertEquals(null, user2Client.getJobs(sessionId2, idList).get(0));
+
+		// empty list
+		assertEquals(true, user1Client.getJobs(sessionId1, new ArrayList<>()).isEmpty());
+
+		// wrong user
+		testGetJobsWithIds(403, sessionId1, idList, user2Client);
+	}
+
+	@Test
 	public void getAll() throws RestException {
 
 		UUID id1 = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
@@ -152,6 +202,24 @@ public class SessionJobResourceTest {
 	public static void testGetJobs(int expected, UUID sessionId, SessionDbClient client) {
 		try {
 			client.getJobs(sessionId);
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(expected, e.getResponse().getStatus());
+		}
+	}
+
+	public static void testGetJobIds(int expected, UUID sessionId, SessionDbClient client) {
+		try {
+			client.getJobIds(sessionId);
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(expected, e.getResponse().getStatus());
+		}
+	}
+
+	public static void testGetJobsWithIds(int expected, UUID sessionId, List<UUID> jobIds, SessionDbClient client) {
+		try {
+			client.getJobs(sessionId, jobIds);
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(expected, e.getResponse().getStatus());

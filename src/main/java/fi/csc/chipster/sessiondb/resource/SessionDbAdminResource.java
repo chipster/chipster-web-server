@@ -305,6 +305,13 @@ public class SessionDbAdminResource extends AdminResource {
 			for (Session session : sessions) {
 
 				List<Dataset> datasets = SessionDbApi.getDatasets(hibernate.session(), session);
+
+				/*
+				 * Full jobs are needed for parameter count, but getting 1k jobs may take more
+				 * than 30 seconds.
+				 * Get the parameter count directly from db or remove it if this becomes a
+				 * problem.
+				 */
 				List<Job> jobs = SessionDbApi.getJobs(hibernate.session(), session);
 
 				long sessionSize = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)

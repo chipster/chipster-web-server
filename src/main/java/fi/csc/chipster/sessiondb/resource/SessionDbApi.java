@@ -363,6 +363,38 @@ public class SessionDbApi {
 		return hibernateSession.get(Job.class, new JobIdPair(sessionId, jobId));
 	}
 
+	public static List<UUID> getJobIds(org.hibernate.Session hibernateSession, Session session) {
+
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Object[]> c = cb.createQuery(Object[].class);
+		Root<Job> r = c.from(Job.class);
+
+		c.select(
+				r.get("jobIdPair").get("jobId"));
+		c.where(cb.equal(
+				r.get("jobIdPair").get("sessionId"),
+				session.getSessionId()));
+
+		List<Object[]> rows = hibernateSession.createQuery(c).getResultList();
+
+		List<UUID> jobIds = rows.stream()
+				.map(row -> (UUID) row[0])
+				.collect(Collectors.toList());
+
+		return jobIds;
+	}
+
+	public static List<Job> getJobs(org.hibernate.Session hibernateSession, Session session, List<UUID> jobIds) {
+
+		List<JobIdPair> jobIdPairs = jobIds.stream()
+				.map(jobId -> new JobIdPair(session.getSessionId(), jobId))
+				.collect(Collectors.toList());
+
+		return hibernateSession
+				.byMultipleIds(Job.class)
+				.multiLoad(jobIdPairs);
+	}
+
 	public static List<Job> getJobs(org.hibernate.Session hibernateSession, Session session) {
 
 		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
@@ -370,9 +402,9 @@ public class SessionDbApi {
 		Root<Job> r = c.from(Job.class);
 		c.select(r);
 		c.where(cb.equal(r.get("jobIdPair").get("sessionId"), session.getSessionId()));
-		List<Job> datasets = hibernateSession.createQuery(c).getResultList();
+		List<Job> jobs = hibernateSession.createQuery(c).getResultList();
 
-		return datasets;
+		return jobs;
 	}
 
 	public void createJob(Job job, UUID sessionId, org.hibernate.Session hibernateSession) {
