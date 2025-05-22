@@ -34,8 +34,8 @@ public class BashJobs {
 		return jobs.remove(jobId);
 	}
 
-	public BashJob addJob(IdPair idPair, int slots, ToolboxTool tool) {
-		BashJob jobState = new BashJob(slots, tool);
+	public BashJob addJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool) {
+		BashJob jobState = new BashJob(slots, storage, tool);
 
 		/*
 		 * Set first heartbeat to change this job from the state scheduled to running

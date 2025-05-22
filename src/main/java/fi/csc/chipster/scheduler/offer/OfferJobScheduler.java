@@ -51,8 +51,8 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 		this.config = config;
 		this.scheduler = scheduler;
 
-		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
-		this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
+		this.waitTimeout = config.getLong(Scheduler.CONF_WAIT_TIMEOUT);
+		this.jobTimerInterval = config.getLong(Scheduler.CONF_JOB_TIMER_INTERVAL) * 1000;
 
 		this.jobTimer = new Timer("websocket job timer", true);
 		this.jobTimer.schedule(new TimerTask() {
@@ -77,7 +77,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 
 	@Override
-	public void scheduleJob(IdPair idPair, int slots, ToolboxTool tool, Runtime runtime) {
+	public void scheduleJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool, Runtime runtime) {
 
 		synchronized (jobs) {
 
@@ -322,7 +322,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 
 	@Override
-	public void addRunningJob(IdPair idPair, int slots, ToolboxTool tool) {
+	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool) {
 		synchronized (jobs) {
 			this.jobs.addScheduledJob(idPair);
 			this.jobs.get(idPair).setRunnableTimestamp();

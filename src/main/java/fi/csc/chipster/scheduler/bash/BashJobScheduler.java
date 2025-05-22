@@ -281,14 +281,14 @@ public class BashJobScheduler implements JobScheduler {
 	}
 
 	@Override
-	public void addRunningJob(IdPair idPair, int slots, ToolboxTool tool) {
+	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool) {
 		synchronized (jobs) {
-			jobs.addJob(idPair, slots, tool);
+			jobs.addJob(idPair, slots, storage, tool);
 		}
 	}
 
 	@Override
-	public void scheduleJob(IdPair idPair, int slots, ToolboxTool tool, Runtime runtime) {
+	public void scheduleJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool, Runtime runtime) {
 
 		boolean run = false;
 		boolean isBusy = false;
@@ -307,7 +307,7 @@ public class BashJobScheduler implements JobScheduler {
 
 				// logger.info("job " + idPair + " can run now");
 
-				jobs.addJob(idPair, slots, tool);
+				jobs.addJob(idPair, slots, storage, tool);
 
 				run = true;
 
@@ -373,7 +373,7 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 
-			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, sessionToken);
+			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, storage, sessionToken);
 
 			// use the conf key as a name in logs
 			this.runSchedulerBash(this.runScript, "run", env, null, true);
@@ -439,12 +439,14 @@ public class BashJobScheduler implements JobScheduler {
 	/**
 	 * Get minimal env, enough for pod monitoring and deletion
 	 * 
+	 * @param storage
+	 * 
 	 * 
 	 * @param job
 	 * @param idPair
 	 * @return
 	 */
-	private HashMap<String, String> getEnv(ToolboxTool tool, IdPair idPair) {
+	private HashMap<String, String> getEnv(ToolboxTool tool, Integer storage, IdPair idPair) {
 		HashMap<String, String> env = new HashMap<>();
 
 		env.put(ENV_SESSION_ID, idPair.getSessionId().toString());
@@ -455,8 +457,6 @@ public class BashJobScheduler implements JobScheduler {
 		env.put(ENV_POD_NAME, podName);
 
 		// this is needed in minimal env to know if the volume needs to be deleted
-		Integer storage = tool.getSadlDescription().getStorage();
-
 		if (storage != null) {
 			env.put(ENV_STORAGE, "" + storage);
 		}
@@ -471,14 +471,15 @@ public class BashJobScheduler implements JobScheduler {
 	 * @param runtime
 	 * @param idPair
 	 * @param slots
+	 * @param storage
 	 * @param sessionToken
 	 * @param compToken
 	 * @return
 	 */
 	private HashMap<String, String> getEnv(ToolboxTool tool, Runtime runtime, IdPair idPair, int slots,
-			String sessionToken) {
+			Integer storage, String sessionToken) {
 
-		HashMap<String, String> env = getEnv(tool, idPair);
+		HashMap<String, String> env = getEnv(tool, storage, idPair);
 
 		env.put(ENV_ENABLE_RESOURCE_LIMITS, "" + this.enableResourceLimits);
 
@@ -664,7 +665,7 @@ public class BashJobScheduler implements JobScheduler {
 			return;
 		}
 
-		HashMap<String, String> env = getEnv(job.getTool(), idPair);
+		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
 
 		// use the conf key as a name in logs
 		this.runSchedulerBash(this.cancelScript, "cancel", env, null, true);
@@ -688,7 +689,7 @@ public class BashJobScheduler implements JobScheduler {
 			return;
 		}
 
-		HashMap<String, String> env = getEnv(job.getTool(), idPair);
+		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
 
 		this.runSchedulerBash(this.finishedScript, "finished", env, null, true);
 	}
@@ -720,7 +721,7 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 
-			HashMap<String, String> env = getEnv(job.getTool(), idPair);
+			HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
 
 			// use the conf key as a name in logs
 			// run in executor to limit the number of external processes
@@ -897,7 +898,7 @@ public class BashJobScheduler implements JobScheduler {
 
 		StringBuffer logStdout = new StringBuffer();
 
-		HashMap<String, String> env = getEnv(job.getTool(), idPair);
+		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
 
 		// run in executor to limit the amount of external processes
 		Future<?> future = this.runSchedulerBash(this.logScript, "log", env, logStdout, true);

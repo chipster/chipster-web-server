@@ -54,13 +54,6 @@ public class Config {
 
 	public static final String KEY_WEB_SERVER_WEB_ROOT_PATH = "web-server-web-root-path";
 
-	public static final String KEY_SCHEDULER_WAIT_TIMEOUT = "scheduler-wait-timeout";
-	public static final String KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT = "scheduler-wait-runnable-timeout";
-	public static final String KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT = "scheduler-heartbeat-lost-timeout";
-	public static final String KEY_SCHEDULER_JOB_TIMER_INTERVAL = "scheduler-job-timer-interval";
-	public static final String KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER = "scheduler-max-scheduled-and-running-slots-per-user";
-	public static final String KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER = "scheduler-max-new-slots-per-user";
-
 	public static final String KEY_FILE_BROKER_SHUTDOWN_TIMEOUT = "file-broker-shutdown-timeout";
 	public static final String KEY_SESSION_WORKER_SHUTDOWN_TIMEOUT = "file-broker-shutdown-timeout";
 

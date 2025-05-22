@@ -13,13 +13,16 @@ public class SchedulerJob {
 	private Instant runningTimestamp;
 	private String userId;
 	private int slots;
+	private Integer storage;
+
 	private ToolboxTool tool;
 	private Runtime runtime;
 
-	public SchedulerJob(String userId, int slots, ToolboxTool tool, Runtime runtime) {
+	public SchedulerJob(String userId, int slots, Integer storage, ToolboxTool tool, Runtime runtime) {
 		setNewTimestamp();
 		this.userId = userId;
 		this.slots = slots;
+		this.storage = storage;
 		this.tool = tool;
 		this.runtime = runtime;
 	}
@@ -97,5 +100,13 @@ public class SchedulerJob {
 
 	public void setRuntime(Runtime runtime) {
 		this.runtime = runtime;
+	}
+
+	public Integer getStorage() {
+		return storage;
+	}
+
+	public void setStorage(Integer storage) {
+		this.storage = storage;
 	}
 }

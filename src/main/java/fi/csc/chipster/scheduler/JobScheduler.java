@@ -7,7 +7,7 @@ import fi.csc.chipster.toolbox.runtime.Runtime;
 
 public interface JobScheduler {
 
-	public void scheduleJob(IdPair idPair, int slots, ToolboxTool toolboxTool, Runtime toolboxRuntime);
+	public void scheduleJob(IdPair idPair, int slots, Integer storage, ToolboxTool toolboxTool, Runtime toolboxRuntime);
 
 	public void cancelJob(IdPair idPair);
 
@@ -17,7 +17,7 @@ public interface JobScheduler {
 
 	public long getHeartbeatInterval();
 
-	public void addRunningJob(IdPair idPair, int slots, ToolboxTool tool);
+	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool);
 
 	public String getLog(IdPair jobIdPair);
 }

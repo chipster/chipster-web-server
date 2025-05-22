@@ -44,8 +44,16 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private Logger logger = LogManager.getLogger();
 
-	private static final String CONF_SCHEDULER_BASH_ENABLED = "scheduler-bash-enabled";
+	private static final String CONF_BASH_ENABLED = "scheduler-bash-enabled";
 	private static final String CONF_GET_JOBS_FROM_DB = "scheduler-get-jobs-from-db";
+
+	public static final String CONF_WAIT_TIMEOUT = "scheduler-wait-timeout";
+	public static final String CONF_WAIT_RUNNABLE_TIMEOUT = "scheduler-wait-runnable-timeout";
+	public static final String CONF_HEARTBEAT_LOST_TIMEOUT = "scheduler-heartbeat-lost-timeout";
+	public static final String CONF_JOB_TIMER_INTERVAL = "scheduler-job-timer-interval";
+	public static final String CONF_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER = "scheduler-max-scheduled-and-running-slots-per-user";
+	public static final String CONF_MAX_SCHEDULED_AND_RUNNING_STORAGE_PER_USER = "scheduler-max-scheduled-and-running-storage-per-user";
+	public static final String CONF_MAX_NEW_SLOTS_PER_USER = "scheduler-max-new-slots-per-user";
 
 	@SuppressWarnings("unused")
 	private String serviceId;
@@ -58,6 +66,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private long jobTimerInterval;
 	private int maxScheduledAndRunningSlotsPerUser;
+	private int maxScheduledAndRunningStoragePerUser;
 	private int maxNewSlotsPerUser;
 	private long waitRunnableTimeout;
 
@@ -86,15 +95,17 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		String username = Role.SCHEDULER;
 		String password = config.getPassword(username);
 
-		this.waitRunnableTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_RUNNABLE_TIMEOUT);
-		this.jobTimerInterval = config.getLong(Config.KEY_SCHEDULER_JOB_TIMER_INTERVAL) * 1000;
-		this.heartbeatLostTimeout = config.getLong(Config.KEY_SCHEDULER_HEARTBEAT_LOST_TIMEOUT);
+		this.waitRunnableTimeout = config.getLong(CONF_WAIT_RUNNABLE_TIMEOUT);
+		this.jobTimerInterval = config.getLong(CONF_JOB_TIMER_INTERVAL) * 1000;
+		this.heartbeatLostTimeout = config.getLong(CONF_HEARTBEAT_LOST_TIMEOUT);
 		this.maxScheduledAndRunningSlotsPerUser = config
-				.getInt(Config.KEY_SCHEDULER_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
-		this.maxNewSlotsPerUser = config.getInt(Config.KEY_SCHEDULER_MAX_NEW_SLOTS_PER_USER);
-		this.waitTimeout = config.getLong(Config.KEY_SCHEDULER_WAIT_TIMEOUT);
+				.getInt(CONF_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER);
+		this.maxScheduledAndRunningStoragePerUser = config
+				.getInt(CONF_MAX_SCHEDULED_AND_RUNNING_STORAGE_PER_USER);
+		this.maxNewSlotsPerUser = config.getInt(CONF_MAX_NEW_SLOTS_PER_USER);
+		this.waitTimeout = config.getLong(CONF_WAIT_TIMEOUT);
 		this.getJobsFromDb = config.getBoolean(CONF_GET_JOBS_FROM_DB);
-		this.bashJobSchedulerEnabled = config.getBoolean(CONF_SCHEDULER_BASH_ENABLED);
+		this.bashJobSchedulerEnabled = config.getBoolean(CONF_BASH_ENABLED);
 
 		logger.info("runnable jobs can wait " + waitRunnableTimeout + " seconds in queue");
 		logger.info("check jobs every " + jobTimerInterval / 1000 + " second(s)");
@@ -206,6 +217,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 								new IdPair(idPair.getSessionId(), idPair.getJobId()),
 								job.getCreatedBy(),
 								getSlots(job, tool),
+								getStorage(job, tool),
 								tool,
 								runtime);
 						schedule(idPair, schedulerJob);
@@ -243,10 +255,12 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 						}
 
 						int slots = getSlots(job, tool);
+						Integer storage = getStorage(job, tool);
+
 						SchedulerJob schedulerJob = jobs.addRunningJob(
 								new IdPair(idPair.getSessionId(), idPair.getJobId()), job.getCreatedBy(),
-								slots, tool, runtime);
-						this.getJobScheduler(schedulerJob).addRunningJob(idPair, slots, tool);
+								slots, storage, tool, runtime);
+						this.getJobScheduler(schedulerJob).addRunningJob(idPair, slots, storage, tool);
 					} catch (RestException | IOException e) {
 						logger.error("could add a running job " + asShort(idPair.getJobId()), e);
 					}
@@ -257,17 +271,65 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private int getSlots(Job job, ToolboxTool tool) {
 
-		if (tool == null) {
-			logger.info("tried to get the slot count of tool " + job.getToolId()
-					+ " from toolbox but the tool was not found, default to 1");
-			return 1;
+		int cpuSlots = -1;
+		int memorySlots = -1;
+
+		if (job.getMemoryLimit() != null) {
+			// one slot is 8 GiB
+			memorySlots = (int) (job.getMemoryLimit() / (8l * 1024 * 1024 * 1024));
 		}
-		Integer slots = tool.getSadlDescription().getSlotCount();
-		if (slots == null) {
-			logger.info("tool " + job.getToolId() + " slots is null, default to 1");
-			return 1;
+
+		if (job.getCpuLimit() != null) {
+			cpuSlots = (int) (job.getCpuLimit() / 2);
 		}
+
+		int slots = Math.max(memorySlots, cpuSlots);
+
+		if (slots > 0) {
+
+			logger.info("client requested slots: " + slots);
+		} else {
+
+			if (tool == null) {
+				logger.info("tried to get the slot count of tool " + job.getToolId()
+						+ " from toolbox but the tool was not found, default to 1");
+				slots = 1;
+			} else {
+				Integer toolSlots = tool.getSadlDescription().getSlotCount();
+
+				if (toolSlots == null) {
+					logger.info("tool " + job.getToolId() + " slots is null, default to 1");
+					slots = 1;
+				} else {
+					slots = toolSlots;
+				}
+			}
+		}
+
 		return slots;
+	}
+
+	private Integer getStorage(Job job, ToolboxTool tool) {
+
+		Integer storage = null;
+
+		// TODO add a separate field
+		if (job.getStorageUsage() != null && job.getStorageUsage() > 0) {
+			// bytes in Job, GiB in SchedulerJob
+			storage = (int) (job.getStorageUsage() / (1024. * 1024 * 1024));
+			logger.info("client requested storage: " + storage);
+		} else {
+
+			if (tool == null) {
+				logger.info("tried to get the amount of storage in tool " + job.getToolId()
+						+ " from toolbox but the tool was not found");
+			} else {
+
+				storage = tool.getSadlDescription().getStorage();
+			}
+		}
+
+		return storage;
 	}
 
 	/**
@@ -382,6 +444,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 							// when a client adds a new job, try to schedule it immediately
 							logger.info("received a new job " + jobIdPair + ", trying to schedule it");
 							SchedulerJob jobState = jobs.addNewJob(jobIdPair, job.getCreatedBy(), getSlots(job, tool),
+									getStorage(job, tool),
 									tool, runtime);
 							schedule(jobIdPair, jobState);
 
@@ -545,13 +608,16 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private void schedule(IdPair idPair, SchedulerJob jobState) {
 
-		boolean slotsPerUserReached = false;
+		boolean perUserSlotsReached = false;
+		boolean perUserStorageReached = false;
 
 		synchronized (jobs) {
 
 			int userNewCount = jobs.getNewSlots(jobState.getUserId());
 			int userScheduledCount = jobs.getScheduledSlots(jobState.getUserId());
 			int userRunningCount = jobs.getRunningSlots(jobState.getUserId());
+			int userScheduledStorage = jobs.getScheduledStorage(jobState.getUserId());
+			int userRunningStorage = jobs.getRunningStorage(jobState.getUserId());
 
 			// check if user is allowed to run jobs of this size
 			if (jobState.getSlots() > this.maxScheduledAndRunningSlotsPerUser) {
@@ -582,19 +648,44 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 						+ ") reached by user " + jobState.getUserId());
 				// user's slot quota is full
 				// keep the job in queue and try again later
-				slotsPerUserReached = true;
+				perUserSlotsReached = true;
+			}
+
+			// counting only special requests for now
+			int jobStorage = jobState.getStorage() != null ? jobState.getStorage() : 0;
+
+			// check if user is allowed to run jobs of this size
+			if (jobStorage > this.maxScheduledAndRunningStoragePerUser) {
+				logger.info("user " + jobState.getUserId() + " cannot run jobs with storage " + jobStorage);
+				this.jobs.remove(idPair);
+				this.endJob(idPair, JobState.ERROR,
+						"Not enough job storage. The job requested " + jobStorage
+								+ " GiB but your user account can use only "
+								+ this.maxScheduledAndRunningStoragePerUser + " GiB.",
+						null);
+				return;
+			}
+
+			// keep in queue if normal personal limit of storage in running jobs is reached
+			if (userRunningStorage + userScheduledStorage
+					+ jobStorage > this.maxScheduledAndRunningStoragePerUser) {
+				logger.info("max job storage of running jobs (" + this.maxScheduledAndRunningStoragePerUser
+						+ ") reached by user " + jobState.getUserId());
+				// user's slot quota is full
+				// keep the job in queue and try again later
+				perUserStorageReached = true;
 			}
 
 			// schedule
 
 			// set the schedule timestamp to be able to calculate user's slot quota when
 			// many jobs are started at the same time
-			if (!slotsPerUserReached) {
+			if (!perUserSlotsReached && !perUserStorageReached) {
 				jobState.setScheduleTimestamp();
 			}
 		}
 
-		if (slotsPerUserReached) {
+		if (perUserSlotsReached || perUserStorageReached) {
 
 			// update job after releasing the this.jobs lock
 			HashSet<JobState> allowedStates = new HashSet<>() {
@@ -605,8 +696,13 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			};
 
 			try {
-				this.bashJobScheduler.updateDbJob(idPair, JobState.WAITING, "max job count reached", null,
-						allowedStates);
+				String stateDetail = "max job count reached";
+
+				if (perUserStorageReached) {
+					stateDetail = "max storage reached";
+				}
+
+				this.bashJobScheduler.updateDbJob(idPair, JobState.WAITING, stateDetail, null, allowedStates);
 
 			} catch (IllegalStateException | RestException e) {
 				logger.error("failed to update job " + idPair.toString(), e);
@@ -617,7 +713,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 			JobScheduler jobScheduler = this.getJobScheduler(jobState);
 			logger.info("schedule job " + idPair + " using " + jobScheduler.getClass().getSimpleName());
-			jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getTool(), jobState.getRuntime());
+			jobScheduler.scheduleJob(idPair, jobState.getSlots(), jobState.getStorage(), jobState.getTool(),
+					jobState.getRuntime());
 		}
 	}
 

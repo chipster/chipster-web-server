@@ -45,6 +45,18 @@ public class SchedulerJobs {
 		return getSlots(getNewJobs().values(), userId);
 	}
 
+	public int getRunningStorage(String userId) {
+		return getStorage(getRunningJobs().values(), userId);
+	}
+
+	public int getScheduledStorage(String userId) {
+		return getStorage(getScheduledJobs().values(), userId);
+	}
+
+	public int getNewStorage(String userId) {
+		return getStorage(getNewJobs().values(), userId);
+	}
+
 	public static int getSlots(Collection<SchedulerJob> jobs) {
 		return jobs.stream()
 				.mapToInt(j -> j.getSlots())
@@ -58,18 +70,29 @@ public class SchedulerJobs {
 				.sum();
 	}
 
+	public int getStorage(Collection<SchedulerJob> jobs, String userId) {
+		return jobs.stream()
+				.filter(j -> userId.equals(j.getUserId()))
+				// will count only special requests for now
+				.filter(j -> j.getStorage() != null)
+				.mapToInt(j -> j.getStorage())
+				.sum();
+	}
+
 	public SchedulerJob remove(IdPair jobId) {
 		return jobs.remove(jobId);
 	}
 
-	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, ToolboxTool tool, Runtime runtime) {
-		SchedulerJob jobState = new SchedulerJob(userId, slots, tool, runtime);
+	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, Integer storage, ToolboxTool tool,
+			Runtime runtime) {
+		SchedulerJob jobState = new SchedulerJob(userId, slots, storage, tool, runtime);
 		jobs.put(idPair, jobState);
 		return jobState;
 	}
 
-	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, ToolboxTool tool, Runtime runtime) {
-		SchedulerJob job = new SchedulerJob(userId, slots, tool, runtime);
+	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, Integer storage, ToolboxTool tool,
+			Runtime runtime) {
+		SchedulerJob job = new SchedulerJob(userId, slots, storage, tool, runtime);
 		job.setRunningTimestamp();
 		jobs.put(idPair, job);
 		return job;

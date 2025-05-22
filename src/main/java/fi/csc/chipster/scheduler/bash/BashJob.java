@@ -7,12 +7,17 @@ import fi.csc.chipster.toolbox.ToolboxTool;
 public class BashJob {
 
 	private Instant heartbeatTimestamp;
+	// slots are always set to make it easy to count quotas
 	private int slots;
+	// storage may be null, to stay consistent with the original request
+	private Integer storage;
+
 	private ToolboxTool tool;
 
-	public BashJob(int slots, ToolboxTool tool) {
+	public BashJob(int slots, Integer storage, ToolboxTool tool) {
 		this.slots = slots;
 		this.tool = tool;
+		this.storage = storage;
 	}
 
 	public Instant getHeartbeatTimestamp() {
@@ -37,5 +42,13 @@ public class BashJob {
 
 	public void setTool(ToolboxTool tool) {
 		this.tool = tool;
+	}
+
+	public Integer getStorage() {
+		return storage;
+	}
+
+	public void setStorage(Integer storage) {
+		this.storage = storage;
 	}
 }
