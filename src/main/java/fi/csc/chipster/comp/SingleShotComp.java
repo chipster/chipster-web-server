@@ -12,6 +12,9 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.resourcemonitor.ProcessMonitoring;
 import fi.csc.chipster.comp.resourcemonitor.singleshot.SingleShotResourceMonitor;
@@ -21,7 +24,9 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.token.TokenRequestFilter;
+import fi.csc.chipster.scheduler.SchedulerClient;
 import fi.csc.chipster.scheduler.offer.JobCommand;
+import fi.csc.chipster.scheduler.resource.SchedulerResource;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -138,20 +143,6 @@ public class SingleShotComp
 		logger.info("inputFileTlsVersion: " + inputFileTlsVersion);
 		logger.info("inputFileHttp2: " + inputFileHttp2);
 		logger.info("inputFileCipher: " + inputFileCipher);
-
-		if (config.getString(KEY_COMP_MAX_STORAGE).isEmpty()) {
-
-			logger.info("storage limit is disabled");
-
-		} else {
-
-			long storageLimitGB = config.getLong(KEY_COMP_MAX_STORAGE);
-
-			logger.info("storage limit is " + storageLimitGB + " GB");
-
-			// convert gigabytes to bytes
-			this.storageLimit = storageLimitGB * 1024 * 1024 * 1024;
-		}
 
 		// initialize working directory
 		this.workDir = new File("jobs-data", compId.toString());
@@ -346,7 +337,7 @@ public class SingleShotComp
 		return this.toolboxClient;
 	}
 
-	private CompJob getCompJob(UUID sessionId, UUID jobId) {
+	private CompJob getCompJob(UUID sessionId, UUID jobId) throws JsonMappingException, JsonProcessingException {
 
 		Job dbJob;
 		try {
@@ -388,6 +379,38 @@ public class SingleShotComp
 			logger.warn(String.format("runtime %s for tool %s not found, ignoring job message",
 					toolboxTool.getRuntime(), dbJob.getToolId()));
 			return null;
+		}
+
+		// configure storage limit
+		// it's not great to configure this in a "get" method, but we don't have the
+		// dbJob after this
+
+		Long jobLimit = dbJob.getStorageUsage();
+
+		Long configLimit = null;
+		if (!config.getString(KEY_COMP_MAX_STORAGE).isEmpty()) {
+			configLimit = config.getLong(KEY_COMP_MAX_STORAGE);
+		}
+
+		if (configLimit != null) {
+			// comp config can override other limits
+			logger.info("storage limit from configuration is " + configLimit + " GiB");
+
+			// convert gigabytes to bytes
+			this.storageLimit = configLimit * 1024 * 1024 * 1024;
+		} else if (jobLimit != null) {
+			logger.info("storage limit from job is " + jobLimit / (1024 * 1024 * 1024) + " GiB");
+
+			// already in bytes
+			this.storageLimit = jobLimit;
+		} else {
+			Integer schedulerLimit = (Integer) new SchedulerClient(serviceLocator.getPublicUri(Role.SCHEDULER))
+					.getQuotas().get(SchedulerResource.KEY_DEFAULT_STORAGE);
+
+			logger.info("storage limit from scheduler is " + schedulerLimit + " GiB");
+
+			// convert gigabytes to bytes
+			this.storageLimit = schedulerLimit * 1024l * 1024 * 1024;
 		}
 
 		// get factory from runtime and create the job instance

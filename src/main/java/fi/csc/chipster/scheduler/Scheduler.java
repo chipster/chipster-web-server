@@ -1,6 +1,7 @@
 package fi.csc.chipster.scheduler;
 
 import java.io.IOException;
+import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -15,17 +16,22 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.JerseyStatisticsSource;
+import fi.csc.chipster.rest.LogType;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.scheduler.bash.BashJobScheduler;
 import fi.csc.chipster.scheduler.offer.OfferJobScheduler;
+import fi.csc.chipster.scheduler.resource.SchedulerResource;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
@@ -54,6 +60,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	public static final String CONF_MAX_SCHEDULED_AND_RUNNING_SLOTS_PER_USER = "scheduler-max-scheduled-and-running-slots-per-user";
 	public static final String CONF_MAX_SCHEDULED_AND_RUNNING_STORAGE_PER_USER = "scheduler-max-scheduled-and-running-storage-per-user";
 	public static final String CONF_MAX_NEW_SLOTS_PER_USER = "scheduler-max-new-slots-per-user";
+	public static final String CONF_DEFAULT_STORAGE_PER_JOB = "scheduler-default-storage-per-job";
 
 	@SuppressWarnings("unused")
 	private String serviceId;
@@ -84,6 +91,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	private boolean getJobsFromDb;
 
 	private boolean bashJobSchedulerEnabled;
+
+	private HttpServer httpServer;
 
 	public Scheduler(Config config) {
 		this.config = config;
@@ -125,8 +134,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 		logger.info("start " + BashJobScheduler.class.getSimpleName());
 		this.bashJobScheduler = new BashJobScheduler(this, this.sessionDbClient, this.serviceLocator, config);
-		logger.info("start " + OfferJobScheduler.class.getSimpleName());
-		this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
+		// logger.info("start " + OfferJobScheduler.class.getSimpleName());
+		// this.offerJobScheduler = new OfferJobScheduler(config, authService, this);
 
 		if (this.getJobsFromDb) {
 			logger.info("getting unfinished jobs from the session-db");
@@ -140,7 +149,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		long jobTimerStartDelay = Math.max(
 				this.jobTimerInterval,
 				Math.max(this.bashJobScheduler.getHeartbeatInterval(),
-						this.offerJobScheduler.getHeartbeatInterval()))
+						this.offerJobScheduler != null ? this.offerJobScheduler.getHeartbeatInterval() : 0))
 				+ 1000;
 
 		this.jobTimer = new Timer("job timer", true);
@@ -156,10 +165,40 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 			}
 		}, jobTimerStartDelay, jobTimerInterval);
 
+		logger.info("starting scheduler API server");
+
+		JerseyStatisticsSource jerseyStatisticsSource = null;
+
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
+				.register(new SchedulerResource(config));
+
+		// this must be called before the server is started, otherwise throws an
+		// IllegalStateException
+		jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+
+		// create and start a new instance of grizzly http server
+		// exposing the Jersey application at BASE_URI
+		URI baseUri = URI.create(config.getBindUrl(Role.SCHEDULER));
+		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+		RestUtils.configureGrizzlyThreads(httpServer, Role.SCHEDULER, false, config);
+		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SCHEDULER, LogType.API);
+
+		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+
+		httpServer.start();
+		logger.info("scheduler service running at " + baseUri);
+
 		logger.info("starting the admin rest server");
 
+		AdminResource adminResource = null;
+		if (offerJobScheduler != null) {
+			adminResource = new AdminResource(config, this, offerJobScheduler.getPubSubServer());
+		} else {
+			adminResource = new AdminResource(config, this);
+		}
+
 		this.adminServer = RestUtils.startAdminServer(
-				new AdminResource(config, this, offerJobScheduler.getPubSubServer()),
+				adminResource,
 				null, Role.SCHEDULER,
 				config, authService, this.serviceLocator);
 
@@ -367,6 +406,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		authService.close();
 
 		RestUtils.shutdown("scheduler-admin", adminServer);
+		RestUtils.shutdown("scheduler", httpServer);
 	}
 
 	@Override

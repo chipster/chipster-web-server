@@ -43,8 +43,7 @@ if [ -n "$STORAGE" ]; then
   echo "use PVC for working directory: $STORAGE GiB"
 
   pod_patch="$pod_patch |
-    .spec.volumes += [{\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}] |
-    .spec.containers[0].env += [{\"name\": \"comp_max_storage\", \"value\": \"\" }]"
+    .spec.volumes += [{\"name\": \"jobs-data\", \"persistentVolumeClaim\": { \"claimName\": \"$POD_NAME\"}}]"
 
   pvc_patch=".metadata.name=\"$POD_NAME\" |
     .spec.resources.requests.storage=\"${STORAGE}Gi\" |

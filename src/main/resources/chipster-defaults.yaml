@@ -33,7 +33,10 @@ url-int-session-db: http://{{public-ip}}:8004
 url-ext-session-db: http://{{public-ip}}:8004
 url-int-session-db-events: ws://{{public-ip}}:8005
 url-ext-session-db-events: ws://{{public-ip}}:8005
-url-int-scheduler: ws://{{public-ip}}:8006
+url-int-scheduler: http://{{public-ip}}:8006
+url-ext-scheduler: http://{{public-ip}}:8006
+# legacy OfferJobScheduler
+url-int-scheduler-events: ws://{{public-ip}}:8011
 url-int-file-broker: http://{{public-ip}}:8007
 url-ext-file-broker: http://{{public-ip}}:8007
 url-int-toolbox: http://{{public-ip}}:8008
@@ -68,7 +71,8 @@ url-bind-auth: http://{{bind-ip}}:8002
 url-bind-service-locator: http://{{bind-ip}}:8003
 url-bind-session-db: http://{{bind-ip}}:8004
 url-bind-session-db-events: ws://{{bind-ip}}:8005
-url-bind-scheduler: ws://{{bind-ip}}:8006
+url-bind-scheduler: http://{{bind-ip}}:8006
+url-bind-scheduler-events: ws://{{bind-ip}}:8011
 url-bind-file-broker: http://{{bind-ip}}:8007
 url-bind-toolbox: http://{{bind-ip}}:8008
 url-bind-session-worker: http://{{bind-ip}}:8009
@@ -267,8 +271,8 @@ comp-resource-monitoring-interval: 10000
 # timeout after which a job is killed, seconds
 comp-job-timeout: 604800 # a week
 comp-chipster-root-dir: "."
-# cancel job if its storage usage grows larger than this, in gigabytes. Empty string "" disables the limit
-comp-max-storage: 200
+# cancel job if its storage usage grows larger than this, in gigabytes. Empty string "" requests the limit from scheduler-default-storage-per-job
+comp-max-storage: ""
 
 # set non-default TLS version e.g. "TLSv1.2" when the comp downloads input files and file-broker url starts with https://
 comp-input-file-tls-version: ""
@@ -291,6 +295,8 @@ scheduler-job-timer-interval: 1
 scheduler-max-scheduled-and-running-slots-per-user: 10
 # max number of scheduled and running job storage per user
 scheduler-max-scheduled-and-running-storage-per-user: 2000
+# default job storage
+scheduler-default-storage-per-job: 200
 # how many job (slots) can be waiting for the free running slots (per user limit)
 scheduler-max-new-slots-per-user: 1000
 # get running jobs from the database in startup
