@@ -405,7 +405,7 @@ public class SingleShotComp
 			this.storageLimit = jobLimit;
 		} else {
 			Integer schedulerLimit = (Integer) new SchedulerClient(serviceLocator.getPublicUri(Role.SCHEDULER))
-					.getQuotas().get(SchedulerResource.KEY_DEFAULT_STORAGE);
+					.getJobQuota().get(SchedulerResource.KEY_DEFAULT_STORAGE);
 
 			logger.info("storage limit from scheduler is " + schedulerLimit + " GiB");
 

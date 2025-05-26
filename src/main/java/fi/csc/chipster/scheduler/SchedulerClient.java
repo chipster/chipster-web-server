@@ -18,9 +18,9 @@ public class SchedulerClient {
 		this.baseUri = schedulerUri;
 	}
 
-	public HashMap<String, Object> getQuotas() throws JsonMappingException, JsonProcessingException {
+	public HashMap<String, Object> getJobQuota() throws JsonMappingException, JsonProcessingException {
 
-		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("quotas");
+		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("jobQuota");
 
 		String json = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 

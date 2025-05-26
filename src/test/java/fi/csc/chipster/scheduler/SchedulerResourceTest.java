@@ -33,6 +33,6 @@ public class SchedulerResourceTest {
 
 		SchedulerClient client = new SchedulerClient(launcher.getTargetUri(Role.SCHEDULER));
 
-		assertEquals(200, client.getQuotas().get(SchedulerResource.KEY_DEFAULT_STORAGE));
+		assertEquals(200, client.getJobQuota().get(SchedulerResource.KEY_DEFAULT_STORAGE));
 	}
 }

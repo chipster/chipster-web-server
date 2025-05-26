@@ -21,7 +21,7 @@ import jakarta.ws.rs.core.Response;
  * the app and comp. This allows these limits to be configured only in one
  * place.
  */
-@Path("quotas")
+@Path("")
 public class SchedulerResource {
 
     private static final String KEY_DEFAULT_SLOTS = "default-slots";
@@ -37,8 +37,9 @@ public class SchedulerResource {
     }
 
     @GET
+    @Path("jobQuota")
     @Produces(MediaType.APPLICATION_JSON)
-    public final Response get() {
+    public final Response getJobQuota() {
 
         HashMap<String, Object> quotas = new HashMap<>();
 
