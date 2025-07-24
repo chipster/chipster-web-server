@@ -30,6 +30,8 @@ public class SchedulerResource {
     private static final String KEY_SLOT_CPU = "slot-cpu";
     private static final String KEY_MAX_STORAGE = "max-storage";
     private static final String KEY_MAX_SLOTS = "max-slots";
+    private static final String KEY_PREFERRED_SLOTS = "preferred-slots";
+    private static final String KEY_PREFERRED_STORAGE = "preferred-storage";
     private Config config;
 
     public SchedulerResource(Config config) {
@@ -51,6 +53,8 @@ public class SchedulerResource {
         quotas.put(KEY_SLOT_CPU, config.getLong(BashJobScheduler.CONF_BASH_SLOT_CPU));
         quotas.put(KEY_SLOT_MEMORY, config.getLong(BashJobScheduler.CONF_BASH_SLOT_MEMORY));
         quotas.put(KEY_DEFAULT_STORAGE, config.getLong(Scheduler.CONF_DEFAULT_STORAGE_PER_JOB));
+        quotas.put(KEY_PREFERRED_SLOTS, config.getLong(Scheduler.CONF_PREFERRED_MAX_SLOTS_PER_JOB));
+        quotas.put(KEY_PREFERRED_STORAGE, config.getLong(Scheduler.CONF_PREFERRED_MAX_STORAGE_PER_JOB));
         quotas.put(KEY_DEFAULT_SLOTS, 1);
 
         return Response.ok(quotas).build();

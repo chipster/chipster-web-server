@@ -61,6 +61,8 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	public static final String CONF_MAX_SCHEDULED_AND_RUNNING_STORAGE_PER_USER = "scheduler-max-scheduled-and-running-storage-per-user";
 	public static final String CONF_MAX_NEW_SLOTS_PER_USER = "scheduler-max-new-slots-per-user";
 	public static final String CONF_DEFAULT_STORAGE_PER_JOB = "scheduler-default-storage-per-job";
+	public static final String CONF_PREFERRED_MAX_SLOTS_PER_JOB = "scheduler-preferred-max-slots-per-job";
+	public static final String CONF_PREFERRED_MAX_STORAGE_PER_JOB = "scheduler-preferred-max-storage-per-job";
 
 	@SuppressWarnings("unused")
 	private String serviceId;

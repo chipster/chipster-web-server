@@ -297,6 +297,10 @@ scheduler-max-scheduled-and-running-slots-per-user: 10
 scheduler-max-scheduled-and-running-storage-per-user: 2000
 # default job storage
 scheduler-default-storage-per-job: 200
+# ask client to limit job size for small tools (which don't define any # SLOTS)
+scheduler-preferred-max-slots-per-job: 5
+# ask client to limit job storage size for small tools (which don't define any # STORAGE)
+scheduler-preferred-max-storage-per-job: 1000
 # how many job (slots) can be waiting for the free running slots (per user limit)
 scheduler-max-new-slots-per-user: 1000
 # get running jobs from the database in startup
