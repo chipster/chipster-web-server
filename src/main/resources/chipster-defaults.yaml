@@ -412,6 +412,10 @@ toolbox-runtime-command-R-4.2.3-seurat5: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3-seurat5: comp-r-4-2-3-seurat5
 toolbox-runtime-tools-bin-path-R-4.2.3-seurat5: tools-bin
 
+toolbox-runtime-command-R-4.2.3-seurat-5-3: /opt/chipster/tools/R-4.2.3/bin/R
+toolbox-runtime-image-R-4.2.3-seurat-5-3: comp-r-4-2-3-seurat-5-3
+toolbox-runtime-tools-bin-path-R-4.2.3-seurat-5-3: tools-bin
+
 # additional R package installed in image build, so the path is the same as in plain R-4.2.3
 toolbox-runtime-command-R-4.2.3-cellbender: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3-cellbender: comp-r-4-2-3-cellbender
