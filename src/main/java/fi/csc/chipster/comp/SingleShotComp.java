@@ -311,6 +311,23 @@ public class SingleShotComp
 			dbJob.setMemoryUsage(this.resourceMonitor.getMaxMem());
 			dbJob.setStorageUsage(this.resourceMonitor.getMaxStorage());
 
+			/*
+			 * Set storage limit for jobs that are using the default (null)
+			 * 
+			 * This field has two related purposes: 1. what user requested (for new jobs) 2.
+			 * what limit was eventually used (for old jobs). When user requested the
+			 * default (null), then we want to replace it with the actual limit that the app
+			 * can show for old jobs. By doing it here in the comp (instead of already in
+			 * scheduler), the sceduler can see the original request and decide if a
+			 * separate working directory volume is needed or not.
+			 * 
+			 * Cpu and memory limits are set already in scheduler, because in those the
+			 * distinction between the default null vs. 1 slot doesn't matter.
+			 */
+			if (dbJob.getStorageLimit() == null) {
+				dbJob.setStorageLimit(this.storageLimit);
+			}
+
 			sessionDbClient.updateJob(jobCommand.getSessionId(), dbJob);
 
 			logger.info("result message sent (" + result.getJobId() + " " + result.getState() + ")");
