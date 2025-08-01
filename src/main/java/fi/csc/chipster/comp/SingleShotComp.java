@@ -385,7 +385,7 @@ public class SingleShotComp
 		// it's not great to configure this in a "get" method, but we don't have the
 		// dbJob after this
 
-		Long jobLimit = dbJob.getStorageUsage();
+		Long jobLimit = dbJob.getStorageLimit();
 
 		Long configLimit = null;
 		if (!config.getString(KEY_COMP_MAX_STORAGE).isEmpty()) {

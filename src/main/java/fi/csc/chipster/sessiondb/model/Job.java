@@ -48,6 +48,8 @@ public class Job {
 	private Long storageUsage;
 	private Long memoryLimit;
 	private Integer cpuLimit;
+	private Long storageLimit;
+	private Integer slotLimit;
 
 	private String createdBy;
 	private String comp;
@@ -268,5 +270,21 @@ public class Job {
 
 	public void setOutputs(List<Output> outputs) {
 		this.outputs = outputs;
+	}
+
+	public Long getStorageLimit() {
+		return this.storageLimit;
+	}
+
+	public void setStorageLimit(Long storageLimit) {
+		this.storageLimit = storageLimit;
+	}
+
+	public Integer getSlotLimit() {
+		return this.slotLimit;
+	}
+
+	public void setSlotLimit(Integer slotLimit) {
+		this.slotLimit = slotLimit;
 	}
 }

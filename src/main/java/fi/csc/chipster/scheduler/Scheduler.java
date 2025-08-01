@@ -312,52 +312,37 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 	private int getSlots(Job job, ToolboxTool tool) {
 
-		int cpuSlots = -1;
-		int memorySlots = -1;
+		if (job.getSlotLimit() != null && job.getSlotLimit() > 0) {
+			logger.info("client requested slots: " + job.getSlotLimit());
+			return job.getSlotLimit();
 
-		if (job.getMemoryLimit() != null) {
-			// one slot is 8 GiB
-			memorySlots = (int) (job.getMemoryLimit() / (8l * 1024 * 1024 * 1024));
-		}
-
-		if (job.getCpuLimit() != null) {
-			cpuSlots = (int) (job.getCpuLimit() / 2);
-		}
-
-		int slots = Math.max(memorySlots, cpuSlots);
-
-		if (slots > 0) {
-
-			logger.info("client requested slots: " + slots);
 		} else {
 
 			if (tool == null) {
 				logger.info("tried to get the slot count of tool " + job.getToolId()
 						+ " from toolbox but the tool was not found, default to 1");
-				slots = 1;
+				return 1;
+
 			} else {
 				Integer toolSlots = tool.getSadlDescription().getSlotCount();
 
 				if (toolSlots == null) {
 					logger.info("tool " + job.getToolId() + " slots is null, default to 1");
-					slots = 1;
+					return 1;
 				} else {
-					slots = toolSlots;
+					return toolSlots;
 				}
 			}
 		}
-
-		return slots;
 	}
 
 	private Integer getStorage(Job job, ToolboxTool tool) {
 
 		Integer storage = null;
 
-		// TODO add a separate field
-		if (job.getStorageUsage() != null && job.getStorageUsage() > 0) {
+		if (job.getStorageLimit() != null && job.getStorageLimit() > 0) {
 			// bytes in Job, GiB in SchedulerJob
-			storage = (int) (job.getStorageUsage() / (1024. * 1024 * 1024));
+			storage = (int) (job.getStorageLimit() / (1024. * 1024 * 1024));
 			logger.info("client requested storage: " + storage);
 		} else {
 
