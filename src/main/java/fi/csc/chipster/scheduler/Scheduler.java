@@ -809,7 +809,9 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		status.put("runningSlotCount", SchedulerJobs.getSlots(jobs.getRunningJobs().values()));
 		status.put("scheduledSlotCount", SchedulerJobs.getSlots(jobs.getScheduledJobs().values()));
 
-		status.putAll(this.offerJobScheduler.getStatus());
+		if (this.offerJobScheduler != null) {
+			status.putAll(this.offerJobScheduler.getStatus());
+		}
 		status.putAll(this.bashJobScheduler.getStatus());
 
 		return status;
