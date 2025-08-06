@@ -52,7 +52,7 @@ public class PubSubConfigurator extends Configurator {
 		List<String> xForwaredForList = request.getHeaders().get(X_FORWARDED_FOR);
 		String xForwaredFor = null;
 
-		if (xForwaredForList != null) {
+		if (xForwaredForList != null && xForwaredForList.size() > 0) {
 			xForwaredFor = xForwaredForList.get(0);
 		}
 

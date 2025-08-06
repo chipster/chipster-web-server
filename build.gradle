@@ -94,49 +94,49 @@ dependencies {
     implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.+"
 
     // jersey
-    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.8"
-    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.8"
-    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.8"
-    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.8" // @NonNull needs this 
+    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.10"
+    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.10"
+    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.10"
+    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.10" // @NonNull needs this 
         
     // Jersey in Jetty (session-worker)            
-    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.8"  
+    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.10"  
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.13"
-    implementation "org.eclipse.jetty:jetty-server:12.0.13"
+    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.23"
+    implementation "org.eclipse.jetty:jetty-server:12.0.23"
 
     // jetty client for file downloads with specific HTTP, cipher or TLS versions
-    implementation "org.eclipse.jetty:jetty-client:12.0.13"
-    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.0.13"
-    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.0.13"
+    implementation "org.eclipse.jetty:jetty-client:12.0.23"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.0.23"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.0.23"
 
     // websockets 
     // API 2.1.0 == ee10
-    implementation "jakarta.websocket:jakarta.websocket-api:2.1.1"
-    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.0.13"
+    implementation "jakarta.websocket:jakarta.websocket-api:2.2.0"
+    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.0.23"
     
     // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:12.0.13"    
+    implementation "org.eclipse.jetty:jetty-rewrite:12.0.23"    
     
         
     // jackson
-	implementation "com.fasterxml.jackson.core:jackson-core:2.18.0"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.0"
+	implementation "com.fasterxml.jackson.core:jackson-core:2.19.2"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.0"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.19.2"
 	
     // hibernate
-    implementation "org.hibernate.orm:hibernate-core:6.6.1.Final"
-    implementation "org.hibernate.orm:hibernate-c3p0:6.6.1.Final"
+    implementation "org.hibernate.orm:hibernate-core:7.0.9.Final"
+    implementation "org.hibernate.orm:hibernate-c3p0:7.0.9.Final"
     // schema export
-    implementation "org.hibernate.orm:hibernate-ant:6.6.1.Final"
+    implementation "org.hibernate.orm:hibernate-ant:7.0.9.Final"
     implementation "org.postgresql:postgresql:+"
     
     // flyway
-    implementation "org.flywaydb:flyway-core:10.+"
-    implementation "org.flywaydb:flyway-database-postgresql:10.+"
+    implementation "org.flywaydb:flyway-core:11.+"
+    implementation "org.flywaydb:flyway-database-postgresql:11.+"
 
     
     // S3StorageClient and db backups
