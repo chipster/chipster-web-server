@@ -409,9 +409,6 @@ toolbox-runtime-image-R-4.1.1: comp-20-04-r-deps
 toolbox-runtime-command-R-4.1.1-statistics: /opt/chipster/tools/R-4.1.1-statistics/bin/R
 toolbox-runtime-image-R-4.1.1-statistics: comp-20-04-r-deps
 
-toolbox-runtime-command-R-4.2.0-single-cell: /opt/chipster/tools/R-4.2.0-single-cell/bin/R
-toolbox-runtime-image-R-4.2.0-single-cell: comp-20-04-single-cell
-
 toolbox-runtime-command-R-4.2.3: /opt/chipster/tools/R-4.2.3/bin/R
 toolbox-runtime-image-R-4.2.3: comp-r-4-2-3
 toolbox-runtime-tools-bin-path-R-4.2.3: tools-bin
