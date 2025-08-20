@@ -27,7 +27,7 @@ public class UserTable {
 
     public User get(UserId userId, Session hibernateSession) {
 
-        User user = hibernateSession.get(User.class, userId);
+        User user = hibernateSession.find(User.class, userId);
 
         // turning all read requests to writes is probably a terrible idea
         // performance-wise
@@ -127,7 +127,7 @@ public class UserTable {
         HibernateUtil.update(user, user.getUserId(), hibernateSession);
     }
 
-	public List<User> getAll() {
-		return this.hibernate.session().createQuery("from " + User.class.getSimpleName(), User.class).list();
-	}
+    public List<User> getAll() {
+        return this.hibernate.session().createQuery("from " + User.class.getSimpleName(), User.class).list();
+    }
 }

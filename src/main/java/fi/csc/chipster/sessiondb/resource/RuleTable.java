@@ -70,7 +70,7 @@ public class RuleTable {
 	}
 
 	public Rule getRule(UUID ruleId, org.hibernate.Session hibernateSession) {
-		Rule auth = hibernateSession.get(Rule.class, ruleId);
+		Rule auth = hibernateSession.find(Rule.class, ruleId);
 		return auth;
 	}
 
@@ -322,7 +322,7 @@ public class RuleTable {
 
 			UUID jwsSessionId = sessionToken.getSessionId();
 
-			Session session = hibernateSession.get(Session.class, requestSessionId);
+			Session session = hibernateSession.find(Session.class, requestSessionId);
 
 			if (session == null) {
 				throw new NotFoundException("session not found");
@@ -397,7 +397,7 @@ public class RuleTable {
 				throw new ForbiddenException("dataset tokens are read-only");
 			}
 
-			Session session = hibernateSession.get(Session.class, requestSessionId);
+			Session session = hibernateSession.find(Session.class, requestSessionId);
 
 			// sanity check although SessionResoure probably has checked this already
 			if (session == null) {

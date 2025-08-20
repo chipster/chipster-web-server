@@ -204,7 +204,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler, 
 			@Override
 			public Void run(Session hibernateSession) {
 
-				JobHistory js = hibernateSession.get(JobHistory.class, new JobIdPair(sessionId, jobId));
+				JobHistory js = hibernateSession.find(JobHistory.class, new JobIdPair(sessionId, jobId));
 				// the HibbernateUtil.update() assumes detached objects, otherwise it won't
 				// notice the changes
 				hibernateSession.detach(js);

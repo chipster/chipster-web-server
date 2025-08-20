@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.BaseSessionEventListener;
+import org.hibernate.SessionEventListener;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -126,7 +126,7 @@ public class SessionDbApi {
 	public void publish(final String topic, final SessionEvent obj, org.hibernate.Session hibernateSession) {
 		// publish the event only after the transaction is completed to make
 		// sure that the modifications are visible
-		hibernateSession.addEventListeners(new BaseSessionEventListener() {
+		hibernateSession.addEventListeners(new SessionEventListener() {
 			@Override
 			public void transactionCompletion(boolean successful) {
 				// publish the original event
@@ -145,7 +145,7 @@ public class SessionDbApi {
 	public void publishAllTopics(SessionEvent event, org.hibernate.Session hibernateSession, Set<String> topicsToSkip) {
 		// publish the event only after the transaction is completed to make
 		// sure that the modifications are visible
-		hibernateSession.addEventListeners(new BaseSessionEventListener() {
+		hibernateSession.addEventListeners(new SessionEventListener() {
 			@Override
 			public void transactionCompletion(boolean successful) {
 				events.publishAllTopics(event, topicsToSkip);
@@ -287,7 +287,7 @@ public class SessionDbApi {
 	 */
 	public static Dataset getDataset(UUID sessionId, UUID datasetId, org.hibernate.Session hibernateSession) {
 
-		Dataset dataset = hibernateSession.get(Dataset.class, new DatasetIdPair(sessionId, datasetId));
+		Dataset dataset = hibernateSession.find(Dataset.class, new DatasetIdPair(sessionId, datasetId));
 		return dataset;
 	}
 
@@ -349,7 +349,7 @@ public class SessionDbApi {
 		if (FileUtils.isEmpty(dataset.getFile())) {
 			return;
 		}
-		File dbFile = hibernateSession.get(File.class, dataset.getFile().getFileId());
+		File dbFile = hibernateSession.find(File.class, dataset.getFile().getFileId());
 		if (dbFile != null) {
 			if (!dbFile.equals(dataset.getFile())) {
 				throw new ForbiddenException("modification of existing file is forbidden");
@@ -360,7 +360,7 @@ public class SessionDbApi {
 
 	public static Job getJob(UUID sessionId, UUID jobId, org.hibernate.Session hibernateSession) {
 
-		return hibernateSession.get(Job.class, new JobIdPair(sessionId, jobId));
+		return hibernateSession.find(Job.class, new JobIdPair(sessionId, jobId));
 	}
 
 	public static List<UUID> getJobIds(org.hibernate.Session hibernateSession, Session session) {
@@ -496,7 +496,7 @@ public class SessionDbApi {
 
 	public File getFile(@NotNull UUID fileId, SecurityContext sc) {
 
-		File file = hibernate.session().get(File.class, fileId);
+		File file = hibernate.session().find(File.class, fileId);
 
 		return file;
 	}
@@ -536,7 +536,7 @@ public class SessionDbApi {
 
 		logger.info("delete file " + fileId);
 
-		File file = hibernate.session().get(File.class, fileId);
+		File file = hibernate.session().find(File.class, fileId);
 
 		this.deleteFile(file);
 	}
