@@ -409,9 +409,6 @@ toolbox-runtime-image-R-4.1.1: comp-20-04-r-deps
 toolbox-runtime-command-R-4.1.1-statistics: /opt/chipster/tools/R-4.1.1-statistics/bin/R
 toolbox-runtime-image-R-4.1.1-statistics: comp-20-04-r-deps
 
-toolbox-runtime-command-R-4.1.1-asv: /opt/chipster/tools/R-4.1.1-asv/bin/R
-toolbox-runtime-image-R-4.1.1-asv: comp-20-04-asv
-
 # special image, but default R. Only an apt package is needed, but Chipster's config system apparently requires the command too
 toolbox-runtime-command-R-4.1.1-fastqc: /opt/chipster/tools/R-4.1.1/bin/R
 toolbox-runtime-image-R-4.1.1-fastqc: comp-20-04-fastqc
