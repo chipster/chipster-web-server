@@ -376,7 +376,7 @@ public class BashJobScheduler implements JobScheduler {
 			HashMap<String, String> env = getEnv(tool, runtime, idPair, slots, storage, sessionToken);
 
 			// use the conf key as a name in logs
-			this.runSchedulerBash(this.runScript, "run", env, null, true);
+			this.runSchedulerBash(this.runScript, "run", env, null, false);
 		}
 
 		if (isBusy) {
@@ -668,7 +668,7 @@ public class BashJobScheduler implements JobScheduler {
 		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
 
 		// use the conf key as a name in logs
-		this.runSchedulerBash(this.cancelScript, "cancel", env, null, true);
+		this.runSchedulerBash(this.cancelScript, "cancel", env, null, false);
 	}
 
 	@Override
@@ -691,7 +691,7 @@ public class BashJobScheduler implements JobScheduler {
 
 		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
 
-		this.runSchedulerBash(this.finishedScript, "finished", env, null, true);
+		this.runSchedulerBash(this.finishedScript, "finished", env, null, false);
 	}
 
 	@Override
@@ -732,7 +732,7 @@ public class BashJobScheduler implements JobScheduler {
 			 * alive and anything else when it isn't. This prevents us from
 			 * noticing (or even logging) any errors.
 			 */
-			Future<?> future = this.runSchedulerBash(this.heartbeatScript, "heartbeat", env, null, false);
+			Future<?> future = this.runSchedulerBash(this.heartbeatScript, "heartbeat", env, null, true);
 
 			// wait for the bash process
 			future.get();
@@ -787,8 +787,19 @@ public class BashJobScheduler implements JobScheduler {
 		}
 	}
 
+	/**
+	 * 
+	 * @param bashCommand
+	 * @param name
+	 * @param env
+	 * @param stdout
+	 * @param throwErrors set to true if you call .get() for the returned Future. If
+	 *                    you won't wait for the Future, set this to false and
+	 *                    errors will only be logged
+	 * @return
+	 */
 	private Future<?> runSchedulerBash(String bashCommand, String name, Map<String, String> env, StringBuffer stdout,
-			boolean logErrors) {
+			boolean throwErrors) {
 
 		Instant startInstant = Instant.now();
 
@@ -812,7 +823,11 @@ public class BashJobScheduler implements JobScheduler {
 
 			} catch (Throwable e) {
 
-				if (logErrors) {
+				if (throwErrors) {
+					throw e;
+
+				} else {
+
 					// log errors, otherwise executor swallows them
 					logger.error("unexpected error in  " + name, e);
 				}
