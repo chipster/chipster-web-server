@@ -641,8 +641,8 @@ public class BashJobScheduler implements JobScheduler {
 		// podname must be in lower case
 		podName = podName.toLowerCase();
 
-		// replace all special characters (except - and .) with a dash
-		podName = podName.replaceAll("[^a-z0-9.-]", "-");
+		// replace all special characters with a dash
+		podName = podName.replaceAll("[^a-z0-9]", "-");
 
 		// remove any non-alphanumeric characters from the start and end
 		podName = podName.replaceAll("^[^a-z0-9]*", "");
