@@ -368,7 +368,7 @@ scheduler-bash-env-value-1: ""
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
 
-scheduler-bash-heartbeat-lost-timeout: 30
+scheduler-bash-heartbeat-lost-timeout: 10
 
 # session-db
 
