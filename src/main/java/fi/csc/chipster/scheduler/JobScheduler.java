@@ -20,4 +20,6 @@ public interface JobScheduler {
 	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool);
 
 	public String getLog(IdPair jobIdPair);
+
+	public void logCompLog(IdPair jobIdPair, String compLog);
 }

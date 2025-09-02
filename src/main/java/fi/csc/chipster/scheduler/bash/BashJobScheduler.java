@@ -73,7 +73,6 @@ public class BashJobScheduler implements JobScheduler {
 	private static final String CONF_BASH_PVC = "scheduler-bash-pvc";
 	private static final String CONF_BASH_JOB_TIMER_INTERVAL = "scheduler-bash-job-timer-interval";
 	private static final String CONF_BASH_MAX_SLOTS = "scheduler-bash-max-slots";
-	private static final String CONF_BASH_HEARTBEAT_LOST_TIMEOUT = "scheduler-bash-heartbeat-lost-timeout";
 	private static final String CONF_TOKEN_VALID_TIME = "scheduler-bash-token-valid-time";
 	private static final String CONF_BASH_IMAGE_REPOSITORY = "scheduler-bash-image-repository";
 	private static final String CONF_BASH_IMAGE_TAG = "scheduler-bash-image-tag";
@@ -106,7 +105,6 @@ public class BashJobScheduler implements JobScheduler {
 
 	private BashJobs jobs = new BashJobs();
 	private int maxSlots;
-	private long heartbeatLostTimeout;
 	private String finishedScript;
 	private SessionDbClient sessionDbClient;
 	private long tokenValidTime;
@@ -226,7 +224,6 @@ public class BashJobScheduler implements JobScheduler {
 		this.pvcYaml = this.getFromJarOrConf(CONF_BASH_PVC, this.scriptDirInJar, "pvc.yaml");
 
 		this.bashJobTimerInterval = config.getLong(CONF_BASH_JOB_TIMER_INTERVAL) * 1000;
-		this.heartbeatLostTimeout = config.getLong(CONF_BASH_HEARTBEAT_LOST_TIMEOUT);
 		this.tokenValidTime = config.getLong(CONF_TOKEN_VALID_TIME);
 
 		this.bashJobTimer = new Timer("bash-job-scheduler-timer", true);
@@ -674,9 +671,6 @@ public class BashJobScheduler implements JobScheduler {
 	@Override
 	public void removeFinishedJob(IdPair idPair) {
 
-		// collect the comp log before the pod is deleted
-		this.compJobLogger.info("comp log of " + idPair + "\n" + this.getLog(idPair));
-
 		BashJob job = null;
 
 		synchronized (jobs) {
@@ -704,6 +698,12 @@ public class BashJobScheduler implements JobScheduler {
 			}
 			return job.getHeartbeatTimestamp();
 		}
+	}
+
+	@Override
+	public void logCompLog(IdPair idPair, String log) {
+		// log using the compJobLogger
+		this.compJobLogger.info("comp log of " + idPair + "\n" + log);
 	}
 
 	public void checkJob(IdPair idPair) {
@@ -751,22 +751,12 @@ public class BashJobScheduler implements JobScheduler {
 			} else if (job.getHeartbeatTimestamp() == null) {
 				logger.info("job check was unsuccessful " + idPair + ", let's wait for heartbeat");
 
-			} else if (job.getHeartbeatTimestamp().until(Instant.now(),
-					ChronoUnit.SECONDS) < this.heartbeatLostTimeout) {
+			} else {
 
 				// the process may have just completed but we just haven't received the event
 				// yet
-				logger.info("job check was unsuccessful " + idPair + " let's wait a bit more");
-
-			} else {
-				logger.warn("job check was unsuccessful " + idPair + ", seconds since last heartbeat: "
-						+ job.getHeartbeatTimestamp().until(Instant.now(), ChronoUnit.SECONDS));
-
-				// remove our job, scheduler will soon notice this, remove its own and call
-				// removeFinishedJob()
-				synchronized (jobs) {
-					this.jobs.remove(idPair);
-				}
+				// or the process is OOMKilled
+				logger.info("job check was unsuccessful " + idPair + ". Scheduler will remove the job soon");
 			}
 		}
 	}

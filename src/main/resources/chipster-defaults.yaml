@@ -288,7 +288,9 @@ scheduler-wait-timeout: 1
 # max time for new job to wait for available comp, seconds
 scheduler-wait-runnable-timeout: 604800 # a week
 # how long to wait for job heartbeats before giving up, seconds
-scheduler-heartbeat-lost-timeout: 30
+# this must be longer than scheduler-bash-job-timer-interval + duration of job checks
+# if this is larger than 2 * scheduler-bash-job-timer-interval, then multiple job check may fail before we react
+scheduler-heartbeat-lost-timeout: 15
 # how often to check job timeouts, seconds
 scheduler-job-timer-interval: 1
 # max number of scheduled and running job slots per user
@@ -367,8 +369,6 @@ scheduler-bash-env-value-1: ""
 
 # how often to check if BashJobScheduler jobs are alive
 scheduler-bash-job-timer-interval: 10
-
-scheduler-bash-heartbeat-lost-timeout: 10
 
 # session-db
 

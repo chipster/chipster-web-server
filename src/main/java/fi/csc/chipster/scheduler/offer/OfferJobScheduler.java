@@ -334,4 +334,9 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 		// admin can check comp logs
 		return null;
 	}
+
+	@Override
+	public void logCompLog(IdPair jobIdPair, String compLog) {
+		logger.info("comp log " + jobIdPair + ": " + compLog);
+	}
 }

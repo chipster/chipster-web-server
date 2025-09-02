@@ -617,6 +617,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 
 					try {
 						compLog = jobScheduler.getLog(jobIdPair);
+						jobScheduler.logCompLog(jobIdPair, compLog);
 
 					} catch (Exception e) {
 						logger.error("failed to get comp logs", e);
