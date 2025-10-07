@@ -8,10 +8,7 @@ if [ "$json" == null ]; then
 fi
 
 terminated_reason=$(echo "$json" | jq .containerStatuses[0].state.terminated.reason -r)
-if [ "$terminated_reason" != null ]; then          
-    # show log first show where it happened
-    echo "$log"
-    echo "pod $short_name has terminated: $terminated_reason"
+if [ "$terminated_reason" != null ]; then              
     if [ "$terminated_reason" == "OOMKilled" ]; then
     echo ""
     echo "The job run out of memory (RAM). If you tried to analyse multiple samples in one job, "
@@ -25,7 +22,11 @@ if [ "$terminated_reason" != null ]; then
     echo "sample to find out how much memory is needed. Setting a lower memory limit allows "
     echo "multiple jobs to run in parallel. "
     echo ""
+    else
+    # something unexpected happened. maybe the log has some useful information
+    echo "$log"
     fi
+    echo "pod $short_name has terminated: $terminated_reason"
     exit 0
 fi
 

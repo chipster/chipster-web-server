@@ -768,21 +768,19 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 	 * @param jobId
 	 * @param reason
 	 */
-	private void endJob(IdPair jobId, JobState jobState, String reason, String screenOutput) {
+	private void endJob(IdPair jobId, JobState jobState, String reason, String podLog) {
 		try {
 			Job job = sessionDbClient.getJob(jobId.getSessionId(), jobId.getJobId());
 			job.setEndTime(Instant.now());
 			job.setState(jobState);
 			job.setStateDetail("Job state " + jobState + " (" + reason + ")");
 
-			if (screenOutput != null) {
+			if (podLog != null) {
 				if (job.getScreenOutput() != null && job.getScreenOutput().isEmpty()) {
-					// we set screen output only for jobs that shouldn't have even started, at least
-					// for now
-					// otherwise we need to decide which one to keep
-					logger.warn("job " + jobId + " already had screen output");
+					// keep both screenoutput and pod log, for example in case the pod is OOMKilled
+					job.setScreenOutput(job.getScreenOutput() + "\n\n" + podLog);
 				}
-				job.setScreenOutput(screenOutput);
+				job.setScreenOutput(podLog);
 			}
 			sessionDbClient.updateJob(jobId.getSessionId(), job);
 		} catch (RestException e) {
