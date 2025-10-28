@@ -159,7 +159,7 @@ public class SingleShotComp
 		serviceLocator = new ServiceLocatorClient(config);
 		serviceLocator.setCredentials(sessionTokenCredentials);
 
-		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
+		String toolboxUrl = serviceLocator.getInternalUri(Role.TOOLBOX);
 
 		// initialize toolbox client
 		this.toolboxClient = new ToolboxClientComp(toolboxUrl);
@@ -422,7 +422,7 @@ public class SingleShotComp
 			this.storageLimit = jobLimit;
 		} else {
 			Integer schedulerLimit = (Integer) new SchedulerClient(
-					serviceLocator.getInternalService(Role.SCHEDULER).getUri())
+					serviceLocator.getInternalUri(Role.SCHEDULER))
 					.getJobQuota().get(SchedulerResource.KEY_DEFAULT_STORAGE);
 
 			logger.info("storage limit from scheduler is " + schedulerLimit + " GiB");

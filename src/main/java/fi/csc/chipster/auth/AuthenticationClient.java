@@ -166,7 +166,7 @@ public class AuthenticationClient {
 				logger.info("get auth address from the service-locator using username and password");
 				ServiceLocatorClient passwordClient = new ServiceLocatorClient(this.serviceLocator.getBaseUri());
 				passwordClient.setCredentials(new StaticCredentials(username, password));
-				return passwordClient.getInternalService(Role.AUTH).getUri();
+				return passwordClient.getInternalUri(Role.AUTH);
 			} else {
 				// unit tests use this as client
 				return this.serviceLocator.getPublicUri(Role.AUTH);
@@ -182,7 +182,7 @@ public class AuthenticationClient {
 			return authenticationServiceUri;
 		} else {
 			if (Role.SERVER.equals(this.role)) {
-				return this.serviceLocator.getInternalService(Role.AUTH).getUri();
+				return this.serviceLocator.getInternalUri(Role.AUTH);
 			} else {
 				// unit tests use this as client
 				return this.serviceLocator.getPublicUri(Role.AUTH);

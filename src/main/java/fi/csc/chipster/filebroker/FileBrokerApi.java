@@ -65,7 +65,7 @@ public class FileBrokerApi {
         this.sessionDbWithFileBrokerCredentials = sessionDbClient;
         this.sessionDbAdminClient = sessionDbAdminClient;
         this.fileMoverExecutor = Executors.newFixedThreadPool(1);
-        this.sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
+        this.sessionDbUri = serviceLocator.getInternalUri(Role.SESSION_DB);
     }
 
     public StorageClient getStorageClient(String storageId, boolean fileShouldExist) {

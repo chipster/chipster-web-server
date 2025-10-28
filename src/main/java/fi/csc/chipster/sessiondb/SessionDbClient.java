@@ -84,8 +84,8 @@ public class SessionDbClient {
 			eventsUri = serviceLocator.getPublicUri(Role.SESSION_DB_EVENTS);
 		} else {
 			// prefer internal URI's between servers
-			sessionDbUri = serviceLocator.getInternalService(Role.SESSION_DB).getUri();
-			eventsUri = serviceLocator.getInternalService(Role.SESSION_DB_EVENTS).getUri();
+			sessionDbUri = serviceLocator.getInternalUri(Role.SESSION_DB);
+			eventsUri = serviceLocator.getInternalUri(Role.SESSION_DB_EVENTS);
 		}
 
 		init(sessionDbUri, eventsUri);

@@ -53,7 +53,7 @@ public class RestFileBrokerClient {
 			fileBrokerUri = serviceLocator.getPublicUri(Role.FILE_BROKER);
 		} else {
 			// get with credentials in ServiceLocator
-			fileBrokerUri = serviceLocator.getInternalService(Role.FILE_BROKER).getUri();
+			fileBrokerUri = serviceLocator.getInternalUri(Role.FILE_BROKER);
 		}
 
 		if (credentials != null) {

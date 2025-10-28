@@ -128,7 +128,7 @@ public class Scheduler implements SessionEventListener, StatusSource, JobSchedul
 		this.serviceLocator = new ServiceLocatorClient(config);
 		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		this.serviceLocator.setCredentials(authService.getCredentials());
-		String toolboxUrl = this.serviceLocator.getInternalService(Role.TOOLBOX).getUri();
+		String toolboxUrl = this.serviceLocator.getInternalUri(Role.TOOLBOX);
 		this.toolbox = new ToolboxClientComp(toolboxUrl);
 
 		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);

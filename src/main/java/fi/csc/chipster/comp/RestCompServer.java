@@ -187,8 +187,8 @@ public class RestCompServer
 		authClient = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
 		serviceLocator.setCredentials(authClient.getCredentials());
 
-		String toolboxUrl = serviceLocator.getInternalService(Role.TOOLBOX).getUri();
-		String schedulerUrl = serviceLocator.getInternalService(Role.SCHEDULER).getUri();
+		String toolboxUrl = serviceLocator.getInternalUri(Role.TOOLBOX);
+		String schedulerUrl = serviceLocator.getInternalUri(Role.SCHEDULER);
 
 		// initialize toolbox client
 		this.toolboxClient = new ToolboxClientComp(toolboxUrl);

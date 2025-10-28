@@ -5,9 +5,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.MediaType;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,10 +15,15 @@ import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 
 public class ServiceLocatorClient {
 
 	public static final String CONF_KEY_USE_EXTERNAL_ADDRESSES = "use-external-addresses";
+
+	private static final String CONF_KEY_URL_INT_OVERRIDE_PREFIX = "url-int-override-";
+	private static final String CONF_KEY_URL_EXT_OVERRIDE_PREFIX = "url-ext-override-";
 
 	private static final Logger logger = LogManager.getLogger();
 
@@ -30,7 +32,10 @@ public class ServiceLocatorClient {
 
 	private boolean useExternalAddresses;
 
+	private Config config;
+
 	public ServiceLocatorClient(Config config) throws IOException {
+		this.config = config;
 		this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
 		this.useExternalAddresses = config.getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
 		logger.info("get services from " + baseUri);
@@ -99,7 +104,33 @@ public class ServiceLocatorClient {
 	 */
 	public String getPublicUri(String role) {
 
+		if (config != null) {
+			// allow addresses from service locator to be overridden in config (file or env)
+			String configUri = config.getString(CONF_KEY_URL_EXT_OVERRIDE_PREFIX + role);
+
+			if (configUri != null && !configUri.isEmpty()) {
+				logger.info("external address for " + role + " overridden in configuration: " + configUri);
+				return configUri;
+			}
+		}
+
 		return filterByRole(getPublicServices(), role).getPublicUri();
+	}
+
+	public String getInternalUri(String role) {
+
+		if (config != null) {
+
+			// allow addresses from service locator to be overridden in config (file or env)
+			String configUri = config.getString(CONF_KEY_URL_INT_OVERRIDE_PREFIX + role);
+
+			if (configUri != null && !configUri.isEmpty()) {
+				logger.info("internal address for " + role + " overridden in configuration: " + configUri);
+				return configUri;
+			}
+		}
+
+		return filterByRole(getInternalServices(), role).getUri();
 	}
 
 	public Service getInternalService(String role) {

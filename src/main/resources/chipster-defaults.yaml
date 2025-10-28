@@ -95,6 +95,34 @@ url-admin-bind-backup: http://{{admin-bind-ip}}:8115
 url-admin-bind-file-storage: http://{{bind-ip}}:8116
 url-admin-bind-s3-storage: http://{{bind-ip}}:8117
 
+# Usually all components get addresses of other services from service-locator.
+# This centralised model doesn't work, when some components are running in different
+# environments where different addressses are needed to reach other components.
+# Use the following configuration options to use these custom addresses to reach other
+# components and bypass requesting those addresses from the service-locator.
+url-int-override-web-server: ""
+url-ext-override-web-server: ""
+url-int-override-auth: ""
+url-ext-override-auth: ""
+url-int-override-service-locator: ""
+url-ext-override-service-locator: ""
+url-int-override-session-db: ""
+url-ext-override-session-db: ""
+url-int-override-session-db-events: ""
+url-ext-override-session-db-events: ""
+url-int-override-scheduler: ""
+url-ext-override-scheduler: ""
+url-int-override-scheduler-events: ""
+url-int-override-file-broker: ""
+url-ext-override-file-broker: ""
+url-int-override-toolbox: ""
+url-ext-override-toolbox: ""
+url-int-override-session-worker: ""
+url-ext-override-session-worker: ""
+url-int-override-type-service: ""
+url-ext-override-type-service: ""
+url-int-override-file-storage: ""
+
 # use external (public) addresses when connecting to other services
 use-external-addresses: false
 
