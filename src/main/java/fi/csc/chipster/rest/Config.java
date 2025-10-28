@@ -420,9 +420,9 @@ public class Config {
 
 	private String replaceVariables(String template) {
 		for (String variableName : variableDefaults.keySet()) {
-			// if set in environment variable
-			String variableValue = System.getenv(variableName);
-			// use default
+
+			String variableValue = getString(VARIABLE_PREFIX + variableName, true, true, false);
+			// use default (without variables to avoid endless loop)
 			if (variableValue == null) {
 				variableValue = variableDefaults.get(variableName);
 			}
