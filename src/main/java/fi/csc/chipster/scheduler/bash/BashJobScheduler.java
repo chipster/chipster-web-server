@@ -458,6 +458,12 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_STORAGE, "" + storage);
 		}
 
+		// this is needed in minimal env for the podman socket
+		for (String name : this.environmentVariables.keySet()) {
+			// add a prefix to each variable name to be able to iterate these in bash
+			env.put(ENV_ENV_PREFIX + "_" + name, this.environmentVariables.get(name));
+		}
+
 		return env;
 	}
 
@@ -568,11 +574,6 @@ public class BashJobScheduler implements JobScheduler {
 
 		// kubernetes wants a string for the value of labelSelector
 		env.put(ENV_POD_ANTI_AFFINITY, this.podAntiAffinity ? "yes" : "no");
-
-		for (String name : this.environmentVariables.keySet()) {
-			// add a prefix to each variable name to be able to iterate these in bash
-			env.put(ENV_ENV_PREFIX + "_" + name, this.environmentVariables.get(name));
-		}
 
 		return env;
 	}
