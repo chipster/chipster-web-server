@@ -38,7 +38,7 @@ json="{
 if [ -n "$TOOLS_BIN_NAME" ]; then
 
     # pod_patch="$pod_patch |
-    pod_patch=".mounts[0]Source = \"$TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_NAME\" |
+    pod_patch=".mounts[0].Source = \"$TOOLS_BIN_HOST_MOUNT_PATH/$TOOLS_BIN_NAME\" |
         .mounts[0].Destination = \"$TOOLS_BIN_PATH\" |
         .mounts[0].ReadOnly = true |
         .mounts[0].Type = \"bind\""
