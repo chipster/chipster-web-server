@@ -23,46 +23,46 @@ admin-username-1: admin
 
 # Internal and external service addresses
 
-url-int-web-server: http://{{public-ip}}:8000
-url-ext-web-server: http://{{public-ip}}:8000
-url-int-auth: http://{{public-ip}}:8002
-url-ext-auth: http://{{public-ip}}:8002
-url-int-service-locator: http://{{public-ip}}:8003
-url-ext-service-locator: http://{{public-ip}}:8003
-url-int-session-db: http://{{public-ip}}:8004
-url-ext-session-db: http://{{public-ip}}:8004
-url-int-session-db-events: ws://{{public-ip}}:8005
-url-ext-session-db-events: ws://{{public-ip}}:8005
-url-int-scheduler: http://{{public-ip}}:8006
-url-ext-scheduler: http://{{public-ip}}:8006
+url-int-web-server: http://{{int-ip}}:8000
+url-ext-web-server: http://{{ext-ip}}:8000
+url-int-auth: http://{{int-ip}}:8002
+url-ext-auth: http://{{ext-ip}}:8002
+url-int-service-locator: http://{{int-ip}}:8003
+url-ext-service-locator: http://{{ext-ip}}:8003
+url-int-session-db: http://{{int-ip}}:8004
+url-ext-session-db: http://{{ext-ip}}:8004
+url-int-session-db-events: ws://{{int-ip}}:8005
+url-ext-session-db-events: ws://{{ext-ip}}:8005
+url-int-scheduler: http://{{int-ip}}:8006
+url-ext-scheduler: http://{{ext-ip}}:8006
 # legacy OfferJobScheduler
-url-int-scheduler-events: ws://{{public-ip}}:8011
-url-int-file-broker: http://{{public-ip}}:8007
-url-ext-file-broker: http://{{public-ip}}:8007
-url-int-toolbox: http://{{public-ip}}:8008
-url-ext-toolbox: http://{{public-ip}}:8008
-url-int-session-worker: http://{{public-ip}}:8009
-url-ext-session-worker: http://{{public-ip}}:8009
-url-int-type-service: http://{{public-ip}}:8010
-url-ext-type-service: http://{{public-ip}}:8010
-url-int-file-storage: http://{{public-ip}}:8016
+url-int-scheduler-events: ws://{{int-ip}}:8011
+url-int-file-broker: http://{{int-ip}}:8007
+url-ext-file-broker: http://{{ext-ip}}:8007
+url-int-toolbox: http://{{int-ip}}:8008
+url-ext-toolbox: http://{{ext-ip}}:8008
+url-int-session-worker: http://{{int-ip}}:8009
+url-ext-session-worker: http://{{ext-ip}}:8009
+url-int-type-service: http://{{int-ip}}:8010
+url-ext-type-service: http://{{ext-ip}}:8010
+url-int-file-storage: http://{{int-ip}}:8016
 
-url-admin-ext-web-server: http://{{admin-ip}}:8100
-url-admin-ext-auth: http://{{admin-ip}}:8102
-url-admin-ext-service-locator: http://{{admin-ip}}:8103
-url-admin-ext-session-db: http://{{admin-ip}}:8104
-url-admin-ext-scheduler: http://{{admin-ip}}:8106
-url-admin-ext-file-broker: http://{{admin-ip}}:8107
-url-admin-ext-toolbox: http://{{admin-ip}}:8108
-url-admin-ext-session-worker: http://{{admin-ip}}:8109
-url-admin-ext-type-service: http://{{admin-ip}}:8110
-url-admin-ext-backup: http://{{admin-ip}}:8115
-url-admin-ext-job-history: http://{{admin-ip}}:8114
-url-admin-ext-s3-storage: http://{{admin-ip}}:8117
+url-admin-ext-web-server: http://{{ext-admin-ip}}:8100
+url-admin-ext-auth: http://{{ext-admin-ip}}:8102
+url-admin-ext-service-locator: http://{{ext-admin-ip}}:8103
+url-admin-ext-session-db: http://{{ext-admin-ip}}:8104
+url-admin-ext-scheduler: http://{{ext-admin-ip}}:8106
+url-admin-ext-file-broker: http://{{ext-admin-ip}}:8107
+url-admin-ext-toolbox: http://{{ext-admin-ip}}:8108
+url-admin-ext-session-worker: http://{{ext-admin-ip}}:8109
+url-admin-ext-type-service: http://{{ext-admin-ip}}:8110
+url-admin-ext-backup: http://{{ext-admin-ip}}:8115
+url-admin-ext-job-history: http://{{ext-admin-ip}}:8114
+url-admin-ext-s3-storage: http://{{ext-admin-ip}}:8117
 
 # internal admin addresses, when admin API is called by other services
-url-admin-int-session-db: http://{{admin-ip}}:8104
-url-admin-int-file-storage: http://{{admin-ip}}:8116
+url-admin-int-session-db: http://{{int-admin-ip}}:8104
+url-admin-int-file-storage: http://{{int-admin-ip}}:8116
 
 # Address for the server to bind
 
@@ -633,7 +633,9 @@ websocket-ping-interval: 120000
 
 # variables
 
-variable-public-ip: 127.0.0.1
-variable-admin-ip: 127.0.0.1
+variable-int-ip: 127.0.0.1
+variable-ext-ip: 127.0.0.1
+variable-ext-admin-ip: 127.0.0.1
+variable-int-admin-ip: 127.0.0.1
 variable-bind-ip: 0.0.0.0
 variable-admin-bind-ip: 0.0.0.0
