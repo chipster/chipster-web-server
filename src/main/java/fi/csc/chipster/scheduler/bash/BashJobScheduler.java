@@ -278,9 +278,9 @@ public class BashJobScheduler implements JobScheduler {
 	}
 
 	@Override
-	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool) {
+	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool, Runtime runtime) {
 		synchronized (jobs) {
-			jobs.addJob(idPair, slots, storage, tool);
+			jobs.addJob(idPair, slots, storage, tool, runtime);
 		}
 	}
 
@@ -304,7 +304,7 @@ public class BashJobScheduler implements JobScheduler {
 
 				// logger.info("job " + idPair + " can run now");
 
-				jobs.addJob(idPair, slots, storage, tool);
+				jobs.addJob(idPair, slots, storage, tool, runtime);
 
 				run = true;
 
@@ -443,7 +443,7 @@ public class BashJobScheduler implements JobScheduler {
 	 * @param idPair
 	 * @return
 	 */
-	private HashMap<String, String> getEnv(ToolboxTool tool, Integer storage, IdPair idPair) {
+	private HashMap<String, String> getEnv(ToolboxTool tool, Integer storage, IdPair idPair, Runtime runtime) {
 		HashMap<String, String> env = new HashMap<>();
 
 		env.put(ENV_SESSION_ID, idPair.getSessionId().toString());
@@ -464,6 +464,25 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_ENV_PREFIX + "_" + name, this.environmentVariables.get(name));
 		}
 
+		// podman needs this in heartbeat script to know when image is being pulled
+		String image = tool.getSadlDescription().getImage();
+
+		if (image == null) {
+			image = runtime.getImage();
+		}
+
+		if (imageTag != null) {
+			image = image + ":" + imageTag;
+		}
+
+		if (image != null) {
+			env.put(ENV_IMAGE, this.imageRepository + image);
+		}
+
+		if (this.imagePullPolicy != null) {
+			env.put(ENV_IMAGE_PULL_POLICY, this.imagePullPolicy);
+		}
+
 		return env;
 	}
 
@@ -482,7 +501,7 @@ public class BashJobScheduler implements JobScheduler {
 	private HashMap<String, String> getEnv(ToolboxTool tool, Runtime runtime, IdPair idPair, int slots,
 			Integer storage, String sessionToken) {
 
-		HashMap<String, String> env = getEnv(tool, storage, idPair);
+		HashMap<String, String> env = getEnv(tool, storage, idPair, runtime);
 
 		env.put(ENV_ENABLE_RESOURCE_LIMITS, "" + this.enableResourceLimits);
 
@@ -510,24 +529,6 @@ public class BashJobScheduler implements JobScheduler {
 			env.put(ENV_POD_CPU, "" + cpu);
 			env.put(ENV_POD_MEMORY_REQUEST, "" + memoryRequest);
 			env.put(ENV_POD_CPU_REQUEST, "" + cpuRequest);
-		}
-
-		String image = tool.getSadlDescription().getImage();
-
-		if (image == null) {
-			image = runtime.getImage();
-		}
-
-		if (imageTag != null) {
-			image = image + ":" + imageTag;
-		}
-
-		if (image != null) {
-			env.put(ENV_IMAGE, this.imageRepository + image);
-		}
-
-		if (this.imagePullPolicy != null) {
-			env.put(ENV_IMAGE_PULL_POLICY, this.imagePullPolicy);
 		}
 
 		String toolsBinName = tool.getSadlDescription().getToolsBin();
@@ -663,7 +664,7 @@ public class BashJobScheduler implements JobScheduler {
 			return;
 		}
 
-		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
+		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair, job.getRuntime());
 
 		// use the conf key as a name in logs
 		this.runSchedulerBash(this.cancelScript, "cancel", env, null, false);
@@ -684,7 +685,7 @@ public class BashJobScheduler implements JobScheduler {
 			return;
 		}
 
-		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
+		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair, job.getRuntime());
 
 		this.runSchedulerBash(this.finishedScript, "finished", env, null, false);
 	}
@@ -722,7 +723,7 @@ public class BashJobScheduler implements JobScheduler {
 				return;
 			}
 
-			HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
+			HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair, job.getRuntime());
 
 			// use the conf key as a name in logs
 			// run in executor to limit the number of external processes
@@ -904,7 +905,7 @@ public class BashJobScheduler implements JobScheduler {
 
 		StringBuffer logStdout = new StringBuffer();
 
-		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair);
+		HashMap<String, String> env = getEnv(job.getTool(), job.getStorage(), idPair, job.getRuntime());
 
 		// run in executor to limit the amount of external processes
 		Future<?> future = this.runSchedulerBash(this.logScript, "log", env, logStdout, true);

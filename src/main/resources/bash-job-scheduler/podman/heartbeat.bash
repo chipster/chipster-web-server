@@ -12,6 +12,12 @@ elif [ $(echo "$state" | jq '.OOMKilled') == "true" ]; then
     echo "OOMKilled"
     exit 1
 else
+    if ! bash -c "$ENV_PREFIX_PODMAN_SOCKET -s --fail-with-body http://d/v4.0.0/libpod/images/$IMAGE/exists"; then
+        echo "image not found, waiting it to be pulled: $IMAGE"
+        exit 0
+    else
+        echo "image found: $IMAGE"
+    fi
     echo "unknown state: $state"
     exit 1
 fi

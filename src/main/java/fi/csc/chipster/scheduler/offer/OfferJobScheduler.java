@@ -322,7 +322,7 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 	}
 
 	@Override
-	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool) {
+	public void addRunningJob(IdPair idPair, int slots, Integer storage, ToolboxTool tool, Runtime runtime) {
 		synchronized (jobs) {
 			this.jobs.addScheduledJob(idPair);
 			this.jobs.get(idPair).setRunnableTimestamp();
