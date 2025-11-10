@@ -160,7 +160,8 @@ dependencies {
 
 
 	// other
-    implementation "commons-io:commons-io:+"
+    // why IOUtils is not found if we don't specify major version here?
+    implementation "commons-io:commons-io:2.+"
     implementation "org.apache.commons:commons-text:+"
     implementation "commons-codec:commons-codec:+"
     
