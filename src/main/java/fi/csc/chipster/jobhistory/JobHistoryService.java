@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
@@ -37,9 +40,18 @@ import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.JobIdPair;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaDelete;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
 import jakarta.websocket.MessageHandler;
 
 public class JobHistoryService implements SessionEventListener, MessageHandler, ServerComponent {
+
+	private static final String CONFIG_KEY_JOB_HISTORY_CLEAN_UP_DELAY = "job-history-clean-up-delay";
+	private static final String CONFIG_KEY_JOB_HISTORY_CLEAN_UP_INTERVAL = "job-history-clean-up-interval";
+	private static final String CONFIG_KEY_JOB_HISTORY_CLEAN_UP_AFTER = "job-history-clean-up-after";
+	private static final String CONFIG_KEY_JOB_HISTORY_CLEAN_UP_MAX_RATIO = "job-history-clean-up-max-ratio";
 
 	private Logger logger = LogManager.getLogger();
 	private HttpServer httpServer;
@@ -106,6 +118,103 @@ public class JobHistoryService implements SessionEventListener, MessageHandler, 
 		System.out.println("Admin server started");
 		this.jobHistoryAdminServer.start();
 
+		try {
+			int cleanUpDelay = config.getInt(CONFIG_KEY_JOB_HISTORY_CLEAN_UP_DELAY);
+			int cleanUpInterval = config.getInt(CONFIG_KEY_JOB_HISTORY_CLEAN_UP_INTERVAL);
+			int deleteAfter = config.getInt(CONFIG_KEY_JOB_HISTORY_CLEAN_UP_AFTER);
+			float maxDeletionRatio = config.getFloat(CONFIG_KEY_JOB_HISTORY_CLEAN_UP_MAX_RATIO);
+
+			logger.info("clean-up interval is " + cleanUpInterval + " hours");
+			logger.info("delete rows older than " + deleteAfter + " years");
+			logger.info("refuse to delete more than " + maxDeletionRatio + " of total rows");
+
+			new Timer(true).schedule(new JobHistoryCleanUp(deleteAfter, maxDeletionRatio),
+					cleanUpDelay * 60 * 60 * 1000,
+					cleanUpInterval * 60 * 60 * 1000);
+		} catch (NumberFormatException e) {
+			logger.info("job-history clean-up is not configured");
+		}
+	}
+
+	class JobHistoryCleanUp extends TimerTask {
+
+		private int deleteAfter;
+		private float maxDeletionRatio;
+
+		public JobHistoryCleanUp(int deleteAfter, float maxDeletionRatio) {
+			this.deleteAfter = deleteAfter;
+			this.maxDeletionRatio = maxDeletionRatio;
+		}
+
+		@Override
+		public void run() {
+			hibernate.runInTransaction(new HibernateRunnable<Void>() {
+				public Void run(Session hibernateSession) {
+					doCleanUp(hibernateSession);
+					return null;
+				}
+			});
+		}
+
+		private void doCleanUp(Session hibernateSession) {
+
+			logger.info("job-history clean-up started");
+
+			Instant deleteBefore = ZonedDateTime.now().minusYears(deleteAfter).toInstant();
+
+			long totalRows = getJobHistoryCount(hibernateSession);
+			long rowsToDelete = rowCountOlderThan(deleteBefore, hibernateSession);
+
+			double deletionRatio = (double) rowsToDelete / totalRows;
+
+			logger.info("total rows: " + totalRows);
+			logger.info("rows to delete: " + rowsToDelete);
+			logger.info("deletion ratio: " + deletionRatio);
+
+			/*
+			 * Simple sanity check before deletion
+			 * 
+			 * Something can change between the previous check and this deletion, but this
+			 * should already lower a lot the chances of catastrophical deletion and DB
+			 * should be recoverable from backups.
+			 */
+			if (deletionRatio <= maxDeletionRatio) {
+				int rows = deleteOlderThan(deleteBefore, hibernateSession);
+				logger.info("deleted rows: " + rows);
+			} else {
+				logger.error("Refusing to delete rows! Deletion would be larger than "
+						+ CONFIG_KEY_JOB_HISTORY_CLEAN_UP_MAX_RATIO);
+			}
+
+			logger.info("job-history clean-up done");
+		}
+	}
+
+	private long getJobHistoryCount(Session hibernateSession) {
+		CriteriaBuilder qb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Long> cq = qb.createQuery(Long.class);
+		cq.select(qb.count(cq.from(JobHistory.class)));
+		return hibernate.session().createQuery(cq).getSingleResult();
+	}
+
+	private long rowCountOlderThan(Instant time, Session hibernateSession) {
+
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+		Root<JobHistory> root = cq.from(JobHistory.class);
+		cq.select(cb.count(root));
+		cq.where(cb.lessThan(root.get("startTime"), time));
+		return hibernate.session().createQuery(cq).getSingleResult();
+	}
+
+	private int deleteOlderThan(Instant time, Session hibernateSession) {
+		CriteriaBuilder criteriaBuilder = hibernateSession.getCriteriaBuilder();
+		CriteriaDelete<JobHistory> query = criteriaBuilder.createCriteriaDelete(JobHistory.class);
+		Root<JobHistory> root = query
+				.from(JobHistory.class);
+		query.where(criteriaBuilder.lessThan(root.get("startTime"), time));
+
+		return hibernate.getEntityManager().createQuery(query).executeUpdate();
 	}
 
 	private HttpServer getHttpServer() {

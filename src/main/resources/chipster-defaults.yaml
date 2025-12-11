@@ -411,6 +411,15 @@ session-db-max-share-count: 100
 db-url-job-history: jdbc:postgresql://localhost:5432/job_history_db
 db-pass-job-history: ""
 
+# start first clean-up after this many hours have passed since the job-history start
+job-history-clean-up-delay: 8
+# start next clean-up after this many hours have passed since the previous clean-up
+job-history-clean-up-interval: 24
+# In clean-up, delete rows older than this, in years. Clean-up is disabled when this is not set.
+job-history-clean-up-after: ""
+# Refuse to clean-up, if the ratio of deleted rows to total rows is higher than this
+job-history-clean-up-max-ratio: 0.01
+
 # web-server
 
 web-server-web-root-path: web-root
