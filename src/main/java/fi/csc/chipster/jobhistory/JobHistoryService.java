@@ -203,7 +203,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler, 
 		CriteriaQuery<Long> cq = cb.createQuery(Long.class);
 		Root<JobHistory> root = cq.from(JobHistory.class);
 		cq.select(cb.count(root));
-		cq.where(cb.lessThan(root.get("startTime"), time));
+		cq.where(cb.lessThan(root.get("created"), time));
 		return hibernate.session().createQuery(cq).getSingleResult();
 	}
 
@@ -212,7 +212,7 @@ public class JobHistoryService implements SessionEventListener, MessageHandler, 
 		CriteriaDelete<JobHistory> query = criteriaBuilder.createCriteriaDelete(JobHistory.class);
 		Root<JobHistory> root = query
 				.from(JobHistory.class);
-		query.where(criteriaBuilder.lessThan(root.get("startTime"), time));
+		query.where(criteriaBuilder.lessThan(root.get("created"), time));
 
 		return hibernate.getEntityManager().createQuery(query).executeUpdate();
 	}
