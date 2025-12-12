@@ -499,6 +499,10 @@ toolbox-runtime-command-R-4.5.1-fastx: /opt/chipster/tools/R-4.5.1/bin/R
 toolbox-runtime-image-R-4.5.1-fastx: comp-r-4-5-1-fastx
 toolbox-runtime-tools-bin-path-R-4.5.1-fastx: tools-bin
 
+toolbox-runtime-command-R-4.5.1-edger: /opt/chipster/tools/R-4.5.1/bin/R
+toolbox-runtime-image-R-4.5.1-edger: comp-r-4-5-1-edger
+toolbox-runtime-tools-bin-path-R-4.5.1-edger: tools-bin
+
 toolbox-runtime-command-R-3.3.2: /opt/chipster/tools/R-3.3.2/bin/R
 toolbox-runtime-command-R-3.4.3: /opt/chipster/tools/R-3.4.3/bin/R
 
