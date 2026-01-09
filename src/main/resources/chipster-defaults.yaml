@@ -464,6 +464,7 @@ toolbox-runtime-image-R-4.2.3-cellbender: comp-r-4-2-3-cellbender
 toolbox-runtime-tools-bin-path-R-4.2.3-cellbender: tools-bin
 
 toolbox-runtime-command-R-4.3.2: /opt/chipster/tools/R-4.3.2/bin/R
+# this image doesn't exist. The only tool using this runtime (enafetch.R) specifies its own image in SADL
 toolbox-runtime-image-R-4.3.2: comp-r-4-3-2
 toolbox-runtime-tools-bin-path-R-4.3.2: tools-bin
 
@@ -506,6 +507,9 @@ toolbox-runtime-tools-bin-path-R-4.5.1-edger: tools-bin
 toolbox-runtime-command-R-4.5.1-samtools: /opt/chipster/tools/R-4.5.1/bin/R
 toolbox-runtime-image-R-4.5.1-samtools: comp-r-4-5-1-samtools
 toolbox-runtime-tools-bin-path-R-4.5.1-samtools: tools-bin
+
+toolbox-runtime-command-R-3.3.2-virusdetect: /opt/chipster/tools/R-3.3.2/bin/R
+toolbox-runtime-image-R-3.3.2-virusdetect: comp-16-04
 
 toolbox-runtime-command-R-3.3.2: /opt/chipster/tools/R-3.3.2/bin/R
 toolbox-runtime-command-R-3.4.3: /opt/chipster/tools/R-3.4.3/bin/R
