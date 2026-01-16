@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
@@ -14,10 +15,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.io.OutputStream;
-import java.io.BufferedInputStream;
 
-import org.apache.commons.io.input.MemoryMappedFileInputStream;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -190,7 +188,7 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 				logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
 
-				InputStream fis = new ReadaheadFileInputStreamTest(f.toFile(), this.readaheadChunkCount,
+				InputStream fis = new ReadaheadFileInputStream(f.toFile(), this.readaheadChunkCount,
 						this.readaheadChunkSize, this.readaheadUseDirectMemory);
 
 				response.setContentType("application/octet-stream");
