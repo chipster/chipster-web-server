@@ -14,7 +14,10 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.io.OutputStream;
+import java.io.BufferedInputStream;
 
+import org.apache.commons.io.input.MemoryMappedFileInputStream;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -70,6 +73,10 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 	private static final String CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE = "file-storage-backup-preserve-space";
 	private static final String CONF_KEY_FILE_STORAGE_PRESERVE_SPACE = "file-storage-preserve-space";
+	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE = "file-storage-readahead-above";
+	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE = "file-storage-readahead-chunk-size";
+	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT = "file-storage-readahead-chunk-count";
+	private static final String CONF_KEY_FILE_STORAGE_DIRECT_MEMORY = "file-storage-readahead-direct-memory";
 
 	public static final String PATH_FILES = "files";
 
@@ -93,6 +100,11 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 	private boolean isBackupEnabled;
 
+	private long readaheadAbove = -1;
+	private long readaheadChunkSize;
+	private int readaheadChunkCount;
+	private boolean readaheadUseDirectMemory;
+
 	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
 		super();
@@ -103,6 +115,20 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 		this.preserveSpace = config.getFloat(CONF_KEY_FILE_STORAGE_PRESERVE_SPACE);
 		this.backupPreserveSpace = config.getFloat(CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE);
 		this.isBackupEnabled = !GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
+
+		if (!config.getString(CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE).isBlank()) {
+			this.readaheadAbove = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE) * 1024 * 1024;
+			this.readaheadChunkSize = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE) * 1024 * 1024;
+			this.readaheadChunkCount = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT);
+			this.readaheadUseDirectMemory = config.getBoolean(CONF_KEY_FILE_STORAGE_DIRECT_MEMORY);
+			logger.info("readahead enabled, max memory: " + Runtime.getRuntime().maxMemory() / 1024 / 1024 + " MiB");
+			logger.info("readhead chunk size: " + readaheadChunkSize / 1024 / 1024 + " MiB");
+			logger.info("readhead chunk count: " + readaheadChunkCount);
+			logger.info("readahead using direct memory: " + readaheadUseDirectMemory);
+
+		} else {
+			logger.info("readahead is disabled");
+		}
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);
@@ -155,32 +181,55 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 				throw new NotFoundException("no such file");
 			}
 
-			// remove "storage/" from the beginning
-			java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
-
-			RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
-
 			Instant before = Instant.now();
 
-			// delegate to super class
-			super.doGet(rewrittenRequest, response);
+			// readahead can be enabled for large files, but it does not
+			// support range queries
+			if (this.readaheadAbove != -1 && request.getQueryString() == null
+					&& f.toFile().length() >= this.readaheadAbove) {
 
-			if (request.isAsyncStarted()) {
-				/*
-				 * By default the async timeout is enabled. Amost everything works, but
-				 * onTimeout() listener is called after 30 seconds and jetty logs an
-				 * IllegalStateException in ServletChannelState.java.
-				 * 
-				 * This caused problems only when > 4 GiB file was uploaded to file-storage
-				 * and then moved to S3. The request to delete the file from file-storage got
-				 * stuck. Perhaps because the async timeout had left a connection to a bad
-				 * state.
-				 * 
-				 * Apparently we are supposed to turn of timeout when handling large files:
-				 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=447472 . Let's see if we have
-				 * to implement some kind of own timeouts too.
-				 */
-				request.getAsyncContext().setTimeout(0);
+				logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
+
+				InputStream fis = new ReadaheadFileInputStreamTest(f.toFile(), this.readaheadChunkCount,
+						this.readaheadChunkSize, this.readaheadUseDirectMemory);
+
+				response.setContentType("application/octet-stream");
+				response.setStatus(HttpServletResponse.SC_OK);
+				response.setContentLengthLong(f.toFile().length());
+				try (OutputStream os = response.getOutputStream()) {
+
+					org.apache.commons.io.IOUtils.copyLarge(fis, os);
+				} finally {
+					fis.close();
+				}
+
+			} else {
+
+				// remove "storage/" from the beginning
+				java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);
+
+				RewrittenRequest rewrittenRequest = new RewrittenRequest(request, "/" + pathUnderStorage.toString());
+
+				// delegate to super class
+				super.doGet(rewrittenRequest, response);
+
+				if (request.isAsyncStarted()) {
+					/*
+					 * By default the async timeout is enabled. Amost everything works, but
+					 * onTimeout() listener is called after 30 seconds and jetty logs an
+					 * IllegalStateException in ServletChannelState.java.
+					 * 
+					 * This caused problems only when > 4 GiB file was uploaded to file-storage
+					 * and then moved to S3. The request to delete the file from file-storage got
+					 * stuck. Perhaps because the async timeout had left a connection to a bad
+					 * state.
+					 * 
+					 * Apparently we are supposed to turn of timeout when handling large files:
+					 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=447472 . Let's see if we have
+					 * to implement some kind of own timeouts too.
+					 */
+					request.getAsyncContext().setTimeout(0);
+				}
 			}
 
 			// log performance

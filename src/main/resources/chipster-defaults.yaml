@@ -632,6 +632,18 @@ file-storage-backup-preserve-space: 3.0
 # file-storage storageId. Hostname is used if this is not set. If set incorrectly, orphan removal will delete all files on this file-storage
 file-storage-id: ""
 
+# Start multiple threads to read files larger than this, in MiB.
+# File download with readahead consumes more memory (chunk-size * chunk-count for each transfer), but 
+# can be significantly faster on distributed storage systems, that have high latency and tolerate plenty of parallelism.
+
+file-storage-readahead-above: ""
+# readahead chunk size for each thread, in MiB. 
+file-storage-readahead-chunk-size: 4
+# readahead maximum number of chunk and thread for one file
+file-storage-readahead-chunk-count: 16
+# use direct memory for readahead buffer or set to false to use memory from heap
+file-storage-readahead-direct-memory: true
+
 # session-worker
 
 session-worker-smtp-host: ""
