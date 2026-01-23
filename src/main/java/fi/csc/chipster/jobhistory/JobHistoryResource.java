@@ -19,7 +19,6 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import jakarta.annotation.security.RolesAllowed;
-import jakarta.persistence.TemporalType;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
@@ -194,8 +193,7 @@ public class JobHistoryResource extends AdminResource {
 
 		Query query = hibernate.session().createNativeQuery(sql, BigInteger.class);
 
-		query = query.setParameter("starttime", startTime, TemporalType.TIMESTAMP).setParameter("endtime", endTime,
-				TemporalType.TIMESTAMP);
+		query = query.setParameter("starttime", startTime).setParameter("endtime", endTime);
 
 		if (useModuleFilter) {
 			query = query.setParameter("module", module);
