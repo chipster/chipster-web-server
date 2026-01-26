@@ -7,8 +7,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import jakarta.ws.rs.InternalServerErrorException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,6 +26,7 @@ import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import jakarta.ws.rs.InternalServerErrorException;
 
 public class OidcProvidersImpl implements OidcProviders {
 
@@ -131,6 +130,7 @@ public class OidcProvidersImpl implements OidcProviders {
 
 		// Make HTTP request
 		HTTPRequest httpRequest = request.toHTTPRequest();
+		logger.info("get oidc metadata from " + httpRequest.getURI());
 		HTTPResponse httpResponse = httpRequest.send();
 
 		// Parse OpenID provider metadata
