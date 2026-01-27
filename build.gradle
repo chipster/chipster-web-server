@@ -87,51 +87,51 @@ task checkTools(type: JavaExec) {
 dependencies {
 
 	// logging
-	// stay in 2.+ , because 3.0.0-beta1 is compiled with Java 17 
+	// stay in 2.+ , because 3 is still in beta
     implementation "org.apache.logging.log4j:log4j-api:2.+"
     implementation "org.apache.logging.log4j:log4j-core:2.+"
     implementation "org.apache.logging.log4j:log4j-jul:2.+"
     implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.+"
 
     // jersey
-    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.10"
-    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.10"
-    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.10"
-    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.10" // @NonNull needs this 
+    implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.11"
+    implementation "org.glassfish.jersey.inject:jersey-hk2:3.1.11"
+    implementation "org.glassfish.jersey.media:jersey-media-json-jackson:3.1.11"
+    implementation "org.glassfish.jersey.ext:jersey-bean-validation:3.1.11" // @NonNull needs this 
         
     // Jersey in Jetty (session-worker)            
-    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.10"  
+    implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.11"  
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.23"
-    implementation "org.eclipse.jetty:jetty-server:12.0.23"
+    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.5"
+    implementation "org.eclipse.jetty:jetty-server:12.1.5"
 
     // jetty client for file downloads with specific HTTP, cipher or TLS versions
-    implementation "org.eclipse.jetty:jetty-client:12.0.23"
-    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.0.23"
-    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.0.23"
+    implementation "org.eclipse.jetty:jetty-client:12.1.5"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.1.5"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.1.5"
 
     // websockets 
-    // API 2.1.0 == ee10
+    // API 2.2.0 == ee11
     implementation "jakarta.websocket:jakarta.websocket-api:2.2.0"
-    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.0.23"
+    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.1.5"
     
     // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:12.0.23"    
+    implementation "org.eclipse.jetty:jetty-rewrite:12.1.5"    
     
         
     // jackson
-	implementation "com.fasterxml.jackson.core:jackson-core:2.19.2"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.19.2"
+    implementation "com.fasterxml.jackson.core:jackson-core:2.21.0"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.19.2"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0"
 	
     // hibernate
-    implementation "org.hibernate.orm:hibernate-core:7.0.9.Final"
-    implementation "org.hibernate.orm:hibernate-c3p0:7.0.9.Final"
+    implementation "org.hibernate.orm:hibernate-core:7.0.10.Final"
+    implementation "org.hibernate.orm:hibernate-c3p0:7.0.10.Final"
     // schema export
-    implementation "org.hibernate.orm:hibernate-ant:7.0.9.Final"
+    implementation "org.hibernate.orm:hibernate-ant:7.0.10.Final"
     implementation "org.postgresql:postgresql:+"
     
     // flyway
