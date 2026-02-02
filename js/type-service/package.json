@@ -3,7 +3,7 @@
   "type": "module",
   "description": "Chipster type-service",
   "scripts": {
-    "start": "node lib/type-service.js",
+    "start": "NODE_ENV=production node lib/type-service.js",
     "build": "tsc",
     "compile": "npm run build ; npm run start",
     "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
@@ -19,10 +19,9 @@
   "dependencies": {
     "chipster-js-common": "^1.5.0",
     "chipster-nodejs-core": "^0.8.5",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "lodash-es": "^4.17.21",
-    "restify": "^11.1.0",
-    "restify-cors-middleware2": "^2.1.2",
-    "restify-errors": "^8.0.2",
     "rxjs": "^7.8.1",
     "winston": "^3.3.3",
     "yamljs": "^0.3.0"
