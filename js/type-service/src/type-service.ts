@@ -1,21 +1,23 @@
 import { from, of as observableOf } from "rxjs";
-import { map, mergeMap } from "rxjs/operators";
+import { map, mergeMap, tap } from "rxjs/operators";
 import { Tag, Tags, TypeTags } from "./type-tags.js";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
 import { fileURLToPath } from "url";
 
+import express from "express";
+import cors from "cors";
 import os from "os";
 import url from "url";
-import restify from "restify";
-import corsMiddleware from "restify-cors-middleware2";
-import errors from "restify-errors";
 
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 class IdPair {
-  constructor(public sessionId: string, public datasetId: string) {}
+  constructor(
+    public sessionId: string,
+    public datasetId: string,
+  ) {}
 }
 
 const MAX_CACHE_SIZE = 100 * 1000;
@@ -33,100 +35,155 @@ export default class TypeService {
   constructor() {
     Logger.addLogFile();
 
+    if (
+      process.env.NODE_ENV != null &&
+      process.env.NODE_ENV.indexOf("production") > -1
+    ) {
+      logger.info("running in production mode");
+    } else {
+      logger.warn(
+        "Express is running in development mode. Stack traces are visible in error responses.",
+      );
+    }
+
     this.username = "type-service";
     this.password = this.config.get("service-password-type-service");
 
     this.serverRestClient = new RestClient(false, null, null);
     this.serverRestClient
       .getToken(this.username, this.password)
-      .subscribe((serverToken) => {
-        this.serverRestClient.setToken(serverToken);
-        this.init();
-        this.initAdmin();
-      });
+      .pipe(
+        tap((serverToken) => {
+          this.serverRestClient.setToken(serverToken);
+        }),
+        mergeMap(() => this.getCorsOptions()),
+      )
+      .subscribe(
+        (corsOptions) => {
+          logger.info("cors options", corsOptions);
+
+          var apiServer = express();
+          var adminServer = express();
+
+          this.initApiServer(apiServer, corsOptions);
+          this.initAdminServer(adminServer, corsOptions);
+
+          // add cors headers to preflight requests
+          apiServer.options("/{*any}", cors(corsOptions));
+          adminServer.options("/{*any}", cors(corsOptions));
+
+          this.addErrorHandler(apiServer);
+          this.addErrorHandler(adminServer);
+        },
+        (err) => {
+          logger.error("error in type-service", err);
+        },
+      );
 
     // the Tags object above is just for the code completion. For any real use
-    // we wan't a real ES6 map
+    // we want a real ES6 map
     for (let tagKey in Tags) {
       let tag = Tags[tagKey];
       this.tagIdMap.set(tag.id, tag);
     }
   }
 
-  init() {
-    let server = this.createServer();
-
-    server.get("/sessions/:sessionId", this.respond.bind(this));
+  initApiServer(server, corsOptions) {
+    server.get("/sessions/:sessionId", cors(corsOptions), (req, res, next) => {
+      this.respond(req, res, next);
+    });
     server.get(
       "/sessions/:sessionId/datasets/:datasetId",
-      this.respond.bind(this)
+      cors(corsOptions),
+      (req, res, next) => {
+        this.respond(req, res, next);
+      },
     );
-    server.get("/admin/status", this.respondStatus.bind(this));
+    server.get("/admin/status", (req, res, next) => {
+      (cors(corsOptions), this.respondStatus(req, res, next));
+    });
 
     let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
     let bindUrl = url.parse(bindUrlString);
 
-    server.listen(bindUrl.port, bindUrl.hostname, () => {
+    server.listen(bindUrl.port, () => {
       logger.info("type-service listening at " + bindUrlString);
     });
   }
 
-  initAdmin() {
-    let server = this.createServer();
+  initAdminServer(server, corsOptions) {
+    server.get("/admin/alive", cors(corsOptions), (req, res, next) => {
+      this.respondAlive(req, res, next);
+    });
 
-    server.get("/admin/alive", this.respondAlive.bind(this));
-    server.get("/admin/status", this.respondStatus.bind(this));
+    server.get("/admin/status", cors(corsOptions), (req, res, next) => {
+      this.respondStatus(req, res, next);
+    });
 
     let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
     let bindUrl = url.parse(bindUrlString);
 
-    server.listen(bindUrl.port, bindUrl.hostname, () => {
+    server.listen(bindUrl.port, () => {
       logger.info("type-service listening at " + bindUrlString);
     });
   }
 
-  createServer() {
-    var server = restify.createServer();
-    server.use(restify.plugins.authorizationParser());
+  addErrorHandler(server) {
+    server.use((err, req, res, next) => {
+      // express manual asks to delegate to Express error handler if headers have been sent already
+      if (res.headersSent) {
+        logger.warn("headers already sent, delegate to Express error handler");
+        return next(err);
+      }
 
-    // getting the allowed origin from rest-client
-    let originUri,
-      originList = [],
-      cors;
+      // Respond with message for expected errors (e.g. session not found).
+      // By default, Express either responds with stack trace in development mode,
+      // or no custom message at all in production mode.
+      if (err instanceof HttpError) {
+        logger.error("http error: " + JSON.stringify(err) + " " + err.stack);
+        if (err.statusCode != null) {
+          res.status(err.statusCode);
+        }
+        if (err.message != null) {
+          return res.send(err.message);
+        } else {
+          return res.send("unknown error");
+        }
+      }
 
-    this.serverRestClient
-      //.getServiceUri("web-server") // get one web-server
-      .getServices() // allow many web-servers (Chipster and Mylly) to use the same backend
-      .pipe(
-        map((services: any[]) => {
-          return services
-            .filter((service) => service.role.startsWith("web-server"))
-            .map((service) => service.publicUri);
-        })
-      )
-      .subscribe((webServers) => {
-        cors = corsMiddleware({
-          origins: webServers,
-          allowHeaders: ["Authorization"],
+      logger.error("non-http error: " + JSON.stringify(err) + err.stack);
+      return res.status(500).send("unknown error");
+    });
+  }
+
+  getCorsOptions() {
+    logger.info("getCorsOptions()");
+    // getting the allowed origin(s) from rest-client
+    return this.serverRestClient.getServices().pipe(
+      map((services: any[]) => {
+        return services
+          .filter((service) => service.role.startsWith("web-server"))
+          .map((service) => service.publicUri);
+      }),
+      map((webServers) => {
+        return {
+          // the header would be always addded, if we would give a string (webServers[0])
+          // now we give and array and header is added only when it matches with the Origin header in the request
+          origin: webServers,
+          allowedHeaders: ["Authorization"],
           credentials: true,
-        });
-        server.pre(cors.preflight);
-        server.use(cors.actual);
-      });
-
-    // add bodyParser to access the body, but disable the automatic parsing
-    server.use(restify.plugins.bodyParser({ mapParams: false }));
-
-    return server;
+        };
+      }),
+    );
   }
 
   respond(req, res, next) {
     let clientToken;
 
     try {
-      clientToken = this.getToken(req, next);
+      clientToken = this.getToken(req, res, next);
     } catch (e) {
-      this.respondError(next, e);
+      this.respondError(res, next, e);
       return;
     }
 
@@ -136,7 +193,8 @@ export default class TypeService {
     logger.debug("type tag " + sessionId + " " + datasetId);
 
     if (!sessionId) {
-      return next(new restify.BadRequest("sessionId missing"));
+      // synchronous error we can simply throw
+      throw new BadRequest("sessionId missing");
     }
 
     /* Configure RestClient to use internal addresses but client's token
@@ -173,7 +231,7 @@ export default class TypeService {
         mergeMap((datasets: any[]) => {
           // array of observables that will resolve to [datasetId, typeTags] tuples
           let types$ = datasets.map((dataset) =>
-            this.getTypeTags(sessionId, dataset, clientToken)
+            this.getTypeTags(sessionId, dataset, clientToken),
           );
 
           // some results of a local test:
@@ -188,9 +246,9 @@ export default class TypeService {
           const maxConcurrent = 16;
 
           return from(types$).pipe(
-            mergeMap((observable) => observable, maxConcurrent)
+            mergeMap((observable) => observable, maxConcurrent),
           );
-        })
+        }),
       )
       .subscribe(
         // wait for all observables to complete and collect an array of tuples
@@ -198,7 +256,7 @@ export default class TypeService {
           allTypes.push(oneResult);
         },
         (err) => {
-          this.respondError(next, err);
+          this.respondError(res, next, err);
         },
         () => {
           let types = this.tupleArrayToObject(allTypes);
@@ -212,9 +270,9 @@ export default class TypeService {
               allTypes.length +
               " datasets took " +
               (Date.now() - t0) +
-              "ms"
+              "ms",
           );
-        }
+        },
       );
   }
 
@@ -233,12 +291,13 @@ export default class TypeService {
     next();
   }
 
-  respondError(next, err) {
+  respondError(res, next, err) {
     if (err.statusCode >= 400 && err.statusCode <= 499) {
-      next(err);
+      // let client know about 4xx errors (e.g. session not found)
+      // async error must be sent with next() for error handler to process it
+      next(new HttpError(err.statusCode, err.message, err));
     } else {
-      logger.error("type tagging failed", err);
-      next(new errors.InternalServerError("type tagging failed"));
+      next(new InternalServerError("type tagging failed"));
     }
   }
 
@@ -265,10 +324,10 @@ export default class TypeService {
         sessionId,
         dataset,
         token,
-        fastTags
+        fastTags,
       ).pipe(
         map((slowTags) => Object.assign({}, fastTags, slowTags)),
-        map((allTags) => [dataset.datasetId, allTags])
+        map((allTags) => [dataset.datasetId, allTags]),
       );
     } else {
       /* The dataset has been created, but the file hasn't been uploaded.
@@ -301,12 +360,12 @@ export default class TypeService {
         sessionId,
         dataset,
         token,
-        fastTags
+        fastTags,
       ).pipe(
         map((slowTags) => {
           this.addToCache(idPair, slowTags);
           return slowTags;
-        })
+        }),
       );
     }
   }
@@ -333,14 +392,14 @@ export default class TypeService {
     sessionId: string,
     dataset: string,
     token: string,
-    fastTags: Object
+    fastTags: Object,
   ) {
     let observable;
     if (Tags.TSV.id in fastTags) {
       observable = this.getParsedTsv(sessionId, dataset, token).pipe(
         map((table: any[][]) => {
           return TypeTags.getSlowTypeTags(table);
-        })
+        }),
       );
     } else {
       observable = observableOf({});
@@ -361,19 +420,79 @@ export default class TypeService {
       .pipe(
         map((data: string) => {
           return TypeTags.parseTsv(data);
-        })
+        }),
       );
   }
 
-  getToken(req: any, next: any) {
-    if (req.authorization.scheme !== "Basic") {
-      throw new errors.UnauthorizedError("username must be token");
-    }
-    if (req.authorization.basic.username !== "token") {
-      throw new errors.UnauthorizedError("only token authentication supported");
+  /*
+  Express does not include functionality for parsing HTTP Basic auth header and this is 
+  not worth of adding a new dependency
+  */
+  getToken(req: any, res: any, next: any) {
+    if (
+      req.headers.authorization == null ||
+      req.headers.authorization.length === 0
+    ) {
+      res.status(401).send("no authorization header");
+      return;
     }
 
-    return req.authorization.basic.password;
+    const headerValue = req.headers.authorization.split(" ");
+
+    if (headerValue.length != 2) {
+      res.status(401).send("wrong header value length");
+      return;
+    }
+
+    const [scheme, b64] = headerValue;
+
+    if (scheme !== "Basic") {
+      // throw new errors.UnauthorizedError("username must be token");
+      res.status(401).send("username must be token");
+      return;
+    }
+
+    const decoded = Buffer.from(b64, "base64").toString();
+
+    const splitIndex = decoded.indexOf(":");
+
+    if (splitIndex === -1) {
+      res.status(401).send("cannot parse username and password");
+      return;
+    }
+
+    const username = decoded.substring(0, splitIndex);
+    // password can have ":"
+    const password = decoded.substring(splitIndex + 1);
+
+    if (username !== "token") {
+      // throw new errors.UnauthorizedError("only token authentication supported");
+      res.status(401).send("only token authentication supported");
+      return;
+    }
+
+    return password;
+  }
+}
+
+class HttpError extends Error {
+  public statusCode;
+  public cause;
+  constructor(statusCode, message, cause?) {
+    super(message);
+    this.statusCode = statusCode;
+    this.cause = cause;
+  }
+}
+class BadRequest extends HttpError {
+  constructor(message) {
+    super(400, message);
+  }
+}
+
+class InternalServerError extends HttpError {
+  constructor(message) {
+    super(500, message);
   }
 }
 
