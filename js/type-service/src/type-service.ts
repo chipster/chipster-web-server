@@ -157,7 +157,6 @@ export default class TypeService {
   }
 
   getCorsOptions() {
-    logger.info("getCorsOptions()");
     // getting the allowed origin(s) from rest-client
     return this.serverRestClient.getServices().pipe(
       map((services: any[]) => {
