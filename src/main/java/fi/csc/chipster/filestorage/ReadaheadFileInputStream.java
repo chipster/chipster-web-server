@@ -25,7 +25,7 @@ import org.apache.logging.log4j.Logger;
  * 
  * Readahead is needed when reading files from distributed storage systems.
  * Network hops add latency, which makes it slow to read files if you make read
- * request only after you have procesed the previous data. Luckily
+ * request only after you have processed the previous data. Luckily
  * those systems often tolerate plenty of concurrency. We can overcome the
  * latency by making a lot of read requests ahead of the position where we are
  * reading the data at the mmoment.
@@ -33,7 +33,7 @@ import org.apache.logging.log4j.Logger;
  * Usually opeating system provides this functionality (e.g. command "blockdev
  * --getra /dev/vdX") and that should be used when possible. However, when we
  * run a service on a shared container platform, we don't have access to those
- * settings. However, we can do the essentially same here in the application
+ * settings. We can still do the essentially same here in the application
  * code.
  * 
  * The reading side of this class accesses fields "queue" and "isError" from
