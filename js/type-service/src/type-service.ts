@@ -62,8 +62,8 @@ export default class TypeService {
         (corsOptions) => {
           logger.info("cors options", corsOptions);
 
-          var apiServer = express();
-          var adminServer = express();
+          const apiServer = express();
+          const adminServer = express();
 
           this.initApiServer(apiServer, corsOptions);
           this.initAdminServer(adminServer, corsOptions);
@@ -223,7 +223,7 @@ export default class TypeService {
     let t0 = Date.now();
 
     // array of [datasetId, typeTags] tuples
-    var allTypes = [];
+    const allTypes = [];
 
     datasets$
       .pipe(
