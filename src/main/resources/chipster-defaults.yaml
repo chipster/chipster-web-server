@@ -204,8 +204,12 @@ auth-jaas-conf-path: ""
 auth-oidc-issuer: ""
 # client_id which you get from to oidc provider when you register your application
 auth-oidc-client-id: ""
+# client_secret which you get from to oidc provider when you register your application
+auth-oidc-client-secret: ""
 # Chipster callback path
 auth-oidc-redirect-path: /oidc/callback
+# Chipster path for starting OIDC authentication
+auth-oidc-login-path: /oidc/flow
 # "id_token" for implicit flow, "code" for authorization code flow
 auth-oidc-response-type: id_token
 # url or client path to the logo to show on the login page
@@ -633,11 +637,11 @@ file-storage-backup-preserve-space: 3.0
 file-storage-id: ""
 
 # Start multiple threads to read files larger than this, in MiB.
-# File download with readahead consumes more memory (chunk-size * chunk-count for each transfer), but 
+# File download with readahead consumes more memory (chunk-size * chunk-count for each transfer), but
 # can be significantly faster on distributed storage systems, that have high latency and tolerate plenty of parallelism.
 
 file-storage-readahead-above: ""
-# readahead chunk size for each thread, in MiB. 
+# readahead chunk size for each thread, in MiB.
 file-storage-readahead-chunk-size: 4
 # readahead maximum number of chunk and thread for one file
 file-storage-readahead-chunk-count: 16

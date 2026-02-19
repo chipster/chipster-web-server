@@ -5,6 +5,7 @@ public class OidcConfig {
 	private String issuer;
 	private String clientId;
 	private String redirectPath;
+	private String loginPath;
 	private String responseType;
 	private String logo;
 	private Integer priority;
@@ -26,6 +27,7 @@ public class OidcConfig {
 	private String requiredUserinfoClaimError;
 	private String description;
 	private String scope;
+	private String clientSecret;
 
 	public OidcConfig() {
 	}
@@ -222,4 +224,19 @@ public class OidcConfig {
 		this.requiredUserinfoClaimError = requiredUserinfoClaimError;
 	}
 
+	public void setClientSecret(String clientSecret) {
+		this.clientSecret = clientSecret;
+	}
+
+	public String getClientSecret() {
+		return this.clientSecret;
+	}
+
+	public String getLoginPath() {
+		return loginPath;
+	}
+
+	public void setLoginPath(String loginPath) {
+		this.loginPath = loginPath;
+	}
 }

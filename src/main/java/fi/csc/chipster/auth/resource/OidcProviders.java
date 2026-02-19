@@ -20,6 +20,7 @@ public interface OidcProviders {
 	public static final String CONF_CLIENT_ID = "auth-oidc-client-id";
 	public static final String CONF_CLIENT_SECRET = "auth-oidc-client-secret";
 	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-path";
+	public static final String CONF_LOGIN_URI = "auth-oidc-login-path";
 	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";
 	public static final String CONF_LOGO = "auth-oidc-logo";
 	public static final String CONF_LOGO_WIDTH = "auth-oidc-logo-width";
@@ -53,7 +54,9 @@ public interface OidcProviders {
 
 		oidc.setIssuer(config.getString(CONF_ISSUER, oidcName));
 		oidc.setClientId(config.getString(CONF_CLIENT_ID, oidcName));
+		oidc.setClientSecret(config.getString(CONF_CLIENT_SECRET, oidcName));
 		oidc.setRedirectPath(config.getString(CONF_REDIRECT_URI, oidcName));
+		oidc.setLoginPath(config.getString(CONF_LOGIN_URI, oidcName));
 		oidc.setResponseType(config.getString(CONF_RESPONSE_TYPE, oidcName));
 		oidc.setLogo(config.getString(CONF_LOGO, oidcName));
 		oidc.setLogoWidth(config.getString(CONF_LOGO_WIDTH, oidcName));

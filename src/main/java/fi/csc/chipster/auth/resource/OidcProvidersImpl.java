@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -68,7 +69,7 @@ public class OidcProvidersImpl implements OidcProviders {
 
 				this.userInfoEndpointURIs.put(oidc, getUserInfoEndpointURI(oidc, metadata));
 
-			} catch (com.nimbusds.oauth2.sdk.ParseException | IOException | URISyntaxException e) {
+			} catch (IOException | URISyntaxException e) {
 				throw new RuntimeException("oidc metadata error " + oidc.getOidcName(), e);
 			}
 		}
@@ -119,8 +120,7 @@ public class OidcProvidersImpl implements OidcProviders {
 		}
 	}
 
-	private OIDCProviderMetadata getMetadata(OidcConfig oidc)
-			throws IOException, com.nimbusds.oauth2.sdk.ParseException {
+	public static OIDCProviderMetadata getMetadata(OidcConfig oidc) {
 
 		// The OpenID provider issuer URL
 		Issuer issuer = new Issuer(oidc.getIssuer());
@@ -131,10 +131,18 @@ public class OidcProvidersImpl implements OidcProviders {
 		// Make HTTP request
 		HTTPRequest httpRequest = request.toHTTPRequest();
 		logger.info("get oidc metadata from " + httpRequest.getURI());
-		HTTPResponse httpResponse = httpRequest.send();
+		HTTPResponse httpResponse;
+		try {
+			httpResponse = httpRequest.send();
+			// Parse OpenID provider metadata
+			return OIDCProviderMetadata.parse(httpResponse.getBodyAsJSONObject());
 
-		// Parse OpenID provider metadata
-		return OIDCProviderMetadata.parse(httpResponse.getBodyAsJSONObject());
+		} catch (IOException e) {
+			throw new InternalServerErrorException("failed to get OIDC metadata", e);
+		} catch (ParseException e) {
+			throw new InternalServerErrorException("failed to parse OIDC metadata", e);
+		}
+
 	}
 
 	private URI getUserInfoEndpointURI(OidcConfig oidc, OIDCProviderMetadata metadata) {

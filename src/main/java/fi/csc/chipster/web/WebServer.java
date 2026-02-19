@@ -6,6 +6,8 @@ import java.nio.file.Path;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.rewrite.handler.HeaderPatternRule;
 import org.eclipse.jetty.rewrite.handler.RewriteHandler;
 import org.eclipse.jetty.server.Server;
@@ -15,6 +17,8 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -23,6 +27,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServerComponent;
 import fi.csc.chipster.rest.StatusSource;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.web.resource.OidcProxyResource;
 
 public class WebServer implements ServerComponent {
 
@@ -108,8 +113,22 @@ public class WebServer implements ServerComponent {
          */
         cacheRewrite.setHandler(contextHandler);
 
+        // OIDC proxy to have oidc callback in the same domain (same localStorage) with
+        // the main app
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)
+                .register(new OidcProxyResource(serviceLocator, authService));
+        // .register(authRequestFilter);
+
+        // deploy OidcProxy (Jersey) to Jetty
+        ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+        servletHandler.setContextPath("/");
+
+        ServletHolder jerseyHolder = new ServletHolder(new ServletContainer(rc));
+        servletHandler.addServlet(jerseyHolder, "/oidc/*");
+
         ContextHandlerCollection handlers = new ContextHandlerCollection();
         handlers.addHandler(cacheRewrite);
+        handlers.addHandler(servletHandler);
         handlers.addHandler(new DefaultHandler());
         server.setHandler(handlers);
 
