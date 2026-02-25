@@ -5,7 +5,6 @@ public class OidcConfig {
 	private String issuer;
 	private String clientId;
 	private String redirectPath;
-	private String loginPath;
 	private String responseType;
 	private String logo;
 	private Integer priority;
@@ -28,6 +27,7 @@ public class OidcConfig {
 	private String description;
 	private String scope;
 	private String clientSecret;
+	private String jwsAlgorithm;
 
 	public OidcConfig() {
 	}
@@ -232,11 +232,11 @@ public class OidcConfig {
 		return this.clientSecret;
 	}
 
-	public String getLoginPath() {
-		return loginPath;
+	public String getJwsAlgorithm() {
+		return jwsAlgorithm;
 	}
 
-	public void setLoginPath(String loginPath) {
-		this.loginPath = loginPath;
+	public void setJwsAlgorithm(String jwsAlgorithm) {
+		this.jwsAlgorithm = jwsAlgorithm;
 	}
 }

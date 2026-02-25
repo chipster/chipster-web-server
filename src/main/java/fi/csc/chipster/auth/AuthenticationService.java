@@ -15,6 +15,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
+import fi.csc.chipster.auth.model.OidcLoginSession;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
 import fi.csc.chipster.auth.resource.AuthAdminResource;
@@ -22,6 +23,9 @@ import fi.csc.chipster.auth.resource.AuthTokenResource;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.auth.resource.AuthUserResource;
 import fi.csc.chipster.auth.resource.AuthenticationRequestFilter;
+import fi.csc.chipster.auth.resource.OidcLoginSessions;
+import fi.csc.chipster.auth.resource.OidcLoginSessionsInDb;
+import fi.csc.chipster.auth.resource.OidcLoginSessionsInMemory;
 import fi.csc.chipster.auth.resource.OidcProvidersImpl;
 import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.UserTable;
@@ -42,6 +46,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 public class AuthenticationService implements ServerComponent {
 
 	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
+	private static final String KEY_OIDC_SESSION_IN_DB = "auth-oidc-session-in-db";
 
 	private Logger logger = LogManager.getLogger();
 
@@ -59,6 +64,7 @@ public class AuthenticationService implements ServerComponent {
 
 	public static List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
 			User.class,
+			OidcLoginSession.class,
 	});
 
 	public AuthenticationService(Config config) {
@@ -95,7 +101,19 @@ public class AuthenticationService implements ServerComponent {
 		AuthTokens authTokens = new AuthTokens(config);
 
 		AuthTokenResource tokenResource = new AuthTokenResource(authTokens, userTable);
-		OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(authTokens, userTable, config));
+
+		OidcLoginSessions oidcLoginSessions;
+
+		if (config.getBoolean(KEY_OIDC_SESSION_IN_DB)) {
+			oidcLoginSessions = new OidcLoginSessionsInDb(config, hibernate);
+		} else {
+			oidcLoginSessions = new OidcLoginSessionsInMemory(config);
+		}
+
+		OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(authTokens, userTable, config),
+				oidcLoginSessions);
+
+		// new ChipsterOidcLoginSessionsInMemory(config));
 		oidcResource.init(authTokens, userTable, config);
 		AuthUserResource userResource = new AuthUserResource(userTable);
 		AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable,

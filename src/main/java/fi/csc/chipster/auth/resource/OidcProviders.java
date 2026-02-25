@@ -1,11 +1,23 @@
 package fi.csc.chipster.auth.resource;
 
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.rest.Config;
+import jakarta.ws.rs.BadRequestException;
 
 /**
  * Interface for communicating with the OIDC provider
@@ -14,13 +26,14 @@ import fi.csc.chipster.rest.Config;
  * 
  * @author klemela
  */
-public interface OidcProviders {
+public abstract class OidcProviders {
+
+	private static final Logger logger = LogManager.getLogger();
 
 	public static final String CONF_ISSUER = "auth-oidc-issuer";
 	public static final String CONF_CLIENT_ID = "auth-oidc-client-id";
 	public static final String CONF_CLIENT_SECRET = "auth-oidc-client-secret";
 	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-path";
-	public static final String CONF_LOGIN_URI = "auth-oidc-login-path";
 	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";
 	public static final String CONF_LOGO = "auth-oidc-logo";
 	public static final String CONF_LOGO_WIDTH = "auth-oidc-logo-width";
@@ -41,12 +54,14 @@ public interface OidcProviders {
 	public static final String CONF_REQUIRED_USERINFO_CLAIM_ERROR = "auth-oidc-required-userinfo-claim-error";
 	public static final String CONF_DESCRIPTION = "auth-oidc-description";
 	public static final String CONF_SCOPE = "auth-oidc-scope";
+	public static final String CONF_JWS_ALGORITHM = "auth-oidc-jws-algorithm";
 
-	ArrayList<OidcConfig> getOidcConfigs();
+	private HashMap<String, OidcConfig> oidcConfigs = new HashMap<>();
+	private HashMap<String, IDTokenValidator> validators = new HashMap<>();
 
-	UserInfo getUserInfo(OidcConfig oidcConfig, String accessTokenString, boolean isDebug);
-
-	IDTokenValidator getValidator(OidcConfig oidcConfig);
+	public IDTokenValidator getValidator(String oidcName) {
+		return validators.get(oidcName);
+	}
 
 	public static OidcConfig getOidcConfig(String oidcName, Config config) {
 
@@ -56,7 +71,6 @@ public interface OidcProviders {
 		oidc.setClientId(config.getString(CONF_CLIENT_ID, oidcName));
 		oidc.setClientSecret(config.getString(CONF_CLIENT_SECRET, oidcName));
 		oidc.setRedirectPath(config.getString(CONF_REDIRECT_URI, oidcName));
-		oidc.setLoginPath(config.getString(CONF_LOGIN_URI, oidcName));
 		oidc.setResponseType(config.getString(CONF_RESPONSE_TYPE, oidcName));
 		oidc.setLogo(config.getString(CONF_LOGO, oidcName));
 		oidc.setLogoWidth(config.getString(CONF_LOGO_WIDTH, oidcName));
@@ -79,7 +93,61 @@ public interface OidcProviders {
 		oidc.setRequiredUserinfoClaimError(config.getString(CONF_REQUIRED_USERINFO_CLAIM_ERROR, oidcName));
 		oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 		oidc.setScope(config.getString(CONF_SCOPE, oidcName));
+		oidc.setJwsAlgorithm(config.getString(CONF_JWS_ALGORITHM));
 
 		return oidc;
+	}
+
+	protected abstract UserInfo getUserInfo(AccessToken accessToken, String oidcName);
+
+	protected abstract ArrayList<OidcConfig> getPublicOidcConfigs();
+
+	protected abstract String getAuthorizationEndpointURI(String oidcName);
+
+	protected abstract URI getTokenEndpoint(String oidcName);
+
+	public HashMap<String, OidcConfig> getOidcConfigs() {
+		return this.oidcConfigs;
+	}
+
+	public void addOidcConfig(OidcConfig oidcConfig, URI jwkSetUri, JWKSet jwkSet) throws MalformedURLException {
+		this.oidcConfigs.put(oidcConfig.getOidcName(), oidcConfig);
+
+		this.validators.put(oidcConfig.getOidcName(),
+				createValidator(oidcConfig.getIssuer(), oidcConfig.getClientId(), jwkSetUri, jwkSet,
+						oidcConfig.getJwsAlgorithm()));
+	}
+
+	public OidcConfig getOidcConfig(String oidcName) {
+		OidcConfig oidcConfig = oidcConfigs.get(oidcName);
+
+		if (oidcConfig == null) {
+			throw new BadRequestException("unknown oidcName");
+		}
+		return oidcConfig;
+	}
+
+	public IDTokenValidator createValidator(String issuerString, String clientIdString, URI jwkSetURI, JWKSet jwkSet,
+			String jwsAlgorithm) throws MalformedURLException {
+
+		if (jwkSetURI == null && jwkSet == null) {
+			throw new IllegalStateException("OpenID Connect jwk_uri is null, cannot verify login tokens without it");
+		} else {
+			logger.info("download OpenID Connect keys from " + jwkSetURI);
+		}
+
+		Issuer issuer = new Issuer(issuerString);
+		ClientID clientID = new ClientID(clientIdString);
+		JWSAlgorithm algorithm = new JWSAlgorithm(jwsAlgorithm, null);
+
+		// Create validator for signed ID tokens
+		if (jwkSetURI != null) {
+			// it should download the token signing keys and keep them updated (e.g. daily
+			// for google)
+			return new IDTokenValidator(issuer, clientID, algorithm, jwkSetURI.toURL());
+		} else {
+			// give keys directly in tests
+			return new IDTokenValidator(issuer, clientID, algorithm, jwkSet);
+		}
 	}
 }

@@ -1,15 +1,14 @@
 package fi.csc.chipster.auth.resource;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
-import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -17,60 +16,38 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
-import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
-import com.nimbusds.oauth2.sdk.AuthorizationGrant;
-import com.nimbusds.oauth2.sdk.ErrorObject;
-import com.nimbusds.oauth2.sdk.ResponseType;
-import com.nimbusds.oauth2.sdk.Scope;
-import com.nimbusds.oauth2.sdk.TokenErrorResponse;
-import com.nimbusds.oauth2.sdk.TokenRequest;
-import com.nimbusds.oauth2.sdk.TokenResponse;
-import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
-import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
-import com.nimbusds.oauth2.sdk.auth.Secret;
-import com.nimbusds.oauth2.sdk.http.HTTPResponse;
-import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
-import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest.Builder;
-import com.nimbusds.openid.connect.sdk.AuthenticationResponse;
-import com.nimbusds.openid.connect.sdk.AuthenticationResponseParser;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
-import com.nimbusds.openid.connect.sdk.OIDCTokenResponseParser;
-import com.nimbusds.openid.connect.sdk.UserInfoRequest;
-import com.nimbusds.openid.connect.sdk.UserInfoResponse;
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
-import com.nimbusds.openid.connect.sdk.claims.UserInfo;
-import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
+import fi.csc.chipster.auth.model.OidcLoginSession;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserId;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import io.jsonwebtoken.lang.Arrays;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriInfo;
 
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
@@ -102,6 +79,8 @@ import jakarta.ws.rs.core.UriInfo;
 @Path("oidc")
 public class OidcResource {
 
+	private static final String KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID = "chipsterOidcLoginSessionId";
+
 	public static final String COMPARISON_STRING = "string";
 	public static final String COMPARISON_JSON_ARRAY_ALL = "jsonArrayAll";
 	public static final String COMPARISON_JSON_ARRAY_ANY = "jsonArrayAny";
@@ -117,8 +96,11 @@ public class OidcResource {
 
 	private OidcProviders oidcProviders;
 
-	public OidcResource(OidcProviders oidcProviders) {
+	private OidcLoginSessions chipsterOidcLoginSessions;
+
+	public OidcResource(OidcProviders oidcProviders, OidcLoginSessions chipsterOidcLoginSessions) {
 		this.oidcProviders = oidcProviders;
+		this.chipsterOidcLoginSessions = chipsterOidcLoginSessions;
 	}
 
 	public void init(AuthTokens authTokens, UserTable userTable, Config config) throws URISyntaxException, IOException {
@@ -128,245 +110,226 @@ public class OidcResource {
 	}
 
 	@GET
+	@Path("configs")
+	@RolesAllowed(Role.UNAUTHENTICATED)
+	@Produces(MediaType.APPLICATION_JSON)
+	public ArrayList<OidcConfig> getPublicOidcConfs() {
+
+		return oidcProviders.getPublicOidcConfigs();
+	}
+
+	@POST
+	@Path("login")
+	@RolesAllowed({ Role.UNAUTHENTICATED })
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public HashMap<String, Object> startAuthentication(@QueryParam("oidcName") String oidcName) {
+
+		logger.info("start oidc authentication " + oidcName);
+
+		OidcConfig oidcConfig = oidcProviders.getOidcConfig(oidcName);
+
+		String authorizationEndpoint = oidcProviders.getAuthorizationEndpointURI(oidcName);
+
+		// Generate random state string to securely pair the callback to this request
+		State state = new State();
+
+		// Generate nonce for the ID token
+		Nonce nonce = new Nonce();
+
+		// store state, nonce and oidcName for callback
+		UUID chipsterOidcLoginSessionId = this.chipsterOidcLoginSessions.add(state.getValue(), nonce.getValue(),
+				oidcName);
+
+		Builder request = NimbusHelpers.createAuthentiationRequest(oidcConfig.getClientId(),
+				oidcConfig.getRedirectPath(),
+				state,
+				nonce,
+				oidcConfig.getResponseType(), oidcConfig.getScope(), authorizationEndpoint);
+
+		addParameters(request, oidcConfig.getParameter());
+
+		HashMap<String, Object> json = new HashMap<>();
+		// The URI to send the user-user browser to the OpenID provider
+		json.put("url", request.build().toURI());
+		// chipster ID to find the state and nonce later
+		json.put(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID, chipsterOidcLoginSessionId);
+
+		if (this.isDebug) {
+			logger.info("response: " + json);
+		}
+
+		return json;
+	}
+
+	@POST
 	@Path("callback")
-	@RolesAllowed({ Role.UNAUTHENTICATED, Role.WEB_SERVER })
+	@RolesAllowed({ Role.UNAUTHENTICATED })
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction
-	public Response oidcCallback(@Context UriInfo uriInfo)
-			throws GeneralSecurityException, IOException, ParseException {
+	public Response oidcCallback(HashMap<String, String> requestJson) {
 
-		logger.debug("oidc callback " + uriInfo.getRequestUri().toASCIIString());
+		if (this.isDebug) {
+			logger.info("oidc callback " + requestJson);
+		} else {
+			logger.info("oidc callback " + requestJson.get("oidcName"));
+		}
 
-		// request uri, including query parameters
-		AuthorizationCode code = this.authentication(URI.create(uriInfo.getRequestUri().toASCIIString()));
+		String code = requestJson.get("code");
+		String stateFromRequest = requestJson.get("state");
+		String oidcName = requestJson.get("oidcName");
+		UUID chipsterOidcLoginSessionId = UUID.fromString(requestJson.get(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID));
 
-		// FIXME how to know which oidcConfig?
-		OidcConfig oidcConfig = this.getOidcConfig("haka-code");
+		if (code == null) {
+			throw new BadRequestException("no code");
+		}
 
-		OIDCProviderMetadata metadata = OidcProvidersImpl.getMetadata(oidcConfig);
+		if (stateFromRequest == null) {
+			throw new BadRequestException("no state");
+		}
 
-		OIDCTokenResponse tokenResponse = this.tokenRequest(oidcConfig, code, metadata);
+		if (oidcName == null) {
+			throw new BadRequestException("no oidcName");
+		}
+
+		if (chipsterOidcLoginSessionId == null) {
+			throw new BadRequestException("no " + KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID);
+		}
+
+		// find (and remove) the login session
+		OidcLoginSession chipsterOidcLogin = this.chipsterOidcLoginSessions.remove(chipsterOidcLoginSessionId);
+
+		if (chipsterOidcLogin == null) {
+			throw new NotFoundException("login session not found, probably expired");
+		}
+
+		/*
+		 * The callback uri is parsed already in the app. Then only thing left from this
+		 * example is to check that the state from the request matches with the state on
+		 * the server
+		 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/
+		 * openid-connect/oidc-auth
+		 */
+		if (!chipsterOidcLogin.getState().equals(stateFromRequest)) {
+			throw new BadRequestException("state doesn't match");
+		}
+
+		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterOidcLogin.getOidcName());
+
+		URI tokenEndpoint = oidcProviders.getTokenEndpoint(chipsterOidcLogin.getOidcName());
+
+		OIDCTokenResponse tokenResponse = NimbusHelpers.tokenRequest(oidcConfig, new AuthorizationCode(code),
+				tokenEndpoint);
 
 		// Get the ID and access token, the server may also return a refresh token
 		JWT idToken = tokenResponse.getOIDCTokens().getIDToken();
 		AccessToken accessToken = tokenResponse.getOIDCTokens().getAccessToken();
 		// RefreshToken refreshToken = tokenResponse.getOIDCTokens().getRefreshToken();
 
-		if (idToken == null) {
-			throw new ForbiddenException("no ID token");
-		}
-
-		IDTokenClaimsSet claims = validate(idToken, oidcConfig, metadata);
-
-		// token is valid, we can trust that it came from the issuer
-
-		if (this.isDebug) {
-			logger.info("claims after validation: ");
-			// there is no easier way to iterate claims?
-			Map<String, Object> jwtClaims;
-			try {
-				jwtClaims = claims.toJWTClaimsSet().getClaims();
-				for (String k : jwtClaims.keySet()) {
-					logger.info("claim " + k + ": " + jwtClaims.get(k));
-				}
-			} catch (com.nimbusds.oauth2.sdk.ParseException e) {
-				logger.error("failed to print claims", e);
-			}
-		}
-
-		UserInfo userInfo = null;
-
-		if (oidcConfig.getRequiredUserinfoClaimKey().isEmpty()) {
-			if (this.isDebug) {
-				logger.info("no required userinfo claims");
-			}
-		} else {
-			userInfo = userInfo(oidcConfig, accessToken, metadata);
-			checkUserInfo(oidcConfig, userInfo, claims.getSubject().toString());
-		}
-
-		String chipsterToken = getChipsterToken(claims, userInfo, oidcConfig);
+		String chipsterToken = createTokenFromOidc(oidcConfig, idToken, accessToken, chipsterOidcLogin.getNonce());
 
 		return Response.ok(chipsterToken).build();
 	}
 
-	/*
-	 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/
-	 * openid-connect/oidc-auth
+	/**
+	 * Validate id_token and create Chipster token
+	 * 
+	 * This part can be extensively tested, because here interaction with the OIDC
+	 * authoriization/resource server has been done already.
+	 * 
+	 * @param oidcConfig
+	 * @param idToken
+	 * @param accessToken
+	 * @param nonce
+	 * @return
 	 */
-	private AuthorizationCode authentication(URI uri) {
-		// parse code and state from request
-		AuthenticationResponse response;
-		try {
-			response = AuthenticationResponseParser.parse(uri);
-		} catch (com.nimbusds.oauth2.sdk.ParseException e) {
-			throw new BadRequestException("failed to parse request uri");
+	public String createTokenFromOidc(OidcConfig oidcConfig, JWT idToken, AccessToken accessToken,
+			String nonce) {
+
+		if (idToken == null) {
+			throw new ForbiddenException("no ID token");
 		}
 
-		// Check the state
-		// FIXME store in db?
-		// if (!response.getState().equals(state)) {
-		// System.err.println("Unexpected authentication response");
-		// return;
-		// }
+		IDTokenValidator validator = oidcProviders.getValidator(oidcConfig.getOidcName());
 
-		if (response instanceof AuthenticationErrorResponse) {
-			// The OpenID provider returned an error
-			// TODO test
-			throw new InternalServerErrorException(
-					"error in OIDC callback " + RestUtils.asJson(response.toErrorResponse().getErrorObject()));
-		}
-
-		// Retrieve the authorisation code, to use it later at the token endpoint
-		AuthorizationCode code = response.toSuccessResponse().getAuthorizationCode();
-
-		return code;
-	}
-
-	/*
-	 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/
-	 * openid-connect/token-request
-	 */
-	private OIDCTokenResponse tokenRequest(OidcConfig oidcConfig, AuthorizationCode code,
-			OIDCProviderMetadata metadata) {
-		// Construct the code grant from the code obtained from the authz endpoint
-		// and the original callback URI used at the authz endpoint
-		URI callback;
-		try {
-			callback = new URI(oidcConfig.getRedirectPath());
-		} catch (URISyntaxException e) {
-			throw new InternalServerErrorException("failed to parse callback path", e);
-		}
-		AuthorizationGrant codeGrant = new AuthorizationCodeGrant(code, callback);
-
-		// The credentials to authenticate the client at the token endpoint
-		ClientID clientID = new ClientID(oidcConfig.getClientId());
-		Secret clientSecret = new Secret(oidcConfig.getClientSecret());
-		ClientAuthentication clientAuth = new ClientSecretBasic(clientID, clientSecret);
-
-		// The token endpoint
-		URI tokenEndpoint = metadata.getTokenEndpointURI();
-
-		// Make the token request
-		TokenRequest request = new TokenRequest(tokenEndpoint, clientAuth, codeGrant);
-
-		TokenResponse tokenResponse;
-		try {
-			tokenResponse = OIDCTokenResponseParser.parse(request.toHTTPRequest().send());
-		} catch (com.nimbusds.oauth2.sdk.ParseException e) {
-			throw new InternalServerErrorException("failed to parse id_token response", e);
-		} catch (IOException e) {
-			throw new InternalServerErrorException("failed to get id_token", e);
-		}
-
-		if (!tokenResponse.indicatesSuccess()) {
-			// We got an error response...
-			TokenErrorResponse errorResponse = tokenResponse.toErrorResponse();
-			ErrorObject err = errorResponse.getErrorObject();
-			throw new InternalServerErrorException(
-					"failed to get id_token " + err.getCode() + " " + err.getDescription());
-		}
-
-		OIDCTokenResponse successResponse = (OIDCTokenResponse) tokenResponse.toSuccessResponse();
-
-		return successResponse;
-	}
-
-	/*
-	 * https://connect2id.com/blog/how-to-validate-an-openid-connect-id-token
-	 */
-	private IDTokenClaimsSet validate(JWT idToken, OidcConfig oidcConfig, OIDCProviderMetadata metadata)
-			throws MalformedURLException {
-		// The required parameters
-		Issuer iss = new Issuer(oidcConfig.getIssuer());
-		ClientID clientID = new ClientID(oidcConfig.getClientId());
-		// FIXME make configurable
-		JWSAlgorithm jwsAlg = JWSAlgorithm.RS256;
-		URI jwkSetURL = metadata.getJWKSetURI();
-
-		// Create validator for signed ID tokens
-		IDTokenValidator validator = new IDTokenValidator(iss, clientID, jwsAlg, jwkSetURL.toURL());
+		/*
+		 * The following call to validate() is all that is left from example
+		 * https://connect2id.com/blog/how-to-validate-an-openid-connect-id-token ,
+		 * when we use cached validators.
+		 */
 
 		// Set the expected nonce, leave null if none
-		// FIXME
-		// Nonce expectedNonce = new Nonce("xyz..."); // or null
-		Nonce expectedNonce = null;
+		Nonce expectedNonce = new Nonce(nonce);
 
-		IDTokenClaimsSet claims;
+		JWTClaimsSet idTokenClaims;
 
 		try {
-			claims = validator.validate(idToken, expectedNonce);
+			idTokenClaims = validator.validate(idToken, expectedNonce).toJWTClaimsSet();
 		} catch (BadJOSEException e) {
 			// Invalid signature or claims (iss, aud, exp...)
-			throw new InternalServerErrorException("id_token validation failed", e);
+			throw new ForbiddenException("id_token validation failed", e);
 		} catch (JOSEException e) {
 			// Internal processing exception
 			throw new InternalServerErrorException("id_token validation failed", e);
+		} catch (ParseException e) {
+			throw new InternalServerErrorException("failed to parse id_token claims", e);
 		}
 
-		return claims;
+		// token is valid, we can trust that it came from the issuer
+
+		if (this.isDebug) {
+			logger.info("id_token claims after validation: ");
+			printClaims(idTokenClaims.getClaims());
+		}
+
+		checkIdToken(oidcConfig, idTokenClaims);
+
+		logger.info("get userInfo");
+		JWTClaimsSet userInfoClaims;
+		try {
+			userInfoClaims = oidcProviders.getUserInfo(accessToken, oidcConfig.getOidcName()).toJWTClaimsSet();
+		} catch (ParseException e) {
+			throw new InternalServerErrorException("failed to parse userInfo claims", e);
+		}
+
+		if (this.isDebug) {
+			logger.info("claims from userinfo endpoint: ");
+			printClaims(userInfoClaims.getClaims());
+		}
+
+		checkUserInfo(oidcConfig, userInfoClaims, idTokenClaims.getSubject().toString());
+
+		String chipsterToken = getChipsterToken(idTokenClaims, userInfoClaims, oidcConfig);
+
+		logger.info("login successful");
+
+		return chipsterToken;
 	}
 
-	/*
-	 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/
-	 * openid-connect/userinfo
-	 */
-	private UserInfo userInfo(OidcConfig oidcConfig, AccessToken accessToken, OIDCProviderMetadata metadata) {
-		URI userInfoEndpoint = metadata.getUserInfoEndpointURI();
+	private String getChipsterToken(JWTClaimsSet idTokenClaims, JWTClaimsSet userInfoClaims, OidcConfig oidcConfig) {
 
-		// Make the request
-		HTTPResponse httpResponse;
-		try {
-			httpResponse = new UserInfoRequest(userInfoEndpoint, accessToken)
-					.toHTTPRequest()
-					.send();
-		} catch (IOException e) {
-			throw new InternalServerErrorException("failed to get userInfo", e);
-		}
+		String sub = idTokenClaims.getSubject();
 
-		// Parse the response
-		UserInfoResponse userInfoResponse;
-		try {
-			userInfoResponse = UserInfoResponse.parse(httpResponse);
-		} catch (com.nimbusds.oauth2.sdk.ParseException e) {
-			throw new InternalServerErrorException("failed to parse userInfo response");
-		}
-
-		if (!userInfoResponse.indicatesSuccess()) {
-			ErrorObject err = userInfoResponse.toErrorResponse().getErrorObject();
-			// The request failed, e.g. due to invalid or expired token
-			throw new InternalServerErrorException(
-					"userInfo request failed: " + err.getCode() + " " + err.getDescription());
-		}
-
-		// Extract the claims
-		return userInfoResponse.toSuccessResponse().getUserInfo();
-	}
-
-	// @POST
-	// @RolesAllowed(Role.UNAUTHENTICATED)
-	// @Consumes(MediaType.APPLICATION_JSON)
-	// @Produces(MediaType.TEXT_PLAIN)
-	// @Transaction
-
-	private String getChipsterToken(IDTokenClaimsSet claims, UserInfo userInfo, OidcConfig oidcConfig) {
-
-		String sub = claims.getSubject().getValue();
-
-		String name = claims.getStringClaim("name");
-		String email = claims.getStringClaim("email");
-		Boolean emailVerified = claims.getBooleanClaim("email_verified");
+		String name = getClaimOrNull("name", idTokenClaims);
+		String email = getClaimOrNull("email", idTokenClaims);
+		Boolean emailVerified = Boolean.parseBoolean(getClaimOrNull("email_verified", idTokenClaims));
 
 		// use different auth names in Chipster based on the claims that we get
-		String username = getClaim(oidcConfig.getClaimUserId(), claims);
+		String idTokenUsername = getClaimOrNull(oidcConfig.getClaimUserId(), idTokenClaims);
+		String userInfoUsername = getClaimOrNull(oidcConfig.getClaimUserId(), userInfoClaims);
+
 		String userIdPrefix = oidcConfig.getUserIdPrefix();
 
 		UserId userId = null;
 		if (oidcConfig.getClaimUserId().equals("sub")) {
 			userId = new UserId(userIdPrefix, sub);
 
-		} else if (username != null) {
-			userId = new UserId(userIdPrefix, username);
+		} else if (idTokenUsername != null) {
+			userId = new UserId(userIdPrefix, idTokenUsername);
+
+		} else if (userInfoUsername != null) {
+			userId = new UserId(userIdPrefix, userInfoUsername);
 
 		} else {
 			throw new ForbiddenException("username not found from claim " + oidcConfig.getClaimUserId());
@@ -377,7 +340,7 @@ public class OidcResource {
 			email = null;
 		}
 
-		String organization = getClaim(oidcConfig.getClaimOrganization(), claims);
+		String organization = getClaimOrNull(oidcConfig.getClaimOrganization(), idTokenClaims);
 
 		userTable.addOrUpdateFromLogin(userId, email, organization, name);
 
@@ -387,59 +350,30 @@ public class OidcResource {
 		return token;
 	}
 
-	// /**
-	// * Do this in separate method to allow it to be tested without setting up an
-	// * OIDC xserver
-	// *
-	// * @param idToken
-	// * @param accessTokenString
-	// * @param validator
-	// * @return
-	// */
-	// protected IDTokenClaimsSet validateIdToken(JWT idToken, IDTokenValidator
-	// validator) {
+	private void checkIdToken(OidcConfig oidcConfig, JWTClaimsSet idTokenClaims) {
 
-	// IDTokenClaimsSet claims;
-	// try {
-	// // client can send anything
-	// // we can trust this only after the signature, iss, sub, aud and ext are
-	// checked
-	// claims = validator.validate(idToken, null);
-
-	// } catch (BadJOSEException e) {
-	// // Invalid signature or claims (iss, aud, exp...)
-	// logger.warn("invalid ID token", e);
-	// throw new ForbiddenException("invalid ID token signature or claims");
-	// } catch (JOSEException e) {
-	// // Internal processing exception
-	// logger.warn("invalid ID token", e);
-	// throw new ForbiddenException("invalid ID token");
-	// }
-
-	// // token is valid, we can trust that it came from the issuer
-
-	// return claims;
-	// }
-
-	private void checkUserInfo(OidcConfig oidcConfig, UserInfo userInfo, String sub) {
-
-		Map<String, Object> jwtClaims;
-		try {
-			jwtClaims = userInfo.toJWTClaimsSet().getClaims();
-		} catch (com.nimbusds.oauth2.sdk.ParseException e) {
-			throw new InternalServerErrorException("failed to parse userInfo claims", e);
+		if (!hasRequiredClaim(
+				oidcConfig.getOidcName(),
+				oidcConfig.getRequiredClaimKey(),
+				oidcConfig.getRequiredClaimValue(),
+				oidcConfig.getRequiredClaimValueComparison(),
+				idTokenClaims)) {
+			throw new ForbiddenException("no required claim or value");
 		}
+	}
 
-		if (this.isDebug) {
-			logger.info("claims from userinfo endpoint: ");
-			for (String k : jwtClaims.keySet()) {
-				logger.info("claim " + k + ": " + jwtClaims.get(k));
+	private void checkUserInfo(OidcConfig oidcConfig, JWTClaimsSet userInfoClaims, String sub) {
+
+		if (oidcConfig.getRequiredUserinfoClaimKey().isEmpty()) {
+			if (this.isDebug) {
+				logger.info("no required userinfo claims");
 			}
+			return;
 		}
 
 		// sanity checks, compare the sub claim from id_token and userinfo claims
 
-		if (!userInfo.getSubject().getValue().equals(sub)) {
+		if (!userInfoClaims.getSubject().equals(sub)) {
 			throw new InternalServerErrorException("id_token and userinfo subjects differ");
 		}
 
@@ -448,7 +382,7 @@ public class OidcResource {
 				oidcConfig.getRequiredUserinfoClaimKey(),
 				oidcConfig.getRequiredUserinfoClaimValue(),
 				oidcConfig.getRequiredUserinfoClaimValueComparison(),
-				jwtClaims)) {
+				userInfoClaims)) {
 			if (this.isDebug) {
 				logger.info("access denied. Required userinfo claim not found: "
 						+ oidcConfig.getRequiredUserinfoClaimKey());
@@ -457,73 +391,11 @@ public class OidcResource {
 		}
 	}
 
-	// /**
-	// * Get the oidc config
-	// *
-	// * If the same issuer has multiple configs, iterate in priority order.
-	// *
-	// * @param issuer
-	// * @param claims
-	// * @return
-	// */
-	// protected OidcConfig getOidcConfig(String issuer, String clientId,
-	// Map<String, Object> claims) {
-	// if (this.isDebug) {
-	// logger.info("searching oidc config");
-	// }
-	// for (OidcConfig oidc : oidcProviders.getOidcConfigs()) {
-	// if (this.isDebug) {
-	// logger.info("check if oidc config " + oidc.getOidcName() + " is suitable");
-	// }
-	// if (!oidc.getIssuer().equals(issuer)) {
-	// if (this.isDebug) {
-	// logger.info("issuer '" + issuer + "' does not match " + oidc.getIssuer() +
-	// "'");
-	// }
-	// continue;
-	// }
-
-	// if (!oidc.getClientId().equals(clientId)) {
-	// if (this.isDebug) {
-	// logger.info("clientId '" + clientId + "' does not match " +
-	// oidc.getClientId() + "'");
-	// }
-	// continue;
-	// }
-
-	// if (claims.get(oidc.getClaimUserId()) == null) {
-	// if (this.isDebug) {
-	// logger.info("claim '" + oidc.getClaimUserId() + "' not found");
-	// }
-	// continue;
-	// }
-
-	// if (!hasRequiredClaim(
-	// oidc.getOidcName(),
-	// oidc.getRequiredClaimKey(),
-	// oidc.getRequiredClaimValue(),
-	// oidc.getRequiredClaimValueComparison(),
-	// claims)) {
-	// continue;
-	// }
-
-	// if (this.isDebug) {
-	// logger.info("oidc config found: " + oidc.getOidcName());
-	// }
-	// // this is fine
-	// return oidc;
-	// }
-	// if (this.isDebug) {
-	// logger.info("oidc config not found");
-	// }
-	// throw new ForbiddenException("oidc config not found for issuer " + issuer);
-	// }
-
 	protected boolean hasRequiredClaim(String oidcName, String requiredClaimKey, String requiredClaimValue,
-			String comparison, Map<String, Object> claims) {
+			String comparison, JWTClaimsSet claims) {
 		if (!requiredClaimKey.isEmpty()) {
 
-			Object claimObj = claims.get(requiredClaimKey);
+			Object claimObj = claims.getClaims().get(requiredClaimKey);
 			if (claimObj == null) {
 				logger.info("oidc " + oidcName + " requires a non existent claim " + requiredClaimKey);
 				return false;
@@ -604,62 +476,35 @@ public class OidcResource {
 	 * @param claims
 	 * @return
 	 */
-	private String getClaim(String claimName, IDTokenClaimsSet claims) {
+	private String getClaimOrNull(String claimName, JWTClaimsSet claims) {
 		if (!claimName.isEmpty()) {
-			return claims.getStringClaim(claimName);
+			Object value = claims.getClaims().get(claimName);
+			if (value == null) {
+				return null;
+			}
+			if (value instanceof String) {
+				return (String) value;
+			}
+			throw new InternalServerErrorException("claim " + claimName + " value is not String: " + value);
 		}
 		return null;
 	}
 
-	@GET
-	@Path("configs")
-	@RolesAllowed(Role.UNAUTHENTICATED)
-	@Produces(MediaType.APPLICATION_JSON)
-	public ArrayList<OidcConfig> getOidcConfs() {
-		return oidcProviders.getOidcConfigs();
+	private void printClaims(Map<String, Object> claims) {
+
+		for (String k : claims.keySet()) {
+			logger.info("claim " + k + ": " + claims.get(k));
+		}
 	}
 
-	@POST
-	@Path("flow")
-	@RolesAllowed({ Role.UNAUTHENTICATED, Role.WEB_SERVER })
-	@Produces(MediaType.APPLICATION_JSON)
-	public URI startAuthentication(@QueryParam("id") String oidcName)
-			throws URISyntaxException, com.nimbusds.oauth2.sdk.ParseException, IOException {
-
-		OidcConfig oidcConfig = getOidcConfig(oidcName);
-
-		// TODO get only once
-		String authorizationEndpoint = OidcProvidersImpl.getMetadata(oidcConfig).getAuthorizationEndpointURI()
-				.toString();
-
-		ClientID clientID = new ClientID(oidcConfig.getClientId());
-
-		// The client callback URL
-		URI callback = new URI(oidcConfig.getRedirectPath());
-
-		// Generate random state string to securely pair the callback to this request
-		State state = new State();
-
-		// Generate nonce for the ID token
-		Nonce nonce = new Nonce();
-
-		// Compose the OpenID authentication request (for the code flow)
-		Builder request = new AuthenticationRequest.Builder(
-				new ResponseType(oidcConfig.getResponseType()),
-				new Scope(oidcConfig.getScope()),
-				clientID,
-				callback)
-				.endpointURI(new URI(authorizationEndpoint))
-				.state(state)
-				.nonce(nonce);
-
-		if (oidcConfig.getParameter() != null) {
-			// this is how it was done in app, but possibility to add multiple parameters is
+	private void addParameters(Builder request, String parameter) {
+		if (parameter != null) {
+			// public client in app did support multiple parameters like this, but this is
 			// not documented in chipster-defaults.yaml
-			for (String entry : Arrays.asList(oidcConfig.getParameter().split(" "))) {
+			for (String entry : Arrays.asList(parameter.split(" "))) {
 				String[] parts = entry.split("=");
 				if (parts.length != 2) {
-					throw new InternalServerErrorException("cannot parse " + oidcConfig.getParameter());
+					throw new InternalServerErrorException("cannot parse " + parameter);
 				}
 				String key = parts[0];
 				String value = parts[1];
@@ -667,23 +512,5 @@ public class OidcResource {
 				request.customParameter(key, value);
 			}
 		}
-
-		// The URI to send the user-user browser to the OpenID provider
-		return request.build().toURI();
-	}
-
-	private OidcConfig getOidcConfig(String oidcName) {
-		List<OidcConfig> configs = oidcProviders.getOidcConfigs().stream()
-				.filter(oc -> oc.getOidcName().equals(oidcName)).collect(Collectors.toList());
-
-		if (configs.size() == 0) {
-			throw new BadRequestException("oidc configuration not found");
-		}
-
-		if (configs.size() > 1) {
-			throw new InternalServerErrorException("multiple oidc configurations found");
-		}
-
-		return configs.getFirst();
 	}
 }

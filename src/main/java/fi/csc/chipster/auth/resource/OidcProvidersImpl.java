@@ -1,8 +1,8 @@
 package fi.csc.chipster.auth.resource;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,36 +10,29 @@ import java.util.HashSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
-import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
-import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
-import com.nimbusds.openid.connect.sdk.UserInfoRequest;
-import com.nimbusds.openid.connect.sdk.UserInfoResponse;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderConfigurationRequest;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
-import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import jakarta.ws.rs.InternalServerErrorException;
 
-public class OidcProvidersImpl implements OidcProviders {
+public class OidcProvidersImpl extends OidcProviders {
 
 	private static final Logger logger = LogManager.getLogger();
 
-	private ArrayList<OidcConfig> sortedOidcConfigs = new ArrayList<>();
-	private HashMap<OidcConfig, IDTokenValidator> validators = new HashMap<>();
+	// use List to keep the order for the app
+	private ArrayList<OidcConfig> publicOidcConfigs = new ArrayList<>();
 
-	private HashMap<OidcConfig, URI> userInfoEndpointURIs = new HashMap<>();
+	private HashMap<String, OIDCProviderMetadata> metadatas = new HashMap<>();
 
-	public OidcProvidersImpl(AuthTokens tokenTable, UserTable userTable, Config config) {
-		ArrayList<OidcConfig> oidcConfigs = new ArrayList<>();
+	public OidcProvidersImpl(AuthTokens tokenTable, UserTable userTable, Config config) throws MalformedURLException {
 
 		for (String oidcName : config.getConfigEntries(CONF_ISSUER + "-").keySet()) {
 
@@ -54,27 +47,34 @@ public class OidcProvidersImpl implements OidcProviders {
 					oidc.getRequiredUserinfoClaimKey(), oidc.getRequiredUserinfoClaimValue(),
 					oidc.getRequiredUserinfoClaimValueComparison());
 
-			// use list, because there is no good map key. Multiple oidcConfigs may have the
-			// same issuer.
-			oidcConfigs.add(oidc);
+			OIDCProviderMetadata metadata = loadMetadata(oidc);
 
-			OIDCProviderMetadata metadata;
-			try {
-				metadata = getMetadata(oidc);
+			this.metadatas.put(oidc.getOidcName(), metadata);
 
-				// if multiple oidConfigs have the same issuer, they must have the same clientId
-				// because before validation we know only the issuer
-				this.validators.put(oidc,
-						createValidator(oidc.getIssuer(), oidc.getClientId(), metadata.getJWKSetURI(), null));
+			super.addOidcConfig(oidc, metadata.getJWKSetURI(), null);
 
-				this.userInfoEndpointURIs.put(oidc, getUserInfoEndpointURI(oidc, metadata));
+			logger.info("OpenID Connect issuer " + oidc.getIssuer() + " enabled");
 
-			} catch (IOException | URISyntaxException e) {
-				throw new RuntimeException("oidc metadata error " + oidc.getOidcName(), e);
-			}
 		}
 
-		setOidcConfigs(oidcConfigs);
+		ArrayList<OidcConfig> sortedOidcConfigs = new ArrayList<OidcConfig>(getOidcConfigs().values());
+		sortedOidcConfigs.sort((a, b) -> a.getPriority().compareTo(b.getPriority()));
+
+		for (OidcConfig privateConfig : sortedOidcConfigs) {
+
+			OidcConfig publicOidcConfig = new OidcConfig();
+
+			// client secret must be removed
+			// but let's keep only information that is needed in the app
+			publicOidcConfig.setOidcName(privateConfig.getOidcName());
+			publicOidcConfig.setAppId(privateConfig.getAppId());
+			publicOidcConfig.setDescription(privateConfig.getDescription());
+			publicOidcConfig.setLogo(privateConfig.getLogo());
+			publicOidcConfig.setLogoWidth(privateConfig.getLogoWidth());
+			publicOidcConfig.setText(privateConfig.getText());
+
+			publicOidcConfigs.add(publicOidcConfig);
+		}
 	}
 
 	private void logRequiredClaim(String name, String key, String value,
@@ -110,17 +110,7 @@ public class OidcProvidersImpl implements OidcProviders {
 
 	}
 
-	protected void setOidcConfigs(ArrayList<OidcConfig> oidcConfigs) {
-
-		sortedOidcConfigs = new ArrayList<OidcConfig>(oidcConfigs);
-		sortedOidcConfigs.sort((a, b) -> a.getPriority().compareTo(b.getPriority()));
-
-		for (OidcConfig oidc : sortedOidcConfigs) {
-			logger.info("OpenID Connect issuer " + oidc.getIssuer() + " enabled");
-		}
-	}
-
-	public static OIDCProviderMetadata getMetadata(OidcConfig oidc) {
+	public static OIDCProviderMetadata loadMetadata(OidcConfig oidc) {
 
 		// The OpenID provider issuer URL
 		Issuer issuer = new Issuer(oidc.getIssuer());
@@ -145,84 +135,24 @@ public class OidcProvidersImpl implements OidcProviders {
 
 	}
 
-	private URI getUserInfoEndpointURI(OidcConfig oidc, OIDCProviderMetadata metadata) {
-		URI uri = metadata.getUserInfoEndpointURI();
+	public ArrayList<OidcConfig> getPublicOidcConfigs() {
 
-		if (!oidc.getRequiredUserinfoClaimKey().isEmpty() && uri == null) {
-			throw new IllegalStateException(
-					"OpenID Connect userinfo endpoint is null, cannot check required claims without it");
-		}
-
-		return uri;
-	}
-
-	public ArrayList<OidcConfig> getOidcConfigs() {
-
-		return this.sortedOidcConfigs;
+		return this.publicOidcConfigs;
 	}
 
 	@Override
-	public UserInfo getUserInfo(OidcConfig oidcConfig, String accessTokenString, boolean isDebug) {
-		URI userInfoEndpoint = this.userInfoEndpointURIs.get(oidcConfig);
-		BearerAccessToken token = new BearerAccessToken(accessTokenString);
+	public UserInfo getUserInfo(AccessToken accessToken, String oidcName) {
 
-		if (isDebug) {
-			logger.info("get userinfo from " + userInfoEndpoint);
-		}
-
-		try {
-			// Make the request
-			HTTPResponse httpResponse = new UserInfoRequest(userInfoEndpoint, token)
-					.toHTTPRequest()
-					.send();
-
-			// Parse the response
-			UserInfoResponse userInfoResponse = UserInfoResponse.parse(httpResponse);
-
-			if (!userInfoResponse.indicatesSuccess()) {
-				// The request failed, e.g. due to invalid or expired token
-				logger.error("userinfo request failed: " +
-						userInfoResponse.toErrorResponse().getErrorObject().getCode() + " " +
-						userInfoResponse.toErrorResponse().getErrorObject().getDescription());
-
-				throw new InternalServerErrorException("userinfo request failed");
-			}
-
-			return userInfoResponse.toSuccessResponse().getUserInfo();
-
-		} catch (com.nimbusds.oauth2.sdk.ParseException | IOException e) {
-			throw new InternalServerErrorException("oidc userinfo error", e);
-		}
-
-	}
-
-	public IDTokenValidator createValidator(String issuerString, String clientIdString, URI jwkSetURI, JWKSet jwkSet)
-			throws URISyntaxException, IOException {
-
-		if (jwkSetURI == null && jwkSet == null) {
-			throw new IllegalStateException("OpenID Connect jwk_uri is null, cannot verify login tokens without it");
-		} else {
-			logger.info("download OpenID Connect keys from " + jwkSetURI);
-		}
-
-		Issuer issuer = new Issuer(issuerString);
-		ClientID clientID = new ClientID(clientIdString);
-		JWSAlgorithm algorithm = JWSAlgorithm.RS256;
-
-		// Create validator for signed ID tokens
-		if (jwkSetURI != null) {
-			// it should download the token signing keys and keep them updated (e.g. daily
-			// for google)
-			return new IDTokenValidator(issuer, clientID, algorithm, jwkSetURI.toURL());
-		} else {
-			// give keys directly in tests
-			return new IDTokenValidator(issuer, clientID, algorithm, jwkSet);
-		}
+		return NimbusHelpers.userInfo(accessToken, this.metadatas.get(oidcName));
 	}
 
 	@Override
-	public IDTokenValidator getValidator(OidcConfig oidcConfig) {
-		return validators.get(oidcConfig);
+	protected String getAuthorizationEndpointURI(String oidcName) {
+		return this.metadatas.get(oidcName).getAuthorizationEndpointURI().toString();
 	}
 
+	@Override
+	protected URI getTokenEndpoint(String oidcName) {
+		return this.metadatas.get(oidcName).getTokenEndpointURI();
+	}
 }
