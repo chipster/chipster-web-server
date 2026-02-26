@@ -31,10 +31,10 @@ import com.nimbusds.openid.connect.sdk.Nonce;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.oidc.OidcConfig;
+import fi.csc.chipster.auth.oidc.OidcProviders;
+import fi.csc.chipster.auth.oidc.loginsessions.OidcLoginSessionsInDb;
 import fi.csc.chipster.auth.resource.AuthTokens;
-import fi.csc.chipster.auth.resource.OidcConfig;
-import fi.csc.chipster.auth.resource.OidcLoginSessionsInDb;
-import fi.csc.chipster.auth.resource.OidcProviders;
 import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.Config;

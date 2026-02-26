@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth.oidc;
 
 import java.io.IOException;
 import java.net.URI;

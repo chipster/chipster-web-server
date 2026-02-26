@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth.oidc;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -19,6 +19,9 @@ import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderConfigurationRequest;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 
+import fi.csc.chipster.auth.resource.AuthTokens;
+import fi.csc.chipster.auth.resource.OidcResource;
+import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -143,12 +146,12 @@ public class OidcProvidersImpl extends OidcProviders {
 	}
 
 	@Override
-	protected String getAuthorizationEndpointURI(String oidcName) {
+	public String getAuthorizationEndpointURI(String oidcName) {
 		return this.metadatas.get(oidcName).getAuthorizationEndpointURI().toString();
 	}
 
 	@Override
-	protected URI getTokenEndpoint(String oidcName) {
+	public URI getTokenEndpoint(String oidcName) {
 		return this.metadatas.get(oidcName).getTokenEndpointURI();
 	}
 }

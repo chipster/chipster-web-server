@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth.oidc;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -89,13 +89,13 @@ public abstract class OidcProviders {
 		return oidc;
 	}
 
-	protected abstract UserInfo getUserInfo(AccessToken accessToken, String oidcName);
+	public abstract UserInfo getUserInfo(AccessToken accessToken, String oidcName);
 
-	protected abstract ArrayList<OidcConfig> getPublicOidcConfigs();
+	public abstract ArrayList<OidcConfig> getPublicOidcConfigs();
 
-	protected abstract String getAuthorizationEndpointURI(String oidcName);
+	public abstract String getAuthorizationEndpointURI(String oidcName);
 
-	protected abstract URI getTokenEndpoint(String oidcName);
+	public abstract URI getTokenEndpoint(String oidcName);
 
 	public HashMap<String, OidcConfig> getOidcConfigs() {
 		return this.oidcConfigs;

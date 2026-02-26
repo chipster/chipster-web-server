@@ -1,4 +1,4 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth.oidc.loginsessions;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;

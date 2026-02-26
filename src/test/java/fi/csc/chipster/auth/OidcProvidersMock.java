@@ -22,8 +22,8 @@ import com.nimbusds.oauth2.sdk.id.Subject;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 
-import fi.csc.chipster.auth.resource.OidcConfig;
-import fi.csc.chipster.auth.resource.OidcProviders;
+import fi.csc.chipster.auth.oidc.OidcConfig;
+import fi.csc.chipster.auth.oidc.OidcProviders;
 import fi.csc.chipster.rest.RestUtils;
 import net.minidev.json.JSONObject;
 
@@ -104,17 +104,17 @@ public class OidcProvidersMock extends OidcProviders {
 	}
 
 	@Override
-	protected ArrayList<OidcConfig> getPublicOidcConfigs() {
+	public ArrayList<OidcConfig> getPublicOidcConfigs() {
 		throw new UnsupportedOperationException("Unimplemented method 'getPublicOidcConfigs'");
 	}
 
 	@Override
-	protected String getAuthorizationEndpointURI(String oidcName) {
+	public String getAuthorizationEndpointURI(String oidcName) {
 		throw new UnsupportedOperationException("Unimplemented method 'getAuthorizationEndpointURI'");
 	}
 
 	@Override
-	protected URI getTokenEndpoint(String oidcName) {
+	public URI getTokenEndpoint(String oidcName) {
 		throw new UnsupportedOperationException("Unimplemented method 'getTokenEndpoint'");
 	}
 
