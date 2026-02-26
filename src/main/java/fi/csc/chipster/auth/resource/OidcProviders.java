@@ -36,7 +36,6 @@ public abstract class OidcProviders {
 	public static final String CONF_REDIRECT_URI = "auth-oidc-redirect-path";
 	public static final String CONF_RESPONSE_TYPE = "auth-oidc-response-type";
 	public static final String CONF_LOGO = "auth-oidc-logo";
-	public static final String CONF_LOGO_WIDTH = "auth-oidc-logo-width";
 	public static final String CONF_TEXT = "auth-oidc-text";
 	public static final String CONF_PRIORITY = "auth-oidc-priority";
 	public static final String CONF_VERIFIED_EMAIL_ONLY = "auth-oidc-verified-email-only";
@@ -44,14 +43,11 @@ public abstract class OidcProviders {
 	public static final String CONF_CLAIM_USER_ID = "auth-oidc-claim-user-id";
 	public static final String CONF_PARAMETER = "auth-oidc-parameter";
 	public static final String CONF_USER_ID_PREFIX = "auth-oidc-user-id-prefix";
-	public static final String CONF_APP_ID = "auth-oidc-app-id";
 	public static final String CONF_REQUIRED_CLAIM_KEY = "auth-oidc-required-claim-key";
 	public static final String CONF_REQUIRED_CLAIM_VALUE = "auth-oidc-required-claim-value";
 	public static final String CONF_REQUIRED_CLAIM_VALUE_COMPARISON = "auth-oidc-required-claim-value-comparison";
-	public static final String CONF_REQUIRED_USERINFO_CLAIM_KEY = "auth-oidc-required-userinfo-claim-key";
-	public static final String CONF_REQUIRED_USERINFO_CLAIM_VALUE = "auth-oidc-required-userinfo-claim-value";
-	public static final String CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON = "auth-oidc-required-userinfo-claim-value-comparison";
-	public static final String CONF_REQUIRED_USERINFO_CLAIM_ERROR = "auth-oidc-required-userinfo-claim-error";
+	public static final String CONF_REQUIRED_CLAIM_ERROR = "auth-oidc-required-claim-error";
+	public static final String CONF_QUERY_USERINFO = "auth-oidc-query-userinfo";
 	public static final String CONF_DESCRIPTION = "auth-oidc-description";
 	public static final String CONF_SCOPE = "auth-oidc-scope";
 	public static final String CONF_JWS_ALGORITHM = "auth-oidc-jws-algorithm";
@@ -73,7 +69,6 @@ public abstract class OidcProviders {
 		oidc.setRedirectPath(config.getString(CONF_REDIRECT_URI, oidcName));
 		oidc.setResponseType(config.getString(CONF_RESPONSE_TYPE, oidcName));
 		oidc.setLogo(config.getString(CONF_LOGO, oidcName));
-		oidc.setLogoWidth(config.getString(CONF_LOGO_WIDTH, oidcName));
 		oidc.setText(config.getString(CONF_TEXT, oidcName));
 		oidc.setPriority(Integer.parseInt(config.getString(CONF_PRIORITY, oidcName)));
 		oidc.setVerifiedEmailOnly(config.getBoolean(CONF_VERIFIED_EMAIL_ONLY, oidcName));
@@ -82,15 +77,11 @@ public abstract class OidcProviders {
 		oidc.setClaimUserId(config.getString(CONF_CLAIM_USER_ID, oidcName));
 		oidc.setParameter(config.getString(CONF_PARAMETER, oidcName));
 		oidc.setUserIdPrefix(config.getString(CONF_USER_ID_PREFIX, oidcName));
-		oidc.setAppId(config.getString(CONF_APP_ID, oidcName));
 		oidc.setRequiredClaimKey(config.getString(CONF_REQUIRED_CLAIM_KEY, oidcName));
 		oidc.setRequiredClaimValue(config.getString(CONF_REQUIRED_CLAIM_VALUE, oidcName));
 		oidc.setRequiredClaimValueComparison(config.getString(CONF_REQUIRED_CLAIM_VALUE_COMPARISON, oidcName));
-		oidc.setRequiredUserinfoClaimKey(config.getString(CONF_REQUIRED_USERINFO_CLAIM_KEY, oidcName));
-		oidc.setRequiredUserinfoClaimValue(config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE, oidcName));
-		oidc.setRequiredUserinfoClaimValueComparison(
-				config.getString(CONF_REQUIRED_USERINFO_CLAIM_VALUE_COMPARISON, oidcName));
-		oidc.setRequiredUserinfoClaimError(config.getString(CONF_REQUIRED_USERINFO_CLAIM_ERROR, oidcName));
+		oidc.setQueryUserInfo(config.getBoolean(CONF_QUERY_USERINFO));
+		oidc.setRequiredClaimError(config.getString(CONF_REQUIRED_CLAIM_ERROR, oidcName));
 		oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 		oidc.setScope(config.getString(CONF_SCOPE, oidcName));
 		oidc.setJwsAlgorithm(config.getString(CONF_JWS_ALGORITHM));
@@ -115,7 +106,7 @@ public abstract class OidcProviders {
 
 		this.validators.put(oidcConfig.getOidcName(),
 				createValidator(oidcConfig.getIssuer(), oidcConfig.getClientId(), jwkSetUri, jwkSet,
-						oidcConfig.getJwsAlgorithm()));
+						oidcConfig.getJwsAlgorithm(), oidcConfig.getOidcName()));
 	}
 
 	public OidcConfig getOidcConfig(String oidcName) {
@@ -128,12 +119,13 @@ public abstract class OidcProviders {
 	}
 
 	public IDTokenValidator createValidator(String issuerString, String clientIdString, URI jwkSetURI, JWKSet jwkSet,
-			String jwsAlgorithm) throws MalformedURLException {
+			String jwsAlgorithm, String oidcName) throws MalformedURLException {
 
 		if (jwkSetURI == null && jwkSet == null) {
-			throw new IllegalStateException("OpenID Connect jwk_uri is null, cannot verify login tokens without it");
+			throw new IllegalStateException(
+					"OpenID Connect jwkSetURI and jwkSet are null, cannot verify login tokens without one of them");
 		} else {
-			logger.info("download OpenID Connect keys from " + jwkSetURI);
+			logger.info("OIDC " + oidcName + " download OpenID Connect keys from " + jwkSetURI);
 		}
 
 		Issuer issuer = new Issuer(issuerString);

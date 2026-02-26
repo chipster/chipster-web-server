@@ -14,16 +14,12 @@ public class OidcConfig {
 	private String text;
 	private String claimUserId;
 	private String parameter;
-	private String logoWidth;
 	private String userIdPrefix;
-	private String appId;
 	private String requiredClaimKey;
 	private String requiredClaimValue;
 	private String requiredClaimValueComparison;
-	private String requiredUserinfoClaimKey;
-	private String requiredUserinfoClaimValue;
-	private String requiredUserinfoClaimValueComparison;
-	private String requiredUserinfoClaimError;
+	private String requiredClaimError;
+	private Boolean queryUserInfo;
 	private String description;
 	private String scope;
 	private String clientSecret;
@@ -128,28 +124,12 @@ public class OidcConfig {
 		this.parameter = parameter;
 	}
 
-	public String getLogoWidth() {
-		return logoWidth;
-	}
-
-	public void setLogoWidth(String logoWidth) {
-		this.logoWidth = logoWidth;
-	}
-
 	public String getUserIdPrefix() {
 		return userIdPrefix;
 	}
 
 	public void setUserIdPrefix(String userIdPrefix) {
 		this.userIdPrefix = userIdPrefix;
-	}
-
-	public String getAppId() {
-		return appId;
-	}
-
-	public void setAppId(String appId) {
-		this.appId = appId;
 	}
 
 	public void setDescription(String description) {
@@ -192,38 +172,6 @@ public class OidcConfig {
 		this.requiredClaimValueComparison = requiredClaimValueComparison;
 	}
 
-	public String getRequiredUserinfoClaimKey() {
-		return requiredUserinfoClaimKey;
-	}
-
-	public void setRequiredUserinfoClaimKey(String requiredUserinfoClaimKey) {
-		this.requiredUserinfoClaimKey = requiredUserinfoClaimKey;
-	}
-
-	public String getRequiredUserinfoClaimValue() {
-		return requiredUserinfoClaimValue;
-	}
-
-	public void setRequiredUserinfoClaimValue(String requiredUserinfoClaimValue) {
-		this.requiredUserinfoClaimValue = requiredUserinfoClaimValue;
-	}
-
-	public String getRequiredUserinfoClaimValueComparison() {
-		return requiredUserinfoClaimValueComparison;
-	}
-
-	public void setRequiredUserinfoClaimValueComparison(String requiredUserinfoClaimValueComparison) {
-		this.requiredUserinfoClaimValueComparison = requiredUserinfoClaimValueComparison;
-	}
-
-	public String getRequiredUserinfoClaimError() {
-		return requiredUserinfoClaimError;
-	}
-
-	public void setRequiredUserinfoClaimError(String requiredUserinfoClaimError) {
-		this.requiredUserinfoClaimError = requiredUserinfoClaimError;
-	}
-
 	public void setClientSecret(String clientSecret) {
 		this.clientSecret = clientSecret;
 	}
@@ -238,5 +186,21 @@ public class OidcConfig {
 
 	public void setJwsAlgorithm(String jwsAlgorithm) {
 		this.jwsAlgorithm = jwsAlgorithm;
+	}
+
+	public Boolean getQueryUserInfo() {
+		return queryUserInfo;
+	}
+
+	public void setQueryUserInfo(Boolean queryUserInfo) {
+		this.queryUserInfo = queryUserInfo;
+	}
+
+	public String getRequiredClaimError() {
+		return requiredClaimError;
+	}
+
+	public void setRequiredClaimError(String requiredClaimError) {
+		this.requiredClaimError = requiredClaimError;
 	}
 }

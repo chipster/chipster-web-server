@@ -43,9 +43,7 @@ public class OidcProvidersImpl extends OidcProviders {
 
 			logRequiredClaim("OIDC " + oidc.getOidcName() + " required claim", oidc.getRequiredClaimKey(),
 					oidc.getRequiredClaimValue(), oidc.getRequiredClaimValueComparison());
-			logRequiredClaim("OIDC " + oidc.getOidcName() + " required userinfo claim",
-					oidc.getRequiredUserinfoClaimKey(), oidc.getRequiredUserinfoClaimValue(),
-					oidc.getRequiredUserinfoClaimValueComparison());
+			logger.info("OIDC " + oidc.getOidcName() + " query userinfo: " + oidc.getQueryUserInfo());
 
 			OIDCProviderMetadata metadata = loadMetadata(oidc);
 
@@ -53,7 +51,7 @@ public class OidcProvidersImpl extends OidcProviders {
 
 			super.addOidcConfig(oidc, metadata.getJWKSetURI(), null);
 
-			logger.info("OpenID Connect issuer " + oidc.getIssuer() + " enabled");
+			logger.info("OIDC " + oidc.getOidcName() + " enabled");
 
 		}
 
@@ -64,13 +62,11 @@ public class OidcProvidersImpl extends OidcProviders {
 
 			OidcConfig publicOidcConfig = new OidcConfig();
 
-			// client secret must be removed
+			// at least client secret must be removed
 			// but let's keep only information that is needed in the app
 			publicOidcConfig.setOidcName(privateConfig.getOidcName());
-			publicOidcConfig.setAppId(privateConfig.getAppId());
 			publicOidcConfig.setDescription(privateConfig.getDescription());
 			publicOidcConfig.setLogo(privateConfig.getLogo());
-			publicOidcConfig.setLogoWidth(privateConfig.getLogoWidth());
 			publicOidcConfig.setText(privateConfig.getText());
 
 			publicOidcConfigs.add(publicOidcConfig);
@@ -120,7 +116,7 @@ public class OidcProvidersImpl extends OidcProviders {
 
 		// Make HTTP request
 		HTTPRequest httpRequest = request.toHTTPRequest();
-		logger.info("get oidc metadata from " + httpRequest.getURI());
+		logger.info("OIDC " + oidc.getOidcName() + " get metadata from " + httpRequest.getURI());
 		HTTPResponse httpResponse;
 		try {
 			httpResponse = httpRequest.send();

@@ -157,30 +157,6 @@ public class OidcResourceTest {
 		assertEquals(PREFIX1, new UserId(chipsterToken.get("sub").toString()).getAuth());
 	}
 
-	/**
-	 * If userId is not found from id_token, it should be searched from userInfo
-	 */
-	@Test
-	public void userIdFromUserInfo() {
-
-		String oidcName = "oidcName1";
-
-		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName));
-
-		String userId = (String) claims.remove(USER_ID_CLAIM_KEY);
-
-		oidcProviderMock.setNextUserInfo(new HashMap<>() {
-			{
-				put("sub", "unused-value");
-				put(USER_ID_CLAIM_KEY, userId);
-			}
-		});
-
-		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
-
-		assertEquals(userId, new UserId(chipsterToken.get("sub").toString()).getUsername());
-	}
-
 	@Test
 	public void valid2() {
 
@@ -212,19 +188,18 @@ public class OidcResourceTest {
 	}
 
 	/**
-	 * Test one valid userInfo requirement
-	 * 
-	 * id_token and userInfo claims are checked in the same method, so we don't have
-	 * to check all alternatives here.
+	 * Test that claims are found from userInfo
 	 */
 	@Test
 	public void validUserInfo() {
 
+		// userInfo is enabled for oidcName6
 		String oidcName = "oidcName6";
 
 		HashMap<String, Object> idTokenClaims = getValidClaims(oidcName);
 
-		HashMap<String, Object> claims = new HashMap<String, Object>(idTokenClaims);
+		// remove the claim from id_token
+		idTokenClaims.remove(REQUIRED_CLAIM_KEY1);
 
 		oidcProviderMock.setNextUserInfo(new HashMap<String, Object>() {
 			{
@@ -233,34 +208,9 @@ public class OidcResourceTest {
 			}
 		});
 
-		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
+		HashMap<String, Object> chipsterToken = testClaims(idTokenClaims, oidcName, true);
 
 		assertEquals(PREFIX6, new UserId(chipsterToken.get("sub").toString()).getAuth());
-	}
-
-	/**
-	 * Test one invalid userInfo requirement
-	 * 
-	 * id_token and userInfo claims are checked in the same method, so we don't have
-	 * to check all alternatives here.
-	 */
-	@Test
-	public void userInfoFail() {
-
-		String oidcName = "oidcName6";
-
-		HashMap<String, Object> idTokenClaims = getValidClaims(oidcName);
-
-		HashMap<String, Object> claims = new HashMap<String, Object>(idTokenClaims);
-
-		oidcProviderMock.setNextUserInfo(new HashMap<String, Object>() {
-			{
-				put("sub", idTokenClaims.get("sub"));
-				// put(REQUIRED_CLAIM_KEY1, "any-value");
-			}
-		});
-
-		testClaims(claims, oidcName, false);
 	}
 
 	@Test
@@ -441,6 +391,56 @@ public class OidcResourceTest {
 		testClaims(claims, oidcName, false, new Nonce().getValue());
 	}
 
+	/**
+	 * If userId is not found from id_token, it should be searched from userInfo
+	 */
+	@Test
+	public void userIdFromUserInfo() {
+
+		String oidcName = "oidcName6";
+
+		HashMap<String, Object> idTokenClaims = new HashMap<>(getValidClaims(oidcName));
+
+		String userId = (String) idTokenClaims.remove(USER_ID_CLAIM_KEY);
+
+		oidcProviderMock.setNextUserInfo(new HashMap<>() {
+			{
+				put("sub", idTokenClaims.get("sub"));
+				put(USER_ID_CLAIM_KEY, userId);
+			}
+		});
+
+		HashMap<String, Object> chipsterToken = testClaims(idTokenClaims, oidcName, true);
+
+		assertEquals(userId, new UserId(chipsterToken.get("sub").toString()).getUsername());
+	}
+
+	/**
+	 * If the same claim has different value in id_token and userInfo, use the value
+	 * from id_token
+	 */
+	@Test
+	public void claimPriorityOfUserInfo() {
+
+		String oidcName = "oidcName6";
+
+		HashMap<String, Object> idTokenClaims = new HashMap<>(getValidClaims(oidcName));
+
+		String userId = (String) idTokenClaims.get("sub");
+		idTokenClaims.put(USER_ID_CLAIM_KEY, userId + "fromIdToken");
+
+		oidcProviderMock.setNextUserInfo(new HashMap<>() {
+			{
+				put("sub", idTokenClaims.get("sub"));
+				put(USER_ID_CLAIM_KEY, userId + "fromUserInfo");
+			}
+		});
+
+		HashMap<String, Object> chipsterToken = testClaims(idTokenClaims, oidcName, true);
+
+		assertEquals(userId + "fromIdToken", new UserId(chipsterToken.get("sub").toString()).getUsername());
+	}
+
 	// wrong key
 	@Test
 	public void wrongKey() throws JOSEException, ParseException {
@@ -603,10 +603,12 @@ public class OidcResourceTest {
 		oidc5.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ALL);
 		oidc5.setUserIdPrefix(PREFIX5);
 
-		// oidc6 has a required userInfo claim
+		// oidc6 queries also userInfo
 		oidc6.setIssuer(ISSUER6);
 		oidc6.setClientId(CLIENT_ID6);
-		oidc6.setRequiredUserinfoClaimKey(REQUIRED_CLAIM_KEY1);
+		oidc6.setClaimUserId(USER_ID_CLAIM_KEY);
+		oidc6.setRequiredClaimKey(REQUIRED_CLAIM_KEY1);
+		oidc6.setQueryUserInfo(true);
 		oidc6.setUserIdPrefix(PREFIX6);
 
 		ArrayList<OidcConfig> oidcConfigs = new ArrayList<OidcConfig>() {
@@ -637,9 +639,10 @@ public class OidcResourceTest {
 	}
 
 	public HashMap<String, Object> getValidClaims(String oidcName) {
+		HashMap<String, Object> claims;
 		switch (oidcName) {
 			case "oidcName1":
-				return new HashMap<String, Object>(getBaseClaims()) {
+				claims = new HashMap<String, Object>(getBaseClaims()) {
 					{
 						put("aud", CLIENT_ID12);
 						put("iss", ISSUER12);
@@ -647,14 +650,14 @@ public class OidcResourceTest {
 						put(REQUIRED_CLAIM_KEY1, "anyClaimValue");
 					}
 				};
+				claims.put(USER_ID_CLAIM_KEY, claims.get("sub") + "fromClaim");
+				return claims;
 			case "oidcName2":
 				return new HashMap<String, Object>(getBaseClaims()) {
 					{
 						put(USER_ID_CLAIM_KEY, "userIdValue" + userIdIndex++);
 						put("aud", CLIENT_ID12);
 						put("iss", ISSUER12);
-						// db flush() gets sometimes stuck if all tests use the same UserId
-						// many transactions try to update the same row?
 						put(REQUIRED_CLAIM_KEY2, REQUIRED_CLAIM_VALUE2);
 					}
 				};
@@ -683,12 +686,16 @@ public class OidcResourceTest {
 				};
 
 			case "oidcName6":
-				return new HashMap<String, Object>(getBaseClaims()) {
+				claims = new HashMap<String, Object>(getBaseClaims()) {
 					{
 						put("aud", CLIENT_ID6);
 						put("iss", ISSUER6);
+						put(REQUIRED_CLAIM_KEY1, "any-value");
+
 					}
 				};
+				claims.put(USER_ID_CLAIM_KEY, claims.get("sub") + "fromClaim");
+				return claims;
 			default:
 				throw new RuntimeException("unknown oidcName " + oidcName);
 		}

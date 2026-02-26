@@ -26,7 +26,6 @@ import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest.Builder;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
-import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 import fi.csc.chipster.auth.model.OidcLoginSession;
@@ -283,64 +282,71 @@ public class OidcResource {
 			printClaims(idTokenClaims.getClaims());
 		}
 
-		checkIdToken(oidcConfig, idTokenClaims);
+		Map<String, Object> claims = null;
 
-		logger.info("get userInfo");
-		JWTClaimsSet userInfoClaims;
-		try {
-			userInfoClaims = oidcProviders.getUserInfo(accessToken, oidcConfig.getOidcName()).toJWTClaimsSet();
-		} catch (ParseException e) {
-			throw new InternalServerErrorException("failed to parse userInfo claims", e);
+		if (oidcConfig.getQueryUserInfo()) {
+			try {
+				logger.info("get userInfo");
+				JWTClaimsSet userInfoClaims = oidcProviders.getUserInfo(accessToken, oidcConfig.getOidcName())
+						.toJWTClaimsSet();
+
+				if (this.isDebug) {
+					logger.info("claims from userinfo endpoint: ");
+					printClaims(userInfoClaims.getClaims());
+				}
+
+				// sanity checks, compare the sub claim from id_token and userinfo claims
+				if (!userInfoClaims.getSubject().equals(idTokenClaims.getSubject())) {
+					throw new InternalServerErrorException("id_token and userinfo subjects differ");
+				}
+
+				// create a new map, because the map from getClaims() does not allow
+				// modifications
+				claims = new HashMap<>(userInfoClaims.getClaims());
+				// merge claims
+				// use the value from id_token if the same claim is in both
+				claims.putAll(idTokenClaims.getClaims());
+
+			} catch (ParseException e) {
+				throw new InternalServerErrorException("failed to parse userInfo claims", e);
+			}
+		} else {
+			claims = idTokenClaims.getClaims();
 		}
 
-		if (this.isDebug) {
-			logger.info("claims from userinfo endpoint: ");
-			printClaims(userInfoClaims.getClaims());
-		}
+		checkClaims(oidcConfig, claims);
 
-		checkUserInfo(oidcConfig, userInfoClaims, idTokenClaims.getSubject().toString());
-
-		String chipsterToken = getChipsterToken(idTokenClaims, userInfoClaims, oidcConfig);
+		String chipsterToken = getChipsterToken(claims, oidcConfig);
 
 		logger.info("login successful");
 
 		return chipsterToken;
 	}
 
-	private String getChipsterToken(JWTClaimsSet idTokenClaims, JWTClaimsSet userInfoClaims, OidcConfig oidcConfig) {
+	private String getChipsterToken(Map<String, Object> claims, OidcConfig oidcConfig) {
 
-		String sub = idTokenClaims.getSubject();
-
-		String name = getClaimOrNull("name", idTokenClaims);
-		String email = getClaimOrNull("email", idTokenClaims);
-		Boolean emailVerified = Boolean.parseBoolean(getClaimOrNull("email_verified", idTokenClaims));
+		String name = getStringOrNull("name", claims);
+		String email = getStringOrNull("email", claims);
+		Boolean emailVerified = Boolean.parseBoolean(getStringOrNull("email_verified", claims));
 
 		// use different auth names in Chipster based on the claims that we get
-		String idTokenUsername = getClaimOrNull(oidcConfig.getClaimUserId(), idTokenClaims);
-		String userInfoUsername = getClaimOrNull(oidcConfig.getClaimUserId(), userInfoClaims);
+		// claim "sub" is used by default
+		String username = getStringOrNull(oidcConfig.getClaimUserId(), claims);
 
 		String userIdPrefix = oidcConfig.getUserIdPrefix();
 
-		UserId userId = null;
-		if (oidcConfig.getClaimUserId().equals("sub")) {
-			userId = new UserId(userIdPrefix, sub);
-
-		} else if (idTokenUsername != null) {
-			userId = new UserId(userIdPrefix, idTokenUsername);
-
-		} else if (userInfoUsername != null) {
-			userId = new UserId(userIdPrefix, userInfoUsername);
-
-		} else {
+		if (username == null) {
 			throw new ForbiddenException("username not found from claim " + oidcConfig.getClaimUserId());
 		}
+
+		UserId userId = new UserId(userIdPrefix, username);
 
 		// store only verified emails
 		if (oidcConfig.getVerifiedEmailOnly() && (emailVerified == null || emailVerified == false)) {
 			email = null;
 		}
 
-		String organization = getClaimOrNull(oidcConfig.getClaimOrganization(), idTokenClaims);
+		String organization = getStringOrNull(oidcConfig.getClaimOrganization(), claims);
 
 		userTable.addOrUpdateFromLogin(userId, email, organization, name);
 
@@ -350,52 +356,27 @@ public class OidcResource {
 		return token;
 	}
 
-	private void checkIdToken(OidcConfig oidcConfig, JWTClaimsSet idTokenClaims) {
+	private void checkClaims(OidcConfig oidcConfig, Map<String, Object> claims) {
 
 		if (!hasRequiredClaim(
 				oidcConfig.getOidcName(),
 				oidcConfig.getRequiredClaimKey(),
 				oidcConfig.getRequiredClaimValue(),
 				oidcConfig.getRequiredClaimValueComparison(),
-				idTokenClaims)) {
+				claims)) {
+			if (this.isDebug) {
+				logger.info("access denied. Required userinfo claim not found: "
+						+ oidcConfig.getRequiredClaimKey());
+			}
 			throw new ForbiddenException("no required claim or value");
 		}
 	}
 
-	private void checkUserInfo(OidcConfig oidcConfig, JWTClaimsSet userInfoClaims, String sub) {
-
-		if (oidcConfig.getRequiredUserinfoClaimKey().isEmpty()) {
-			if (this.isDebug) {
-				logger.info("no required userinfo claims");
-			}
-			return;
-		}
-
-		// sanity checks, compare the sub claim from id_token and userinfo claims
-
-		if (!userInfoClaims.getSubject().equals(sub)) {
-			throw new InternalServerErrorException("id_token and userinfo subjects differ");
-		}
-
-		if (!hasRequiredClaim(
-				oidcConfig.getOidcName(),
-				oidcConfig.getRequiredUserinfoClaimKey(),
-				oidcConfig.getRequiredUserinfoClaimValue(),
-				oidcConfig.getRequiredUserinfoClaimValueComparison(),
-				userInfoClaims)) {
-			if (this.isDebug) {
-				logger.info("access denied. Required userinfo claim not found: "
-						+ oidcConfig.getRequiredUserinfoClaimKey());
-			}
-			throw new ForbiddenException(oidcConfig.getRequiredUserinfoClaimError());
-		}
-	}
-
 	protected boolean hasRequiredClaim(String oidcName, String requiredClaimKey, String requiredClaimValue,
-			String comparison, JWTClaimsSet claims) {
+			String comparison, Map<String, Object> claims) {
 		if (!requiredClaimKey.isEmpty()) {
 
-			Object claimObj = claims.getClaims().get(requiredClaimKey);
+			Object claimObj = claims.get(requiredClaimKey);
 			if (claimObj == null) {
 				logger.info("oidc " + oidcName + " requires a non existent claim " + requiredClaimKey);
 				return false;
@@ -476,9 +457,9 @@ public class OidcResource {
 	 * @param claims
 	 * @return
 	 */
-	private String getClaimOrNull(String claimName, JWTClaimsSet claims) {
+	private String getStringOrNull(String claimName, Map<String, Object> claims) {
 		if (!claimName.isEmpty()) {
-			Object value = claims.getClaims().get(claimName);
+			Object value = claims.get(claimName);
 			if (value == null) {
 				return null;
 			}
