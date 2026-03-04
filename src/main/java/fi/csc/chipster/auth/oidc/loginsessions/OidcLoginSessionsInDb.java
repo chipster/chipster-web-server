@@ -35,7 +35,11 @@ public class OidcLoginSessionsInDb extends OidcLoginSessions {
     @Override
     public OidcLoginSession remove(UUID chipsterOidcLoginId) {
 
-        return this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
+        OidcLoginSession loginSession = this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
+
+        HibernateUtil.delete(loginSession, loginSession.getOidcLoginId(), this.hibernate.session());
+
+        return loginSession;
     }
 
     @Override
