@@ -19,13 +19,19 @@ public class OidcLoginSession {
 	private String nonce;
 	private Instant created;
 	private String oidcName;
+	private String sourceIp;
 
-	public OidcLoginSession(UUID oidcLoginId, String state, String nonce, Instant created, String oidcName) {
+	public OidcLoginSession() {
+	}
+
+	public OidcLoginSession(UUID oidcLoginId, String state, String nonce, Instant created, String oidcName,
+			String sourceIp) {
 		this.oidcLoginId = oidcLoginId;
 		this.state = state;
 		this.nonce = nonce;
 		this.created = created;
 		this.oidcName = oidcName;
+		this.sourceIp = sourceIp;
 	}
 
 	public String getOidcName() {
@@ -68,7 +74,11 @@ public class OidcLoginSession {
 		this.nonce = nonce;
 	}
 
-	public OidcLoginSession() {
-		// JAX-B needs this
+	public String getSourceIp() {
+		return sourceIp;
+	}
+
+	public void setSourceIp(String sourceIp) {
+		this.sourceIp = sourceIp;
 	}
 }

@@ -51,6 +51,7 @@ public abstract class OidcProviders {
 	public static final String CONF_DESCRIPTION = "auth-oidc-description";
 	public static final String CONF_SCOPE = "auth-oidc-scope";
 	public static final String CONF_JWS_ALGORITHM = "auth-oidc-jws-algorithm";
+	public static final String CONF_IP_LIMIT = "auth-oidc-ip-limit";
 
 	private HashMap<String, OidcConfig> oidcConfigs = new HashMap<>();
 	private HashMap<String, IDTokenValidator> validators = new HashMap<>();
@@ -85,6 +86,7 @@ public abstract class OidcProviders {
 		oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 		oidc.setScope(config.getString(CONF_SCOPE, oidcName));
 		oidc.setJwsAlgorithm(config.getString(CONF_JWS_ALGORITHM));
+		oidc.setIpLimit(config.getString(CONF_IP_LIMIT));
 
 		return oidc;
 	}

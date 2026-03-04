@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.grizzly.http.server.Request;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.proc.BadJOSEException;
@@ -38,6 +39,8 @@ import fi.csc.chipster.auth.oidc.loginsessions.OidcLoginSessions;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.rest.websocket.PubSubConfigurator;
+import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
@@ -49,6 +52,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
@@ -126,11 +130,14 @@ public class OidcResource {
 	@RolesAllowed({ Role.UNAUTHENTICATED })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public HashMap<String, Object> startAuthentication(@QueryParam("oidcName") String oidcName) {
+	public HashMap<String, Object> startAuthentication(@QueryParam("oidcName") String oidcName,
+			@Context Request jerseyRequest) {
 
 		logger.info("start oidc authentication " + oidcName);
 
 		OidcConfig oidcConfig = oidcProviders.getOidcConfig(oidcName);
+
+		String sourceIp = getSourceIp(oidcConfig, jerseyRequest);
 
 		String authorizationEndpoint = oidcProviders.getAuthorizationEndpointURI(oidcName);
 
@@ -142,7 +149,7 @@ public class OidcResource {
 
 		// store state, nonce and oidcName for callback
 		UUID chipsterOidcLoginSessionId = this.chipsterOidcLoginSessions.add(state.getValue(), nonce.getValue(),
-				oidcName);
+				oidcName, sourceIp);
 
 		Builder request = NimbusHelpers.createAuthentiationRequest(oidcConfig.getClientId(),
 				oidcConfig.getRedirectPath(),
@@ -165,13 +172,26 @@ public class OidcResource {
 		return json;
 	}
 
+	private String getSourceIp(OidcConfig oidcConfig, Request jerseyRequest) {
+		switch (oidcConfig.getIpLimit()) {
+			case "none":
+				return null;
+			case "source":
+				return jerseyRequest.getRemoteAddr();
+			case "forwarded":
+				return jerseyRequest.getHeader(RestUtils.X_FORWARDED_FOR);
+			default:
+				throw new InternalServerErrorException("unknown ip-limit: " + oidcConfig.getIpLimit());
+		}
+	}
+
 	@POST
 	@Path("callback")
 	@RolesAllowed({ Role.UNAUTHENTICATED })
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction
-	public Response oidcCallback(HashMap<String, String> requestJson) {
+	public Response oidcCallback(HashMap<String, String> requestJson, @Context Request jerseyRequest) {
 
 		if (this.isDebug) {
 			logger.info("oidc callback " + requestJson);
@@ -207,6 +227,16 @@ public class OidcResource {
 			throw new NotFoundException("login session not found, probably expired");
 		}
 
+		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterOidcLogin.getOidcName());
+
+		if (chipsterOidcLogin.getSourceIp() == null) {
+			logger.info("IP limit is disabled (or header was not found)");
+		} else if (chipsterOidcLogin.getSourceIp().equals(getSourceIp(oidcConfig, jerseyRequest))) {
+			logger.info("accepted source IP " + chipsterOidcLogin.getSourceIp());
+		} else {
+			throw new BadRequestException("network changed");
+		}
+
 		/*
 		 * The callback uri is parsed already in the app. Then only thing left from this
 		 * example is to check that the state from the request matches with the state on
@@ -218,12 +248,10 @@ public class OidcResource {
 			throw new BadRequestException("state doesn't match");
 		}
 
-		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterOidcLogin.getOidcName());
-
 		URI tokenEndpoint = oidcProviders.getTokenEndpoint(chipsterOidcLogin.getOidcName());
 
 		OIDCTokenResponse tokenResponse = NimbusHelpers.tokenRequest(oidcConfig, new AuthorizationCode(code),
-				tokenEndpoint);
+				tokenEndpoint, oidcConfig.getScope());
 
 		// Get the ID and access token, the server may also return a refresh token
 		JWT idToken = tokenResponse.getOIDCTokens().getIDToken();

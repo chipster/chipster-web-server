@@ -24,6 +24,7 @@ public class OidcConfig {
 	private String scope;
 	private String clientSecret;
 	private String jwsAlgorithm;
+	private String ipLimit;
 
 	public OidcConfig() {
 	}
@@ -202,5 +203,13 @@ public class OidcConfig {
 
 	public void setRequiredClaimError(String requiredClaimError) {
 		this.requiredClaimError = requiredClaimError;
+	}
+
+	public String getIpLimit() {
+		return ipLimit;
+	}
+
+	public void setIpLimit(String ipLimit) {
+		this.ipLimit = ipLimit;
 	}
 }

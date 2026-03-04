@@ -88,6 +88,8 @@ public class RestUtils {
 	private static final String CONF_SERVER_THREADS_WORKER_MIN = "server-threads-worker-min";
 	private static final String CONF_SERVER_THREADS_SELECTOR = "server-threads-selector";
 
+	public static final String X_FORWARDED_FOR = "X-Forwarded-For";
+
 	public static final String PATH_ARRAY = "array";
 
 	private static Logger logger = LogManager.getLogger();

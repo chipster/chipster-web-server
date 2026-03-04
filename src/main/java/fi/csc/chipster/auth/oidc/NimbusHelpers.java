@@ -78,7 +78,7 @@ public class NimbusHelpers {
 	 * openid-connect/token-request
 	 */
 	public static OIDCTokenResponse tokenRequest(OidcConfig oidcConfig, AuthorizationCode code,
-			URI tokenEndpoint) {
+			URI tokenEndpoint, String scopeString) {
 		// Construct the code grant from the code obtained from the authz endpoint
 		// and the original callback URI used at the authz endpoint
 		URI callback;
@@ -93,9 +93,12 @@ public class NimbusHelpers {
 		ClientID clientID = new ClientID(oidcConfig.getClientId());
 		Secret clientSecret = new Secret(oidcConfig.getClientSecret());
 		ClientAuthentication clientAuth = new ClientSecretBasic(clientID, clientSecret);
+		Scope scope = new Scope(scopeString);
 
-		// Make the token request
-		TokenRequest request = new TokenRequest(tokenEndpoint, clientAuth, codeGrant);
+		// Make the token request.
+		// The example calls TokenRequest without the scope argument, but that is
+		// deprecated.
+		TokenRequest request = new TokenRequest(tokenEndpoint, clientAuth, codeGrant, scope);
 
 		TokenResponse tokenResponse;
 		try {

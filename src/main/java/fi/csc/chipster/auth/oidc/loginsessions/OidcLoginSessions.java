@@ -59,11 +59,11 @@ public abstract class OidcLoginSessions {
         }
     }
 
-    public UUID add(String state, String nonce, String oidcName) {
+    public UUID add(String state, String nonce, String oidcName, String sourceIp) {
 
         UUID chipsterLoginId = RestUtils.createUUID();
 
-        add(new OidcLoginSession(chipsterLoginId, state, nonce, Instant.now(), oidcName));
+        add(new OidcLoginSession(chipsterLoginId, state, nonce, Instant.now(), oidcName, sourceIp));
 
         return chipsterLoginId;
     }

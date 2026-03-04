@@ -10,6 +10,7 @@
         created timestamp(6) with time zone,
         nonce varchar(255),
         oidcName varchar(255),
+        sourceIp varchar(255),
         state varchar(255),
         primary key (oidcLoginId)
     );
