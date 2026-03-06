@@ -35,7 +35,11 @@ import jakarta.ws.rs.InternalServerErrorException;
 /**
  * Helper functions for the Nimbus library
  * 
- * These are taken more or less directly from the examples.
+ * These are taken directly from the examples to make sure that the library is
+ * used correctly. This should make it also easier to verify it afterwards, if
+ * there is a need to be compared these to the examples. Only trivial
+ * modifications were done to have all necessary information available in the
+ * call site.
  */
 public class NimbusHelpers {
 

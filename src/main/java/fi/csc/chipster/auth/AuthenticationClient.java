@@ -492,34 +492,6 @@ public class AuthenticationClient {
 		return AuthTokens.isTokenClass(claims, tokenClass);
 	}
 
-	public String startOidcAuthentication(String oidcName) {
-
-		// auth will respond with the url
-		String startAuthenticationUrl = getAuthenticatedClient()
-				.target(getAuth())
-				.path("oidc")
-				.path("flow")
-				.queryParam("id", oidcName)
-				.request(MediaType.APPLICATION_JSON)
-				.post(Entity.json(null), String.class);
-
-		return startAuthenticationUrl;
-	}
-
-	public String completeOidcAuthentication(String code, String state) {
-
-		String chipsterToken = getAuthenticatedClient()
-				.target(getAuth())
-				.path("oidc")
-				.path("callback")
-				.queryParam("code", code)
-				.queryParam("state", state)
-				.request(MediaType.TEXT_PLAIN)
-				.get(String.class);
-
-		return chipsterToken;
-	}
-
 	public void close() {
 		this.tokenRefreshTimer.cancel();
 	}
