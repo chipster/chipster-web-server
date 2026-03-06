@@ -15,6 +15,11 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaDelete;
 import jakarta.persistence.criteria.Root;
 
+/**
+ * Save OidcLoginSession in database
+ * 
+ * This allows multiple auth replicas to handle the login requests.
+ */
 public class OidcLoginSessionsInDb extends OidcLoginSessions {
 
     @SuppressWarnings("unused")
@@ -35,6 +40,7 @@ public class OidcLoginSessionsInDb extends OidcLoginSessions {
     @Override
     public OidcLoginSession remove(UUID chipsterOidcLoginId) {
 
+        @SuppressWarnings("null")
         OidcLoginSession loginSession = this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
 
         HibernateUtil.delete(loginSession, loginSession.getOidcLoginId(), this.hibernate.session());
@@ -49,8 +55,12 @@ public class OidcLoginSessionsInDb extends OidcLoginSessions {
             @Override
             public Integer run(Session hibernateSession) {
 
+                // there is no index for this query, but the number of in progress and recently
+                // interrupted OidcLoginSessions should be easy to manage
                 CriteriaBuilder criteriaBuilder = hibernateSession.getCriteriaBuilder();
+                @SuppressWarnings("null")
                 CriteriaDelete<OidcLoginSession> query = criteriaBuilder.createCriteriaDelete(OidcLoginSession.class);
+                @SuppressWarnings("null")
                 Root<OidcLoginSession> root = query.from(OidcLoginSession.class);
                 query.where(criteriaBuilder.lessThan(root.get("created"), deleteBefore));
 

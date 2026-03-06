@@ -7,6 +7,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import fi.csc.chipster.auth.model.OidcLoginSession;
 import fi.csc.chipster.rest.Config;
 
+/**
+ * Store OidLoginSessions in memory
+ * 
+ * When using this implementation, the admin must ensure that the two OIDC
+ * requests from one user go to the same auth replica. The easiest way to ensure
+ * this is to have only one replica. The login session is also lost, if auth is
+ * restarted between those two requests.
+ */
 public class OidcLoginSessionsInMemory extends OidcLoginSessions {
 
     public OidcLoginSessionsInMemory(Config config) {

@@ -13,6 +13,9 @@ import fi.csc.chipster.auth.model.OidcLoginSession;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 
+/**
+ * Interface for storing and retrieving OidcLoginSessions.
+ */
 public abstract class OidcLoginSessions {
 
     private static Logger logger = LogManager.getLogger();

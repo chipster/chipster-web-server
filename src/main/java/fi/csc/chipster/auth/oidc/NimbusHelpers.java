@@ -32,6 +32,11 @@ import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 
 import jakarta.ws.rs.InternalServerErrorException;
 
+/**
+ * Helper functions for the Nimbus library
+ * 
+ * These are taken more or less directly from the examples.
+ */
 public class NimbusHelpers {
 
 	/*

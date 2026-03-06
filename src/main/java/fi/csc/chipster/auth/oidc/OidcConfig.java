@@ -1,5 +1,12 @@
 package fi.csc.chipster.auth.oidc;
 
+/**
+ * Configuration for one login method
+ * 
+ * All the fields are visible in the server. The same class is also used to give
+ * public information about login method to the app, but then all confidential
+ * or unnecessary fields are set to null.
+ */
 public class OidcConfig {
 
 	private String issuer;

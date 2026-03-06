@@ -26,6 +26,14 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import jakarta.ws.rs.InternalServerErrorException;
 
+/**
+ * OidcProvders implementation
+ * 
+ * This class contains code that is needed to setup the OidcProviders correctly
+ * for real use, but which isn't tested, either because it's trivial or because
+ * it's difficult to test (for example due to external connections). Security
+ * critical code should be directly in the class OidcProviders and be tested.
+ */
 public class OidcProvidersImpl extends OidcProviders {
 
 	private static final Logger logger = LogManager.getLogger();

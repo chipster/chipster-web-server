@@ -39,8 +39,6 @@ import fi.csc.chipster.auth.oidc.loginsessions.OidcLoginSessions;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
-import fi.csc.chipster.rest.websocket.PubSubConfigurator;
-import fi.csc.chipster.rest.websocket.PubSubEndpoint;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
@@ -59,27 +57,68 @@ import jakarta.ws.rs.core.Response;
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
  * 
- * At the moment the OIDC client runs in a browser, so here we only receive the
- * id_token,
- * validate it and create a new Chipster token. Optionally also a OIDC userinfo
- * endpoint is
- * queried and its claim checked.
+ * This describes mostly the overall process and role of the web-app in this
+ * process. See the comments of individual methods below for details of the
+ * server implementation.
  * 
- * Running OIDC client in the browser allows the token to be stored directly in
- * the local storage of
- * the main Chipster app. If OIDC return URL pointed to the server, it would be
- * difficult
- * to transfer the token to the main app. Ideas:
- * - Save the to the local storage. Doesn't work if the main app (web-server)
- * and the OIDC authentication handler
- * (auth) are served from different domains.
- * - Respond with a html having iframe which is loaded from the web-server,
- * which stores the token to
- * the local storage. Worked in Chrome and Firefox, but not in Safari, if I
- * remember correctly. Safari
- * uses the page domain hierarchy to keep local storages separated.
- * - Pass the token in the query parameter of redirect URL. Should work, but
- * insecure?
+ * Chipster authentication process:
+ * - App makes a request to /configs and receives the public information of
+ * the login methods. App presents these options for user, who
+ * selects one of them.
+ * - App makes a request to server path /login. The selected login method is
+ * indicated with a queryParameter "oidcName". Chipster server responds with an
+ * authentication URL and loginSessionId.
+ * - The app saves the given loginSessionId to the browsers' localStorage and
+ * sends user's browser to the given authentication URL. User gives a username
+ * and password to the OIDC issuer, which redirects user's browser to the
+ * Chipster's callback URL with a "code" and "state" in the query parameters.
+ * - The app handles the callback URL. The app finds the code and state from the
+ * query parameters and gets the loginSessionId from the localStorage.
+ * - The app makes a request to a server path /callback and sends the code,
+ * state and loginSessionId. If the login is accepted, server responds with a
+ * Chipster token.
+ * 
+ * This tries to follow the standard practices of OIDC login implementation.
+ * The main differences come from the fact that we have a Single Page
+ * Application (SPA) instead of a traditional web-app rendered on the server. We
+ * can't easily mix and match these two styles, because our app and the auth API
+ * can be served from two different domains.
+ * 
+ * Here are some alternatives that were considered for tranferring information
+ * (like the Chipster token) between these two domains:
+ * 1. Save the token the to the local storage in the HTML and JavaScript
+ * returned from the auth. This doesn't work if the main app (web-server) and
+ * the OIDC authentication handler (auth) are served from different domains.
+ * 2. Respond with a html having iframe which is loaded from the web-server,
+ * which stores the token to the local storage. This worked in Chrome and
+ * Firefox, but not in Safari. Safari uses the page domain hierarchy to keep
+ * local storages separated.
+ * 3. Pass the token in the query parameter of redirect URL. Should work, but
+ * it's an insecure place (too visible) for the long-lived Chipster token.
+ * 4. Have a specific sub-path (like "/oidc") in web-server to work as a reverse
+ * proxy to the auth. This works, but it is difficult to follow and makes it
+ * more difficult to serve the app from other web server or through a reverse
+ * proxy. Most importantly, this doesn't work in the Angular development server
+ * 
+ * The OIDC passes the "code" in the callback query parameter. It has solved the
+ * problem mentioned in the point 3 by allowing the code to be used only once.
+ * We utilize this security feature to solve also our domain problem. We handle
+ * the OIDC callback url directly in the app. The app can then make a regular
+ * http request to auth to exchange the code for a chipster token.
+ * 
+ * Another difference between a traditional server side web-app and SPA is that
+ * traditinal web-apps usually keep track of each active user on the server and
+ * can store information in that user session. In the OIDC, state and nonce
+ * values are expected to be stored like that. This is solved simply by
+ * implementing a short-term OidcLoginSession for the duration of the login
+ * process. Just like the traditional web-apps tracked the presence of the user
+ * session using some kind of SESSION_ID (stored usually in a cookie), we do the
+ * same with loginSessionId, stored in localStorage.
+ * 
+ * All in all, these two solutions make the login process (relatively) easy
+ * to understand and implement. This way also the communication between the app
+ * and the server follows the same simple Rest API principles, that are used
+ * everywhere else in the app.
  * 
  * @author klemela
  */
@@ -116,6 +155,13 @@ public class OidcResource {
 		this.isDebug = config.getBoolean(CONF_DEBUG);
 	}
 
+	/**
+	 * Get public information about configured login methods
+	 * 
+	 * The app shows these to the user, who can select one of them to log in.
+	 * 
+	 * @return List of public information about configured login methods
+	 */
 	@GET
 	@Path("configs")
 	@RolesAllowed(Role.UNAUTHENTICATED)
@@ -125,6 +171,24 @@ public class OidcResource {
 		return oidcProviders.getPublicOidcConfigs();
 	}
 
+	/**
+	 * Start login session and get the URL for authenticating
+	 * 
+	 * * - App makes a request to server path /login. The selected login method is
+	 * indicated with a queryParameter "oidcName".
+	 * - Chipster server generates new random OIDC "state" and "nonce". It initiates
+	 * its own login session to save the state, nonce and source IP address. The
+	 * login session is saved either in memory or in DB. A "loginSessionId" is
+	 * created to find this information later.
+	 * - Chipster server builds a URL for the authentication request to the selected
+	 * OIDC issuer.
+	 * - Chipster server responds to the app's request with this URL and
+	 * loginSessionId.
+	 * 
+	 * @param oidcName      Which login method to use
+	 * @param jerseyRequest For getting the source IP address from Jersey
+	 * @return
+	 */
 	@POST
 	@Path("login")
 	@RolesAllowed({ Role.UNAUTHENTICATED })
@@ -165,6 +229,8 @@ public class OidcResource {
 		// chipster ID to find the state and nonce later
 		json.put(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID, chipsterOidcLoginSessionId);
 
+		logger.info("start oidc authentication " + oidcName + " from IP address " + sourceIp);
+
 		if (this.isDebug) {
 			logger.info("response: " + json);
 		}
@@ -185,6 +251,21 @@ public class OidcResource {
 		}
 	}
 
+	/**
+	 * Complete the login
+	 * 
+	 * - The app makes a request to a server path /callback and sends the
+	 * code, state and loginSessionId.
+	 * - Find the login session using the loginSessionId
+	 * - Check that source IP and state match with the login session
+	 * - Use the code to make a reqeust to OIDC issuer to get an id_token and access
+	 * token
+	 * - Call method createTokenFromOidc()
+	 * 
+	 * @param requestJson   Json containing the code, state and loginSessionId
+	 * @param jerseyRequest For getting the source IP address from Jersey
+	 * @return
+	 */
 	@POST
 	@Path("callback")
 	@RolesAllowed({ Role.UNAUTHENTICATED })
@@ -196,12 +277,11 @@ public class OidcResource {
 		if (this.isDebug) {
 			logger.info("oidc callback " + requestJson);
 		} else {
-			logger.info("oidc callback " + requestJson.get("oidcName"));
+			logger.info("oidc callback");
 		}
 
 		String code = requestJson.get("code");
 		String stateFromRequest = requestJson.get("state");
-		String oidcName = requestJson.get("oidcName");
 		UUID chipsterOidcLoginSessionId = UUID.fromString(requestJson.get(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID));
 
 		if (code == null) {
@@ -210,10 +290,6 @@ public class OidcResource {
 
 		if (stateFromRequest == null) {
 			throw new BadRequestException("no state");
-		}
-
-		if (oidcName == null) {
-			throw new BadRequestException("no oidcName");
 		}
 
 		if (chipsterOidcLoginSessionId == null) {
@@ -267,12 +343,20 @@ public class OidcResource {
 	 * Validate id_token and create Chipster token
 	 * 
 	 * This part can be extensively tested, because here interaction with the OIDC
-	 * authoriization/resource server has been done already.
+	 * authoriization/resource server has been (mostly) done already.
 	 * 
-	 * @param oidcConfig
-	 * @param idToken
-	 * @param accessToken
-	 * @param nonce
+	 * - Validate the id_token (not that critical anymore, because we get it
+	 * directly from the issuer)
+	 * - Optionally, get more information from the userInfo endpoint
+	 * - Check that user has all claims that are required in this login method
+	 * - Call method getChipsterToken()
+	 * 
+	 * @param oidcConfig  Configuration of the chosen login method
+	 * @param idToken     id_token from the OIDC issuer to identify the user
+	 * @param accessToken access_token from the OIDC issuer to get more information
+	 *                    from userInfo if necessary
+	 * @param nonce       The nonce which was used to generate the original
+	 *                    authentication request
 	 * @return
 	 */
 	public String createTokenFromOidc(OidcConfig oidcConfig, JWT idToken, AccessToken accessToken,
@@ -335,8 +419,9 @@ public class OidcResource {
 				// create a new map, because the map from getClaims() does not allow
 				// modifications
 				claims = new HashMap<>(userInfoClaims.getClaims());
-				// merge claims
-				// use the value from id_token if the same claim is in both
+				// Merge claims from id_token and userInfo.
+				// Use the value from id_token if the same claim is both in id_token and
+				// userInfo.
 				claims.putAll(idTokenClaims.getClaims());
 
 			} catch (ParseException e) {
@@ -350,11 +435,19 @@ public class OidcResource {
 
 		String chipsterToken = getChipsterToken(claims, oidcConfig);
 
-		logger.info("login successful");
-
 		return chipsterToken;
 	}
 
+	/**
+	 * Get a Chipster token from the claims
+	 * 
+	 * At this point we trust the claims and simply collect the information that is
+	 * needed for the Chipster token.
+	 * 
+	 * @param claims
+	 * @param oidcConfig
+	 * @return
+	 */
 	private String getChipsterToken(Map<String, Object> claims, OidcConfig oidcConfig) {
 
 		String name = getStringOrNull("name", claims);
@@ -385,9 +478,18 @@ public class OidcResource {
 		HashSet<String> roles = Stream.of(Role.CLIENT, Role.OIDC).collect(Collectors.toCollection(HashSet::new));
 		String token = authTokens.createNewUserToken(userId.toUserIdString(), roles, name);
 
+		logger.info("login successful for " + userId.toUserIdString());
+
 		return token;
 	}
 
+	/**
+	 * Check that user's claims fulfil the configured requirements for this login
+	 * method
+	 * 
+	 * @param oidcConfig
+	 * @param claims
+	 */
 	private void checkClaims(OidcConfig oidcConfig, Map<String, Object> claims) {
 
 		if (!hasRequiredClaim(
@@ -510,10 +612,16 @@ public class OidcResource {
 		}
 	}
 
+	/**
+	 * A login method can be configured to add additional parameteres to the
+	 * authentication request
+	 * 
+	 * @param request   Request that is used to build the authentication URL
+	 * @param parameter Configured parameter(s) to add
+	 */
 	private void addParameters(Builder request, String parameter) {
 		if (parameter != null) {
-			// public client in app did support multiple parameters like this, but this is
-			// not documented in chipster-defaults.yaml
+			// public client in app did support multiple parameters like this
 			for (String entry : Arrays.asList(parameter.split(" "))) {
 				String[] parts = entry.split("=");
 				if (parts.length != 2) {
