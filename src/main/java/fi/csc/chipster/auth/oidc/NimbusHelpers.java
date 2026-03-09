@@ -49,7 +49,7 @@ public class NimbusHelpers {
 	 * openid-connect/oidc-auth
 	 */
 	public static Builder createAuthentiationRequest(String clientIdString, String callbackString, State state,
-			Nonce nonce, String responseType, String scope, String authorizationEndpoint) {
+			Nonce nonce, String responseType, String[] scopeArray, String authorizationEndpoint) {
 
 		// The client ID provisioned by the OpenID provider when
 		// the client was registered
@@ -68,7 +68,7 @@ public class NimbusHelpers {
 		try {
 			request = new AuthenticationRequest.Builder(
 					new ResponseType(responseType),
-					new Scope(scope),
+					new Scope(scopeArray),
 					clientID,
 					callback)
 					.endpointURI(new URI(authorizationEndpoint))
@@ -87,7 +87,7 @@ public class NimbusHelpers {
 	 * openid-connect/token-request
 	 */
 	public static OIDCTokenResponse tokenRequest(OidcConfig oidcConfig, AuthorizationCode code,
-			URI tokenEndpoint, String scopeString, String callbackPath) {
+			URI tokenEndpoint, String[] scopeArray, String callbackPath) {
 		// Construct the code grant from the code obtained from the authz endpoint
 		// and the original callback URI used at the authz endpoint
 		URI callback;
@@ -102,7 +102,7 @@ public class NimbusHelpers {
 		ClientID clientID = new ClientID(oidcConfig.getClientId());
 		Secret clientSecret = new Secret(oidcConfig.getClientSecret());
 		ClientAuthentication clientAuth = new ClientSecretBasic(clientID, clientSecret);
-		Scope scope = new Scope(scopeString);
+		Scope scope = new Scope(scopeArray);
 
 		// Make the token request.
 		// The example calls TokenRequest without the scope argument, but that is

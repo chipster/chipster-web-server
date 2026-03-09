@@ -229,7 +229,7 @@ public class OidcResource {
 				redirectPath,
 				state,
 				nonce,
-				oidcConfig.getResponseType(), oidcConfig.getScope(), authorizationEndpoint);
+				oidcConfig.getResponseType(), getScopeArray(oidcConfig), authorizationEndpoint);
 
 		addParameters(request, oidcConfig.getParameter());
 
@@ -281,6 +281,10 @@ public class OidcResource {
 			logger.info("configured callback url: " + configuredPath);
 		}
 		return configuredPath;
+	}
+
+	private String[] getScopeArray(OidcConfig oidcConfig) {
+		return oidcConfig.getScope().split(" ");
 	}
 
 	private String getSourceIp(OidcConfig oidcConfig, Request jerseyRequest) {
@@ -372,7 +376,7 @@ public class OidcResource {
 		URI tokenEndpoint = oidcProviders.getTokenEndpoint(chipsterOidcLogin.getOidcName());
 
 		OIDCTokenResponse tokenResponse = NimbusHelpers.tokenRequest(oidcConfig, new AuthorizationCode(code),
-				tokenEndpoint, oidcConfig.getScope(), getCallbackPath(oidcConfig, serviceLocator));
+				tokenEndpoint, getScopeArray(oidcConfig), getCallbackPath(oidcConfig, serviceLocator));
 
 		// Get the ID and access token, the server may also return a refresh token
 		JWT idToken = tokenResponse.getOIDCTokens().getIDToken();
@@ -495,13 +499,13 @@ public class OidcResource {
 	 */
 	private String getChipsterToken(Map<String, Object> claims, OidcConfig oidcConfig) {
 
-		String name = getStringOrNull("name", claims);
-		String email = getStringOrNull("email", claims);
-		Boolean emailVerified = Boolean.parseBoolean(getStringOrNull("email_verified", claims));
+		String name = getString("name", claims);
+		String email = getString("email", claims);
+		Boolean emailVerified = getBoolean("email_verified", claims);
 
 		// use different auth names in Chipster based on the claims that we get
 		// claim "sub" is used by default
-		String username = getStringOrNull(oidcConfig.getClaimUserId(), claims);
+		String username = getStringIfFound(oidcConfig.getClaimUserId(), claims);
 
 		String userIdPrefix = oidcConfig.getUserIdPrefix();
 
@@ -513,10 +517,15 @@ public class OidcResource {
 
 		// store only verified emails
 		if (oidcConfig.getVerifiedEmailOnly() && (emailVerified == null || emailVerified == false)) {
+			if (this.isDebug) {
+				logger.info("email is not saved: not verified");
+			}
 			email = null;
+		} else if (this.isDebug) {
+			logger.info("verified email");
 		}
 
-		String organization = getStringOrNull(oidcConfig.getClaimOrganization(), claims);
+		String organization = getStringIfFound(oidcConfig.getClaimOrganization(), claims);
 
 		userTable.addOrUpdateFromLogin(userId, email, organization, name);
 
@@ -636,18 +645,40 @@ public class OidcResource {
 	 * @param claims
 	 * @return
 	 */
-	private String getStringOrNull(String claimName, Map<String, Object> claims) {
+	private String getStringIfFound(String claimName, Map<String, Object> claims) {
 		if (!claimName.isEmpty()) {
-			Object value = claims.get(claimName);
-			if (value == null) {
-				return null;
-			}
-			if (value instanceof String) {
-				return (String) value;
-			}
-			throw new InternalServerErrorException("claim " + claimName + " value is not String: " + value);
+			return getString(claimName, claims);
 		}
 		return null;
+	}
+
+	private String getString(String claimName, Map<String, Object> claims) {
+		Object value = claims.get(claimName);
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof String) {
+			return (String) value;
+		}
+		throw new InternalServerErrorException("claim " + claimName + " value is not String: " + value);
+	}
+
+	/**
+	 * Get a Boolean value from claims
+	 * 
+	 * @param claimName
+	 * @param claims
+	 * @return
+	 */
+	private Boolean getBoolean(String claimName, Map<String, Object> claims) {
+		Object value = claims.get(claimName);
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof Boolean) {
+			return (Boolean) value;
+		}
+		throw new InternalServerErrorException("claim " + claimName + " value is not String: " + value);
 	}
 
 	private void printClaims(Map<String, Object> claims) {
@@ -665,7 +696,7 @@ public class OidcResource {
 	 * @param parameter Configured parameter(s) to add
 	 */
 	private void addParameters(Builder request, String parameter) {
-		if (parameter != null) {
+		if (parameter != null && !parameter.isEmpty()) {
 			// public client in app did support multiple parameters like this
 			for (String entry : Arrays.asList(parameter.split(" "))) {
 				String[] parts = entry.split("=");
