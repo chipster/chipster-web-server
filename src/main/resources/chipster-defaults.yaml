@@ -206,7 +206,7 @@ auth-oidc-issuer: ""
 auth-oidc-client-id: ""
 # client_secret which you get from to oidc provider when you register your application
 auth-oidc-client-secret: ""
-# Chipster callback path
+# Chipster callback path. If this is only a path (starts with slash "/"), web-server URL will be added in front of it. Also full URL can be configured here.
 auth-oidc-redirect-path: /oidc/callback
 # "code" for authorization code flow
 auth-oidc-response-type: code
@@ -219,7 +219,7 @@ auth-oidc-description: ""
 # order of the logos on the login page, ascending
 auth-oidc-priority: 1
 # which OIDC scopes to request
-auth-oidc-scope: "openid profile email"
+auth-oidc-scope: openid
 # store the email only if the claim "verified_email" is true
 auth-oidc-verified-email-only: true
 # claim name for the organization

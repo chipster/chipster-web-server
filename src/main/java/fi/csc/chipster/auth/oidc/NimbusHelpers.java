@@ -87,12 +87,12 @@ public class NimbusHelpers {
 	 * openid-connect/token-request
 	 */
 	public static OIDCTokenResponse tokenRequest(OidcConfig oidcConfig, AuthorizationCode code,
-			URI tokenEndpoint, String scopeString) {
+			URI tokenEndpoint, String scopeString, String callbackPath) {
 		// Construct the code grant from the code obtained from the authz endpoint
 		// and the original callback URI used at the authz endpoint
 		URI callback;
 		try {
-			callback = new URI(oidcConfig.getRedirectPath());
+			callback = new URI(callbackPath);
 		} catch (URISyntaxException e) {
 			throw new InternalServerErrorException("failed to parse callback path", e);
 		}

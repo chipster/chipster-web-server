@@ -81,12 +81,12 @@ public abstract class OidcProviders {
 		oidc.setRequiredClaimKey(config.getString(CONF_REQUIRED_CLAIM_KEY, oidcName));
 		oidc.setRequiredClaimValue(config.getString(CONF_REQUIRED_CLAIM_VALUE, oidcName));
 		oidc.setRequiredClaimValueComparison(config.getString(CONF_REQUIRED_CLAIM_VALUE_COMPARISON, oidcName));
-		oidc.setQueryUserInfo(config.getBoolean(CONF_QUERY_USERINFO));
+		oidc.setQueryUserInfo(config.getBoolean(CONF_QUERY_USERINFO, oidcName));
 		oidc.setRequiredClaimError(config.getString(CONF_REQUIRED_CLAIM_ERROR, oidcName));
 		oidc.setDescription(config.getString(CONF_DESCRIPTION, oidcName));
 		oidc.setScope(config.getString(CONF_SCOPE, oidcName));
-		oidc.setJwsAlgorithm(config.getString(CONF_JWS_ALGORITHM));
-		oidc.setIpLimit(config.getString(CONF_IP_LIMIT));
+		oidc.setJwsAlgorithm(config.getString(CONF_JWS_ALGORITHM, oidcName));
+		oidc.setIpLimit(config.getString(CONF_IP_LIMIT, oidcName));
 
 		return oidc;
 	}

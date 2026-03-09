@@ -39,6 +39,7 @@ import fi.csc.chipster.auth.oidc.loginsessions.OidcLoginSessions;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.Transaction;
+import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
@@ -53,6 +54,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
@@ -144,9 +146,15 @@ public class OidcResource {
 
 	private OidcLoginSessions chipsterOidcLoginSessions;
 
-	public OidcResource(OidcProviders oidcProviders, OidcLoginSessions chipsterOidcLoginSessions) {
+	private ServiceLocatorClient serviceLocator;
+
+	private String webServerUri;
+
+	public OidcResource(OidcProviders oidcProviders, OidcLoginSessions chipsterOidcLoginSessions,
+			ServiceLocatorClient serviceLocator) {
 		this.oidcProviders = oidcProviders;
 		this.chipsterOidcLoginSessions = chipsterOidcLoginSessions;
+		this.serviceLocator = serviceLocator;
 	}
 
 	public void init(AuthTokens authTokens, UserTable userTable, Config config) throws URISyntaxException, IOException {
@@ -201,6 +209,8 @@ public class OidcResource {
 
 		OidcConfig oidcConfig = oidcProviders.getOidcConfig(oidcName);
 
+		String redirectPath = getCallbackPath(oidcConfig, this.serviceLocator);
+
 		String sourceIp = getSourceIp(oidcConfig, jerseyRequest);
 
 		String authorizationEndpoint = oidcProviders.getAuthorizationEndpointURI(oidcName);
@@ -216,7 +226,7 @@ public class OidcResource {
 				oidcName, sourceIp);
 
 		Builder request = NimbusHelpers.createAuthentiationRequest(oidcConfig.getClientId(),
-				oidcConfig.getRedirectPath(),
+				redirectPath,
 				state,
 				nonce,
 				oidcConfig.getResponseType(), oidcConfig.getScope(), authorizationEndpoint);
@@ -236,6 +246,41 @@ public class OidcResource {
 		}
 
 		return json;
+	}
+
+	/**
+	 * Get callback path where to browser should return after authenticating at the
+	 * issuer
+	 * 
+	 * By default there is only a path in the configuration and we must add the app
+	 * domain in front of it.
+	 * 
+	 * @param oidcConfig
+	 * @param serviceLocator
+	 * @return
+	 */
+	private String getCallbackPath(OidcConfig oidcConfig, ServiceLocatorClient serviceLocator) {
+
+		String configuredPath = oidcConfig.getRedirectPath();
+
+		if (configuredPath.startsWith("/")) {
+			if (this.webServerUri == null) {
+				// Get only on first request, because auth must start before service-locator.
+				// The value doesn't change, so it's enough to get it once.
+				this.webServerUri = serviceLocator.getPublicUri(Role.WEB_SERVER);
+			}
+
+			String combinedUri = UriBuilder.fromUri(webServerUri).path(configuredPath).build().toString();
+
+			if (this.isDebug) {
+				logger.info("combined callback url: " + combinedUri);
+			}
+			return combinedUri;
+		}
+		if (this.isDebug) {
+			logger.info("configured callback url: " + configuredPath);
+		}
+		return configuredPath;
 	}
 
 	private String getSourceIp(OidcConfig oidcConfig, Request jerseyRequest) {
@@ -327,7 +372,7 @@ public class OidcResource {
 		URI tokenEndpoint = oidcProviders.getTokenEndpoint(chipsterOidcLogin.getOidcName());
 
 		OIDCTokenResponse tokenResponse = NimbusHelpers.tokenRequest(oidcConfig, new AuthorizationCode(code),
-				tokenEndpoint, oidcConfig.getScope());
+				tokenEndpoint, oidcConfig.getScope(), getCallbackPath(oidcConfig, serviceLocator));
 
 		// Get the ID and access token, the server may also return a refresh token
 		JWT idToken = tokenResponse.getOIDCTokens().getIDToken();

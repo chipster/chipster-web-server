@@ -108,7 +108,8 @@ public class OidcResourceTest {
 
 		// let's use real OidcLoginSessionsInDb because other tests require the DB
 		// anyway. Alternatively OidcLoginSessionsInMemory could be used
-		oidcResource = new OidcResource(oidcProviderMock, new OidcLoginSessionsInDb(config, hibernate));
+		oidcResource = new OidcResource(oidcProviderMock, new OidcLoginSessionsInDb(config, hibernate),
+				launcher.getServiceLocator());
 		oidcResource.init(tokenTable, userTable, config);
 	}
 

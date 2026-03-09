@@ -84,6 +84,8 @@ public class AuthenticationService implements ServerComponent {
 	 */
 	public void startServer() throws IOException, InterruptedException, URISyntaxException {
 
+		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
+
 		// for some reason Hibernate now initializes the JAAS ConfigFile class, so make
 		// sure we have configured
 		// the JAAS config file path system property before that
@@ -111,15 +113,13 @@ public class AuthenticationService implements ServerComponent {
 		}
 
 		OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(authTokens, userTable, config),
-				oidcLoginSessions);
+				oidcLoginSessions, serviceLocator);
 
 		// new ChipsterOidcLoginSessionsInMemory(config));
 		oidcResource.init(authTokens, userTable, config);
 		AuthUserResource userResource = new AuthUserResource(userTable);
 		AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable,
 				authTokens, jaasAuthProvider);
-
-		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
 		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)
 				.register(tokenResource)
