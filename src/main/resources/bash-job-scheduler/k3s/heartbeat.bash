@@ -1,7 +1,7 @@
 json=$(kubectl get pod $POD_NAME -o json | jq .status)
 short_name=$(echo $JOB_ID | cut -c 1-4)
 
-if [ "$json" == null ]; then
+if [ "$json" == "" ]; then
   echo "pod $short_name not found"
   exit 1
 fi
