@@ -255,7 +255,7 @@ auth-oidc-required-claim-error: "Chipster login is not allowed for this account"
 # use also userinfo claims in addition id_token claims (value from id_token is used if there the same claim is in both)
 auth-oidc-query-userinfo: false
 
-# check that request to start OIDC authentication and the callback request come from the same IP address. Set to "none" to allow any address, set to "source", to use the remote address or set to "forwarded" to use the address from header "X-Forwarded-For"
+# check that request to start OIDC authentication and the callback request come from the same IP address. Set to "none" to allow any address, set to "source", to use the remote address or set to "forwarded" to use the address from header "X-Forwarded-For". "forwarded" can be relied on only if a trusted reverse proxy in front of the Chipster sets this header and Chipster cannot be contacted directly.
 auth-oidc-ip-limit: "source"
 
 # throttle password request for one username after too many requests during this time, seconds
