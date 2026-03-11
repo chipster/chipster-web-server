@@ -240,10 +240,10 @@ auth-oidc-clean-up-after: 600
 auth-oidc-debug: false
 
 # Required claims. Empty lines in between to make it readable despite the long lines.
-# accept authentication only if the token contains this claim key.
+# accept authentication only if the id_token (or userInfo) contains this claim key.
 auth-oidc-required-claim-key: ""
 
-# accept authentication only if the token contains the claim defined in auth-oidc-require-claim-key and its value matches the value given here.
+# accept authentication only if the id_token (or userInfo) contains the claim defined in auth-oidc-require-claim-key and its value matches the value given here.
 auth-oidc-required-claim-value: ""
 
 # how to compare claim values. Set to "string" to require an exact string match. When this is set to "jsonArrayAll" or to "jsonArrayAny" the configured auth-oidc-require-claim-value and the returned claim value is expected to be a json arrays of strings. Respectively, the claim value must contain all or at least one of the configured values.
