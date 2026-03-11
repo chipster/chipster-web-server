@@ -27,6 +27,8 @@ import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.openid.connect.sdk.Nonce;
 
 import fi.csc.chipster.auth.model.Role;
@@ -135,7 +137,9 @@ public class OidcResourceTest {
 			public HashMap<String, Object> run(Session hibernateSession) {
 				try {
 					JWT jws = oidcProviderMock.getIdToken(claims);
-					String chipsterToken = oidcResource.createTokenFromOidc(oidcConfig, jws, null, nonce);
+					// anything non-null works in these tests
+					AccessToken accessToken = new BearerAccessToken();
+					String chipsterToken = oidcResource.createTokenFromOidc(oidcConfig, jws, accessToken, nonce);
 					if (!successExpected) {
 						Assertions.fail("test should have thrown an exception");
 					}
