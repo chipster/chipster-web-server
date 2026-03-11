@@ -43,7 +43,9 @@ public class OidcLoginSessionsInDb extends OidcLoginSessions {
         @SuppressWarnings("null")
         OidcLoginSession loginSession = this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
 
-        HibernateUtil.delete(loginSession, loginSession.getOidcLoginId(), this.hibernate.session());
+        if (loginSession != null) {
+            HibernateUtil.delete(loginSession, chipsterOidcLoginId, this.hibernate.session());
+        }
 
         return loginSession;
     }

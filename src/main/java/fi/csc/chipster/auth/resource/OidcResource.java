@@ -59,7 +59,7 @@ import jakarta.ws.rs.core.UriBuilder;
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
  * 
- * This describes mostly the overall process and role of the web-app in this
+ * This describes mostly the overall process and role of the client app in this
  * process. See the comments of individual methods below for details of the
  * server implementation.
  * 
@@ -450,6 +450,11 @@ public class OidcResource {
 		Map<String, Object> claims = null;
 
 		if (oidcConfig.getQueryUserInfo()) {
+
+			if (accessToken == null) {
+				throw new InternalServerErrorException("access token is null, cannot query userInfo");
+			}
+
 			try {
 				logger.info("get userInfo");
 				JWTClaimsSet userInfoClaims = oidcProviders.getUserInfo(accessToken, oidcConfig.getOidcName())
@@ -556,7 +561,7 @@ public class OidcResource {
 				logger.info("access denied. Required userinfo claim not found: "
 						+ oidcConfig.getRequiredClaimKey());
 			}
-			throw new ForbiddenException("no required claim or value");
+			throw new ForbiddenException(oidcConfig.getRequiredClaimError());
 		}
 	}
 

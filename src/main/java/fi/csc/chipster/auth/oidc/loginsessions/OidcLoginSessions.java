@@ -24,6 +24,11 @@ public abstract class OidcLoginSessions {
 
     public abstract void add(OidcLoginSession chipsterOidcLogin);
 
+    /**
+     * Return the OidcLoginSession for this ID and remove it.
+     * 
+     * Return null if the session is not found.
+     */
     public abstract OidcLoginSession remove(UUID chipsterOidcLoginId);
 
     public abstract int cleanUp(Instant deleteBefore);
@@ -33,7 +38,7 @@ public abstract class OidcLoginSessions {
         try {
             long cleanUpAfter = config.getLong(CONFIG_KEY_AUTH_OIDC_CLEAN_UP_AFTER);
 
-            logger.info("clean-up interval is " + cleanUpAfter + " minutes");
+            logger.info("clean-up interval is " + cleanUpAfter + " seconds");
 
             /*
              * There is only one config item used for both timer and the limit. With bad
