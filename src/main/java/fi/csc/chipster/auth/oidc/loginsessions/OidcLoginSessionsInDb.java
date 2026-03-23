@@ -38,10 +38,18 @@ public class OidcLoginSessionsInDb extends OidcLoginSessions {
     }
 
     @Override
+    public OidcLoginSession get(UUID chipsterOidcLoginId) {
+        @SuppressWarnings("null")
+        OidcLoginSession loginSession = this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
+
+        return loginSession;
+    }
+
+    @Override
     public OidcLoginSession remove(UUID chipsterOidcLoginId) {
 
         @SuppressWarnings("null")
-        OidcLoginSession loginSession = this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
+        OidcLoginSession loginSession = get(chipsterOidcLoginId);
 
         if (loginSession != null) {
             HibernateUtil.delete(loginSession, chipsterOidcLoginId, this.hibernate.session());

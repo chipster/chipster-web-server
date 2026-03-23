@@ -29,6 +29,11 @@ public class OidcLoginSessionsInMemory extends OidcLoginSessions {
     }
 
     @Override
+    public OidcLoginSession get(UUID chipsterOidcLogin) {
+        return chipsterOidcLogins.get(chipsterOidcLogin);
+    }
+
+    @Override
     public OidcLoginSession remove(UUID chipsterOidcLoginId) {
         return chipsterOidcLogins.remove(chipsterOidcLoginId);
     }

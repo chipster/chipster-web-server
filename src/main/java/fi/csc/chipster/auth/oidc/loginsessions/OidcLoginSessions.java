@@ -24,6 +24,8 @@ public abstract class OidcLoginSessions {
 
     public abstract void add(OidcLoginSession chipsterOidcLogin);
 
+    public abstract OidcLoginSession get(UUID fromString);
+
     /**
      * Return the OidcLoginSession for this ID and remove it.
      * 

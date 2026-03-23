@@ -24,7 +24,10 @@ import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest.Builder;
+import com.nimbusds.openid.connect.sdk.AuthenticationResponse;
+import com.nimbusds.openid.connect.sdk.AuthenticationResponseParser;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
@@ -43,6 +46,9 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.CookieParam;
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -52,9 +58,14 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Cookie;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
 import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.core.NewCookie.SameSite;
 
 /**
  * Rest endpoint for logging in to Chipster with OpenID Connect
@@ -174,46 +185,35 @@ public class OidcResource {
 	@Path("configs")
 	@RolesAllowed(Role.UNAUTHENTICATED)
 	@Produces(MediaType.APPLICATION_JSON)
-	public ArrayList<OidcConfig> getPublicOidcConfs() {
+	public Response getPublicOidcConfs() {
 
-		return oidcProviders.getPublicOidcConfigs();
+		return Response.ok(oidcProviders.getPublicOidcConfigs()).build();
 	}
 
 	/**
-	 * Start login session and get the URL for authenticating
+	 * 1st request: Create a new OIDC login session
 	 * 
-	 * * - App makes a request to server path /login. The selected login method is
-	 * indicated with a queryParameter "oidcName".
-	 * - Chipster server generates new random OIDC "state" and "nonce". It initiates
-	 * its own login session to save the state, nonce and source IP address. The
-	 * login session is saved either in memory or in DB. A "loginSessionId" is
-	 * created to find this information later.
-	 * - Chipster server builds a URL for the authentication request to the selected
-	 * OIDC issuer.
-	 * - Chipster server responds to the app's request with this URL and
-	 * loginSessionId.
+	 * App makes a normal AJAX request in JavaScript from the web-server domain.
 	 * 
-	 * @param oidcName      Which login method to use
-	 * @param jerseyRequest For getting the source IP address from Jersey
+	 * @param oidcName
+	 * @param jerseyRequest
 	 * @return
 	 */
 	@POST
-	@Path("login")
+	@Path("loginSession")
 	@RolesAllowed({ Role.UNAUTHENTICATED })
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
-	public HashMap<String, Object> startAuthentication(@QueryParam("oidcName") String oidcName,
+	public Response createLoginSession(@QueryParam("oidcName") String oidcName,
 			@Context Request jerseyRequest) {
 
-		logger.info("start oidc authentication " + oidcName);
+		logger.info("create OIDC login session " + oidcName);
 
 		OidcConfig oidcConfig = oidcProviders.getOidcConfig(oidcName);
 
-		String redirectPath = getCallbackPath(oidcConfig, this.serviceLocator);
-
 		String sourceIp = getSourceIp(oidcConfig, jerseyRequest);
 
-		String authorizationEndpoint = oidcProviders.getAuthorizationEndpointURI(oidcName);
+		logger.info("create OIDC login session " + oidcName + " from IP address " + sourceIp);
 
 		// Generate random state string to securely pair the callback to this request
 		State state = new State();
@@ -221,31 +221,270 @@ public class OidcResource {
 		// Generate nonce for the ID token
 		Nonce nonce = new Nonce();
 
-		// store state, nonce and oidcName for callback
+		// chipster ID to find the state and nonce later
 		UUID chipsterOidcLoginSessionId = this.chipsterOidcLoginSessions.add(state.getValue(), nonce.getValue(),
 				oidcName, sourceIp);
 
-		Builder request = NimbusHelpers.createAuthentiationRequest(oidcConfig.getClientId(),
-				redirectPath,
-				state,
-				nonce,
-				oidcConfig.getResponseType(), getScopeArray(oidcConfig), authorizationEndpoint);
-
-		addParameters(request, oidcConfig.getParameter());
-
-		HashMap<String, Object> json = new HashMap<>();
-		// The URI to send the user-user browser to the OpenID provider
-		json.put("url", request.build().toURI());
-		// chipster ID to find the state and nonce later
-		json.put(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID, chipsterOidcLoginSessionId);
-
-		logger.info("start oidc authentication " + oidcName + " from IP address " + sourceIp);
+		HashMap<String, String> json = new HashMap<>() {
+			{
+				put(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID, chipsterOidcLoginSessionId.toString());
+			}
+		};
 
 		if (this.isDebug) {
 			logger.info("response: " + json);
 		}
 
-		return json;
+		// return loginSesisonId to the app
+		return Response.ok(json).build();
+	}
+
+	/**
+	 * 2nd request: Redirect to Authorization Server
+	 *
+	 * App navigates its browser to this address. auth component is served from
+	 * different domain than the app, so the 1st request/endpoint cannot simply pass
+	 * the chipsterLoginId in a cookie. The simplest way to pass the ID when
+	 * navigating between domains would be a query parameter. We'll hide it little
+	 * bit better by sending it in a form post.
+	 * 
+	 * The browser is redirected to the Authorization Server.
+	 * 
+	 * @param jerseyRequest For getting the source IP address from Jersey
+	 * @return
+	 */
+	@POST
+	@Path("login")
+	@RolesAllowed({ Role.UNAUTHENTICATED })
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	@Transaction
+	public Response authenticationRequest(
+			@FormParam(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID) String chipsterLoginSessionId,
+			@Context Request jerseyRequest) {
+
+		if (chipsterLoginSessionId == null) {
+			throw new BadRequestException("no " + KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID);
+		}
+
+		OidcLoginSession chipsterOidcLogin = this.chipsterOidcLoginSessions
+				.get(UUID.fromString(chipsterLoginSessionId));
+
+		if (chipsterOidcLogin == null) {
+			throw new BadRequestException("chipster login session not found");
+		}
+
+		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterOidcLogin.getOidcName());
+
+		checkSourceIp(chipsterOidcLogin, oidcConfig, jerseyRequest);
+
+		String redirectPath = getCallbackPath(oidcConfig, this.serviceLocator);
+
+		String authorizationEndpoint = oidcProviders
+				.getAuthorizationEndpointURI(chipsterOidcLogin.getOidcName());
+
+		Builder request = NimbusHelpers.createAuthentiationRequest(oidcConfig.getClientId(),
+				redirectPath,
+				new State(chipsterOidcLogin.getState()),
+				new Nonce(chipsterOidcLogin.getNonce()),
+				oidcConfig.getResponseType(), getScopeArray(oidcConfig), authorizationEndpoint);
+
+		addParameters(request, oidcConfig.getParameter());
+
+		URI redirectAddress = request.build().toURI();
+
+		if (this.isDebug) {
+			logger.info("redirect browser to " + redirectAddress);
+		}
+
+		// save chipsterLoginSessionId in a cookie, where we can find it when we return
+		// from the Authorization Server
+		NewCookie chipsterLoginSessionCookie = new NewCookie.Builder(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID)
+				.value(chipsterLoginSessionId)
+				.httpOnly(true) // no access from JavaScript
+				.sameSite(SameSite.LAX)
+				.secure(true) // allow access only on TLS or localhost
+				.build();
+
+		return Response.seeOther(redirectAddress)
+				.cookie(chipsterLoginSessionCookie)
+				.build();
+	}
+
+	/**
+	 * 3rd request: Return from the Authorization Server
+	 * 
+	 * After authentication, the Authorization Server redirects the user's brwoser
+	 * here.
+	 * 
+	 * - Find the loginSessionId from the cookie (saved by 2nd request)
+	 * - Find the login session using the loginSessionId
+	 * - Check that source IP and state match with the login session
+	 * - Redirect the browser back to the app in web-server domain
+	 * 
+	 * @param requestJson   Json containing the code, state and loginSessionId
+	 * @param jerseyRequest For getting the source IP address from Jersey
+	 * @return
+	 */
+	@GET
+	@Path("callback")
+	@RolesAllowed({ Role.UNAUTHENTICATED })
+	@Transaction
+	public Response authenticationResponse(@CookieParam(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID) Cookie cookie,
+			@Context Request jerseyRequest, @Context UriInfo uriInfo) {
+
+		if (cookie == null) {
+			throw new BadRequestException("no " + KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID);
+		}
+
+		String chipsterOidcLoginSessionIdString = cookie.getValue();
+
+		if (chipsterOidcLoginSessionIdString == null) {
+			throw new BadRequestException(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID + " is null");
+		}
+
+		UUID chipsterLoginSessionId = UUID.fromString(chipsterOidcLoginSessionIdString);
+
+		OidcLoginSession chipsterLoginSession = this.chipsterOidcLoginSessions.get(chipsterLoginSessionId);
+
+		if (chipsterLoginSession == null) {
+			throw new BadRequestException("chipster login session not found");
+		}
+
+		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterLoginSession.getOidcName());
+
+		checkSourceIp(chipsterLoginSession, oidcConfig, jerseyRequest);
+
+		String requestUri = uriInfo.getRequestUri().toASCIIString();
+		if (this.isDebug) {
+			logger.info("oidc callback " + requestUri);
+		}
+
+		// Follows examle in
+		// https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/openid-connect/oidc-auth
+
+		AuthenticationResponse response;
+		try {
+			response = AuthenticationResponseParser.parse(URI.create(requestUri));
+		} catch (ParseException e) {
+			throw new InternalServerErrorException("failed to parse authentication response", e);
+		}
+
+		// Check the state
+		if (!response.getState().toString().equals(chipsterLoginSession.getState())) {
+			throw new BadRequestException("state doesn't match");
+		}
+
+		if (response instanceof AuthenticationErrorResponse) {
+			// The OpenID provider returned an error
+			throw new ForbiddenException(
+					"OIDC provider returned and error: " + response.toErrorResponse().getErrorObject().getCode() + " "
+							+ response.toErrorResponse().getErrorObject().getDescription());
+		}
+
+		// Retrieve the authorisation code, to use it later at the token endpoint
+		AuthorizationCode code = response.toSuccessResponse().getAuthorizationCode();
+
+		if (code == null) {
+			throw new BadRequestException("no code");
+		}
+
+		// FIXME save in login session?
+		NewCookie codeCookie = new NewCookie.Builder("code")
+				.value(code.getValue())
+				.httpOnly(true)
+				.sameSite(SameSite.NONE)
+				.secure(true)
+				.build();
+
+		String appCallback = serviceLocator.getPublicUri(Role.WEB_SERVER) + "/oidc/callback";
+
+		logger.info("redirecting to app callback " + appCallback);
+
+		return Response.seeOther(URI.create(appCallback))
+				.cookie(codeCookie)
+				.build();
+	}
+
+	/**
+	 * 4th request: Exchange code for a Chipster token
+	 * 
+	 * App makes again a normal AJAX request in JavaScript from the web-server
+	 * domain.
+	 * 
+	 * - Use the code to make a reqeust to OIDC issuer to get an id_token and access
+	 * token
+	 * - Call method createTokenFromOidc()
+	 * 
+	 * This could also be a DELETE request to /loginSession, but Jersey responded
+	 * with 400 when sending a body in DELETE request (although it's used, and
+	 * apparently works in SessionDbAdminResource).
+	 * 
+	 * @param codeCookie
+	 * @param jerseyRequest
+	 * @return
+	 */
+	@POST
+	@Path("loginSessionComplete")
+	@RolesAllowed({ Role.UNAUTHENTICATED })
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.TEXT_PLAIN)
+	@Transaction
+	public Response oidcCallback(HashMap<String, Object> requestJson,
+			@CookieParam("code") Cookie codeCookie,
+			@Context Request jerseyRequest) {
+
+		logger.info("delete login session");
+
+		String chipsterLoginSessionId = (String) requestJson.get(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID);
+
+		if (chipsterLoginSessionId == null) {
+			logger.info("no " + KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID + " in request json");
+			throw new BadRequestException("no " + KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID);
+		}
+
+		OidcLoginSession chipsterOidcLogin = this.chipsterOidcLoginSessions
+				.remove(UUID.fromString(chipsterLoginSessionId));
+
+		if (chipsterOidcLogin == null) {
+			logger.info("chipster login session not found");
+			throw new BadRequestException("chipster login session not found");
+		}
+
+		if (this.isDebug) {
+			logger.info("login session: " + RestUtils.asJson(chipsterOidcLogin));
+		}
+
+		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterOidcLogin.getOidcName());
+
+		checkSourceIp(chipsterOidcLogin, oidcConfig, jerseyRequest);
+
+		if (codeCookie == null) {
+			logger.info("no code cookie, can't complete OIDC login");
+			throw new BadRequestException("no code cookie");
+		}
+
+		String codeString = codeCookie.getValue();
+
+		if (codeString == null) {
+			logger.info("no code string, can't complete OIDC login");
+			throw new BadRequestException("code in cookie is null");
+		}
+
+		AuthorizationCode code = new AuthorizationCode(codeString);
+
+		URI tokenEndpoint = oidcProviders.getTokenEndpoint(chipsterOidcLogin.getOidcName());
+
+		OIDCTokenResponse tokenResponse = NimbusHelpers.tokenRequest(oidcConfig, code,
+				tokenEndpoint, getScopeArray(oidcConfig), getCallbackPath(oidcConfig, serviceLocator));
+
+		// Get the ID and access token, the server may also return a refresh token
+		JWT idToken = tokenResponse.getOIDCTokens().getIDToken();
+		AccessToken accessToken = tokenResponse.getOIDCTokens().getAccessToken();
+		// RefreshToken refreshToken = tokenResponse.getOIDCTokens().getRefreshToken();
+
+		String chipsterToken = createTokenFromOidc(oidcConfig, idToken, accessToken, chipsterOidcLogin.getNonce());
+
+		return Response.ok(chipsterToken).build();
 	}
 
 	/**
@@ -300,60 +539,7 @@ public class OidcResource {
 		}
 	}
 
-	/**
-	 * Complete the login
-	 * 
-	 * - The app makes a request to a server path /callback and sends the
-	 * code, state and loginSessionId.
-	 * - Find the login session using the loginSessionId
-	 * - Check that source IP and state match with the login session
-	 * - Use the code to make a reqeust to OIDC issuer to get an id_token and access
-	 * token
-	 * - Call method createTokenFromOidc()
-	 * 
-	 * @param requestJson   Json containing the code, state and loginSessionId
-	 * @param jerseyRequest For getting the source IP address from Jersey
-	 * @return
-	 */
-	@POST
-	@Path("callback")
-	@RolesAllowed({ Role.UNAUTHENTICATED })
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Transaction
-	public Response oidcCallback(HashMap<String, String> requestJson, @Context Request jerseyRequest) {
-
-		if (this.isDebug) {
-			logger.info("oidc callback " + requestJson);
-		} else {
-			logger.info("oidc callback");
-		}
-
-		String code = requestJson.get("code");
-		String stateFromRequest = requestJson.get("state");
-		UUID chipsterOidcLoginSessionId = UUID.fromString(requestJson.get(KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID));
-
-		if (code == null) {
-			throw new BadRequestException("no code");
-		}
-
-		if (stateFromRequest == null) {
-			throw new BadRequestException("no state");
-		}
-
-		if (chipsterOidcLoginSessionId == null) {
-			throw new BadRequestException("no " + KEY_CHIPSTER_OIDC_LOGIN_SESSION_ID);
-		}
-
-		// find (and remove) the login session
-		OidcLoginSession chipsterOidcLogin = this.chipsterOidcLoginSessions.remove(chipsterOidcLoginSessionId);
-
-		if (chipsterOidcLogin == null) {
-			throw new NotFoundException("login session not found, probably expired");
-		}
-
-		OidcConfig oidcConfig = oidcProviders.getOidcConfig(chipsterOidcLogin.getOidcName());
-
+	private void checkSourceIp(OidcLoginSession chipsterOidcLogin, OidcConfig oidcConfig, Request jerseyRequest) {
 		if (chipsterOidcLogin.getSourceIp() == null) {
 			logger.info("IP limit is disabled (or header was not found)");
 		} else if (chipsterOidcLogin.getSourceIp().equals(getSourceIp(oidcConfig, jerseyRequest))) {
@@ -361,31 +547,6 @@ public class OidcResource {
 		} else {
 			throw new BadRequestException("network changed");
 		}
-
-		/*
-		 * The callback uri is parsed already in the app. Then only thing left from this
-		 * example is to check that the state from the request matches with the state on
-		 * the server
-		 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/
-		 * openid-connect/oidc-auth
-		 */
-		if (!chipsterOidcLogin.getState().equals(stateFromRequest)) {
-			throw new BadRequestException("state doesn't match");
-		}
-
-		URI tokenEndpoint = oidcProviders.getTokenEndpoint(chipsterOidcLogin.getOidcName());
-
-		OIDCTokenResponse tokenResponse = NimbusHelpers.tokenRequest(oidcConfig, new AuthorizationCode(code),
-				tokenEndpoint, getScopeArray(oidcConfig), getCallbackPath(oidcConfig, serviceLocator));
-
-		// Get the ID and access token, the server may also return a refresh token
-		JWT idToken = tokenResponse.getOIDCTokens().getIDToken();
-		AccessToken accessToken = tokenResponse.getOIDCTokens().getAccessToken();
-		// RefreshToken refreshToken = tokenResponse.getOIDCTokens().getRefreshToken();
-
-		String chipsterToken = createTokenFromOidc(oidcConfig, idToken, accessToken, chipsterOidcLogin.getNonce());
-
-		return Response.ok(chipsterToken).build();
 	}
 
 	/**
