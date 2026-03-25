@@ -328,6 +328,24 @@ public class SessionJobResourceTest {
 		testUpdateJob(403, sessionId1, job, user1Client);
 	}
 
+	@Test
+	public void cancelAlreadyFinishedJob() throws RestException {
+		Job job = RestUtils.getRandomJob();
+		UUID jobId = user1Client.createJob(sessionId1, job);
+
+		// transition to a finished state
+		job.setState(JobState.COMPLETED);
+		user1Client.updateJob(sessionId1, job);
+		assertEquals(true, JobState.COMPLETED == user1Client.getJob(sessionId1, jobId).getState());
+
+		// cancelling an already-finished job should be a no-op, not throw
+		job.setState(JobState.CANCELLED);
+		user1Client.updateJob(sessionId1, job);
+
+		// job state should remain COMPLETED, not changed to CANCELLED
+		assertEquals(true, JobState.COMPLETED == user1Client.getJob(sessionId1, jobId).getState());
+	}
+
 	public static void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
 		try {
 			client.updateJob(sessionId, job);
