@@ -336,14 +336,14 @@ public class SessionJobResourceTest {
 		// transition to a finished state
 		job.setState(JobState.COMPLETED);
 		user1Client.updateJob(sessionId1, job);
-		assertEquals(true, JobState.COMPLETED == user1Client.getJob(sessionId1, jobId).getState());
+		assertEquals(JobState.COMPLETED, user1Client.getJob(sessionId1, jobId).getState());
 
 		// cancelling an already-finished job should be a no-op, not throw
 		job.setState(JobState.CANCELLED);
 		user1Client.updateJob(sessionId1, job);
 
 		// job state should remain COMPLETED, not changed to CANCELLED
-		assertEquals(true, JobState.COMPLETED == user1Client.getJob(sessionId1, jobId).getState());
+		assertEquals(JobState.COMPLETED, user1Client.getJob(sessionId1, jobId).getState());
 	}
 
 	public static void testUpdateJob(int expected, UUID sessionId, Job job, SessionDbClient client) {
