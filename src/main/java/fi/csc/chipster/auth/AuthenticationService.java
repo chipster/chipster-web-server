@@ -121,7 +121,8 @@ public class AuthenticationService implements ServerComponent {
 		AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable,
 				authTokens, jaasAuthProvider);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator)
+		// log also client errors in auth
+		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator, true)
 				.register(tokenResource)
 				.register(oidcResource)
 				.register(userResource)
