@@ -7,6 +7,7 @@
 
     create table OidcLoginSession (
         oidcLoginId uuid not null,
+        code oid,
         created timestamp(6) with time zone,
         nonce varchar(255),
         oidcName varchar(255),

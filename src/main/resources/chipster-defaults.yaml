@@ -235,7 +235,7 @@ auth-oidc-jws-algorithm: "RS256"
 # set to true to store oidc sessions in DB (works with multiple auth replicas), or set to false to store sessions in memory (only one auth replica allowed)
 auth-oidc-session-in-db: true
 # delete unfinished OIDC login sessions (earliest) after this many seconds
-auth-oidc-clean-up-after: 600
+auth-oidc-max-login-duration: 600
 # print more information about failed login attempts
 auth-oidc-debug: false
 
@@ -257,6 +257,9 @@ auth-oidc-query-userinfo: false
 
 # check that request to start OIDC authentication and the callback request come from the same IP address. Set to "none" to allow any address, set to "source", to use the remote address or set to "forwarded" to use the address from header "X-Forwarded-For". "forwarded" can be relied on only if a trusted reverse proxy in front of the Chipster sets this header and Chipster cannot be contacted directly.
 auth-oidc-ip-limit: "source"
+
+# maximum size of the authorization code, in bytes. This is to prevent DoS attacks with very large codes.
+auth-oidc-max-code-size: 16384
 
 # throttle password request for one username after too many requests during this time, seconds
 auth-password-throttle-period: 120

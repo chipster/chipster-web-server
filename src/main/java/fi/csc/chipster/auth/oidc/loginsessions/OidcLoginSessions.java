@@ -10,35 +10,47 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import fi.csc.chipster.auth.model.OidcLoginSession;
+import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.rest.Config;
-import fi.csc.chipster.rest.RestUtils;
+import jakarta.ws.rs.BadRequestException;
 
 /**
  * Interface for storing and retrieving OidcLoginSessions.
+ * 
+ * Subcclasses implement the protected abstract methods, which only take care of
+ * the actual storage and retrieval.
+ * 
+ * Callers use only the public methods, which check that the session is in the
+ * correct state.
+ * 
+ * Valid login session states follow the 4 requests in OidcResource:
+ * after 1st request: state, nonce and code are null
+ * after 2nd request: state and nonce set, code is null
+ * after 3rd request: state, nonce and code set
+ * after 4th request: login session is removed
+ * 
+ * Methods checkAndUpdate and checkAndRemove check that the login session is in
+ * the
+ * correct state. If not, they throw an exception to fail the login.
  */
 public abstract class OidcLoginSessions {
 
     private static Logger logger = LogManager.getLogger();
 
-    private static final String CONFIG_KEY_AUTH_OIDC_CLEAN_UP_AFTER = "auth-oidc-clean-up-after";
+    protected abstract void add(OidcLoginSession session);
 
-    public abstract void add(OidcLoginSession chipsterOidcLogin);
+    protected abstract OidcLoginSession get(UUID chipsterOidcLoginId);
 
-    public abstract OidcLoginSession get(UUID fromString);
+    protected abstract void update(OidcLoginSession chipsterOidcLoginSession);
 
-    /**
-     * Return the OidcLoginSession for this ID and remove it.
-     * 
-     * Return null if the session is not found.
-     */
-    public abstract OidcLoginSession remove(UUID chipsterOidcLoginId);
+    protected abstract OidcLoginSession remove(UUID chipsterOidcLoginId);
 
-    public abstract int cleanUp(Instant deleteBefore);
+    protected abstract int cleanUp(Instant deleteBefore);
 
     public OidcLoginSessions(Config config) {
 
         try {
-            long cleanUpAfter = config.getLong(CONFIG_KEY_AUTH_OIDC_CLEAN_UP_AFTER);
+            int cleanUpAfter = config.getInt(OidcResource.CONF_MAX_LOGIN_DURATION);
 
             logger.info("clean-up interval is " + cleanUpAfter + " seconds");
 
@@ -52,29 +64,140 @@ public abstract class OidcLoginSessions {
                 @Override
                 public void run() {
 
-                    logger.debug("deleted old OIDC sessions");
+                    logger.debug("deleted old OIDC login sessions");
 
                     Instant deleteBefore = ZonedDateTime.now().minusSeconds(cleanUpAfter).toInstant();
                     int rows = cleanUp(deleteBefore);
 
                     if (rows > 0) {
-                        logger.info("deleted expired incomlete OIDC sessions: " + rows);
+                        logger.info("deleted expired incomlete OIDC login sessions: " + rows);
                     }
                 }
             },
-                    cleanUpAfter * 1000,
-                    cleanUpAfter * 1000);
+                    cleanUpAfter * 1000l,
+                    cleanUpAfter * 1000l);
         } catch (NumberFormatException e) {
-            logger.info("job-history clean-up is not configured");
+            logger.info("OIDC login session clean-up is not configured");
         }
     }
 
-    public UUID add(String state, String nonce, String oidcName, String sourceIp) {
+    /**
+     * Add a new OidcLoginSession.
+     * 
+     * New session are always in correct state.
+     *
+     * @param loginSessionId
+     * @param oidcName
+     * @param sourceIp
+     * @return
+     */
+    public UUID add(UUID loginSessionId, String oidcName, String sourceIp) {
 
-        UUID chipsterLoginId = RestUtils.createUUID();
+        add(new OidcLoginSession(loginSessionId, Instant.now(), oidcName, sourceIp));
 
-        add(new OidcLoginSession(chipsterLoginId, state, nonce, Instant.now(), oidcName, sourceIp));
+        return loginSessionId;
+    }
 
-        return chipsterLoginId;
+    /**
+     * Return the OidcLoginSession for this ID.
+     * 
+     * throw an exception if the session is not found.
+     * 
+     * @param loginSessionId
+     * @return
+     */
+    public OidcLoginSession getAndCheckExistence(UUID loginSessionId) {
+        OidcLoginSession session = get(loginSessionId);
+
+        if (session == null) {
+            throw new BadRequestException("oidc session not found");
+        }
+
+        return session;
+    }
+
+    /**
+     * Save the state and nonce
+     * 
+     * Check that the session is in correct state. If not, throw an exception.
+     * 
+     * @param loginSession must be not null
+     * @param state
+     * @param nonce
+     * @return
+     */
+    public void validateAndUpdate(OidcLoginSession loginSession, String state, String nonce) {
+
+        if (loginSession.getState() != null) {
+            throw new BadRequestException("oidc login session already has state");
+        }
+
+        if (loginSession.getNonce() != null) {
+            throw new BadRequestException("oidc login session already has nonce");
+        }
+
+        if (loginSession.getCode() != null) {
+            throw new BadRequestException("oidc login session already has code");
+        }
+
+        loginSession.setState(state);
+        loginSession.setNonce(nonce);
+
+        this.update(loginSession);
+    }
+
+    /**
+     * Save the code
+     * 
+     * Check that the session is in correct state. If not, throw an exception.
+     * 
+     * @param loginSession must be not null
+     * @param code
+     */
+    public void validateAndUpdate(OidcLoginSession loginSession, String code) {
+
+        if (loginSession.getState() == null) {
+            throw new BadRequestException("oidc login session has no state");
+        }
+
+        if (loginSession.getNonce() == null) {
+            throw new BadRequestException("oidc login session has no nonce");
+        }
+
+        if (loginSession.getCode() != null) {
+            throw new BadRequestException("oidc login session already has code");
+        }
+
+        loginSession.setCode(code);
+
+        this.update(loginSession);
+    }
+
+    /**
+     * Return the OidcLoginSession for this ID and remove it.
+     * 
+     * Return null if the session is not found.
+     */
+    public void validateAndRemove(UUID loginSessionId) {
+        OidcLoginSession session = remove(loginSessionId);
+
+        if (session == null) {
+            throw new BadRequestException("oidc session not found");
+        }
+
+        // Check that the login session is in correct state. If not, throw an exception
+        // to fail the login.
+        // Timer will remove the session eventually.
+        if (session.getState() == null) {
+            throw new BadRequestException("oidc session has no state");
+        }
+
+        if (session.getNonce() == null) {
+            throw new BadRequestException("oidc session has no nonce");
+        }
+
+        if (session.getCode() == null) {
+            throw new BadRequestException("oidc session has no code");
+        }
     }
 }

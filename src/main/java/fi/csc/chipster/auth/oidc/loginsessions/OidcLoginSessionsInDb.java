@@ -42,7 +42,18 @@ public class OidcLoginSessionsInDb extends OidcLoginSessions {
         @SuppressWarnings("null")
         OidcLoginSession loginSession = this.hibernate.session().find(OidcLoginSession.class, chipsterOidcLoginId);
 
+        if (loginSession != null) {
+            // detach the session, so that it can be updated and saved again in the same
+            // transaction
+            this.hibernate.session().detach(loginSession);
+        }
+
         return loginSession;
+    }
+
+    @Override
+    public void update(OidcLoginSession chipsterOidcLogin) {
+        HibernateUtil.update(chipsterOidcLogin, chipsterOidcLogin.getOidcLoginId(), this.hibernate.session());
     }
 
     @Override

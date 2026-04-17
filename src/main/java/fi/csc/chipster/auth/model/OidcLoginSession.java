@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
@@ -20,15 +21,16 @@ public class OidcLoginSession {
 	private Instant created;
 	private String oidcName;
 	private String sourceIp;
+	@Lob
+	private String code;
 
 	public OidcLoginSession() {
 	}
 
-	public OidcLoginSession(UUID oidcLoginId, String state, String nonce, Instant created, String oidcName,
+	public OidcLoginSession(UUID oidcLoginId, Instant created, String oidcName,
 			String sourceIp) {
+
 		this.oidcLoginId = oidcLoginId;
-		this.state = state;
-		this.nonce = nonce;
 		this.created = created;
 		this.oidcName = oidcName;
 		this.sourceIp = sourceIp;
@@ -80,5 +82,13 @@ public class OidcLoginSession {
 
 	public void setSourceIp(String sourceIp) {
 		this.sourceIp = sourceIp;
+	}
+
+	public String getCode() {
+		return this.code;
+	}
+
+	public void setCode(String code) {
+		this.code = code;
 	}
 }

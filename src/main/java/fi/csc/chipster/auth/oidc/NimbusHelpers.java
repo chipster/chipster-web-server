@@ -8,6 +8,7 @@ import com.nimbusds.oauth2.sdk.AuthorizationCode;
 import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
 import com.nimbusds.oauth2.sdk.AuthorizationGrant;
 import com.nimbusds.oauth2.sdk.ErrorObject;
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.ResponseType;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
@@ -20,8 +21,11 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.State;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.openid.connect.sdk.AuthenticationErrorResponse;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest;
 import com.nimbusds.openid.connect.sdk.AuthenticationRequest.Builder;
+import com.nimbusds.openid.connect.sdk.AuthenticationResponse;
+import com.nimbusds.openid.connect.sdk.AuthenticationResponseParser;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponse;
 import com.nimbusds.openid.connect.sdk.OIDCTokenResponseParser;
@@ -30,6 +34,8 @@ import com.nimbusds.openid.connect.sdk.UserInfoResponse;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
 
 /**
@@ -166,5 +172,38 @@ public class NimbusHelpers {
 
 		// Extract the claims
 		return userInfoResponse.toSuccessResponse().getUserInfo();
+	}
+
+	/**
+	 * Follows examle in
+	 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/openid-connect/oidc-auth
+	 * 
+	 * @param uri
+	 * @param state
+	 * @return
+	 */
+	public static AuthorizationCode parseResponse(URI requestUri, String stateInSession) {
+
+		AuthenticationResponse response;
+		try {
+			response = AuthenticationResponseParser.parse(requestUri);
+		} catch (ParseException e) {
+			throw new InternalServerErrorException("failed to parse authentication response", e);
+		}
+
+		// Check the state
+		if (!response.getState().toString().equals(stateInSession)) {
+			throw new BadRequestException("state doesn't match");
+		}
+
+		if (response instanceof AuthenticationErrorResponse) {
+			// The OpenID provider returned an error
+			throw new ForbiddenException(
+					"OIDC provider returned and error: " + response.toErrorResponse().getErrorObject().getCode() + " "
+							+ response.toErrorResponse().getErrorObject().getDescription());
+		}
+
+		// Retrieve the authorisation code, to use it later at the token endpoint
+		return response.toSuccessResponse().getAuthorizationCode();
 	}
 }
