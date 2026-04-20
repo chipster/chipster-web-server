@@ -342,6 +342,9 @@ public class SessionJobResource {
 		}
 
 		if (dbJob.getState().isFinished()) {
+			if (JobState.CANCELLED.equals(requestJob.getState())) {
+				return Response.noContent().build();
+			}
 			throw new ForbiddenException("job is already in finished state: " + dbJob.getState());
 		}
 
