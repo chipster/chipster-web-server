@@ -568,7 +568,7 @@ public class OidcResource {
 			if (this.webServerUri == null) {
 				// Get only on first request, because auth must start before service-locator.
 				// The value doesn't change, so it's enough to get it once.
-				this.webServerUri = serviceLocator.getPublicUri(Role.WEB_SERVER);
+				this.webServerUri = serviceLocator.getPublicUri(Role.AUTH);
 			}
 
 			String combinedUri = UriBuilder.fromUri(webServerUri).path(configuredPath).build().toString();

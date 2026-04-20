@@ -199,7 +199,7 @@ public class NimbusHelpers {
 		if (response instanceof AuthenticationErrorResponse) {
 			// The OpenID provider returned an error
 			throw new ForbiddenException(
-					"OIDC provider returned and error: " + response.toErrorResponse().getErrorObject().getCode() + " "
+					"OIDC provider returned an error: " + response.toErrorResponse().getErrorObject().getCode() + " "
 							+ response.toErrorResponse().getErrorObject().getDescription());
 		}
 
