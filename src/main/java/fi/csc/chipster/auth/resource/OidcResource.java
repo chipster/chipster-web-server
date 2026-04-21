@@ -338,7 +338,7 @@ public class OidcResource {
 		String authorizationEndpoint = oidcProviders
 				.getAuthorizationEndpointURI(loginSession.getOidcName());
 
-		Builder request = NimbusHelpers.createAuthentiationRequest(oidcConfig.getClientId(),
+		Builder request = NimbusHelpers.createAuthenticationRequest(oidcConfig.getClientId(),
 				redirectPath,
 				state,
 				nonce,
@@ -454,8 +454,13 @@ public class OidcResource {
 		logger.info("(6/8) OIDC login " + shorten(loginSessionId)
 				+ ": redirect browser back to app " + appCallback);
 
+		// should have the same attributes
 		NewCookie removeLoginSessionIdCookie = new NewCookie.Builder(COOKIE_LOGIN_SESSION_ID)
 				.maxAge(0)
+				.httpOnly(true)
+				.sameSite(SameSite.LAX)
+				.secure(true)
+				.path("/")
 				.build();
 
 		return Response.seeOther(URI.create(appCallback))
@@ -525,6 +530,7 @@ public class OidcResource {
 		checkSourceIp(loginSession, oidcConfig, jerseyRequest);
 
 		// delete session to make sure it cannot be reused
+		// if the token exchange later fails, the user must restart login entirely
 		this.loginSessions.validateAndRemove(loginSession.getOidcLoginId());
 
 		String codeString = loginSession.getCode();
@@ -657,9 +663,12 @@ public class OidcResource {
 			idTokenClaims = validator.validate(idToken, expectedNonce).toJWTClaimsSet();
 		} catch (BadJOSEException e) {
 			// Invalid signature or claims (iss, aud, exp...)
+			// ForbiddenExceptionMapper sends only the messsage
 			throw new ForbiddenException("id_token validation failed", e);
 		} catch (JOSEException e) {
 			// Internal processing exception
+			// GenericExceptionMapper only writes this to server log and only sends the
+			// class name
 			throw new InternalServerErrorException("id_token validation failed", e);
 		} catch (ParseException e) {
 			throw new InternalServerErrorException("failed to parse id_token claims", e);
@@ -801,6 +810,8 @@ public class OidcResource {
 			}
 
 			if (!requiredClaimValue.isEmpty()) {
+				// also lists and maps are converted to string. We should probably support them
+				// natively
 				String claimValue = claimObj.toString();
 
 				if (COMPARISON_STRING.equals(comparison)) {
@@ -908,7 +919,7 @@ public class OidcResource {
 		if (value instanceof Boolean) {
 			return (Boolean) value;
 		}
-		throw new InternalServerErrorException("claim " + claimName + " value is not String: " + value);
+		throw new InternalServerErrorException("claim " + claimName + " value is not Boolean: " + value);
 	}
 
 	private void printClaims(Map<String, Object> claims) {
@@ -927,7 +938,9 @@ public class OidcResource {
 	 */
 	private void addParameters(Builder request, String parameter) {
 		if (parameter != null && !parameter.isEmpty()) {
-			// public client in app did support multiple parameters like this
+			// Public client in app did support multiple parameters like this.
+			// Keys and values cannot contain characters " " and "=", but this is good
+			// enough for simple cases.
 			for (String entry : Arrays.asList(parameter.split(" "))) {
 				String[] parts = entry.split("=");
 				if (parts.length != 2) {

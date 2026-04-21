@@ -54,7 +54,7 @@ public class NimbusHelpers {
 	 * https://connect2id.com/products/nimbus-oauth-openid-connect-sdk/examples/
 	 * openid-connect/oidc-auth
 	 */
-	public static Builder createAuthentiationRequest(String clientIdString, String callbackString, State state,
+	public static Builder createAuthenticationRequest(String clientIdString, String callbackString, State state,
 			Nonce nonce, String responseType, String[] scopeArray, String authorizationEndpoint) {
 
 		// The client ID provisioned by the OpenID provider when

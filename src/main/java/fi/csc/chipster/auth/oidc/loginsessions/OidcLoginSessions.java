@@ -2,9 +2,10 @@ package fi.csc.chipster.auth.oidc.loginsessions;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,11 +61,13 @@ public abstract class OidcLoginSessions {
              * that's fine, because the purpose of this is mostly to prevent the
              * memory/storage usage from growing without limit.
              */
-            new Timer(true).schedule(new TimerTask() {
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+            Runnable cleanUpTask = new Runnable() {
                 @Override
                 public void run() {
 
-                    logger.debug("deleted old OIDC login sessions");
+                    logger.debug("delete old OIDC login sessions");
 
                     Instant deleteBefore = ZonedDateTime.now().minusSeconds(cleanUpAfter).toInstant();
                     int rows = cleanUp(deleteBefore);
@@ -73,11 +76,12 @@ public abstract class OidcLoginSessions {
                         logger.info("deleted expired incomlete OIDC login sessions: " + rows);
                     }
                 }
-            },
-                    cleanUpAfter * 1000l,
-                    cleanUpAfter * 1000l);
+            };
+
+            scheduler.scheduleAtFixedRate(cleanUpTask, cleanUpAfter, cleanUpAfter, TimeUnit.SECONDS);
+
         } catch (NumberFormatException e) {
-            logger.info("OIDC login session clean-up is not configured");
+            logger.warn("OIDC login session clean-up is not configured");
         }
     }
 
