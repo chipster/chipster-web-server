@@ -175,6 +175,11 @@ public class SessionResource {
 		List<Session> sessions = new ArrayList<>();
 		for (Rule rule : rules) {
 			Session session = rule.getSession();
+
+			// detach the object from hibernate, otherwise hibernate tries to commit the
+			// modification back to DB (and fails with "Immutable collection dereferenced by
+			// owner")
+			hibernate.session().detach(session);
 			// user's own rule should be enough in the session list
 			// otherwise we would be selecting rules of sessions of rules of username
 			session.setRules(new HashSet<Rule>() {
@@ -200,6 +205,12 @@ public class SessionResource {
 		List<Session> sessions = new ArrayList<>();
 		for (Rule rule : result) {
 			Session session = rule.getSession();
+
+			// detach the object from hibernate, otherwise hibernate tries to commit the
+			// modification back to DB (and fails with "Immutable collection dereferenced by
+			// owner")
+			hibernate.session().detach(session);
+
 			// the shared rule should be enough in the session list
 			// otherwise we would be selecting rules of sessions of rules of username
 			session.setRules(new HashSet<Rule>() {

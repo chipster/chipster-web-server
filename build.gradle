@@ -88,10 +88,10 @@ dependencies {
 
 	// logging
 	// stay in 2.+ , because 3 is still in beta
-    implementation "org.apache.logging.log4j:log4j-api:2.+"
-    implementation "org.apache.logging.log4j:log4j-core:2.+"
-    implementation "org.apache.logging.log4j:log4j-jul:2.+"
-    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.+"
+    implementation "org.apache.logging.log4j:log4j-api:2.25.4"
+    implementation "org.apache.logging.log4j:log4j-core:2.25.4"
+    implementation "org.apache.logging.log4j:log4j-jul:2.25.4"
+    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4"
 
     // jersey
     implementation "org.glassfish.jersey.containers:jersey-container-grizzly2-http:3.1.11"
@@ -103,40 +103,39 @@ dependencies {
     implementation "org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.11"  
     
     // jetty for session-worker servlet
-    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.5"
-    implementation "org.eclipse.jetty:jetty-server:12.1.5"
+    implementation "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.8"
+    implementation "org.eclipse.jetty:jetty-server:12.1.8"
 
     // jetty client for file downloads with specific HTTP, cipher or TLS versions
-    implementation "org.eclipse.jetty:jetty-client:12.1.5"
-    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.1.5"
-    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.1.5"
+    implementation "org.eclipse.jetty:jetty-client:12.1.8"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client:12.1.8"
+    implementation "org.eclipse.jetty.http2:jetty-http2-client-transport:12.1.8"
 
     // websockets 
     // API 2.2.0 == ee11
     implementation "jakarta.websocket:jakarta.websocket-api:2.2.0"
-    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.1.5"
-    
+    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.1.8"
+
     // cache settings in web-server
-    implementation "org.eclipse.jetty:jetty-rewrite:12.1.5"    
-    
+    implementation "org.eclipse.jetty:jetty-rewrite:12.1.8"    
         
     // jackson
-    implementation "com.fasterxml.jackson.core:jackson-core:2.21.0"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0"
+    implementation "com.fasterxml.jackson.core:jackson-core:2.21.2"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.2"
     
     // config files
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.2"
 	
     // hibernate
-    implementation "org.hibernate.orm:hibernate-core:7.0.10.Final"
-    implementation "org.hibernate.orm:hibernate-c3p0:7.0.10.Final"
+    implementation "org.hibernate.orm:hibernate-core:7.3.1.Final"
+    implementation "org.hibernate.orm:hibernate-c3p0:7.3.1.Final"
     // schema export
-    implementation "org.hibernate.orm:hibernate-ant:7.0.10.Final"
-    implementation "org.postgresql:postgresql:+"
+    implementation "org.hibernate.orm:hibernate-ant:7.3.1.Final"
+    implementation "org.postgresql:postgresql:42.7.10"
     
     // flyway
-    implementation "org.flywaydb:flyway-core:11.+"
-    implementation "org.flywaydb:flyway-database-postgresql:11.+"
+    implementation "org.flywaydb:flyway-core:12.4.0"
+    implementation "org.flywaydb:flyway-database-postgresql:12.4.0"
 
     
     // S3StorageClient and db backups
@@ -161,32 +160,32 @@ dependencies {
 
 	// other
     // why IOUtils is not found if we don't specify major version here?
-    implementation "commons-io:commons-io:2.+"
-    implementation "org.apache.commons:commons-text:+"
-    implementation "commons-codec:commons-codec:+"
+    implementation "commons-io:commons-io:2.21.0"
+    implementation "org.apache.commons:commons-text:1.15.0"
+    implementation "commons-codec:commons-codec:1.21.0"
     
     // rxJava
-    implementation "io.reactivex.rxjava3:rxjava:3.+"
+    implementation "io.reactivex.rxjava3:rxjava:3.1.12"
     
-    implementation "com.sun.mail:javax.mail:+"
+    implementation "com.sun.mail:jakarta.mail:2.0.2"
     
-    // tsv parser
-    implementation "com.univocity:univocity-parsers:+"
+    // tsv parser (latest update from 2021, but only used for phenodata in comp?)
+    implementation "com.univocity:univocity-parsers:2.9.1"
     
     // OpenID Connect
-    implementation "com.nimbusds:oauth2-oidc-sdk:+"
+    implementation "com.nimbusds:oauth2-oidc-sdk:11.37"
     
     // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:+',
-    		'org.bouncycastle:bcpkix-jdk15on:+'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:+',
+    implementation 'io.jsonwebtoken:jjwt-api:0.13.0',
+    		'org.bouncycastle:bcpkix-jdk18on:1.84'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0',
             // Uncomment the next line if you want to use RSASSA-PSS (PS256, PS384, PS512) algorithms:
             //'org.bouncycastle:bcprov-jdk15on:1.60',
-            'io.jsonwebtoken:jjwt-jackson:+'
+            'io.jsonwebtoken:jjwt-jackson:0.13.0'
             
     // Chipster Java tools
 	implementation "com.github.samtools:htsjdk:2.6.1"
  
-    testImplementation "org.junit.jupiter:junit-jupiter:5.+"
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation "org.junit.jupiter:junit-jupiter:6.0.3"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:6.0.3'
 }

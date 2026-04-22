@@ -39,7 +39,7 @@
         encryptionKey varchar(255),
         fileCreated timestamp(6) with time zone,
         size bigint not null,
-        state smallint check (state between 0 and 1),
+        state smallint check ((state between 0 and 1)),
         storage varchar(255),
         primary key (fileId)
     );
@@ -63,7 +63,7 @@
         slotLimit integer,
         sourceCode oid,
         startTime timestamp(6) with time zone,
-        state smallint check (state between 0 and 12),
+        state smallint check ((state between 0 and 12)),
         stateDetail oid,
         storageLimit bigint,
         storageUsage bigint,
@@ -98,7 +98,7 @@
         created timestamp(6) with time zone,
         name varchar(255),
         notes oid,
-        state smallint check (state between 0 and 4),
+        state smallint check ((state between 0 and 4)),
         primary key (sessionId)
     );
 

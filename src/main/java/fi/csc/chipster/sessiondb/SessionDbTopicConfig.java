@@ -46,7 +46,7 @@ public class SessionDbTopicConfig extends ChipsterTopicConfig {
 
 	@Override
 	public boolean isAuthorized(final AuthPrincipal principal, String topic) {
-		logger.debug("check topic authorization for topic " + topic);
+		logger.info("check topic authorization for topic " + topic);
 
 		if (ALL_JOBS_TOPIC.equals(topic) || ALL_FILES_TOPIC.equals(topic)) {
 			return principal.getRoles().contains(Role.SERVER);
