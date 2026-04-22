@@ -15,6 +15,9 @@ import org.hibernate.boot.MetadataBuilder;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Environment;
+import org.hibernate.cfg.JdbcSettings;
+import org.hibernate.engine.jdbc.connections.internal.UserSuppliedConnectionProviderImpl;
+import org.hibernate.engine.jdbc.env.JdbcMetadataOnBoot;
 import org.hibernate.tool.hbm2ddl.SchemaExport;
 import org.hibernate.tool.schema.TargetType;
 import org.hibernate.tool.schema.spi.SchemaManagementException;
@@ -70,17 +73,35 @@ public class DbSchema {
 		settings.put(Environment.DIALECT, dialect);
 		settings.put(Environment.JAKARTA_JDBC_DRIVER, driver);
 
+		// settings.put(Environment.JAKARTA_HBM2DDL_DB_NAME, "PostgreSQL");
+		// settings.put(Environment.JAKARTA_HBM2DDL_DB_MAJOR_VERSION, "14");
+		// settings.put(Environment.JAKARTA_HBM2DDL_DB_MINOR_VERSION, "0");
 		/*
-		 * Do not start connection pool
+		 * Do not start connection pool yet (1/2)
 		 * 
-		 * Schema export shouldn't try to connect to the real database, but it does, at
-		 * least in
-		 * Hibernate 5.4.25. This magic configuration in JdbcEnvironmentInitiator seems
-		 * to disable it.
+		 * By default Schema export tries to connect to the database to identify
+		 * database dialect and version. This magic configuration in
+		 * JdbcEnvironmentInitiator should disable it.
 		 * 
-		 * Update: still does in Hibernate 6.1.7
+		 * This (or actually its older version
+		 * "hibernate.temp.use_jdbc_metadata_defaults") was enough until Hibernate
+		 * version 7.0.10.
 		 */
-		settings.put("hibernate.temp.use_jdbc_metadata_defaults", "false");
+		settings.put(JdbcSettings.ALLOW_METADATA_ON_BOOT, JdbcMetadataOnBoot.DISALLOW);
+
+		/*
+		 * Do not start connection pool yet (2/2)
+		 * 
+		 * Despite the above setting, Hibernate 7.3.1 starts the c3p0 (and fails because
+		 * the url is null).
+		 * 
+		 * Setting this ConnectionProvider (which only throws an exception) seems to do
+		 * what we want, at least for now.
+		 * 
+		 * Maybe we should check how the SchemaExport prevents this when its ran as a
+		 * standalone program.
+		 */
+		settings.put(Environment.CONNECTION_PROVIDER, new UserSuppliedConnectionProviderImpl());
 
 		MetadataSources metadata = new MetadataSources(
 				new StandardServiceRegistryBuilder()

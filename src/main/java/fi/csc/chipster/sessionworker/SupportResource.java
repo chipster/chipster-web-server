@@ -10,18 +10,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import jakarta.annotation.security.RolesAllowed;
-import javax.mail.MessagingException;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.ForbiddenException;
-import jakarta.ws.rs.InternalServerErrorException;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.http.HttpStatus;
@@ -36,6 +24,17 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.mail.MessagingException;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 
 @Path("support")
 public class SupportResource {
