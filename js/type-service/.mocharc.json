@@ -1,0 +1,10 @@
+// based on https://typestrong.org/ts-node/docs/recipes/mocha/
+{
+  // Specify "require" for CommonJS
+  //   "require": "ts-node/register",
+  // Specify "loader" for native ESM
+  "loader": "ts-node/esm",
+  "extensions": ["ts"],
+  "spec": ["src/**/*.spec.ts"],
+  "watch-files": ["src"]
+}
