@@ -3,7 +3,6 @@ import {
   MetadataFile,
   Tool,
   ToolInput,
-  ToolParameter,
 } from "chipster-js-common";
 import { RestClient } from "chipster-nodejs-core";
 import { padStart } from "lodash-es";

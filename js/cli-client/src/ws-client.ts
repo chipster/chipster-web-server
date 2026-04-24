@@ -17,9 +17,6 @@ import {
 import VError from "verror";
 import WebSocket from "ws";
 
-import path from "path";
-import { read } from "read";
-import ArgumentParser from "argparse";
 import { fileURLToPath } from "url";
 
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
