@@ -2,9 +2,6 @@ package fi.csc.chipster.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,14 +23,20 @@ import com.nimbusds.jose.PlainHeader;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.openid.connect.sdk.Nonce;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserId;
+import fi.csc.chipster.auth.oidc.OidcConfig;
+import fi.csc.chipster.auth.oidc.OidcProviders;
+import fi.csc.chipster.auth.oidc.loginsessions.OidcLoginSessionsInDb;
 import fi.csc.chipster.auth.resource.AuthTokens;
-import fi.csc.chipster.auth.resource.OidcConfig;
-import fi.csc.chipster.auth.resource.OidcProviders;
 import fi.csc.chipster.auth.resource.OidcResource;
 import fi.csc.chipster.auth.resource.UserTable;
 import fi.csc.chipster.rest.Config;
@@ -45,23 +48,36 @@ import jakarta.ws.rs.ForbiddenException;
 
 public class OidcResourceTest {
 
-	private static final String PREFIX1 = "prefix1";
-	private static final String PREFIX2 = "prefix2";
-	private static final String PREFIX3 = "prefix3";
-	private static final String PREFIX4 = "prefix4";
-	private static final String PREFIX5 = "prefix5";
-	private static final String ISSUER12 = "issuer12";
-	private static final String CLIENT_ID12 = "clientId12";
+	private static final String OIDC_NAME_SIMPLE = "oidcNameSimple";
+	private static final String OIDC_NAME_SHARED1 = "oidcNameShared1";
+	private static final String OIDC_NAME_SHARED2 = "oidcNameShared2";
+	private static final String OIDC_NAME_OR = "oidcNameOr";
+	private static final String OIDC_NAME_AND = "oidcNameAnd";
+	private static final String OIDC_NAME_USERINFO = "oidcNameUserinfo";
+
+	private static final String PREFIX_SIMPLE = "prefixSimple";
+	private static final String PREFIX_SHARED1 = "prefixShared1";
+	private static final String PREFIX_SHARED2 = "prefixShared2";
+	private static final String PREFIX_OR = "prefixOr";
+	private static final String PREFIX_AND = "prefixAnd";
+	private static final String PREFIX_USERINFO = "prefixUserinfo";
+
+	private static final String ISSUER_SIMPLE = "issuerSimple";
+	private static final String ISSUER_SHARED = "issuerShared";
+	private static final String ISSUER_OR = "issuerOr";
+	private static final String ISSUER_AND = "issuerAnd";
+	private static final String ISSUER_USERINFO = "issuerUserinfo";
+
+	private static final String CLIENT_ID_SIMPLE = "clientIdSimple";
+	private static final String CLIENT_ID_SHARED = "clientIdShared";
+	private static final String CLIENT_ID_OR = "clientIdOr";
+	private static final String CLIENT_ID_AND = "clientIdAnd";
+	private static final String CLIENT_ID_USER_INFO = "clientIdUserInfo";
+
 	private static final String USER_ID_CLAIM_KEY = "userIdClaimKey";
 	private static final String REQUIRED_CLAIM_KEY1 = "requiredClaimKey1";
 	private static final String REQUIRED_CLAIM_KEY2 = "requiredClaimKey2";
 	private static final String REQUIRED_CLAIM_KEY = "requiredClaimKey";
-	private static final String ISSUER3 = "issuer3";
-	private static final String ISSUER4 = "issuer4";
-	private static final String ISSUER5 = "issuer5";
-	private static final String CLIENT_ID3 = "clientId3";
-	private static final String CLIENT_ID4 = "clientId4";
-	private static final String CLIENT_ID5 = "clientId5";
 	private static final String REQUIRED_CLAIM_VALUE2 = "requiredClaimValue2";
 	private static final String REQUIRED_CLAIM_VALUE_JSON = "[\"a\", \"b\"]";
 
@@ -70,20 +86,32 @@ public class OidcResourceTest {
 	private static OidcProvidersMock oidcProviderMock;
 	private static OidcResource oidcResource;
 
+	private volatile static int userIdIndex = 1;
+
+	private static String nonce;
+
 	@BeforeAll
 	public static void setUp() throws Exception {
 		Config config = new Config();
 		launcher = new TestServerLauncher(config);
 
 		// let's use the real UserTable and AuthTable because other tests require the
-		// backend anyway
-		// alternatively we could mock those too
-		hibernate = new HibernateUtil(config, Role.AUTH, AuthenticationService.hibernateClasses);
+		// backend anyway alternatively we could mock those too
+		hibernate = new HibernateUtil(config, Role.AUTH,
+				AuthenticationService.hibernateClasses);
 		AuthTokens tokenTable = new AuthTokens(config);
 		UserTable userTable = new UserTable(hibernate);
 
 		oidcProviderMock = new OidcProvidersMock(getTestOidcConfigs());
-		oidcResource = new OidcResource(oidcProviderMock);
+
+		// in real use each request should have a different nonce, but for tests it
+		// doesn't matter if use the same one
+		nonce = new Nonce().getValue();
+
+		// let's use real OidcLoginSessionsInDb because other tests require the DB
+		// anyway. Alternatively OidcLoginSessionsInMemory could be used
+		oidcResource = new OidcResource(oidcProviderMock, new OidcLoginSessionsInDb(config, hibernate),
+				launcher.getServiceLocator());
 		oidcResource.init(tokenTable, userTable, config);
 	}
 
@@ -92,266 +120,450 @@ public class OidcResourceTest {
 		launcher.stop();
 	}
 
-	@Test
-	public void createTokenFromOidc() throws Exception {
+	public HashMap<String, Object> testClaims(HashMap<String, Object> claims, String oidcName,
+			boolean successExpected) {
+		return this.testClaims(claims, oidcName, successExpected, nonce);
+	}
 
-		// store and throw any exceptions to fail the test
-		Exception exception = hibernate.runInTransaction(new HibernateRunnable<Exception>() {
+	public HashMap<String, Object> testClaims(HashMap<String, Object> claims, String oidcName,
+			boolean successExpected, String nonce) {
+
+		OidcConfig oidcConfig = oidcProviderMock.getOidcConfig(oidcName);
+
+		// OidcResource methods are expected to be run inside a DB transaction
+		return hibernate.runInTransaction(new HibernateRunnable<HashMap<String, Object>>() {
 
 			@Override
-			public Exception run(Session hibernateSession) {
+			public HashMap<String, Object> run(Session hibernateSession) {
 				try {
-					createTokenFromOidc2(oidcProviderMock, oidcResource);
+					JWT jws = oidcProviderMock.getIdToken(claims);
+					// anything non-null works in these tests
+					AccessToken accessToken = new BearerAccessToken();
+					String chipsterToken = oidcResource.createTokenFromOidc(oidcConfig, jws, accessToken, nonce);
+					if (!successExpected) {
+						Assertions.fail("test should have thrown an exception");
+					}
+					return parseChipsterToken(chipsterToken);
+				} catch (ForbiddenException e) {
+					if (successExpected) {
+						Assertions.fail("test failed with an exception", e);
+					}
 				} catch (Exception e) {
-					return e;
+					// test always fails if any other exceptions is thrown
+					Assertions.fail("test failed", e);
 				}
 				return null;
 			}
-
 		});
-		if (exception != null) {
-			throw exception;
-		}
 	}
 
-	public void createTokenFromOidc2(OidcProvidersMock oidcProviderMock, OidcResource resource) throws JOSEException,
-			GeneralSecurityException, IOException, ParseException, URISyntaxException, InterruptedException {
+	/**
+	 * Test authentication with sipmle OIDC configuration
+	 */
+	@Test
+	public void validSimple() {
 
-		RSAKey privateKey2 = new RSAKeyGenerator(2048).generate();
+		String oidcName = OIDC_NAME_SIMPLE;
 
-		HashMap<String, Object> claimsIssuer3 = new HashMap<String, Object>() {
+		HashMap<String, Object> claims = new HashMap<String, Object>(getValidClaims(oidcName));
+
+		// uncomment this if you want to verify that test fails
+		// claims.remove("sub");
+
+		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
+
+		assertEquals(PREFIX_SIMPLE, new UserId(chipsterToken.get("sub").toString()).getAuth());
+	}
+
+	/**
+	 * Test authentication when we have two configurations with the same issuer and
+	 * clientId
+	 * 
+	 * This is unlikely to cause problems anymore when the configuration is
+	 * searched with oidcName, but let's keep it anyway to make sure that we don't
+	 * breakt it.
+	 */
+	@Test
+	public void validShared1() {
+
+		String oidcName = OIDC_NAME_SHARED1;
+
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName));
+
+		// uncomment this if you want to verify that test fails
+		// claimsIssuer1.remove("sub");
+
+		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
+
+		assertEquals(PREFIX_SHARED1, new UserId(chipsterToken.get("sub").toString()).getAuth());
+	}
+
+	@Test
+	public void validShared2() {
+
+		String oidcName = OIDC_NAME_SHARED2;
+
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName));
+
+		// uncomment this if you want to verify that test fails
+		// claimsIssuer2.remove(USER_ID_CLAIM_KEY);
+
+		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
+
+		assertEquals(PREFIX_SHARED2, new UserId(chipsterToken.get("sub").toString()).getAuth());
+	}
+
+	/**
+	 * Test that claims are found from userInfo
+	 */
+	@Test
+	public void validUserInfo() {
+
+		// userInfo is enabled for oidcName6
+		String oidcName = OIDC_NAME_USERINFO;
+
+		HashMap<String, Object> idTokenClaims = getValidClaims(oidcName);
+
+		// remove the claim from id_token
+		idTokenClaims.remove(REQUIRED_CLAIM_KEY1);
+
+		oidcProviderMock.setNextUserInfo(new HashMap<String, Object>() {
 			{
-				put("sub", "userId");
-				put("iss", ISSUER3);
-				put("aud", CLIENT_ID3);
-				put("iat", Instant.now().getEpochSecond());
-				put("exp", Instant.now().getEpochSecond() + 10);
+				put("sub", idTokenClaims.get("sub"));
+				put(REQUIRED_CLAIM_KEY1, "any-value");
 			}
-		};
+		});
 
-		String jws = oidcProviderMock.getIdToken(claimsIssuer3);
+		HashMap<String, Object> chipsterToken = testClaims(idTokenClaims, oidcName, true);
 
-		// valid issuer3
-		String chipsterToken = resource.createTokenFromOidc(jws, null);
-		assertEquals(PREFIX3, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+		assertEquals(PREFIX_USERINFO, new UserId(chipsterToken.get("sub").toString()).getAuth());
+	}
 
-		// valid for issuer 1. User
-		HashMap<String, Object> claimsIssuer1 = new HashMap<>(claimsIssuer3) {
-			{
-				put("aud", CLIENT_ID12);
-				put("iss", ISSUER12);
-				put(USER_ID_CLAIM_KEY, "userIdValue");
-				put(REQUIRED_CLAIM_KEY1, "anyClaimValue");
-			}
-		};
-		String jws3 = oidcProviderMock.getIdToken(claimsIssuer1);
-		chipsterToken = resource.createTokenFromOidc(jws3, null);
-		assertEquals(PREFIX1, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+	@Test
+	public void or() {
 
-		// valid for issuer 2
-		HashMap<String, Object> claimsIssuer2 = new HashMap<>(claimsIssuer3) {
-			{
-				put("aud", CLIENT_ID12);
-				put("iss", ISSUER12);
-				put(USER_ID_CLAIM_KEY, "userIdValue");
-				put(REQUIRED_CLAIM_KEY2, REQUIRED_CLAIM_VALUE2);
-			}
-		};
-		String jws4 = oidcProviderMock.getIdToken(claimsIssuer2);
-		chipsterToken = resource.createTokenFromOidc(jws4, null);
-		assertEquals(PREFIX2, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+		String oidcName = OIDC_NAME_OR;
 
 		// issuer 4 requires any of "a" or "b"
-		HashMap<String, Object> claimsIssuer4 = new HashMap<>(claimsIssuer3) {
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName));
+
+		// uncomment this if you want to verify that test fails
+		// claims.remove(REQUIRED_CLAIM_KEY);
+
+		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
+
+		assertEquals(PREFIX_OR, new UserId(chipsterToken.get("sub").toString()).getAuth());
+	}
+
+	@Test
+	public void and() {
+
+		String oidcName = OIDC_NAME_AND;
+
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName));
+
+		// uncomment this if you want to verify that test fails
+		// claims.remove(REQUIRED_CLAIM_KEY);
+
+		HashMap<String, Object> chipsterToken = testClaims(claims, oidcName, true);
+
+		assertEquals(PREFIX_AND, new UserId(chipsterToken.get("sub").toString()).getAuth());
+	}
+
+	@Test
+	public void orFail() {
+
+		String oidcName = OIDC_NAME_OR;
+
+		// issuer 4 requires any of "a" or "b"
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
 			{
-				put("aud", CLIENT_ID4);
-				put("iss", ISSUER4);
-				put(REQUIRED_CLAIM_KEY, "[\"b\", \"c\"]");
+				put(REQUIRED_CLAIM_KEY, "[\"c\"]");
 			}
 		};
 
-		String jwsValid4 = oidcProviderMock.getIdToken(claimsIssuer4);
-		chipsterToken = resource.createTokenFromOidc(jwsValid4, null);
-		assertEquals(PREFIX4, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+		testClaims(claims, oidcName, false);
+	}
+
+	@Test
+	public void andFail() {
+
+		String oidcName = OIDC_NAME_AND;
 
 		// issuer 5 requires both of "a" and "b"
-		HashMap<String, Object> claimsIssuer5 = new HashMap<>(claimsIssuer3) {
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
 			{
-				put("aud", CLIENT_ID5);
-				put("iss", ISSUER5);
-				put(REQUIRED_CLAIM_KEY, REQUIRED_CLAIM_VALUE_JSON);
+				put(REQUIRED_CLAIM_KEY, "[\"a\"]");
 			}
 		};
 
-		String jwsValid5 = oidcProviderMock.getIdToken(claimsIssuer5);
-		chipsterToken = resource.createTokenFromOidc(jwsValid5, null);
-		assertEquals(PREFIX5, new UserId(parseChipsterToken(chipsterToken).get("sub").toString()).getAuth());
+		testClaims(claims, oidcName, false);
+	}
 
-		try {
-			// issuer 4 requires any of "a" or "b"
-			HashMap<String, Object> claimsIssuer4Fail = new HashMap<>(claimsIssuer4) {
-				{
-					put(REQUIRED_CLAIM_KEY, "[\"c\"]");
+	@Test
+	public void wrongRequiredClaimValue() {
+
+		String oidcName = OIDC_NAME_SHARED2;
+
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				put(REQUIRED_CLAIM_KEY2, "wrong-value");
+			}
+		};
+		testClaims(claims, oidcName, false);
+	}
+
+	@Test
+	public void wrongIss() {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				put("iss", "wrong-iss");
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	@Test
+	public void wrongAud() {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				put("aud", "wrong-aud");
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	// missing sub (issuer3 uses this default)
+	@Test
+	public void missingSub() {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				remove("sub");
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	// missing userId claim (issuer1 is configured to get the userId from
+	// USER_ID_CLAIM_KEY)
+	@Test
+	public void missingUserIdClaim() {
+
+		String oidcName = OIDC_NAME_SHARED1;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				remove(USER_ID_CLAIM_KEY);
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	// missing required claim (issuer1 is configured to require REQUIRE_CLAIM_KEY1
+	@Test
+	public void missingRequiredClaim() {
+
+		String oidcName = OIDC_NAME_SHARED1;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				remove(REQUIRED_CLAIM_KEY1);
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	@Test
+	public void expired() {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				put("exp", Instant.now().getEpochSecond() - 1000);
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	@Test
+	public void fromFuture() {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName)) {
+			{
+				put("iat", Instant.now().getEpochSecond() + 1000);
+			}
+		};
+
+		testClaims(claims, oidcName, false);
+	}
+
+	@Test
+	public void wrongNonce() {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		HashMap<String, Object> claims = new HashMap<>(getValidClaims(oidcName));
+
+		testClaims(claims, oidcName, false, new Nonce().getValue());
+	}
+
+	/**
+	 * If userId is not found from id_token, it should be searched from userInfo
+	 */
+	@Test
+	public void userIdFromUserInfo() {
+
+		String oidcName = OIDC_NAME_USERINFO;
+
+		HashMap<String, Object> idTokenClaims = new HashMap<>(getValidClaims(oidcName));
+
+		String userId = (String) idTokenClaims.remove(USER_ID_CLAIM_KEY);
+
+		oidcProviderMock.setNextUserInfo(new HashMap<>() {
+			{
+				put("sub", idTokenClaims.get("sub"));
+				put(USER_ID_CLAIM_KEY, userId);
+			}
+		});
+
+		HashMap<String, Object> chipsterToken = testClaims(idTokenClaims, oidcName, true);
+
+		assertEquals(userId, new UserId(chipsterToken.get("sub").toString()).getUsername());
+	}
+
+	/**
+	 * If the same claim has different value in id_token and userInfo, use the value
+	 * from id_token. I don't know why the authentication server would do this, but
+	 * let's be at least consistent if this happens
+	 */
+	@Test
+	public void claimPriorityOfUserInfo() {
+
+		String oidcName = OIDC_NAME_USERINFO;
+
+		HashMap<String, Object> idTokenClaims = new HashMap<>(getValidClaims(oidcName));
+
+		String userId = (String) idTokenClaims.get("sub");
+		idTokenClaims.put(USER_ID_CLAIM_KEY, userId + "fromIdToken");
+
+		oidcProviderMock.setNextUserInfo(new HashMap<>() {
+			{
+				put("sub", idTokenClaims.get("sub"));
+				put(USER_ID_CLAIM_KEY, userId + "fromUserInfo");
+			}
+		});
+
+		HashMap<String, Object> chipsterToken = testClaims(idTokenClaims, oidcName, true);
+
+		assertEquals(userId + "fromIdToken", new UserId(chipsterToken.get("sub").toString()).getUsername());
+	}
+
+	// wrong key
+	@Test
+	public void wrongKey() throws JOSEException, ParseException {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		OidcConfig oidcConfig = oidcProviderMock.getOidcConfig(oidcName);
+
+		hibernate.runInTransaction(new HibernateRunnable<Void>() {
+
+			@Override
+			public Void run(Session hibernateSession) {
+				try {
+
+					// wrong key
+					RSAKey privateKey = new RSAKeyGenerator(2048).generate();
+
+					// correct key
+					// RSAKey privateKey = oidcProviderMock.getPrivateKey();
+
+					JWT jws = oidcProviderMock.getIdToken(privateKey, getValidClaims(oidcName), JWSAlgorithm.RS256);
+
+					oidcResource.createTokenFromOidc(oidcConfig, jws, null, nonce);
+					Assertions.fail();
+				} catch (ForbiddenException e) {
+					// expected
+				} catch (Exception e) {
+					// test always fails if any other exceptions is thrown
+					Assertions.fail("test failed", e);
 				}
-			};
+				return null;
+			}
+		});
+	}
 
-			String jwsFail4 = oidcProviderMock.getIdToken(claimsIssuer4Fail);
-			chipsterToken = resource.createTokenFromOidc(jwsFail4, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
+	/*
+	 * Try to test if symmetric or none algorithms are allowed
+	 *
+	 * https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
+	 *
+	 * The Nimbus library makes it really difficult to make these kind of errors,
+	 * I wasn't even able to test if the following two test really work. Let's try
+	 * anyway:
+	 */
 
-		try {
-			// issuer 5 requires both of "a" and "b"
-			HashMap<String, Object> claimsIssuer5Fail = new HashMap<>(claimsIssuer5) {
-				{
-					put(REQUIRED_CLAIM_KEY, "[\"a\"]");
+	// signed with public key and ssymmetric algorithm.
+
+	@Test
+	public void symmetricAlgorithm() throws KeyLengthException, JOSEException, ParseException {
+
+		String oidcName = OIDC_NAME_SIMPLE;
+		OidcConfig oidcConfig = oidcProviderMock.getOidcConfig(oidcName);
+
+		hibernate.runInTransaction(new HibernateRunnable<Void>() {
+
+			@Override
+			public Void run(Session hibernateSession) {
+				try {
+					JWT jws = getIdTokenSymmetric(oidcProviderMock.toString(),
+							getValidClaims(oidcName), JWSAlgorithm.HS256);
+					oidcResource.createTokenFromOidc(oidcConfig, jws, null, nonce);
+					Assertions.fail();
+				} catch (ForbiddenException e) {
+					// expected
+				} catch (Exception e) {
+					// test always fails if any other exceptions is thrown
+					Assertions.fail("test failed", e);
 				}
-			};
+				return null;
+			}
+		});
+	}
 
-			String jwsFail5 = oidcProviderMock.getIdToken(claimsIssuer5Fail);
-			chipsterToken = resource.createTokenFromOidc(jwsFail5, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
+	@Test
+	public void noneAlgorithm() throws KeyLengthException, JOSEException, ParseException {
 
-		// wrong required claim value
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer2) {
-				{
-					put(REQUIRED_CLAIM_KEY2, "wrong-value");
+		String oidcName = OIDC_NAME_SIMPLE;
+		OidcConfig oidcConfig = oidcProviderMock.getOidcConfig(oidcName);
+
+		hibernate.runInTransaction(new HibernateRunnable<Void>() {
+
+			@Override
+			public Void run(Session hibernateSession) {
+				// signed with public key and none algorithm
+				try {
+					JWT jws = getIdTokenNone(getValidClaims(oidcName));
+					oidcResource.createTokenFromOidc(oidcConfig, jws, null, nonce);
+					Assertions.fail();
+				} catch (ForbiddenException e) {
+					// expected
+				} catch (Exception e) {
+					// test always fails if any other exceptions is thrown
+					Assertions.fail("test failed", e);
 				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// wrong iss
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer3) {
-				{
-					put("iss", "wrong-iss");
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// wrong aud
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer3) {
-				{
-					put("aud", "wrong-aud");
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// missing sub (issuer3 uses this default)
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer3) {
-				{
-					remove("sub");
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// missing userId claim (issuer1 is configured to get the userId from
-		// USER_ID_CLAIM_KEY)
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer1) {
-				{
-					remove(USER_ID_CLAIM_KEY);
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// missing required claim (issuer1 is configured to require REQUIRE_CLAIM_KEY1)
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer1) {
-				{
-					remove(REQUIRED_CLAIM_KEY1);
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// expired
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer3) {
-				{
-					put("exp", Instant.now().getEpochSecond() - 1000);
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// from future
-		try {
-			HashMap<String, Object> claims2 = new HashMap<>(claimsIssuer3) {
-				{
-					put("iat", Instant.now().getEpochSecond() + 1000);
-				}
-			};
-			String jws2 = oidcProviderMock.getIdToken(claims2);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// wrong key
-		try {
-			String jws2 = oidcProviderMock.getIdToken(privateKey2, claimsIssuer3, JWSAlgorithm.RS256);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		/*
-		 * Try to test if symmetric or none algorithms are allowed
-		 * https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
-		 * 
-		 * The Nimbus library makes it really difficult to make these kind of errors, I
-		 * wasn't even able to test
-		 * if the following two test really work. Let's try anyway:
-		 */
-
-		// signed with public key and symmetric algorithm.
-		try {
-			String jws2 = getIdTokenSymmetric(oidcProviderMock.toString(), claimsIssuer3, JWSAlgorithm.HS256);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
-
-		// signed with public key and none algorithm
-		try {
-			String jws2 = getIdTokenNone(claimsIssuer3);
-			resource.createTokenFromOidc(jws2, null);
-			Assertions.fail();
-		} catch (ForbiddenException e) {
-		}
+				return null;
+			}
+		});
 	}
 
 	@SuppressWarnings("unchecked")
@@ -359,7 +571,8 @@ public class OidcResourceTest {
 		try {
 			JWSObject plainObject = JWSObject.parse(chipsterToken);
 
-			return RestUtils.parseJson(HashMap.class, plainObject.getPayload().toString());
+			return RestUtils.parseJson(HashMap.class,
+					plainObject.getPayload().toString());
 
 		} catch (java.text.ParseException e) {
 			throw new RuntimeException("chipster token parse error", e);
@@ -370,62 +583,145 @@ public class OidcResourceTest {
 
 		Config config = new Config();
 
-		OidcConfig oidc1 = OidcProviders.getOidcConfig("oidcName1", config);
-		OidcConfig oidc2 = OidcProviders.getOidcConfig("oidcName2", config);
-		OidcConfig oidc3 = OidcProviders.getOidcConfig("oidcName3", config);
-		OidcConfig oidc4 = OidcProviders.getOidcConfig("oidcName4", config);
-		OidcConfig oidc5 = OidcProviders.getOidcConfig("oidcName5", config);
+		// get config defaults
+		OidcConfig oidcShared1 = OidcProviders.getOidcConfig(OIDC_NAME_SHARED1, config);
+		OidcConfig oidcShared2 = OidcProviders.getOidcConfig(OIDC_NAME_SHARED2, config);
+		OidcConfig oidcSimple = OidcProviders.getOidcConfig(OIDC_NAME_SIMPLE, config);
+		OidcConfig oidcOr = OidcProviders.getOidcConfig(OIDC_NAME_OR, config);
+		OidcConfig oidcAnd = OidcProviders.getOidcConfig(OIDC_NAME_AND, config);
+		OidcConfig oidcUserinfo = OidcProviders.getOidcConfig(OIDC_NAME_USERINFO, config);
 
-		// oidc1 and oidc2 have same issuer and clientId, but different required claim
-		oidc1.setIssuer(ISSUER12);
-		oidc1.setClientId(CLIENT_ID12);
-		oidc1.setClaimUserId(USER_ID_CLAIM_KEY);
-		oidc1.setRequiredClaimKey(REQUIRED_CLAIM_KEY1);
-		oidc1.setUserIdPrefix(PREFIX1);
+		// simple configuration
+		oidcSimple.setIssuer(ISSUER_SIMPLE);
+		oidcSimple.setClientId(CLIENT_ID_SIMPLE);
+		oidcSimple.setUserIdPrefix(PREFIX_SIMPLE);
 
-		oidc2.setIssuer(ISSUER12);
-		oidc2.setClientId(CLIENT_ID12);
-		oidc2.setOidcName("oidcName2");
-		oidc2.setClaimUserId(USER_ID_CLAIM_KEY);
-		oidc2.setRequiredClaimKey(REQUIRED_CLAIM_KEY2);
-		oidc2.setRequiredClaimValue(REQUIRED_CLAIM_VALUE2);
-		oidc2.setUserIdPrefix(PREFIX2);
+		// these two have same issuer and clientId, but different required claim
+		oidcShared1.setIssuer(ISSUER_SHARED);
+		oidcShared1.setClientId(CLIENT_ID_SHARED);
+		oidcShared1.setClaimUserId(USER_ID_CLAIM_KEY);
+		oidcShared1.setRequiredClaimKey(REQUIRED_CLAIM_KEY1);
+		oidcShared1.setUserIdPrefix(PREFIX_SHARED1);
 
-		// oidc3 is alone
-		oidc3.setIssuer(ISSUER3);
-		oidc3.setClientId("clientId3");
-		oidc3.setOidcName("oidcName3");
-		oidc3.setUserIdPrefix(PREFIX3);
+		oidcShared2.setIssuer(ISSUER_SHARED);
+		oidcShared2.setClientId(CLIENT_ID_SHARED);
+		oidcShared2.setClaimUserId(USER_ID_CLAIM_KEY);
+		oidcShared2.setRequiredClaimKey(REQUIRED_CLAIM_KEY2);
+		oidcShared2.setRequiredClaimValue(REQUIRED_CLAIM_VALUE2);
+		oidcShared2.setUserIdPrefix(PREFIX_SHARED2);
 
-		// oidc4
-		oidc4.setIssuer(ISSUER4);
-		oidc4.setClientId("clientId4");
-		oidc4.setOidcName("oidcName4");
-		oidc4.setRequiredClaimKey(REQUIRED_CLAIM_KEY);
-		oidc4.setRequiredClaimValue(REQUIRED_CLAIM_VALUE_JSON);
-		oidc4.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ANY);
-		oidc4.setUserIdPrefix(PREFIX4);
+		// this needs that at least one of the required values is found
+		oidcOr.setIssuer(ISSUER_OR);
+		oidcOr.setClientId(CLIENT_ID_OR);
+		oidcOr.setRequiredClaimKey(REQUIRED_CLAIM_KEY);
+		oidcOr.setRequiredClaimValue(REQUIRED_CLAIM_VALUE_JSON);
+		oidcOr.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ANY);
+		oidcOr.setUserIdPrefix(PREFIX_OR);
 
-		// oidc5
-		oidc5.setIssuer(ISSUER5);
-		oidc5.setClientId("clientId5");
-		oidc5.setOidcName("oidcName5");
-		oidc5.setRequiredClaimKey(REQUIRED_CLAIM_KEY);
-		oidc5.setRequiredClaimValue(REQUIRED_CLAIM_VALUE_JSON);
-		oidc5.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ALL);
-		oidc5.setUserIdPrefix(PREFIX5);
+		// this needs that all required values are found
+		oidcAnd.setIssuer(ISSUER_AND);
+		oidcAnd.setClientId(CLIENT_ID_AND);
+		oidcAnd.setRequiredClaimKey(REQUIRED_CLAIM_KEY);
+		oidcAnd.setRequiredClaimValue(REQUIRED_CLAIM_VALUE_JSON);
+		oidcAnd.setRequiredClaimValueComparison(OidcResource.COMPARISON_JSON_ARRAY_ALL);
+		oidcAnd.setUserIdPrefix(PREFIX_AND);
+
+		// this queries also userInfo
+		oidcUserinfo.setIssuer(ISSUER_USERINFO);
+		oidcUserinfo.setClientId(CLIENT_ID_USER_INFO);
+		oidcUserinfo.setClaimUserId(USER_ID_CLAIM_KEY);
+		oidcUserinfo.setRequiredClaimKey(REQUIRED_CLAIM_KEY1);
+		oidcUserinfo.setQueryUserInfo(true);
+		oidcUserinfo.setUserIdPrefix(PREFIX_USERINFO);
 
 		ArrayList<OidcConfig> oidcConfigs = new ArrayList<OidcConfig>() {
 			{
-				add(oidc1);
-				add(oidc2);
-				add(oidc3);
-				add(oidc4);
-				add(oidc5);
+				add(oidcShared1);
+				add(oidcShared2);
+				add(oidcSimple);
+				add(oidcOr);
+				add(oidcAnd);
+				add(oidcUserinfo);
 			}
 		};
 
 		return oidcConfigs;
+	}
+
+	public HashMap<String, Object> getBaseClaims() {
+		return new HashMap<String, Object>() {
+			{
+				// db flush() gets sometimes stuck if all tests use the same UserId
+				// many transactions try to update the same row?
+				put("sub", "userId" + userIdIndex++);
+				put("iat", Instant.now().getEpochSecond());
+				put("exp", Instant.now().getEpochSecond() + 10);
+				put("nonce", nonce);
+			}
+		};
+	}
+
+	public HashMap<String, Object> getValidClaims(String oidcName) {
+		HashMap<String, Object> claims;
+		switch (oidcName) {
+			case OIDC_NAME_SIMPLE:
+				return new HashMap<String, Object>(getBaseClaims()) {
+					{
+						put("iss", ISSUER_SIMPLE);
+						put("aud", CLIENT_ID_SIMPLE);
+					}
+				};
+			case OIDC_NAME_SHARED1:
+				claims = new HashMap<String, Object>(getBaseClaims()) {
+					{
+						put("aud", CLIENT_ID_SHARED);
+						put("iss", ISSUER_SHARED);
+						put(USER_ID_CLAIM_KEY, "userIdValue");
+						put(REQUIRED_CLAIM_KEY1, "anyClaimValue");
+					}
+				};
+				claims.put(USER_ID_CLAIM_KEY, claims.get("sub") + "fromClaim");
+				return claims;
+			case OIDC_NAME_SHARED2:
+				return new HashMap<String, Object>(getBaseClaims()) {
+					{
+						put(USER_ID_CLAIM_KEY, "userIdValue" + userIdIndex++);
+						put("aud", CLIENT_ID_SHARED);
+						put("iss", ISSUER_SHARED);
+						put(REQUIRED_CLAIM_KEY2, REQUIRED_CLAIM_VALUE2);
+					}
+				};
+			case OIDC_NAME_OR:
+				return new HashMap<String, Object>(getBaseClaims()) {
+					{
+						put("aud", CLIENT_ID_OR);
+						put("iss", ISSUER_OR);
+						put(REQUIRED_CLAIM_KEY, "[\"b\", \"c\"]");
+					}
+				};
+			case OIDC_NAME_AND:
+				return new HashMap<String, Object>(getBaseClaims()) {
+					{
+						put("aud", CLIENT_ID_AND);
+						put("iss", ISSUER_AND);
+						put(REQUIRED_CLAIM_KEY, REQUIRED_CLAIM_VALUE_JSON);
+					}
+				};
+
+			case OIDC_NAME_USERINFO:
+				claims = new HashMap<String, Object>(getBaseClaims()) {
+					{
+						put("aud", CLIENT_ID_USER_INFO);
+						put("iss", ISSUER_USERINFO);
+						put(REQUIRED_CLAIM_KEY1, "any-value");
+
+					}
+				};
+				claims.put(USER_ID_CLAIM_KEY, claims.get("sub") + "fromClaim");
+				return claims;
+			default:
+				throw new RuntimeException("unknown oidcName " + oidcName);
+		}
 	}
 
 	/**
@@ -435,9 +731,10 @@ public class OidcResourceTest {
 	 * @return
 	 * @throws KeyLengthException
 	 * @throws JOSEException
+	 * @throws ParseException
 	 */
-	private String getIdTokenSymmetric(String key, HashMap<String, Object> claims, JWSAlgorithm algorithm)
-			throws KeyLengthException, JOSEException {
+	private JWT getIdTokenSymmetric(String key, HashMap<String, Object> claims, JWSAlgorithm algorithm)
+			throws KeyLengthException, JOSEException, ParseException {
 
 		// Create the header
 		JWSHeader header = new JWSHeader(algorithm);
@@ -450,10 +747,10 @@ public class OidcResourceTest {
 		MACSigner signer = new MACSigner(key);
 		jwsObject.sign(signer);
 
-		return jwsObject.serialize();
+		return JWTParser.parse(jwsObject.serialize());
 	}
 
-	private String getIdTokenNone(HashMap<String, Object> claims)
+	private JWT getIdTokenNone(HashMap<String, Object> claims)
 			throws KeyLengthException, JOSEException, ParseException {
 
 		// Create the header
@@ -464,6 +761,6 @@ public class OidcResourceTest {
 		// Create the JWE object and encrypt it
 		PlainJWT jwsObject = new PlainJWT(header, payload);
 
-		return jwsObject.serialize();
+		return JWTParser.parse(jwsObject.serialize());
 	}
 }

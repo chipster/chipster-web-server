@@ -495,5 +495,4 @@ public class AuthenticationClient {
 	public void close() {
 		this.tokenRefreshTimer.cancel();
 	}
-
 }

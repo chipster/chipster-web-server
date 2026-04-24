@@ -1,12 +1,14 @@
 package fi.csc.chipster.rest.exception;
 
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.Status;
-import jakarta.ws.rs.ext.ExceptionMapper;
-import jakarta.ws.rs.ext.Provider;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * General exception mapper. Makes sure that the filters, especially the
@@ -22,8 +24,15 @@ public class GeneralExceptionMapper implements ExceptionMapper<Throwable> {
 
 	private static Logger logger = LogManager.getLogger();
 
+	@Context
+	UriInfo uriInfo;
+
+	public GeneralExceptionMapper(ExceptionLogger exceptionLogger) {
+	}
+
 	@Override
 	public Response toResponse(Throwable e) {
+		// always log unexpected exceptions
 		logger.error("unexpected exception", e);
 		// don't send exception message, because, it could contain some
 		// sensitive information

@@ -1,5 +1,12 @@
-package fi.csc.chipster.auth.resource;
+package fi.csc.chipster.auth.oidc;
 
+/**
+ * Configuration for one login method
+ * 
+ * All the fields are visible in the server. The same class is also used to give
+ * public information about login method to the app, but then all confidential
+ * or unnecessary fields are set to null.
+ */
 public class OidcConfig {
 
 	private String issuer;
@@ -14,18 +21,17 @@ public class OidcConfig {
 	private String text;
 	private String claimUserId;
 	private String parameter;
-	private String logoWidth;
 	private String userIdPrefix;
-	private String appId;
 	private String requiredClaimKey;
 	private String requiredClaimValue;
 	private String requiredClaimValueComparison;
-	private String requiredUserinfoClaimKey;
-	private String requiredUserinfoClaimValue;
-	private String requiredUserinfoClaimValueComparison;
-	private String requiredUserinfoClaimError;
+	private String requiredClaimError;
+	private Boolean queryUserInfo;
 	private String description;
 	private String scope;
+	private String clientSecret;
+	private String jwsAlgorithm;
+	private String ipLimit;
 
 	public OidcConfig() {
 	}
@@ -126,28 +132,12 @@ public class OidcConfig {
 		this.parameter = parameter;
 	}
 
-	public String getLogoWidth() {
-		return logoWidth;
-	}
-
-	public void setLogoWidth(String logoWidth) {
-		this.logoWidth = logoWidth;
-	}
-
 	public String getUserIdPrefix() {
 		return userIdPrefix;
 	}
 
 	public void setUserIdPrefix(String userIdPrefix) {
 		this.userIdPrefix = userIdPrefix;
-	}
-
-	public String getAppId() {
-		return appId;
-	}
-
-	public void setAppId(String appId) {
-		this.appId = appId;
 	}
 
 	public void setDescription(String description) {
@@ -190,36 +180,43 @@ public class OidcConfig {
 		this.requiredClaimValueComparison = requiredClaimValueComparison;
 	}
 
-	public String getRequiredUserinfoClaimKey() {
-		return requiredUserinfoClaimKey;
+	public void setClientSecret(String clientSecret) {
+		this.clientSecret = clientSecret;
 	}
 
-	public void setRequiredUserinfoClaimKey(String requiredUserinfoClaimKey) {
-		this.requiredUserinfoClaimKey = requiredUserinfoClaimKey;
+	public String getClientSecret() {
+		return this.clientSecret;
 	}
 
-	public String getRequiredUserinfoClaimValue() {
-		return requiredUserinfoClaimValue;
+	public String getJwsAlgorithm() {
+		return jwsAlgorithm;
 	}
 
-	public void setRequiredUserinfoClaimValue(String requiredUserinfoClaimValue) {
-		this.requiredUserinfoClaimValue = requiredUserinfoClaimValue;
+	public void setJwsAlgorithm(String jwsAlgorithm) {
+		this.jwsAlgorithm = jwsAlgorithm;
 	}
 
-	public String getRequiredUserinfoClaimValueComparison() {
-		return requiredUserinfoClaimValueComparison;
+	public Boolean getQueryUserInfo() {
+		return queryUserInfo;
 	}
 
-	public void setRequiredUserinfoClaimValueComparison(String requiredUserinfoClaimValueComparison) {
-		this.requiredUserinfoClaimValueComparison = requiredUserinfoClaimValueComparison;
+	public void setQueryUserInfo(Boolean queryUserInfo) {
+		this.queryUserInfo = queryUserInfo;
 	}
 
-	public String getRequiredUserinfoClaimError() {
-		return requiredUserinfoClaimError;
+	public String getRequiredClaimError() {
+		return requiredClaimError;
 	}
 
-	public void setRequiredUserinfoClaimError(String requiredUserinfoClaimError) {
-		this.requiredUserinfoClaimError = requiredUserinfoClaimError;
+	public void setRequiredClaimError(String requiredClaimError) {
+		this.requiredClaimError = requiredClaimError;
 	}
 
+	public String getIpLimit() {
+		return ipLimit;
+	}
+
+	public void setIpLimit(String ipLimit) {
+		this.ipLimit = ipLimit;
+	}
 }

@@ -63,7 +63,16 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.comp.JobState;
+import fi.csc.chipster.rest.exception.BadRequestExceptionMapper;
+import fi.csc.chipster.rest.exception.ConflictExceptionMapper;
+import fi.csc.chipster.rest.exception.ExceptionLogger;
+import fi.csc.chipster.rest.exception.ForbiddenExceptionMapper;
+import fi.csc.chipster.rest.exception.GeneralExceptionMapper;
+import fi.csc.chipster.rest.exception.NotAuthorizedExceptionMapper;
 import fi.csc.chipster.rest.exception.NotFoundExceptionMapper;
+import fi.csc.chipster.rest.exception.NotFoundRollbackExceptionMapper;
+import fi.csc.chipster.rest.exception.ObjectNotFoundExceptionMapper;
+import fi.csc.chipster.rest.exception.TooManyRequestsExceptionMapper;
 import fi.csc.chipster.rest.hibernate.HibernateRequestFilter;
 import fi.csc.chipster.rest.hibernate.HibernateResponseFilter;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -87,6 +96,8 @@ public class RestUtils {
 	private static final String CONF_SERVER_THREADS_WORKER_MAX = "server-threads-worker-max";
 	private static final String CONF_SERVER_THREADS_WORKER_MIN = "server-threads-worker-min";
 	private static final String CONF_SERVER_THREADS_SELECTOR = "server-threads-selector";
+
+	public static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
 	public static final String PATH_ARRAY = "array";
 
@@ -305,6 +316,12 @@ public class RestUtils {
 	}
 
 	public static ResourceConfig getDefaultResourceConfig(ServiceLocatorClient serviceLocator) {
+		return getDefaultResourceConfig(serviceLocator, false);
+	}
+
+	public static ResourceConfig getDefaultResourceConfig(ServiceLocatorClient serviceLocator, boolean logExceptions) {
+
+		ExceptionLogger exceptionLogger = new ExceptionLogger(logExceptions);
 
 		ResourceConfig rc = new ResourceConfig()
 				/*
@@ -325,7 +342,15 @@ public class RestUtils {
 				.property(ServerProperties.WADL_FEATURE_DISABLE, true)
 				.register(JacksonFeature.withoutExceptionMappers()).register(JavaTimeObjectMapperProvider.class)
 				// register all exception mappers
-				.packages(NotFoundExceptionMapper.class.getPackage().getName())
+				.register(new BadRequestExceptionMapper(exceptionLogger))
+				.register(new ConflictExceptionMapper(exceptionLogger))
+				.register(new ForbiddenExceptionMapper(exceptionLogger))
+				.register(new GeneralExceptionMapper(exceptionLogger))
+				.register(new NotAuthorizedExceptionMapper(exceptionLogger))
+				.register(new NotFoundExceptionMapper(exceptionLogger))
+				.register(new NotFoundRollbackExceptionMapper(exceptionLogger))
+				.register(new ObjectNotFoundExceptionMapper(exceptionLogger))
+				.register(new TooManyRequestsExceptionMapper(exceptionLogger))
 				// enable the RolesAllowed annotation
 				.register(RolesAllowedDynamicFeature.class)
 				.register(JsonPrettyPrintQueryParamContainerResponseFilter.class);

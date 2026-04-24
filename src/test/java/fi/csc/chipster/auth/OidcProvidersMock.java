@@ -1,5 +1,8 @@
 package fi.csc.chipster.auth;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -13,63 +16,61 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
-import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.jwt.JWT;
+import com.nimbusds.jwt.JWTParser;
+import com.nimbusds.oauth2.sdk.id.Subject;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
-import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
-import fi.csc.chipster.auth.resource.OidcConfig;
-import fi.csc.chipster.auth.resource.OidcProviders;
+import fi.csc.chipster.auth.oidc.OidcConfig;
+import fi.csc.chipster.auth.oidc.OidcProviders;
 import fi.csc.chipster.rest.RestUtils;
+import net.minidev.json.JSONObject;
 
-public class OidcProvidersMock implements OidcProviders {
+public class OidcProvidersMock extends OidcProviders {
 
-	private ArrayList<OidcConfig> oidcConfigs;
 	private RSAKey privateKey;
+	private UserInfo nextUserInfo;
 
-	public OidcProvidersMock(ArrayList<OidcConfig> oidcConfigs) {
-		this.oidcConfigs = oidcConfigs;
+	public OidcProvidersMock(ArrayList<OidcConfig> oidcConfigs) throws MalformedURLException {
+
 		try {
 			this.privateKey = new RSAKeyGenerator(2048).generate();
 		} catch (JOSEException e) {
 			throw new RuntimeException("test error", e);
 		}
+
+		for (OidcConfig oidcConfig : oidcConfigs) {
+			super.addOidcConfig(oidcConfig, null, new JWKSet(privateKey));
+		}
+
 	}
 
-	@Override
-	public ArrayList<OidcConfig> getOidcConfigs() {
-		return oidcConfigs;
+	/**
+	 * Get private key for tests
+	 * 
+	 * @return
+	 */
+	public RSAKey getPrivateKey() {
+		return privateKey;
 	}
 
-	@Override
-	public UserInfo getUserInfo(OidcConfig oidcConfig, String accessTokenString, boolean isDebug) {
-		// Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public IDTokenValidator getValidator(OidcConfig oidcConfig) {
-		return new IDTokenValidator(new Issuer(oidcConfig.getIssuer()), new ClientID(oidcConfig.getClientId()),
-				JWSAlgorithm.RS256, new JWKSet(privateKey));
-	}
-
-	public RSAKey getPublicKey() {
-		return privateKey.toPublicJWK();
-	}
-
-	public String getIdToken(HashMap<String, Object> claims) throws JOSEException {
+	public JWT getIdToken(HashMap<String, Object> claims) throws JOSEException, ParseException {
 		return this.getIdToken(this.privateKey, claims, JWSAlgorithm.RS256);
 	}
 
-	protected String getIdToken(RSAKey privateKey, HashMap<String, Object> claims, JWSAlgorithm algorithm)
-			throws JOSEException {
+	protected JWT getIdToken(RSAKey privateKey, HashMap<String, Object> claims, JWSAlgorithm algorithm)
+			throws JOSEException, ParseException {
 
 		// https://connect2id.com/products/nimbus-jose-jwt/examples/jws-with-rsa-signature
 
 		// Create RSA-signer with the private key
 		JWSSigner signer = new RSASSASigner(privateKey);
 
-		JWSHeader header = new JWSHeader.Builder(algorithm).keyID(privateKey.getKeyID()).build();
+		JWSHeader header = new JWSHeader.Builder(algorithm)
+				.keyID(privateKey.getKeyID())
+				.build();
+
 		Payload payload = new Payload(RestUtils.asJson(claims));
 
 		// Prepare JWS object with simple string as payload
@@ -85,6 +86,44 @@ public class OidcProvidersMock implements OidcProviders {
 		// -jPDm5Iq0SZnjKjCNS5Q15fokXZc8u0A
 		String jws = jwsObject.serialize();
 
-		return jws;
+		return JWTParser.parse(jws);
+	}
+
+	@Override
+	public UserInfo getUserInfo(AccessToken accessToken, String oidcName) {
+
+		if (this.nextUserInfo == null) {
+			// return empty userInfo for tests that don't care about it
+			return new UserInfo(new Subject());
+		} else {
+			UserInfo userInfo = this.nextUserInfo;
+			// next tests should again get the default
+			this.nextUserInfo = null;
+			return userInfo;
+		}
+	}
+
+	@Override
+	public ArrayList<OidcConfig> getPublicOidcConfigs() {
+		throw new UnsupportedOperationException("Unimplemented method 'getPublicOidcConfigs'");
+	}
+
+	@Override
+	public String getAuthorizationEndpointURI(String oidcName) {
+		throw new UnsupportedOperationException("Unimplemented method 'getAuthorizationEndpointURI'");
+	}
+
+	@Override
+	public URI getTokenEndpoint(String oidcName) {
+		throw new UnsupportedOperationException("Unimplemented method 'getTokenEndpoint'");
+	}
+
+	/**
+	 * Set a userInfo claims to be returned from next call to getUserInfo()
+	 * 
+	 * @param claims
+	 */
+	public void setNextUserInfo(HashMap<String, Object> claims) {
+		this.nextUserInfo = new UserInfo(new JSONObject(claims));
 	}
 }
