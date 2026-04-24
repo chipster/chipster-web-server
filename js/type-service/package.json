@@ -18,13 +18,12 @@
   "homepage": "https://github.com/chipster/chipster-web-server#readme",
   "dependencies": {
     "chipster-js-common": "^1.5.0",
-    "chipster-nodejs-core": "^0.8.5",
+    "chipster-nodejs-core": "^0.9.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "lodash-es": "^4.17.21",
     "rxjs": "^7.8.1",
-    "winston": "^3.3.3",
-    "yamljs": "^0.3.0"
+    "winston": "^3.3.3"
   },
   "devDependencies": {
     "@types/chai": "^5.0.0",

@@ -104,7 +104,7 @@ export default class TypeService {
     });
 
     let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
-    let bindUrl = url.parse(bindUrlString);
+    let bindUrl = new URL(bindUrlString);
 
     server.listen(bindUrl.port, () => {
       logger.info("type-service listening at " + bindUrlString);
@@ -121,7 +121,7 @@ export default class TypeService {
     });
 
     let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
-    let bindUrl = url.parse(bindUrlString);
+    let bindUrl = new URL(bindUrlString);
 
     server.listen(bindUrl.port, () => {
       logger.info("type-service listening at " + bindUrlString);
