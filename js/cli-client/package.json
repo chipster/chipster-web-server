@@ -9,8 +9,8 @@
     "chipster": "lib/chipster.js"
   },
   "scripts": {
-    "prepare": "tsc",
-    "watch": "tsc -w"
+    "prepare": "npx tsc",
+    "watch": "npx tsc -w"
   },
   "author": "",
   "repository": {

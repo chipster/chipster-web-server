@@ -4,7 +4,7 @@
   "description": "Chipster type-service",
   "scripts": {
     "start": "NODE_ENV=production node lib/type-service.js",
-    "build": "tsc",
+    "build": "npx tsc",
     "compile": "npm run build ; npm run start",
     "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
     "test": "mocha",
