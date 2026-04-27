@@ -118,7 +118,7 @@ public class SessionWorker implements ServerComponent {
 		ServletHolder jerseyHolder = new ServletHolder(new ServletContainer(rc));
 
 		servletHandler.addServlet(jerseyHolder, "/*");
-		servletHandler.addServlet(new ServletHolder(new ZipSessionServlet(this.serviceLocator)),
+		servletHandler.addServlet(new ServletHolder(new ZipSessionServlet(this.serviceLocator, authService.getCredentials())),
 				PATH_SPEC_SESSIONS);
 		servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), PATH_SPEC_SESSIONS, null);
 		servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), PATH_SPEC_SESSIONS, null);
