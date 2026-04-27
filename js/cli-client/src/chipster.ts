@@ -35,7 +35,7 @@ import WsClient from "./ws-client.js";
 import VError from "verror";
 import { fileURLToPath } from "url";
 
-import YAML from "yamljs";
+import { stringify } from "yaml";
 import path from "path";
 import argparse from "argparse";
 import * as fs from "fs";
@@ -542,7 +542,7 @@ export default class CliClient {
     if (this.output === "json") {
       console.log(JSON.stringify(object, null, 4));
     } else if (this.output === "yaml") {
-      console.log(YAML.stringify(object, 4));
+      console.log(stringify(object));
     } else {
       console.log(object);
     }
@@ -552,7 +552,7 @@ export default class CliClient {
     if (this.output === "json") {
       console.log(JSON.stringify(array, null, 4));
     } else if (this.output === "yaml") {
-      console.log(YAML.stringify(array, 4));
+      console.log(stringify(array));
     } else {
       array.forEach((item) => ChipsterUtils.printTable(item, keys, widths));
     }

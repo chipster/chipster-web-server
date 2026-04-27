@@ -31,7 +31,6 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "^24.1.10",
     "@types/restify-errors": "^4.3.2",
-    "@types/yamljs": "^0.2.34",
     "chai": "^6.2.2",
     "mocha": "^11.7.5",
     "nodemon": "^3.0.3",
