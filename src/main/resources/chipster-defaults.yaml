@@ -206,7 +206,7 @@ auth-oidc-issuer: ""
 auth-oidc-client-id: ""
 # client_secret which you get from to oidc provider when you register your application
 auth-oidc-client-secret: ""
-# Chipster callback path. If this is only a path (starts with slash "/"), web-server URL will be added in front of it. Also full URL can be configured here.
+# Chipster callback path. Public auth URL will be added in front of it.
 auth-oidc-redirect-path: /oidc/callback
 # "code" for authorization code flow
 auth-oidc-response-type: code

@@ -128,7 +128,8 @@ public class OidcResource {
 	 * As a side effect, we have to set path to "/" (send to all paths under auth),
 	 * but the explicit domain protection is more important.
 	 */
-	private static final String COOKIE_LOGIN_SESSION_ID = "__Host-" + KEY_LOGIN_SESSION_ID;
+	private static final String COOKIE_LOGIN_SESSION_ID_SECURE = "__Host-" + KEY_LOGIN_SESSION_ID;
+	private static final String COOKIE_LOGIN_SESSION_ID_INSECURE = KEY_LOGIN_SESSION_ID;
 
 	public static final String COMPARISON_STRING = "string";
 	public static final String COMPARISON_JSON_ARRAY_ALL = "jsonArrayAll";
@@ -151,7 +152,7 @@ public class OidcResource {
 
 	private ServiceLocatorClient serviceLocator;
 
-	private String webServerUri;
+	private volatile String webServerUri;
 
 	private int maxCodeSize;
 
@@ -333,13 +334,13 @@ public class OidcResource {
 		// cannot be done twice for the same login session)
 		loginSessions.validateAndUpdate(loginSession, state.getValue(), nonce.getValue());
 
-		String redirectPath = getCallbackPath(oidcConfig, this.serviceLocator);
+		String callbackAddress = getCallbackPath(oidcConfig, this.serviceLocator);
 
 		String authorizationEndpoint = oidcProviders
 				.getAuthorizationEndpointURI(loginSession.getOidcName());
 
 		Builder request = NimbusHelpers.createAuthenticationRequest(oidcConfig.getClientId(),
-				redirectPath,
+				callbackAddress,
 				state,
 				nonce,
 				oidcConfig.getResponseType(), getScopeArray(oidcConfig), authorizationEndpoint);
@@ -358,11 +359,11 @@ public class OidcResource {
 
 		// save loginSessionId in a cookie, where we can find it when we return
 		// from the Authorization Server
-		NewCookie loginSessionCookie = new NewCookie.Builder(COOKIE_LOGIN_SESSION_ID)
+		NewCookie loginSessionCookie = new NewCookie.Builder(isSecureCookie() ? COOKIE_LOGIN_SESSION_ID_SECURE : COOKIE_LOGIN_SESSION_ID_INSECURE)
 				.value(loginSessionId.toString())
 				.httpOnly(true) // no access from JavaScript
 				.sameSite(SameSite.LAX) // allow in top-level navigation (but not in fetch() or iframe)
-				.secure(true) // allow access only on TLS or localhost
+				.secure(isSecureCookie()) // allow access only on TLS or localhost
 				.path("/") // required for __Host- cookie
 				.maxAge(maxLoginDuration)
 				.build();
@@ -391,8 +392,17 @@ public class OidcResource {
 	@RolesAllowed({ Role.UNAUTHENTICATED })
 	@Transaction
 	public Response authenticationResponse(
-			@CookieParam(COOKIE_LOGIN_SESSION_ID) Cookie loginSessionIdCookie,
+			@CookieParam(COOKIE_LOGIN_SESSION_ID_SECURE) Cookie loginSessionIdCookieSecure,
+			@CookieParam(COOKIE_LOGIN_SESSION_ID_INSECURE) Cookie loginSessionIdCookieInsecure,
 			@Context Request jerseyRequest, @Context UriInfo uriInfo) {
+
+		Cookie loginSessionIdCookie = null;
+
+		if (isSecureCookie()) {
+			loginSessionIdCookie = loginSessionIdCookieSecure;
+		} else {
+			loginSessionIdCookie = loginSessionIdCookieInsecure;
+		}
 
 		if (loginSessionIdCookie == null) {
 			throw new BadRequestException("no " + KEY_LOGIN_SESSION_ID);
@@ -455,11 +465,11 @@ public class OidcResource {
 				+ ": redirect browser back to app " + appCallback);
 
 		// should have the same attributes
-		NewCookie removeLoginSessionIdCookie = new NewCookie.Builder(COOKIE_LOGIN_SESSION_ID)
+		NewCookie removeLoginSessionIdCookie = new NewCookie.Builder(isSecureCookie() ? COOKIE_LOGIN_SESSION_ID_SECURE : COOKIE_LOGIN_SESSION_ID_INSECURE)
 				.maxAge(0)
 				.httpOnly(true)
 				.sameSite(SameSite.LAX)
-				.secure(true)
+				.secure(isSecureCookie())
 				.path("/")
 				.build();
 
@@ -570,24 +580,31 @@ public class OidcResource {
 
 		String configuredPath = oidcConfig.getRedirectPath();
 
-		if (configuredPath.startsWith("/")) {
-			if (this.webServerUri == null) {
-				// Get only on first request, because auth must start before service-locator.
-				// The value doesn't change, so it's enough to get it once.
-				this.webServerUri = serviceLocator.getPublicUri(Role.AUTH);
-			}
+		if (this.webServerUri == null) {
+			// Get only on first request, because auth must start before service-locator.
+			// The value doesn't change, so it's enough to get it once (or parallel threads may do this few times)
+			this.webServerUri = serviceLocator.getPublicUri(Role.AUTH);
 
-			String combinedUri = UriBuilder.fromUri(webServerUri).path(configuredPath).build().toString();
-
-			if (this.isDebug) {
-				logger.info("combined callback url: " + combinedUri);
+			if (!this.isSecureCookie()) {
+				// Do this only when this.webServerUri == null to print this only (about) once. 
+				logger.warn("OIDC callback url does not start with https://. Cannot use option \"Secure\" in the login session cookie.");
 			}
-			return combinedUri;
 		}
+
+		String combinedUri = UriBuilder.fromUri(webServerUri).path(configuredPath).build().toString();
+
 		if (this.isDebug) {
-			logger.info("configured callback url: " + configuredPath);
+			logger.info("combined callback url: " + combinedUri);
 		}
-		return configuredPath;
+		return combinedUri;
+	}
+
+	private boolean isSecureCookie() {
+		if (this.webServerUri == null) {
+			throw new InternalServerErrorException("webServerUri is not initialised");
+		}
+
+		return this.webServerUri.startsWith("https://");
 	}
 
 	private String[] getScopeArray(OidcConfig oidcConfig) {
