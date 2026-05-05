@@ -7,6 +7,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -167,7 +168,7 @@ public class AdminResource {
 
 	private static void collectContainerMemoryStats(HashMap<String, Object> status) {
 
-		String stats = fileToString("/sys/fs/cgroup/memory/memory.stat");
+		String stats = fileToString("/sys/fs/cgroup/memory.stat");
 
 		if (stats != null) {
 			parseContainerMemoryStats(stats, status);
@@ -176,7 +177,7 @@ public class AdminResource {
 
 	private static void collectContainerCpuStats(HashMap<String, Object> status) {
 
-		String stats = fileToString("/sys/fs/cgroup/cpuacct/cpuacct.stat");
+		String stats = fileToString("/sys/fs/cgroup/cpu.stat");
 
 		if (stats != null) {
 			parseContainerCpuStats(stats, status);
@@ -213,7 +214,7 @@ public class AdminResource {
 
 	private static void collectContainerDiskStats(HashMap<String, Object> status) {
 
-		String stats = fileToString("/sys/fs/cgroup/blkio/blkio.throttle.io_service_bytes");
+		String stats = fileToString("/sys/fs/cgroup/io.stat");
 
 		if (stats != null) {
 			parseContainerDiskStats(stats, status);
@@ -224,13 +225,19 @@ public class AdminResource {
 
 		String[] rows = stats.split("\n");
 		for (String row : rows) {
-			String[] cols = row.split(" ");
-			if (cols.length == 3) {
+			List<String> cols = new LinkedList<>(Arrays.asList(row.split(" ")));
 
-				String type = cols[1].toLowerCase();
-				Object value = parseLongOrString(cols[2]);
+			if (!cols.isEmpty()) {
+				String dev = cols.removeFirst();
+				for (String col : cols) {
+					String[] entry = col.split("=");
+					if (entry.length == 2) {
+						String key = entry[0];
+						Object value = parseLongOrString(entry[1]);
 
-				status.put("disk." + type + ",dev=" + cols[0], value);
+						status.put("disk." + key + ",dev=" + dev, value);
+					}
+				}
 			}
 		}
 	}
@@ -288,36 +295,62 @@ public class AdminResource {
 
 		System.out.println("** Memory");
 
-		String memoryString = "cache 33280602112\n" +
-				"rss 1157156864\n" +
-				"rss_huge 566231040\n" +
-				"mapped_file 1527808\n" +
-				"swap 0\n" +
-				"pgpgin 910350605\n" +
-				"pgpgout 905237877\n" +
-				"pgfault 1858278414\n" +
-				"pgmajfault 5048\n" +
+		String memoryString = "anon 294002688\n" +
+				"file 5816320\n" +
+				"kernel 3596288\n" +
+				"kernel_stack 753664\n" +
+				"pagetables 1228800\n" +
+				"sec_pagetables 0\n" +
+				"percpu 4248\n" +
+				"sock 0\n" +
+				"vmalloc 86016\n" +
+				"shmem 0\n" +
+				"zswap 0\n" +
+				"zswapped 0\n" +
+				"file_mapped 32768\n" +
+				"file_dirty 4096\n" +
+				"file_writeback 0\n" +
+				"swapcached 0\n" +
+				"anon_thp 213909504\n" +
+				"file_thp 0\n" +
+				"shmem_thp 0\n" +
 				"inactive_anon 0\n" +
-				"active_anon 1157124096\n" +
-				"inactive_file 930308096\n" +
-				"active_file 32350294016\n" +
+				"active_anon 293978112\n" +
+				"inactive_file 4505600\n" +
+				"active_file 1310720\n" +
 				"unevictable 0\n" +
-				"hierarchical_memory_limit 41875931136\n" +
-				"hierarchical_memsw_limit 41875931136\n" +
-				"total_cache 33280602112\n" +
-				"total_rss 1157156864\n" +
-				"total_rss_huge 566231040\n" +
-				"total_mapped_file 1527808\n" +
-				"total_swap 0\n" +
-				"total_pgpgin 910350605\n" +
-				"total_pgpgout 905237877\n" +
-				"total_pgfault 1858278414\n" +
-				"total_pgmajfault 5048\n" +
-				"total_inactive_anon 0\n" +
-				"total_active_anon 1157124096\n" +
-				"total_inactive_file 930308096\n" +
-				"total_active_file 32350294016\n" +
-				"total_unevictable 0\n";
+				"slab_reclaimable 581752\n" +
+				"slab_unreclaimable 756784\n" +
+				"slab 1338536\n" +
+				"workingset_refault_anon 0\n" +
+				"workingset_refault_file 0\n" +
+				"workingset_activate_anon 0\n" +
+				"workingset_activate_file 0\n" +
+				"workingset_restore_anon 0\n" +
+				"workingset_restore_file 0\n" +
+				"workingset_nodereclaim 0\n" +
+				"pgscan 0\n" +
+				"pgsteal 0\n" +
+				"pgscan_kswapd 0\n" +
+				"pgscan_direct 0\n" +
+				"pgscan_khugepaged 0\n" +
+				"pgsteal_kswapd 0\n" +
+				"pgsteal_direct 0\n" +
+				"pgsteal_khugepaged 0\n" +
+				"pgfault 172506\n" +
+				"pgmajfault 6\n" +
+				"pgrefill 0\n" +
+				"pgactivate 0\n" +
+				"pgdeactivate 0\n" +
+				"pglazyfree 0\n" +
+				"pglazyfreed 0\n" +
+				"zswpin 0\n" +
+				"zswpout 0\n" +
+				"zswpwb 0\n" +
+				"thp_fault_alloc 27\n" +
+				"thp_collapse_alloc 86\n" +
+				"thp_swpout 0\n" +
+				"thp_swpout_fallback 0";
 
 		HashMap<String, Object> mem = new HashMap<>();
 		parseContainerMemoryStats(memoryString, mem);
@@ -326,24 +359,30 @@ public class AdminResource {
 			System.out.println(key + ": " + mem.get(key));
 		}
 
+		System.out.println("** CPU");
+
+		String cpuString = "usage_usec 64584235\n" +
+				"user_usec 58125397\n" +
+				"system_usec 6458838\n" +
+				"nice_usec 0\n" +
+				"core_sched.force_idle_usec 0\n" +
+				"nr_periods 23166\n" +
+				"nr_throttled 56\n" +
+				"throttled_usec 3536561\n" +
+				"nr_bursts 0\n" +
+				"burst_usec 0\n";
+
+		HashMap<String, Object> cpu = new HashMap<>();
+		parseContainerCpuStats(cpuString, cpu);
+		for (String key : cpu.keySet()) {
+			System.out.println(key + ": " + cpu.get(key));
+		}
+
 		System.out.println("** Disk");
 
-		String diskString = "253:0 Read 113679659008\n" +
-				"253:0 Write 22238393344\n" +
-				"253:0 Sync 21107835904\n" +
-				"253:0 Async 114810216448\n" +
-				"253:0 Total 135918052352\n" +
-				"8:16 Read 113687285760\n" +
-				"8:16 Write 22844026880\n" +
-				"8:16 Sync 21713420288\n" +
-				"8:16 Async 114817892352\n" +
-				"8:16 Total 136531312640\n" +
-				"253:1 Read 7168000\n" +
-				"253:1 Write 676328448\n" +
-				"253:1 Sync 676279296\n" +
-				"253:1 Async 7217152\n" +
-				"253:1 Total 683496448\n" +
-				"Total 273132861440\n";
+		String diskString = "8:176 rbytes=4096 wbytes=0 rios=1 wios=0 dbytes=0 dios=0\n" +
+				"8:0 rbytes=16384 wbytes=8589312 rios=1 wios=2096 dbytes=0 dios=0\n" +
+				"8:16 rbytes=5214208 wbytes=4337664 rios=66 wios=905 dbytes=0 dios=0";
 
 		HashMap<String, Object> disk = new HashMap<>();
 		parseContainerDiskStats(diskString, disk);
