@@ -136,6 +136,11 @@ public class AdminResource {
 		collectContainerNetStats(status);
 		collectContainerCpuStats(status);
 
+		status.put("mem.max", parseLongOrString(fileToString("/sys/fs/cgroup/memory.max")));
+		status.put("mem.current", parseLongOrString(fileToString("/sys/fs/cgroup/memory.current")));
+		status.put("mem.peak", parseLongOrString(fileToString("/sys/fs/cgroup/memory.peak")));
+		status.put("mem.swap.current", parseLongOrString(fileToString("/sys/fs/cgroup/memory.swap.current")));
+
 		return status;
 	}
 
