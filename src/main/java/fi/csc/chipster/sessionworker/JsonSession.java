@@ -2,6 +2,7 @@ package fi.csc.chipster.sessionworker;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -14,6 +15,7 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,6 +27,7 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Session;
+import jakarta.ws.rs.InternalServerErrorException;
 
 public class JsonSession {
 
@@ -47,7 +50,11 @@ public class JsonSession {
 			.asList(new String[] { ".gz", ".zip", ".bam", ".Robj" });
 
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId) throws IOException, RestException {
+			UUID sessionId, UUID zipDatasetId, long zipSize) throws IOException, RestException {
+
+		if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize)) {
+			return null;
+		}
 
 		String jsonSession = null;
 		Map<UUID, Dataset> datasetMap = null;
@@ -73,10 +80,10 @@ public class JsonSession {
 				}
 
 				if (!isCompatible(entry.getName())) {
-					// we will close the connection without reading the whole input stream
-					// to fix this we would need create a limited InputStream with a HTTP range
-
-					// this class doesn't recognize the file format
+					// This class doesn't recognize the file format.
+					// Method isValid() should have noticed this already for all valid JsonSessions
+					// and XmlSessions. This will look ugly in the file-broker log.
+					logger.warn("this is not JsonSession, closing connection");
 					return null;
 				}
 
@@ -145,6 +152,60 @@ public class JsonSession {
 		}
 
 		return migrate(version, jsonSession, datasetMap, jsonJobs);
+	}
+
+	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId, long zipSize)
+			throws IOException, RestException {
+
+		/*
+		 * Get the beginning of the zip file to check the file format version
+		 * 
+		 * We need only the first (real) entry to check the directory name.
+		 * 
+		 * If we requested the whole file, it would look ugly in the
+		 * file-broker log when the response isn't read fully. It can also trigger
+		 * an unnecesary readahead in file-storage.
+		 */
+		long maxBytes = 64l * 1024;
+
+		maxBytes = Math.min(zipSize, maxBytes);
+
+		try (InputStream remoteStream = fileBroker.download(sessionId, zipDatasetId, maxBytes)) {
+			try (ZipInputStream zipInputStream = new ZipInputStream(remoteStream)) {
+
+				ZipEntry entry;
+				while ((entry = zipInputStream.getNextEntry()) != null) {
+
+					if (entry.isDirectory()) {
+						// skip folders
+						continue;
+					}
+
+					if (RestUtils.basename(entry.getName()).startsWith(".")) {
+						// skip hidden files (created by e.g. OSX Archive Utility)
+						continue;
+					}
+
+					if (isCompatible(entry.getName())) {
+						logger.info("this is JsonSession");
+						// consume rest of the stream
+						IOUtils.copyLarge(remoteStream, OutputStream.nullOutputStream());
+						return true;
+					} else {
+						logger.info("this is not JsonSession");
+						// consume rest of the stream
+						IOUtils.copyLarge(remoteStream, OutputStream.nullOutputStream());
+						return false;
+					}
+				}
+			}
+		} catch (IOException | RestException e) {
+			logger.error("failed to check JsonSession version", e);
+			throw e;
+		}
+
+		// maxBytes is too low (or empty zip file?)
+		throw new InternalServerErrorException("failed to check JsonSession from first " + maxBytes + " bytes");
 	}
 
 	private static Map<UUID, Dataset> parseDatasets(String jsonDatasets) {

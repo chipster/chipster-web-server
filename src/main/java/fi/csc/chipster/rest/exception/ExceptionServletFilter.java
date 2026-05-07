@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.io.EofException;
 
 import fi.csc.chipster.filebroker.DownloadCancelledException;
 import fi.csc.chipster.filestorage.UploadCancelledException;
@@ -78,6 +79,10 @@ public class ExceptionServletFilter implements Filter {
 			sendError(response, InsufficientStorageException.STATUS_CODE, e.getMessage());
 
 			return;
+		} catch (EofException e) {
+			// client closed connection, no need for stack trace
+			logger.warn("servlet error: " + e.getMessage());
+			throw e;
 		} catch (Exception e) {
 			logger.error("servlet error", e);
 			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");

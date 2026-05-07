@@ -104,12 +104,20 @@ public class FinickyHttpClient {
     }
 
     public InputStream dowloadInputStream(URI uri) throws RestException {
+        return this.dowloadInputStream(uri, null);
+    }
+
+    public InputStream dowloadInputStream(URI uri, Long maxBytes) throws RestException {
 
         // Perform a simple GET and wait for the response.
 
         InputStreamResponseListener listener = new InputStreamResponseListener();
 
         Request request = jettyHttpClient.newRequest(uri.toString()).method("GET");
+
+        if (maxBytes != null) {
+            request.headers(headers -> headers.add("Range", "bytes=0-" + maxBytes));
+        }
 
         if (this.username != null && this.password != null) {
 

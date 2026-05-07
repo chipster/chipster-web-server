@@ -1,5 +1,6 @@
 package fi.csc.chipster.sessionworker.xml;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,15 +21,13 @@ import java.util.zip.ZipFile;
 //import java.util.zip.ZipInputStream;
 import java.util.zip.ZipInputStream;
 
-import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.InternalServerErrorException;
-import jakarta.xml.bind.JAXBException;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
 
 import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
@@ -50,16 +49,19 @@ import fi.csc.chipster.sessionworker.xml.schema2.LocationType;
 import fi.csc.chipster.sessionworker.xml.schema2.OperationType;
 import fi.csc.chipster.sessionworker.xml.schema2.ParameterType;
 import fi.csc.chipster.sessionworker.xml.schema2.SessionType;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.xml.bind.JAXBException;
 
 public class XmlSession {
 
 	private static final Logger logger = LogManager.getLogger();
 
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId, File tempDir) {
+			UUID sessionId, UUID zipDatasetId, File tempDir, long zipSize) {
 
 		try {
-			if (!isValid(fileBroker, sessionId, zipDatasetId)) {
+			if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize)) {
 				return null;
 			}
 
@@ -327,16 +329,31 @@ public class XmlSession {
 		return entryToDatasetIdMap;
 	}
 
-	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId)
+	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId, long zipSize)
 			throws IOException, RestException, SAXException, ParserConfigurationException {
-		try (ZipInputStream zipInputStream = new ZipInputStream(fileBroker.download(sessionId, zipDatasetId))) {
+
+		/*
+		 * Get first 4 MiB of the zip file to check the file format version
+		 * 
+		 * Desktop Chipster wrote the metadata in the beginning of the zip file, so this
+		 * should be enough. If we requested the whole file, it would look ugly in the
+		 * file-broker log when the response isn't read fully. It can also trigger
+		 * an unnecesary readahead in file-storage.
+		 */
+		long maxBytes = 4l * 1024 * 1024;
+
+		maxBytes = Math.min(zipSize, maxBytes);
+
+		byte[] sessionStartBytes = IOUtils.toByteArray(
+				fileBroker.download(sessionId, zipDatasetId, maxBytes));
+
+		try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(sessionStartBytes))) {
 			ZipEntry entry = zipInputStream.getNextEntry();
 
-			// we will close the connection without reading the whole input stream
-			// to fix this we would need create a limited InputStream with a HTTP range
 			if (entry != null && entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
 				String version = SessionLoader.getSessionVersion(zipInputStream);
 				if ("2".equals(version)) {
+					logger.info("this is XmlSession v2");
 					return true;
 				}
 
@@ -345,7 +362,13 @@ public class XmlSession {
 							"old session format is not supported, please save the session again with the latest Java client");
 				}
 			}
+		} catch (SAXParseException e) {
+			if (e.getMessage().contains("Premature end of file")) {
+				logger.error("failed to check version of XmlSession from the first " + maxBytes + " bytes");
+			}
+			throw e;
 		}
+		logger.info("this is not XmlSession");
 		return false;
 	}
 

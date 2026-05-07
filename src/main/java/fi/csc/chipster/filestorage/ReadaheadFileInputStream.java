@@ -84,7 +84,7 @@ public class ReadaheadFileInputStream extends InputStream {
      * as there is space in the queue.
      * 
      * @param file            File to tread
-     * @param queueLength     How many cunks to read in parallel
+     * @param queueLength     How many chunks to read in parallel
      * @param maxChunkSize    Maximum size for chunks. The last one can be smaller.
      * @param useDirectMemory Create data chunks in direct memmory. Set to false to
      *                        use heap instead.
@@ -121,7 +121,7 @@ public class ReadaheadFileInputStream extends InputStream {
                         logger.debug("request " + requestTotal / 1024 / 1024);
                         // smaller chunk in the end of the file
                         int chunkSize = (int) Math.min(maxChunkSize, fileLength - requestTotal);
-                        // create Callable the does the reading
+                        // create Callable that does the reading
                         Callable<byte[]> task = read(requestTotal, file, chunkSize, useDirectMemory);
                         // add callable to the queue or wait until there is space for it
                         queue.put(executor.submit(task));

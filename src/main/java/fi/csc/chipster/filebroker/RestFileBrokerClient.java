@@ -120,10 +120,14 @@ public class RestFileBrokerClient {
 	}
 
 	public InputStream download(UUID sessionId, UUID datasetId) throws RestException {
+		return this.download(sessionId, datasetId, (Long) null);
+	}
+
+	public InputStream download(UUID sessionId, UUID datasetId, Long maxBytes) throws RestException {
 		WebTarget target = getDatasetTarget(sessionId, datasetId);
 
 		// FinickyHttpClient configured to use specific protocol versions
-		return this.finickyHttpClient.dowloadInputStream(target.getUri());
+		return this.finickyHttpClient.dowloadInputStream(target.getUri(), maxBytes);
 
 		// simple download with the default client:
 

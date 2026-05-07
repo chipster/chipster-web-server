@@ -324,10 +324,12 @@ public class ZipSessionServlet extends HttpServlet {
 		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
 		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 
+		Dataset zipDataset;
+
 		// check that user has read-write access to this session to respond
 		// with correct status code
 		try {
-			sessionDb.getDataset(sessionId, zipDatasetId, true);
+			zipDataset = sessionDb.getDataset(sessionId, zipDatasetId, true);
 		} catch (RestException e) {
 			throw ServletUtils.extractRestException(e);
 		}
@@ -346,10 +348,12 @@ public class ZipSessionServlet extends HttpServlet {
 
 			keepAliveWithSpaces(output, latch);
 
-			ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId);
+			ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId,
+					zipDataset.getFile().getSize());
 
 			if (sessionData == null) {
-				sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId, tempDir);
+				sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId, tempDir,
+						zipDataset.getFile().getSize());
 			}
 
 			if (sessionData == null) {
