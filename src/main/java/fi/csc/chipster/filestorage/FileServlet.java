@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.ee10.servlet.ResourceServlet;
 import org.eclipse.jetty.http.ByteRange;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.io.EofException;
 import org.eclipse.jetty.server.Request;
 
 import fi.csc.chipster.archive.GpgBackupUtils;
@@ -183,7 +184,7 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 			// readahead can be enabled for large files, but it does not
 			// support range queries
-			if (this.readaheadAbove != -1 && request.getQueryString() == null
+			if (this.readaheadAbove != -1 && request.getHeader("Range") == null
 					&& f.toFile().length() >= this.readaheadAbove) {
 
 				logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
@@ -236,6 +237,13 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 			}
 
 		} catch (IOException | ServletException e) {
+
+			if (e instanceof EofException) {
+				// client closed connection without reading the whole file. No need for stack
+				// trace
+				logger.warn("GET error: " + e.getMessage());
+				throw e;
+			}
 			// make sure all errors are logged
 			logger.error("GET error", e);
 			throw e;
