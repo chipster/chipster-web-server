@@ -20,6 +20,8 @@ import org.eclipse.jetty.client.InputStreamResponseListener;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http2.client.HTTP2Client;
 import org.eclipse.jetty.http2.client.transport.HttpClientTransportOverHTTP2;
@@ -103,20 +105,53 @@ public class FinickyHttpClient {
 
     }
 
-    public InputStream dowloadInputStream(URI uri) throws RestException {
-        return this.dowloadInputStream(uri, null);
+    public InputStream downloadInputStream(URI uri) throws RestException {
+        return this.downloadInputStream(uri, null, null);
     }
 
-    public InputStream dowloadInputStream(URI uri, Long maxBytes) throws RestException {
+    /**
+     * Return data from uri as InputStream
+     * 
+     * Beginning of file can be requested with maxBytes and fileSize. Valid range is
+     * calculated based on these two values.
+     * 
+     * @param uri
+     * @param maxBytes Maximum number of bytes to request or null. When maxBytes is
+     *                 given, also fileSize must be provided. You should
+     *                 provide a non-zero maximum request size here and let this
+     *                 method handle the special case of small or empty files.
+     * @param fileSize Size of the file or null.
+     * @return
+     * @throws RestException
+     */
+    public InputStream downloadInputStream(URI uri, Long maxBytes, Long fileSize) throws RestException {
 
         // Perform a simple GET and wait for the response.
 
         InputStreamResponseListener listener = new InputStreamResponseListener();
 
-        Request request = jettyHttpClient.newRequest(uri.toString()).method("GET");
+        Request request = jettyHttpClient.newRequest(uri.toString()).method(HttpMethod.GET);
 
         if (maxBytes != null) {
-            request.headers(headers -> headers.add("Range", "bytes=0-" + maxBytes));
+            if (fileSize == null) {
+                /*
+                 * fileSize is needed calculate a valid range request, when the file is smaller
+                 * than maxBytes.
+                 */
+                throw new IllegalArgumentException("maxBytes requires fileSize");
+            }
+
+            if (maxBytes == 0 && fileSize != 0) {
+                // there is no valid range request for empty files
+                throw new IllegalArgumentException("cannot get zero bytes from non-empty file");
+            }
+
+            // request the whole file, if it's empty
+            if (fileSize > 0) {
+                long maxRequestBytes = Math.min(maxBytes, fileSize);
+
+                request.headers(headers -> headers.add(HttpHeader.RANGE, "bytes=0-" + (maxRequestBytes - 1)));
+            }
         }
 
         if (this.username != null && this.password != null) {
@@ -137,7 +172,9 @@ public class FinickyHttpClient {
             }
 
             // Look at the response before streaming the content.
-            if (response.getStatus() == HttpStatus.OK_200) {
+            // Server should respond with 206 to range requests, but doesn't at the moment.
+            // Lets allow it anyway to be compliant.
+            if (response.getStatus() == HttpStatus.OK_200 || response.getStatus() == HttpStatus.PARTIAL_CONTENT_206) {
 
                 InputStream remoteStream = listener.getInputStream();
 
