@@ -82,7 +82,9 @@ public class JsonSession {
 				if (!isCompatible(entry.getName())) {
 					// This class doesn't recognize the file format.
 					// Method isValid() should have noticed this already for all valid JsonSessions
-					// and XmlSessions. This will look ugly in the file-broker log.
+					// and XmlSessions. We may end up here, if somebody adds extra files to an
+					// otherwise valid session zip. This will look ugly in the file-broker log, but
+					// that's fine for corrupted session.
 					logger.warn("this is not JsonSession, closing connection");
 					return null;
 				}
@@ -160,17 +162,15 @@ public class JsonSession {
 		/*
 		 * Get the beginning of the zip file to check the file format version
 		 * 
-		 * We need only the first (real) entry to check the directory name.
+		 * We need only the name of the first (real) entry to check the directory name.
 		 * 
 		 * If we requested the whole file, it would look ugly in the
 		 * file-broker log when the response isn't read fully. It can also trigger
-		 * an unnecesary readahead in file-storage.
+		 * an unnecessary readahead in file-storage.
 		 */
 		long maxBytes = 64l * 1024;
 
-		maxBytes = Math.min(zipSize, maxBytes);
-
-		try (InputStream remoteStream = fileBroker.download(sessionId, zipDatasetId, maxBytes)) {
+		try (InputStream remoteStream = fileBroker.download(sessionId, zipDatasetId, maxBytes, zipSize)) {
 			try (ZipInputStream zipInputStream = new ZipInputStream(remoteStream)) {
 
 				ZipEntry entry;
@@ -204,7 +204,9 @@ public class JsonSession {
 			throw e;
 		}
 
-		// maxBytes is too low (or empty zip file?)
+		// maxBytes is too low or the zip file was empty
+		// it's not possible to send error messages to client from here at the momment
+		// these are so unlikely, that it's enough to have them in server logs
 		throw new InternalServerErrorException("failed to check JsonSession from first " + maxBytes + " bytes");
 	}
 

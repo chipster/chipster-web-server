@@ -104,7 +104,7 @@ public class HttpDownload {
 
         FinickyHttpClient finickyHttpClient = new FinickyHttpClient(null, null, tlsVersion, http2, cipher, verbosity);
 
-        try (InputStream is = finickyHttpClient.dowloadInputStream(url.toURI())) {
+        try (InputStream is = finickyHttpClient.downloadInputStream(url.toURI())) {
 
             FileUtils.copyInputStreamToFile(is, file);
 

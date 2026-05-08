@@ -333,19 +333,22 @@ public class XmlSession {
 			throws IOException, RestException, SAXException, ParserConfigurationException {
 
 		/*
-		 * Get first 4 MiB of the zip file to check the file format version
+		 * Get the beginning of the zip file to check the file format version
 		 * 
-		 * Desktop Chipster wrote the metadata in the beginning of the zip file, so this
-		 * should be enough. If we requested the whole file, it would look ugly in the
-		 * file-broker log when the response isn't read fully. It can also trigger
-		 * an unnecesary readahead in file-storage.
+		 * Desktop Chipster wrote the metadata in the beginning of the zip file, but
+		 * maxBytes must still be enough for the whole metadata document.
+		 * 
+		 * If we requested the whole file, it would look ugly in the file-broker log
+		 * when the response isn't read fully. It can also trigger an unnecessary
+		 * readahead in file-storage.
+		 * 
+		 * Read the whole inputStream to byteArray, because getSesionVersion() closes
+		 * the stream without reading it all.
 		 */
 		long maxBytes = 4l * 1024 * 1024;
 
-		maxBytes = Math.min(zipSize, maxBytes);
-
 		byte[] sessionStartBytes = IOUtils.toByteArray(
-				fileBroker.download(sessionId, zipDatasetId, maxBytes));
+				fileBroker.download(sessionId, zipDatasetId, maxBytes, zipSize));
 
 		try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(sessionStartBytes))) {
 			ZipEntry entry = zipInputStream.getNextEntry();
