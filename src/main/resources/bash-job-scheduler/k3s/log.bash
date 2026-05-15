@@ -14,8 +14,8 @@ if [ "$terminated_reason" != null ]; then
     echo "pod $short_name has terminated: $terminated_reason"
     if [ "$terminated_reason" == "OOMKilled" ]; then
     echo ""
-    echo "The job run out of memory (RAM). You can adjust the memory limit. Click the button \"Parameters\" and then "
-    echo "open its last section \"Computing Resources\". "
+    echo "The job run out of memory (RAM). You can adjust the memory limit. Click the button "
+    echo "\"Parameters\" and then open its last section \"Computing Resources\". "
     echo ""
     fi
     exit 0

@@ -10,9 +10,9 @@ fi
 terminated_reason=$(echo "$json" | jq .containerStatuses[0].state.terminated.reason -r)
 if [ "$terminated_reason" != null ]; then              
     if [ "$terminated_reason" == "OOMKilled" ]; then
-    echo ""
-    echo "The job run out of memory (RAM). You can adjust the memory limit. Click the button \"Parameters\" and then "
-    echo "open its last section \"Computing Resources\". "
+        echo ""
+    echo "The job run out of memory (RAM). You can adjust the memory limit. Click the button "
+    echo "\"Parameters\" and then open its last section \"Computing Resources\". "
     echo ""
     else
     # something unexpected happened. maybe the log has some useful information
