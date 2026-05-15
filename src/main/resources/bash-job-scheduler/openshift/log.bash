@@ -11,16 +11,8 @@ terminated_reason=$(echo "$json" | jq .containerStatuses[0].state.terminated.rea
 if [ "$terminated_reason" != null ]; then              
     if [ "$terminated_reason" == "OOMKilled" ]; then
     echo ""
-    echo "The job run out of memory (RAM). If you tried to analyse multiple samples in one job, "
-    echo "please check if it's possible to run the tool separately for each sample. This is "
-    echo "also faster, because multiple jobs can run in parallel. "
-    echo ""
-    echo "Otherwise, you can adjust the memory limit. Click the button \"Parameters\" and then "
+    echo "The job run out of memory (RAM). You can adjust the memory limit. Click the button \"Parameters\" and then "
     echo "open its last section \"Computing Resources\". "
-    echo ""
-    echo "If you are going to run the same tool for multiple samples, run it first for one "
-    echo "sample to find out how much memory is needed. Setting a lower memory limit allows "
-    echo "multiple jobs to run in parallel. "
     echo ""
     else
     # something unexpected happened. maybe the log has some useful information
