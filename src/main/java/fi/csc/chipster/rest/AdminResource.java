@@ -44,7 +44,7 @@ public class AdminResource {
 	private HashMap<String, File> fileSystems = new HashMap<>();
 
 	@SuppressWarnings({ "unchecked", "rawtypes" }) // Jersey logs a warning if the dbTables is typed
-	public AdminResource(HibernateUtil hibernate, List dbTables, JerseyStatisticsSource jerseyStats, Config config,
+	public AdminResource(HibernateUtil hibernate, List dbTables, Config config,
 			StatusSource... stats) {
 		this.hibernate = hibernate;
 		this.dbTables = dbTables;
@@ -63,7 +63,7 @@ public class AdminResource {
 	}
 
 	public AdminResource(Config config, StatusSource... stats) {
-		this(null, new ArrayList<>(), null, config, stats);
+		this(null, new ArrayList<>(), config, stats);
 	}
 
 	@GET

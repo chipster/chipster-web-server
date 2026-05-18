@@ -37,7 +37,7 @@ public class AuthAdminResource extends AdminResource {
 
 	public AuthAdminResource(HibernateUtil hibernate,
 			List<Class<?>> classes, JerseyStatisticsSource jerseyStats, UserTable userTable, Config config) {
-		super(hibernate, classes, jerseyStats, config);
+		super(hibernate, classes, config, jerseyStats);
 		this.userTable = userTable;
 		this.hibernate = hibernate;
 	}

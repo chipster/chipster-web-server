@@ -96,7 +96,7 @@ public class SessionDbAdminResource extends AdminResource {
 	public SessionDbAdminResource(HibernateUtil hibernate, JerseyStatisticsSource jerseyStats,
 			PubSubServer pubSubServer, @SuppressWarnings("rawtypes") Class[] classes, NewsApi newsApi,
 			SessionDbApi sessionDbApi, RuleTable ruleTable, Config config) {
-		super(hibernate, Arrays.asList(classes), jerseyStats, config, pubSubServer);
+		super(hibernate, Arrays.asList(classes), config, jerseyStats, pubSubServer);
 		this.hibernate = hibernate;
 		this.pubSubServer = pubSubServer;
 		this.newsApi = newsApi;
