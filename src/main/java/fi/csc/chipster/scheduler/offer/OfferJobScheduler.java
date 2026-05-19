@@ -71,8 +71,9 @@ public class OfferJobScheduler implements MessageHandler.Whole<String>, JobSched
 		this.pubSubServer = new PubSubServer(config.getBindUrl(Role.SCHEDULER_EVENTS), this, topicConfig,
 				"scheduler-events");
 
-		this.pubSubServer.setIdleTimeout(config.getLong(Config.KEY_WEBSOCKET_IDLE_TIMEOUT));
-		this.pubSubServer.setPingInterval(config.getLong(Config.KEY_WEBSOCKET_PING_INTERVAL));
+		this.pubSubServer.setIdleTimeout(config.getLong(PubSubServer.KEY_WEBSOCKET_IDLE_TIMEOUT));
+		this.pubSubServer.setPingInterval(config.getLong(PubSubServer.KEY_WEBSOCKET_PING_INTERVAL));
+		this.pubSubServer.setMaxQueueSize(config.getInt(PubSubServer.KEY_WEBSOCKET_SUBSCRIBER_QUEUE_SIZE));
 		this.pubSubServer.start();
 	}
 

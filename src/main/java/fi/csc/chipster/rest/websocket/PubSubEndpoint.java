@@ -136,10 +136,11 @@ public class PubSubEndpoint {
 			// subscribe for server messages
 
 			Subscriber subscriber = new Subscriber(
-					session.getBasicRemote(),
+					session,
 					remoteAddress,
 					details,
-					principal.getName());
+					principal.getName(),
+					server.getMaxQueueSize());
 
 			this.server.subscribe(topic, subscriber);
 

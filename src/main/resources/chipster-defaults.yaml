@@ -676,6 +676,9 @@ websocket-idle-timeout: 300000
 # send regular ping messages to prevent idle timeouts, 0 to disable
 websocket-ping-interval: 120000
 
+# max number of messages queued per WebSocket subscriber before the connection is closed
+websocket-subscriber-queue-size: 1000
+
 # variables
 
 variable-int-ip: 127.0.0.1
