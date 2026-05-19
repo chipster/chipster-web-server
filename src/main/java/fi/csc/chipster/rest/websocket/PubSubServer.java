@@ -62,6 +62,12 @@ public class PubSubServer implements StatusSource {
 	private Timer pingTimer;
 	private long pingInterval = 0;
 
+	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
+	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
+	public static final String KEY_WEBSOCKET_SUBSCRIBER_QUEUE_SIZE = "websocket-subscriber-queue-size";
+
+	private int maxQueueSize = 1000;
+
 	public PubSubServer(String baseUri, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name)
 			throws ServletException {
 		this.baseUri = baseUri;
@@ -344,5 +350,14 @@ public class PubSubServer implements StatusSource {
 	public void setPingInterval(long pingInterval) {
 		logger.info(name + " ping interval: " + pingInterval + "ms");
 		this.pingInterval = pingInterval;
+	}
+
+	public void setMaxQueueSize(int maxQueueSize) {
+		logger.info(name + " subscriber queue size: " + maxQueueSize);
+		this.maxQueueSize = maxQueueSize;
+	}
+
+	public int getMaxQueueSize() {
+		return maxQueueSize;
 	}
 }
