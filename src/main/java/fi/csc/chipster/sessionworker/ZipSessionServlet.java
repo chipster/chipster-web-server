@@ -34,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FileBrokerApi;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
+import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
@@ -90,13 +91,15 @@ public class ZipSessionServlet extends HttpServlet {
 	private static Logger logger = LogManager.getLogger();
 
 	private ServiceLocatorClient serviceLocator;
+	private CredentialsProvider serverCredentials;
 
 	private File tempDir;
 
 	private ExecutorService executor;
 
-	public ZipSessionServlet(ServiceLocatorClient serviceLocator) {
+	public ZipSessionServlet(ServiceLocatorClient serviceLocator, CredentialsProvider serverCredentials) {
 		this.serviceLocator = serviceLocator;
+		this.serverCredentials = serverCredentials;
 
 		// all files in this directory will be deleted
 		tempDir = new File("tmp/session-worker");
@@ -114,11 +117,15 @@ public class ZipSessionServlet extends HttpServlet {
 	private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId)
 			throws IOException {
 
-		// use client creds for the actual file operations (to check the access rights)
-		// but use the server creds (stored in serviceLocator) to get the internal
-		// addresses
+		// use client creds to verify the user has read access to the session and to
+		// read the session data for packaging
 		RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
 		SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
+
+		// use server creds to create and delete the temporary zip dataset so that
+		// users with read-only access can also download sessions
+		RestFileBrokerClient serverFileBroker = new RestFileBrokerClient(serviceLocator, serverCredentials, Role.SERVER);
+		SessionDbClient serverSessionDb = new SessionDbClient(serviceLocator, serverCredentials, Role.SERVER);
 
 		ArrayList<InputStreamEntry> entries = new ArrayList<>();
 
@@ -133,7 +140,7 @@ public class ZipSessionServlet extends HttpServlet {
 
 			/*
 			 * File-broker will delete the file after it's downloaded once.
-			 * 
+			 *
 			 * File-broker could just react on the TEMPORARY_ZIP_EXPORT, but architecturally
 			 * it's cleaner if only session-worker depends on file-broker and not the other
 			 * way round. Maybe this could be useful somewhere else too.
@@ -151,7 +158,7 @@ public class ZipSessionServlet extends HttpServlet {
 			Dataset zipDataset = new Dataset();
 			zipDataset.setName(session.getName() + ".zip");
 			zipDataset.setMetadataFiles(List.of(tempZipMF, delAfterMF));
-			UUID datasetId = sessionDb.createDataset(sessionId, zipDataset);
+			UUID datasetId = serverSessionDb.createDataset(sessionId, zipDataset);
 
 			OutputStream output2 = new PipedOutputStream();
 			PipedInputStream in = new PipedInputStream((PipedOutputStream) output2);
@@ -176,7 +183,7 @@ public class ZipSessionServlet extends HttpServlet {
 			// upload in the zip stream in this thread, so that we send response to this
 			// servlet request only after the upload has really completed
 			try {
-				fileBroker.upload(sessionId, datasetId, in, null, true);
+				serverFileBroker.upload(sessionId, datasetId, in, null, true);
 
 			} catch (RestException e) {
 				logger.error("upload failed", e);
@@ -192,7 +199,7 @@ public class ZipSessionServlet extends HttpServlet {
 				// something went wrong, delete the zip dataset
 				logger.info("something went wrong, delete the incomplete zip dataset");
 				try {
-					sessionDb.deleteDataset(sessionId, datasetId);
+					serverSessionDb.deleteDataset(sessionId, datasetId);
 				} catch (RestException e1) {
 					logger.error("unable to clean up: " + e1);
 				}
