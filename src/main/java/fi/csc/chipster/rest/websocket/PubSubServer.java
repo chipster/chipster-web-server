@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -48,19 +49,29 @@ public class PubSubServer implements StatusSource {
 
 	private String name;
 
-	private int messagesDiscarded;
-	private int messagesReceived;
-	private int messagesSent;
-	private int subsribeCount;
-
-	private int bytesReceived;
-
-	private int bytesSent;
+	// LongAdder: thread-safe increments without a global lock; sum() is approximate under concurrent updates.
+	private final LongAdder messagesNoTopic = new LongAdder();
+	private final LongAdder messagesReceived = new LongAdder();
+	private final LongAdder messagesEnqueued = new LongAdder();
+	private final LongAdder messagesSent = new LongAdder();
+	private final LongAdder subscribeCount = new LongAdder();
+	private final LongAdder bytesReceived = new LongAdder();
+	private final LongAdder bytesEnqueued = new LongAdder();
+	private final LongAdder bytesSent = new LongAdder();
+	private final LongAdder queueFullDisconnects = new LongAdder();
 
 	private long idleTimeout = 0;
 
 	private Timer pingTimer;
 	private long pingInterval = 0;
+
+	public static final String KEY_WEBSOCKET_IDLE_TIMEOUT = "websocket-idle-timeout";
+	public static final String KEY_WEBSOCKET_PING_INTERVAL = "websocket-ping-interval";
+	public static final String KEY_WEBSOCKET_SUBSCRIBER_QUEUE_SIZE = "websocket-subscriber-queue-size";
+
+	// set before server.start() via setMaxQueueSize() (which enforces >= 1);
+	// server.start() establishes the happens-before edge to any subsequently accepted connection — no volatile needed
+	private int maxQueueSize = 1000;
 
 	public PubSubServer(String baseUri, MessageHandler.Whole<String> replyHandler, TopicConfig topicCheck, String name)
 			throws ServletException {
@@ -138,15 +149,15 @@ public class PubSubServer implements StatusSource {
 	private void publish(String topicName, String msg) {
 		Topic topic = topics.get(topicName);
 		if (topic != null) {
-			topic.publish(msg);
-			this.messagesSent += topic.getSubscribers().size();
-			this.bytesSent += topic.getSubscribers().size() * msg.length();
+			int n = topic.publish(msg);
+			this.messagesEnqueued.add(n);
+			this.bytesEnqueued.add((long) n * msg.length());
 		} else {
-			this.messagesDiscarded++;
+			this.messagesNoTopic.increment();
 			logger.debug("no one listening on topic: " + topicName);
 		}
-		this.messagesReceived++;
-		this.bytesReceived += msg.length();
+		this.messagesReceived.increment();
+		this.bytesReceived.add(msg.length());
 	}
 
 	public void subscribe(String topicName, Subscriber s) {
@@ -162,7 +173,7 @@ public class PubSubServer implements StatusSource {
 			}
 			Topic topic = topics.get(topicName);
 			topic.add(s);
-			this.subsribeCount++;
+			this.subscribeCount.increment();
 		}
 	}
 
@@ -175,13 +186,25 @@ public class PubSubServer implements StatusSource {
 		synchronized (topics) {
 			Topic topic = topics.get(topicName);
 			if (topic != null) {
-				topic.remove(basicRemote);
+				Subscriber s = topic.remove(basicRemote);
+				if (s != null) {
+					s.stop();
+					// stats read without joining the sender thread — may miss the last few
+					// increments if the thread is still mid-sendText(). acceptable for
+					// monitoring counters; do not use for billing or SLA purposes.
+					this.messagesSent.add(s.getMessagesSent());
+					this.bytesSent.add(s.getBytesSent());
+					if (s.isQueueFullDisconnect()) {
+						this.queueFullDisconnects.increment();
+					}
+				}
 				if (topic.isEmpty()) {
 					logger.debug("topic " + topicName + " is empty, remove it");
 					topics.remove(topicName);
 				}
 			} else {
-				logger.warn("cannot unssubscribe, topic not found: " + topic);
+				// expected when onError and onClose both fire, or when auth failed in onOpen
+				logger.debug("cannot unsubscribe, topic not found: " + topicName);
 			}
 		}
 	}
@@ -208,13 +231,31 @@ public class PubSubServer implements StatusSource {
 	}
 
 	public void stopPingTimer() {
-		pingTimer.cancel();
+		if (pingTimer != null) {
+			pingTimer.cancel();
+		}
 	}
 
 	public void stop() {
 		try {
 			logger.info("stopping pub-sub server " + name);
 			stopPingTimer();
+			// messagesSent/bytesSent are only accumulated in unsubscribe(), so stats for
+			// subscribers that never get an onClose (e.g. JVM kill) are lost — acceptable
+			// for monitoring counters.
+			// stopAll() interrupts sender threads, dropping any messages still queued —
+			// shutdown does not guarantee delivery of queued messages.
+			// server.stop() then closes connections, which fires onClose ->
+			// unsubscribe() -> s.stop() again on each subscriber — harmless because
+			// closing.set(true) and thread interrupt are both idempotent.
+			// stats are not double-counted because unsubscribe() is only called once per
+			// subscriber here; the double-unsubscribe guard (topic.remove() returning null)
+			// applies to the onError+onClose scenario, not shutdown.
+			synchronized (topics) {
+				for (Topic topic : topics.values()) {
+					topic.stopAll();
+				}
+			}
 			this.server.stop();
 			while (!this.server.isStopped()) {
 				logger.info("waiting a pub-sub server to stop: " + name);
@@ -274,12 +315,15 @@ public class PubSubServer implements StatusSource {
 				status.put("wsSubscribersCurrent" + tag, tagTopics.stream()
 						.mapToInt(t -> topics.get(t).getSubscribers().size()).sum());
 			}
-			status.put("wsMessagesDiscarded", this.messagesDiscarded);
-			status.put("wsMessagesReceived", this.messagesReceived);
-			status.put("wsMessagesSent", this.messagesSent);
-			status.put("wsSubscribersTotal", this.subsribeCount);
-			status.put("wsBytesSent", this.bytesSent);
-			status.put("wsBytesReceived", this.bytesReceived);
+			status.put("wsMessagesNoTopic", this.messagesNoTopic.sum());
+			status.put("wsMessagesReceived", this.messagesReceived.sum());
+			status.put("wsMessagesEnqueued", this.messagesEnqueued.sum());
+			status.put("wsMessagesSent", this.messagesSent.sum());
+			status.put("wsSubscribersTotal", this.subscribeCount.sum());
+			status.put("wsBytesEnqueued", this.bytesEnqueued.sum());
+			status.put("wsBytesSent", this.bytesSent.sum());
+			status.put("wsBytesReceived", this.bytesReceived.sum());
+			status.put("wsQueueFullDisconnects", this.queueFullDisconnects.sum());
 		}
 
 		return status;
@@ -297,15 +341,14 @@ public class PubSubServer implements StatusSource {
 				ArrayList<Object> subscribersCopy = new ArrayList<>();
 
 				ConcurrentHashMap<Basic, Subscriber> subscribers = topics.get(topicName).getSubscribers();
-				for (Basic remote : subscribers.keySet()) {
-					Subscriber subscriber = subscribers.get(remote);
+				for (Subscriber subscriber : subscribers.values()) {
 					HashMap<String, Object> subscriberCopy = new HashMap<>();
 
 					subscriberCopy.put("address", subscriber.getRemoteAddress());
 					subscriberCopy.put("username", subscriber.getUsername());
 					subscriberCopy.put("created", subscriber.getCreated());
-
-					subscriberCopy.putAll(subscriber.getDetails());
+					subscriberCopy.put(PubSubConfigurator.X_FORWARDED_FOR,
+							PubSubConfigurator.xForwardedFor(subscriber.getSession()));
 
 					subscribersCopy.add(subscriberCopy);
 				}
@@ -344,5 +387,17 @@ public class PubSubServer implements StatusSource {
 	public void setPingInterval(long pingInterval) {
 		logger.info(name + " ping interval: " + pingInterval + "ms");
 		this.pingInterval = pingInterval;
+	}
+
+	public void setMaxQueueSize(int maxQueueSize) {
+		if (maxQueueSize < 1) {
+			throw new IllegalArgumentException("maxQueueSize must be at least 1, got: " + maxQueueSize);
+		}
+		logger.info(name + " subscriber queue size: " + maxQueueSize);
+		this.maxQueueSize = maxQueueSize;
+	}
+
+	public int getMaxQueueSize() {
+		return maxQueueSize;
 	}
 }

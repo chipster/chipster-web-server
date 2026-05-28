@@ -76,11 +76,16 @@ export default class WsClient {
             // closed by us
             this.wsEvents$.complete();
           } else if (code === 1001) {
-            // idle timeout
+            // going away — reconnect; typically a container restart or idle timeout when
+            // the server is idle, so missing events is unlikely
             logger.info("websocket " + reason + ", reconnecting...");
             this.connect(sessionId, quiet);
           } else {
-            logger.info("websocket closed " + code + reason);
+            // error for all other codes (including 1000 NORMAL_CLOSURE and 1013 TRY_AGAIN_LATER) — do NOT
+            // reconnect: an unexpected 1000 or a queue-full 1013 both indicate the session is active,
+            // so reconnecting would silently miss events. intentional for interactive CLI use: server-side
+            // clients reconnect automatically for fail-over, but interactive users should see the error.
+            logger.info("websocket closed " + code + " " + reason);
             this.wsEvents$.error("websocket closed: " + code + " " + reason);
           }
         });
