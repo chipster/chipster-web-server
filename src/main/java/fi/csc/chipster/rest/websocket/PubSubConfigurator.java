@@ -1,11 +1,14 @@
 package fi.csc.chipster.rest.websocket;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.ee10.websocket.jakarta.server.internal.JakartaWebSocketCreator;
 
 import jakarta.websocket.HandshakeResponse;
+import jakarta.websocket.Session;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpointConfig;
 import jakarta.websocket.server.ServerEndpointConfig.Configurator;
@@ -42,6 +45,21 @@ public class PubSubConfigurator extends Configurator {
 
 	public PubSubConfigurator(PubSubServer pubSubServer) {
 		this.server = pubSubServer;
+	}
+
+	public static String remoteAddress(Session session) {
+		InetSocketAddress addr = (InetSocketAddress) session.getUserProperties()
+				.get(JakartaWebSocketCreator.PROP_REMOTE_ADDRESS);
+		return addr != null ? addr.getAddress().getHostAddress() : "unknown";
+	}
+
+	public static String xForwardedFor(Session session) {
+		return (String) session.getUserProperties().get(X_FORWARDED_FOR);
+	}
+
+	public static String clientAddress(Session session) {
+		String xff = xForwardedFor(session);
+		return xff != null ? remoteAddress(session) + " (X-Forwarded-For: " + xff + ")" : remoteAddress(session);
 	}
 
 	@Override
