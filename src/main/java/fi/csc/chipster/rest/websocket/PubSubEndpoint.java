@@ -2,19 +2,15 @@ package fi.csc.chipster.rest.websocket;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.net.URLDecoder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.ee10.websocket.jakarta.server.internal.JakartaWebSocketCreator;
-
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import jakarta.websocket.ClientEndpoint;
 import jakarta.websocket.CloseReason;
@@ -52,14 +48,6 @@ public class PubSubEndpoint {
 		session.setMaxIdleTimeout(this.server.getIdleTimeout());
 
 		Map<String, List<String>> requestParameters = session.getRequestParameterMap();
-		Map<String, Object> userProperties = session.getUserProperties();
-
-		InetSocketAddress remoteSocketAddress = (InetSocketAddress) userProperties
-				.get(JakartaWebSocketCreator.PROP_REMOTE_ADDRESS);
-		String remoteAddress = remoteSocketAddress.getAddress().getHostAddress();
-		Map<String, String> details = new HashMap<>();
-		details.put(PubSubConfigurator.X_FORWARDED_FOR,
-				(String) userProperties.get(PubSubConfigurator.X_FORWARDED_FOR));
 
 		List<String> tokenParameters = requestParameters.get("token");
 
@@ -135,14 +123,25 @@ public class PubSubEndpoint {
 
 			// subscribe for server messages
 
-			Subscriber subscriber = new Subscriber(
-					session,
-					remoteAddress,
-					details,
-					principal.getName(),
-					server.getMaxQueueSize());
-
-			this.server.subscribe(topic, subscriber);
+			Subscriber subscriber = null;
+			try {
+				subscriber = Subscriber.create(
+						session,
+						principal.getName(),
+						server.getMaxQueueSize());
+				this.server.subscribe(topic, subscriber);
+			} catch (RuntimeException e) {
+				if (subscriber != null) {
+					// stop the sender thread unconditionally — if subscribe() threw before
+					// topic.add(s), unsubscribe() would not find the subscriber and would not
+					// stop it, leaving the virtual thread blocked on queue.take() forever.
+					subscriber.stop();
+					// remove from the topic map if it was added; no-op otherwise
+					server.unsubscribe(topic, subscriber.getRemote());
+				}
+				logger.error("failed to subscribe websocket client", e);
+				throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION, "internal server error");
+			}
 
 			// listen for client replies
 			Whole<String> messageHandler = this.server.getMessageHandler();
@@ -174,6 +173,10 @@ public class PubSubEndpoint {
 	}
 
 	private void unsubscribe(Session session) {
+		if (!session.getUserProperties().containsKey(TOPIC_KEY)) {
+			logger.debug("onClose/onError before auth completed, nothing to unsubscribe");
+			return;
+		}
 		String topic = (String) session.getUserProperties().get(TOPIC_KEY);
 		this.server.unsubscribe(topic, session.getBasicRemote());
 	}
@@ -187,8 +190,7 @@ public class PubSubEndpoint {
 	@OnError
 	public void onError(Session session, Throwable thr) {
 		if (thr instanceof SocketTimeoutException) {
-			logger.warn("idle timeout, unsubscribe a pub-sub client "
-					+ ((AuthPrincipal) session.getUserPrincipal()).getRemoteAddress());
+			logger.warn("idle timeout, unsubscribe a pub-sub client " + PubSubConfigurator.clientAddress(session));
 
 		} else if (thr instanceof ClosedChannelException) {
 			// don't print stacktrace when ServerLauncher is closed
