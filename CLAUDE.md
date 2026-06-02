@@ -17,7 +17,7 @@ There are two ways to run the dev environment:
 
 Before anything else, start the sandbox with ports forwarded:
 ```
-WORKSPACE=~/git/workspace PORTS=8000-8110,4200 ./sandbox.sh
+WORKSPACE=~/workspace PORTS=8000-8110,4200 ./sandbox.sh
 ```
 - `WORKSPACE` — mounts your local git workspace into the container
 - `PORTS` — exposes chipster services (8000–8110) and the Angular dev server (4200)
@@ -116,7 +116,7 @@ Use this when running chipster-web-server in VS Code on the host (e.g. for debug
 
 No port forwarding needed — services run on the host:
 ```
-WORKSPACE=~/git/workspace ./sandbox.sh
+WORKSPACE=~/workspace ./sandbox.sh
 ```
 
 ### Starting Servers on Host
@@ -150,7 +150,7 @@ scheduler-bash-script-dir-in-jar: "bash-job-scheduler/podman"
 scheduler-bash-image-repository: image-registry.apps.2.rahti.csc.fi/chipster-images/
 scheduler-bash-image-tag: v4.19.1
 
-scheduler-bash-tools-bin-host-mount-path: ~/git/workspace
+scheduler-bash-tools-bin-host-mount-path: ~/workspace
 toolbox-runtime-tools-bin-name: empty-tools-bin
 
 scheduler-bash-env-name-1: PODMAN_SOCKET
@@ -168,7 +168,7 @@ scheduler-bash-env-value-5: http://host.containers.internal:8007
 
 Create the empty tools-bin directory once:
 ```
-mkdir -p ~/git/workspace/empty-tools-bin
+mkdir -p ~/workspace/empty-tools-bin
 ```
 
 Notes:
