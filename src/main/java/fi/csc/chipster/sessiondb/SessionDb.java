@@ -26,6 +26,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -105,7 +106,7 @@ public class SessionDb implements ServerComponent {
 		this.serviceLocator.setCredentials(authService.getCredentials());
 
 		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
-				Job.class, File.class, News.class);
+				Job.class, File.class, News.class, Label.class);
 
 		// init Hibernate
 		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);

@@ -30,6 +30,7 @@ import fi.csc.chipster.scheduler.IdPair;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.News;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -155,6 +156,14 @@ public class SessionDbClient {
 
 	private WebTarget getDatasetTarget(UUID sessionId, UUID datasetId) {
 		return getDatasetsTarget(sessionId).path(datasetId.toString());
+	}
+
+	private WebTarget getLabelsTarget(UUID sessionId) {
+		return getSessionTarget(sessionId).path("labels");
+	}
+
+	private WebTarget getLabelTarget(UUID sessionId, UUID labelId) {
+		return getLabelsTarget(sessionId).path(labelId.toString());
 	}
 
 	private WebTarget getJobsTarget(UUID sessionId) {
@@ -313,6 +322,36 @@ public class SessionDbClient {
 
 	public void deleteDataset(UUID sessionId, UUID datasetId) throws RestException {
 		RestMethods.delete(getDatasetTarget(sessionId, datasetId));
+	}
+
+	// labels
+
+	public HashMap<UUID, Label> getLabels(UUID sessionId) throws RestException {
+		List<Label> labelList = RestMethods.getList(getLabelsTarget(sessionId), Label.class);
+
+		HashMap<UUID, Label> labelMap = new HashMap<>();
+		for (Label label : labelList) {
+			labelMap.put(label.getLabelId(), label);
+		}
+		return labelMap;
+	}
+
+	public Label getLabel(UUID sessionId, UUID labelId) throws RestException {
+		return RestMethods.get(getLabelTarget(sessionId, labelId), Label.class);
+	}
+
+	public UUID createLabel(UUID sessionId, Label label) throws RestException {
+		UUID id = RestMethods.post(getLabelsTarget(sessionId), label);
+		label.setLabelIdPair(sessionId, id);
+		return id;
+	}
+
+	public Response updateLabel(UUID sessionId, Label label) throws RestException {
+		return RestMethods.put(getLabelTarget(sessionId, label.getLabelId()), label);
+	}
+
+	public void deleteLabel(UUID sessionId, UUID labelId) throws RestException {
+		RestMethods.delete(getLabelTarget(sessionId, labelId));
 	}
 
 	// jobs

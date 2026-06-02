@@ -38,6 +38,10 @@ public class Dataset {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private List<MetadataFile> metadataFiles = new ArrayList<>();
 
+	@Column
+	@JdbcTypeCode(SqlTypes.JSON)
+	private List<UUID> labelIds = new ArrayList<>();
+
 	private Integer x;
 	private Integer y;
 	private UUID sourceJob;
@@ -145,6 +149,14 @@ public class Dataset {
 
 	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
 		this.metadataFiles = metadataFiles;
+	}
+
+	public List<UUID> getLabelIds() {
+		return labelIds;
+	}
+
+	public void setLabelIds(List<UUID> labelIds) {
+		this.labelIds = labelIds;
 	}
 
 }
