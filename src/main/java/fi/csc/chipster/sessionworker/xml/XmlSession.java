@@ -163,7 +163,7 @@ public class XmlSession {
 
 			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap);
 
-			return new ExtractedSession(session, datasetMap, jobMap, warnings, errors);
+			return new ExtractedSession(session, datasetMap, jobMap, new HashMap<>(), warnings, errors);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
 		}
