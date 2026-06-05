@@ -98,6 +98,42 @@ public class SessionLabelResourceTest {
 	}
 
 	@Test
+	public void postAtMaxLabelsPerSession() throws RestException {
+		// fresh session so existing tests don't influence the count
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
+			user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
+		}
+		assertEquals(Label.MAX_LABELS_PER_SESSION, user1Client.getLabels(sessionId).size());
+	}
+
+	@Test
+	public void postOverMaxLabelsPerSession() throws RestException {
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
+			user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
+		}
+		testCreateLabel(400, sessionId, RestUtils.getRandomLabel(), user1Client);
+	}
+
+	@Test
+	public void postAfterDeleteUnderMax() throws RestException {
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		UUID firstLabelId = null;
+		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
+			UUID id = user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
+			if (i == 0) {
+				firstLabelId = id;
+			}
+		}
+		// at cap: one more must fail
+		testCreateLabel(400, sessionId, RestUtils.getRandomLabel(), user1Client);
+		// drain by one, next must succeed
+		user1Client.deleteLabel(sessionId, firstLabelId);
+		user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
+	}
+
+	@Test
 	public void postWrongUser() throws RestException {
 		testCreateLabel(403, sessionId1, RestUtils.getRandomLabel(), user2Client);
 	}

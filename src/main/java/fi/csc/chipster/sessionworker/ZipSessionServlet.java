@@ -463,6 +463,13 @@ public class ZipSessionServlet extends HttpServlet {
 		sessionDb.createJobs(sessionId, new ArrayList<Job>(jobs));
 
 		// create labels (LABELS_JSON exists only in V7+; older versions yield an empty map)
+		// pre-flight: fail atomically before any DB writes if existing + new would exceed the per-session cap
+		int existingLabelCount = sessionDb.getLabels(sessionId).size();
+		if (existingLabelCount + labels.size() > Label.MAX_LABELS_PER_SESSION) {
+			throw new BadRequestException("importing " + labels.size() + " labels into a session with "
+					+ existingLabelCount + " existing labels would exceed the maximum of "
+					+ Label.MAX_LABELS_PER_SESSION + " per session");
+		}
 		for (Label label : labels) {
 			label.setLabelIdPair(sessionId, label.getLabelId());
 			sessionDb.createLabel(sessionId, label);

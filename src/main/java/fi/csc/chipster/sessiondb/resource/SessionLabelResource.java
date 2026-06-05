@@ -98,6 +98,12 @@ public class SessionLabelResource {
 
 		validateName(label);
 
+		int existingLabelCount = SessionDbApi.getLabels(getHibernate().session(), sessionId).size();
+		if (existingLabelCount >= Label.MAX_LABELS_PER_SESSION) {
+			throw new BadRequestException(
+					"session has reached the maximum of " + Label.MAX_LABELS_PER_SESSION + " labels");
+		}
+
 		UUID labelId = label.getLabelId();
 		if (labelId == null) {
 			labelId = RestUtils.createUUID();

@@ -17,6 +17,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 public class Label {
 
 	public static final int MAX_NAME_LENGTH = 30;
+	public static final int MAX_LABELS_PER_SESSION = 100;
 
 	@EmbeddedId // db
 	@JsonUnwrapped
