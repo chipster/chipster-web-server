@@ -38,7 +38,8 @@ public class JavascriptService implements ServerComponent {
 			// runAndWait("rm", "-rf", "node_modules");
 
 			System.out.println("Install dependencies");
-			runAndWait("npm", "ci");
+			// --include=dev: typescript is a devDependency but required for the build step
+			runAndWait("npm", "ci", "--include=dev");
 		}
 
 		System.out.println("Compile");
