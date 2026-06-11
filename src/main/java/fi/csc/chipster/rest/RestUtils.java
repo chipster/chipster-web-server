@@ -234,7 +234,7 @@ public class RestUtils {
 
 		Label l = new Label();
 		l.setName("label" + rand.nextInt(1000));
-		l.setColor("primary");
+		l.setColor("#fd7e14");
 		l.setCreated(Instant.now());
 
 		return l;
