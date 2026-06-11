@@ -45,6 +45,12 @@ public class RetryHandler {
 			logger.error("reconnection cancelled");
 			throw new RuntimeException(new WebSocketClosedException(closeReason));
 		}
+		// TRY_AGAIN_LATER (1013): server closed the connection because the send queue
+		// was full. Java clients run on reliable infrastructure and should never be this
+		// slow; if it happens anyway, some events are already lost, so logging and
+		// reconnecting with normal backoff is the best recovery possible.
+		// UNEXPECTED_CONDITION (1011): send IOException on the server side. Same
+		// reasoning — events may have been lost, but reconnecting is the best option.
 		counter++;
 		if (retries < 0 || counter <= retries) {
 			logger.info("reconnecting " + name + "... (" + counter + "/" + retries + ")");
