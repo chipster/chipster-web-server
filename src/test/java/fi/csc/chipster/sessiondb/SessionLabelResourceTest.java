@@ -115,6 +115,37 @@ public class SessionLabelResourceTest {
 	}
 
 	@Test
+	public void postTooLongColor() throws RestException {
+		Label label = RestUtils.getRandomLabel();
+		label.setColor("z".repeat(Label.MAX_COLOR_LENGTH + 1));
+		testCreateLabel(400, sessionId1, label, user1Client);
+	}
+
+	@Test
+	public void postMaxLengthColor() throws RestException {
+		Label label = RestUtils.getRandomLabel();
+		label.setColor("z".repeat(Label.MAX_COLOR_LENGTH));
+		user1Client.createLabel(sessionId1, label);
+	}
+
+	@Test
+	public void postNullColor() throws RestException {
+		// color is optional
+		Label label = RestUtils.getRandomLabel();
+		label.setColor(null);
+		user1Client.createLabel(sessionId1, label);
+	}
+
+	@Test
+	public void putTooLongColor() throws RestException {
+		Label label = RestUtils.getRandomLabel();
+		user1Client.createLabel(sessionId1, label);
+
+		label.setColor("z".repeat(Label.MAX_COLOR_LENGTH + 1));
+		testUpdateLabel(400, sessionId1, label, user1Client);
+	}
+
+	@Test
 	public void postAtMaxLabelsPerSession() throws RestException {
 		// fresh session so existing tests don't influence the count
 		UUID sessionId = createUser1Session();

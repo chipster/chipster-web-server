@@ -97,6 +97,7 @@ public class SessionLabelResource {
 		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 
 		validateName(label);
+		validateColor(label);
 
 		int existingLabelCount = SessionDbApi.getLabels(getHibernate().session(), sessionId).size();
 		if (existingLabelCount >= Label.MAX_LABELS_PER_SESSION) {
@@ -138,6 +139,7 @@ public class SessionLabelResource {
 		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 
 		validateName(requestLabel);
+		validateColor(requestLabel);
 
 		Label dbLabel = SessionDbApi.getLabel(sessionId, labelId, getHibernate().session());
 		if (dbLabel == null || !dbLabel.getSessionId().equals(session.getSessionId())) {
@@ -181,6 +183,13 @@ public class SessionLabelResource {
 		}
 		if (name.length() > Label.MAX_NAME_LENGTH) {
 			throw new BadRequestException("label name longer than " + Label.MAX_NAME_LENGTH + " characters");
+		}
+	}
+
+	private static void validateColor(Label label) {
+		String color = label.getColor();
+		if (color != null && color.length() > Label.MAX_COLOR_LENGTH) {
+			throw new BadRequestException("label color longer than " + Label.MAX_COLOR_LENGTH + " characters");
 		}
 	}
 

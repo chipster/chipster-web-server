@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
@@ -17,6 +18,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 public class Label {
 
 	public static final int MAX_NAME_LENGTH = 30;
+	// the database column is varchar(64)
+	public static final int MAX_COLOR_LENGTH = 64;
 	public static final int MAX_LABELS_PER_SESSION = 100;
 
 	@EmbeddedId // db
@@ -24,6 +27,7 @@ public class Label {
 	private LabelIdPair labelIdPair;
 
 	private String name;
+	@Column(length = MAX_COLOR_LENGTH)
 	private String color;
 	private Instant created;
 
