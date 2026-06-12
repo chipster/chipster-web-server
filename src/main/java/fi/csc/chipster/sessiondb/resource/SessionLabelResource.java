@@ -2,9 +2,11 @@ package fi.csc.chipster.sessiondb.resource;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -88,45 +90,73 @@ public class SessionLabelResource {
 	}
 
 	@POST
+	@Path(RestUtils.PATH_ARRAY)
+	@RolesAllowed({ Role.CLIENT, Role.SERVER })
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	@Transaction
+	public Response postArray(Label[] labels, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+
+		List<UUID> ids = postList(Arrays.asList(labels), sc);
+
+		ObjectNode json = RestUtils.getArrayResponse("labels", "labelId", ids);
+
+		return Response.created(uriInfo.getRequestUri()).entity(json).build();
+	}
+
+	@POST
 	@RolesAllowed({ Role.CLIENT, Role.SERVER })
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response post(Label label, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 
+		List<UUID> ids = postList(Arrays.asList(label), sc);
+		UUID id = ids.get(0);
+
+		URI uri = uriInfo.getAbsolutePathBuilder().path(id.toString()).build();
+		ObjectNode json = new JsonNodeFactory(false).objectNode();
+		json.put("labelId", id.toString());
+
+		return Response.created(uri).entity(json).build();
+	}
+
+	private List<UUID> postList(List<Label> labels, @Context SecurityContext sc) {
+
 		Session session = sessionResource.getRuleTable().checkSessionReadWriteAuthorization(sc, sessionId);
 
-		validateName(label);
-		validateColor(label);
-
 		long existingLabelCount = SessionDbApi.getLabelCount(getHibernate().session(), sessionId);
-		if (existingLabelCount >= Label.MAX_LABELS_PER_SESSION) {
+		if (existingLabelCount + labels.size() > Label.MAX_LABELS_PER_SESSION) {
 			throw new BadRequestException(
 					"session has reached the maximum of " + Label.MAX_LABELS_PER_SESSION + " labels");
 		}
 
-		UUID labelId = label.getLabelId();
-		if (labelId == null) {
-			labelId = RestUtils.createUUID();
+		for (Label label : labels) {
+			validateName(label);
+			validateColor(label);
+
+			UUID labelId = label.getLabelId();
+			if (labelId == null) {
+				labelId = RestUtils.createUUID();
+			}
+
+			if (label.getSessionId() != null && !sessionId.equals(label.getSessionId())) {
+				throw new BadRequestException("different sessionId in the label object and in the url");
+			}
+			label.setLabelIdPair(sessionId, labelId);
+
+			if (label.getCreated() == null) {
+				label.setCreated(Instant.now());
+			}
 		}
 
-		if (label.getSessionId() != null && !sessionId.equals(label.getSessionId())) {
-			throw new BadRequestException("different sessionId in the label object and in the url");
-		}
-		label.setLabelIdPair(sessionId, labelId);
-
-		if (label.getCreated() == null) {
-			label.setCreated(Instant.now());
+		for (Label label : labels) {
+			sessionDbApi.createLabel(label, sessionId, getHibernate().session());
 		}
 
-		sessionDbApi.createLabel(label, sessionId, getHibernate().session());
 		sessionDbApi.sessionModified(session, getHibernate().session());
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(labelId.toString()).build();
-		ObjectNode json = new JsonNodeFactory(false).objectNode();
-		json.put("labelId", labelId.toString());
-
-		return Response.created(uri).entity(json).build();
+		return labels.stream().map(l -> l.getLabelId()).collect(Collectors.toList());
 	}
 
 	@PUT

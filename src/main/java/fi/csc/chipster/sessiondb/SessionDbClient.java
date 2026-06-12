@@ -346,6 +346,24 @@ public class SessionDbClient {
 		return id;
 	}
 
+	public List<UUID> createLabels(UUID sessionId, List<Label> labels)
+			throws RestException, JsonParseException, JsonMappingException, IOException {
+
+		String json = RestMethods.postWithObjectResponse(getLabelsTarget(sessionId).path(RestUtils.PATH_ARRAY), labels,
+				String.class);
+		@SuppressWarnings("unchecked")
+		HashMap<String, Object> respObj = RestUtils.getObjectMapper(true).readValue(json, HashMap.class);
+		@SuppressWarnings("unchecked")
+		ArrayList<Map<String, String>> labelListJson = (ArrayList<Map<String, String>>) respObj.get("labels");
+
+		List<UUID> ids = labelListJson.stream()
+				.map(o -> o.get("labelId"))
+				.map(s -> UUID.fromString(s))
+				.collect(Collectors.toList());
+
+		return ids;
+	}
+
 	public Response updateLabel(UUID sessionId, Label label) throws RestException {
 		return RestMethods.put(getLabelTarget(sessionId, label.getLabelId()), label);
 	}

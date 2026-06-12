@@ -481,8 +481,8 @@ public class ZipSessionServlet extends HttpServlet {
 		// create labels (cap pre-flighted above)
 		for (Label label : labels) {
 			label.setLabelIdPair(sessionId, label.getLabelId());
-			sessionDb.createLabel(sessionId, label);
 		}
+		sessionDb.createLabels(sessionId, new ArrayList<Label>(labels));
 
 		// check source job references
 		for (Dataset dataset : datasets) {
