@@ -14,6 +14,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.comp.JobState;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.filestorage.FileServlet;
 import fi.csc.chipster.rest.Config;
@@ -35,6 +37,8 @@ import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class ZipSessionServletTest {
@@ -125,6 +129,89 @@ public class ZipSessionServletTest {
 
 		sessionDbClient1.deleteSession(sessionId1);
 		sessionDbClient2.deleteSession(sessionId2);
+	}
+
+	@Test
+	public void downloadAndUploadZipWithLabels() throws RestException, IOException {
+
+		UUID sessionId1 = sessionDbClient1.createSession(RestUtils.getRandomSession());
+
+		Label originalLabel = RestUtils.getRandomLabel();
+		UUID labelId = sessionDbClient1.createLabel(sessionId1, originalLabel);
+
+		Dataset originalDataset = RestUtils.getRandomDataset();
+		originalDataset.setLabelIds(Arrays.asList(labelId));
+
+		UUID datasetId = sessionDbClient1.createDataset(sessionId1, originalDataset);
+		fileBrokerClient1.upload(sessionId1, datasetId, new File(TEST_FILE));
+
+		// download the session zip
+		UUID zipDatasetId = sessionWorkerClient1.packageSessionToZip(sessionId1);
+		InputStream zipByteStream = fileBrokerClient1.download(sessionId1, zipDatasetId);
+		byte[] zipBytes = IOUtils.toByteArray(zipByteStream);
+
+		// upload the session zip
+		UUID sessionId2 = sessionWorkerClient2.uploadZipSession(new ByteArrayInputStream(zipBytes),
+				zipBytes.length);
+
+		// the label is carried over with its id, name and color
+		Label resultLabel = sessionDbClient2.getLabels(sessionId2).get(labelId);
+		Assertions.assertNotNull(resultLabel);
+		assertEquals(originalLabel.getName(), resultLabel.getName());
+		assertEquals(originalLabel.getColor(), resultLabel.getColor());
+
+		// the dataset still references the label
+		Dataset resultDataset = sessionDbClient2.getDatasets(sessionId2).values().stream()
+				.filter(d -> originalDataset.getName().equals(d.getName()))
+				.findAny().get();
+		assertEquals(Arrays.asList(labelId), resultDataset.getLabelIds());
+
+		sessionDbClient1.deleteSession(sessionId1);
+		sessionDbClient2.deleteSession(sessionId2);
+	}
+
+	@Test
+	public void uploadZipOverMaxLabelsPerSession() throws RestException, IOException {
+
+		// source session with a label, a dataset and a job
+		UUID sourceSessionId = sessionDbClient1.createSession(RestUtils.getRandomSession());
+		sessionDbClient1.createLabel(sourceSessionId, RestUtils.getRandomLabel());
+
+		Dataset sourceDataset = RestUtils.getRandomDataset();
+		UUID datasetId = sessionDbClient1.createDataset(sourceSessionId, sourceDataset);
+		fileBrokerClient1.upload(sourceSessionId, datasetId, new File(TEST_FILE));
+
+		// only finished jobs can be imported with their created timestamp
+		Job sourceJob = RestUtils.getRandomJob();
+		sourceJob.setState(JobState.COMPLETED);
+		sessionDbClient1.createJob(sourceSessionId, sourceJob);
+
+		UUID zipDatasetId = sessionWorkerClient1.packageSessionToZip(sourceSessionId);
+		byte[] zipBytes = IOUtils.toByteArray(fileBrokerClient1.download(sourceSessionId, zipDatasetId));
+
+		// target session already at the label cap
+		UUID targetSessionId = sessionDbClient1.createSession(RestUtils.getRandomSession());
+		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
+			sessionDbClient1.createLabel(targetSessionId, RestUtils.getRandomLabel());
+		}
+
+		try {
+			sessionWorkerClient1.uploadZipSession(new ByteArrayInputStream(zipBytes), targetSessionId,
+					zipBytes.length);
+			Assertions.fail("import over the label cap should fail");
+		} catch (RestException e) {
+			Assertions.assertTrue(e.getMessage().contains("exceed the maximum"), e.getMessage());
+		}
+
+		// the cap is checked before any DB writes, so the failed import must not have
+		// created anything in the target session
+		assertEquals(0, sessionDbClient1.getJobs(targetSessionId).size());
+		assertEquals(Label.MAX_LABELS_PER_SESSION, sessionDbClient1.getLabels(targetSessionId).size());
+		Assertions.assertTrue(sessionDbClient1.getDatasets(targetSessionId).values().stream()
+				.noneMatch(d -> sourceDataset.getName().equals(d.getName())));
+
+		sessionDbClient1.deleteSession(sourceSessionId);
+		sessionDbClient1.deleteSession(targetSessionId);
 	}
 
 	/**

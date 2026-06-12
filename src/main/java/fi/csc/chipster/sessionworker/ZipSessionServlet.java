@@ -371,6 +371,12 @@ public class ZipSessionServlet extends HttpServlet {
 			errors.add("session extraction failed: " + e.getMessage());
 			logger.warn("session extraction failed", e);
 
+		} catch (BadRequestException e) {
+			// the message explains what was wrong with the request, e.g. unrecognized
+			// file format or too many labels
+			errors.add("session extraction failed: " + e.getMessage());
+			logger.warn("session extraction failed", e);
+
 		} catch (Exception e) {
 			if (ExceptionUtils.getRootCause(e) instanceof ZipException) {
 				errors.add("session extraction failed: " + e.getMessage());
@@ -441,6 +447,16 @@ public class ZipSessionServlet extends HttpServlet {
 
 		ArrayList<String> warnings = new ArrayList<String>();
 
+		// pre-flight before any DB writes: fail the whole import if existing + new
+		// labels would exceed the per-session cap (LABELS_JSON exists only in V7+;
+		// older versions yield an empty map)
+		int existingLabelCount = sessionDb.getLabels(sessionId).size();
+		if (existingLabelCount + labels.size() > Label.MAX_LABELS_PER_SESSION) {
+			throw new BadRequestException("importing " + labels.size() + " labels into a session with "
+					+ existingLabelCount + " existing labels would exceed the maximum of "
+					+ Label.MAX_LABELS_PER_SESSION + " per session");
+		}
+
 		// check input references
 		for (Job job : jobs) {
 			Iterator<Input> inputIter = job.getInputs().iterator();
@@ -462,14 +478,7 @@ public class ZipSessionServlet extends HttpServlet {
 
 		sessionDb.createJobs(sessionId, new ArrayList<Job>(jobs));
 
-		// create labels (LABELS_JSON exists only in V7+; older versions yield an empty map)
-		// pre-flight: fail atomically before any DB writes if existing + new would exceed the per-session cap
-		int existingLabelCount = sessionDb.getLabels(sessionId).size();
-		if (existingLabelCount + labels.size() > Label.MAX_LABELS_PER_SESSION) {
-			throw new BadRequestException("importing " + labels.size() + " labels into a session with "
-					+ existingLabelCount + " existing labels would exceed the maximum of "
-					+ Label.MAX_LABELS_PER_SESSION + " per session");
-		}
+		// create labels (cap pre-flighted above)
 		for (Label label : labels) {
 			label.setLabelIdPair(sessionId, label.getLabelId());
 			sessionDb.createLabel(sessionId, label);
