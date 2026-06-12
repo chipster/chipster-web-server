@@ -99,7 +99,7 @@ public class SessionLabelResource {
 		validateName(label);
 		validateColor(label);
 
-		int existingLabelCount = SessionDbApi.getLabels(getHibernate().session(), sessionId).size();
+		long existingLabelCount = SessionDbApi.getLabelCount(getHibernate().session(), sessionId);
 		if (existingLabelCount >= Label.MAX_LABELS_PER_SESSION) {
 			throw new BadRequestException(
 					"session has reached the maximum of " + Label.MAX_LABELS_PER_SESSION + " labels");

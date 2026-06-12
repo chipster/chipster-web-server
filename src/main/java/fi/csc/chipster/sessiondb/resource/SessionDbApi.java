@@ -568,6 +568,15 @@ public class SessionDbApi {
 		return hibernateSession.createQuery(c).getResultList();
 	}
 
+	public static long getLabelCount(org.hibernate.Session hibernateSession, UUID sessionId) {
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Long> c = cb.createQuery(Long.class);
+		Root<Label> r = c.from(Label.class);
+		c.select(cb.count(r));
+		c.where(cb.equal(r.get("labelIdPair").get("sessionId"), sessionId));
+		return hibernateSession.createQuery(c).getSingleResult();
+	}
+
 	public void createLabel(Label label, UUID sessionId, org.hibernate.Session hibernateSession) {
 		HibernateUtil.persist(label, hibernateSession);
 		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
