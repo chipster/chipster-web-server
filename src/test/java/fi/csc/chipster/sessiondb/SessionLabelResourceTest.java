@@ -2,7 +2,6 @@ package fi.csc.chipster.sessiondb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -27,6 +26,7 @@ public class SessionLabelResourceTest {
 
 	private static SessionDbClient user1Client;
 	private static SessionDbClient user2Client;
+	private static SessionDbClient noAuthClient;
 	private static UUID sessionId1;
 	private static UUID sessionId2;
 
@@ -40,6 +40,7 @@ public class SessionLabelResourceTest {
 
 		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+		noAuthClient = new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
 
 		sessionId1 = createUser1Session();
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
@@ -312,8 +313,10 @@ public class SessionLabelResourceTest {
 
 	@Test
 	public void unauthenticated() throws RestException {
-		// can't create without auth — covered via wrong-user but also smoke-check empty list
-		assertNull(user2Client.getLabels(sessionId2).get(RestUtils.createUUID()));
+		// no credentials must be rejected on every label endpoint
+		testGetLabels(401, sessionId1, noAuthClient);
+		testGetLabel(401, sessionId1, RestUtils.createUUID(), noAuthClient);
+		testCreateLabel(401, sessionId1, RestUtils.getRandomLabel(), noAuthClient);
 	}
 
 	// helpers
