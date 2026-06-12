@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +30,9 @@ public class SessionLabelResourceTest {
 	private static UUID sessionId1;
 	private static UUID sessionId2;
 
+	// sessions created by user1, deleted in tearDown even if a test fails
+	private static List<UUID> user1SessionIds = new ArrayList<>();
+
 	@BeforeAll
 	public static void setUp() throws Exception {
 		Config config = new Config();
@@ -37,13 +41,26 @@ public class SessionLabelResourceTest {
 		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 
-		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+		sessionId1 = createUser1Session();
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
 	}
 
 	@AfterAll
 	public static void tearDown() throws Exception {
-		launcher.stop();
+		try {
+			for (UUID sessionId : user1SessionIds) {
+				user1Client.deleteSession(sessionId);
+			}
+			user2Client.deleteSession(sessionId2);
+		} finally {
+			launcher.stop();
+		}
+	}
+
+	private static UUID createUser1Session() throws RestException {
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		user1SessionIds.add(sessionId);
+		return sessionId;
 	}
 
 	@Test
@@ -100,7 +117,7 @@ public class SessionLabelResourceTest {
 	@Test
 	public void postAtMaxLabelsPerSession() throws RestException {
 		// fresh session so existing tests don't influence the count
-		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		UUID sessionId = createUser1Session();
 		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
 			user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
 		}
@@ -109,7 +126,7 @@ public class SessionLabelResourceTest {
 
 	@Test
 	public void postOverMaxLabelsPerSession() throws RestException {
-		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		UUID sessionId = createUser1Session();
 		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
 			user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
 		}
@@ -118,7 +135,7 @@ public class SessionLabelResourceTest {
 
 	@Test
 	public void postAfterDeleteUnderMax() throws RestException {
-		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		UUID sessionId = createUser1Session();
 		UUID firstLabelId = null;
 		for (int i = 0; i < Label.MAX_LABELS_PER_SESSION; i++) {
 			UUID id = user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
