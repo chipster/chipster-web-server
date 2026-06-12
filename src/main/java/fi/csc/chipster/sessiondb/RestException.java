@@ -28,6 +28,7 @@ public class RestException extends Exception {
 
 	public RestException(String msg) {
 		super(msg);
+		this.latestMessage = msg;
 	}
 
 	public RestException(String msg, org.eclipse.jetty.client.Response response2, URI uri2) {
