@@ -3,6 +3,8 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
@@ -228,5 +230,38 @@ public class SessionDatasetResourceTest {
 		} catch (RestException e) {
 			assertEquals(expected, e.getResponse().getStatus());
 		}
+	}
+
+	@Test
+	public void postDatasetAtMaxLabelIds() throws RestException {
+		// the server does not require labelIds to reference real labels, so random UUIDs are fine
+		Dataset dataset = RestUtils.getRandomDataset();
+		dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS));
+		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
+		assertEquals(Dataset.MAX_LABEL_IDS, user1Client.getDataset(sessionId1, datasetId).getLabelIds().size());
+	}
+
+	@Test
+	public void postDatasetOverMaxLabelIds() throws RestException {
+		Dataset dataset = RestUtils.getRandomDataset();
+		dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS + 1));
+		testCreateDataset(400, sessionId1, dataset, user1Client);
+	}
+
+	@Test
+	public void putDatasetOverMaxLabelIds() throws RestException {
+		Dataset dataset = RestUtils.getRandomDataset();
+		user1Client.createDataset(sessionId1, dataset);
+
+		dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS + 1));
+		testUpdateDataset(400, sessionId1, dataset, user1Client);
+	}
+
+	private static List<UUID> randomLabelIds(int count) {
+		List<UUID> ids = new ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			ids.add(RestUtils.createUUID());
+		}
+		return ids;
 	}
 }

@@ -41,7 +41,7 @@ public class SessionEvent {
 	}
 
 	public enum ResourceType {
-		RULE, DATASET, JOB, FILE, SESSION, NEWS
+		RULE, DATASET, JOB, FILE, SESSION, NEWS, LABEL
 	}
 
 	public SessionEvent(UUID sessionId, ResourceType resource, UUID resourceId, EventType type) {

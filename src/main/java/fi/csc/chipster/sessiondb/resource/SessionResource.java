@@ -89,6 +89,11 @@ public class SessionResource {
 		return new RuleResource(this, id, this.sessionDbApi, this.ruleTable, config);
 	}
 
+	@Path("{id}/labels")
+	public SessionLabelResource getLabelResource(@PathParam("id") UUID id) {
+		return new SessionLabelResource(this, id, sessionDbApi);
+	}
+
 	// CRUD
 	@GET
 	@Path("{id}")

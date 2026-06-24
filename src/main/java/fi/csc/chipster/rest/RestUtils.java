@@ -84,6 +84,7 @@ import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
@@ -227,6 +228,16 @@ public class RestUtils {
 		// d.setFile(f);
 
 		return d;
+	}
+
+	public static Label getRandomLabel() {
+
+		Label l = new Label();
+		l.setName("label" + rand.nextInt(1000));
+		l.setColor("#fd7e14");
+		l.setCreated(Instant.now());
+
+		return l;
 	}
 
 	public static Job getRandomJob() {

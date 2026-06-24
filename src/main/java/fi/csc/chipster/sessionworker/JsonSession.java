@@ -25,6 +25,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -40,11 +41,12 @@ public class JsonSession {
 
 	// let's try to keep this in line with the session-db flyway migration versions
 	// implement equivalent migrations in migrate() for old session files
-	private static final String DIR_FILE_FORMAT_LATEST = FILE_FORMAT_PREFIX_B + "6";
+	private static final String DIR_FILE_FORMAT_LATEST = FILE_FORMAT_PREFIX_B + "7";
 
 	private static final String SESSION_JSON = "session.json";
 	private static final String DATASETS_JSON = "datasets.json";
 	private static final String JOBS_JSON = "jobs.json";
+	private static final String LABELS_JSON = "labels.json";
 
 	protected static final List<String> compressedExtensions = Arrays
 			.asList(new String[] { ".gz", ".zip", ".bam", ".Robj" });
@@ -59,6 +61,7 @@ public class JsonSession {
 		String jsonSession = null;
 		Map<UUID, Dataset> datasetMap = null;
 		String jsonJobs = null;
+		String jsonLabels = null;
 		Integer version = null;
 
 		// read zip stream from the file-broker, upload extracted files back to
@@ -112,6 +115,10 @@ public class JsonSession {
 					jsonJobs = RestUtils.toString(zipInputStream);
 					zipInputStream.closeEntry();
 
+				} else if (entryName.equals(LABELS_JSON)) {
+					jsonLabels = RestUtils.toString(zipInputStream);
+					zipInputStream.closeEntry();
+
 				} else {
 					// Create only dummy datasets now and update them with real dataset data later.
 					// This way we don't make assumptions about the entry order.
@@ -153,7 +160,7 @@ public class JsonSession {
 			}
 		}
 
-		return migrate(version, jsonSession, datasetMap, jsonJobs);
+		return migrate(version, jsonSession, datasetMap, jsonJobs, jsonLabels);
 	}
 
 	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId, long zipSize)
@@ -220,10 +227,11 @@ public class JsonSession {
 
 	@SuppressWarnings("unchecked")
 	private static ExtractedSession migrate(Integer version, String jsonSession, Map<UUID, Dataset> datasetMap,
-			String jsonJobs) {
+			String jsonJobs, String jsonLabels) {
 
 		Session session;
 		List<Job> jobs;
+		List<Label> labels;
 
 		ArrayList<String> warnings = new ArrayList<>();
 		ArrayList<String> errors = new ArrayList<>();
@@ -232,6 +240,8 @@ public class JsonSession {
 		// versions
 		session = RestUtils.parseJson(Session.class, jsonSession);
 		jobs = RestUtils.parseJson(List.class, Job.class, jsonJobs);
+		// LABELS_JSON only exists in V7+
+		labels = jsonLabels != null ? RestUtils.parseJson(List.class, Label.class, jsonLabels) : new ArrayList<>();
 
 		if (version < 5) {
 			// since V5 dataset.metadataFiles has been an empty array instead of null
@@ -254,8 +264,9 @@ public class JsonSession {
 		}
 
 		Map<UUID, Job> jobMap = jobs.stream().collect(Collectors.toMap(j -> j.getJobId(), j -> j));
+		Map<UUID, Label> labelMap = labels.stream().collect(Collectors.toMap(Label::getLabelId, l -> l));
 
-		return new ExtractedSession(session, datasetMap, jobMap, warnings, errors);
+		return new ExtractedSession(session, datasetMap, jobMap, labelMap, warnings, errors);
 	}
 
 	private static boolean isCompatible(String entryName) {
@@ -297,6 +308,7 @@ public class JsonSession {
 
 		Collection<Dataset> datasets = sessionDb.getDatasets(sessionId).values();
 		Collection<Job> jobs = sessionDb.getJobs(sessionId).values();
+		Collection<Label> labels = sessionDb.getLabels(sessionId).values();
 
 		// we can't know if a username would refer to same person on the server where
 		// this session will be opened
@@ -343,6 +355,7 @@ public class JsonSession {
 		String sessionJson = RestUtils.asJson(session, true);
 		String datasetsJson = RestUtils.asJson(datasets, true);
 		String jobsJson = RestUtils.asJson(jobs, true);
+		String labelsJson = RestUtils.asJson(labels, true);
 
 		String sessionName = session.getName();
 
@@ -366,6 +379,7 @@ public class JsonSession {
 		entries.add(
 				new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + DATASETS_JSON, datasetsJson));
 		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + JOBS_JSON, jobsJson));
+		entries.add(new InputStreamEntry(sessionName + "/" + DIR_FILE_FORMAT_LATEST + "/" + LABELS_JSON, labelsJson));
 
 		for (Dataset dataset : datasets) {
 			entries.add(new InputStreamEntry(

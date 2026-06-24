@@ -137,6 +137,8 @@ public class SessionDatasetResource {
 
 	private List<UUID> postList(List<Dataset> datasets, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 		for (Dataset dataset : datasets) {
+			validateLabelIds(dataset);
+
 			// client's are allowed to set the datasetId to preserve the object references
 			// within the session
 			UUID datasetId = dataset.getDatasetId();
@@ -204,6 +206,8 @@ public class SessionDatasetResource {
 		HashMap<UUID, Dataset> dbDatasets = new HashMap<>();
 
 		for (Dataset requestDataset : requestDatasets) {
+			validateLabelIds(requestDataset);
+
 			UUID datasetId = requestDataset.getDatasetId();
 			Dataset dbDataset = SessionDbApi.getDataset(sessionId, datasetId, getHibernate().session());
 
@@ -284,6 +288,14 @@ public class SessionDatasetResource {
 	public static GenericEntity<Collection<Dataset>> toJaxbList(Collection<Dataset> result) {
 		return new GenericEntity<Collection<Dataset>>(result) {
 		};
+	}
+
+	private static void validateLabelIds(Dataset dataset) {
+		List<UUID> labelIds = dataset.getLabelIds();
+		if (labelIds != null && labelIds.size() > Dataset.MAX_LABEL_IDS) {
+			throw new BadRequestException(
+					"dataset has more than " + Dataset.MAX_LABEL_IDS + " labels");
+		}
 	}
 
 	private HibernateUtil getHibernate() {

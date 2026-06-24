@@ -43,6 +43,7 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionState;
@@ -370,6 +371,12 @@ public class ZipSessionServlet extends HttpServlet {
 			errors.add("session extraction failed: " + e.getMessage());
 			logger.warn("session extraction failed", e);
 
+		} catch (BadRequestException e) {
+			// the message explains what was wrong with the request, e.g. unrecognized
+			// file format or too many labels
+			errors.add("session extraction failed: " + e.getMessage());
+			logger.warn("session extraction failed", e);
+
 		} catch (Exception e) {
 			if (ExceptionUtils.getRootCause(e) instanceof ZipException) {
 				errors.add("session extraction failed: " + e.getMessage());
@@ -432,11 +439,23 @@ public class ZipSessionServlet extends HttpServlet {
 		Session session = extractedSession.getSession();
 		Collection<Dataset> datasets = extractedSession.getDatasetMap().values();
 		Collection<Job> jobs = extractedSession.getJobMap().values();
+		Collection<Label> labels = extractedSession.getLabelMap().values();
 
 		Set<UUID> datasetIds = datasets.stream().map(d -> d.getDatasetId()).collect(Collectors.toSet());
 		Set<UUID> jobIds = jobs.stream().map(j -> j.getJobId()).collect(Collectors.toSet());
+		Set<UUID> labelIds = labels.stream().map(Label::getLabelId).collect(Collectors.toSet());
 
 		ArrayList<String> warnings = new ArrayList<String>();
+
+		// pre-flight before any DB writes: fail the whole import if existing + new
+		// labels would exceed the per-session cap (LABELS_JSON exists only in V7+;
+		// older versions yield an empty map)
+		int existingLabelCount = sessionDb.getLabels(sessionId).size();
+		if (existingLabelCount + labels.size() > Label.MAX_LABELS_PER_SESSION) {
+			throw new BadRequestException("importing " + labels.size() + " labels into a session with "
+					+ existingLabelCount + " existing labels would exceed the maximum of "
+					+ Label.MAX_LABELS_PER_SESSION + " per session");
+		}
 
 		// check input references
 		for (Job job : jobs) {
@@ -459,11 +478,30 @@ public class ZipSessionServlet extends HttpServlet {
 
 		sessionDb.createJobs(sessionId, new ArrayList<Job>(jobs));
 
+		// create labels (cap pre-flighted above)
+		for (Label label : labels) {
+			label.setLabelIdPair(sessionId, label.getLabelId());
+		}
+		sessionDb.createLabels(sessionId, new ArrayList<Label>(labels));
+
 		// check source job references
 		for (Dataset dataset : datasets) {
 			UUID sourceJobId = dataset.getSourceJob();
 			if (sourceJobId != null && !jobIds.contains(sourceJobId)) {
 				warnings.add("source job of dataset " + dataset.getName() + " missing");
+			}
+		}
+
+		// drop dangling labelId references so the imported session is internally consistent
+		for (Dataset dataset : datasets) {
+			List<UUID> ids = dataset.getLabelIds();
+			if (ids != null && !ids.isEmpty()) {
+				List<UUID> kept = ids.stream().filter(labelIds::contains).collect(Collectors.toList());
+				if (kept.size() != ids.size()) {
+					warnings.add("dropped " + (ids.size() - kept.size()) + " missing label(s) from dataset "
+							+ dataset.getName());
+					dataset.setLabelIds(kept);
+				}
 			}
 		}
 

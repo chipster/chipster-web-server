@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class ExtractedSession {
@@ -13,14 +14,16 @@ public class ExtractedSession {
 	private Session session;
 	private Map<UUID, Dataset> datasetMap;
 	private Map<UUID, Job> jobMap;
+	private Map<UUID, Label> labelMap;
 	private ArrayList<String> warnings;
 	private ArrayList<String> errors;
 
 	public ExtractedSession(Session session, Map<UUID, Dataset> datasetMap, Map<UUID, Job> jobMap,
-			ArrayList<String> warnings, ArrayList<String> errors) {
+			Map<UUID, Label> labelMap, ArrayList<String> warnings, ArrayList<String> errors) {
 		this.setSession(session);
 		this.datasetMap = datasetMap;
 		this.jobMap = jobMap;
+		this.labelMap = labelMap;
 		this.setWarnings(warnings);
 		this.setErrors(errors);
 	}
@@ -43,6 +46,14 @@ public class ExtractedSession {
 
 	public void setJobMap(Map<UUID, Job> jobMap) {
 		this.jobMap = jobMap;
+	}
+
+	public Map<UUID, Label> getLabelMap() {
+		return labelMap;
+	}
+
+	public void setLabelMap(Map<UUID, Label> labelMap) {
+		this.labelMap = labelMap;
 	}
 
 	public ArrayList<String> getWarnings() {

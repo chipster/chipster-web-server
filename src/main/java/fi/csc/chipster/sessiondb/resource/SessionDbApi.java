@@ -24,6 +24,8 @@ import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.JobIdPair;
+import fi.csc.chipster.sessiondb.model.Label;
+import fi.csc.chipster.sessiondb.model.LabelIdPair;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent;
@@ -203,6 +205,17 @@ public class SessionDbApi {
 			// argument "deleteSessionIfLastRule" is set to false, because it would call
 			// this method again
 			deleteRule(session, rule, hibernate.session(), false);
+		}
+
+		// Labels have no JPA relationship or database cascade to the session, so
+		// they must be deleted explicitly or they would be orphaned. The datasets
+		// that referenced these labels are already deleted above, so there is no
+		// need to scrub labelIds from datasets the way deleteLabel() does.
+		for (Label label : getLabels(hibernate.session(), sessionId)) {
+			HibernateUtil.delete(label, label.getLabelIdPair(), hibernate.session());
+			publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+					new SessionEvent(sessionId, ResourceType.LABEL, label.getLabelId(), EventType.DELETE),
+					hibernate.session());
 		}
 
 		HibernateUtil.delete(session, session.getSessionId(), hibernate.session());
@@ -551,5 +564,68 @@ public class SessionDbApi {
 
 		// delete from db
 		HibernateUtil.delete(file, file.getFileId(), hibernate.session());
+	}
+
+	public static Label getLabel(UUID sessionId, UUID labelId, org.hibernate.Session hibernateSession) {
+		return hibernateSession.find(Label.class, new LabelIdPair(sessionId, labelId));
+	}
+
+	public static List<Label> getLabels(org.hibernate.Session hibernateSession, UUID sessionId) {
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Label> c = cb.createQuery(Label.class);
+		Root<Label> r = c.from(Label.class);
+		c.select(r);
+		c.where(cb.equal(r.get("labelIdPair").get("sessionId"), sessionId));
+		return hibernateSession.createQuery(c).getResultList();
+	}
+
+	public static long getLabelCount(org.hibernate.Session hibernateSession, UUID sessionId) {
+		CriteriaBuilder cb = hibernateSession.getCriteriaBuilder();
+		CriteriaQuery<Long> c = cb.createQuery(Long.class);
+		Root<Label> r = c.from(Label.class);
+		c.select(cb.count(r));
+		c.where(cb.equal(r.get("labelIdPair").get("sessionId"), sessionId));
+		return hibernateSession.createQuery(c).getSingleResult();
+	}
+
+	public void createLabel(Label label, UUID sessionId, org.hibernate.Session hibernateSession) {
+		HibernateUtil.persist(label, hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+				new SessionEvent(sessionId, ResourceType.LABEL, label.getLabelId(), EventType.CREATE),
+				hibernateSession);
+	}
+
+	public void updateLabel(Label label, UUID sessionId, org.hibernate.Session hibernateSession) {
+		HibernateUtil.update(label, label.getLabelIdPair(), hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+				new SessionEvent(sessionId, ResourceType.LABEL, label.getLabelId(), EventType.UPDATE),
+				hibernateSession);
+	}
+
+	public void deleteLabel(Label label, UUID sessionId, Session session, org.hibernate.Session hibernateSession) {
+		UUID labelId = label.getLabelId();
+
+		// scrub the labelId from every dataset in this session that references it
+		for (Dataset dataset : SessionDbApi.getDatasets(hibernateSession, session)) {
+			List<UUID> labelIds = dataset.getLabelIds();
+			if (labelIds != null && labelIds.contains(labelId)) {
+				// Detach so HibernateUtil.update's session.merge does a real
+				// state copy. Otherwise the @JdbcTypeCode(JSON) list change on a
+				// managed entity isn't picked up by dirty-check.
+				List<UUID> updated = new ArrayList<>(labelIds);
+				updated.remove(labelId);
+				hibernateSession.detach(dataset);
+				dataset.setLabelIds(updated);
+				HibernateUtil.update(dataset, dataset.getDatasetIdPair(), hibernateSession);
+				publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+						new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.UPDATE),
+						hibernateSession);
+			}
+		}
+
+		HibernateUtil.delete(label, label.getLabelIdPair(), hibernateSession);
+		publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+				new SessionEvent(sessionId, ResourceType.LABEL, labelId, EventType.DELETE),
+				hibernateSession);
 	}
 }

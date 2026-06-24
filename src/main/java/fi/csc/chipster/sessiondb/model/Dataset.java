@@ -27,6 +27,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 		@Index(columnList = "sessionId", name = "dataset_sessionid_index"), })
 public class Dataset {
 
+	public static final int MAX_LABEL_IDS = 100;
+
 	@EmbeddedId // db
 	@JsonUnwrapped
 	private DatasetIdPair datasetIdPair;
@@ -37,6 +39,10 @@ public class Dataset {
 	@Column
 	@JdbcTypeCode(SqlTypes.JSON)
 	private List<MetadataFile> metadataFiles = new ArrayList<>();
+
+	@Column
+	@JdbcTypeCode(SqlTypes.JSON)
+	private List<UUID> labelIds = new ArrayList<>();
 
 	private Integer x;
 	private Integer y;
@@ -145,6 +151,14 @@ public class Dataset {
 
 	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
 		this.metadataFiles = metadataFiles;
+	}
+
+	public List<UUID> getLabelIds() {
+		return labelIds;
+	}
+
+	public void setLabelIds(List<UUID> labelIds) {
+		this.labelIds = labelIds;
 	}
 
 }
