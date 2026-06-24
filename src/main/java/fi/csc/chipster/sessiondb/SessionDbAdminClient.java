@@ -1,14 +1,21 @@
 package fi.csc.chipster.sessiondb;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.rest.AdminResource;
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestMethods;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
@@ -86,6 +93,17 @@ public class SessionDbAdminClient {
 
 	private WebTarget getUsersQuotasTarget(String... userId) {
 		return getUsersQuotasTarget().queryParam("userId", (Object[]) userId);
+	}
+
+	// status (per-entity row counts etc.)
+	public Map<String, Object> getStatus() throws RestException {
+		String json = RestMethods.getJson(getSessionDbAdminTarget().path(AdminResource.PATH_STATUS));
+		try {
+			return new ObjectMapper().readValue(json, new TypeReference<HashMap<String, Object>>() {
+			});
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("failed to parse admin status response", e);
+		}
 	}
 
 	// quotas for user

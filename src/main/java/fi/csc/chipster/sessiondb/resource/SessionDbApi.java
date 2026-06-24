@@ -207,6 +207,17 @@ public class SessionDbApi {
 			deleteRule(session, rule, hibernate.session(), false);
 		}
 
+		// Labels have no JPA relationship or database cascade to the session, so
+		// they must be deleted explicitly or they would be orphaned. The datasets
+		// that referenced these labels are already deleted above, so there is no
+		// need to scrub labelIds from datasets the way deleteLabel() does.
+		for (Label label : getLabels(hibernate.session(), sessionId)) {
+			HibernateUtil.delete(label, label.getLabelIdPair(), hibernate.session());
+			publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+					new SessionEvent(sessionId, ResourceType.LABEL, label.getLabelId(), EventType.DELETE),
+					hibernate.session());
+		}
+
 		HibernateUtil.delete(session, session.getSessionId(), hibernate.session());
 
 		SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,

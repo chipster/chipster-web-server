@@ -27,6 +27,7 @@ public class SessionLabelResourceTest {
 	private static SessionDbClient user1Client;
 	private static SessionDbClient user2Client;
 	private static SessionDbClient noAuthClient;
+	private static SessionDbAdminClient adminClient;
 	private static UUID sessionId1;
 	private static UUID sessionId2;
 
@@ -41,6 +42,7 @@ public class SessionLabelResourceTest {
 		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 		noAuthClient = new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
+		adminClient = new SessionDbAdminClient(launcher.getServiceLocatorForAdmin(), launcher.getAdminToken());
 
 		sessionId1 = createUser1Session();
 		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
@@ -283,6 +285,27 @@ public class SessionLabelResourceTest {
 
 		// gone
 		testGetLabel(404, sessionId1, id, user1Client);
+	}
+
+	@Test
+	public void deleteSessionDeletesLabels() throws Exception {
+		// labels have no JPA relationship or DB cascade to the session, so
+		// deleteSession() must remove them explicitly or they would be orphaned
+		long before = labelCount();
+
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
+		user1Client.createLabel(sessionId, RestUtils.getRandomLabel());
+		assertEquals(before + 2, labelCount());
+
+		user1Client.deleteSession(sessionId);
+
+		// the session's labels must be gone, not left behind as orphan rows
+		assertEquals(before, labelCount());
+	}
+
+	private static long labelCount() throws RestException {
+		return ((Number) adminClient.getStatus().get("labelCount")).longValue();
 	}
 
 	@Test
