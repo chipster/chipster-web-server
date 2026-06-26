@@ -126,15 +126,33 @@ public class ZipSessionServlet extends HttpServlet {
 		try {
 			Session session = sessionDb.getSession(sessionId);
 
-			JsonSession.packageSession(sessionDb, fileBroker, session, sessionId, entries);
-
+			/*
+			 * Start keep-alive before fetching datasets/jobs/labels from session-db.
+			 * With large sessions (2k+ files) the JSON response from session-db can take
+			 * more than 30 seconds, which triggers the OpenShift router's idle timeout
+			 * before we ever start writing the actual response.
+			 */
 			response.setStatus(HttpServletResponse.SC_OK);
+			response.setContentType(MediaType.APPLICATION_JSON);
 
 			ArrayList<String> errors = new ArrayList<>();
 
+			CountDownLatch latch = new CountDownLatch(1);
+
+			OutputStream respoonseOutput = response.getOutputStream();
+
+			keepAliveWithSpaces(respoonseOutput, latch);
+
+			try {
+				JsonSession.packageSession(sessionDb, fileBroker, session, sessionId, entries);
+			} catch (RestException e) {
+				errors.add("failed to prepare session: " + e.getMessage());
+				logger.error("failed to prepare session", e);
+			}
+
 			/*
 			 * File-broker will delete the file after it's downloaded once.
-			 * 
+			 *
 			 * File-broker could just react on the TEMPORARY_ZIP_EXPORT, but architecturally
 			 * it's cleaner if only session-worker depends on file-broker and not the other
 			 * way round. Maybe this could be useful somewhere else too.
@@ -152,36 +170,40 @@ public class ZipSessionServlet extends HttpServlet {
 			Dataset zipDataset = new Dataset();
 			zipDataset.setName(session.getName() + ".zip");
 			zipDataset.setMetadataFiles(List.of(tempZipMF, delAfterMF));
-			UUID datasetId = sessionDb.createDataset(sessionId, zipDataset);
+			UUID datasetId = null;
+			if (errors.isEmpty()) {
+				try {
+					datasetId = sessionDb.createDataset(sessionId, zipDataset);
+				} catch (RestException e) {
+					errors.add("failed to create zip dataset: " + e.getMessage());
+					logger.error("failed to create zip dataset", e);
+				}
+			}
 
 			OutputStream output2 = new PipedOutputStream();
 			PipedInputStream in = new PipedInputStream((PipedOutputStream) output2);
 
-			CountDownLatch latch = new CountDownLatch(1);
+			if (errors.isEmpty()) {
+				// start creating the zip stream in background thread (may complete before all
+				// data is uploaded)
+				executor.submit(() -> {
+					try {
+						streamZip(entries, output2);
+					} catch (IOException e) {
+						logger.error("failed to package zip session", e);
+						errors.add("failed to package zip session: " + e.getMessage());
+					}
+				});
 
-			OutputStream respoonseOutput = response.getOutputStream();
-
-			keepAliveWithSpaces(respoonseOutput, latch);
-
-			// start creating the zip stream in background thread (may complete before all
-			// data is uploaded)
-			executor.submit(() -> {
+				// upload in the zip stream in this thread, so that we send response to this
+				// servlet request only after the upload has really completed
 				try {
-					streamZip(entries, output2);
-				} catch (IOException e) {
-					logger.error("failed to package zip session", e);
+					fileBroker.upload(sessionId, datasetId, in, null, true);
+
+				} catch (RestException e) {
+					logger.error("upload failed", e);
 					errors.add("failed to package zip session: " + e.getMessage());
 				}
-			});
-
-			// upload in the zip stream in this thread, so that we send response to this
-			// servlet request only after the upload has really completed
-			try {
-				fileBroker.upload(sessionId, datasetId, in, null, true);
-
-			} catch (RestException e) {
-				logger.error("upload failed", e);
-				errors.add("failed to package zip session: " + e.getMessage());
 			}
 
 			String datasetIdString = null;
@@ -189,7 +211,7 @@ public class ZipSessionServlet extends HttpServlet {
 			if (errors.isEmpty()) {
 				// only return datasetId after success
 				datasetIdString = datasetId.toString();
-			} else {
+			} else if (datasetId != null) {
 				// something went wrong, delete the zip dataset
 				logger.info("something went wrong, delete the incomplete zip dataset");
 				try {
@@ -198,8 +220,6 @@ public class ZipSessionServlet extends HttpServlet {
 					logger.error("unable to clean up: " + e1);
 				}
 			}
-
-			response.setContentType(MediaType.APPLICATION_JSON);
 
 			HashMap<String, Object> json = new HashMap<>();
 			json.put("datasetId", datasetIdString);
