@@ -36,7 +36,7 @@ All dependencies are pre-installed in the Dockerfile. Do not install things ad-h
 - Java 25 (Amazon Corretto) — for ServerLauncher/Gradle
 - Node.js 24 + npm — for Angular
 - TypeScript + @angular/cli (global) — for Angular dev server
-- PostgreSQL 14 — database
+- PostgreSQL 17 — database
 
 ### Starting PostgreSQL
 
@@ -44,13 +44,13 @@ Must run as `claudeuser` using a custom data directory (the system cluster is ow
 
 If `/home/claudeuser/pgdata` doesn't exist (fresh environment), initialize first:
 ```
-/usr/lib/postgresql/14/bin/initdb -D /home/claudeuser/pgdata
+/usr/lib/postgresql/17/bin/initdb -D /home/claudeuser/pgdata
 ```
 (`initdb` is not on PATH — use the full path.)
 
 Then start:
 ```
-/usr/lib/postgresql/14/bin/postgres -D /home/claudeuser/pgdata -k /home/claudeuser/pgdata -p 5432 2>/home/claudeuser/pgdata/postgres.log &
+/usr/lib/postgresql/17/bin/postgres -D /home/claudeuser/pgdata -k /home/claudeuser/pgdata -p 5432 2>/home/claudeuser/pgdata/postgres.log &
 ```
 
 - Socket: `/home/claudeuser/pgdata` (avoids permission issues with `/var/run/postgresql/`)
