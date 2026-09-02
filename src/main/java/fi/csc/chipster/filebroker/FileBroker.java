@@ -143,6 +143,7 @@ public class FileBroker implements ServerComponent {
 		try {
 			httpServer.stop();
 			authService.close();
+			storageDiscovery.close();
 		} catch (Exception e) {
 			logger.warn("failed to stop the file-broker", e);
 		}
