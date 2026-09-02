@@ -145,4 +145,53 @@ public class WebSocketClientTest {
 
 		Thread.sleep(10);
 	}
+
+	@Test
+	public void reconnectDoesNotLeakThreads() throws ServletException, DeploymentException, InterruptedException,
+			WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
+
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(),
+				"leak-test-server");
+		server.start();
+
+		WebSocketClient client = new WebSocketClient(uri, new TestMessageHandler(), true, "leak-test-client",
+				new StaticCredentials("user", "password"));
+
+		int before = countHttpClientThreads();
+
+		int reconnects = 5;
+		for (int i = 0; i < reconnects; i++) {
+			server.stop();
+			server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(), "leak-test-server");
+			server.start();
+
+			// it takes a while for the client to notice the disconnection
+			Thread.sleep(2000);
+			client.waitForConnection();
+		}
+
+		int after = countHttpClientThreads();
+
+		client.shutdown();
+		server.stop();
+
+		/*
+		 * A single connection needs roughly a dozen threads (HttpClient's own
+		 * thread pool, its scheduler and the websocket executor). If each
+		 * reconnect built its own HttpClient instead of reusing one, this
+		 * would grow by roughly that much on every single reconnect.
+		 */
+		int allowedGrowth = 20;
+		int actualGrowth = after - before;
+		Assertions.assertTrue(actualGrowth < allowedGrowth,
+				"HttpClient/WebSocket thread count grew by " + actualGrowth + " after " + reconnects
+						+ " reconnects (before=" + before + ", after=" + after
+						+ ") - looks like each reconnect is leaking its own HttpClient instead of reusing one");
+	}
+
+	private int countHttpClientThreads() {
+		return (int) Thread.getAllStackTraces().keySet().stream()
+				.filter(t -> t.getName().startsWith("HttpClient@") || t.getName().startsWith("WebSocket@"))
+				.count();
+	}
 }

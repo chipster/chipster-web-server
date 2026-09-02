@@ -9,12 +9,13 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.ee10.websocket.jakarta.client.JakartaWebSocketClientContainerProvider;
 
 import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.websocket.WebSocketClientEndpoint.EndpointListener;
 import jakarta.websocket.ClientEndpointConfig;
 import jakarta.websocket.CloseReason;
-import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.MessageHandler.Whole;
@@ -41,6 +42,20 @@ public class WebSocketClient implements EndpointListener {
 	private Session session;
 
 	private boolean close;
+
+	/*
+	 * Shared across reconnects of this client, so that a reconnect doesn't
+	 * have to spin up a brand new HttpClient (own thread pool, scheduler, etc.)
+	 * every time. Only stopped when this client is shut down for good.
+	 */
+	private HttpClient httpClient;
+	private WebSocketContainer container;
+
+	/*
+	 * Guards the fields above from a stale/duplicate onClose() call for a
+	 * session that a previous reconnect has already replaced.
+	 */
+	private final Object reconnectLock = new Object();
 
 	public WebSocketClient(final String uri, final Whole<String> messageHandler, boolean retry, final String name,
 			CredentialsProvider credentials)
@@ -69,7 +84,20 @@ public class WebSocketClient implements EndpointListener {
 
 	private void connect() throws WebSocketErrorException, InterruptedException, WebSocketClosedException {
 
-		WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+		// stop the previous connection's container wrapper, but keep the
+		// underlying HttpClient (and its thread pool) running and reuse it
+		stopContainer();
+
+		if (httpClient == null || !httpClient.isRunning()) {
+			try {
+				httpClient = new HttpClient();
+				httpClient.start();
+			} catch (Exception e) {
+				throw new WebSocketErrorException(e);
+			}
+		}
+
+		container = JakartaWebSocketClientContainerProvider.getContainer(httpClient);
 
 		/*
 		 * Disable idle timeout in the client
@@ -110,6 +138,17 @@ public class WebSocketClient implements EndpointListener {
 		endpoint.waitForConnection();
 	}
 
+	private void stopContainer() {
+		if (container != null) {
+			try {
+				JakartaWebSocketClientContainerProvider.stop(container);
+			} catch (Exception e) {
+				logger.warn("failed to stop the websocket container of " + name, e);
+			}
+			container = null;
+		}
+	}
+
 	/*
 	 * For reconnection tests
 	 */
@@ -143,6 +182,15 @@ public class WebSocketClient implements EndpointListener {
 			logger.warn("failed to close the websocket client " + name, e);
 		}
 		session.close();
+
+		stopContainer();
+		if (httpClient != null) {
+			try {
+				httpClient.stop();
+			} catch (Exception e) {
+				logger.warn("failed to stop the http client of " + name, e);
+			}
+		}
 	}
 
 	public void ping() throws IOException, TimeoutException, InterruptedException {
@@ -161,13 +209,20 @@ public class WebSocketClient implements EndpointListener {
 	public void onClose(Session session, CloseReason reason) {
 		logger.info("websocket client " + name + " closed: " + reason.getReasonPhrase());
 		if (retryHandler != null) {
-			while (retryHandler.onDisconnect(reason)) {
-				try {
-					Thread.sleep(retryHandler.getDelay() * 1000);
-					this.connect();
-					break;
-				} catch (WebSocketErrorException | InterruptedException | WebSocketClosedException e) {
-					logger.error("error in reconnection", e);
+			synchronized (reconnectLock) {
+				// guard against a stale/duplicate onClose() for a session that
+				// a previous reconnect has already replaced
+				if (session != this.session) {
+					return;
+				}
+				while (retryHandler.onDisconnect(reason)) {
+					try {
+						Thread.sleep(retryHandler.getDelay() * 1000);
+						this.connect();
+						break;
+					} catch (WebSocketErrorException | InterruptedException | WebSocketClosedException e) {
+						logger.error("error in reconnection", e);
+					}
 				}
 			}
 		}
@@ -182,19 +237,12 @@ public class WebSocketClient implements EndpointListener {
 		} else {
 			logger.warn("websocket client " + name + " error: " + thr.getMessage(), thr);
 		}
-		if (retryHandler != null) {
-			while (retryHandler.onConnectFailure((Exception) thr)) {
-				try {
-					Thread.sleep(retryHandler.getDelay() * 1000);
-					// check if this was closed during the sleep
-					if (!this.close) {
-						this.connect();
-					}
-					break;
-				} catch (WebSocketErrorException | InterruptedException | WebSocketClosedException e) {
-					logger.error("error in reconnection", e);
-				}
-			}
-		}
+
+		/*
+		 * Don't reconnect here. If this error is fatal to the connection, the
+		 * container also calls onClose() for the same session right after this,
+		 * which is where reconnection is handled. If the connection is still
+		 * healthy (e.g. a message handler threw), there is nothing to reconnect.
+		 */
 	}
 }
