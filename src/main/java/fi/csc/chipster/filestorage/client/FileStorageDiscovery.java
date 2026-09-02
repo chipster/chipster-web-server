@@ -280,4 +280,8 @@ public class FileStorageDiscovery {
 			return storages;
 		}
 	}
+
+	public void close() {
+		updateExecutor.shutdown();
+	}
 }

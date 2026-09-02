@@ -117,6 +117,7 @@ public class OidcResourceTest {
 
 	@AfterAll
 	public static void tearDown() throws Exception {
+		hibernate.getSessionFactory().close();
 		launcher.stop();
 	}
 
