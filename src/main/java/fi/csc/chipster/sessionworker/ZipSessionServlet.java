@@ -112,6 +112,11 @@ public class ZipSessionServlet extends HttpServlet {
 		this.executor = Executors.newCachedThreadPool();
 	}
 
+	@Override
+	public void destroy() {
+		executor.shutdown();
+	}
+
 	private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId)
 			throws IOException {
 
