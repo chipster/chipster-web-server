@@ -19,21 +19,30 @@ import jakarta.websocket.Session;
 public class WebSocketClientEndpoint extends Endpoint {
 
 	public static interface EndpointListener {
-		public void onOpen(Session session, EndpointConfig config);
+		// `source` identifies which connect attempt's endpoint this callback
+		// belongs to. Unlike `session`, it's never null (even for a
+		// pre-Session upgrade failure), so it's the reliable way to tell a
+		// callback for a superseded attempt apart from one for the current
+		// connection.
+		public void onOpen(WebSocketClientEndpoint source, Session session, EndpointConfig config);
 
-		public void onClose(Session session, CloseReason reason);
+		public void onClose(WebSocketClientEndpoint source, Session session, CloseReason reason);
 
-		public void onError(Session session, Throwable thr);
+		public void onError(WebSocketClientEndpoint source, Session session, Throwable thr);
 	}
 
 	private static final Logger logger = LogManager.getLogger();
 
 	private MessageHandler messageHandler;
-	private CountDownLatch disconnectLatch;
+	// initialized eagerly (not just in onOpen()) so waitForDisconnect() can't
+	// NPE if called before the handshake completes
+	private CountDownLatch disconnectLatch = new CountDownLatch(1);
 	private CountDownLatch connectLatch = new CountDownLatch(1);
 	private CloseReason closeReason;
 	private Throwable throwable;
-	private Session session;
+	// written in onOpen() on a container thread, read from close()/sendText()/
+	// ping() on other threads
+	private volatile Session session;
 	private EndpointListener endpointListener;
 
 	public WebSocketClientEndpoint(MessageHandler.Whole<String> messageHandler, EndpointListener endpointListener) {
@@ -51,8 +60,6 @@ public class WebSocketClientEndpoint extends Endpoint {
 		if (messageHandler != null) {
 			session.addMessageHandler(messageHandler);
 		}
-
-		disconnectLatch = new CountDownLatch(1);
 
 		/*
 		 * Wait for connection or error
@@ -92,10 +99,16 @@ public class WebSocketClientEndpoint extends Endpoint {
 					ping();
 					connectLatch.countDown();
 
-					endpointListener.onOpen(session, config);
+					endpointListener.onOpen(WebSocketClientEndpoint.this, session, config);
 
 				} catch (IllegalArgumentException | IOException | TimeoutException | InterruptedException e) {
 					logger.warn("WebSocket client error", e);
+					// the ping failed, so connectLatch was never counted down
+					// above: without this, waitForConnection() would block
+					// forever instead of surfacing this as a connect failure
+					throwable = e;
+					connectLatch.countDown();
+					disconnectLatch.countDown();
 				}
 			}
 
@@ -111,7 +124,7 @@ public class WebSocketClientEndpoint extends Endpoint {
 		connectLatch.countDown();
 		disconnectLatch.countDown();
 
-		this.endpointListener.onClose(session, reason);
+		this.endpointListener.onClose(this, session, reason);
 	}
 
 	@Override
@@ -123,11 +136,18 @@ public class WebSocketClientEndpoint extends Endpoint {
 		connectLatch.countDown();
 		disconnectLatch.countDown();
 
-		this.endpointListener.onError(session, thr);
+		this.endpointListener.onError(this, session, thr);
 	}
 
-	public void close() throws IOException {
+	// returns false if there was no open session to close, e.g. because the
+	// handshake for this endpoint is still in progress; the caller shouldn't
+	// then expect a disconnect to wait for
+	public boolean close() throws IOException {
+		if (session == null) {
+			return false;
+		}
 		session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "client closing"));
+		return true;
 	}
 
 	public boolean waitForDisconnect(long timeout) throws InterruptedException {
@@ -151,11 +171,19 @@ public class WebSocketClientEndpoint extends Endpoint {
 	}
 
 	public void sendText(String text) throws IOException {
+		// session is only set once onOpen() has run; still null if this
+		// endpoint's handshake is still in progress
+		if (session == null) {
+			throw new IOException("not connected");
+		}
 		session.getBasicRemote().sendText(text);
 	}
 
 	public void ping() throws IllegalArgumentException, IOException, TimeoutException, InterruptedException {
 		logger.debug("WebSocket client sends ping");
+		if (session == null) {
+			throw new IOException("not connected");
+		}
 		PongHandler pongHandler = new PongHandler();
 		session.addMessageHandler(pongHandler);
 		session.getBasicRemote().sendPing(null);

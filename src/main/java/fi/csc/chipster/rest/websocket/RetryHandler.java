@@ -2,7 +2,6 @@ package fi.csc.chipster.rest.websocket;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.flywaydb.core.internal.util.ExceptionUtils;
 
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.CloseReason.CloseCodes;
@@ -54,37 +53,6 @@ public class RetryHandler {
 		counter++;
 		if (retries < 0 || counter <= retries) {
 			logger.info("reconnecting " + name + "... (" + counter + "/" + retries + ")");
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	public boolean onConnectFailure(Exception exception) {
-
-		if (this.close) {
-			logger.debug("websocket client " + name + " closed");
-			return false;
-		}
-		logger.info("websocket client " + name + " connection failure", exception);
-
-		// how to check HTTP upgrade request errors?
-		// if (exception instanceof DeploymentException && exception.getCause()
-		// instanceof HandshakeException) {
-		// logger.error("unrecoverable connection failure, reconnection cancelled");
-		// return false;
-		// }
-
-		// VIOLATE_POLICY from onDisconnect(). Should we check the close reason also
-		// here?
-		if (ExceptionUtils.getRootCause(exception) instanceof WebSocketClosedException) {
-			logger.error("unrecoverable websocket close, reconnection cancelled");
-			return false;
-		}
-
-		counter++;
-		if (retries < 0 || counter <= retries) {
-			logger.info("reconnecting... (" + counter + "/" + retries + ")");
 			return true;
 		} else {
 			return false;
