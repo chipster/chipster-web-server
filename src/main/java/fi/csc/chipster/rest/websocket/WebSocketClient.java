@@ -227,7 +227,10 @@ public class WebSocketClient implements EndpointListener {
 		// consider the reconnect actually done - not right after the socket
 		// handshake above - so a disconnect during this window is still
 		// correctly seen as belonging to an in-flight attempt (phase still
-		// CONNECTING), instead of racing a second, duplicate reconnect.
+		// CONNECTING), instead of racing a second, duplicate reconnect. The
+		// flip side is that reconnect() ignores such a disconnect entirely,
+		// so this attempt has to check for one itself before committing
+		// CONNECTED below.
 		try {
 			currentEndpoint.waitForConnection();
 		} catch (WebSocketErrorException | WebSocketClosedException | InterruptedException e) {
@@ -252,6 +255,18 @@ public class WebSocketClient implements EndpointListener {
 				// shutdown() ran during ping validation; finish its cleanup
 				closeResources();
 				return;
+			}
+			try {
+				// the connection may have closed between the pong and here.
+				// Its onClose()/onError() has then already run and been
+				// ignored by reconnect() (phase was still CONNECTING), and
+				// won't run again - so if we committed CONNECTED now, nothing
+				// would ever reconnect this client. Fail the attempt instead,
+				// so the caller's retry loop tries again.
+				currentEndpoint.checkNotDisconnected();
+			} catch (WebSocketClosedException | WebSocketErrorException e) {
+				closeSessionAndContainer();
+				throw e;
 			}
 			phase = Phase.CONNECTED;
 			generation++;

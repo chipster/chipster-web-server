@@ -170,6 +170,30 @@ public class WebSocketClientEndpoint extends Endpoint {
 		}
 	}
 
+	/**
+	 * Non-blocking counterpart of waitForConnection(): throws if this endpoint's
+	 * connection has already ended (onClose() or onError() ran, or the ping
+	 * validation failed), no-op otherwise.
+	 *
+	 * Needed because a close can arrive right after the pong: waitForConnection()
+	 * has then already returned successfully, and the disconnect callback for it
+	 * has already been delivered, so the connect attempt would otherwise never
+	 * find out about it.
+	 *
+	 * disconnectLatch is counted down only after closeReason/throwable are set,
+	 * so a zero count also guarantees those are visible here.
+	 */
+	public void checkNotDisconnected() throws WebSocketClosedException, WebSocketErrorException {
+		if (disconnectLatch.getCount() > 0) {
+			return;
+		}
+		if (closeReason != null) {
+			throw new WebSocketClosedException(closeReason);
+		}
+		throw new WebSocketErrorException(
+				throwable != null ? throwable : new IOException("connection closed during connect"));
+	}
+
 	public void sendText(String text) throws IOException {
 		// session is only set once onOpen() has run; still null if this
 		// endpoint's handshake is still in progress
