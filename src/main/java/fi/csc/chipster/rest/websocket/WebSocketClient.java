@@ -72,7 +72,9 @@ public class WebSocketClient implements EndpointListener {
 	 * The one piece of state that deliberately survives across generations:
 	 * reused so a reconnect doesn't have to spin up a brand new HttpClient
 	 * (own thread pool, scheduler, etc.) every time. Only stopped when this
-	 * client is shut down for good. Also only touched under stateLock.
+	 * client is shut down for good. The field is only touched under
+	 * stateLock; stopping a detached one has to happen outside it, see
+	 * stopHttpClient().
 	 */
 	private HttpClient httpClient;
 
@@ -109,13 +111,15 @@ public class WebSocketClient implements EndpointListener {
 			if (retryHandler != null) {
 				retryHandler.close();
 			}
+			HttpClient toStop = null;
 			stateLock.lock();
 			try {
 				phase = Phase.CLOSED;
 				generation++;
-				closeResources();
+				toStop = closeResources();
 			} finally {
 				stateLock.unlock();
+				stopHttpClient(toStop);
 			}
 			throw e;
 		}
@@ -130,6 +134,7 @@ public class WebSocketClient implements EndpointListener {
 
 		WebSocketClientEndpoint currentEndpoint;
 		WebSocketContainer currentContainer;
+		HttpClient failedClient = null;
 
 		stateLock.lock();
 		try {
@@ -144,25 +149,35 @@ public class WebSocketClient implements EndpointListener {
 			// underlying HttpClient (and its thread pool) running and reuse it
 			stopContainer();
 
-			if (httpClient == null || !httpClient.isRunning()) {
-				// e.g. start() below failed partway through last time and
-				// left it in a FAILED state with threads already allocated;
-				// stop it before dropping the reference so those threads
-				// aren't leaked
-				stopHttpClient();
+			// non-null means running: the catch below detaches one that
+			// failed to start, and Jetty never stops an HttpClient on its own
+			if (httpClient == null) {
 				try {
 					httpClient = new HttpClient();
 					httpClient.start();
 				} catch (Exception e) {
 					// don't leave a partially-started httpClient (threads
 					// already allocated) for a future connect() to clean up -
-					// there might not be one, e.g. if retries are exhausted
-					stopHttpClient();
+					// there might not be one, e.g. if retries are exhausted.
+					// Detached here, stopped below once the lock is released
+					failedClient = detachHttpClient();
 					throw new WebSocketErrorException(e);
 				}
 			}
 
-			container = JakartaWebSocketClientContainerProvider.getContainer(httpClient);
+			try {
+				container = JakartaWebSocketClientContainerProvider.getContainer(httpClient);
+			} catch (Exception e) {
+				// getContainer() also starts the container (its own thread
+				// pool etc.) and rethrows a failure there as an unchecked
+				// exception. Left alone, that would escape both the retry
+				// loop in reconnect(), which only retries the checked
+				// exceptions, and the constructor's catch, leaking the
+				// httpClient we just started. Make it an ordinary connect
+				// failure instead
+				failedClient = detachHttpClient();
+				throw new WebSocketErrorException(e);
+			}
 			currentContainer = container;
 
 			/*
@@ -181,6 +196,7 @@ public class WebSocketClient implements EndpointListener {
 			currentEndpoint = endpoint = new WebSocketClientEndpoint(messageHandler, this);
 		} finally {
 			stateLock.unlock();
+			stopHttpClient(failedClient);
 		}
 
 		final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
@@ -208,6 +224,7 @@ public class WebSocketClient implements EndpointListener {
 			throw new WebSocketErrorException(e);
 		}
 
+		HttpClient toStop = null;
 		stateLock.lock();
 		try {
 			session = newSession;
@@ -215,11 +232,12 @@ public class WebSocketClient implements EndpointListener {
 				// shutdown() ran while we were connecting: it may have timed
 				// out waiting for this connect() and skipped cleanup, so
 				// finish that cleanup ourselves now, including this session
-				closeResources();
+				toStop = closeResources();
 				return;
 			}
 		} finally {
 			stateLock.unlock();
+			stopHttpClient(toStop);
 		}
 
 		// ping-validate outside the lock: this can take a couple of seconds
@@ -253,7 +271,7 @@ public class WebSocketClient implements EndpointListener {
 		try {
 			if (isStale(expectedGeneration)) {
 				// shutdown() ran during ping validation; finish its cleanup
-				closeResources();
+				toStop = closeResources();
 				return;
 			}
 			try {
@@ -272,6 +290,7 @@ public class WebSocketClient implements EndpointListener {
 			generation++;
 		} finally {
 			stateLock.unlock();
+			stopHttpClient(toStop);
 		}
 	}
 
@@ -292,15 +311,33 @@ public class WebSocketClient implements EndpointListener {
 		}
 	}
 
-	// caller must hold stateLock
-	private void stopHttpClient() {
-		if (httpClient != null) {
-			try {
-				httpClient.stop();
-			} catch (Exception e) {
-				logger.warn("failed to stop the http client of " + name, e);
-			}
-			httpClient = null;
+	// Takes httpClient away from this client, so no later connect() or
+	// shutdown() will touch it, and returns it for the caller to pass to
+	// stopHttpClient() once stateLock has been released. Caller must hold
+	// stateLock. Null if there was none.
+	private HttpClient detachHttpClient() {
+		HttpClient detached = httpClient;
+		httpClient = null;
+		return detached;
+	}
+
+	// Must be called WITHOUT holding stateLock. HttpClient.stop() waits (up
+	// to Jetty's 5 s stop timeout) for the threads of its pool to finish, and
+	// the reconnect loop runs on one of them - its finally block needs
+	// stateLock to exit. Stopping under the lock would make that thread wait
+	// for us while we wait for it: not a deadlock, the wait is bounded, but a
+	// 5 s stall plus a "Couldn't stop Thread" warning from Jetty on every
+	// shutdown() that lands while a reconnect is in progress. Calling this
+	// from one of the pool's own threads (the DISCONNECTED path in
+	// reconnect()) is fine, Jetty skips joining the current thread. Null-safe.
+	private void stopHttpClient(HttpClient client) {
+		if (client == null) {
+			return;
+		}
+		try {
+			client.stop();
+		} catch (Exception e) {
+			logger.warn("failed to stop the http client of " + name, e);
 		}
 	}
 
@@ -351,9 +388,9 @@ public class WebSocketClient implements EndpointListener {
 		// wait (with a bound) for any in-flight reconnect to release the lock;
 		// don't touch session/container/httpClient without it, that would
 		// race the in-flight connect() that's holding it. connectToServer()
-		// itself runs unlocked, so this can only time out if a close/stop
-		// call below hangs on an unresponsive peer - rare, and Jetty's own
-		// stop timeouts bound it well under SHUTDOWN_LOCK_TIMEOUT_S anyway
+		// itself runs unlocked, so this can only time out if a session close
+		// or container stop hangs on an unresponsive peer - rare, and Jetty's
+		// own stop timeouts bound it well under SHUTDOWN_LOCK_TIMEOUT_S anyway
 		boolean locked = false;
 		try {
 			locked = stateLock.tryLock(SHUTDOWN_LOCK_TIMEOUT_S, TimeUnit.SECONDS);
@@ -365,19 +402,25 @@ public class WebSocketClient implements EndpointListener {
 					+ " to finish, skipping cleanup to avoid racing it");
 			return;
 		}
+		HttpClient toStop = null;
 		try {
-			closeResources();
+			toStop = closeResources();
 		} finally {
 			stateLock.unlock();
+			// outside the lock, see stopHttpClient()
+			stopHttpClient(toStop);
 		}
 	}
 
-	// stops and clears session/container/httpClient; caller must hold
-	// stateLock. Safe to call more than once (e.g. connect() and shutdown()
-	// both racing to clean up): fields are null after the first.
-	private void closeResources() {
+	// closes the session, stops the container and detaches httpClient; caller
+	// must hold stateLock. Returns the detached httpClient (null if none),
+	// which the caller must pass to stopHttpClient() after releasing
+	// stateLock - see there for why it can't be stopped here. Safe to call
+	// more than once (e.g. connect() and shutdown() both racing to clean
+	// up): fields are null after the first.
+	private HttpClient closeResources() {
 		closeSessionAndContainer();
-		stopHttpClient();
+		return detachHttpClient();
 	}
 
 	// stops and clears session/container, deliberately leaving httpClient
@@ -502,6 +545,7 @@ public class WebSocketClient implements EndpointListener {
 				}
 			}
 		} finally {
+			HttpClient toStop = null;
 			stateLock.lock();
 			try {
 				// only true if every attempt failed and retries were
@@ -515,10 +559,13 @@ public class WebSocketClient implements EndpointListener {
 					// refuse to react once phase isn't CONNECTED), so
 					// release the shared resources ourselves now instead of
 					// leaking them for the rest of the process's life
-					closeResources();
+					toStop = closeResources();
 				}
 			} finally {
 				stateLock.unlock();
+				// outside the lock, and on one of the httpClient's own pool
+				// threads - both fine, see stopHttpClient()
+				stopHttpClient(toStop);
 			}
 		}
 	}

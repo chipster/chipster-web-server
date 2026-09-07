@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import jakarta.servlet.ServletException;
@@ -187,6 +188,61 @@ public class WebSocketClientTest {
 				"HttpClient/WebSocket thread count grew by " + actualGrowth + " after " + reconnects
 						+ " reconnects (before=" + before + ", after=" + after
 						+ ") - looks like each reconnect is leaking its own HttpClient instead of reusing one");
+	}
+
+	@Test
+	public void shutdownDuringReconnectIsPrompt() throws ServletException, DeploymentException, InterruptedException,
+			WebSocketErrorException, WebSocketClosedException, IOException, TimeoutException {
+
+		PubSubServer server = new PubSubServer(uri, new TestReplyHandler(), new TestTopicConfig(),
+				"shutdown-test-server");
+		server.start();
+
+		WebSocketClient client = new WebSocketClient(uri, new TestMessageHandler(), true, "shutdown-test-client",
+				new StaticCredentials("user", "password"));
+
+		// stop the server for good, so the client ends up in its reconnect
+		// loop (1 s retries at this point) with nothing to connect to
+		server.stop();
+
+		// don't just sleep and hope: prove the client has seen the disconnect,
+		// otherwise shutdown() would run against a still-connected client and
+		// the timing assertion below would pass without testing anything.
+		// Sending fails with an IOException as soon as the session is closed,
+		// and keeps failing ("not connected") once the retry loop has replaced
+		// the endpoint
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+		boolean disconnected = false;
+		while (System.nanoTime() < deadline) {
+			try {
+				client.sendText("still there?");
+				Thread.sleep(50);
+			} catch (IOException e) {
+				disconnected = true;
+				break;
+			}
+		}
+		Assertions.assertTrue(disconnected, "client didn't notice the server going away");
+
+		// let the retry loop get from the onClose() callback into its first
+		// retry sleep
+		Thread.sleep(500);
+
+		/*
+		 * shutdown() has to stop the shared HttpClient, and Jetty waits up to its
+		 * 5 s stop timeout for that pool's threads to finish. The reconnect loop
+		 * runs on one of those threads and needs stateLock to exit, so if
+		 * shutdown() stopped the HttpClient while still holding stateLock, this
+		 * would take the full 5 s and Jetty would log a "Couldn't stop Thread"
+		 * warning. Stopping it outside the lock lets the loop notice the
+		 * shutdown and exit as soon as its current 1 s sleep ends.
+		 */
+		long start = System.nanoTime();
+		client.shutdown();
+		long millis = (System.nanoTime() - start) / 1_000_000;
+
+		Assertions.assertTrue(millis < 3000, "shutdown() during a reconnect loop took " + millis
+				+ " ms - looks like it stops the HttpClient while holding stateLock");
 	}
 
 	private int countHttpClientThreads() {
