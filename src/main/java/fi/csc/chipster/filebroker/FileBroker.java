@@ -140,12 +140,26 @@ public class FileBroker implements ServerComponent {
 
 	public void close() {
 		RestUtils.shutdown("file-broker-admin", adminServer);
+
 		try {
-			httpServer.stop();
-			authService.close();
-			storageDiscovery.close();
+			if (httpServer != null) {
+				httpServer.stop();
+			}
 		} catch (Exception e) {
 			logger.warn("failed to stop the file-broker", e);
+		}
+
+		try {
+			if (authService != null) {
+				authService.close();
+			}
+		} catch (Exception e) {
+			logger.warn("failed to stop the file-broker auth client", e);
+		}
+
+		// after httpServer.stop(), because requests submit tasks to its executor
+		if (storageDiscovery != null) {
+			storageDiscovery.close();
 		}
 	}
 }
