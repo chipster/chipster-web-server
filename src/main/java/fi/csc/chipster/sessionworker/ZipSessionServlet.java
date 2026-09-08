@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -128,6 +129,9 @@ public class ZipSessionServlet extends HttpServlet {
 
 		ArrayList<InputStreamEntry> entries = new ArrayList<>();
 
+		CountDownLatch latch = new CountDownLatch(1);
+		PipedInputStream in = null;
+
 		try {
 			Session session = sessionDb.getSession(sessionId);
 
@@ -141,8 +145,6 @@ public class ZipSessionServlet extends HttpServlet {
 			response.setContentType(MediaType.APPLICATION_JSON);
 
 			ArrayList<String> errors = new ArrayList<>();
-
-			CountDownLatch latch = new CountDownLatch(1);
 
 			OutputStream respoonseOutput = response.getOutputStream();
 
@@ -186,20 +188,30 @@ public class ZipSessionServlet extends HttpServlet {
 			}
 
 			OutputStream output2 = new PipedOutputStream();
-			PipedInputStream in = new PipedInputStream((PipedOutputStream) output2);
+			in = new PipedInputStream((PipedOutputStream) output2);
 
 			if (errors.isEmpty()) {
 				// start creating the zip stream in background thread (may complete before all
 				// data is uploaded)
-				executor.submit(() -> {
-					try {
-						streamZip(entries, output2);
-					} catch (IOException e) {
-						logger.error("failed to package zip session", e);
-						errors.add("failed to package zip session: " + e.getMessage());
-					}
-				});
+				try {
+					executor.submit(() -> {
+						try {
+							streamZip(entries, output2);
+						} catch (IOException e) {
+							logger.error("failed to package zip session", e);
+							errors.add("failed to package zip session: " + e.getMessage());
+						}
+					});
+				} catch (RejectedExecutionException e) {
+					// destroy() has shut down the executor, i.e. this session-worker is stopping
+					logger.error("failed to start zip packaging, session-worker is stopping", e);
+					errors.add("failed to package zip session: session-worker is stopping");
+				}
+			}
 
+			// skipped when the zip thread wasn't started, because then the upload would
+			// block forever waiting for the zip stream
+			if (errors.isEmpty()) {
 				// upload in the zip stream in this thread, so that we send response to this
 				// servlet request only after the upload has really completed
 				try {
@@ -232,12 +244,23 @@ public class ZipSessionServlet extends HttpServlet {
 
 			logger.info("response: " + RestUtils.asJson(json, true));
 
+			// stop the keep-alive before writing the json. This doesn't wait for a write
+			// that is already in progress, but prevents all the following ones.
 			latch.countDown();
 			respoonseOutput.write(RestUtils.asJson(json).getBytes());
 			respoonseOutput.close();
 
 		} catch (RestException e) {
 			throw ServletUtils.extractRestException(e);
+		} finally {
+			// stop the keep-alive thread also when something unexpected was thrown.
+			// Otherwise it would keep writing spaces to the client forever.
+			latch.countDown();
+
+			// If the upload failed or was skipped, the zip thread may still be writing to
+			// the pipe. Its writes would block forever, because the reader thread stays
+			// alive in the Jetty pool. Closing the read end makes them fail instead.
+			IOUtils.closeQuietly(in);
 		}
 	}
 
