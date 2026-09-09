@@ -139,6 +139,43 @@ Ask the user to run these on the host:
 http://host.docker.internal:<port>
 ```
 
+### Building in the Container While the Servers Run on the Host
+
+The container mounts the same working copy the host servers were started from, so a build inside the container overwrites the class files the running JVM has on its classpath. The JVM loads inner classes lazily, so this doesn't fail at once — it surfaces later as an HTTP 500 whose stack trace is only in `logs/error.log`:
+
+```
+java.lang.NoClassDefFoundError: fi/csc/chipster/sessiondb/resource/SessionResource$1
+Caused by: java.lang.ClassNotFoundException: ...SessionResource$1
+```
+
+Restarting ServerLauncher fixes it. To avoid it, keep the container's build output out of the working copy with a Gradle init script:
+
+```groovy
+// altbuild.gradle
+allprojects {
+    layout.buildDirectory = file("/tmp/build-claude/${project.name}")
+}
+```
+```
+./gradlew -I altbuild.gradle test
+```
+
+Test reports are then under that directory too, not `build/`.
+
+### Running Tests in the Container Against Servers on the Host
+
+Tests don't start any servers — `TestServerLauncher` only connects to a running stack — and they find the services through service-locator, which advertises URLs built from `variable-ext-ip`. That defaults to `127.0.0.1`, which inside the container means the container itself, so the tests fail with "Connection refused".
+
+Either set `variable-ext-ip` on the host before starting the servers, or forward the ports from the container's localhost to the host:
+```
+8000-8020 and 8100-8120 -> host.docker.internal
+```
+Config values can also be overridden per-run with environment variables, replacing `-` with `_`:
+```
+variable_int_ip=host.docker.internal ./gradlew test
+```
+That alone isn't enough, though, because the URLs the tests follow come from the registry on the host, not from the container's config.
+
 ### Configuration — `conf/chipster.yaml` (host mode)
 
 Do NOT set `db-user` — leave it commented out or absent (uses the default host user).
