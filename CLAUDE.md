@@ -136,14 +136,23 @@ environment. Serve the app with `npm run start:proxy` to match; the frontend
 needs no editing, its own bootstrap address is relative in both modes (see
 `../chipster-web/CLAUDE.md`).
 
+The addresses of the overlay are relative, i.e. they name no host or port at
+all, only the path prefix (`/auth`). The browser resolves them against the
+address of the app, so the file is valid whatever port the dev server happens
+to be forwarded to, and two dev environments can run side by side without one
+sending its requests to the other. In exchange OIDC logins and the Java
+clients that use the public addresses don't work in this mode, and the
+services add no CORS headers, all explained in the file itself.
+
 This is how the deployments work too, where the ingress does the proxying and
 the prefix stripping. Either way the services listen on their own ports
 (`url-bind-*` and `url-admin-bind-*`) and talk to each other directly
 (`url-int-*`).
 
-Two things to know about these addresses:
+Two things to know when writing addresses in a conf file:
 - `{{variable}}` references are only expanded in `chipster-defaults.yaml`, not
-  in the values of the conf files, so they have to be written out in full
+  in the values of the conf files, so an absolute address has to be written out
+  in full
 - service-locator reads them at startup, so restart the backend after changing
   them
 
