@@ -9,7 +9,9 @@ import java.io.Reader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -75,7 +77,40 @@ public class Config {
 
 	private static HashMap<String, HashMap<String, String>> confFileCache = new HashMap<>();
 
-	private static String confFilePath = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
+	private static List<String> confFilePaths = getConfFilePaths();
+
+	/**
+	 * Get the paths of the configuration files
+	 * 
+	 * The conf-path key can't be read with getString(), because that would need
+	 * the paths already. Read the environment variable directly, like getString()
+	 * does, and use the default configuration if it's not set.
+	 * 
+	 * Multiple comma separated paths are read in order, so that the later files
+	 * override the earlier ones. That allows a small file to override only some
+	 * keys, e.g. to configure a development environment differently, without
+	 * having to repeat the other keys.
+	 * 
+	 * A key without a value ("key:") doesn't override the earlier files, because
+	 * yaml parses it to null, which is indistinguishable from a missing key. Use
+	 * an empty string ("key: \"\"") to set a key to an empty value.
+	 * 
+	 * @return paths of the configuration files
+	 */
+	private static List<String> getConfFilePaths() {
+		// only underscore is allowed in bash variables
+		String paths = System.getenv(KEY_CONF_PATH.replace("-", "_"));
+
+		// don't accept a blank value, or we would run with the defaults only
+		if (paths == null || paths.isBlank()) {
+			paths = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
+		}
+
+		return Arrays.stream(paths.split(","))
+				.map(path -> path.trim())
+				.filter(path -> !path.isEmpty())
+				.collect(Collectors.toList());
+	}
 
 	private static Logger logger;
 
@@ -137,7 +172,7 @@ public class Config {
 
 	private HashMap<String, String> variableDefaults = getVariableDefaults();
 
-	private static boolean confFileWarnShown;
+	private static Set<String> confFileWarnShown = new HashSet<>();
 
 	public String getString(String key) {
 		return getString(key, true, true, true);
@@ -187,7 +222,10 @@ public class Config {
 			value = System.getenv(key.replace("-", "_"));
 		}
 		if (value == null && file) {
-			value = getFromFile(confFilePath, key);
+			// search backwards, because the later files override the earlier ones
+			for (int i = confFilePaths.size() - 1; i >= 0 && value == null; i--) {
+				value = getFromFile(confFilePaths.get(i), key);
+			}
 		}
 		if (value == null && defaultValue) {
 			value = getDefault(key);
@@ -233,10 +271,9 @@ public class Config {
 			}
 
 		} catch (FileNotFoundException e) {
-			// show only once per JVM
-			if (!Config.confFileWarnShown) {
+			// show only once per file per JVM
+			if (Config.confFileWarnShown.add(confFilePath)) {
 				logger.warn("configuration file " + confFilePath + " not found");
-				Config.confFileWarnShown = true;
 			}
 		} catch (IOException e) {
 			// convert to runtime exception, because there is no point to continue
@@ -302,7 +339,9 @@ public class Config {
 
 	public Set<String> getAdminAccounts() {
 		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
-		conf.putAll(readFile(confFilePath));
+		for (String confFilePath : confFilePaths) {
+			conf.putAll(readFile(confFilePath));
+		}
 
 		return conf.entrySet().stream()
 				.filter(entry -> entry.getKey().startsWith(ADMIN_USERNAME_PREFIX))
@@ -385,7 +424,9 @@ public class Config {
 	public Map<String, String> getConfigEntries(String prefix) {
 		HashMap<String, String> conf = readFile(DEFAULT_CONF_PATH);
 		// new oidc services can be added in configuration
-		conf.putAll(readFile(confFilePath));
+		for (String confFilePath : confFilePaths) {
+			conf.putAll(readFile(confFilePath));
+		}
 		return conf.entrySet().stream()
 				.filter(entry -> entry.getKey().startsWith(prefix))
 				.collect(Collectors.toMap(e -> e.getKey().replace(prefix, ""), e -> getString(e.getKey())));

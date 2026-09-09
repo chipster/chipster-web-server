@@ -23,7 +23,7 @@ WORKSPACE=~/workspace PORTS=8000-8110,4200 ./sandbox.sh
 - `PORTS` — exposes chipster services (8000–8110) and the Angular dev server
   (4200). `PORTS=4200` is enough when serving the app in proxy mode, where the
   dev server proxies both the public and the admin APIs of every service — see
-  the `url-ext-*` block below and `../chipster-web/CLAUDE.md`.
+  the proxy mode section below and `../chipster-web/CLAUDE.md`.
 
 **Check before starting servers:**
 ```
@@ -93,56 +93,11 @@ variable-ext-ip: localhost
 url-ext-web-server: http://localhost:4200
 ```
 
-Optionally, for **proxy mode** — the browser reaches every service through the
-Angular dev server, which proxies them and strips the path prefix, so only the
-dev server port has to be forwarded from a remote dev environment. Serve the
-app with `npm run start:proxy` (`ng serve -c proxy`) and set
-`service-locator: /service-locator` in
-`../chipster-web/src/assets/conf/chipster.yaml` to match. The block is in
-`conf/chipster.yaml` ready to uncomment:
-```yaml
-url-ext-web-server: http://localhost:4200
-url-ext-auth: http://localhost:4200/auth
-url-ext-service-locator: http://localhost:4200/service-locator
-url-ext-session-db: http://localhost:4200/session-db
-url-ext-session-db-events: ws://localhost:4200/session-db-events
-url-ext-scheduler: http://localhost:4200/scheduler
-url-ext-file-broker: http://localhost:4200/file-broker
-url-ext-toolbox: http://localhost:4200/toolbox
-url-ext-session-worker: http://localhost:4200/session-worker
-url-ext-type-service: http://localhost:4200/type-service
-
-# admin APIs, proxied the same way under a "<service>-admin" prefix
-url-admin-ext-web-server: http://localhost:4200/web-server-admin
-url-admin-ext-auth: http://localhost:4200/auth-admin
-url-admin-ext-service-locator: http://localhost:4200/service-locator-admin
-url-admin-ext-session-db: http://localhost:4200/session-db-admin
-url-admin-ext-scheduler: http://localhost:4200/scheduler-admin
-url-admin-ext-file-broker: http://localhost:4200/file-broker-admin
-url-admin-ext-toolbox: http://localhost:4200/toolbox-admin
-url-admin-ext-session-worker: http://localhost:4200/session-worker-admin
-url-admin-ext-type-service: http://localhost:4200/type-service-admin
-url-admin-ext-job-history: http://localhost:4200/job-history-admin
-url-admin-ext-backup: http://localhost:4200/backup-admin
-url-admin-ext-s3-storage: http://localhost:4200/s3-storage-admin
-```
-
 - `db-user: claudeuser` — required because the DB was initialized as `claudeuser` (not needed in host mode)
 - `variable-ext-ip: localhost` — fills in `{{ext-ip}}` in the defaults, so the
   services advertise `localhost` URLs the browser can reach
 - `url-ext-web-server: http://localhost:4200` — CORS filter allows requests
   from the Angular dev server
-- the `url-ext-*` and `url-admin-ext-*` keys are the addresses service-locator
-  hands out to the browser. Overriding them all is what proxy mode is: it
-  points the browser at the dev server port instead of the service ports. This
-  is how the deployments work too, where the ingress does the proxying and
-  prefix stripping. Either way the services listen on their own ports
-  (`url-bind-*` and `url-admin-bind-*`) and talk to each other directly
-  (`url-int-*`).
-- `{{variable}}` references are only expanded in `chipster-defaults.yaml`, so
-  the addresses in this file have to be written out in full
-- service-locator reads these at startup, so restart the backend after changing
-  them
 
 To run Python jobs (system only has `python3`, not `python`):
 ```yaml
@@ -155,6 +110,56 @@ Create an empty `~/.bash_profile` if missing, to suppress a non-fatal job script
 ```
 touch /home/claudeuser/.bash_profile
 ```
+
+### Selecting the configuration files
+
+`conf-path` in `chipster-defaults.yaml` points to `conf/chipster.yaml`, but the
+files can be selected with the `conf_path` environment variable instead.
+Several comma separated files are read in order, so that the later ones
+override the earlier ones. That way an overlay file has to contain only the
+keys it changes.
+
+The `run` task takes the same as a property, which is easier to type:
+```
+./gradlew run                                                   # conf/chipster.yaml
+./gradlew run -Pproxy                                           # + conf/chipster-proxy.yaml
+./gradlew run -Pconf=conf/chipster.yaml,conf/chipster-other.yaml
+```
+
+### Proxy mode — `conf/chipster-proxy.yaml`
+
+`./gradlew run -Pproxy` overlays `conf/chipster-proxy.yaml`, which points the
+`url-ext-*` and `url-admin-ext-*` addresses at the Angular dev server instead
+of the service ports. The dev server proxies the services and strips the path
+prefix, so only the dev server port has to be forwarded from a remote dev
+environment. Serve the app with `npm run start:proxy` to match; the frontend
+needs no editing, its own bootstrap address is relative in both modes (see
+`../chipster-web/CLAUDE.md`).
+
+This is how the deployments work too, where the ingress does the proxying and
+the prefix stripping. Either way the services listen on their own ports
+(`url-bind-*` and `url-admin-bind-*`) and talk to each other directly
+(`url-int-*`).
+
+Two things to know about these addresses:
+- `{{variable}}` references are only expanded in `chipster-defaults.yaml`, not
+  in the values of the conf files, so they have to be written out in full
+- service-locator reads them at startup, so restart the backend after changing
+  them
+
+Run `./gradlew test` against a backend started **without** `-Pproxy`. The
+integration tests target the public addresses (see
+`TestServerLauncher.getTargetUri()`), so in proxy mode they go through the dev
+server, and `FileResourceTest.getError()` hangs forever: it expects a truncated
+stream to break the connection, which doesn't propagate through the proxy, and
+there is no timeout.
+
+The Node services read their own config with `chipster-nodejs-core`, which
+supports neither `conf_path` nor environment variables, so it always reads
+`conf/chipster.yaml` only. That is fine for proxy mode, because type-service
+gets the one address it needs (the CORS origin) from service-locator at
+runtime, but an overlay key that a Node service reads from its own config
+would not reach it.
 
 ---
 
