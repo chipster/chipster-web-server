@@ -1,114 +1,47 @@
 package fi.csc.chipster.rest.websocket;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.flywaydb.core.internal.util.ExceptionUtils;
-
-import jakarta.websocket.CloseReason;
-import jakarta.websocket.CloseReason.CloseCodes;
-
 /**
- * Retry logic for failed WebSocket connections
- * 
- * There is no specific hooks for retry in JSR 356 Java API. This class was
- * originally written to extend
- * ClientManager.ReconnectHandler Tyrus, but even that API wasn't enough to
- * update the authentication token
- * in reconnection. Now this only a regular class that we call from
- * WebSocketClient.
- * 
+ * Backoff between the WebSocketClient's reconnection attempts
+ *
+ * Retry quickly at first, because most disconnections are momentary (a service
+ * restarting during an update), then back off so that a server which stays down
+ * isn't hammered for as long as it takes someone to fix it. There is no attempt
+ * limit: a client that stopped trying would silently stop delivering events.
+ *
+ * The only close code we refuse to retry is VIOLATED_POLICY, which
+ * WebSocketClient checks - see there. In particular these two are retried:
+ * TRY_AGAIN_LATER (1013), the server closing us because its send queue was full,
+ * and UNEXPECTED_CONDITION (1011), a send IOException on the server side. Both
+ * mean some events are already lost, so reconnecting is the best recovery
+ * available.
+ *
+ * Touched only by the thread that reconnects, so it needs no synchronization.
+ *
  * @author klemela
  *
  */
 public class RetryHandler {
 
-	private static final Logger logger = LogManager.getLogger();
+	private int attempts = 0;
 
-	private int counter = 0;
-	private int retries = -1;
-
-	private String name;
-
-	private volatile boolean close = false;
-
-	public RetryHandler(String name) {
-		this.name = name;
-	}
-
-	public boolean onDisconnect(CloseReason closeReason) {
-		if (close) {
-			// don't reconnect when we are trying to close the connection on purpose
-			return false;
-		}
-
-		if (CloseCodes.VIOLATED_POLICY == closeReason.getCloseCode()) {
-			logger.error("reconnection cancelled");
-			throw new RuntimeException(new WebSocketClosedException(closeReason));
-		}
-		// TRY_AGAIN_LATER (1013): server closed the connection because the send queue
-		// was full. Java clients run on reliable infrastructure and should never be this
-		// slow; if it happens anyway, some events are already lost, so logging and
-		// reconnecting with normal backoff is the best recovery possible.
-		// UNEXPECTED_CONDITION (1011): send IOException on the server side. Same
-		// reasoning — events may have been lost, but reconnecting is the best option.
-		counter++;
-		if (retries < 0 || counter <= retries) {
-			logger.info("reconnecting " + name + "... (" + counter + "/" + retries + ")");
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	public boolean onConnectFailure(Exception exception) {
-
-		if (this.close) {
-			logger.debug("websocket client " + name + " closed");
-			return false;
-		}
-		logger.info("websocket client " + name + " connection failure", exception);
-
-		// how to check HTTP upgrade request errors?
-		// if (exception instanceof DeploymentException && exception.getCause()
-		// instanceof HandshakeException) {
-		// logger.error("unrecoverable connection failure, reconnection cancelled");
-		// return false;
-		// }
-
-		// VIOLATE_POLICY from onDisconnect(). Should we check the close reason also
-		// here?
-		if (ExceptionUtils.getRootCause(exception) instanceof WebSocketClosedException) {
-			logger.error("unrecoverable websocket close, reconnection cancelled");
-			return false;
-		}
-
-		counter++;
-		if (retries < 0 || counter <= retries) {
-			logger.info("reconnecting... (" + counter + "/" + retries + ")");
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	public long getDelay() {
-		if (counter < 1) {
-			return 0;
-		} else if (counter < 15) {
+	/**
+	 * How long to wait before the next attempt, counting this one
+	 */
+	public long nextDelaySeconds() {
+		attempts++;
+		if (attempts < 15) {
 			return 1;
-		} else if (counter < 30) {
+		} else if (attempts < 30) {
 			return 10;
 		} else {
 			return 60;
 		}
 	}
 
-	public void close() {
-		logger.debug("RetryHandler " + name + " closing");
-		this.close = true;
-	}
-
+	/**
+	 * Start again from the shortest delay, after a successful connection
+	 */
 	public void reset() {
-		counter = 0;
+		attempts = 0;
 	}
 }
