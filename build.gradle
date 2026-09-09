@@ -56,6 +56,34 @@ sourceSets {
 
 run {
     standardInput = System.in
+
+    // Select the configuration files, see Config.getConfFilePaths(). The
+    // conf_path environment variable works too, this is just easier to type:
+    //
+    //     ./gradlew run -Pproxy
+    //     ./gradlew run -Pconf=conf/chipster.yaml,conf/chipster-other.yaml
+    //
+    // -Pproxy makes the browser reach every service through the Angular dev
+    // server, so that only the dev server port has to be forwarded from a
+    // remote dev environment. See conf/chipster-proxy.yaml.
+    //
+    // -Pproxy is enabled by its presence, so its value is ignored, and a
+    // "proxy" property in ~/.gradle/gradle.properties would enable it too.
+    // -Pconf takes precedence, to be able to override the -Pproxy file list.
+    // The selection is logged, because a wrong one is hard to notice
+    // otherwise: the services would just advertise the wrong addresses.
+    def confPath = null
+
+    if (project.hasProperty("conf")) {
+        confPath = project.property("conf")
+    } else if (project.hasProperty("proxy")) {
+        confPath = "conf/chipster.yaml,conf/chipster-proxy.yaml"
+    }
+
+    if (confPath != null) {
+        environment "conf_path", confPath
+        logger.lifecycle "conf_path: $confPath"
+    }
 }
 
 
