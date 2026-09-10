@@ -1,6 +1,8 @@
 package fi.csc.chipster.rest;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,6 +26,18 @@ public class ServerLauncher {
 
 	// this must not be static, otherwise logging configuration fails
 	private final Logger logger = LogManager.getLogger();
+
+	/**
+	 * How long to wait for a batch of components to close
+	 * 
+	 * stop() closes the components in two batches, one after the other, so the
+	 * whole shutdown can take twice this. It runs in a shutdown hook and the JVM
+	 * halts as soon as the hook returns, so a close() that hasn't finished by then
+	 * doesn't finish at all. The components stop their servers with a cap of a few
+	 * seconds each (RestUtils.shutdown()), but a component can have several servers
+	 * and clients to stop, so leave room for that.
+	 */
+	private static final int STOP_TIMEOUT_SECONDS = 10;
 
 	private AuthenticationService auth = null;
 	private ServiceLocator serviceLocator = null;
@@ -169,24 +183,57 @@ public class ServerLauncher {
 		});
 	}
 
+	/**
+	 * Close the components in parallel and wait for them
+	 * 
+	 * @param components
+	 */
 	public void stopComponents(HashMap<String, ServerComponent> components) {
+
+		long deadline = System.currentTimeMillis() + STOP_TIMEOUT_SECONDS * 1000;
+
+		List<Thread> threads = new ArrayList<>();
+
 		for (String role : components.keySet()) {
 
 			ServerComponent component = components.get(role);
 
 			if (component != null) {
-				new Thread(new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							logger.debug("close " + role);
-							component.close();
-						} catch (Exception e) {
-							logger.warn("closing " + role + " failed", e);
-						}
+				Thread thread = new Thread(() -> {
+					try {
+						logger.debug("close " + role);
+						component.close();
+					} catch (Exception e) {
+						/*
+						 * Print, because this runs in a shutdown hook, where log4j has
+						 * already stopped its own logging, see
+						 * RestUtils.shutdownGracefullyOnInterrupt().
+						 */
+						System.err.println("closing " + role + " failed");
+						e.printStackTrace();
 					}
-				}).start();
+				}, "close-" + role);
+				thread.start();
+				threads.add(thread);
+			}
+		}
+
+		/*
+		 * Wait for the components to close. This runs in the shutdown hook, and the
+		 * JVM halts as soon as the hook returns, without waiting for other threads.
+		 * Without this the components got closed only as far as they happened to get
+		 * before that, which for most of them was not at all.
+		 */
+		for (Thread thread : threads) {
+			try {
+				// join(0) would wait forever, hence the minimum of 1 ms
+				thread.join(Math.max(1, deadline - System.currentTimeMillis()));
+			} catch (InterruptedException e) {
+				System.err.println("interrupted while waiting for " + thread.getName());
+			}
+			if (thread.isAlive()) {
+				// printed, not logged, for the same reason as above
+				System.out.println(thread.getName() + " didn't finish before the shutdown timeout");
 			}
 		}
 	}
