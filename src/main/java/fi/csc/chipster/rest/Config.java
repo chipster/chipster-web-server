@@ -99,11 +99,20 @@ public class Config {
 	 */
 	private static List<String> getConfFilePaths() {
 		// only underscore is allowed in bash variables
-		String paths = System.getenv(KEY_CONF_PATH.replace("-", "_"));
+		List<String> paths = parseConfFilePaths(System.getenv(KEY_CONF_PATH.replace("-", "_")));
 
-		// don't accept a blank value, or we would run with the defaults only
-		if (paths == null || paths.isBlank()) {
-			paths = getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH);
+		// don't accept a value without any usable path, like "" or ",", or we would
+		// run with the defaults only, i.e. with the default passwords
+		if (paths.isEmpty()) {
+			paths = parseConfFilePaths(getFromFile(DEFAULT_CONF_PATH, KEY_CONF_PATH));
+		}
+
+		return paths;
+	}
+
+	private static List<String> parseConfFilePaths(String paths) {
+		if (paths == null) {
+			return List.of();
 		}
 
 		return Arrays.stream(paths.split(","))
