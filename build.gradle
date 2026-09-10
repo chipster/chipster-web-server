@@ -88,7 +88,17 @@ run {
 
     if (confPath != null) {
         environment "conf_path", confPath
-        logger.lifecycle "conf_path: $confPath"
+    }
+
+    // Log at the execution time and from the task itself, so that the line is
+    // printed once, only when the servers really start, and always shows what
+    // they got: this block is configured on every invocation, "./gradlew test
+    // -Pproxy" for example, and the runProxy task sets the same environment
+    // variable later, when the task graph is ready.
+    doFirst {
+        if (environment["conf_path"] != null) {
+            logger.lifecycle "conf_path: " + environment["conf_path"]
+        }
     }
 }
 
@@ -113,7 +123,6 @@ tasks.register("runProxy") {
 gradle.taskGraph.whenReady { graph ->
     if (graph.hasTask(":runProxy") && !project.hasProperty("conf")) {
         tasks.run.environment "conf_path", proxyConfPath
-        logger.lifecycle "conf_path: $proxyConfPath"
     }
 }
 
