@@ -8,14 +8,15 @@ package fi.csc.chipster.rest.websocket;
  * isn't hammered for as long as it takes someone to fix it. There is no attempt
  * limit: a client that stopped trying would silently stop delivering events.
  *
- * The only close code we refuse to retry is VIOLATED_POLICY, which
- * WebSocketClient checks - see there. In particular these two are retried:
+ * Every close code is retried, including VIOLATED_POLICY: a server that refuses
+ * us is usually one that is restarting and can't validate our token yet.
  * TRY_AGAIN_LATER (1013), the server closing us because its send queue was full,
- * and UNEXPECTED_CONDITION (1011), a send IOException on the server side. Both
+ * and UNEXPECTED_CONDITION (1011), a send IOException on the server side, both
  * mean some events are already lost, so reconnecting is the best recovery
  * available.
  *
- * Touched only by the thread that reconnects, so it needs no synchronization.
+ * Touched by the thread that reconnects, and by whichever thread completed the
+ * connect - never both at once, so it needs no synchronization.
  *
  * @author klemela
  *

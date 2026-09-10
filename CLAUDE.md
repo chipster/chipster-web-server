@@ -166,7 +166,7 @@ Test reports are then under that directory too, not `build/`.
 
 Tests don't start any servers — `TestServerLauncher` only connects to a running stack — and they find the services through service-locator, which advertises URLs built from `variable-ext-ip`. That defaults to `127.0.0.1`, which inside the container means the container itself, so the tests fail with "Connection refused".
 
-Either set `variable-ext-ip` on the host before starting the servers, or forward the ports from the container's localhost to the host:
+Either set `variable-int-ip` (and `variable-ext-ip`, for the public URLs the registry hands out) on the host before starting the servers, or forward the ports from the container's localhost to the host:
 ```
 8000-8020 and 8100-8120 -> host.docker.internal
 ```
