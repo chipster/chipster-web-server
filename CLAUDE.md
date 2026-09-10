@@ -119,16 +119,21 @@ Several comma separated files are read in order, so that the later ones
 override the earlier ones. That way an overlay file has to contain only the
 keys it changes.
 
-The `run` task takes the same as a property, which is easier to type:
+The `run` task takes the same as a property, which is easier to type, and the
+proxy mode has a task of its own:
 ```
 ./gradlew run                                                   # conf/chipster.yaml
-./gradlew run -Pproxy                                           # + conf/chipster-proxy.yaml
+./gradlew runProxy                                              # + conf/chipster-proxy.yaml
+./gradlew run -Pproxy                                           # the same
 ./gradlew run -Pconf=conf/chipster.yaml,conf/chipster-other.yaml
 ```
+`runProxy` runs the `run` task, so it gets the same configuration, and it is
+listed in `./gradlew tasks`. `-Pconf` overrides the file list of both proxy
+mode forms. The chosen list is logged as `conf_path: ...`.
 
 ### Proxy mode — `conf/chipster-proxy.yaml`
 
-`./gradlew run -Pproxy` overlays `conf/chipster-proxy.yaml`, which points the
+`./gradlew runProxy` overlays `conf/chipster-proxy.yaml`, which points the
 `url-ext-*` and `url-admin-ext-*` addresses at the Angular dev server instead
 of the service ports. The dev server proxies the services and strips the path
 prefix, so only the dev server port has to be forwarded from a remote dev
@@ -156,7 +161,8 @@ Two things to know when writing addresses in a conf file:
 - service-locator reads them at startup, so restart the backend after changing
   them
 
-Run `./gradlew test` against a backend started **without** `-Pproxy`. The
+Run `./gradlew test` against a backend started with a plain `./gradlew run`,
+i.e. **not** in the proxy mode. The
 integration tests target the public addresses (see
 `TestServerLauncher.getTargetUri()`), so in proxy mode they go through the dev
 server, and `FileResourceTest.getError()` hangs forever: it expects a truncated

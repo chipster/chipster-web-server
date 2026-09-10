@@ -54,22 +54,28 @@ sourceSets {
 }
   
 
+// The configuration files of the dev server proxy mode, for the runProxy task
+// and for "./gradlew run -Pproxy".
+def proxyConfPath = "conf/chipster.yaml,conf/chipster-proxy.yaml"
+
 run {
     standardInput = System.in
 
     // Select the configuration files, see Config.getConfFilePaths(). The
     // conf_path environment variable works too, this is just easier to type:
     //
+    //     ./gradlew runProxy
     //     ./gradlew run -Pproxy
     //     ./gradlew run -Pconf=conf/chipster.yaml,conf/chipster-other.yaml
     //
-    // -Pproxy makes the browser reach every service through the Angular dev
-    // server, so that only the dev server port has to be forwarded from a
-    // remote dev environment. See conf/chipster-proxy.yaml.
+    // The first two are the same thing: they make the browser reach every
+    // service through the Angular dev server, so that only the dev server port
+    // has to be forwarded from a remote dev environment. See
+    // conf/chipster-proxy.yaml.
     //
     // -Pproxy is enabled by its presence, so its value is ignored, and a
     // "proxy" property in ~/.gradle/gradle.properties would enable it too.
-    // -Pconf takes precedence, to be able to override the -Pproxy file list.
+    // -Pconf takes precedence, to be able to override the proxy file list.
     // The selection is logged, because a wrong one is hard to notice
     // otherwise: the services would just advertise the wrong addresses.
     def confPath = null
@@ -77,12 +83,37 @@ run {
     if (project.hasProperty("conf")) {
         confPath = project.property("conf")
     } else if (project.hasProperty("proxy")) {
-        confPath = "conf/chipster.yaml,conf/chipster-proxy.yaml"
+        confPath = proxyConfPath
     }
 
     if (confPath != null) {
         environment "conf_path", confPath
         logger.lifecycle "conf_path: $confPath"
+    }
+}
+
+// "./gradlew runProxy" is the same as "./gradlew run -Pproxy", but easier to
+// type and visible in "./gradlew tasks".
+//
+// This runs the run task instead of being a task of its own, so that it gets
+// everything the run task is configured with, now and later.
+tasks.register("runProxy") {
+    group = "application"
+    description = "Runs the run task in the dev server proxy mode"
+    dependsOn "run"
+}
+
+// The task graph is ready after the configuration, but before the execution,
+// which is the place to configure the run task for the runProxy task. The
+// graph also knows the real task names, so this works when the task was
+// abbreviated on the command line ("./gradlew rP").
+//
+// -Pconf is checked here too, so that it overrides the proxy file list, like
+// it does for -Pproxy.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.hasTask(":runProxy") && !project.hasProperty("conf")) {
+        tasks.run.environment "conf_path", proxyConfPath
+        logger.lifecycle "conf_path: $proxyConfPath"
     }
 }
 

@@ -2,7 +2,7 @@
 #
 # Overlay on top of conf/chipster.yaml, selected with:
 #
-#     ./gradlew run -Pproxy
+#     ./gradlew runProxy
 #
 # The browser reaches every service through the Angular dev server, which
 # proxies them and strips the path prefix (see chipster-web/proxy.conf.json),
@@ -35,7 +35,7 @@
 # - Java clients that use the public addresses: the integration tests
 #   (TestServerLauncher.getTargetUri()), ChipsterJavaClient and anything with
 #   "use-external-addresses: true". Run "./gradlew test" against a backend
-#   started without -Pproxy, like before.
+#   started with a plain "./gradlew run", like before.
 #
 # The services still listen on their own ports (url-bind-* and
 # url-admin-bind-*) and talk to each other directly (url-int-*).
