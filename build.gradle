@@ -115,6 +115,8 @@ dependencies {
     // API 2.2.0 == ee11
     implementation "jakarta.websocket:jakarta.websocket-api:2.2.0"
     implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server:12.1.8"
+    // WebSocketClient uses JakartaWebSocketClientContainerProvider directly
+    implementation "org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-client:12.1.8"
 
     // cache settings in web-server
     implementation "org.eclipse.jetty:jetty-rewrite:12.1.8"    

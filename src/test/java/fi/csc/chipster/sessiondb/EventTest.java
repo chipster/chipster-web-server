@@ -2,6 +2,7 @@ package fi.csc.chipster.sessiondb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -228,7 +229,7 @@ public class EventTest {
 		try {
 			client.ping();
 			assertEquals(true, false);
-		} catch (IllegalStateException e) {
+		} catch (IOException | TimeoutException e) {
 		}
 
 		// start server again
@@ -329,7 +330,10 @@ public class EventTest {
 				client.ping();
 				pong = true;
 				break;
-			} catch (IllegalStateException e) {
+			} catch (IOException | TimeoutException | RuntimeException e) {
+				// RuntimeException too: ping() can propagate Jetty's unchecked
+				// exception from a session that closes mid-send, and this is a
+				// retry loop - anything short of a pong means try again
 				Thread.sleep(100);
 			}
 		}

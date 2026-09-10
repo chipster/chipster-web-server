@@ -29,7 +29,7 @@ public class WebSocketClientEndpoint extends Endpoint {
 	private final MessageHandler.Whole<String> messageHandler;
 	private final EndpointListener endpointListener;
 
-	// written in onClose() on a container thread, read by the reconnect thread
+	// written on a container thread, read by the reconnect thread
 	private volatile CloseReason closeReason;
 
 	public WebSocketClientEndpoint(MessageHandler.Whole<String> messageHandler, EndpointListener endpointListener) {
@@ -63,8 +63,9 @@ public class WebSocketClientEndpoint extends Endpoint {
 
 	/**
 	 * Why the server closed this connection, or null if it hasn't closed it (or
-	 * closed it without saying why). The client uses this to tell a connection
-	 * worth retrying from one that will always be refused.
+	 * closed it without saying why). The client uses it to fail an attempt as
+	 * soon as the server refuses it, and to say why in the exception. Every
+	 * close code is retried - see RetryHandler.
 	 */
 	public CloseReason getCloseReason() {
 		return closeReason;
