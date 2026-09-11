@@ -40,7 +40,7 @@ public class AuthUserResourceTest {
 	@Test
 	public void get() throws IOException, RestException {
 		UserId userId = new UserId(launcher.getUser1Credentials().getUsername());
-		User user = AuthenticationClient.getUser(userId, launcher.getUser1Client(), launcher.getServiceLocator());
+		User user = AuthenticationClient.getUser(userId, launcher.getUser1Target(Role.AUTH));
 
 		assertEquals(userId.toUserIdString(), user.getUserId().toUserIdString());
 		// we don't have proper LDAP queries yet, so the name is simply the username
@@ -59,7 +59,7 @@ public class AuthUserResourceTest {
 
 	public static void testGetUser(int expected, UserId userId, Client client) {
 		try {
-			AuthenticationClient.getUser(userId, client, launcher.getServiceLocator());
+			AuthenticationClient.getUser(userId, client.target(launcher.getTargetUri(Role.AUTH)));
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(expected, e.getResponse().getStatus());
@@ -68,7 +68,7 @@ public class AuthUserResourceTest {
 
 	public static void testGetUsers(int expected, Client client) {
 		try {
-			AuthenticationClient.getUsers(client, launcher.getServiceLocator());
+			AuthenticationClient.getUsers(client.target(launcher.getTargetUri(Role.AUTH)));
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(expected, e.getResponse().getStatus());
@@ -79,7 +79,7 @@ public class AuthUserResourceTest {
 	public void getAll() throws RestException {
 
 		// admin can get all
-		List<User> users = AuthenticationClient.getUsers(launcher.getAdminClient(), launcher.getServiceLocator());
+		List<User> users = AuthenticationClient.getUsers(launcher.getAdminClient().target(launcher.getTargetUri(Role.AUTH)));
 
 		assertEquals(false, users.isEmpty());
 
