@@ -117,13 +117,13 @@ public class AuthAdminResourceTest {
 
 		// since delete fail, user2 delete should be rollbacked and user2 still there
 		testGetUser(404, user1Id, user1Client);
-		AuthenticationClient.getUser(user2Id, user2Client, launcher.getServiceLocator());
+		AuthenticationClient.getUser(user2Id, user2Client.target(launcher.getTargetUri(Role.AUTH)));
 
 	}
 
 	public static void testGetUser(int expected, UserId userId, Client client) {
 		try {
-			AuthenticationClient.getUser(userId, client, launcher.getServiceLocator());
+			AuthenticationClient.getUser(userId, client.target(launcher.getTargetUri(Role.AUTH)));
 			assertEquals(true, false);
 		} catch (RestException e) {
 			assertEquals(expected, e.getResponse().getStatus());

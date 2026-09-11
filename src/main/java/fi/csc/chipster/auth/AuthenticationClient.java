@@ -1,8 +1,5 @@
 package fi.csc.chipster.auth;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.time.Duration;
 import java.time.Instant;
@@ -333,32 +330,40 @@ public class AuthenticationClient {
 		};
 	}
 
+	/**
+	 * Get a user
+	 * 
+	 * Like the other methods of this class, this uses the internal address of auth
+	 * when the instance was created for a server, see getAuth(). Then the
+	 * ServiceLocatorClient must have its credentials set.
+	 */
 	public User getUser(UserId userId) throws RestException {
-		return AuthenticationClient.getUser(userId, getAuthenticatedClient(), serviceLocator);
+		return getUser(userId, getAuthenticatedClient().target(getAuth()));
 	}
 
-	public static User getUser(UserId userId, Client client, ServiceLocatorClient serviceLocator) throws RestException {
-		try {
-			return RestMethods.get(client
-					.target(serviceLocator.getPublicUri(Role.AUTH))
-					.path(AuthUserResource.USERS)
-					.queryParam(AuthUserResource.USER_ID_KEY,
-							URLEncoder.encode(userId.toUserIdString(), StandardCharsets.UTF_8.name())),
-					User.class);
-		} catch (UnsupportedEncodingException e) {
-			// convert to UncheckedException, because there is nothing the caller can do for
-			// this
-			throw new RuntimeException(e);
-		}
+	/**
+	 * Get a user from the given address of auth
+	 * 
+	 * For callers without an AuthenticationClient instance, like the tests.
+	 */
+	public static User getUser(UserId userId, WebTarget authTarget) throws RestException {
+		// queryParam() encodes the value, encoding it here first would turn a space
+		// into a literal plus on the server
+		return RestMethods.get(authTarget
+				.path(AuthUserResource.USERS)
+				.queryParam(AuthUserResource.USER_ID_KEY, userId.toUserIdString()),
+				User.class);
 	}
 
+	/**
+	 * Get all users, see getUser()
+	 */
 	public List<User> getUsers() throws RestException {
-		return AuthenticationClient.getUsers(getAuthenticatedClient(), serviceLocator);
+		return getUsers(getAuthenticatedClient().target(getAuth()));
 	}
 
-	public static List<User> getUsers(Client client, ServiceLocatorClient serviceLocator) throws RestException {
-		return RestMethods.getList(client
-				.target(serviceLocator.getPublicUri(Role.AUTH))
+	public static List<User> getUsers(WebTarget authTarget) throws RestException {
+		return RestMethods.getList(authTarget
 				.path(AuthUserResource.USERS), User.class);
 	}
 
