@@ -1,8 +1,5 @@
 package fi.csc.chipster.auth;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.time.Duration;
 import java.time.Instant;
@@ -350,17 +347,12 @@ public class AuthenticationClient {
 	 * For callers without an AuthenticationClient instance, like the tests.
 	 */
 	public static User getUser(UserId userId, WebTarget authTarget) throws RestException {
-		try {
-			return RestMethods.get(authTarget
-					.path(AuthUserResource.USERS)
-					.queryParam(AuthUserResource.USER_ID_KEY,
-							URLEncoder.encode(userId.toUserIdString(), StandardCharsets.UTF_8.name())),
-					User.class);
-		} catch (UnsupportedEncodingException e) {
-			// convert to UncheckedException, because there is nothing the caller can do for
-			// this
-			throw new RuntimeException(e);
-		}
+		// queryParam() encodes the value, encoding it here first would turn a space
+		// into a literal plus on the server
+		return RestMethods.get(authTarget
+				.path(AuthUserResource.USERS)
+				.queryParam(AuthUserResource.USER_ID_KEY, userId.toUserIdString()),
+				User.class);
 	}
 
 	/**
