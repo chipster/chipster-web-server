@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -11,10 +12,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Test;
@@ -126,17 +132,44 @@ public class ReadaheadFileInputStreamTest {
 			// zero length read is zero bytes, not an error and not the end of the file
 			assertEquals(0, raStream.read(new byte[10], 0, 0));
 
-			assertEquals(0, raStream.skip(0));
-			assertEquals(0, raStream.skip(-1));
-
+			// the array and the range are checked also when nothing is read. The buffer
+			// of the stream checks them when it really reads, so these must have the
+			// length of zero to test our own check
 			try {
-				raStream.skip(1);
-				fail("skip didn't throw");
-			} catch (IOException e) {
+				raStream.read(new byte[10], 20, 0);
+				fail("offset past the end of the array didn't throw");
+			} catch (IndexOutOfBoundsException e) {
 				logger.info("expected exception", e);
 			}
 
-			assertEquals(fileSize, IOUtils.copyLarge(raStream, OutputStream.nullOutputStream()));
+			try {
+				raStream.read(new byte[10], -1, 0);
+				fail("negative offset didn't throw");
+			} catch (IndexOutOfBoundsException e) {
+				logger.info("expected exception", e);
+			}
+
+			assertEquals(0, raStream.skip(0));
+			assertEquals(0, raStream.skip(-1));
+
+			// read to a position of our own choosing
+			byte[] buffer = new byte[10];
+			assertEquals(3, raStream.read(buffer, 5, 3));
+			assertEquals(PatternInputStream.byteAt(0), buffer[5]);
+			assertEquals(PatternInputStream.byteAt(1), buffer[6]);
+			assertEquals(PatternInputStream.byteAt(2), buffer[7]);
+			// the bytes outside the range must not change
+			assertEquals(0, buffer[4]);
+			assertEquals(0, buffer[8]);
+
+			// the rest of the first chunk is available without new reads
+			assertEquals(chunkSize - 3, raStream.available());
+
+			// the inherited skip() reads and throws away
+			assertEquals(10, raStream.skip(10));
+			assertEquals(PatternInputStream.byteAt(13), raStream.read());
+
+			assertEquals(fileSize - 14, IOUtils.copyLarge(raStream, OutputStream.nullOutputStream()));
 
 			// the end of the file must not change these
 			assertEquals(0, raStream.read(new byte[10], 0, 0));
@@ -184,6 +217,13 @@ public class ReadaheadFileInputStreamTest {
 				// this would be truncated to a wrong chunk size
 				new ReadaheadFileInputStream(tempFile, queueLength, (long) Integer.MAX_VALUE + 1);
 				fail("too large chunk size didn't throw");
+			} catch (IllegalArgumentException e) {
+				logger.info("expected exception", e);
+			}
+
+			try {
+				new ReadaheadFileInputStream(tempFile, queueLength, 0);
+				fail("zero chunk size didn't throw");
 			} catch (IllegalArgumentException e) {
 				logger.info("expected exception", e);
 			}
@@ -283,6 +323,22 @@ public class ReadaheadFileInputStreamTest {
 				try {
 					// read a little to make sure the stream really started
 					assertTrue(raStream.read(new byte[copyBufferSize]) > 0);
+
+					if (i == 0) {
+						// the whole queue must be read in parallel, which is the point of
+						// this class. The pool creates the threads when the requests are
+						// made, so their number tells how many requests are in flight.
+						Set<Thread> threads = getThreads();
+						threads.removeAll(threadsBefore);
+
+						assertEquals(queueLength, threads.size(),
+								"readahead reads " + threads.size() + " chunks in parallel, expected " + queueLength);
+
+						for (Thread thread : threads) {
+							// a forgotten stream must not keep the JVM running
+							assertEquals(true, thread.isDaemon(), "thread " + thread.getName() + " is not a daemon");
+						}
+					}
 				} finally {
 					raStream.close();
 				}
@@ -298,9 +354,72 @@ public class ReadaheadFileInputStreamTest {
 			assertEquals(0, leaked.size(),
 					leaked.size() + " threads were left running after closing " + closeTestStreamCount + " streams");
 
+
 		} finally {
 			tempFile.delete();
 		}
+	}
+
+	/**
+	 * Test that close() closes the file
+	 * 
+	 * The file is read to the end first, so that no read is in progress when the
+	 * stream is closed. Otherwise the interrupt of close() would close the channel
+	 * anyway and this wouldn't notice if close() forgot the file.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void closeReleasesFile() throws IOException {
+
+		// the whole file fits in the queue, so all the reads are done when we close
+		File tempFile = createFile(chunkSize);
+
+		try {
+			long openFilesBefore = getOpenFileCount();
+
+			if (openFilesBefore == -1) {
+				logger.info("this JVM doesn't tell the number of open files, skip the test");
+				return;
+			}
+
+			// keep the streams, because the garbage collector would close the files of
+			// the collected ones and hide a leak
+			List<InputStream> streams = new ArrayList<>();
+
+			for (int i = 0; i < closeTestStreamCount; i++) {
+				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+				streams.add(raStream);
+				IOUtils.copyLarge(raStream, OutputStream.nullOutputStream(), new byte[copyBufferSize]);
+				raStream.close();
+			}
+
+			long openFiles = getOpenFileCount();
+
+			// small tolerance for files opened by other threads, still a lot less than
+			// the closeTestStreamCount files of a leak
+			assertEquals(true, openFiles <= openFilesBefore + 2, "open files grew from " + openFilesBefore + " to "
+					+ openFiles + " after closing " + closeTestStreamCount + " streams");
+
+		} finally {
+			tempFile.delete();
+		}
+	}
+
+	/**
+	 * Get the number of open files of this process
+	 * 
+	 * @return Number of open file descriptors, or -1 if the JVM doesn't tell
+	 */
+	private long getOpenFileCount() {
+
+		OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
+
+		if (os instanceof com.sun.management.UnixOperatingSystemMXBean) {
+			return ((com.sun.management.UnixOperatingSystemMXBean) os).getOpenFileDescriptorCount();
+		}
+
+		return -1;
 	}
 
 	/**
@@ -425,6 +544,11 @@ public class ReadaheadFileInputStreamTest {
 					fail("exception was not thrown");
 				} catch (IOException e) {
 					logger.info("expected exception", e);
+
+					// the real reason must not be lost on the way
+					assertEquals(true,
+							ExceptionUtils.getThrowableList(e).stream().anyMatch(t -> t instanceof EOFException),
+							"the exception doesn't tell that the file ended: " + ExceptionUtils.getMessage(e));
 				}
 
 				// the first error must be remembered. Otherwise this read would continue
@@ -471,6 +595,11 @@ public class ReadaheadFileInputStreamTest {
 
 			assertEquals(0, raStream.available());
 
+			// read to the end before closing. Otherwise the reads below would fail
+			// because the queue is empty, which would pass these tests even if the
+			// stream didn't notice that it's closed
+			IOUtils.copyLarge(raStream, OutputStream.nullOutputStream(), new byte[copyBufferSize]);
+
 			raStream.close();
 
 			try {
@@ -483,6 +612,14 @@ public class ReadaheadFileInputStreamTest {
 			try {
 				raStream.available();
 				fail("available() of a closed stream didn't throw");
+			} catch (IOException e) {
+				logger.info("expected exception", e);
+			}
+
+			// BufferedInputStream checks the closed stream before the zero length too
+			try {
+				raStream.read(new byte[10], 0, 0);
+				fail("zero length read of a closed stream didn't throw");
 			} catch (IOException e) {
 				logger.info("expected exception", e);
 			}
