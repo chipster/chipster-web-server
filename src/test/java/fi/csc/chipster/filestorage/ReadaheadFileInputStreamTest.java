@@ -10,6 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -347,6 +348,37 @@ public class ReadaheadFileInputStreamTest {
 		}
 	}
 
+	/**
+	 * Test that the file can be deleted while it's being read
+	 * 
+	 * The file is opened only once, when the stream is created, so the data stays
+	 * on the disk until the stream is closed. This is how a plain FileInputStream
+	 * behaves too, and file-storage deletes files while they may still be
+	 * downloaded.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void deleteDuringRead() throws IOException {
+
+		// more chunks than the queue, so that most of them are read after the delete
+		long fileSize = chunkSize * queueLength * 2;
+
+		File tempFile = createFile(fileSize);
+
+		try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+				InputStream dummyStream = new PatternInputStream(fileSize)) {
+
+			assertEquals(true, tempFile.delete());
+			assertEquals(false, tempFile.exists());
+
+			assertEquals(true, IOUtils.contentEquals(raStream, dummyStream));
+
+		} finally {
+			tempFile.delete();
+		}
+	}
+
 	private File createFile(long fileSize) throws IOException {
 		File tempFile = File.createTempFile(this.getClass().getSimpleName() + "-test-file-", "");
 
@@ -364,12 +396,11 @@ public class ReadaheadFileInputStreamTest {
 	}
 
 	/**
-	 * Test that we get an exception when the file is deleted during the reading
+	 * Test that we get an exception when the file is truncated during the reading
 	 * 
-	 * This relies on the implementation decision of the ReadaheadFileInputStream to
-	 * constantly open new files. Plain FileInputSteam wouldn't even break, because
-	 * the inode will stay around. If this ever changes, find some other way to
-	 * break the stream.
+	 * The stream keeps the file open, so deleting it wouldn't break anything, see
+	 * deleteDuringRead(). Truncating it does, because the chunks after the new end
+	 * of the file cannot be read anymore.
 	 * 
 	 * @throws IOException
 	 */
@@ -384,7 +415,10 @@ public class ReadaheadFileInputStreamTest {
 
 			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize)) {
 
-				tempFile.delete();
+				// leave only the first chunk, so the later ones cannot be read
+				try (RandomAccessFile raf = new RandomAccessFile(tempFile, "rw")) {
+					raf.setLength(chunkSize);
+				}
 
 				try {
 					IOUtils.copyLarge(raStream, OutputStream.nullOutputStream(), new byte[copyBufferSize]);
