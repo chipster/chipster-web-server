@@ -1,12 +1,15 @@
 package fi.csc.chipster.filestorage;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
-import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -47,9 +50,16 @@ import org.apache.logging.log4j.Logger;
  * would stay in memory. Close it from the same thread that reads it, because
  * close() accesses the same fields without synchronization.
  * 
- * Each chunk is read from a file of its own, so a long transfer opens and
- * closes the file thousands of times. That's how a deleted file breaks this
- * stream, where a plain FileInputStream would continue to the end.
+ * The file is opened only once and the chunks are read with positional reads,
+ * which don't use or change the position of the channel, so all the threads can
+ * share the same channel. Like in any other stream, deleting the file doesn't
+ * break the reading, because the file stays on the disk until the last open
+ * file is closed.
+ * 
+ * The JVM reads a channel through a direct memory buffer, which it caches for
+ * each thread, so each reading thread needs one chunk of direct memory in
+ * addition to the chunk in the heap. That memory is released when the thread
+ * ends, i.e. when this stream is closed.
  * 
  * Some example results (CRC32 of 8 GiB file, one warm-up round with empty file,
  * OS caches dropped):
@@ -64,6 +74,9 @@ public class ReadaheadFileInputStream extends InputStream {
     // file to read
     private File file;
     private long fileLength;
+
+    // the open file, shared by all the reading threads
+    private FileChannel channel;
 
     // size of the chunks to request, the last one can be smaller
     private long maxChunkSize;
@@ -112,7 +125,7 @@ public class ReadaheadFileInputStream extends InputStream {
      *                     Chunks are kept in byte arrays, so this cannot be larger
      *                     than Integer.MAX_VALUE.
      */
-    public ReadaheadFileInputStream(File file, int queueLength, long maxChunkSize) throws FileNotFoundException {
+    public ReadaheadFileInputStream(File file, int queueLength, long maxChunkSize) throws IOException {
 
         if (!file.isFile()) {
             // also a directory would pass exists()
@@ -133,6 +146,7 @@ public class ReadaheadFileInputStream extends InputStream {
         this.file = file;
         this.fileLength = file.length();
         this.maxChunkSize = maxChunkSize;
+        this.channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
 
         // don't create more threads than there are chunks, but at least one, because
         // an empty file has no chunks at all
@@ -165,7 +179,7 @@ public class ReadaheadFileInputStream extends InputStream {
                 requestNextChunk();
             }
         } catch (RuntimeException e) {
-            // nobody can close a constructor that throws, so stop the threads here
+            // nobody can close a constructor that throws, so release everything here
             close();
             throw e;
         }
@@ -186,7 +200,7 @@ public class ReadaheadFileInputStream extends InputStream {
             // smaller chunk in the end of the file
             int chunkSize = (int) Math.min(maxChunkSize, fileLength - requestPosition);
 
-            queue.add(executor.submit(read(requestPosition, file, chunkSize)));
+            queue.add(executor.submit(read(channel, requestPosition, file, chunkSize)));
 
             requestPosition += chunkSize;
         }
@@ -195,22 +209,35 @@ public class ReadaheadFileInputStream extends InputStream {
     /**
      * Create Callable to read a file from specified position and length
      * 
-     * @param pos  Start reading from this file position
-     * @param file File to read
-     * @param len  Number of bytes to read
+     * @param channel Open file to read
+     * @param pos     Start reading from this file position
+     * @param file    File of the channel, for error messages
+     * @param len     Number of bytes to read
      * @return File data in byte array
      */
-    private static Callable<byte[]> read(long pos, File file, int len) {
+    private static Callable<byte[]> read(FileChannel channel, long pos, File file, int len) {
         return new Callable<byte[]>() {
             public byte[] call() throws IOException {
                 try {
                     logger.debug("read from " + pos / 1024 / 1024);
 
                     byte[] buffer = new byte[len];
+                    ByteBuffer byteBuffer = ByteBuffer.wrap(buffer);
 
-                    try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-                        raf.seek(pos);
-                        raf.readFully(buffer, 0, len);
+                    // positional reads don't use or change the position of the channel, so
+                    // the other threads can read the same channel at the same time
+                    long position = pos;
+
+                    while (byteBuffer.hasRemaining()) {
+
+                        int bytes = channel.read(byteBuffer, position);
+
+                        if (bytes < 0) {
+                            // the file was truncated after we checked its length
+                            throw new EOFException("file " + file + " ended at " + position);
+                        }
+
+                        position += bytes;
                     }
 
                     return buffer;
@@ -416,12 +443,11 @@ public class ReadaheadFileInputStream extends InputStream {
      * Call this from the same thread that reads the stream, because it accesses the
      * same fields without synchronization.
      * 
-     * A read which has already started is not interrupted, because
-     * RandomAccessFile doesn't support it, so that thread and its chunk are
-     * released only when it completes. Can be called multiple times.
+     * A read which has already started is interrupted, which closes the channel,
+     * so the thread and its chunk are released soon. Can be called multiple times.
      */
     @Override
-    public void close() {
+    public void close() throws IOException {
 
         this.closed = true;
 
@@ -435,6 +461,10 @@ public class ReadaheadFileInputStream extends InputStream {
         executor.shutdownNow();
 
         this.bufferStream = null;
+
+        // an interrupted read closes the channel anyway, but close it also when
+        // nothing was read
+        this.channel.close();
     }
 
     /**
