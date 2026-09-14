@@ -11,7 +11,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -51,19 +50,16 @@ import org.apache.logging.log4j.Logger;
  * would stay in memory. Close it from the same thread that reads it, because
  * close() accesses the same fields without synchronization.
  * 
- * The JVM reads a channel into a heap array through a temporary native buffer,
- * which it keeps for each thread until the thread ends, so each reading thread
- * needs one chunk of native memory in addition to the chunk in the heap. That
- * memory is allocated with Unsafe, so -XX:MaxDirectMemorySize doesn't limit it
- * and BufferPoolMXBean doesn't show it, but the container counts it like any
- * other memory. Set -Djdk.nio.maxCachedBufferSize=0 to free it after each read
- * instead.
- * 
  * The file is opened only once and the chunks are read with positional reads,
  * which don't use or change the position of the channel, so all the threads can
  * share the same channel. Like in any other stream, deleting the file doesn't
  * break the reading, because the file stays on the disk until the last open
  * file is closed.
+ * 
+ * The JVM reads a channel through a direct memory buffer, which it caches for
+ * each thread, so each reading thread needs one chunk of direct memory in
+ * addition to the chunk in the heap. That memory is released when the thread
+ * ends, i.e. when this stream is closed.
  * 
  * Some example results (CRC32 of 8 GiB file, one warm-up round with empty file,
  * OS caches dropped):
@@ -148,36 +144,9 @@ public class ReadaheadFileInputStream extends InputStream {
         }
 
         this.file = file;
+        this.fileLength = file.length();
         this.maxChunkSize = maxChunkSize;
-
         this.channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
-
-        try {
-            // ask the length from the open file, because the path could point to
-            // another file already
-            this.fileLength = channel.size();
-
-            init(queueLength, maxChunkSize);
-
-        } catch (IOException | RuntimeException | Error e) {
-            // nobody can close a constructor that throws, so release everything here
-            try {
-                close();
-            } catch (Throwable e2) {
-                // don't lose the original error
-                e.addSuppressed(e2);
-            }
-            throw e;
-        }
-    }
-
-    /**
-     * Create the threads and make the first read requests
-     * 
-     * @param queueLength  How many chunks to read in parallel
-     * @param maxChunkSize Maximum size for chunks
-     */
-    private void init(int queueLength, long maxChunkSize) {
 
         // don't create more threads than there are chunks, but at least one, because
         // an empty file has no chunks at all
@@ -204,9 +173,15 @@ public class ReadaheadFileInputStream extends InputStream {
         // memory), when the stream is consumed slower than we produce it
         this.queue = new ArrayDeque<>(queueLength);
 
-        // fill the queue, it's kept full in fillBuffer()
-        for (int i = 0; i < queueLength; i++) {
-            requestNextChunk();
+        try {
+            // fill the queue, it's kept full in fillBuffer()
+            for (int i = 0; i < queueLength; i++) {
+                requestNextChunk();
+            }
+        } catch (RuntimeException e) {
+            // nobody can close a constructor that throws, so release everything here
+            close();
+            throw e;
         }
     }
 
@@ -291,7 +266,7 @@ public class ReadaheadFileInputStream extends InputStream {
     private void fillBuffer() throws IOException {
 
         if (bufferStream != null && bufferStream.available() > 0) {
-            throw new IllegalStateException("cannot fill buffer when previous buffer has data available");
+            throw new RuntimeException("cannot fill buffer when previous buffer has data available");
         }
 
         if (bufferPosition < fileLength) {
@@ -311,10 +286,8 @@ public class ReadaheadFileInputStream extends InputStream {
             } catch (ExecutionException e) {
 
                 if (e.getCause() instanceof Error) {
-                    // e.g. OutOfMemoryError from the chunk allocation. Report it as it is,
-                    // it's a problem of the whole JVM, not of this file, but this chunk is
-                    // lost, so the stream must not continue from the next one
-                    failed(new IOException("failed to read file " + this.file, e.getCause()));
+                    // e.g. OutOfMemoryError from the chunk allocation. Don't report it as
+                    // a file read problem, it's a problem of the whole JVM
                     throw (Error) e.getCause();
                 }
 
@@ -339,16 +312,14 @@ public class ReadaheadFileInputStream extends InputStream {
                 throw failed(new IOException("failed to read file " + this.file, e));
             }
 
+            // request one more to keep the queue full
+            requestNextChunk();
+
             this.bufferStream = new ByteArrayInputStream(buffer);
 
             logger.debug("got chunk " + bufferPosition / 1024 / 1024 + " \t" + buffer.length);
 
             bufferPosition += buffer.length;
-
-            // request one more to keep the queue full. Do this only after the chunk is
-            // in use, because otherwise a failure here would lose it and the next read
-            // would continue from a wrong position
-            requestNextChunk();
 
         } else {
             // end of the file, and of an empty file already in the first read
@@ -405,9 +376,6 @@ public class ReadaheadFileInputStream extends InputStream {
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
 
-        // the contract requires these checks also when nothing is read
-        Objects.checkFromIndexSize(off, len, b.length);
-
         if (len == 0) {
             // must return zero, also in the end of the file, where the buffer would
             // report the end instead
@@ -440,6 +408,19 @@ public class ReadaheadFileInputStream extends InputStream {
     }
 
     @Override
+    public long skip(long n) throws IOException {
+
+        checkUsable();
+
+        if (n <= 0) {
+            return 0;
+        }
+
+        // we could call fillBuffer() and bufferStream.skip() repeatedly if needed
+        throw new IOException("skip is not supported");
+    }
+
+    @Override
     public int available() throws IOException {
 
         checkUsable();
@@ -462,40 +443,28 @@ public class ReadaheadFileInputStream extends InputStream {
      * Call this from the same thread that reads the stream, because it accesses the
      * same fields without synchronization.
      * 
-     * A read which has already started is interrupted, which closes the channel.
-     * Closing the channel waits for those reads, which means that this can block if
-     * the storage doesn't respond, but also that almost all the chunks are released
-     * when this returns. A chunk which is being allocated at that moment is
-     * released a little later. Can be called multiple times.
+     * A read which has already started is interrupted, which closes the channel,
+     * so the thread and its chunk are released soon. Can be called multiple times.
      */
     @Override
     public void close() throws IOException {
 
         this.closed = true;
 
-        // these are missing, if the constructor failed after the file was opened
-        if (queue != null) {
-
-            // cancel requests which are still waiting or running
-            for (Future<byte[]> request : queue) {
-                request.cancel(true);
-            }
-            queue.clear();
+        // cancel requests which are still waiting or running
+        for (Future<byte[]> request : queue) {
+            request.cancel(true);
         }
+        queue.clear();
 
-        try {
-            if (executor != null) {
-                // interrupt reads and stop the threads
-                executor.shutdownNow();
-            }
+        // interrupt reads and stop the threads
+        executor.shutdownNow();
 
-            this.bufferStream = null;
+        this.bufferStream = null;
 
-        } finally {
-            // an interrupted read closes the channel anyway, but close it also when
-            // nothing was read
-            this.channel.close();
-        }
+        // an interrupted read closes the channel anyway, but close it also when
+        // nothing was read
+        this.channel.close();
     }
 
     /**
