@@ -3,12 +3,14 @@ package fi.csc.chipster.filestorage;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -153,9 +155,12 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 			logger.info("readhead chunk size: " + readaheadChunkSize / 1024 / 1024 + " MiB");
 			logger.info("readhead chunk count: " + readaheadChunkCount);
 			logger.info("readahead max concurrent transfers: " + readaheadMaxConcurrent);
-			// a chunk which is still being read when the transfer is closed is released
-			// only when that read completes, so this can be exceeded for a short while
-			logger.info("readahead max memory: about " + readaheadMaxMemory / 1024 / 1024 + " MiB");
+			// the JVM keeps a native buffer of one chunk for each reading thread
+			long readaheadMaxNativeMemory = (long) this.readaheadMaxConcurrent * this.readaheadChunkCount
+					* this.readaheadChunkSize;
+
+			logger.info("readahead max heap memory: about " + readaheadMaxMemory / 1024 / 1024 + " MiB");
+			logger.info("readahead max native memory: about " + readaheadMaxNativeMemory / 1024 / 1024 + " MiB");
 
 		} else {
 			logger.info("readahead is disabled");
@@ -214,8 +219,9 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 			Instant before = Instant.now();
 
-			// readahead can be enabled for large files, but it does not
-			// support range queries
+			// readahead can be enabled for large files. It writes the response itself,
+			// so it supports neither range queries nor the conditional get headers
+			// (Last-Modified, ETag) of the DefaultServlet below
 			boolean useReadahead = this.readaheadAbove != -1 && request.getHeader("Range") == null
 					&& f.toFile().length() >= this.readaheadAbove;
 
@@ -235,8 +241,19 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 				try {
 					logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
 
-					try (ReadaheadFileInputStream fis = new ReadaheadFileInputStream(f.toFile(),
-							this.readaheadChunkCount, this.readaheadChunkSize)) {
+					ReadaheadFileInputStream fis;
+
+					try {
+						fis = new ReadaheadFileInputStream(f.toFile(), this.readaheadChunkCount,
+								this.readaheadChunkSize);
+
+					} catch (FileNotFoundException | NoSuchFileException e) {
+						// deleted after the check above. The stream checks the file itself
+						// too, but the file can disappear also between its check and open
+						throw new NotFoundException("no such file");
+					}
+
+					try (ReadaheadFileInputStream stream = fis) {
 
 						// set these only after the stream was opened, because the constructor
 						// throws if the file was deleted after the check above
@@ -244,11 +261,11 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 						response.setStatus(HttpServletResponse.SC_OK);
 						// the stream reads the length it saw when it was created, so asking the
 						// file again could announce a different length than what we send
-						response.setContentLengthLong(fis.length());
+						response.setContentLengthLong(stream.length());
 
 						try (OutputStream os = response.getOutputStream()) {
 
-							org.apache.commons.io.IOUtils.copyLarge(fis, os);
+							org.apache.commons.io.IOUtils.copyLarge(stream, os);
 						}
 					}
 				} finally {
