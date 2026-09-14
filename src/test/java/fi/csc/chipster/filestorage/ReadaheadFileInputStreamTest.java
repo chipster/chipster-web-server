@@ -30,37 +30,32 @@ public class ReadaheadFileInputStreamTest {
 
 	@Test
 	public void test() {
-		testDirectMemory(true);
-		testDirectMemory(false);
-	}
 
-	private void testDirectMemory(boolean useDirectMemory) {
+		testSize(0);
+		testSize(1);
 
-		testSize(useDirectMemory, 0);
-		testSize(useDirectMemory, 1);
+		testSize(chunkSize - 1);
+		testSize(chunkSize);
+		testSize(chunkSize + 1);
 
-		testSize(useDirectMemory, chunkSize - 1);
-		testSize(useDirectMemory, chunkSize);
-		testSize(useDirectMemory, chunkSize + 1);
+		testSize(chunkSize - copyBufferSize - 1);
+		testSize(chunkSize - copyBufferSize);
+		testSize(chunkSize - copyBufferSize + 1);
 
-		testSize(useDirectMemory, chunkSize - copyBufferSize - 1);
-		testSize(useDirectMemory, chunkSize - copyBufferSize);
-		testSize(useDirectMemory, chunkSize - copyBufferSize + 1);
+		testSize(chunkSize + copyBufferSize - 1);
+		testSize(chunkSize + copyBufferSize);
+		testSize(chunkSize + copyBufferSize + 1);
 
-		testSize(useDirectMemory, chunkSize + copyBufferSize - 1);
-		testSize(useDirectMemory, chunkSize + copyBufferSize);
-		testSize(useDirectMemory, chunkSize + copyBufferSize + 1);
+		testSize(chunkSize * 2 - 1);
+		testSize(chunkSize * 2);
+		testSize(chunkSize * 2 + 1);
 
-		testSize(useDirectMemory, chunkSize * 2 - 1);
-		testSize(useDirectMemory, chunkSize * 2);
-		testSize(useDirectMemory, chunkSize * 2 + 1);
-
-		testSize(useDirectMemory, chunkSize * queueLength - 1);
-		testSize(useDirectMemory, chunkSize * queueLength);
-		testSize(useDirectMemory, chunkSize * queueLength + 1);
+		testSize(chunkSize * queueLength - 1);
+		testSize(chunkSize * queueLength);
+		testSize(chunkSize * queueLength + 1);
 
 		try {
-			testBrokenFile(useDirectMemory);
+			testBrokenFile();
 			fail("exception was not thrown");
 		} catch (RuntimeException e) {
 			logger.info("expected exception", e);
@@ -68,7 +63,7 @@ public class ReadaheadFileInputStreamTest {
 		}
 	}
 
-	private void testSize(boolean useDirectMemory, long fileSize) {
+	private void testSize(long fileSize) {
 
 		File tempFile = null;
 
@@ -78,7 +73,7 @@ public class ReadaheadFileInputStreamTest {
 
 			assertEquals(true,
 					IOUtils.contentEquals(
-							new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, useDirectMemory),
+							new ReadaheadFileInputStream(tempFile, queueLength, chunkSize),
 							new FileResourceTest.DummyInputStream(fileSize)));
 		} catch (IOException e) {
 			logger.error("test failed with size " + fileSize);
@@ -105,12 +100,6 @@ public class ReadaheadFileInputStreamTest {
 	@Test
 	public void closeBeforeEndOfFile() throws IOException, InterruptedException {
 
-		closeBeforeEndOfFile(true);
-		closeBeforeEndOfFile(false);
-	}
-
-	private void closeBeforeEndOfFile(boolean useDirectMemory) throws IOException, InterruptedException {
-
 		// the file must be larger than the readahead window, otherwise the stream
 		// completes its reads on its own and there is nothing to clean up
 		long fileSize = chunkSize * queueLength * 4;
@@ -122,8 +111,7 @@ public class ReadaheadFileInputStreamTest {
 
 			for (int i = 0; i < closeTestStreamCount; i++) {
 
-				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize,
-						useDirectMemory);
+				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
 
 				// read a little to get the reading threads started
 				assertTrue(raStream.read(new byte[copyBufferSize]) > 0);
@@ -140,8 +128,7 @@ public class ReadaheadFileInputStreamTest {
 
 			// allow some slack for threads of the last stream and the test framework
 			assertTrue(leaked.size() <= queueLength + 2,
-					leaked.size() + " threads were left running after closing " + closeTestStreamCount
-							+ " streams (useDirectMemory: " + useDirectMemory + ")");
+					leaked.size() + " threads were left running after closing " + closeTestStreamCount + " streams");
 
 		} finally {
 			tempFile.delete();
@@ -203,9 +190,8 @@ public class ReadaheadFileInputStreamTest {
 	 * the inode will stay around. If this ever changes, find some other way to
 	 * break the stream.
 	 * 
-	 * @param useDirectMemory
 	 */
-	private void testBrokenFile(boolean useDirectMemory) {
+	private void testBrokenFile() {
 
 		File tempFile = null;
 		long fileSize = chunkSize * queueLength * 2;
@@ -214,8 +200,7 @@ public class ReadaheadFileInputStreamTest {
 
 			tempFile = createFile(fileSize);
 
-			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize,
-					useDirectMemory)) {
+			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize)) {
 
 				tempFile.delete();
 

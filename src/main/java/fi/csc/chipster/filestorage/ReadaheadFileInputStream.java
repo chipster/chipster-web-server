@@ -6,9 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -64,9 +61,6 @@ public class ReadaheadFileInputStream extends InputStream {
     // size of the chunks to request, the last one can be smaller
     private long maxChunkSize;
 
-    // store data chunks in direct memory instead of heap
-    private boolean useDirectMemory;
-
     // executor for file reading
     private ExecutorService executor;
 
@@ -86,7 +80,7 @@ public class ReadaheadFileInputStream extends InputStream {
      * queue length 32 and chunk size 16 MiB provided best performance on Ceph RBD
      */
     public ReadaheadFileInputStream(File file) {
-        this(file, 32, 1 << 24, true);
+        this(file, 32, 1 << 24);
     }
 
     /**
@@ -95,13 +89,11 @@ public class ReadaheadFileInputStream extends InputStream {
      * This will start threads to fill the queue. More requests will be made as soon
      * as there is space in the queue.
      * 
-     * @param file            File to tread
-     * @param queueLength     How many chunks to read in parallel
-     * @param maxChunkSize    Maximum size for chunks. The last one can be smaller.
-     * @param useDirectMemory Create data chunks in direct memmory. Set to false to
-     *                        use heap instead.
+     * @param file         File to tread
+     * @param queueLength  How many chunks to read in parallel
+     * @param maxChunkSize Maximum size for chunks. The last one can be smaller.
      */
-    public ReadaheadFileInputStream(File file, int queueLength, long maxChunkSize, boolean useDirectMemory) {
+    public ReadaheadFileInputStream(File file, int queueLength, long maxChunkSize) {
 
         if (!file.exists()) {
             throw new RuntimeException(new FileNotFoundException(file.toString()));
@@ -110,7 +102,6 @@ public class ReadaheadFileInputStream extends InputStream {
         this.file = file;
         this.fileLength = file.length();
         this.maxChunkSize = maxChunkSize;
-        this.useDirectMemory = useDirectMemory;
 
         // don't create more threads than necessary for small files
         // fileLength is a long and can be casted to int only after the division
@@ -143,7 +134,7 @@ public class ReadaheadFileInputStream extends InputStream {
             // smaller chunk in the end of the file
             int chunkSize = (int) Math.min(maxChunkSize, fileLength - requestPosition);
 
-            queue.add(executor.submit(read(requestPosition, file, chunkSize, useDirectMemory)));
+            queue.add(executor.submit(read(requestPosition, file, chunkSize)));
 
             requestPosition += chunkSize;
         }
@@ -152,40 +143,25 @@ public class ReadaheadFileInputStream extends InputStream {
     /**
      * Create Callable to read a file from specified position and length
      * 
-     * @param pos             Start reading from this file position
-     * @param file            File to read
-     * @param len             Number of bytes to read
-     * @param useDirectMemory Store data in direct memory
+     * @param pos  Start reading from this file position
+     * @param file File to read
+     * @param len  Number of bytes to read
      * @return File data in byte array
      */
-    private static Callable<byte[]> read(long pos, File file, int len, boolean useDirectMemory) {
+    private static Callable<byte[]> read(long pos, File file, int len) {
         return new Callable<byte[]>() {
-            public byte[] call() throws FileNotFoundException, IOException {
+            public byte[] call() throws IOException {
                 try {
                     logger.debug("read from " + pos / 1024 / 1024);
 
-                    if (useDirectMemory) {
-                        // buffer in direct memory
-                        // size can be adjusted with -XX:MaxDirectMemorySize=
-                        try (FileChannel ch = FileChannel.open(file.toPath(),
-                                StandardOpenOption.READ)) {
-                            InputStream is = Channels.newInputStream(ch.position(pos));
-                            return is.readNBytes(len);
-                        }
+                    byte[] buffer = new byte[len];
 
-                    } else {
-
-                        // buffer in heap
-                        byte[] buffer = new byte[len];
-                        RandomAccessFile raf;
-
-                        raf = new RandomAccessFile(file, "r");
+                    try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                         raf.seek(pos);
                         raf.readFully(buffer, 0, len);
-                        raf.close();
-
-                        return buffer;
                     }
+
+                    return buffer;
 
                 } catch (IOException e) {
                     // will be rethrown in get()

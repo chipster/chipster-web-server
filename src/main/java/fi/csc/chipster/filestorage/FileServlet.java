@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Semaphore;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -75,7 +76,7 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE = "file-storage-readahead-above";
 	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE = "file-storage-readahead-chunk-size";
 	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT = "file-storage-readahead-chunk-count";
-	private static final String CONF_KEY_FILE_STORAGE_DIRECT_MEMORY = "file-storage-readahead-direct-memory";
+	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT = "file-storage-readahead-max-concurrent";
 
 	public static final String PATH_FILES = "files";
 
@@ -102,7 +103,10 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 	private long readaheadAbove = -1;
 	private long readaheadChunkSize;
 	private int readaheadChunkCount;
-	private boolean readaheadUseDirectMemory;
+	private int readaheadMaxConcurrent;
+
+	// limit the number of concurrent readahead transfers to limit memory usage
+	private Semaphore readaheadSemaphore;
 
 	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
@@ -119,11 +123,19 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 			this.readaheadAbove = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE) * 1024 * 1024;
 			this.readaheadChunkSize = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE) * 1024 * 1024;
 			this.readaheadChunkCount = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT);
-			this.readaheadUseDirectMemory = config.getBoolean(CONF_KEY_FILE_STORAGE_DIRECT_MEMORY);
+			this.readaheadMaxConcurrent = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT);
+			this.readaheadSemaphore = new Semaphore(this.readaheadMaxConcurrent);
+
+			// one chunk is being read, one is in the queue and one is consumed at the
+			// moment
+			long readaheadMaxMemory = (long) this.readaheadMaxConcurrent * (this.readaheadChunkCount + 2)
+					* this.readaheadChunkSize;
+
 			logger.info("readahead enabled, max memory: " + Runtime.getRuntime().maxMemory() / 1024 / 1024 + " MiB");
 			logger.info("readhead chunk size: " + readaheadChunkSize / 1024 / 1024 + " MiB");
 			logger.info("readhead chunk count: " + readaheadChunkCount);
-			logger.info("readahead using direct memory: " + readaheadUseDirectMemory);
+			logger.info("readahead max concurrent transfers: " + readaheadMaxConcurrent);
+			logger.info("readahead max memory: " + readaheadMaxMemory / 1024 / 1024 + " MiB");
 
 		} else {
 			logger.info("readahead is disabled");
@@ -184,22 +196,37 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 			// readahead can be enabled for large files, but it does not
 			// support range queries
-			if (this.readaheadAbove != -1 && request.getHeader("Range") == null
-					&& f.toFile().length() >= this.readaheadAbove) {
+			boolean useReadahead = this.readaheadAbove != -1 && request.getHeader("Range") == null
+					&& f.toFile().length() >= this.readaheadAbove;
 
-				logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
+			// each readahead transfer needs its own threads and buffers, so allow only a
+			// limited number of them at the same time. Others are served without
+			// readahead, which is slower, but doesn't need extra memory.
+			if (useReadahead && !this.readaheadSemaphore.tryAcquire()) {
 
-				InputStream fis = new ReadaheadFileInputStream(f.toFile(), this.readaheadChunkCount,
-						this.readaheadChunkSize, this.readaheadUseDirectMemory);
+				logger.info("readahead is already used by " + this.readaheadMaxConcurrent
+						+ " transfers, get file without readahead");
 
-				response.setContentType("application/octet-stream");
-				response.setStatus(HttpServletResponse.SC_OK);
-				response.setContentLengthLong(f.toFile().length());
-				try (OutputStream os = response.getOutputStream()) {
+				useReadahead = false;
+			}
 
-					org.apache.commons.io.IOUtils.copyLarge(fis, os);
+			if (useReadahead) {
+
+				try {
+					logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
+
+					response.setContentType("application/octet-stream");
+					response.setStatus(HttpServletResponse.SC_OK);
+					response.setContentLengthLong(f.toFile().length());
+
+					try (InputStream fis = new ReadaheadFileInputStream(f.toFile(), this.readaheadChunkCount,
+							this.readaheadChunkSize);
+							OutputStream os = response.getOutputStream()) {
+
+						org.apache.commons.io.IOUtils.copyLarge(fis, os);
+					}
 				} finally {
-					fis.close();
+					this.readaheadSemaphore.release();
 				}
 
 			} else {
