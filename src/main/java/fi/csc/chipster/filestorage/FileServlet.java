@@ -124,6 +124,24 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 			this.readaheadChunkSize = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE) * 1024 * 1024;
 			this.readaheadChunkCount = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT);
 			this.readaheadMaxConcurrent = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT);
+
+			// check these here, because otherwise every download would fail
+			if (this.readaheadChunkSize < 1 || this.readaheadChunkSize > Integer.MAX_VALUE) {
+				throw new IllegalArgumentException(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE
+						+ " must be between 1 and " + (Integer.MAX_VALUE / 1024 / 1024) + " MiB, but it was "
+						+ this.readaheadChunkSize / 1024 / 1024);
+			}
+
+			if (this.readaheadChunkCount < 1) {
+				throw new IllegalArgumentException(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT
+						+ " must be at least 1, but it was " + this.readaheadChunkCount);
+			}
+
+			if (this.readaheadMaxConcurrent < 1) {
+				throw new IllegalArgumentException(CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT
+						+ " must be at least 1, but it was " + this.readaheadMaxConcurrent);
+			}
+
 			this.readaheadSemaphore = new Semaphore(this.readaheadMaxConcurrent);
 
 			// one chunk is being read, one is in the queue and one is consumed at the
@@ -135,7 +153,9 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 			logger.info("readhead chunk size: " + readaheadChunkSize / 1024 / 1024 + " MiB");
 			logger.info("readhead chunk count: " + readaheadChunkCount);
 			logger.info("readahead max concurrent transfers: " + readaheadMaxConcurrent);
-			logger.info("readahead max memory: " + readaheadMaxMemory / 1024 / 1024 + " MiB");
+			// a chunk which is still being read when the transfer is closed is released
+			// only when that read completes, so this can be exceeded for a short while
+			logger.info("readahead max memory: about " + readaheadMaxMemory / 1024 / 1024 + " MiB");
 
 		} else {
 			logger.info("readahead is disabled");
@@ -215,15 +235,21 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 				try {
 					logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
 
-					response.setContentType("application/octet-stream");
-					response.setStatus(HttpServletResponse.SC_OK);
-					response.setContentLengthLong(f.toFile().length());
+					try (ReadaheadFileInputStream fis = new ReadaheadFileInputStream(f.toFile(),
+							this.readaheadChunkCount, this.readaheadChunkSize)) {
 
-					try (InputStream fis = new ReadaheadFileInputStream(f.toFile(), this.readaheadChunkCount,
-							this.readaheadChunkSize);
-							OutputStream os = response.getOutputStream()) {
+						// set these only after the stream was opened, because the constructor
+						// throws if the file was deleted after the check above
+						response.setContentType("application/octet-stream");
+						response.setStatus(HttpServletResponse.SC_OK);
+						// the stream reads the length it saw when it was created, so asking the
+						// file again could announce a different length than what we send
+						response.setContentLengthLong(fis.length());
 
-						org.apache.commons.io.IOUtils.copyLarge(fis, os);
+						try (OutputStream os = response.getOutputStream()) {
+
+							org.apache.commons.io.IOUtils.copyLarge(fis, os);
+						}
 					}
 				} finally {
 					this.readaheadSemaphore.release();
