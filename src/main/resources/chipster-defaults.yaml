@@ -648,10 +648,9 @@ file-storage-readahead-chunk-size: 4
 # readahead maximum number of chunk and thread for one file
 file-storage-readahead-chunk-count: 16
 # how many downloads can use readahead at the same time. Others are served without readahead.
-# Heap usage is about max-concurrent * (chunk-count + 2) * chunk-size. A chunk which is still
+# Memory usage is about max-concurrent * (chunk-count + 2) * chunk-size. A chunk which is still
 # being read when the download is cancelled is released only when that read completes, so the
-# limit can be exceeded for a short while. Each reading thread uses one chunk of direct memory
-# too, i.e. about max-concurrent * chunk-count * chunk-size in addition to the heap.
+# limit can be exceeded for a short while.
 file-storage-readahead-max-concurrent: 4
 
 # session-worker
