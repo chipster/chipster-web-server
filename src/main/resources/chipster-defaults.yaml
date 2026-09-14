@@ -646,9 +646,8 @@ file-storage-readahead-above: ""
 file-storage-readahead-chunk-size: 4
 # readahead maximum number of chunk and thread for one file
 file-storage-readahead-chunk-count: 16
-# how many downloads can use readahead at the same time. Others are served without readahead.
-# Memory usage is limited to max-concurrent * (chunk-count + 2) * chunk-size.
-file-storage-readahead-max-concurrent: 4
+# use direct memory for readahead buffer or set to false to use memory from heap
+file-storage-readahead-direct-memory: true
 
 # session-worker
 

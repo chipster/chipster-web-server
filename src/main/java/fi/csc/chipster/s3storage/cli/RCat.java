@@ -66,7 +66,8 @@ public class RCat {
 
                 for (String fileArg : argsList) {
                         try (InputStream fileStream = new ReadaheadFileInputStream(new File(fileArg), queue,
-                                        chunk * 1024 * 1024)) {
+                                        chunk * 1024 * 1024,
+                                        true)) {
                                 IOUtils.copyLarge(fileStream, System.out, new byte[1 << 16]);
                         }
                 }
