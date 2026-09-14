@@ -5,15 +5,17 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,9 +27,9 @@ import org.apache.logging.log4j.Logger;
  * request only after you have processed the previous data. Luckily
  * those systems often tolerate plenty of concurrency. We can overcome the
  * latency by making a lot of read requests ahead of the position where we are
- * reading the data at the mmoment.
+ * reading the data at the moment.
  * 
- * Usually opeating system provides this functionality (e.g. command "blockdev
+ * Usually operating system provides this functionality (e.g. command "blockdev
  * --getra /dev/vdX") and that should be used when possible. However, when we
  * run a service on a shared container platform, we don't have access to those
  * settings. We can still do the essentially same here in the application
@@ -42,7 +44,12 @@ import org.apache.logging.log4j.Logger;
  * 
  * The stream must be closed, also when it's not read to the end, e.g. when a
  * client cancels a download. Otherwise the threads and the data in the queue
- * would stay in memory.
+ * would stay in memory. Close it from the same thread that reads it, because
+ * close() accesses the same fields without synchronization.
+ * 
+ * Each chunk is read from a file of its own, so a long transfer opens and
+ * closes the file thousands of times. That's how a deleted file breaks this
+ * stream, where a plain FileInputStream would continue to the end.
  * 
  * Some example results (CRC32 of 8 GiB file, one warm-up round with empty file,
  * OS caches dropped):
@@ -70,52 +77,97 @@ public class ReadaheadFileInputStream extends InputStream {
     // file position for the next read request
     private long requestPosition;
 
-    // file position for the start of the current bufferStream
+    // file position for the end of the current bufferStream, i.e. how much of the
+    // file has been taken from the queue
     private long bufferPosition;
 
     // input stream for the current buffer
     private InputStream bufferStream;
 
-    /**
-     * queue length 32 and chunk size 16 MiB provided best performance on Ceph RBD
-     */
-    public ReadaheadFileInputStream(File file) {
-        this(file, 32, 1 << 24);
-    }
+    // first error of the read requests, kept to fail all the later reads too
+    private IOException failure;
+
+    // set in close()
+    private boolean closed;
+
+    // name the threads to make them easier to recognize in thread dumps
+    public static final String THREAD_NAME_PREFIX = "readahead-";
+    private static final AtomicInteger streamCount = new AtomicInteger();
 
     /**
      * Read file with readahead
      * 
-     * This will start threads to fill the queue. More requests will be made as soon
-     * as there is space in the queue.
+     * This makes the first queueLength read requests immediately, which the
+     * threads of the pool start to process. After that one new request is made
+     * whenever the reader takes one out of the queue, see fillBuffer().
      * 
-     * @param file         File to tread
+     * Queue length 32 and chunk size 16 MiB provided best performance on Ceph RBD,
+     * but that reserves about 544 MiB of memory for each stream: the queue, the
+     * chunk which is being read at the moment and the one which was just taken out
+     * of the queue.
+     * 
+     * @param file         File to read
      * @param queueLength  How many chunks to read in parallel
      * @param maxChunkSize Maximum size for chunks. The last one can be smaller.
+     *                     Chunks are kept in byte arrays, so this cannot be larger
+     *                     than Integer.MAX_VALUE.
      */
-    public ReadaheadFileInputStream(File file, int queueLength, long maxChunkSize) {
+    public ReadaheadFileInputStream(File file, int queueLength, long maxChunkSize) throws FileNotFoundException {
 
-        if (!file.exists()) {
-            throw new RuntimeException(new FileNotFoundException(file.toString()));
+        if (!file.isFile()) {
+            // also a directory would pass exists()
+            throw new FileNotFoundException(file.toString());
+        }
+
+        if (queueLength < 1) {
+            throw new IllegalArgumentException("queue length must be at least 1, but it was " + queueLength);
+        }
+
+        if (maxChunkSize < 1 || maxChunkSize > Integer.MAX_VALUE) {
+            // a larger value would be truncated to a wrong chunk size, or to zero,
+            // which would look like an empty file
+            throw new IllegalArgumentException(
+                    "chunk size must be between 1 and " + Integer.MAX_VALUE + " bytes, but it was " + maxChunkSize);
         }
 
         this.file = file;
         this.fileLength = file.length();
         this.maxChunkSize = maxChunkSize;
 
-        // don't create more threads than necessary for small files
-        // fileLength is a long and can be casted to int only after the division
-        queueLength = Math.min((int) (fileLength / maxChunkSize + 1), queueLength);
+        // don't create more threads than there are chunks, but at least one, because
+        // an empty file has no chunks at all
+        long chunkCount = (fileLength + maxChunkSize - 1) / maxChunkSize;
+        queueLength = (int) Math.max(1, Math.min(chunkCount, queueLength));
 
-        this.executor = Executors.newFixedThreadPool(queueLength);
+        int streamId = streamCount.incrementAndGet();
+        AtomicInteger threadCount = new AtomicInteger();
+
+        this.executor = Executors.newFixedThreadPool(queueLength, runnable -> {
+
+            Thread thread = new Thread(runnable, THREAD_NAME_PREFIX + streamId + "-" + threadCount.incrementAndGet());
+
+            // set these explicitly, because otherwise a new thread would inherit them
+            // from the thread which happens to create the stream. Daemon threads don't
+            // keep the JVM running, if a stream is left unclosed.
+            thread.setDaemon(true);
+            thread.setPriority(Thread.NORM_PRIORITY);
+
+            return thread;
+        });
 
         // queue size limits how many requests can be made in parallel (and kept in
         // memory), when the stream is consumed slower than we produce it
         this.queue = new ArrayDeque<>(queueLength);
 
-        // fill the queue, it's kept full in fillBuffer()
-        for (int i = 0; i < queueLength; i++) {
-            requestNextChunk();
+        try {
+            // fill the queue, it's kept full in fillBuffer()
+            for (int i = 0; i < queueLength; i++) {
+                requestNextChunk();
+            }
+        } catch (RuntimeException e) {
+            // nobody can close a constructor that throws, so stop the threads here
+            close();
+            throw e;
         }
     }
 
@@ -164,8 +216,8 @@ public class ReadaheadFileInputStream extends InputStream {
                     return buffer;
 
                 } catch (IOException e) {
-                    // will be rethrown in get()
-                    throw new RuntimeException(
+                    // get() will throw this as the cause of an ExecutionException
+                    throw new IOException(
                             "failed to read " + len + " bytes from position " + pos + " from file " + file, e);
                 }
             }
@@ -190,86 +242,167 @@ public class ReadaheadFileInputStream extends InputStream {
             throw new RuntimeException("cannot fill buffer when previous buffer has data available");
         }
 
-        try {
-            if (bufferPosition < fileLength) {
+        if (bufferPosition < fileLength) {
 
-                Future<byte[]> request = queue.poll();
+            Future<byte[]> request = queue.poll();
 
-                if (request == null) {
-                    throw new IllegalStateException("no read requests in the queue, is the stream closed?");
+            if (request == null) {
+                throw failed(new IOException("no read requests in the queue for file " + this.file));
+            }
+
+            byte[] buffer;
+
+            try {
+                // get() waits for Callable to complete
+                buffer = request.get();
+
+            } catch (ExecutionException e) {
+
+                if (e.getCause() instanceof Error) {
+                    // e.g. OutOfMemoryError from the chunk allocation. Don't report it as
+                    // a file read problem, it's a problem of the whole JVM
+                    throw (Error) e.getCause();
                 }
 
-                // get() waits for Callable to complete
-                byte[] buffer = request.get();
+                // the Callable threw an IOException, use it as the cause
+                throw failed(new IOException("failed to read file " + this.file, e.getCause()));
 
-                // request one more to keep the queue full
-                requestNextChunk();
+            } catch (InterruptedException e) {
 
-                this.bufferStream = new ByteArrayInputStream(buffer);
+                Thread.currentThread().interrupt();
 
-                logger.debug("got chunk " + bufferPosition / 1024 / 1024 + " \t" + buffer.length);
+                InterruptedIOException e2 = new InterruptedIOException("interrupted while reading file " + this.file);
+                e2.initCause(e);
 
-                bufferPosition += buffer.length;
+                // this request is still running, it's of no use to anyone anymore
+                request.cancel(true);
 
-            } else if (bufferPosition == fileLength) {
-                // empty file
-                this.bufferStream = new ByteArrayInputStream(new byte[0]);
+                throw failed(e2);
+
+            } catch (RuntimeException e) {
+                // e.g. CancellationException, if the stream was closed by another thread
+                request.cancel(true);
+                throw failed(new IOException("failed to read file " + this.file, e));
             }
-        } catch (Exception e) {
-            throw new RuntimeException("failed to read file " + this.file.toString(), e);
+
+            // request one more to keep the queue full
+            requestNextChunk();
+
+            this.bufferStream = new ByteArrayInputStream(buffer);
+
+            logger.debug("got chunk " + bufferPosition / 1024 / 1024 + " \t" + buffer.length);
+
+            bufferPosition += buffer.length;
+
+        } else {
+            // end of the file, and of an empty file already in the first read
+            this.bufferStream = new ByteArrayInputStream(new byte[0]);
+        }
+    }
+
+    /**
+     * Remember the first error and return it for throwing
+     * 
+     * All the later reads must fail too. Otherwise the next read would continue from
+     * the next chunk, i.e. return data from a wrong position without any error.
+     * 
+     * @param e The error
+     * @return The same error
+     */
+    private IOException failed(IOException e) {
+        if (this.failure == null) {
+            this.failure = e;
+        }
+        return e;
+    }
+
+    /**
+     * Check that the stream is still usable
+     * 
+     * @throws IOException if the stream is closed or a read has failed
+     */
+    private void checkUsable() throws IOException {
+
+        if (this.closed) {
+            throw new IOException("stream is closed, file " + this.file);
+        }
+
+        if (this.failure != null) {
+            throw new IOException("readahead has failed earlier for file " + this.file, this.failure);
         }
     }
 
     @Override
     public int read() throws IOException {
 
-        // assume that ByteArrayInputStream.available() accurately reports remaining
-        // data in the buffer
-        if (bufferStream == null || bufferStream.available() == 0) {
-            fillBuffer();
-        }
+        prepareBuffer();
 
-        // there is at least one byte
+        // there is at least one byte, or the end of the file
         return bufferStream.read();
     }
 
     @Override
     public int read(byte[] b) throws IOException {
-
-        // assume that ByteArrayInputStream.available() accurately reports remaining
-        // data in the buffer
-        if (bufferStream == null || bufferStream.available() == 0) {
-            fillBuffer();
-        }
-
-        // can be smaller than requested, if we are at the end of the current
-        // bufferStream, but the InputStream definition allows it
-        return bufferStream.read(b);
+        return read(b, 0, b.length);
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
 
-        // assume that ByteArrayInputStream.available() accurately reports remaining
-        // data in the buffer
-        if (bufferStream == null || bufferStream.available() == 0) {
-            fillBuffer();
+        if (len == 0) {
+            // must return zero, also in the end of the file, where the buffer would
+            // report the end instead
+            checkUsable();
+            return 0;
         }
+
+        prepareBuffer();
 
         // can be smaller than requested, if we are at the end of the current
         // bufferStream, but the InputStream definition allows it
         return bufferStream.read(b, off, len);
     }
 
+    /**
+     * Make sure the current buffer has data, or that we are in the end of the file
+     * 
+     * @throws IOException if the stream is closed, a read has failed or the next
+     *                     chunk cannot be read
+     */
+    private void prepareBuffer() throws IOException {
+
+        checkUsable();
+
+        // assume that ByteArrayInputStream.available() accurately reports remaining
+        // data in the buffer
+        if (bufferStream == null || bufferStream.available() == 0) {
+            fillBuffer();
+        }
+    }
+
     @Override
     public long skip(long n) throws IOException {
 
-        // we could call fillBuffer() and sourceStream.skip() repeatedly if needed
-        throw new NotImplementedException();
+        checkUsable();
+
+        if (n <= 0) {
+            return 0;
+        }
+
+        // we could call fillBuffer() and bufferStream.skip() repeatedly if needed
+        throw new IOException("skip is not supported");
     }
 
     @Override
     public int available() throws IOException {
+
+        checkUsable();
+
+        if (bufferStream == null) {
+            // nothing is read yet
+            return 0;
+        }
+
         return bufferStream.available();
     }
 
@@ -280,10 +413,17 @@ public class ReadaheadFileInputStream extends InputStream {
      * client cancels a download. Otherwise the read requests would keep their data
      * in memory and the threads would stay alive.
      * 
-     * Can be called multiple times.
+     * Call this from the same thread that reads the stream, because it accesses the
+     * same fields without synchronization.
+     * 
+     * A read which has already started is not interrupted, because
+     * RandomAccessFile doesn't support it, so that thread and its chunk are
+     * released only when it completes. Can be called multiple times.
      */
     @Override
     public void close() {
+
+        this.closed = true;
 
         // cancel requests which are still waiting or running
         for (Future<byte[]> request : queue) {
@@ -295,6 +435,19 @@ public class ReadaheadFileInputStream extends InputStream {
         executor.shutdownNow();
 
         this.bufferStream = null;
+    }
+
+    /**
+     * Length of the file when this stream was created
+     * 
+     * This stream reads exactly this many bytes, whatever happens to the file
+     * later, so use this for the Content-Length header instead of asking the file
+     * again.
+     * 
+     * @return File length in bytes
+     */
+    public long length() {
+        return this.fileLength;
     }
 
     @Override
