@@ -7,7 +7,7 @@
     "build": "npx tsc",
     "compile": "npm run build ; npm run start",
     "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
-    "test": "npm run build && node --test \"lib/**/*.spec.js\"",
+    "test": "rm -rf lib-test && npx tsc -p tsconfig.test.json && node --test \"lib-test/**/*.spec.js\"",
     "test:auto": "./node_modules/nodemon/bin/nodemon.js -e ts --exec \"npm test\""
   },
   "repository": {
