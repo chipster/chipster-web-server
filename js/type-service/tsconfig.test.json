@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*"
+  ],
+  // override the spec exclusion of tsconfig.json: this build is the one that
+  // compiles the tests
+  "exclude": [
+    "node_modules"
+  ],
+  "compilerOptions": {
+    // keep the test build out of the deployed lib/ folder
+    "outDir": "./lib-test"
+  }
+}
