@@ -281,3 +281,46 @@ mkdir -p ~/workspace/empty-tools-bin
 Notes:
 - `url_int_service_locator` is hardcoded in `run.bash` as `http://host.containers.internal:8003` — not configurable via env vars, but works correctly on podman.
 - `$UID` in PODMAN_SOCKET is expanded at runtime by bash, not Java.
+
+---
+
+## Running the Tests
+
+Applies to both modes.
+
+### Java tests (JUnit)
+
+**The backend must already be running.** `TestServerLauncher` looks like it
+starts the servers, but its `new ServerLauncher(config, false)` line is
+commented out — it only creates a `ServiceLocatorClient` and connects to
+whatever is already there (and `stop()` does nothing). Without a running
+backend, every test fails in `@BeforeAll` with a `ConnectException`, which
+looks like a broken test rather than a missing prerequisite.
+
+So this needs two terminals: start PostgreSQL and `./gradlew run --no-daemon`
+as described above, wait for `"up and running"`, then in a second terminal:
+
+```
+./gradlew test --no-daemon                             # all tests
+./gradlew test --no-daemon --tests '*TypeTagResourceTest*'   # one test class
+```
+
+The tests read `conf/chipster.yaml` to find the services and then talk to them
+over REST, creating their own sessions and datasets as they go. They don't
+clean up afterwards — `tearDown()` only calls `TestServerLauncher.stop()`,
+which does nothing — so test data accumulates in the dev database. Drop and
+recreate the databases if that ever gets in the way.
+
+A single test class takes ~15 s once the backend is up.
+
+### JavaScript tests
+
+The `js/` subprojects have their own tests, which do **not** need a running
+backend:
+
+```
+cd js/type-service && npm test
+```
+
+This compiles with `tsc` and runs the built-in Node test runner (`node --test`)
+against `lib/`.
