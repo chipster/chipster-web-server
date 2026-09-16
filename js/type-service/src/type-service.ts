@@ -264,9 +264,7 @@ export default class TypeService {
         },
         () => {
           let types = this.tupleArrayToObject(allTypes);
-          res.contentType = "json";
           res.send(types);
-          next();
 
           // logger.info("response", JSON.stringify(types));
           logger.info(
@@ -282,17 +280,14 @@ export default class TypeService {
 
   respondAlive(req, res, next) {
     res.send();
-    next();
   }
 
   respondStatus(req, res, next) {
     //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
-    res.contentType = "json";
     let status = {
       load: os.loadavg()[0], // 1 min load average
     };
     res.send(status);
-    next();
   }
 
   respondError(res, next, err) {
