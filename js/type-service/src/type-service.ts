@@ -180,7 +180,7 @@ export default class TypeService {
     let clientToken;
 
     try {
-      clientToken = this.getToken(req, res, next);
+      clientToken = TypeService.getToken(req);
     } catch (e) {
       this.respondError(res, next, e);
       return;
@@ -426,29 +426,28 @@ export default class TypeService {
   /*
   Express does not include functionality for parsing HTTP Basic auth header and this is 
   not worth of adding a new dependency
+
+  Throws Unauthorized, so that the caller stops the request handling. Sending
+  the response here would let the handler continue with an undefined token.
   */
-  getToken(req: any, res: any, next: any) {
+  static getToken(req: any): string {
     if (
       req.headers.authorization == null ||
       req.headers.authorization.length === 0
     ) {
-      res.status(401).send("no authorization header");
-      return;
+      throw new Unauthorized("no authorization header");
     }
 
     const headerValue = req.headers.authorization.split(" ");
 
     if (headerValue.length != 2) {
-      res.status(401).send("wrong header value length");
-      return;
+      throw new Unauthorized("wrong header value length");
     }
 
     const [scheme, b64] = headerValue;
 
     if (scheme !== "Basic") {
-      // throw new errors.UnauthorizedError("username must be token");
-      res.status(401).send("username must be token");
-      return;
+      throw new Unauthorized("username must be token");
     }
 
     const decoded = Buffer.from(b64, "base64").toString();
@@ -456,8 +455,7 @@ export default class TypeService {
     const splitIndex = decoded.indexOf(":");
 
     if (splitIndex === -1) {
-      res.status(401).send("cannot parse username and password");
-      return;
+      throw new Unauthorized("cannot parse username and password");
     }
 
     const username = decoded.substring(0, splitIndex);
@@ -465,16 +463,14 @@ export default class TypeService {
     const password = decoded.substring(splitIndex + 1);
 
     if (username !== "token") {
-      // throw new errors.UnauthorizedError("only token authentication supported");
-      res.status(401).send("only token authentication supported");
-      return;
+      throw new Unauthorized("only token authentication supported");
     }
 
     return password;
   }
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   public statusCode;
   public cause;
   constructor(statusCode, message, cause?) {
@@ -486,6 +482,12 @@ class HttpError extends Error {
 class BadRequest extends HttpError {
   constructor(message) {
     super(400, message);
+  }
+}
+
+export class Unauthorized extends HttpError {
+  constructor(message) {
+    super(401, message);
   }
 }
 
