@@ -5,7 +5,7 @@
 #     ./gradlew runProxy
 #
 # The browser reaches every service through the Angular dev server, which
-# proxies them and strips the path prefix (see chipster-web/proxy.conf.json),
+# proxies them and strips the path prefix (see chipster-web/proxy.conf.mjs),
 # so that only the dev server port has to be forwarded from a remote dev
 # environment, instead of one port per service. Serve the app with
 # "npm run start:proxy" to match.
