@@ -1,5 +1,5 @@
 import { TypeTags } from "./type-tags.js";
-import fs = require("fs");
+import fs from "fs";
 
 export class LocalFileTypeService {
   static getTypeTags(path: string) {
