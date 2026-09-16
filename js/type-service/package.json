@@ -32,7 +32,7 @@
     "@types/node": "^24.1.10",
     "@types/restify-errors": "^4.3.2",
     "chai": "^6.2.2",
-    "mocha": "^11.7.5",
+    "mocha": "^12.0.1",
     "nodemon": "^3.0.3",
     "ts-node": "^10.7.0",
     "typescript": "^5.3.3"
