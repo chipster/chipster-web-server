@@ -99,8 +99,8 @@ export default class TypeService {
         this.respond(req, res, next);
       },
     );
-    server.get("/admin/status", (req, res, next) => {
-      (cors(corsOptions), this.respondStatus(req, res, next));
+    server.get("/admin/status", cors(corsOptions), (req, res, next) => {
+      this.respondStatus(req, res, next);
     });
 
     let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
