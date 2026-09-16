@@ -1,5 +1,6 @@
 import { Tags, TypeTags } from "./type-tags.js";
-import { expect } from "chai";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { LocalFileTypeService } from "./local-file-type-service.js";
 import fs from "fs";
 import { keys } from "lodash-es";
@@ -15,20 +16,19 @@ describe("Test pValue and fold change tagging", () => {
   ];
   let noPvalueHeader = ["logFC", "summer"];
   it("return true for header with pValue and fold change columns", () => {
-    expect(TypeTags.pValueAndFoldChangeCompatible(pvalueAndFCHeader)).to.equal(
-      true
+    assert.equal(
+      TypeTags.pValueAndFoldChangeCompatible(pvalueAndFCHeader),
+      true,
     );
   });
   it("return false for header with no pValue column", () => {
-    expect(TypeTags.pValueAndFoldChangeCompatible(noPvalueHeader)).to.equal(
-      false
-    );
+    assert.equal(TypeTags.pValueAndFoldChangeCompatible(noPvalueHeader), false);
   });
 });
 
 describe("Test fast tags", () => {
   it("return PNG for .png files", () => {
-    expect(TypeTags.getFastTypeTags("image.png")).to.have.keys(Tags.PNG.id);
+    assert.deepEqual(keys(TypeTags.getFastTypeTags("image.png")), [Tags.PNG.id]);
   });
 });
 
@@ -40,9 +40,9 @@ describe("Test tagging for all test files", () => {
         "\t",
         filename,
         keys(tags).reduce((all, current) => (all += " " + current)),
-        ""
+        "",
       );
-      expect(tags).not.to.be.empty;
+      assert.notEqual(keys(tags).length, 0);
     });
   });
 });
