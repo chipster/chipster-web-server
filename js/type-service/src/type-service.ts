@@ -140,7 +140,12 @@ export default class TypeService {
       // By default, Express either responds with stack trace in development mode,
       // or no custom message at all in production mode.
       if (err instanceof HttpError) {
-        logger.error("http error: " + JSON.stringify(err) + " " + err.stack);
+        if (err.statusCode >= 400 && err.statusCode <= 499) {
+          // client errors are expected, log without a stack trace
+          logger.warn("http error: " + err.statusCode + " " + err.message);
+        } else {
+          logger.error("http error: " + JSON.stringify(err) + " " + err.stack);
+        }
         if (err.statusCode != null) {
           res.status(err.statusCode);
         }
