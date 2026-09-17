@@ -38,6 +38,16 @@ public class JavascriptService implements ServerComponent {
 	 */
 	private static final int KILL_TIMEOUT_SECONDS = 1;
 
+	/**
+	 * Environment variable where the pid of this JVM is told to the service
+	 *
+	 * close() can't run when this JVM is killed with SIGKILL, so the service has to
+	 * notice that by itself. It can't find this process on its own, because npm
+	 * starts it through a shell, which makes that shell its parent. See
+	 * startParentMonitor() in js/type-service/src/parent-monitor.ts.
+	 */
+	private static final String PARENT_PID_ENV = "CHIPSTER_PARENT_PID";
+
 	private String serviceRootPath;
 	private Process process;
 	private File serviceRoot;
@@ -101,6 +111,11 @@ public class JavascriptService implements ServerComponent {
 
 		System.out.println("Run");
 		ProcessBuilder builder = getProcessBuilder("npm", "start");
+		/*
+		 * Only for the service, not in getProcessBuilder(): the build commands are
+		 * waited for here, so they have no reason to outlive this process.
+		 */
+		builder.environment().put(PARENT_PID_ENV, "" + ProcessHandle.current().pid());
 		this.process = builder.start();
 
 		logExit(this.process);

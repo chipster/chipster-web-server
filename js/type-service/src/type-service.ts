@@ -5,6 +5,7 @@ import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
 import { fileURLToPath } from "url";
+import { startParentMonitor } from "./parent-monitor.js";
 
 import express from "express";
 import cors from "cors";
@@ -534,4 +535,8 @@ class InternalServerError extends HttpError {
 
 if (import.meta.url.endsWith(process.argv[1])) {
   new TypeService();
+  /* Started after the service, because its constructor configures the log file.
+  The monitor exits the process if the parent process is killed, see
+  startParentMonitor(). */
+  startParentMonitor();
 }
