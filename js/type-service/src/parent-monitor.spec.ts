@@ -10,6 +10,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, ChildProcess } from "child_process";
 import fs from "fs";
+import os from "os";
+import path from "path";
 
 // keep the tests quick, the production interval is much longer
 const TEST_INTERVAL_MS = 10;
@@ -154,6 +156,61 @@ describe("Test process checking", () => {
   });
 });
 
+/*
+Run the monitor in a real process and let its parent die
+
+The default of onParentGone() exits the process, so it can't be tested in this
+one. This runs the compiled monitor like the service does: with the log file
+configured and something keeping the event loop alive, like the servers do.
+Returns the exit code and the log file, which is written to a temporary
+directory, because Logger writes it relative to the working directory.
+*/
+function runMonitorUntilParentExits(): Promise<{
+  code: number | null;
+  log: string;
+}> {
+  return new Promise((resolve) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "parent-monitor-test-"));
+    // the tests run the compiled code, so the child can import it from here
+    const monitor = new URL("./parent-monitor.js", import.meta.url).href;
+    const logger = new URL(
+      "../node_modules/chipster-nodejs-core/lib/logger.js",
+      import.meta.url,
+    ).href;
+
+    const parent = startDummyProcess();
+
+    const child = spawn(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { startParentMonitor } from "${monitor}";
+         import { Logger } from "${logger}";
+         Logger.addLogFile();
+         startParentMonitor({ intervalMs: 20 });
+         // the servers keep the loop alive in the real service
+         setInterval(() => {}, 1000);`,
+      ],
+      { cwd: dir, env: { ...process.env, [PARENT_PID_ENV]: "" + parent.pid } },
+    );
+
+    child.on("exit", (code) => {
+      let log = "";
+      try {
+        log = fs.readFileSync(path.join(dir, "logs", "chipster.log"), "utf8");
+      } catch (err) {
+        // leave it empty, the test reports it
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+      resolve({ code, log });
+    });
+
+    // let the monitor start before taking its parent away
+    setTimeout(() => killAndWait(parent), 500);
+  });
+}
+
 describe("Test parent monitor", () => {
   it("do nothing when the pid isn't set", () => {
     assert.equal(startParentMonitor({ env: {} }), null);
@@ -204,6 +261,16 @@ describe("Test parent monitor", () => {
 
     clearInterval(timer);
     await killAndWait(dummy);
+  });
+
+  it("exit a real process when its real parent exits", async () => {
+    const result = await runMonitorUntilParentExits();
+
+    // a clean exit, not a crash on the way out
+    assert.equal(result.code, 0);
+    /* The monitor really ran in that process. Its last message isn't checked,
+    because writing it isn't guaranteed, see startParentMonitor(). */
+    assert.match(result.log, /monitoring the parent process/);
   });
 
   it("exit when the parent is already gone", async () => {
