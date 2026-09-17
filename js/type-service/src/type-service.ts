@@ -144,7 +144,12 @@ export default class TypeService {
           // client errors are expected, log without a stack trace
           logger.warn("http error: " + err.statusCode + " " + err.message);
         } else {
-          logger.error("http error: " + JSON.stringify(err) + " " + err.stack);
+          // the response hides these behind a generic message, so the original
+          // error is only visible here
+          logger.error("http error: " + err.statusCode + " " + err.stack);
+          if (err.cause != null) {
+            logger.error("caused by: " + (err.cause.stack ?? err.cause));
+          }
         }
         if (err.statusCode != null) {
           res.status(err.statusCode);
@@ -296,7 +301,9 @@ export default class TypeService {
       // async error must be sent with next() for error handler to process it
       next(new HttpError(err.statusCode, err.message, err));
     } else {
-      next(new InternalServerError("type tagging failed"));
+      // don't leak internal details to the client, but keep the original
+      // error for the log
+      next(new InternalServerError("type tagging failed", err));
     }
   }
 
@@ -492,8 +499,8 @@ export class Unauthorized extends HttpError {
 }
 
 class InternalServerError extends HttpError {
-  constructor(message) {
-    super(500, message);
+  constructor(message, cause?) {
+    super(500, message, cause);
   }
 }
 
