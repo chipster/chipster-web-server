@@ -13,19 +13,22 @@ import url from "url";
 
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
-class IdPair {
-  constructor(
-    public sessionId: string,
-    public datasetId: string,
-  ) {}
-}
-
-const MAX_CACHE_SIZE = 100 * 1000;
+export const MAX_CACHE_SIZE = 100 * 1000;
 const MAX_HEADER_LENGTH = 4096;
+
+/* Cached slow tags and the inputs they were calculated from
+
+The signature tells whether the cached tags are still valid, see
+getCacheSignature().
+*/
+interface CacheItem {
+  signature: string;
+  tags: Object;
+}
 
 export default class TypeService {
   private tagIdMap = new Map<string, Tag>();
-  private cache = new Map<string, {}>();
+  private cache = new Map<string, CacheItem>();
 
   private config = new Config();
   username: any;
@@ -336,75 +339,100 @@ export default class TypeService {
   }
 
   /**
-   * Slow tags depend on the fast tags, but we can't know if the fast tags have
-   * changed and therefore can't update the slow tags. To update the slow tags, admin can restart
-   * this service, or user has to export and import the file.
+   * Slow tags are parsed from the file, but only for tsv files. The cache entry
+   * is keyed by the session and dataset id, but it also stores a signature of
+   * the file, so that a replaced file gets new slow tags instead of the stale
+   * ones.
    *
    * @param sessionId
-   * @param datasetId
+   * @param dataset
    * @param token
    * @param fastTags
    * @returns {any}
    */
   getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags: Object) {
-    let idPair = new IdPair(sessionId, dataset.datasetId);
-    let cacheItem = this.getFromCache(idPair);
+    if (!(Tags.TSV.id in fastTags)) {
+      // nothing to parse, don't waste cache entries on these
+      return observableOf({});
+    }
 
-    if (cacheItem) {
+    let key = TypeService.getCacheKey(sessionId, dataset.datasetId);
+    let signature = TypeService.getCacheSignature(dataset);
+    let cachedTags = this.getFromCache(key, signature);
+
+    if (cachedTags != null) {
       logger.debug("cache hit", sessionId + " " + dataset.datasetId);
-      return observableOf(cacheItem);
+      return observableOf(cachedTags);
     } else {
       logger.info("cache miss", sessionId + " " + dataset.datasetId);
-      return this.getSlowTypeTagsForDataset(
-        sessionId,
-        dataset,
-        token,
-        fastTags,
-      ).pipe(
+      return this.getSlowTypeTagsForDataset(sessionId, dataset, token).pipe(
         map((slowTags) => {
-          this.addToCache(idPair, slowTags);
+          this.addToCache(key, signature, slowTags);
           return slowTags;
         }),
       );
     }
   }
 
-  getFromCache(idPair) {
-    if (this.cache.has(JSON.stringify(idPair))) {
-      return this.cache.get(JSON.stringify(idPair));
-    } else {
+  static getCacheKey(sessionId: string, datasetId: string): string {
+    return JSON.stringify([sessionId, datasetId]);
+  }
+
+  /**
+   * Signature of the file the slow tags are parsed from
+   *
+   * The file id changes when the file is replaced and the size grows while an
+   * upload is still in progress.
+   *
+   * @param dataset
+   * @returns signature to compare against the cached one
+   */
+  static getCacheSignature(dataset): string {
+    return JSON.stringify([dataset.fileId, dataset.size]);
+  }
+
+  getFromCache(key: string, signature: string) {
+    let cacheItem = this.cache.get(key);
+
+    if (cacheItem == null) {
       return null;
     }
-  }
 
-  addToCache(idPair, tags) {
-    // minus one to make space for the new entry
-    while (this.cache.size > MAX_CACHE_SIZE - 1) {
-      let oldestKey = this.cache.keys().next().value;
-      this.cache.delete(oldestKey);
+    if (cacheItem.signature !== signature) {
+      // the dataset has changed, the tags have to be calculated again
+      this.cache.delete(key);
+      return null;
     }
 
-    this.cache.set(JSON.stringify(idPair), tags);
+    // move to the end of the insertion order to keep the eviction least
+    // recently used
+    this.cache.delete(key);
+    this.cache.set(key, cacheItem);
+
+    return cacheItem.tags;
   }
 
-  getSlowTypeTagsForDataset(
-    sessionId: string,
-    dataset: string,
-    token: string,
-    fastTags: Object,
-  ) {
-    let observable;
-    if (Tags.TSV.id in fastTags) {
-      observable = this.getParsedTsv(sessionId, dataset, token).pipe(
-        map((table: any[][]) => {
-          return TypeTags.getSlowTypeTags(table);
-        }),
-      );
-    } else {
-      observable = observableOf({});
+  addToCache(key: string, signature: string, tags: Object) {
+    // concurrent misses for the same dataset can both end up here, delete
+    // first so that the entry doesn't keep the position of the earlier one
+    this.cache.delete(key);
+
+    while (this.cache.size >= MAX_CACHE_SIZE) {
+      // the first key is the least recently used, because getFromCache() moves
+      // the entries it returns to the end
+      let lruKey = this.cache.keys().next().value;
+      this.cache.delete(lruKey);
     }
 
-    return observable;
+    this.cache.set(key, { signature: signature, tags: tags });
+  }
+
+  getSlowTypeTagsForDataset(sessionId: string, dataset, token: string) {
+    return this.getParsedTsv(sessionId, dataset, token).pipe(
+      map((table: any[][]) => {
+        return TypeTags.getSlowTypeTags(table);
+      }),
+    );
   }
 
   getParsedTsv(sessionId, dataset, clientToken) {

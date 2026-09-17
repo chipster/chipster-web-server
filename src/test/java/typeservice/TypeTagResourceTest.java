@@ -153,6 +153,41 @@ public class TypeTagResourceTest {
 	}
 
 	@Test
+	public void updateTsv() throws RestException, JsonParseException, JsonMappingException, IOException {
+
+		Dataset dataset = RestUtils.getRandomDataset();
+		dataset.setName("file.tsv");
+		UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
+
+		String contents = "chip.1\tchip.2";
+		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, datasetId,
+				RestUtils.toInputStream(contents), contents.length());
+
+		Response resp = typeServiceTarget1
+				.path("sessions").path(sessionId.toString())
+				.path("datasets").path(datasetId.toString())
+				.request().get();
+
+		String json = RestUtils.toString((InputStream) resp.getEntity());
+		// the slow tags are parsed from the file contents and cached
+		assertEquals(true, json.contains("GENE_EXPRS"));
+
+		// rename, so that the file isn't a tsv file anymore
+		dataset.setName("file.bam");
+		sessionDbClient.updateDataset(sessionId, dataset);
+
+		resp = typeServiceTarget1
+				.path("sessions").path(sessionId.toString())
+				.path("datasets").path(datasetId.toString())
+				.request().get();
+
+		json = RestUtils.toString((InputStream) resp.getEntity());
+		assertEquals(true, json.contains("BAM"));
+		// the cached slow tags of the old name must not be used anymore
+		assertEquals(false, json.contains("GENE_EXPRS"));
+	}
+
+	@Test
 	public void getWrongUser() throws FileNotFoundException, RestException {
 		Response resp = typeServiceTarget2
 				.path("sessions").path(sessionId.toString())
