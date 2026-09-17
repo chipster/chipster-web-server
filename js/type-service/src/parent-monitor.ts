@@ -173,6 +173,13 @@ export function startParentMonitor(
   const env = options.env ?? process.env;
   const isAlive = options.isAlive ?? isProcessAlive;
   const intervalMs = options.intervalMs ?? PARENT_POLL_INTERVAL_MS;
+  /* The log file is buffered and process.exit() doesn't wait for it, so a
+  heavy log backlog can swallow the message below that tells why the service
+  stopped. Flushing it would mean ending the logger, and the transports are
+  shared by every logger of the process, so the next message from anywhere else
+  would throw "write after end" and kill the process before it got to exit
+  cleanly. A lost message is the smaller problem, and there is no backlog to
+  lose it in unless the service is busy at the very moment its parent dies. */
   const onParentGone = options.onParentGone ?? (() => process.exit(0));
 
   const value = env[PARENT_PID_ENV];
