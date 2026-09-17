@@ -84,21 +84,22 @@ timeout 180 grep -m 1 "up and running" <(tail -f /tmp/serverlauncher.log 2>/dev/
 To kill stuck Java processes: `kill -9 $(ps aux | grep java | grep -v grep | awk '{print $2}')`
 (`pkill -f java` is not always reliable.)
 
-**Kill the js services too.** ServerLauncher starts the js services (currently
-type-service) as child processes, and `kill -9` on the Java process leaves them
-running and holding their ports (8010 and 8110 for type-service). The next
-`./gradlew run` then looks like it started normally, but the requests are still
-answered by the old process running the old code, which is confusing when
-testing a change. List and kill them with:
+**The js services stop themselves.** ServerLauncher starts the js services
+(currently type-service) as child processes and stops them when it stops, but
+`kill -9` doesn't let it stop anything. The services handle that case
+themselves: ServerLauncher tells its pid in the `CHIPSTER_PARENT_PID`
+environment variable, and the service exits within a couple of seconds of
+noticing that the pid is gone (`startParentMonitor()` in
+`js/type-service/src/parent-monitor.ts`). Verify with:
 
 ```
 ps -eo pid,lstart,cmd | grep "[l]ib/type-service.js"
-kill -9 <pids>
 ```
 
-Don't use `pkill -f type-service.js` for this: `-f` matches the whole command
-line, which includes the shell running the `pkill` command itself, so it kills
-your own shell (and the rest of the script) as well.
+If a service is somehow still there, kill it by the pid from that command.
+Don't use `pkill -f type-service.js`: `-f` matches the whole command line,
+which includes the shell running the `pkill` command itself, so it kills your
+own shell (and the rest of the script) as well.
 
 ### Configuration — `conf/chipster.yaml`
 
