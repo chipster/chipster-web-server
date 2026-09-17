@@ -90,18 +90,21 @@ describe("Test error responses", () => {
     assert.equal(errors[0].message, "no authorization header");
   });
 
-  it("hide other errors behind a 500", () => {
+  it("hide other errors behind a 500, but keep the original as the cause", () => {
     let errors = [];
+    let original = new HttpError(503, "session-db is down");
 
     respondError.call(
       null,
       forbiddenResponse(),
       (err) => errors.push(err),
-      new HttpError(503, "session-db is down"),
+      original,
     );
 
     assert.equal(errors.length, 1);
     assert.equal(errors[0].statusCode, 500);
     assert.equal(errors[0].message, "type tagging failed");
+    // the client gets the generic message, but the log needs the real error
+    assert.equal(errors[0].cause, original);
   });
 });
