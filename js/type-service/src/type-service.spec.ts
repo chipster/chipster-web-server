@@ -1,6 +1,12 @@
-import TypeService, { HttpError, Unauthorized } from "./type-service.js";
+import TypeService, {
+  HttpError,
+  MAX_CACHE_SIZE,
+  Unauthorized,
+} from "./type-service.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { Observable, of as observableOf } from "rxjs";
+import { Tags, TypeTags } from "./type-tags.js";
 
 function basicAuthRequest(username: string, password: string) {
   const b64 = Buffer.from(username + ":" + password).toString("base64");
@@ -106,5 +112,132 @@ describe("Test error responses", () => {
     assert.equal(errors[0].message, "type tagging failed");
     // the client gets the generic message, but the log needs the real error
     assert.equal(errors[0].cause, original);
+  });
+});
+
+/*
+The cache methods use only "this.cache" and each other, so we can call them
+without constructing TypeService, which would start the servers.
+*/
+function cacheOwner(slowTags: Object = {}) {
+  let requestedNames = [];
+
+  return {
+    cache: new Map(),
+    requestedNames: requestedNames,
+    getFromCache: TypeService.prototype.getFromCache,
+    addToCache: TypeService.prototype.addToCache,
+    getSlowTypeTagsForDataset: (sessionId, dataset, token) => {
+      requestedNames.push(dataset.name);
+      return observableOf(slowTags);
+    },
+  };
+}
+
+function dataset(name: string, fileId = "file1", size = 1000) {
+  return { datasetId: "dataset1", name: name, fileId: fileId, size: size };
+}
+
+/* Get the value of a synchronous observable */
+function getValue(observable: Observable<any>) {
+  let values = [];
+  observable.subscribe((value) => values.push(value));
+  assert.equal(values.length, 1, "expected one value from the observable");
+  return values[0];
+}
+
+function getSlowTypeTagsCached(owner, dataset) {
+  return getValue(
+    TypeService.prototype.getSlowTypeTagsCached.call(
+      owner,
+      "session1",
+      dataset,
+      "token1",
+      TypeTags.getFastTypeTags(dataset.name),
+    ),
+  );
+}
+
+describe("Test slow type tag cache", () => {
+  it("calculate the tags only once when the dataset hasn't changed", () => {
+    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+
+    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
+      [Tags.GENELIST.id]: null,
+    });
+    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
+      [Tags.GENELIST.id]: null,
+    });
+
+    assert.deepEqual(owner.requestedNames, ["results.tsv"]);
+  });
+
+  it("skip the cache when the dataset isn't a tsv file", () => {
+    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+
+    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.bam")), {});
+
+    assert.deepEqual(owner.requestedNames, []);
+    assert.equal(owner.cache.size, 0);
+  });
+
+  it("follow the name when the dataset is renamed", () => {
+    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+
+    getSlowTypeTagsCached(owner, dataset("results.tsv"));
+    // the new name isn't a tsv file anymore, so the cached tags must not be used
+    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.bam")), {});
+    // the file hasn't changed, so the old tags are still valid when renamed back
+    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
+      [Tags.GENELIST.id]: null,
+    });
+
+    assert.deepEqual(owner.requestedNames, ["results.tsv"]);
+  });
+
+  it("calculate the tags again when the file is replaced", () => {
+    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+
+    getSlowTypeTagsCached(owner, dataset("results.tsv", "file1"));
+    getSlowTypeTagsCached(owner, dataset("results.tsv", "file2"));
+    getSlowTypeTagsCached(owner, dataset("results.tsv", "file2", 2000));
+
+    assert.deepEqual(owner.requestedNames, [
+      "results.tsv",
+      "results.tsv",
+      "results.tsv",
+    ]);
+    assert.equal(owner.cache.size, 1);
+  });
+
+  it("evict the least recently used entry", () => {
+    let owner = cacheOwner();
+    let key = (i: number) => TypeService.getCacheKey("session1", "dataset" + i);
+
+    // fill the cache
+    for (let i = 0; i < MAX_CACHE_SIZE; i++) {
+      owner.addToCache(key(i), "signature", {});
+    }
+
+    // use the oldest entry to make the second oldest the least recently used
+    assert.deepEqual(owner.getFromCache(key(0), "signature"), {});
+
+    // the new entry doesn't fit in, one of the old ones has to go
+    owner.addToCache(key(MAX_CACHE_SIZE), "signature", {});
+
+    assert.equal(owner.cache.size, MAX_CACHE_SIZE);
+    assert.notEqual(owner.getFromCache(key(0), "signature"), null);
+    assert.equal(owner.getFromCache(key(1), "signature"), null);
+  });
+
+  it("forget an entry when the signature has changed", () => {
+    let owner = cacheOwner();
+    let key = TypeService.getCacheKey("session1", "dataset1");
+
+    owner.addToCache(key, "signature1", {});
+
+    assert.equal(owner.getFromCache(key, "signature2"), null);
+    // the stale entry is removed, not just ignored
+    assert.equal(owner.cache.size, 0);
   });
 });
