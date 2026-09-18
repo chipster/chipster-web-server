@@ -1,4 +1,4 @@
-import { Tags, TypeTags } from "./type-tags.js";
+import { Tags, TypeTagMap, TypeTags } from "./type-tags.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { LocalFileTypeService } from "./local-file-type-service.js";
@@ -22,12 +22,46 @@ describe("Test fast tags", () => {
   });
 });
 
+/*
+The tags of every file in test-files
+
+Tagging is easy to change by accident, for example by giving an extension to
+another tag, so the test names the tags of each file. Checking only that there
+are some would pass even if every file got the wrong ones.
+*/
+const EXPECTED_TAGS: { [filename: string]: TypeTagMap } = {
+  "extract.tsv": {
+    [Tags.TSV.id]: null,
+    [Tags.TEXT.id]: null,
+    [Tags.GENELIST.id]: null,
+    [Tags.GENE_EXPRS.id]: null,
+  },
+  "image.png": { [Tags.PNG.id]: null },
+  "two-sample.tsv": {
+    [Tags.TSV.id]: null,
+    [Tags.TEXT.id]: null,
+    [Tags.GENELIST.id]: null,
+    [Tags.GENE_EXPRS.id]: null,
+    [Tags.PVALUE_AND_FOLD_CHANGE.id]: null,
+  },
+  "unique-genes.tsv": {
+    [Tags.TSV.id]: null,
+    [Tags.TEXT.id]: null,
+    [Tags.GENELIST.id]: null,
+  },
+};
+
 describe("Test tagging for all test files", () => {
-  it("return tags", () => {
-    fs.readdirSync("./test-files").forEach((filename) => {
+  it("return the tags of every test file", () => {
+    const filenames = fs.readdirSync("./test-files").sort();
+
+    // a new test file has to get an expectation of its own, instead of
+    // being tagged without anything checking the result
+    assert.deepEqual(filenames, Object.keys(EXPECTED_TAGS).sort());
+
+    for (const filename of filenames) {
       const tags = LocalFileTypeService.getTypeTags("./test-files/" + filename);
-      console.log("\t", filename, keys(tags).join(" "), "");
-      assert.notEqual(keys(tags).length, 0);
-    });
+      assert.deepEqual(tags, EXPECTED_TAGS[filename], filename);
+    }
   });
 });
