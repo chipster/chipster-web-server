@@ -438,7 +438,7 @@ export default class TypeService {
   Throws Unauthorized, so that the caller stops the request handling. Sending
   the response here would let the handler continue with an undefined token.
   */
-  static getToken(req: any): string {
+  static getToken(req: { headers: { authorization?: string } }): string {
     if (req.headers.authorization == null || req.headers.authorization.length === 0) {
       throw new Unauthorized("no authorization header");
     }
