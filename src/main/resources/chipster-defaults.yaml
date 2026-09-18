@@ -638,7 +638,8 @@ file-storage-backup-preserve-space: 3.0
 file-storage-id: ""
 
 # Start multiple threads to read files larger than this, in MiB.
-# File download with readahead consumes more memory (chunk-size * chunk-count for each transfer), but
+# File download with readahead consumes more memory ((chunk-count + 2) * chunk-size for each transfer,
+# see max-concurrent below for the total), but
 # can be significantly faster on distributed storage systems, that have high latency and tolerate plenty of parallelism.
 
 file-storage-readahead-above: ""
@@ -646,8 +647,13 @@ file-storage-readahead-above: ""
 file-storage-readahead-chunk-size: 4
 # readahead maximum number of chunk and thread for one file
 file-storage-readahead-chunk-count: 16
-# use direct memory for readahead buffer or set to false to use memory from heap
-file-storage-readahead-direct-memory: true
+# how many downloads can use readahead at the same time. Others are served without readahead.
+# Heap usage is about max-concurrent * (chunk-count + 2) * chunk-size. Closing a download
+# waits for its reads, but a chunk which is allocated at that moment is released a little
+# later, so the limit can be exceeded for a short while. The JVM keeps a native buffer of
+# one chunk for each reading thread, i.e. about max-concurrent * chunk-count * chunk-size
+# more, which counts against the memory limit of the container.
+file-storage-readahead-max-concurrent: 4
 
 # session-worker
 
