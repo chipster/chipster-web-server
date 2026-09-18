@@ -1,8 +1,4 @@
-import TypeService, {
-  HttpError,
-  MAX_CACHE_SIZE,
-  Unauthorized,
-} from "./type-service.js";
+import TypeService, { HttpError, MAX_CACHE_SIZE, Unauthorized } from "./type-service.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Observable, of as observableOf } from "rxjs";
@@ -27,17 +23,11 @@ function forbiddenResponse() {
 
 describe("Test token parsing", () => {
   it("return the token of a valid header", () => {
-    assert.equal(
-      TypeService.getToken(basicAuthRequest("token", "abc123")),
-      "abc123",
-    );
+    assert.equal(TypeService.getToken(basicAuthRequest("token", "abc123")), "abc123");
   });
 
   it("keep the colons of the password", () => {
-    assert.equal(
-      TypeService.getToken(basicAuthRequest("token", "abc:123:xyz")),
-      "abc:123:xyz",
-    );
+    assert.equal(TypeService.getToken(basicAuthRequest("token", "abc:123:xyz")), "abc:123:xyz");
   });
 
   it("throw 401 for invalid headers", () => {
@@ -47,8 +37,7 @@ describe("Test token parsing", () => {
       "no scheme": { headers: { authorization: "Basic" } },
       "wrong scheme": {
         headers: {
-          authorization:
-            "Bearer " + Buffer.from("token:abc123").toString("base64"),
+          authorization: "Bearer " + Buffer.from("token:abc123").toString("base64"),
         },
       },
       "no username and password separator": {
@@ -100,12 +89,7 @@ describe("Test error responses", () => {
     let errors = [];
     let original = new HttpError(503, "session-db is down");
 
-    respondError.call(
-      null,
-      forbiddenResponse(),
-      (err) => errors.push(err),
-      original,
-    );
+    respondError.call(null, forbiddenResponse(), (err) => errors.push(err), original);
 
     assert.equal(errors.length, 1);
     assert.equal(errors[0].statusCode, 500);
@@ -202,11 +186,7 @@ describe("Test slow type tag cache", () => {
     getSlowTypeTagsCached(owner, dataset("results.tsv", "file2"));
     getSlowTypeTagsCached(owner, dataset("results.tsv", "file2", 2000));
 
-    assert.deepEqual(owner.requestedNames, [
-      "results.tsv",
-      "results.tsv",
-      "results.tsv",
-    ]);
+    assert.deepEqual(owner.requestedNames, ["results.tsv", "results.tsv", "results.tsv"]);
     assert.equal(owner.cache.size, 1);
   });
 
