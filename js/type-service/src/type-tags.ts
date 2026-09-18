@@ -1,3 +1,13 @@
+/*
+Type tags of one dataset, keyed by the tag id
+
+Most tags only have to be present, which is null here. The rest carry a value
+that the client needs for reading the file, like the column titles of a bed
+file. This is the typeTags of the Dataset of chipster-js-common, whose value
+type doesn't have the null.
+*/
+export type TypeTagMap = { [tagId: string]: string | null };
+
 export class Tag {
   constructor(
     public id: string,
@@ -94,8 +104,8 @@ const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
 export class TypeTags {
-  static getFastTypeTags(name: string): object {
-    const typeTags = {}; // TODO refactor to Map
+  static getFastTypeTags(name: string): TypeTagMap {
+    const typeTags: TypeTagMap = {}; // TODO refactor to Map
 
     // add simple type tags based on file extensions
     // TODO refactor
@@ -167,8 +177,8 @@ export class TypeTags {
     return typeTags;
   }
 
-  static getSlowTypeTags(table: string[][]) {
-    const slowTags = {};
+  static getSlowTypeTags(table: string[][]): TypeTagMap {
+    const slowTags: TypeTagMap = {};
 
     const headers = table[0];
     const firstRow = table[1];

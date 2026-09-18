@@ -1,6 +1,6 @@
-import { from, of as observableOf } from "rxjs";
+import { from, Observable, of as observableOf } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
-import { Tag, Tags, TypeTags } from "./type-tags.js";
+import { Tag, Tags, TypeTagMap, TypeTags } from "./type-tags.js";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
@@ -23,7 +23,7 @@ getCacheSignature().
 */
 interface CacheItem {
   signature: string;
-  tags: unknown;
+  tags: TypeTagMap;
 }
 
 export default class TypeService {
@@ -327,7 +327,7 @@ export default class TypeService {
    * @param fastTags
    * @returns {any}
    */
-  getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags: object) {
+  getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags: TypeTagMap): Observable<TypeTagMap> {
     if (!(Tags.TSV.id in fastTags)) {
       // nothing to parse, don't waste cache entries on these
       return observableOf({});
@@ -367,7 +367,7 @@ export default class TypeService {
     return JSON.stringify([dataset.fileId, dataset.size]);
   }
 
-  getFromCache(key: string, signature: string) {
+  getFromCache(key: string, signature: string): TypeTagMap | null {
     const cacheItem = this.cache.get(key);
 
     if (cacheItem == null) {
@@ -388,7 +388,7 @@ export default class TypeService {
     return cacheItem.tags;
   }
 
-  addToCache(key: string, signature: string, tags: unknown) {
+  addToCache(key: string, signature: string, tags: TypeTagMap) {
     // concurrent misses for the same dataset can both end up here, delete
     // first so that the entry doesn't keep the position of the earlier one
     this.cache.delete(key);
@@ -403,15 +403,21 @@ export default class TypeService {
     this.cache.set(key, { signature: signature, tags: tags });
   }
 
-  getSlowTypeTagsForDataset(sessionId: string, dataset, token: string) {
+  getSlowTypeTagsForDataset(sessionId: string, dataset, token: string): Observable<TypeTagMap> {
     return this.getParsedTsv(sessionId, dataset, token).pipe(
-      map((table: any[][]) => {
+      map((table) => {
         return TypeTags.getSlowTypeTags(table);
       }),
     );
   }
 
-  getParsedTsv(sessionId, dataset, clientToken) {
+  /*
+  RestClient has no type declarations, so the observable it returns is any, and
+  the operators of a piped any get their value type from nowhere. The explicit
+  return type here starts the typing of the chain again, so that the tags keep
+  their type all the way into the cache.
+  */
+  getParsedTsv(sessionId, dataset, clientToken): Observable<string[][]> {
     const requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
     // Configure RestClient to use internal addresses but client's token
