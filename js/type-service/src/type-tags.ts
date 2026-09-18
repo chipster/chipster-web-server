@@ -4,7 +4,10 @@ import { fileURLToPath } from "url";
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 export class Tag {
-  constructor(public id: string, public extensions: string[]) {}
+  constructor(
+    public id: string,
+    public extensions: string[],
+  ) {}
 }
 
 // tags in an object for code completion
@@ -64,13 +67,7 @@ export const Tags = {
 };
 
 // types that are tagged even if they are gzipped, for example .fasta.gz -> Tags.FASTA
-const GZIP_SUPPORTED_TYPES = new Set([
-  Tags.FASTA,
-  Tags.FASTQ,
-  Tags.MOTHUR_COUNT,
-  Tags.MOTHUR_GROUPS,
-  Tags.GTF,
-]);
+const GZIP_SUPPORTED_TYPES = new Set([Tags.FASTA, Tags.FASTQ, Tags.MOTHUR_COUNT, Tags.MOTHUR_GROUPS, Tags.GTF]);
 
 const TEXT_TYPES = new Set([
   Tags.TSV,
@@ -121,9 +118,7 @@ export class TypeTags {
             }
           }
           // check extension with gz, never add TEXT tag
-          else if (
-            TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey])
-          ) {
+          else if (TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey])) {
             typeTags[tagKey] = null;
           }
         }
@@ -135,8 +130,7 @@ export class TypeTags {
     }
 
     if (Tags.GTF.id in typeTags) {
-      typeTags[Tags.COLUMN_TITLES.id] =
-        "seqname\tsource\tfeature\tstart\tend\tscore\tstrand\tframe\tattribute";
+      typeTags[Tags.COLUMN_TITLES.id] = "seqname\tsource\tfeature\tstart\tend\tscore\tstrand\tframe\tattribute";
       // this is now set also for .gtf.gz, whether that's good or bad
       // our Ensembl GTF uses '#!', GFF3 uses '##'
       typeTags[Tags.SKIP_LINES.id] = "#";
@@ -148,8 +142,7 @@ export class TypeTags {
     }
 
     if (Tags.FAI.id in typeTags) {
-      typeTags[Tags.COLUMN_TITLES.id] =
-        "NAME\tLENGTH\tOFFSET\tLINEBASES\tLINEWIDTH";
+      typeTags[Tags.COLUMN_TITLES.id] = "NAME\tLENGTH\tOFFSET\tLINEBASES\tLINEWIDTH";
     }
 
     if (Tags.SAM.id in typeTags) {
@@ -215,26 +208,16 @@ export class TypeTags {
 
   static pValueAndFoldChangeCompatible(headers: string[]) {
     return (
-      PVALUE_HEADERS.some((pValueHeader) =>
-        headers.some((header) => header.startsWith(pValueHeader))
-      ) &&
-      FOLD_CHANGE_HEADERS.some((foldChangeHeader) =>
-        headers.some((header) => header.startsWith(foldChangeHeader))
-      )
+      PVALUE_HEADERS.some((pValueHeader) => headers.some((header) => header.startsWith(pValueHeader))) &&
+      FOLD_CHANGE_HEADERS.some((foldChangeHeader) => headers.some((header) => header.startsWith(foldChangeHeader)))
     );
   }
 
-  static endsWithExtensionAndGzip(
-    filename: string,
-    extension: string,
-    tag: Tag
-  ): boolean {
+  static endsWithExtensionAndGzip(filename: string, extension: string, tag: Tag): boolean {
     return (
       GZIP_SUPPORTED_TYPES.has(tag) &&
       Tags.GZIP.extensions.some((gzipExtension) =>
-        filename
-          .toLowerCase()
-          .endsWith(extension.toLowerCase() + gzipExtension.toLowerCase())
+        filename.toLowerCase().endsWith(extension.toLowerCase() + gzipExtension.toLowerCase()),
       )
     );
   }

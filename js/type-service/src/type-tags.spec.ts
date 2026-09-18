@@ -6,20 +6,10 @@ import fs from "fs";
 import { keys } from "lodash-es";
 
 describe("Test pValue and fold change tagging", () => {
-  let pvalueAndFCHeader = [
-    "pppvalue",
-    "FaaC",
-    "logFC",
-    "happy",
-    "times",
-    "p.test",
-  ];
+  let pvalueAndFCHeader = ["pppvalue", "FaaC", "logFC", "happy", "times", "p.test"];
   let noPvalueHeader = ["logFC", "summer"];
   it("return true for header with pValue and fold change columns", () => {
-    assert.equal(
-      TypeTags.pValueAndFoldChangeCompatible(pvalueAndFCHeader),
-      true,
-    );
+    assert.equal(TypeTags.pValueAndFoldChangeCompatible(pvalueAndFCHeader), true);
   });
   it("return false for header with no pValue column", () => {
     assert.equal(TypeTags.pValueAndFoldChangeCompatible(noPvalueHeader), false);

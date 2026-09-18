@@ -39,15 +39,10 @@ export default class TypeService {
   constructor() {
     Logger.addLogFile();
 
-    if (
-      process.env.NODE_ENV != null &&
-      process.env.NODE_ENV.indexOf("production") > -1
-    ) {
+    if (process.env.NODE_ENV != null && process.env.NODE_ENV.indexOf("production") > -1) {
       logger.info("running in production mode");
     } else {
-      logger.warn(
-        "Express is running in development mode. Stack traces are visible in error responses.",
-      );
+      logger.warn("Express is running in development mode. Stack traces are visible in error responses.");
     }
 
     this.username = "type-service";
@@ -96,13 +91,9 @@ export default class TypeService {
     server.get("/sessions/:sessionId", cors(corsOptions), (req, res, next) => {
       this.respond(req, res, next);
     });
-    server.get(
-      "/sessions/:sessionId/datasets/:datasetId",
-      cors(corsOptions),
-      (req, res, next) => {
-        this.respond(req, res, next);
-      },
-    );
+    server.get("/sessions/:sessionId/datasets/:datasetId", cors(corsOptions), (req, res, next) => {
+      this.respond(req, res, next);
+    });
     server.get("/admin/status", cors(corsOptions), (req, res, next) => {
       this.respondStatus(req, res, next);
     });
@@ -174,9 +165,7 @@ export default class TypeService {
     // getting the allowed origin(s) from rest-client
     return this.serverRestClient.getServices().pipe(
       map((services: any[]) => {
-        return services
-          .filter((service) => service.role.startsWith("web-server"))
-          .map((service) => service.publicUri);
+        return services.filter((service) => service.role.startsWith("web-server")).map((service) => service.publicUri);
       }),
       map((webServers) => {
         return {
@@ -226,9 +215,7 @@ export default class TypeService {
     // check access permission by getting dataset objects
     if (datasetId) {
       // only one dataset requested
-      datasets$ = clientRestClient
-        .getDataset(sessionId, datasetId)
-        .pipe(map((dataset) => [dataset]));
+      datasets$ = clientRestClient.getDataset(sessionId, datasetId).pipe(map((dataset) => [dataset]));
     } else {
       // all datasets of the session requested
       datasets$ = clientRestClient.getDatasets(sessionId);
@@ -243,9 +230,7 @@ export default class TypeService {
       .pipe(
         mergeMap((datasets: any[]) => {
           // array of observables that will resolve to [datasetId, typeTags] tuples
-          let types$ = datasets.map((dataset) =>
-            this.getTypeTags(sessionId, dataset, clientToken),
-          );
+          let types$ = datasets.map((dataset) => this.getTypeTags(sessionId, dataset, clientToken));
 
           // some results of a local test:
           // 1: type tagging 1072 datasets took 19312ms
@@ -258,9 +243,7 @@ export default class TypeService {
           // 128: ECONNRESET
           const maxConcurrent = 16;
 
-          return from(types$).pipe(
-            mergeMap((observable) => observable, maxConcurrent),
-          );
+          return from(types$).pipe(mergeMap((observable) => observable, maxConcurrent));
         }),
       )
       .subscribe(
@@ -276,13 +259,7 @@ export default class TypeService {
           res.send(types);
 
           // logger.info("response", JSON.stringify(types));
-          logger.info(
-            "type tagging " +
-              allTypes.length +
-              " datasets took " +
-              (Date.now() - t0) +
-              "ms",
-          );
+          logger.info("type tagging " + allTypes.length + " datasets took " + (Date.now() - t0) + "ms");
         },
       );
   }
@@ -330,12 +307,7 @@ export default class TypeService {
       // always calculate fast type tags, because it's difficult to know when the name has changed
       let fastTags = TypeTags.getFastTypeTags(dataset.name);
 
-      return this.getSlowTypeTagsCached(
-        sessionId,
-        dataset,
-        token,
-        fastTags,
-      ).pipe(
+      return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags).pipe(
         map((slowTags) => Object.assign({}, fastTags, slowTags)),
         map((allTags) => [dataset.datasetId, allTags]),
       );
@@ -450,13 +422,11 @@ export default class TypeService {
     let clientRestClient = new RestClient(false, clientToken, null);
     clientRestClient.services = this.serverRestClient.services;
 
-    return clientRestClient
-      .getFile(sessionId, dataset.datasetId, requestSize)
-      .pipe(
-        map((data: string) => {
-          return TypeTags.parseTsv(data);
-        }),
-      );
+    return clientRestClient.getFile(sessionId, dataset.datasetId, requestSize).pipe(
+      map((data: string) => {
+        return TypeTags.parseTsv(data);
+      }),
+    );
   }
 
   /*
@@ -467,10 +437,7 @@ export default class TypeService {
   the response here would let the handler continue with an undefined token.
   */
   static getToken(req: any): string {
-    if (
-      req.headers.authorization == null ||
-      req.headers.authorization.length === 0
-    ) {
+    if (req.headers.authorization == null || req.headers.authorization.length === 0) {
       throw new Unauthorized("no authorization header");
     }
 
