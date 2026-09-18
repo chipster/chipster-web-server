@@ -123,8 +123,8 @@ function newDataset(name: string, fileId = "file1", size = 1000) {
 }
 
 /* Get the value of a synchronous observable */
-function getValue(observable: Observable<any>) {
-  const values = [];
+function getValue<T>(observable: Observable<T>): T {
+  const values: T[] = [];
   observable.subscribe((value) => values.push(value));
   assert.equal(values.length, 1, "expected one value from the observable");
   return values[0];
