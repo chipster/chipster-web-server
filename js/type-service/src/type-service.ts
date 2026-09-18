@@ -4,13 +4,12 @@ import { Tag, Tags, TypeTags } from "./type-tags.js";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
-import { fileURLToPath } from "url";
+import url, { fileURLToPath } from "url";
 import { startParentMonitor } from "./parent-monitor.js";
 
 import express from "express";
 import cors from "cors";
 import os from "os";
-import url from "url";
 
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
@@ -24,7 +23,7 @@ getCacheSignature().
 */
 interface CacheItem {
   signature: string;
-  tags: Object;
+  tags: unknown;
 }
 
 export default class TypeService {
@@ -81,8 +80,8 @@ export default class TypeService {
 
     // the Tags object above is just for the code completion. For any real use
     // we want a real ES6 map
-    for (let tagKey in Tags) {
-      let tag = Tags[tagKey];
+    for (const tagKey in Tags) {
+      const tag = Tags[tagKey];
       this.tagIdMap.set(tag.id, tag);
     }
   }
@@ -98,8 +97,8 @@ export default class TypeService {
       this.respondStatus(req, res, next);
     });
 
-    let bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
-    let bindUrl = new URL(bindUrlString);
+    const bindUrlString = this.config.get(Config.KEY_URL_BIND_TYPE_SERVICE);
+    const bindUrl = new URL(bindUrlString);
 
     server.listen(bindUrl.port, () => {
       logger.info("type-service listening at " + bindUrlString);
@@ -115,8 +114,8 @@ export default class TypeService {
       this.respondStatus(req, res, next);
     });
 
-    let bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
-    let bindUrl = new URL(bindUrlString);
+    const bindUrlString = this.config.get(Config.KEY_URL_ADMIN_BIND_TYPE_SERVICE);
+    const bindUrl = new URL(bindUrlString);
 
     server.listen(bindUrl.port, () => {
       logger.info("type-service listening at " + bindUrlString);
@@ -151,9 +150,8 @@ export default class TypeService {
         }
         if (err.message != null) {
           return res.send(err.message);
-        } else {
-          return res.send("unknown error");
         }
+        return res.send("unknown error");
       }
 
       logger.error("non-http error: " + JSON.stringify(err) + err.stack);
@@ -189,8 +187,8 @@ export default class TypeService {
       return;
     }
 
-    let sessionId = req.params.sessionId;
-    let datasetId = req.params.datasetId;
+    const sessionId = req.params.sessionId;
+    const datasetId = req.params.datasetId;
 
     logger.debug("type tag " + sessionId + " " + datasetId);
 
@@ -207,7 +205,7 @@ export default class TypeService {
      * Maybe we should impelement the token validation here and use server
      * token the check the access rights from the session-db.
      */
-    let clientRestClient = new RestClient(false, clientToken, null);
+    const clientRestClient = new RestClient(false, clientToken, null);
     clientRestClient.services = this.serverRestClient.services;
 
     let datasets$;
@@ -221,7 +219,7 @@ export default class TypeService {
       datasets$ = clientRestClient.getDatasets(sessionId);
     }
 
-    let t0 = Date.now();
+    const t0 = Date.now();
 
     // array of [datasetId, typeTags] tuples
     const allTypes = [];
@@ -230,7 +228,7 @@ export default class TypeService {
       .pipe(
         mergeMap((datasets: any[]) => {
           // array of observables that will resolve to [datasetId, typeTags] tuples
-          let types$ = datasets.map((dataset) => this.getTypeTags(sessionId, dataset, clientToken));
+          const types$ = datasets.map((dataset) => this.getTypeTags(sessionId, dataset, clientToken));
 
           // some results of a local test:
           // 1: type tagging 1072 datasets took 19312ms
@@ -255,7 +253,7 @@ export default class TypeService {
           this.respondError(res, next, err);
         },
         () => {
-          let types = this.tupleArrayToObject(allTypes);
+          const types = this.tupleArrayToObject(allTypes);
           res.send(types);
 
           // logger.info("response", JSON.stringify(types));
@@ -270,7 +268,7 @@ export default class TypeService {
 
   respondStatus(req, res, next) {
     //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
-    let status = {
+    const status = {
       load: os.loadavg()[0], // 1 min load average
     };
     res.send(status);
@@ -295,8 +293,8 @@ export default class TypeService {
    * @returns
    */
   tupleArrayToObject(tuples) {
-    let obj = {};
-    for (let [key, value] of tuples) {
+    const obj = {};
+    for (const [key, value] of tuples) {
       obj[key] = value;
     }
     return obj;
@@ -305,17 +303,16 @@ export default class TypeService {
   getTypeTags(sessionId, dataset, token) {
     if (dataset.fileId != null) {
       // always calculate fast type tags, because it's difficult to know when the name has changed
-      let fastTags = TypeTags.getFastTypeTags(dataset.name);
+      const fastTags = TypeTags.getFastTypeTags(dataset.name);
 
       return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags).pipe(
         map((slowTags) => Object.assign({}, fastTags, slowTags)),
         map((allTags) => [dataset.datasetId, allTags]),
       );
-    } else {
-      /* The dataset has been created, but the file hasn't been uploaded.
-      No need to add type tags */
-      return observableOf([dataset.datasetId, {}]);
     }
+    /* The dataset has been created, but the file hasn't been uploaded.
+      No need to add type tags */
+    return observableOf([dataset.datasetId, {}]);
   }
 
   /**
@@ -330,28 +327,27 @@ export default class TypeService {
    * @param fastTags
    * @returns {any}
    */
-  getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags: Object) {
+  getSlowTypeTagsCached(sessionId, dataset, token: string, fastTags: object) {
     if (!(Tags.TSV.id in fastTags)) {
       // nothing to parse, don't waste cache entries on these
       return observableOf({});
     }
 
-    let key = TypeService.getCacheKey(sessionId, dataset.datasetId);
-    let signature = TypeService.getCacheSignature(dataset);
-    let cachedTags = this.getFromCache(key, signature);
+    const key = TypeService.getCacheKey(sessionId, dataset.datasetId);
+    const signature = TypeService.getCacheSignature(dataset);
+    const cachedTags = this.getFromCache(key, signature);
 
     if (cachedTags != null) {
       logger.debug("cache hit", sessionId + " " + dataset.datasetId);
       return observableOf(cachedTags);
-    } else {
-      logger.info("cache miss", sessionId + " " + dataset.datasetId);
-      return this.getSlowTypeTagsForDataset(sessionId, dataset, token).pipe(
-        map((slowTags) => {
-          this.addToCache(key, signature, slowTags);
-          return slowTags;
-        }),
-      );
     }
+    logger.info("cache miss", sessionId + " " + dataset.datasetId);
+    return this.getSlowTypeTagsForDataset(sessionId, dataset, token).pipe(
+      map((slowTags) => {
+        this.addToCache(key, signature, slowTags);
+        return slowTags;
+      }),
+    );
   }
 
   static getCacheKey(sessionId: string, datasetId: string): string {
@@ -372,7 +368,7 @@ export default class TypeService {
   }
 
   getFromCache(key: string, signature: string) {
-    let cacheItem = this.cache.get(key);
+    const cacheItem = this.cache.get(key);
 
     if (cacheItem == null) {
       return null;
@@ -392,7 +388,7 @@ export default class TypeService {
     return cacheItem.tags;
   }
 
-  addToCache(key: string, signature: string, tags: Object) {
+  addToCache(key: string, signature: string, tags: unknown) {
     // concurrent misses for the same dataset can both end up here, delete
     // first so that the entry doesn't keep the position of the earlier one
     this.cache.delete(key);
@@ -400,7 +396,7 @@ export default class TypeService {
     while (this.cache.size >= MAX_CACHE_SIZE) {
       // the first key is the least recently used, because getFromCache() moves
       // the entries it returns to the end
-      let lruKey = this.cache.keys().next().value;
+      const lruKey = this.cache.keys().next().value;
       this.cache.delete(lruKey);
     }
 
@@ -416,10 +412,10 @@ export default class TypeService {
   }
 
   getParsedTsv(sessionId, dataset, clientToken) {
-    let requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
+    const requestSize = Math.min(MAX_HEADER_LENGTH, dataset.size);
 
     // Configure RestClient to use internal addresses but client's token
-    let clientRestClient = new RestClient(false, clientToken, null);
+    const clientRestClient = new RestClient(false, clientToken, null);
     clientRestClient.services = this.serverRestClient.services;
 
     return clientRestClient.getFile(sessionId, dataset.datasetId, requestSize).pipe(

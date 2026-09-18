@@ -6,8 +6,8 @@ import fs from "fs";
 import { keys } from "lodash-es";
 
 describe("Test pValue and fold change tagging", () => {
-  let pvalueAndFCHeader = ["pppvalue", "FaaC", "logFC", "happy", "times", "p.test"];
-  let noPvalueHeader = ["logFC", "summer"];
+  const pvalueAndFCHeader = ["pppvalue", "FaaC", "logFC", "happy", "times", "p.test"];
+  const noPvalueHeader = ["logFC", "summer"];
   it("return true for header with pValue and fold change columns", () => {
     assert.equal(TypeTags.pValueAndFoldChangeCompatible(pvalueAndFCHeader), true);
   });
@@ -25,7 +25,7 @@ describe("Test fast tags", () => {
 describe("Test tagging for all test files", () => {
   it("return tags", () => {
     fs.readdirSync("./test-files").forEach((filename) => {
-      let tags = LocalFileTypeService.getTypeTags("./test-files/" + filename);
+      const tags = LocalFileTypeService.getTypeTags("./test-files/" + filename);
       console.log(
         "\t",
         filename,
