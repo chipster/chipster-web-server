@@ -1,6 +1,7 @@
 import { from, Observable, of as observableOf } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
 import { Tag, Tags, TypeTagMap, TypeTags } from "./type-tags.js";
+import { Dataset, Service } from "chipster-js-common";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
@@ -31,8 +32,8 @@ export default class TypeService {
   private cache = new Map<string, CacheItem>();
 
   private config = new Config();
-  username: any;
-  password: any;
+  username: string;
+  password: string;
   serverRestClient: any;
 
   constructor() {
@@ -161,7 +162,7 @@ export default class TypeService {
   getCorsOptions() {
     // getting the allowed origin(s) from rest-client
     return this.serverRestClient.getServices().pipe(
-      map((services: any[]) => {
+      map((services: Service[]) => {
         return services.filter((service) => service.role.startsWith("web-server")).map((service) => service.publicUri);
       }),
       map((webServers) => {
@@ -225,7 +226,7 @@ export default class TypeService {
 
     datasets$
       .pipe(
-        mergeMap((datasets: any[]) => {
+        mergeMap((datasets: Dataset[]) => {
           // array of observables that will resolve to [datasetId, typeTags] tuples
           const types$ = datasets.map((dataset) => this.getTypeTags(sessionId, dataset, clientToken));
 
