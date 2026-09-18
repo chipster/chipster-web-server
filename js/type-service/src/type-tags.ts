@@ -109,21 +109,19 @@ export class TypeTags {
 
     // add simple type tags based on file extensions
     // TODO refactor
-    for (const tagKey in Tags) {
-      // for-in to iterate object keys
-      for (const extension of Tags[tagKey].extensions) {
-        // for-of to iterate array items
+    for (const [tagKey, tag] of Object.entries(Tags)) {
+      for (const extension of tag.extensions) {
         if (name) {
           // check extension, also possibly add TEXT tag
           if (name.toLowerCase().endsWith(extension.toLowerCase())) {
             typeTags[tagKey] = null;
-            if (TEXT_TYPES.has(Tags[tagKey])) {
+            if (TEXT_TYPES.has(tag)) {
               typeTags[Tags.TEXT.id] = null;
               break;
             }
           }
           // check extension with gz, never add TEXT tag
-          else if (TypeTags.endsWithExtensionAndGzip(name, extension, Tags[tagKey])) {
+          else if (TypeTags.endsWithExtensionAndGzip(name, extension, tag)) {
             typeTags[tagKey] = null;
           }
         }

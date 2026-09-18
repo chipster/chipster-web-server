@@ -80,8 +80,7 @@ export default class TypeService {
 
     // the Tags object above is just for the code completion. For any real use
     // we want a real ES6 map
-    for (const tagKey in Tags) {
-      const tag = Tags[tagKey];
+    for (const tag of Object.values(Tags)) {
       this.tagIdMap.set(tag.id, tag);
     }
   }
