@@ -31,7 +31,7 @@ describe("Test token parsing", () => {
   });
 
   it("throw 401 for invalid headers", () => {
-    let requests = {
+    const requests = {
       "missing header": { headers: {} },
       "empty header": { headers: { authorization: "" } },
       "no scheme": { headers: { authorization: "Basic" } },
@@ -48,7 +48,7 @@ describe("Test token parsing", () => {
       "wrong username": basicAuthRequest("username", "abc123"),
     };
 
-    for (let [description, req] of Object.entries(requests)) {
+    for (const [description, req] of Object.entries(requests)) {
       assert.throws(
         () => TypeService.getToken(req),
         (err: HttpError) => {
@@ -68,10 +68,10 @@ describe("Test error responses", () => {
   respondError() doesn't use "this", so we can call it without constructing
   TypeService, which would start the servers.
   */
-  let respondError = TypeService.prototype.respondError;
+  const respondError = TypeService.prototype.respondError;
 
   it("delegate 4xx errors to the error handler without responding", () => {
-    let errors = [];
+    const errors = [];
 
     respondError.call(
       null,
@@ -86,8 +86,8 @@ describe("Test error responses", () => {
   });
 
   it("hide other errors behind a 500, but keep the original as the cause", () => {
-    let errors = [];
-    let original = new HttpError(503, "session-db is down");
+    const errors = [];
+    const original = new HttpError(503, "session-db is down");
 
     respondError.call(null, forbiddenResponse(), (err) => errors.push(err), original);
 
@@ -103,8 +103,8 @@ describe("Test error responses", () => {
 The cache methods use only "this.cache" and each other, so we can call them
 without constructing TypeService, which would start the servers.
 */
-function cacheOwner(slowTags: Object = {}) {
-  let requestedNames = [];
+function cacheOwner(slowTags: object = {}) {
+  const requestedNames = [];
 
   return {
     cache: new Map(),
@@ -124,7 +124,7 @@ function dataset(name: string, fileId = "file1", size = 1000) {
 
 /* Get the value of a synchronous observable */
 function getValue(observable: Observable<any>) {
-  let values = [];
+  const values = [];
   observable.subscribe((value) => values.push(value));
   assert.equal(values.length, 1, "expected one value from the observable");
   return values[0];
@@ -144,7 +144,7 @@ function getSlowTypeTagsCached(owner, dataset) {
 
 describe("Test slow type tag cache", () => {
   it("calculate the tags only once when the dataset hasn't changed", () => {
-    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+    const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
     assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
       [Tags.GENELIST.id]: null,
@@ -157,7 +157,7 @@ describe("Test slow type tag cache", () => {
   });
 
   it("skip the cache when the dataset isn't a tsv file", () => {
-    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+    const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
     assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.bam")), {});
 
@@ -166,7 +166,7 @@ describe("Test slow type tag cache", () => {
   });
 
   it("follow the name when the dataset is renamed", () => {
-    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+    const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
     getSlowTypeTagsCached(owner, dataset("results.tsv"));
     // the new name isn't a tsv file anymore, so the cached tags must not be used
@@ -180,7 +180,7 @@ describe("Test slow type tag cache", () => {
   });
 
   it("calculate the tags again when the file is replaced", () => {
-    let owner = cacheOwner({ [Tags.GENELIST.id]: null });
+    const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
     getSlowTypeTagsCached(owner, dataset("results.tsv", "file1"));
     getSlowTypeTagsCached(owner, dataset("results.tsv", "file2"));
@@ -191,8 +191,8 @@ describe("Test slow type tag cache", () => {
   });
 
   it("evict the least recently used entry", () => {
-    let owner = cacheOwner();
-    let key = (i: number) => TypeService.getCacheKey("session1", "dataset" + i);
+    const owner = cacheOwner();
+    const key = (i: number) => TypeService.getCacheKey("session1", "dataset" + i);
 
     // fill the cache
     for (let i = 0; i < MAX_CACHE_SIZE; i++) {
@@ -211,8 +211,8 @@ describe("Test slow type tag cache", () => {
   });
 
   it("forget an entry when the signature has changed", () => {
-    let owner = cacheOwner();
-    let key = TypeService.getCacheKey("session1", "dataset1");
+    const owner = cacheOwner();
+    const key = TypeService.getCacheKey("session1", "dataset1");
 
     owner.addToCache(key, "signature1", {});
 

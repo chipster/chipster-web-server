@@ -99,14 +99,14 @@ const PVALUE_HEADERS = ["p.", "pvalue", "padj", "PValue", "FDR"];
 const FOLD_CHANGE_HEADERS = ["FC", "log2FoldChange", "logFC"];
 
 export class TypeTags {
-  static getFastTypeTags(name: string): Object {
-    let typeTags = {}; // TODO refactor to Map
+  static getFastTypeTags(name: string): object {
+    const typeTags = {}; // TODO refactor to Map
 
     // add simple type tags based on file extensions
     // TODO refactor
-    for (let tagKey in Tags) {
+    for (const tagKey in Tags) {
       // for-in to iterate object keys
-      for (let extension of Tags[tagKey].extensions) {
+      for (const extension of Tags[tagKey].extensions) {
         // for-of to iterate array items
         if (name) {
           // check extension, also possibly add TEXT tag
@@ -173,10 +173,10 @@ export class TypeTags {
   }
 
   static getSlowTypeTags(table: string[][]) {
-    let slowTags = {};
+    const slowTags = {};
 
-    let headers = table[0];
-    let firstRow = table[1];
+    const headers = table[0];
+    const firstRow = table[1];
 
     if (
       headers.indexOf("identifier") !== -1 ||
@@ -202,7 +202,7 @@ export class TypeTags {
   }
 
   static parseTsv(data: string): string[][] {
-    let rows = data.split("\n", 2);
+    const rows = data.split("\n", 2);
     return rows.map((row) => row.split("\t"));
   }
 
