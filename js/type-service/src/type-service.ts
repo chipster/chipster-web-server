@@ -4,7 +4,7 @@ import { Tag, Tags, TypeTags } from "./type-tags.js";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
-import url, { fileURLToPath } from "url";
+import { fileURLToPath } from "url";
 import { startParentMonitor } from "./parent-monitor.js";
 
 import express from "express";
@@ -262,11 +262,11 @@ export default class TypeService {
       );
   }
 
-  respondAlive(req, res, next) {
+  respondAlive(req, res, _next) {
     res.send();
   }
 
-  respondStatus(req, res, next) {
+  respondStatus(req, res, _next) {
     //TODO this should be autenticated (but revealing the load value to localhost isn't yet a problem)
     const status = {
       load: os.loadavg()[0], // 1 min load average
@@ -439,7 +439,7 @@ export default class TypeService {
 
     const headerValue = req.headers.authorization.split(" ");
 
-    if (headerValue.length != 2) {
+    if (headerValue.length !== 2) {
       throw new Unauthorized("wrong header value length");
     }
 

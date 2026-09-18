@@ -26,12 +26,7 @@ describe("Test tagging for all test files", () => {
   it("return tags", () => {
     fs.readdirSync("./test-files").forEach((filename) => {
       const tags = LocalFileTypeService.getTypeTags("./test-files/" + filename);
-      console.log(
-        "\t",
-        filename,
-        keys(tags).reduce((all, current) => (all += " " + current)),
-        "",
-      );
+      console.log("\t", filename, keys(tags).join(" "), "");
       assert.notEqual(keys(tags).length, 0);
     });
   });
