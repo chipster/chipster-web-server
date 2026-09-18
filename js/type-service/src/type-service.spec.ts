@@ -111,14 +111,14 @@ function cacheOwner(slowTags: object = {}) {
     requestedNames: requestedNames,
     getFromCache: TypeService.prototype.getFromCache,
     addToCache: TypeService.prototype.addToCache,
-    getSlowTypeTagsForDataset: (sessionId, dataset, token) => {
-      requestedNames.push(dataset.name);
+    getSlowTypeTagsForDataset: (sessionId, requestedDataset, _token) => {
+      requestedNames.push(requestedDataset.name);
       return observableOf(slowTags);
     },
   };
 }
 
-function dataset(name: string, fileId = "file1", size = 1000) {
+function newDataset(name: string, fileId = "file1", size = 1000) {
   return { datasetId: "dataset1", name: name, fileId: fileId, size: size };
 }
 
@@ -146,10 +146,10 @@ describe("Test slow type tag cache", () => {
   it("calculate the tags only once when the dataset hasn't changed", () => {
     const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
-    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
+    assert.deepEqual(getSlowTypeTagsCached(owner, newDataset("results.tsv")), {
       [Tags.GENELIST.id]: null,
     });
-    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
+    assert.deepEqual(getSlowTypeTagsCached(owner, newDataset("results.tsv")), {
       [Tags.GENELIST.id]: null,
     });
 
@@ -159,7 +159,7 @@ describe("Test slow type tag cache", () => {
   it("skip the cache when the dataset isn't a tsv file", () => {
     const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
-    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.bam")), {});
+    assert.deepEqual(getSlowTypeTagsCached(owner, newDataset("results.bam")), {});
 
     assert.deepEqual(owner.requestedNames, []);
     assert.equal(owner.cache.size, 0);
@@ -168,11 +168,11 @@ describe("Test slow type tag cache", () => {
   it("follow the name when the dataset is renamed", () => {
     const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
-    getSlowTypeTagsCached(owner, dataset("results.tsv"));
+    getSlowTypeTagsCached(owner, newDataset("results.tsv"));
     // the new name isn't a tsv file anymore, so the cached tags must not be used
-    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.bam")), {});
+    assert.deepEqual(getSlowTypeTagsCached(owner, newDataset("results.bam")), {});
     // the file hasn't changed, so the old tags are still valid when renamed back
-    assert.deepEqual(getSlowTypeTagsCached(owner, dataset("results.tsv")), {
+    assert.deepEqual(getSlowTypeTagsCached(owner, newDataset("results.tsv")), {
       [Tags.GENELIST.id]: null,
     });
 
@@ -182,9 +182,9 @@ describe("Test slow type tag cache", () => {
   it("calculate the tags again when the file is replaced", () => {
     const owner = cacheOwner({ [Tags.GENELIST.id]: null });
 
-    getSlowTypeTagsCached(owner, dataset("results.tsv", "file1"));
-    getSlowTypeTagsCached(owner, dataset("results.tsv", "file2"));
-    getSlowTypeTagsCached(owner, dataset("results.tsv", "file2", 2000));
+    getSlowTypeTagsCached(owner, newDataset("results.tsv", "file1"));
+    getSlowTypeTagsCached(owner, newDataset("results.tsv", "file2"));
+    getSlowTypeTagsCached(owner, newDataset("results.tsv", "file2", 2000));
 
     assert.deepEqual(owner.requestedNames, ["results.tsv", "results.tsv", "results.tsv"]);
     assert.equal(owner.cache.size, 1);
