@@ -84,7 +84,7 @@ function isZombie(pid: number): boolean {
 
   try {
     stat = fs.readFileSync("/proc/" + pid + "/stat", "utf8");
-  } catch (err) {
+  } catch {
     // no /proc, or the process exited after processExists(): the next poll
     // will notice that
     return false;
