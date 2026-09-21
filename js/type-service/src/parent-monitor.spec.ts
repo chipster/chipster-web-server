@@ -59,20 +59,16 @@ before the exec.
 */
 function startZombie(): Promise<{ parent: ChildProcess; pid: number | null }> {
   return new Promise((resolve) => {
-    const parent = spawn(
-      "sh",
-      ["-c", "sleep 100 & echo $!; kill -9 $!; exec sleep 100"],
-      { stdio: ["ignore", "pipe", "ignore"] },
-    );
+    const parent = spawn("sh", ["-c", "sleep 100 & echo $!; kill -9 $!; exec sleep 100"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
     parent.stdout.once("data", (data) => {
       const pid = Number(data.toString());
       // give the kill a moment to take effect
       setTimeout(() => {
         let state: string | null = null;
         try {
-          state = parseProcessState(
-            fs.readFileSync("/proc/" + pid + "/stat", "utf8"),
-          );
+          state = parseProcessState(fs.readFileSync("/proc/" + pid + "/stat", "utf8"));
         } catch (err) {
           // no /proc: there is no way to tell, let the test skip
         }
@@ -173,10 +169,7 @@ function runMonitorUntilParentExits(): Promise<{
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "parent-monitor-test-"));
     // the tests run the compiled code, so the child can import it from here
     const monitor = new URL("./parent-monitor.js", import.meta.url).href;
-    const logger = new URL(
-      "../node_modules/chipster-nodejs-core/lib/logger.js",
-      import.meta.url,
-    ).href;
+    const logger = new URL("../node_modules/chipster-nodejs-core/lib/logger.js", import.meta.url).href;
 
     const parent = startDummyProcess();
 
@@ -218,10 +211,7 @@ describe("Test parent monitor", () => {
 
   it("do nothing when the pid isn't valid", () => {
     // a wrong value must not stop the service, it would be running fine
-    assert.equal(
-      startParentMonitor({ env: { [PARENT_PID_ENV]: "abc" } }),
-      null,
-    );
+    assert.equal(startParentMonitor({ env: { [PARENT_PID_ENV]: "abc" } }), null);
   });
 
   it("exit when the parent exits", async () => {

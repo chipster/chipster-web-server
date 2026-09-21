@@ -109,7 +109,10 @@ export function parseProcessState(stat: string): string | null {
     return null;
   }
 
-  const fields = stat.substring(nameEnd + 1).trim().split(/\s+/);
+  const fields = stat
+    .substring(nameEnd + 1)
+    .trim()
+    .split(/\s+/);
 
   return fields[0] || null;
 }
@@ -167,9 +170,7 @@ export function parseParentPid(value: string | undefined): number | null {
  * @param options for the tests, the defaults are used in production
  * @returns the poll timer, or null if there is no parent to monitor
  */
-export function startParentMonitor(
-  options: ParentMonitorOptions = {},
-): NodeJS.Timeout | null {
+export function startParentMonitor(options: ParentMonitorOptions = {}): NodeJS.Timeout | null {
   const env = options.env ?? process.env;
   const isAlive = options.isAlive ?? isProcessAlive;
   const intervalMs = options.intervalMs ?? PARENT_POLL_INTERVAL_MS;
@@ -185,21 +186,14 @@ export function startParentMonitor(
   const value = env[PARENT_PID_ENV];
 
   if (value == null || value.trim() === "") {
-    logger.info(
-      PARENT_PID_ENV + " is not set, not monitoring the parent process",
-    );
+    logger.info(PARENT_PID_ENV + " is not set, not monitoring the parent process");
     return null;
   }
 
   const pid = parseParentPid(value);
 
   if (pid == null) {
-    logger.warn(
-      PARENT_PID_ENV +
-        " is not a valid pid: '" +
-        value +
-        "', not monitoring the parent process",
-    );
+    logger.warn(PARENT_PID_ENV + " is not a valid pid: '" + value + "', not monitoring the parent process");
     return null;
   }
 
