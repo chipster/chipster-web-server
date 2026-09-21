@@ -69,7 +69,7 @@ function startZombie(): Promise<{ parent: ChildProcess; pid: number | null }> {
         let state: string | null = null;
         try {
           state = parseProcessState(fs.readFileSync("/proc/" + pid + "/stat", "utf8"));
-        } catch (err) {
+        } catch {
           // no /proc: there is no way to tell, let the test skip
         }
         resolve({ parent, pid: state === "Z" ? pid : null });
@@ -85,9 +85,9 @@ describe("Test parent pid parsing", () => {
 
   it("reject values that aren't pids", () => {
     // 0 and negative numbers would make process.kill() signal several processes
-    let values = [undefined, "", "  ", "abc", "12a", "0", "-1", "1.5", "NaN"];
+    const values = [undefined, "", "  ", "abc", "12a", "0", "-1", "1.5", "NaN"];
 
-    for (let value of values) {
+    for (const value of values) {
       assert.equal(parseParentPid(value), null, "value '" + value + "'");
     }
   });
@@ -114,7 +114,7 @@ describe("Test process state parsing", () => {
     assert.equal(isDeadState("X"), true);
     assert.equal(isDeadState("x"), true);
 
-    for (let state of ["R", "S", "D", "T", "t", null]) {
+    for (const state of ["R", "S", "D", "T", "t", null]) {
       assert.equal(isDeadState(state), false, "state " + state);
     }
   });
@@ -192,7 +192,7 @@ function runMonitorUntilParentExits(): Promise<{
       let log = "";
       try {
         log = fs.readFileSync(path.join(dir, "logs", "chipster.log"), "utf8");
-      } catch (err) {
+      } catch {
         // leave it empty, the test reports it
       }
       fs.rmSync(dir, { recursive: true, force: true });
