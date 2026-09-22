@@ -9,12 +9,20 @@ import {
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, ChildProcess } from "child_process";
+import { once } from "events";
 import fs from "fs";
 import os from "os";
 import path from "path";
 
 // keep the tests quick, the production interval is much longer
 const TEST_INTERVAL_MS = 10;
+
+/* Give up on a helper process that doesn't do what it's started for, and kill
+it. The value only has to be long enough for a slow machine, nothing waits for
+it when the tests pass. The timeout of the test script is the backstop for
+everything else, but it only fails the test: killing what it started is up to
+the test itself. */
+const HELPER_TIMEOUT_MS = 30 * 1000;
 
 /*
 Start a process that does nothing until it's killed
@@ -57,25 +65,54 @@ has to be killed to let the zombie go, and the pid of the zombie. The pid is
 null if the zombie didn't appear, because a shell can also reap its children
 before the exec.
 */
-function startZombie(): Promise<{ parent: ChildProcess; pid: number | null }> {
-  return new Promise((resolve) => {
-    const parent = spawn("sh", ["-c", "sleep 100 & echo $!; kill -9 $!; exec sleep 100"], {
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    parent.stdout.once("data", (data) => {
-      const pid = Number(data.toString());
-      // give the kill a moment to take effect
-      setTimeout(() => {
-        let state: string | null = null;
-        try {
-          state = parseProcessState(fs.readFileSync("/proc/" + pid + "/stat", "utf8"));
-        } catch {
-          // no /proc: there is no way to tell, let the test skip
-        }
-        resolve({ parent, pid: state === "Z" ? pid : null });
-      }, 100);
-    });
+async function startZombie(): Promise<{ parent: ChildProcess; pid: number | null }> {
+  const parent = spawn("sh", ["-c", "sleep 100 & echo $!; kill -9 $!; exec sleep 100"], {
+    stdio: ["ignore", "pipe", "ignore"],
   });
+
+  /* Stop waiting when the pid arrives, and when it doesn't: a shell that
+  prints nothing would hang the whole test run. */
+  const waiting = new AbortController();
+  const signal = AbortSignal.any([waiting.signal, AbortSignal.timeout(HELPER_TIMEOUT_MS)]);
+
+  // once() rejects when the shell can't be started at all
+  const printed = once(parent.stdout, "data", { signal });
+  // the shell execs a sleep, so it stays until somebody kills it
+  const exited = once(parent, "exit", { signal }).then(() => {
+    throw new Error("the shell exited before it printed the pid");
+  });
+
+  let pid: number;
+
+  try {
+    const [data] = await Promise.race([printed, exited]);
+    pid = Number(data.toString());
+  } catch (err) {
+    // the caller kills the shell when it gets the pid, nobody else would
+    parent.kill("SIGKILL");
+    /* once() hides the reason of the signal behind a plain AbortError, and
+    nothing else aborts this one, so it can only be the timeout. */
+    const reason = err.name === "AbortError" ? "it printed nothing in " + HELPER_TIMEOUT_MS + " ms" : "" + err;
+    throw new Error("couldn't get the pid of the zombie from the shell: " + reason);
+  } finally {
+    /* Let the loser of the race go: its rejection would be unhandled, and the
+    exit listener would fire again when the caller kills the shell. */
+    waiting.abort();
+    printed.catch(() => {});
+    exited.catch(() => {});
+  }
+
+  // give the kill a moment to take effect
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  let state: string | null = null;
+  try {
+    state = parseProcessState(fs.readFileSync("/proc/" + pid + "/stat", "utf8"));
+  } catch {
+    // no /proc: there is no way to tell, let the test skip
+  }
+
+  return { parent, pid: state === "Z" ? pid : null };
 }
 
 describe("Test parent pid parsing", () => {
@@ -161,47 +198,74 @@ configured and something keeping the event loop alive, like the servers do.
 Returns the exit code and the log file, which is written to a temporary
 directory, because Logger writes it relative to the working directory.
 */
-function runMonitorUntilParentExits(): Promise<{
+async function runMonitorUntilParentExits(): Promise<{
   code: number | null;
   log: string;
 }> {
-  return new Promise((resolve) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "parent-monitor-test-"));
-    // the tests run the compiled code, so the child can import it from here
-    const monitor = new URL("./parent-monitor.js", import.meta.url).href;
-    const logger = new URL("../node_modules/chipster-nodejs-core/lib/logger.js", import.meta.url).href;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "parent-monitor-test-"));
+  // the tests run the compiled code, so the child can import it from here
+  const monitor = new URL("./parent-monitor.js", import.meta.url).href;
+  const logger = new URL("../node_modules/chipster-nodejs-core/lib/logger.js", import.meta.url).href;
 
-    const parent = startDummyProcess();
+  const parent = startDummyProcess();
 
-    const child = spawn(
-      process.execPath,
-      [
-        "--input-type=module",
-        "-e",
-        `import { startParentMonitor } from "${monitor}";
+  const child = spawn(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import { startParentMonitor } from "${monitor}";
          import { Logger } from "${logger}";
          Logger.addLogFile();
          startParentMonitor({ intervalMs: 20 });
          // the servers keep the loop alive in the real service
          setInterval(() => {}, 1000);`,
-      ],
-      { cwd: dir, env: { ...process.env, [PARENT_PID_ENV]: "" + parent.pid } },
-    );
+    ],
+    { cwd: dir, env: { ...process.env, [PARENT_PID_ENV]: "" + parent.pid } },
+  );
 
-    child.on("exit", (code) => {
-      let log = "";
-      try {
-        log = fs.readFileSync(path.join(dir, "logs", "chipster.log"), "utf8");
-      } catch {
-        // leave it empty, the test reports it
-      }
-      fs.rmSync(dir, { recursive: true, force: true });
-      resolve({ code, log });
-    });
+  // the only clue about what the monitor did, and the directory goes below
+  const readLog = () => {
+    try {
+      return fs.readFileSync(path.join(dir, "logs", "chipster.log"), "utf8");
+    } catch {
+      // leave it empty, the caller reports it
+      return "";
+    }
+  };
 
-    // let the monitor start before taking its parent away
-    setTimeout(() => killAndWait(parent), 500);
-  });
+  // let the monitor start before taking its parent away
+  const killTimer = setTimeout(() => killAndWait(parent), 500);
+
+  try {
+    /* once() rejects when the child can't be started, and when it doesn't
+    exit: a monitor that keeps running would hang the whole test run. */
+    const [code] = (await once(child, "exit", { signal: AbortSignal.timeout(HELPER_TIMEOUT_MS) })) as [number | null];
+
+    return { code, log: readLog() };
+  } catch (err) {
+    // the same plain AbortError as above, the timeout is the only abort here
+    const reason = err.name === "AbortError" ? "didn't exit in " + HELPER_TIMEOUT_MS + " ms" : "couldn't start: " + err;
+    // the log says what it did instead, and it's gone after this
+    throw new Error("the monitor " + reason + ", its log:\n" + readLog());
+  } finally {
+    clearTimeout(killTimer);
+    parent.kill("SIGKILL");
+    // still running, when it didn't notice that its parent is gone
+    child.kill("SIGKILL");
+
+    /* The child writes to the directory, so let the kill take effect before
+    removing it. A child that never started has no pid and no exit event. */
+    if (child.pid != null && child.exitCode == null && child.signalCode == null) {
+      await once(child, "exit", { signal: AbortSignal.timeout(1000) }).catch(() => {});
+    }
+
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+    } catch {
+      // a leftover temporary directory mustn't hide why the test failed
+    }
+  }
 }
 
 describe("Test parent monitor", () => {
