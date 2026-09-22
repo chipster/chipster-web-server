@@ -200,12 +200,15 @@ Run the monitor in a real process and let its parent die
 The default of onParentGone() exits the process, so it can't be tested in this
 one. This runs the compiled monitor like the service does: with the log file
 configured and something keeping the event loop alive, like the servers do.
-Returns the exit code and the log file, which is written to a temporary
-directory, because Logger writes it relative to the working directory.
+Returns the exit code, the log file, which is written to a temporary directory
+because Logger writes it relative to the working directory, and whatever the
+child wrote to its stderr, which is the only clue when it doesn't get as far as
+the log file.
 */
 async function runMonitorUntilParentExits(): Promise<{
   code: number | null;
   log: string;
+  stderr: string;
 }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "parent-monitor-test-"));
   // the tests run the compiled code, so the child can import it from here
@@ -226,8 +229,21 @@ async function runMonitorUntilParentExits(): Promise<{
          // the servers keep the loop alive in the real service
          setInterval(() => {}, 1000);`,
     ],
-    { cwd: dir, env: { ...process.env, [PARENT_PID_ENV]: "" + parent.pid } },
+    {
+      cwd: dir,
+      env: { ...process.env, [PARENT_PID_ENV]: "" + parent.pid },
+      /* The log file is what the test reads, so the console output of the
+      child is dropped, but its errors are kept: a child that fails to start
+      writes nothing else, and an unread pipe would fill up in the end. */
+      stdio: ["ignore", "ignore", "pipe"],
+    },
   );
+
+  let stderr = "";
+
+  child.stderr.on("data", (data) => {
+    stderr += data;
+  });
 
   // the only clue about what the monitor did, and the directory goes below
   const readLog = () => {
@@ -244,15 +260,17 @@ async function runMonitorUntilParentExits(): Promise<{
 
   try {
     /* once() rejects when the child can't be started, and when it doesn't
-    exit: a monitor that keeps running would hang the whole test run. */
-    const [code] = (await once(child, "exit", { signal: AbortSignal.timeout(HELPER_TIMEOUT_MS) })) as [number | null];
+    exit: a monitor that keeps running would hang the whole test run. The
+    'close' event is the one that comes after the stderr above, 'exit' doesn't
+    wait for it. */
+    const [code] = (await once(child, "close", { signal: AbortSignal.timeout(HELPER_TIMEOUT_MS) })) as [number | null];
 
-    return { code, log: readLog() };
+    return { code, log: readLog(), stderr };
   } catch (err) {
     // the same plain AbortError as above, the timeout is the only abort here
     const reason = err.name === "AbortError" ? "didn't exit in " + HELPER_TIMEOUT_MS + " ms" : "couldn't start: " + err;
-    // the log says what it did instead, and it's gone after this
-    throw new Error("the monitor " + reason + ", its log:\n" + readLog());
+    // what it did instead, the log is gone with the directory after this
+    throw new Error("the monitor " + reason + "\nits log:\n" + readLog() + "its errors:\n" + stderr);
   } finally {
     clearTimeout(killTimer);
     parent.kill("SIGKILL");
@@ -331,7 +349,7 @@ describe("Test parent monitor", () => {
     const result = await runMonitorUntilParentExits();
 
     // a clean exit, not a crash on the way out
-    assert.equal(result.code, 0);
+    assert.equal(result.code, 0, "the monitor process failed:\n" + result.stderr);
     /* The monitor really ran in that process. Its last message isn't checked,
     because writing it isn't guaranteed, see startParentMonitor(). */
     assert.match(result.log, /monitoring the parent process/);
