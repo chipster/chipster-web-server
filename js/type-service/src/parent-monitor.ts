@@ -183,6 +183,22 @@ export function startParentMonitor(options: ParentMonitorOptions = {}): NodeJS.T
   lose it in unless the service is busy at the very moment its parent dies. */
   const onParentGone = options.onParentGone ?? (() => process.exit(0));
 
+  /* Say why the service stops, and stop even when that fails. The transports
+  are shared by every logger of the process, so a logger that has been ended
+  elsewhere makes this throw. The process does go away either way, because an
+  uncaught exception kills it too, but only catching the throw here lets it
+  exit cleanly: a service that logs a stack trace and returns a failure status
+  when it stops on purpose reads like a crash to whoever finds it. Losing the
+  message is the smaller problem, see onParentGone above. */
+  const logAndExit = (message: string) => {
+    try {
+      logger.info(message);
+    } catch {
+      // nothing to do about it, the exit matters more
+    }
+    onParentGone();
+  };
+
   const value = env[PARENT_PID_ENV];
 
   if (value == null || value.trim() === "") {
@@ -199,8 +215,7 @@ export function startParentMonitor(options: ParentMonitorOptions = {}): NodeJS.T
 
   if (!isAlive(pid)) {
     // the parent died before we got this far, no need to start polling
-    logger.info("parent process " + pid + " is already gone, exiting");
-    onParentGone();
+    logAndExit("parent process " + pid + " is already gone, exiting");
     return null;
   }
 
@@ -210,8 +225,7 @@ export function startParentMonitor(options: ParentMonitorOptions = {}): NodeJS.T
     if (!isAlive(pid)) {
       // stop polling, the callback doesn't necessarily exit immediately
       clearInterval(timer);
-      logger.info("parent process " + pid + " has exited, exiting too");
-      onParentGone();
+      logAndExit("parent process " + pid + " has exited, exiting too");
     }
   }, intervalMs);
 
