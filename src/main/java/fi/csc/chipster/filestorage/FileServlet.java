@@ -3,21 +3,17 @@ package fi.csc.chipster.filestorage;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Semaphore;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -75,11 +71,6 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 	private static final String CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE = "file-storage-backup-preserve-space";
 	private static final String CONF_KEY_FILE_STORAGE_PRESERVE_SPACE = "file-storage-preserve-space";
-	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE = "file-storage-readahead-above";
-	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE = "file-storage-readahead-chunk-size";
-	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT = "file-storage-readahead-chunk-count";
-	private static final String CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT = "file-storage-readahead-max-concurrent";
-
 	public static final String PATH_FILES = "files";
 
 	private static final Logger logger = LogManager.getLogger();
@@ -102,13 +93,7 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 	private boolean isBackupEnabled;
 
-	private long readaheadAbove = -1;
-	private long readaheadChunkSize;
-	private int readaheadChunkCount;
-	private int readaheadMaxConcurrent;
-
-	// limit the number of concurrent readahead transfers to limit memory usage
-	private Semaphore readaheadSemaphore;
+	private Readahead readahead;
 
 	public FileServlet(File storageRoot, AuthenticationClient authService, Config config) {
 
@@ -121,53 +106,18 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 		this.backupPreserveSpace = config.getFloat(CONF_FILE_STORAGE_BACKUP_PRESERVE_SPACE);
 		this.isBackupEnabled = !GpgBackupUtils.getBackupBucket(config, Role.FILE_STORAGE).isEmpty();
 
-		if (!config.getString(CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE).isBlank()) {
-			this.readaheadAbove = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_ABOVE) * 1024 * 1024;
-			this.readaheadChunkSize = config.getLong(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE) * 1024 * 1024;
-			this.readaheadChunkCount = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT);
-			this.readaheadMaxConcurrent = config.getInt(CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT);
-
-			// check these here, because otherwise every download would fail
-			if (this.readaheadChunkSize < 1 || this.readaheadChunkSize > Integer.MAX_VALUE) {
-				throw new IllegalArgumentException(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_SIZE
-						+ " must be between 1 and " + (Integer.MAX_VALUE / 1024 / 1024) + " MiB, but it was "
-						+ this.readaheadChunkSize / 1024 / 1024);
-			}
-
-			if (this.readaheadChunkCount < 1) {
-				throw new IllegalArgumentException(CONF_KEY_FILE_STORAGE_READAHEAD_CHUNK_COUNT
-						+ " must be at least 1, but it was " + this.readaheadChunkCount);
-			}
-
-			if (this.readaheadMaxConcurrent < 1) {
-				throw new IllegalArgumentException(CONF_KEY_FILE_STORAGE_READAHEAD_MAX_CONCURRENT
-						+ " must be at least 1, but it was " + this.readaheadMaxConcurrent);
-			}
-
-			this.readaheadSemaphore = new Semaphore(this.readaheadMaxConcurrent);
-
-			// one chunk is being read, one is in the queue and one is consumed at the
-			// moment
-			long readaheadMaxMemory = (long) this.readaheadMaxConcurrent * (this.readaheadChunkCount + 2)
-					* this.readaheadChunkSize;
-
-			logger.info("readahead enabled, max memory: " + Runtime.getRuntime().maxMemory() / 1024 / 1024 + " MiB");
-			logger.info("readhead chunk size: " + readaheadChunkSize / 1024 / 1024 + " MiB");
-			logger.info("readhead chunk count: " + readaheadChunkCount);
-			logger.info("readahead max concurrent transfers: " + readaheadMaxConcurrent);
-			// the JVM keeps a native buffer of one chunk for each reading thread
-			long readaheadMaxNativeMemory = (long) this.readaheadMaxConcurrent * this.readaheadChunkCount
-					* this.readaheadChunkSize;
-
-			logger.info("readahead max heap memory: about " + readaheadMaxMemory / 1024 / 1024 + " MiB");
-			logger.info("readahead max native memory: about " + readaheadMaxNativeMemory / 1024 / 1024 + " MiB");
-
-		} else {
-			logger.info("readahead is disabled");
-		}
+		this.readahead = new Readahead(config);
 
 		logRest = true;
 		logger.info("logging rest requests: " + logRest);
+	}
+
+	@Override
+	public void destroy() {
+
+		this.readahead.close();
+
+		super.destroy();
 	}
 
 	public static class RewrittenRequest extends HttpServletRequestWrapper {
@@ -219,60 +169,9 @@ public class FileServlet extends ResourceServlet implements SessionEventListener
 
 			Instant before = Instant.now();
 
-			// readahead can be enabled for large files. It writes the response itself,
-			// so it supports neither range queries nor the conditional get headers
-			// (Last-Modified, ETag) of the DefaultServlet below
-			boolean useReadahead = this.readaheadAbove != -1 && request.getHeader("Range") == null
-					&& f.toFile().length() >= this.readaheadAbove;
-
-			// each readahead transfer needs its own threads and buffers, so allow only a
-			// limited number of them at the same time. Others are served without
-			// readahead, which is slower, but doesn't need extra memory.
-			if (useReadahead && !this.readaheadSemaphore.tryAcquire()) {
-
-				logger.info("readahead is already used by " + this.readaheadMaxConcurrent
-						+ " transfers, get file without readahead");
-
-				useReadahead = false;
-			}
-
-			if (useReadahead) {
-
-				try {
-					logger.info("use readahead to get file of size " + f.toFile().length() / 1024 / 1024 + " MiB");
-
-					ReadaheadFileInputStream fis;
-
-					try {
-						fis = new ReadaheadFileInputStream(f.toFile(), this.readaheadChunkCount,
-								this.readaheadChunkSize);
-
-					} catch (FileNotFoundException | NoSuchFileException e) {
-						// deleted after the check above. The stream checks the file itself
-						// too, but the file can disappear also between its check and open
-						throw new NotFoundException("no such file");
-					}
-
-					try (ReadaheadFileInputStream stream = fis) {
-
-						// set these only after the stream was opened, because the constructor
-						// throws if the file was deleted after the check above
-						response.setContentType("application/octet-stream");
-						response.setStatus(HttpServletResponse.SC_OK);
-						// the stream reads the length it saw when it was created, so asking the
-						// file again could announce a different length than what we send
-						response.setContentLengthLong(stream.length());
-
-						try (OutputStream os = response.getOutputStream()) {
-
-							org.apache.commons.io.IOUtils.copyLarge(stream, os);
-						}
-					}
-				} finally {
-					this.readaheadSemaphore.release();
-				}
-
-			} else {
+			// readahead is a lot faster for large files on distributed storage, but it
+			// can't do everything the DefaultServlet below does, so it may decline
+			if (!this.readahead.get(f.toFile(), request, response)) {
 
 				// remove "storage/" from the beginning
 				java.nio.file.Path pathUnderStorage = storageRoot.toPath().relativize(f);

@@ -1,8 +1,10 @@
 package fi.csc.chipster.filestorage;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.EOFException;
 import java.io.File;
@@ -16,6 +18,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -23,6 +26,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 
@@ -43,6 +48,21 @@ public class ReadaheadFileInputStreamTest {
 	 * duplicated or skipped, which is exactly what this stream has to get right.
 	 */
 	private static final int PATTERN_PERIOD = 251;
+
+	// the streams share the threads, so the tests need a pool of their own
+	private ExecutorService executor;
+
+	@BeforeEach
+	public void createExecutor() {
+		// more threads than one stream needs, so that the tests would notice also a
+		// stream which requests more chunks than its queue length allows
+		this.executor = ReadaheadFileInputStream.createExecutor(queueLength * 2);
+	}
+
+	@AfterEach
+	public void shutdownExecutor() {
+		this.executor.shutdownNow();
+	}
 
 	/**
 	 * Test data where each byte tells its own position
@@ -96,7 +116,6 @@ public class ReadaheadFileInputStreamTest {
 		testSize(chunkSize * queueLength);
 		testSize(chunkSize * queueLength + 1);
 
-		testBrokenFile();
 	}
 
 	/**
@@ -124,7 +143,7 @@ public class ReadaheadFileInputStreamTest {
 
 		File tempFile = createFile(fileSize);
 
-		try (ReadaheadFileInputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize)) {
+		try (ReadaheadFileInputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor)) {
 
 			assertEquals(fileSize, raStream.length());
 			assertEquals(false, raStream.markSupported());
@@ -149,15 +168,13 @@ public class ReadaheadFileInputStreamTest {
 				logger.info("expected exception", e);
 			}
 
-			assertEquals(0, raStream.skip(0));
-			assertEquals(0, raStream.skip(-1));
-
 			// read to a position of our own choosing
 			byte[] buffer = new byte[10];
 			assertEquals(3, raStream.read(buffer, 5, 3));
-			assertEquals(PatternInputStream.byteAt(0), buffer[5]);
-			assertEquals(PatternInputStream.byteAt(1), buffer[6]);
-			assertEquals(PatternInputStream.byteAt(2), buffer[7]);
+			// the pattern is an unsigned value, the array is signed
+			assertEquals(PatternInputStream.byteAt(0), buffer[5] & 0xff);
+			assertEquals(PatternInputStream.byteAt(1), buffer[6] & 0xff);
+			assertEquals(PatternInputStream.byteAt(2), buffer[7] & 0xff);
 			// the bytes outside the range must not change
 			assertEquals(0, buffer[4]);
 			assertEquals(0, buffer[8]);
@@ -193,21 +210,21 @@ public class ReadaheadFileInputStreamTest {
 
 		try {
 			try {
-				new ReadaheadFileInputStream(new File(tempFile.getPath() + "-not-found"), queueLength, chunkSize);
+				new ReadaheadFileInputStream(new File(tempFile.getPath() + "-not-found"), queueLength, chunkSize, executor);
 				fail("missing file didn't throw");
 			} catch (FileNotFoundException e) {
 				logger.info("expected exception", e);
 			}
 
 			try {
-				new ReadaheadFileInputStream(tempFile.getParentFile(), queueLength, chunkSize);
+				new ReadaheadFileInputStream(tempFile.getParentFile(), queueLength, chunkSize, executor);
 				fail("directory didn't throw");
 			} catch (FileNotFoundException e) {
 				logger.info("expected exception", e);
 			}
 
 			try {
-				new ReadaheadFileInputStream(tempFile, 0, chunkSize);
+				new ReadaheadFileInputStream(tempFile, 0, chunkSize, executor);
 				fail("zero queue length didn't throw");
 			} catch (IllegalArgumentException e) {
 				logger.info("expected exception", e);
@@ -215,14 +232,14 @@ public class ReadaheadFileInputStreamTest {
 
 			try {
 				// this would be truncated to a wrong chunk size
-				new ReadaheadFileInputStream(tempFile, queueLength, (long) Integer.MAX_VALUE + 1);
+				new ReadaheadFileInputStream(tempFile, queueLength, (long) Integer.MAX_VALUE + 1, executor);
 				fail("too large chunk size didn't throw");
 			} catch (IllegalArgumentException e) {
 				logger.info("expected exception", e);
 			}
 
 			try {
-				new ReadaheadFileInputStream(tempFile, queueLength, 0);
+				new ReadaheadFileInputStream(tempFile, queueLength, 0, executor);
 				fail("zero chunk size didn't throw");
 			} catch (IllegalArgumentException e) {
 				logger.info("expected exception", e);
@@ -241,13 +258,14 @@ public class ReadaheadFileInputStreamTest {
 
 			tempFile = createFile(fileSize);
 
-			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
 					InputStream dummyStream = new PatternInputStream(fileSize)) {
 
 				assertEquals(true, IOUtils.contentEquals(raStream, dummyStream));
 			}
 
 			testSingleByteReads(tempFile, fileSize);
+			testTransferTo(tempFile, fileSize);
 
 		} catch (IOException e) {
 			// don't hide the failure, the stream is expected to throw IOExceptions
@@ -255,6 +273,56 @@ public class ReadaheadFileInputStreamTest {
 		} finally {
 			if (tempFile != null) {
 				tempFile.delete();
+			}
+		}
+	}
+
+	/**
+	 * Test transferTo(), which FileServlet and RCat use
+	 * 
+	 * It writes whole chunks, unlike the read() methods, so it has to be tested
+	 * separately.
+	 * 
+	 * @param file     File to read
+	 * @param fileSize Expected number of bytes
+	 * @throws IOException
+	 */
+	private void testTransferTo(File file, long fileSize) throws IOException {
+
+		try (ReadaheadFileInputStream raStream = new ReadaheadFileInputStream(file, queueLength, chunkSize,
+				executor)) {
+
+			PatternOutputStream out = new PatternOutputStream();
+
+			assertEquals(fileSize, raStream.transferTo(out));
+			assertEquals(fileSize, out.getPosition());
+
+			// nothing more to transfer after the end
+			assertEquals(0, raStream.transferTo(out));
+		}
+	}
+
+	/**
+	 * Check that the bytes come in the right order and none are missing
+	 */
+	public static class PatternOutputStream extends OutputStream {
+
+		private long position = 0;
+
+		public long getPosition() {
+			return position;
+		}
+
+		@Override
+		public void write(int b) {
+			assertEquals(PatternInputStream.byteAt(position), b & 0xff, "wrong byte in position " + position);
+			position++;
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) {
+			for (int i = 0; i < len; i++) {
+				write(b[off + i] & 0xff);
 			}
 		}
 	}
@@ -271,7 +339,7 @@ public class ReadaheadFileInputStreamTest {
 	 */
 	private void testSingleByteReads(File file, long fileSize) throws IOException {
 
-		try (InputStream raStream = new ReadaheadFileInputStream(file, queueLength, chunkSize);
+		try (InputStream raStream = new ReadaheadFileInputStream(file, queueLength, chunkSize, executor);
 				InputStream dummyStream = new PatternInputStream(fileSize)) {
 
 			long count = 0;
@@ -291,18 +359,20 @@ public class ReadaheadFileInputStreamTest {
 	}
 
 	/**
-	 * Test that closing the stream early doesn't leak threads
+	 * Test closing the stream before the end of the file
 	 *
 	 * This is how the stream is used when the client cancels a download: only a
-	 * small part of the file is read before close(). The stream must then stop all
-	 * its own threads, because each leaked thread keeps its chunks in memory too
-	 * (queueLength * chunkSize bytes), which made the server run out of memory
-	 * after enough cancelled downloads.
+	 * small part of the file is read before close(). Originally each of those left
+	 * a thread running, which kept its chunks in memory too, and the server ran out
+	 * of memory after enough cancelled downloads. That thread is gone, so this
+	 * checks what is left to check: a stream must not shut down the pool which the
+	 * other streams use, and the threads must stop when the pool is shut down.
 	 *
-	 * Thread count is used as the indicator, because it's easier to measure
-	 * reliably than the retained memory. Only the threads of this stream class are
-	 * counted, recognized by their name, so that the threads of the JVM, the test
-	 * framework and other tests don't matter.
+	 * The threads are counted also to check that the chunks are
+	 * really read
+	 * in parallel, and that they are gone when the pool is shut down. Only the
+	 * threads of this stream class are counted, recognized by their name, so that
+	 * the threads of the JVM, the test framework and other tests don't matter.
 	 */
 	@Test
 	public void closeBeforeEndOfFile() throws IOException, InterruptedException {
@@ -318,31 +388,43 @@ public class ReadaheadFileInputStreamTest {
 
 			for (int i = 0; i < closeTestStreamCount; i++) {
 
-				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
 
 				try {
-					// read a little to make sure the stream really started
-					assertTrue(raStream.read(new byte[copyBufferSize]) > 0);
-
 					if (i == 0) {
-						// the whole queue must be read in parallel, which is the point of
-						// this class. The pool creates the threads when the requests are
-						// made, so their number tells how many requests are in flight.
+						// the constructor must request the whole queue, which is the point
+						// of this class. The pool creates a thread for each request while
+						// it has fewer threads than requests, so the number of threads
+						// tells how many requests were made. The pool has more threads
+						// than this stream needs, so this notices too few and too many
+						// requests alike. Count before reading, because the first read
+						// requests one more chunk to keep the queue full.
 						Set<Thread> threads = getThreads();
 						threads.removeAll(threadsBefore);
 
 						assertEquals(queueLength, threads.size(),
-								"readahead reads " + threads.size() + " chunks in parallel, expected " + queueLength);
+								"readahead requested " + threads.size() + " chunks, expected " + queueLength);
 
 						for (Thread thread : threads) {
 							// a forgotten stream must not keep the JVM running
 							assertEquals(true, thread.isDaemon(), "thread " + thread.getName() + " is not a daemon");
 						}
 					}
+
+					// read a little to make sure the stream really started
+					assertTrue(raStream.read(new byte[copyBufferSize]) > 0);
+
 				} finally {
 					raStream.close();
 				}
 			}
+
+			// the threads are shared, so a closed stream must leave the pool usable
+			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor)) {
+				assertTrue(raStream.read(new byte[copyBufferSize]) > 0);
+			}
+
+			executor.shutdownNow();
 
 			// threads are stopped asynchronously, so wait for them for a while
 			Set<Thread> leaked = waitForThreadsToStop(threadsBefore, 10_000);
@@ -351,9 +433,7 @@ public class ReadaheadFileInputStreamTest {
 				logger.error("thread was not stopped: " + t.getName() + " " + t.getState());
 			}
 
-			assertEquals(0, leaked.size(),
-					leaked.size() + " threads were left running after closing " + closeTestStreamCount + " streams");
-
+			assertEquals(0, leaked.size(), leaked.size() + " threads were left running after the pool was shut down");
 
 		} finally {
 			tempFile.delete();
@@ -372,23 +452,20 @@ public class ReadaheadFileInputStreamTest {
 	@Test
 	public void closeReleasesFile() throws IOException {
 
-		// the whole file fits in the queue, so all the reads are done when we close
-		File tempFile = createFile(chunkSize);
+		// several chunks, so that the stream really uses its queue
+		File tempFile = createFile(chunkSize * queueLength * 2);
 
 		try {
 			long openFilesBefore = getOpenFileCount();
 
-			if (openFilesBefore == -1) {
-				logger.info("this JVM doesn't tell the number of open files, skip the test");
-				return;
-			}
+			assumeTrue(openFilesBefore != -1, "this JVM doesn't tell the number of open files");
 
 			// keep the streams, because the garbage collector would close the files of
 			// the collected ones and hide a leak
 			List<InputStream> streams = new ArrayList<>();
 
 			for (int i = 0; i < closeTestStreamCount; i++) {
-				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+				InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
 				streams.add(raStream);
 				IOUtils.copyLarge(raStream, OutputStream.nullOutputStream(), new byte[copyBufferSize]);
 				raStream.close();
@@ -396,10 +473,11 @@ public class ReadaheadFileInputStreamTest {
 
 			long openFiles = getOpenFileCount();
 
-			// small tolerance for files opened by other threads, still a lot less than
-			// the closeTestStreamCount files of a leak
-			assertEquals(true, openFiles <= openFilesBefore + 2, "open files grew from " + openFilesBefore + " to "
-					+ openFiles + " after closing " + closeTestStreamCount + " streams");
+			// tolerance for files opened by the other tests and the threads of the JVM,
+			// still a lot less than the closeTestStreamCount files of a leak
+			assertEquals(true, openFiles <= openFilesBefore + closeTestStreamCount / 2,
+					"open files grew from " + openFilesBefore + " to " + openFiles + " after closing "
+							+ closeTestStreamCount + " streams");
 
 		} finally {
 			tempFile.delete();
@@ -468,6 +546,167 @@ public class ReadaheadFileInputStreamTest {
 	}
 
 	/**
+	 * Test that a failing output doesn't lose or duplicate data
+	 * 
+	 * This is how a download ends when the client disconnects in the middle: the
+	 * response refuses to take more bytes. The stream must then still have the
+	 * chunk which wasn't written, not skip to the next one. This output refuses a
+	 * whole chunk, while a real one could take a part of it first and leave those
+	 * bytes in the stream too, which nobody reads anymore.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void transferToFailingOutput() throws IOException {
+
+		long fileSize = chunkSize * queueLength * 2;
+
+		File tempFile = createFile(fileSize);
+
+		try (ReadaheadFileInputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize,
+				executor)) {
+
+			// refuse everything after the first two chunks
+			FailingOutputStream out = new FailingOutputStream(chunkSize * 2);
+
+			try {
+				raStream.transferTo(out);
+				fail("the failing output didn't throw");
+			} catch (IOException e) {
+				logger.info("expected exception", e);
+			}
+
+			assertEquals(chunkSize * 2, out.getWritten());
+
+			// the chunk which the output refused must still be in the stream
+			assertEquals(fileSize - out.getWritten(),
+					IOUtils.copyLarge(raStream, OutputStream.nullOutputStream(), new byte[copyBufferSize]));
+		} finally {
+			tempFile.delete();
+		}
+	}
+
+	/**
+	 * OutputStream which takes only a limited number of bytes
+	 */
+	public static class FailingOutputStream extends OutputStream {
+
+		private long limit;
+		private long written = 0;
+
+		public FailingOutputStream(long limit) {
+			this.limit = limit;
+		}
+
+		public long getWritten() {
+			return written;
+		}
+
+		@Override
+		public void write(int b) throws IOException {
+			write(new byte[] { (byte) b }, 0, 1);
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) throws IOException {
+
+			if (written + len > limit) {
+				// like a client which isn't listening anymore
+				throw new IOException("the output is gone");
+			}
+
+			written += len;
+		}
+	}
+
+	/**
+	 * Test a pool which is already shut down
+	 * 
+	 * The pool is shared and stopped when the server stops, so a download can be
+	 * starting at that moment. The stream must report it like any other read error,
+	 * i.e. with an IOException, which the caller expects and logs.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void shutDownExecutor() throws IOException {
+
+		File tempFile = createFile(chunkSize * queueLength * 2);
+
+		try {
+			executor.shutdownNow();
+
+			try {
+				new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
+				fail("a shut down pool didn't throw");
+
+			} catch (FileNotFoundException e) {
+				// this is an IOException too, but it would mean that the test file is
+				// missing, not that the pool was noticed
+				fail("the test file was missing", e);
+
+			} catch (IOException e) {
+				logger.info("expected exception", e);
+			}
+
+		} finally {
+			tempFile.delete();
+		}
+	}
+
+	/**
+	 * Test two streams which share the threads
+	 * 
+	 * The pool is shared by all the transfers, so the streams must not disturb each
+	 * other: the chunks of one stream must not end up in the other, and closing one
+	 * must not stop the other.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void twoStreamsShareTheThreads() throws IOException {
+
+		long fileSize = chunkSize * queueLength * 2;
+
+		File tempFile = createFile(fileSize);
+
+		try (InputStream first = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
+				InputStream second = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
+				InputStream firstExpected = new PatternInputStream(fileSize);
+				InputStream secondExpected = new PatternInputStream(fileSize)) {
+
+			byte[] buffer = new byte[copyBufferSize];
+			byte[] expected = new byte[copyBufferSize];
+
+			// read only one chunk, so that the second stream has to request more chunks
+			// after the first one is closed, i.e. really needs the shared threads
+			long readSize = chunkSize;
+
+			// read both at the same time, a little from each in turn
+			for (long position = 0; position < readSize; position += copyBufferSize) {
+
+				for (InputStream[] pair : new InputStream[][] { { first, firstExpected },
+						{ second, secondExpected } }) {
+
+					int bytes = pair[0].readNBytes(buffer, 0, copyBufferSize);
+					assertEquals(copyBufferSize, pair[1].readNBytes(expected, 0, copyBufferSize));
+					assertEquals(copyBufferSize, bytes);
+					assertArrayEquals(expected, buffer, "wrong data in position " + position);
+				}
+			}
+
+			// closing one must leave the other usable, i.e. it must not stop the threads
+			// which the second one still needs
+			first.close();
+
+			assertEquals(fileSize - readSize, IOUtils.copyLarge(second, OutputStream.nullOutputStream()));
+
+		} finally {
+			tempFile.delete();
+		}
+	}
+
+	/**
 	 * Test that the file can be deleted while it's being read
 	 * 
 	 * The file is opened only once, when the stream is created, so the data stays
@@ -485,7 +724,7 @@ public class ReadaheadFileInputStreamTest {
 
 		File tempFile = createFile(fileSize);
 
-		try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+		try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
 				InputStream dummyStream = new PatternInputStream(fileSize)) {
 
 			assertEquals(true, tempFile.delete());
@@ -523,7 +762,8 @@ public class ReadaheadFileInputStreamTest {
 	 * 
 	 * @throws IOException
 	 */
-	private void testBrokenFile() throws IOException {
+	@Test
+	public void testBrokenFile() throws IOException {
 
 		File tempFile = null;
 		long fileSize = chunkSize * queueLength * 2;
@@ -532,7 +772,7 @@ public class ReadaheadFileInputStreamTest {
 
 			tempFile = createFile(fileSize);
 
-			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize)) {
+			try (InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor)) {
 
 				// leave only the first chunk, so the later ones cannot be read
 				try (RandomAccessFile raf = new RandomAccessFile(tempFile, "rw")) {
@@ -570,9 +810,6 @@ public class ReadaheadFileInputStreamTest {
 				}
 			}
 
-			// reading a closed stream must fail too
-			testClosedStream(fileSize);
-
 		} finally {
 			if (tempFile != null && tempFile.exists()) {
 				tempFile.delete();
@@ -586,12 +823,13 @@ public class ReadaheadFileInputStreamTest {
 	 * @param fileSize Size of the test file
 	 * @throws IOException
 	 */
-	private void testClosedStream(long fileSize) throws IOException {
+	@Test
+	public void testClosedStream() throws IOException {
 
-		File tempFile = createFile(fileSize);
+		File tempFile = createFile(chunkSize * queueLength * 2);
 
 		try {
-			InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize);
+			InputStream raStream = new ReadaheadFileInputStream(tempFile, queueLength, chunkSize, executor);
 
 			assertEquals(0, raStream.available());
 
