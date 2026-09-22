@@ -162,8 +162,13 @@ describe("Test process checking", () => {
     assert.equal(isProcessAlive(process.pid), true);
   });
 
-  it("notice that a process has exited", async () => {
+  it("notice that a process has exited", async (t) => {
     const dummy = startDummyProcess();
+    /* Kill it whichever way the test ends, so that a failing assertion below
+    reports a failure instead of leaving a process that holds the run open.
+    Killing takes no waiting: a process that has already exited ignores it,
+    but waiting for the exit of one would never return. */
+    t.after(() => dummy.kill("SIGKILL"));
 
     assert.equal(isProcessAlive(dummy.pid), true);
 
@@ -278,27 +283,34 @@ describe("Test parent monitor", () => {
     assert.equal(startParentMonitor({ env: { [PARENT_PID_ENV]: "abc" } }), null);
   });
 
-  it("exit when the parent exits", async () => {
+  it("exit when the parent exits", async (t) => {
     const dummy = startDummyProcess();
+    t.after(() => dummy.kill("SIGKILL"));
+
+    let timer: NodeJS.Timeout;
 
     const parentGone = new Promise<void>((resolve) => {
-      const timer = startParentMonitor({
+      timer = startParentMonitor({
         env: { [PARENT_PID_ENV]: "" + dummy.pid },
         intervalMs: TEST_INTERVAL_MS,
         onParentGone: resolve,
       });
-
-      assert.notEqual(timer, null);
-      // the production timer is unref'd, which would let the test process exit
-      timer.ref();
     });
+
+    // a monitor that never notices would keep the ref'd timer below running
+    t.after(() => clearInterval(timer));
+
+    assert.notEqual(timer, null);
+    // the production timer is unref'd, which would let the test process exit
+    timer.ref();
 
     await killAndWait(dummy);
     await parentGone;
   });
 
-  it("keep running while the parent is alive", async () => {
+  it("keep running while the parent is alive", async (t) => {
     const dummy = startDummyProcess();
+    t.after(() => dummy.kill("SIGKILL"));
 
     let calls = 0;
 
@@ -307,14 +319,12 @@ describe("Test parent monitor", () => {
       intervalMs: TEST_INTERVAL_MS,
       onParentGone: () => calls++,
     });
+    t.after(() => clearInterval(timer));
 
     // let the monitor poll a few times
     await new Promise((resolve) => setTimeout(resolve, 10 * TEST_INTERVAL_MS));
 
     assert.equal(calls, 0);
-
-    clearInterval(timer);
-    await killAndWait(dummy);
   });
 
   it("exit a real process when its real parent exits", async () => {
