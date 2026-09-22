@@ -2,14 +2,13 @@ package fi.csc.chipster.s3storage.cli;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 
-import org.apache.commons.io.IOUtils;
 
 import fi.csc.chipster.filestorage.ReadaheadFileInputStream;
 import io.jsonwebtoken.lang.Arrays;
@@ -64,11 +63,18 @@ public class RCat {
                         }
                 }
 
-                for (String fileArg : argsList) {
-                        try (InputStream fileStream = new ReadaheadFileInputStream(new File(fileArg), queue,
-                                        chunk * 1024 * 1024)) {
-                                IOUtils.copyLarge(fileStream, System.out, new byte[1 << 16]);
+                // all the files are read one after another, so one set of threads is enough
+                ExecutorService executor = ReadaheadFileInputStream.createExecutor(queue);
+
+                try {
+                        for (String fileArg : argsList) {
+                                try (ReadaheadFileInputStream fileStream = new ReadaheadFileInputStream(
+                                                new File(fileArg), queue, chunk * 1024 * 1024, executor)) {
+                                        fileStream.transferTo(System.out);
+                                }
                         }
+                } finally {
+                        executor.shutdownNow();
                 }
         }
 }
