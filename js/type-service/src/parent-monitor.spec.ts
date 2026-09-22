@@ -241,6 +241,10 @@ async function runMonitorUntilParentExits(): Promise<{
 
   let stderr = "";
 
+  /* Decode the chunks as one stream: a character of several bytes can be split
+  between two of them, which converting each chunk on its own would garble. */
+  child.stderr.setEncoding("utf8");
+
   child.stderr.on("data", (data) => {
     stderr += data;
   });
