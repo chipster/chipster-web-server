@@ -249,6 +249,50 @@ public class RuleResourceTest {
 		user1Client.deleteRule(sessionId, authorizationId);
 	}
 
+	@Test
+	public void ruleOfOtherSession() throws IOException, RestException {
+
+		deleteShares(user1Client);
+
+		// user1's session
+		UUID sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+		UUID ownerRuleId = user1Client.getRules(sessionId1).get(0).getRuleId();
+
+		// user2 has read-write access to their own session
+		UUID sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
+
+		// a rule of session1 can't be accessed through session2, even without any
+		// access to session1
+		testGetRule(404, sessionId2, ownerRuleId, user2Client);
+		testDeleteRule(404, sessionId2, ownerRuleId, user2Client);
+		user1Client.getSession(sessionId1);
+
+		// nor when session1 is shared read-only to user2
+		UUID user2RuleId = user1Client.createRule(sessionId1,
+				new Rule(launcher.getUser2Credentials().getUsername(), false));
+
+		testGetRule(404, sessionId2, ownerRuleId, user2Client);
+		testDeleteRule(404, sessionId2, ownerRuleId, user2Client);
+		testDeleteRule(404, sessionId2, user2RuleId, user2Client);
+		Rule user2Rule = user2Client.getRule(sessionId1, user2RuleId);
+		user2Rule.setSharedBy(null);
+		testUpdateRule(404, sessionId2, user2Rule, user2Client);
+
+		// session1 wasn't deleted and both users still have access
+		user1Client.getSession(sessionId1);
+		user2Client.getSession(sessionId1);
+		assertEquals(2, user1Client.getRules(sessionId1).size());
+
+		// a rule that doesn't exist at all
+		testGetRule(404, sessionId1, RestUtils.createUUID(), user2Client);
+		testDeleteRule(404, sessionId1, RestUtils.createUUID(), user2Client);
+
+		// the right session works
+		user2Client.getRule(sessionId1, ownerRuleId);
+		user2Client.deleteRule(sessionId1, user2RuleId);
+		SessionResourceTest.testGetSession(403, sessionId1, user2Client);
+	}
+
 	public void deleteShares(SessionDbClient client) throws RestException {
 		List<Session> shares = client.getShares();
 		for (Session session : shares) {
