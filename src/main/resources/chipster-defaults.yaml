@@ -501,6 +501,10 @@ toolbox-runtime-command-R-4.5.1-seurat5: /opt/chipster/tools/R-4.5.1/bin/R
 toolbox-runtime-image-R-4.5.1-seurat5: comp-r-4-5-1-seurat5
 toolbox-runtime-tools-bin-path-R-4.5.1-seurat5: tools-bin
 
+toolbox-runtime-command-R-4.5.1-visium-hd: /opt/chipster/tools/R-4.5.1/bin/R
+toolbox-runtime-image-R-4.5.1-visium-hd: comp-r-4-5-1-visium-hd
+toolbox-runtime-tools-bin-path-R-4.5.1-visium-hd: tools-bin
+
 toolbox-runtime-command-R-4.5.1-fastx: /opt/chipster/tools/R-4.5.1/bin/R
 toolbox-runtime-image-R-4.5.1-fastx: comp-r-4-5-1-fastx
 toolbox-runtime-tools-bin-path-R-4.5.1-fastx: tools-bin
