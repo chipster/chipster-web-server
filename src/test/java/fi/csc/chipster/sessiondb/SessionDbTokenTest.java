@@ -18,6 +18,7 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class SessionDbTokenTest {
@@ -113,6 +114,34 @@ public class SessionDbTokenTest {
 		assertEquals(false, tokenClient.getDatasets(sessionId1).isEmpty());
 		assertEquals(false, tokenClient.getJobs(sessionId1).isEmpty());
 		// getJob() could be allowed, but hasn't been needed yet
+	}
+
+	@Test
+	public void sessionTokenRulesForbidden() throws RestException, IOException {
+
+		// rules can be accessed only with user and server tokens, so that a job can't
+		// grant access to its session for others or remove it. RuleTable rejected
+		// dataset tokens, but put() and the own rule case of delete() don't ask it.
+		String clientSessionToken = user1Client.createSessionToken(sessionId1, null);
+		String compSessionToken = schedulerClient.createSessionToken(sessionId1, null);
+		String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, null);
+
+		Rule rule = user1Client.getRules(sessionId1).get(0);
+
+		for (String token : new String[] { clientSessionToken, compSessionToken, datasetToken }) {
+			SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(),
+					new StaticCredentials("token", token), Role.CLIENT);
+
+			RuleResourceTest.testGetRules(403, sessionId1, tokenClient);
+			RuleResourceTest.testGetRule(403, sessionId1, rule.getRuleId(), tokenClient);
+			RuleResourceTest.testCreateRule(403, sessionId1, new Rule(TestServerLauncher.UNIT_TEST_USER2, true),
+					tokenClient);
+			RuleResourceTest.testUpdateRule(403, sessionId1, rule, tokenClient);
+			RuleResourceTest.testDeleteRule(403, sessionId1, rule.getRuleId(), tokenClient);
+		}
+
+		// the session is still there and not shared
+		assertEquals(1, user1Client.getRules(sessionId1).size());
 	}
 
 	@Test
