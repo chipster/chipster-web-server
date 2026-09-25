@@ -37,6 +37,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.client.Client;
@@ -268,8 +269,10 @@ public class AuthenticationClient {
 				logger.warn("got null as response to refresh token (" + this.username + ")");
 			}
 
-		} catch (ForbiddenException fe) {
-			logger.info("got forbidden when refreshing token, getting new one (" + this.username + ")");
+		} catch (ForbiddenException | NotAuthorizedException fe) {
+			// e.g. the token has expired, because auth was unavailable
+			logger.info("got " + fe.getResponse().getStatus() + " when refreshing token, getting new one ("
+					+ this.username + ")");
 			try {
 				UserToken parsedToken = setToken(getUserTokenFromAuth());
 				logger.info("new token valid until " + parsedToken.getValidUntil() + " (" + this.username + ")");

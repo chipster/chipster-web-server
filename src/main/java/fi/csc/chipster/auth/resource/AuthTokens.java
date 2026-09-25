@@ -113,7 +113,8 @@ public class AuthTokens {
 		String rolesString = String.join(ROLES_DELIMITER, roles);
 
 		Instant now = Instant.now();
-		Instant expiration = getUserTokenNextExpiration(now, roles);
+		// max lifetime is counted from the login, also when the token is refreshed
+		Instant expiration = getUserTokenNextExpiration(loginTime, roles);
 
 		String jws = Jwts.builder()
 				.issuer("chipster")
