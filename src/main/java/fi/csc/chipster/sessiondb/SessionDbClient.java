@@ -38,6 +38,7 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionListStats;
 import fi.csc.chipster.sessiondb.model.TableStats;
 import fi.csc.chipster.sessiondb.resource.NewsResource;
+import fi.csc.chipster.sessiondb.resource.SessionDbTokenResource;
 import fi.csc.chipster.sessiondb.resource.SessionDatasetResource;
 import fi.csc.chipster.sessiondb.resource.SessionResource;
 import fi.csc.chipster.sessiondb.resource.UserResource;
@@ -424,6 +425,12 @@ public class SessionDbClient {
 
 	public String createSessionToken(UUID sessionId, Long validSeconds, boolean allowInternalAddresses)
 			throws RestException {
+		return this.createSessionToken(sessionId, validSeconds, allowInternalAddresses, false);
+	}
+
+	public String createSessionToken(UUID sessionId, Long validSeconds, boolean allowInternalAddresses,
+			boolean readWrite)
+			throws RestException {
 		WebTarget target = getDatasetTokenTarget()
 				.path("sessions").path(sessionId.toString());
 
@@ -433,6 +440,10 @@ public class SessionDbClient {
 
 		if (allowInternalAddresses) {
 			target = target.queryParam(QUERY_PARAM_ALLOW_INTERNAL_ADDRESSES, true);
+		}
+
+		if (readWrite) {
+			target = target.queryParam(SessionDbTokenResource.QP_READ_WRITE, true);
 		}
 
 		String sessionToken = RestMethods.postWithObjectResponse(target, null, String.class);

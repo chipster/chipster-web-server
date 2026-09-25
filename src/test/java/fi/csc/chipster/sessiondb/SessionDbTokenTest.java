@@ -18,6 +18,7 @@ import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 
 public class SessionDbTokenTest {
@@ -192,6 +193,74 @@ public class SessionDbTokenTest {
 
 		// scheduler creates longer tokens for jobs
 		schedulerClient.createSessionToken(sessionId1, 14 * 24 * 60 * 60l);
+	}
+
+	@Test
+	public void tokensRevokedWithRule() throws RestException, IOException {
+
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		UUID datasetId = user1Client.createDataset(sessionId, RestUtils.getRandomDataset());
+		UUID ruleId = user1Client.createRule(sessionId,
+				new Rule(launcher.getUser2Credentials().getUsername(), true));
+
+		// user2 gets tokens while the session is shared
+		SessionDbClient sessionTokenClient = new SessionDbClient(launcher.getServiceLocator(),
+				new StaticCredentials("token", user2Client.createSessionToken(sessionId, null)), Role.CLIENT);
+		SessionDbClient datasetTokenClient = new SessionDbClient(launcher.getServiceLocator(),
+				new StaticCredentials("token", user2Client.createDatasetToken(sessionId, datasetId, null)),
+				Role.CLIENT);
+		SessionDbClient jobTokenClient = new SessionDbClient(launcher.getServiceLocator(),
+				new StaticCredentials("token", schedulerClient.createSessionToken(sessionId, null)), Role.CLIENT);
+
+		sessionTokenClient.getSession(sessionId);
+		datasetTokenClient.getDataset(sessionId, datasetId);
+
+		// unshare
+		user1Client.deleteRule(sessionId, ruleId);
+
+		// the tokens of user2 don't work anymore
+		SessionResourceTest.testGetSession(403, sessionId, sessionTokenClient);
+		SessionDatasetResourceTest.testGetDataset(403, sessionId, datasetId, datasetTokenClient);
+
+		// tokens of jobs don't depend on the rules
+		jobTokenClient.getSession(sessionId);
+
+		user1Client.deleteSession(sessionId);
+	}
+
+	@Test
+	public void tokenDowngradedWithRule() throws RestException, IOException {
+
+		UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+		UUID ruleId = user1Client.createRule(sessionId,
+				new Rule(launcher.getUser2Credentials().getUsername(), true));
+
+		// user2 gets a read-write session token
+		SessionDbClient tokenClient = new SessionDbClient(launcher.getServiceLocator(),
+				new StaticCredentials("token", user2Client.createSessionToken(sessionId, null, false, true)),
+				Role.CLIENT);
+
+		UUID datasetId = tokenClient.createDataset(sessionId, RestUtils.getRandomDataset());
+
+		// downgrade user2 to read-only
+		user1Client.deleteRule(sessionId, ruleId);
+		user1Client.createRule(sessionId, new Rule(launcher.getUser2Credentials().getUsername(), false));
+
+		// the read-write token can still read but not write
+		tokenClient.getSession(sessionId);
+		tokenClient.getDataset(sessionId, datasetId);
+		SessionDatasetResourceTest.testCreateDataset(403, sessionId, RestUtils.getRandomDataset(), tokenClient);
+		SessionDatasetResourceTest.testDeleteDataset(403, sessionId, datasetId, tokenClient);
+
+		// and a read-only user can't get a new read-write token either
+		try {
+			user2Client.createSessionToken(sessionId, null, false, true);
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(403, e.getResponse().getStatus());
+		}
+
+		user1Client.deleteSession(sessionId);
 	}
 
 	@Test
