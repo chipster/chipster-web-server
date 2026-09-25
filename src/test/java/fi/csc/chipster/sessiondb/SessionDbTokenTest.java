@@ -166,6 +166,35 @@ public class SessionDbTokenTest {
 	}
 
 	@Test
+	public void maxValid() throws RestException, IOException {
+
+		// the web app uses the defaults
+		user1Client.createSessionToken(sessionId1, null);
+		user1Client.createDatasetToken(sessionId1, datasetId1, null);
+
+		// at most 24 hours for session tokens and 10 minutes for dataset tokens
+		user1Client.createSessionToken(sessionId1, 23 * 60 * 60l);
+		user1Client.createDatasetToken(sessionId1, datasetId1, 9 * 60);
+
+		try {
+			user1Client.createSessionToken(sessionId1, 25 * 60 * 60l);
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(400, e.getResponse().getStatus());
+		}
+
+		try {
+			user1Client.createDatasetToken(sessionId1, datasetId1, 15 * 60);
+			assertEquals(true, false);
+		} catch (RestException e) {
+			assertEquals(400, e.getResponse().getStatus());
+		}
+
+		// scheduler creates longer tokens for jobs
+		schedulerClient.createSessionToken(sessionId1, 14 * 24 * 60 * 60l);
+	}
+
+	@Test
 	public void sessionTokenForClientWrongSession() throws RestException, IOException {
 
 		String sessionToken = user1Client.createSessionToken(sessionId1, 60l);
