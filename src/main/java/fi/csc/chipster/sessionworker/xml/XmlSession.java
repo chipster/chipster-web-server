@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -41,6 +40,7 @@ import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessionworker.ExtractedSession;
+import fi.csc.chipster.sessionworker.SessionLimits;
 import fi.csc.chipster.sessionworker.xml.DataBean.Link;
 import fi.csc.chipster.sessionworker.xml.DataManager.StorageMethod;
 import fi.csc.chipster.sessionworker.xml.schema2.DataType;
@@ -58,10 +58,10 @@ public class XmlSession {
 	private static final Logger logger = LogManager.getLogger();
 
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId, File tempDir, long zipSize) {
+			UUID sessionId, UUID zipDatasetId, File tempDir, long zipSize, SessionLimits limits) {
 
 		try {
-			if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize)) {
+			if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize, limits)) {
 				return null;
 			}
 
@@ -100,7 +100,7 @@ public class XmlSession {
 
 						if (entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
 
-							sessionType = SessionLoaderImpl2.parseXml(entryInputStream);
+							sessionType = SessionLoaderImpl2.parseXml(limits.limitXml(entryInputStream));
 
 							// Job objects require UUID identifiers
 							convertJobIds(sessionType);
@@ -145,7 +145,7 @@ public class XmlSession {
 
 						} else if (entry.getName().startsWith("source-code-")) {
 							// source code in the old session is actually a screen output
-							String screenOutput = IOUtils.toString(entryInputStream, Charset.defaultCharset());
+							String screenOutput = limits.readMetadata(entryInputStream, entry.getName());
 							screenOutputMap.put(entry.getName(), screenOutput);
 
 						} else {
@@ -161,7 +161,7 @@ public class XmlSession {
 
 			fixModificationParents(sessionType, session, datasetMap, jobMap);
 
-			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap);
+			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap, limits);
 
 			return new ExtractedSession(session, datasetMap, jobMap, new HashMap<>(), warnings, errors);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
@@ -221,8 +221,8 @@ public class XmlSession {
 	}
 
 	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId,
-			RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap)
-			throws RestException {
+			RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap,
+			SessionLimits limits) throws RestException {
 
 		HashSet<UUID> convertedPhenodatas = new HashSet<>();
 
@@ -236,7 +236,7 @@ public class XmlSession {
 
 				UUID phenodataId = UUID.fromString(phenodataDataType.getDataId());
 				try (InputStream phenodata = fileBroker.download(sessionId, phenodataId)) {
-					String phenodataString = IOUtils.toString(phenodata, "UTF-8");
+					String phenodataString = limits.readMetadata(phenodata, phenodataDataType.getName());
 					List<MetadataFile> metadataFiles = new ArrayList<>();
 					metadataFiles.add(new MetadataFile("phenodata.tsv", phenodataString));
 					datasetMap.get(UUID.fromString(dataType.getDataId())).setMetadataFiles(metadataFiles);
@@ -329,8 +329,8 @@ public class XmlSession {
 		return entryToDatasetIdMap;
 	}
 
-	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId, long zipSize)
-			throws IOException, RestException, SAXException, ParserConfigurationException {
+	private static boolean isValid(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId, long zipSize,
+			SessionLimits limits) throws IOException, RestException, SAXException, ParserConfigurationException {
 
 		/*
 		 * Get the beginning of the zip file to check the file format version
@@ -345,7 +345,7 @@ public class XmlSession {
 		 * Read the whole inputStream to byteArray, because getSesionVersion() closes
 		 * the stream without reading it all.
 		 */
-		long maxBytes = 4l * 1024 * 1024;
+		long maxBytes = limits.getMaxXmlCheckSize();
 
 		byte[] sessionStartBytes = IOUtils.toByteArray(
 				fileBroker.download(sessionId, zipDatasetId, maxBytes, zipSize));
@@ -354,7 +354,7 @@ public class XmlSession {
 			ZipEntry entry = zipInputStream.getNextEntry();
 
 			if (entry != null && entry.getName().equals(UserSession.SESSION_DATA_FILENAME)) {
-				String version = SessionLoader.getSessionVersion(zipInputStream);
+				String version = SessionLoader.getSessionVersion(limits.limitXml(zipInputStream));
 				if ("2".equals(version)) {
 					logger.info("this is XmlSession v2");
 					return true;

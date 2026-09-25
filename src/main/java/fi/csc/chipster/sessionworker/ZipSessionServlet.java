@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.filebroker.FileBrokerApi;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
+import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
@@ -97,8 +98,11 @@ public class ZipSessionServlet extends HttpServlet {
 
 	private ExecutorService executor;
 
-	public ZipSessionServlet(ServiceLocatorClient serviceLocator) {
+	private Config config;
+
+	public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config) {
 		this.serviceLocator = serviceLocator;
+		this.config = config;
 
 		// all files in this directory will be deleted
 		tempDir = new File("tmp/session-worker");
@@ -397,12 +401,14 @@ public class ZipSessionServlet extends HttpServlet {
 
 			keepAliveWithSpaces(output, latch);
 
+			SessionLimits limits = new SessionLimits(config);
+
 			ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId,
-					zipDataset.getFile().getSize());
+					zipDataset.getFile().getSize(), limits);
 
 			if (sessionData == null) {
 				sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId, tempDir,
-						zipDataset.getFile().getSize());
+						zipDataset.getFile().getSize(), limits);
 			}
 
 			if (sessionData == null) {

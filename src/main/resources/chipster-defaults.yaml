@@ -681,6 +681,16 @@ session-worker-support-session-owner: jaas/support_session_owner
 # days
 session-worker-support-session-delete-after: 60
 
+# limits for the session import
+# Keep these well below the heap size, which is 1/4 of the container memory by default.
+# beginning of the zip file to download to check the version of the XML session, in MiB
+session-worker-max-xml-check-size: 4
+# session.xml of the XML session, in MiB. Parsing takes about 5x its size in heap.
+session-worker-max-xml-size: 32
+# total of all other metadata read to memory: JSON files and XML screen outputs, in MiB.
+# Takes about 2x its size in heap.
+session-worker-max-metadata-size: 64
+
 # shared
 
 # when to timeout idle websocket connections, milliseconds. Set to zero to wait indefinitely.
