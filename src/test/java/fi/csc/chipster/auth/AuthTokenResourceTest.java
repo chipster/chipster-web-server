@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.resource.AuthTokenResource;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.TestServerLauncher;
 import jakarta.ws.rs.ForbiddenException;
@@ -63,6 +64,23 @@ public class AuthTokenResourceTest {
 	@Test
 	public void postServer() throws IOException {
 		postUserTokenForSessionDb(target);
+	}
+
+	/**
+	 * A token must not be able to create a new token, because the new token would
+	 * get a new login time and extend the maximum lifetime of the login
+	 */
+	@Test
+	public void postWithToken() throws IOException {
+		String clientToken = postUserTokenForClient(target);
+		String serverToken = postUserTokenForSessionDb(target);
+
+		assertEquals(403, postTokenResponse(target, "token", clientToken).getStatus());
+		assertEquals(403, postTokenResponse(target, "token", serverToken).getStatus());
+
+		// Role.PASSWORD is not stored in the token
+		assertEquals(false, AuthTokens.decodeUserToken(clientToken).getRoles().contains(Role.PASSWORD));
+		assertEquals(false, AuthTokens.decodeUserToken(serverToken).getRoles().contains(Role.PASSWORD));
 	}
 
 	@Test

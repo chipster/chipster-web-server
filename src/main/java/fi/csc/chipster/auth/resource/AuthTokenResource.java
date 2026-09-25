@@ -2,6 +2,7 @@ package fi.csc.chipster.auth.resource;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.HashSet;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
@@ -86,8 +87,11 @@ public class AuthTokenResource {
 			throw new NotAuthorizedException("username is null");
 		}
 
-		String token = tokens.createNewUserToken(username, principal.getRoles(),
-				this.getName(username, principal.getRoles()));
+		// Role.PASSWORD is only for this request, don't store it in the token
+		HashSet<String> roles = new HashSet<>(principal.getRoles());
+		roles.remove(Role.PASSWORD);
+
+		String token = tokens.createNewUserToken(username, roles, this.getName(username, roles));
 
 		return Response.ok(token).build();
 	}
