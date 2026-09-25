@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 //import java.util.zip.ZipEntry;
 //import java.util.zip.ZipInputStream;
@@ -222,7 +223,7 @@ public class XmlSession {
 
 	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId,
 			RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap,
-			SessionLimits limits) throws RestException {
+			SessionLimits limits) throws RestException, ZipException {
 
 		HashSet<UUID> convertedPhenodatas = new HashSet<>();
 
@@ -241,6 +242,9 @@ public class XmlSession {
 					metadataFiles.add(new MetadataFile("phenodata.tsv", phenodataString));
 					datasetMap.get(UUID.fromString(dataType.getDataId())).setMetadataFiles(metadataFiles);
 					convertedPhenodatas.add(phenodataId);
+				} catch (ZipException e) {
+					// size limit exceeded, fail the import to show the error to the user
+					throw e;
 				} catch (IOException | RestException e) {
 					logger.error("failed to get the phenodata file", e);
 				}
