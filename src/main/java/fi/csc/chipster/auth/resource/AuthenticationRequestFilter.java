@@ -153,7 +153,15 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		// throws if fails
 		UserToken token = tokenTable.validateUserToken(jwsString);
 
-		return new AuthPrincipal(token.getUsername(), jwsString, token.getRoles());
+		/*
+		 * Role.PASSWORD means that the request was authenticated with a password. Old
+		 * tokens have it in their roles, so remove it here. Otherwise a token could be
+		 * used to create a new token with a new login time.
+		 */
+		HashSet<String> roles = new HashSet<>(token.getRoles());
+		roles.remove(Role.PASSWORD);
+
+		return new AuthPrincipal(token.getUsername(), jwsString, roles);
 	}
 
 	private AuthPrincipal passwordAuthentication(String username, String password) {
