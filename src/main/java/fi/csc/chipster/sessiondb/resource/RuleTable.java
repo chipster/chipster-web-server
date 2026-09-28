@@ -69,9 +69,24 @@ public class RuleTable {
 				.getConfigEntries(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE + "-");
 	}
 
-	public Rule getRule(UUID ruleId, org.hibernate.Session hibernateSession) {
-		Rule auth = hibernateSession.find(Rule.class, ruleId);
-		return auth;
+	/**
+	 * Get a rule of the given session
+	 *
+	 * Rules are always looked up by the session and the rule id together. The
+	 * callers check the authorization against the session, so a lookup by the rule
+	 * id alone would let a user access the rules of any session through their own
+	 * session.
+	 *
+	 * @param sessionId
+	 * @param ruleId
+	 * @return the rule or null, if the session has no such rule
+	 */
+	public Rule getRule(UUID sessionId, UUID ruleId) {
+		return hibernate.session()
+				.createQuery("from Rule where session.sessionId=:sessionId and ruleId=:ruleId", Rule.class)
+				.setParameter("sessionId", sessionId)
+				.setParameter("ruleId", ruleId)
+				.uniqueResult();
 	}
 
 	/**

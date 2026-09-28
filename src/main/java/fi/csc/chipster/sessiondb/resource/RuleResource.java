@@ -3,7 +3,6 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.eclipse.jetty.http.HttpStatus;
@@ -59,11 +58,24 @@ public class RuleResource {
 	public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
 
 		ruleTable.checkSessionReadAuthorization(sc, sessionId);
-		Rule result = ruleTable.getRule(authorizationId, hibernate.session());
-		if (result == null) {
-			throw new NotFoundException();
-		}
+		Rule result = getSessionRule(authorizationId);
 		return Response.ok(result).build();
+	}
+
+	/**
+	 * Get a rule of the session of this resource
+	 *
+	 * @param ruleId
+	 * @return the rule, never null
+	 * @throws NotFoundException if the rule doesn't exist or belongs to some other
+	 *                           session
+	 */
+	private Rule getSessionRule(UUID ruleId) {
+		Rule rule = ruleTable.getRule(sessionId, ruleId);
+		if (rule == null) {
+			throw new NotFoundException("rule not found");
+		}
+		return rule;
 	}
 
 	@GET
@@ -130,14 +142,7 @@ public class RuleResource {
 	public Response put(Rule newRule, @PathParam("id") UUID ruleId, @Context UriInfo uriInfo,
 			@Context SecurityContext sc) {
 
-		List<Rule> sessionRules = ruleTable.getRules(sessionId);
-
-		Optional<Rule> dbRuleOptional = sessionRules.stream().filter(r -> ruleId.equals(r.getRuleId())).findAny();
-		if (!dbRuleOptional.isPresent()) {
-			throw new NotFoundException("rule not found");
-		}
-
-		Rule dbRule = dbRuleOptional.get();
+		Rule dbRule = getSessionRule(ruleId);
 
 		// RolesAllowed annotation isn't anough for this
 		String userId = sc.getUserPrincipal().getName();
@@ -155,6 +160,8 @@ public class RuleResource {
 		dbRule.setSharedBy(null);
 		hibernate.update(dbRule, dbRule.getRuleId());
 
+		List<Rule> sessionRules = ruleTable.getRules(sessionId);
+
 		// pass the sharedBy username as extraRecipient to inform her about the
 		// acceptance
 		this.sessionDbApi.publishRuleEvent(sessionId, sessionRules, dbRule, EventType.UPDATE);
@@ -167,11 +174,7 @@ public class RuleResource {
 	@Transaction
 	public Response delete(@PathParam("id") UUID ruleId, @Context SecurityContext sc) {
 
-		Rule ruleToDelete = ruleTable.getRule(ruleId, hibernate.session());
-
-		if (ruleToDelete == null) {
-			throw new NotFoundException("rule not found");
-		}
+		Rule ruleToDelete = getSessionRule(ruleId);
 
 		Session session = null;
 
