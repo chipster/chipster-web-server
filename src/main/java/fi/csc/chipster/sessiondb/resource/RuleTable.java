@@ -209,6 +209,46 @@ public class RuleTable {
 		return Response.ok().entity(stream).type(MediaType.APPLICATION_JSON).build();
 	}
 
+	/**
+	 * Check that the user of a session or dataset token still has access to the
+	 * session
+	 *
+	 * These tokens can't be revoked, so without this check the user would keep the
+	 * access until the token expires, even after the session has been unshared or
+	 * the rights reduced to read-only.
+	 *
+	 * Tokens of jobs have the placeholder username single-shot-comp instead of a
+	 * real user, so they are allowed as long as they are valid. Real usernames
+	 * can't collide with the placeholder, because they are namespaced by the
+	 * authentication method (jaas/, OIDC prefixes).
+	 *
+	 * @param username
+	 * @param session
+	 * @param requireReadWrite
+	 * @param hibernateSession
+	 */
+	private void checkTokenUserRule(String username, Session session, boolean requireReadWrite,
+			org.hibernate.Session hibernateSession) {
+
+		if (Role.SINGLE_SHOT_COMP.equals(username)) {
+			return;
+		}
+
+		if (username == null) {
+			throw new ForbiddenException("username is null");
+		}
+
+		Rule rule = getRule(username, session, hibernateSession);
+
+		if (rule == null) {
+			throw new ForbiddenException("access denied");
+		}
+
+		if (requireReadWrite && !rule.isReadWrite()) {
+			throw new ForbiddenException("read-write access denied");
+		}
+	}
+
 	public Rule getRule(String username, Session session, org.hibernate.Session hibernateSession) {
 
 		/*
@@ -322,7 +362,8 @@ public class RuleTable {
 
 			UUID jwsSessionId = sessionToken.getSessionId();
 
-			Session session = hibernateSession.find(Session.class, requestSessionId);
+			// fetches the rules too, which checkTokenUserRule needs below
+			Session session = getSession(requestSessionId);
 
 			if (session == null) {
 				throw new NotFoundException("session not found");
@@ -335,6 +376,8 @@ public class RuleTable {
 			if (requireReadWrite && Access.READ_WRITE != sessionToken.getAccess()) {
 				throw new ForbiddenException("no read-write access with this token");
 			}
+
+			checkTokenUserRule(sessionToken.getUsername(), session, requireReadWrite, hibernateSession);
 
 			return session;
 
@@ -397,7 +440,8 @@ public class RuleTable {
 				throw new ForbiddenException("dataset tokens are read-only");
 			}
 
-			Session session = hibernateSession.find(Session.class, requestSessionId);
+			// fetches the rules too, which checkTokenUserRule needs below
+			Session session = getSession(requestSessionId);
 
 			// sanity check although SessionResoure probably has checked this already
 			if (session == null) {
@@ -411,6 +455,8 @@ public class RuleTable {
 			if (!requestDatasetId.equals(datasetToken.getDatasetId())) {
 				throw new ForbiddenException("token not valid for this dataset");
 			}
+
+			checkTokenUserRule(datasetToken.getUsername(), session, false, hibernateSession);
 
 			Dataset dataset = SessionDbApi.getDataset(requestSessionId, requestDatasetId, hibernateSession);
 

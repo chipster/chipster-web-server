@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessiondb.resource;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,6 +18,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -43,6 +45,23 @@ public class SessionDbTokenResource {
 	@SuppressWarnings("unused")
 	private static Logger logger = LogManager.getLogger();
 
+	/*
+	 * The longest validity that clients can ask for and the default when the
+	 * client doesn't ask for anything
+	 *
+	 * These tokens can't be revoked, so they must not be valid for long. The
+	 * defaults are enough for the web app, which doesn't set the validity at all.
+	 * The defaults are set here and not left for auth, so that the max holds even
+	 * if the defaults of auth change. Scheduler creates longer session tokens for
+	 * jobs.
+	 */
+	static final Duration SESSION_TOKEN_MAX_VALID = Duration.ofHours(24);
+	static final Duration DATASET_TOKEN_MAX_VALID = Duration.ofMinutes(10);
+	static final Duration SESSION_TOKEN_DEFAULT_VALID = Duration.ofHours(24);
+	static final Duration DATASET_TOKEN_DEFAULT_VALID = Duration.ofSeconds(60);
+
+	public static final String QP_READ_WRITE = "readWrite";
+
 	private RuleTable ruleTable;
 
 	private AuthenticationClient authService;
@@ -58,7 +77,7 @@ public class SessionDbTokenResource {
 	@Produces(MediaType.TEXT_PLAIN)
 	@Transaction
 	public Response postSessionToken(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString,
-			@QueryParam("readWrite") String readWriteString, @Context SecurityContext sc) throws IOException {
+			@QueryParam(QP_READ_WRITE) String readWriteString, @Context SecurityContext sc) throws IOException {
 
 		AuthPrincipal authPrincipal = (AuthPrincipal) sc.getUserPrincipal();
 
@@ -90,6 +109,10 @@ public class SessionDbTokenResource {
 		Session session = ruleTable.checkSessionAuthorization(sc, sessionId, requireReadWrite, false);
 
 		Instant valid = AuthTokens.parseValid(validString);
+
+		if (!authPrincipal.getRoles().contains(Role.SCHEDULER)) {
+			valid = defaultOrCheckMaxValid(valid, SESSION_TOKEN_DEFAULT_VALID, SESSION_TOKEN_MAX_VALID);
+		}
 
 		if (session.getSessionId() == null) {
 			throw new IllegalArgumentException("cannot create token for null session");
@@ -123,6 +146,8 @@ public class SessionDbTokenResource {
 
 		Instant valid = AuthTokens.parseValid(validString);
 
+		valid = defaultOrCheckMaxValid(valid, DATASET_TOKEN_DEFAULT_VALID, DATASET_TOKEN_MAX_VALID);
+
 		String username = sc.getUserPrincipal().getName();
 
 		if (session.getSessionId() == null) {
@@ -142,5 +167,28 @@ public class SessionDbTokenResource {
 		}
 
 		return Response.ok(datasetToken).build();
+	}
+
+	/**
+	 * Apply the default validity or refuse validity that is longer than the max
+	 *
+	 * The client computes the expiration from its own clock before the request, so
+	 * allow a bit of slack for the clock difference and the transit time. Without
+	 * it a request for exactly the max validity would fail intermittently.
+	 *
+	 * @param valid        requested validity or null for the default
+	 * @param defaultValid
+	 * @param max
+	 * @return the validity to use, never null
+	 */
+	private static Instant defaultOrCheckMaxValid(Instant valid, Duration defaultValid, Duration max) {
+		if (valid == null) {
+			return Instant.now().plus(defaultValid);
+		}
+		if (valid.isAfter(Instant.now().plus(max).plus(Duration.ofMinutes(1)))) {
+			String maxString = max.toMinutes() < 60 ? max.toMinutes() + " minutes" : max.toHours() + " hours";
+			throw new BadRequestException("token can't be valid for longer than " + maxString);
+		}
+		return valid;
 	}
 }

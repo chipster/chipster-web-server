@@ -116,9 +116,9 @@ public class SessionResource {
 		 * All json contents must be loaded from DB, because json serialization happens
 		 * after Hibernate session is closed (@See HibernateResponseFilter). When this
 		 * method call is authenticated with UserToken, checkSessionReadAuthorization()
-		 * above loads these rules. However, when this method is called with
-		 * SessionToken, authorization checks don't need the rules and we have to load
-		 * them ourselves.
+		 * above loads these rules. However, when this method is called with the
+		 * SessionToken of a job, authorization checks don't need the rules and we have
+		 * to load them ourselves.
 		 */
 		Hibernate.initialize(dbSession.getRules());
 
