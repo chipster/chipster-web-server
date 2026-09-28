@@ -16,6 +16,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.scheduler.offer.JobCommand;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
 
 public class RestJobMessage implements GenericJobMessage {
@@ -166,20 +167,19 @@ public class RestJobMessage implements GenericJobMessage {
 	public void preExecute(File jobWorkDir) {
 		// add phenodata content validation?
 		job.getMetadataFiles().forEach(phenodata -> {
+			if (MetadataFile.APPLICATION_VERSIONS_NAME.equals(phenodata.getName())) {
+				// replay-session copies the metadata files of the old job, but the tool
+				// doesn't need the old versions
+				return;
+			}
+			if (!MetadataFile.isValidJobInputName(phenodata.getName())) {
+				throw new RuntimeException("Illegal phenodata file name: " + phenodata.getName());
+			}
 			try {
-				if (validatePhenodataFilename(phenodata.getName())) {
-					Files.write(new File(jobWorkDir, phenodata.getName()).toPath(), phenodata.getContent().getBytes());
-				} else {
-					throw new RuntimeException("Illegal phenodata file name: " + phenodata.getName());
-				}
+				Files.write(new File(jobWorkDir, phenodata.getName()).toPath(), phenodata.getContent().getBytes());
 			} catch (IOException e) {
 				throw new IllegalStateException("failed to write the phenodata", e);
 			}
 		});
-	}
-
-	private boolean validatePhenodataFilename(String name) {
-		return name != null && !name.isEmpty() && name.matches("^[\\w\\-_\\.]*$") && !name.matches("\\.\\.");
-
 	}
 }

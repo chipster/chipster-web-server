@@ -12,18 +12,17 @@ import fi.csc.chipster.sessiondb.model.MetadataFile;
 public class CompUtils {
 
 	private static final Logger logger = LogManager.getLogger();
-	public static final String METADATA_FILE_NAME_APPLICATION_VERSIONS = "application-versions.json";
 
 	public static void addVersionsToDbJob(GenericResultMessage result, Job dbJob) {
 		if (result.getVersionsJson() != null) {
 			logger.debug("adding versions info to db job");
-			MetadataFile versionsMetadataFile = new MetadataFile(METADATA_FILE_NAME_APPLICATION_VERSIONS,
+			MetadataFile versionsMetadataFile = new MetadataFile(MetadataFile.APPLICATION_VERSIONS_NAME,
 					result.getVersionsJson());
 
 			// for now, just remove possible existing versions file, should not exist
 			// really
 			List<MetadataFile> updatedMetadataFiles = dbJob.getMetadataFiles().stream()
-					.filter(metadataFile -> !metadataFile.getName().equals(METADATA_FILE_NAME_APPLICATION_VERSIONS))
+					.filter(metadataFile -> !metadataFile.getName().equals(MetadataFile.APPLICATION_VERSIONS_NAME))
 					.collect(Collectors.toList());
 			updatedMetadataFiles.add(versionsMetadataFile);
 			dbJob.setMetadataFiles(updatedMetadataFiles);

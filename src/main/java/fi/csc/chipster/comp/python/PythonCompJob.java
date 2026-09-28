@@ -177,7 +177,8 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		Path variablesFilePath = new File(jobDataDir, CHIPSTER_VARIABLES_FILE).toPath();
 
 		try {
-			Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE);
+			Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE,
+					StandardOpenOption.TRUNCATE_EXISTING);
 
 		} catch (IOException e) {
 			this.setErrorMessage("Writing variables file failed");
