@@ -17,6 +17,7 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -34,6 +35,17 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.core.UriInfo;
 
+/**
+ * Sharing rules of a session
+ *
+ * Only user and server tokens are allowed here. The scheduler creates session
+ * tokens for jobs, and a job must not be able to share its session to other
+ * users or remove the access of the users, whatever runs in the compute pod.
+ * Dataset tokens are meant for reading one dataset, but they carry the username
+ * of the user who created them, so without this restriction a leaked dataset
+ * token could accept shares and delete the rules of that user, i.e. the whole
+ * session.
+ */
 public class RuleResource {
 	private UUID sessionId;
 	private RuleTable ruleTable;
@@ -53,6 +65,7 @@ public class RuleResource {
 
 	@GET
 	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
@@ -79,6 +92,7 @@ public class RuleResource {
 	}
 
 	@GET
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response getBySession(@Context SecurityContext sc) {
@@ -88,6 +102,7 @@ public class RuleResource {
 	}
 
 	@POST
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@Transaction
@@ -137,6 +152,7 @@ public class RuleResource {
 
 	@PUT
 	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Transaction
 	public Response put(Rule newRule, @PathParam("id") UUID ruleId, @Context UriInfo uriInfo,
@@ -171,6 +187,7 @@ public class RuleResource {
 
 	@DELETE
 	@Path("{id}")
+	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
 	@Transaction
 	public Response delete(@PathParam("id") UUID ruleId, @Context SecurityContext sc) {
 
