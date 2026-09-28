@@ -52,7 +52,7 @@ public class JsonSession {
 			.asList(new String[] { ".gz", ".zip", ".bam", ".Robj" });
 
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId, long zipSize) throws IOException, RestException {
+			UUID sessionId, UUID zipDatasetId, long zipSize, SessionLimits limits) throws IOException, RestException {
 
 		if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize)) {
 			return null;
@@ -101,22 +101,22 @@ public class JsonSession {
 				}
 
 				if (entryName.equals(SESSION_JSON)) {
-					jsonSession = RestUtils.toString(zipInputStream);
+					jsonSession = limits.readMetadata(zipInputStream, entry.getName());
 					zipInputStream.closeEntry();
 
 				} else if (entryName.equals(DATASETS_JSON)) {
-					String jsonDatasets = RestUtils.toString(zipInputStream);
+					String jsonDatasets = limits.readMetadata(zipInputStream, entry.getName());
 					// parse datasets right away to get the file sizes
 					// there has been no need for the migrations here so far
 					datasetMap = parseDatasets(jsonDatasets);
 					zipInputStream.closeEntry();
 
 				} else if (entryName.equals(JOBS_JSON)) {
-					jsonJobs = RestUtils.toString(zipInputStream);
+					jsonJobs = limits.readMetadata(zipInputStream, entry.getName());
 					zipInputStream.closeEntry();
 
 				} else if (entryName.equals(LABELS_JSON)) {
-					jsonLabels = RestUtils.toString(zipInputStream);
+					jsonLabels = limits.readMetadata(zipInputStream, entry.getName());
 					zipInputStream.closeEntry();
 
 				} else {
