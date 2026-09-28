@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +22,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 
 public class SessionJobResourceTest {
 
@@ -248,6 +250,54 @@ public class SessionJobResourceTest {
 		// wrong session
 		testUpdateJob(403, sessionId2, job, user1Client);
 		testUpdateJob(404, sessionId2, job, user2Client);
+	}
+
+	@Test
+	public void postMetadataFiles() throws RestException {
+
+		// phenodata, and the versions file of an old job (replay-session)
+		Job job = RestUtils.getRandomJob();
+		job.setMetadataFiles(List.of(new MetadataFile("phenodata.tsv", "sample\tgroup\n"),
+				new MetadataFile("phenodata_gene.tsv", "sample\tgroup\n"),
+				new MetadataFile(MetadataFile.APPLICATION_VERSIONS_NAME, "[]")));
+		user1Client.createJob(sessionId1, job);
+
+		// comp writes the metadata files to the working directory of the job, so
+		// they must not replace anything that the job reads
+		for (String name : List.of("tool_utils.py", "version_utils.py", "chipster-inputs.tsv",
+				"chipster-outputs.tsv", "data.tsv", "../phenodata.tsv", "phenodata.tsv.py", "")) {
+			Job badJob = RestUtils.getRandomJob();
+			badJob.setMetadataFiles(List.of(new MetadataFile(name, "content")));
+			testCreateJob(400, sessionId1, badJob, user1Client);
+		}
+
+		// comp couldn't write a file without content
+		Job noContent = RestUtils.getRandomJob();
+		noContent.setMetadataFiles(List.of(new MetadataFile("phenodata.tsv", null)));
+		testCreateJob(400, sessionId1, noContent, user1Client);
+
+		// finished jobs are not run, so a session import can keep whatever the job had
+		Job oldJob = RestUtils.getRandomJob();
+		oldJob.setState(JobState.COMPLETED);
+		oldJob.setCreated(Instant.now());
+		oldJob.setMetadataFiles(List.of(new MetadataFile("tool_utils.py", "content")));
+		user1Client.createJob(sessionId1, oldJob);
+	}
+
+	@Test
+	public void putMetadataFiles() throws RestException {
+
+		Job job = RestUtils.getRandomJob();
+		UUID jobId = user1Client.createJob(sessionId1, job);
+
+		// comp adds the versions file after the job
+		job.setMetadataFiles(List.of(new MetadataFile(MetadataFile.APPLICATION_VERSIONS_NAME, "[]")));
+		user1Client.updateJob(sessionId1, job);
+		assertEquals(1, user1Client.getJob(sessionId1, jobId).getMetadataFiles().size());
+
+		// the client can modify the job before comp gets it
+		job.setMetadataFiles(List.of(new MetadataFile("tool_utils.py", "content")));
+		testUpdateJob(400, sessionId1, job, user1Client);
 	}
 
 	@Test

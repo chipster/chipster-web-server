@@ -23,6 +23,7 @@ import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
+import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.BadRequestException;
@@ -233,6 +234,8 @@ public class SessionJobResource {
 				} else {
 					throw new BadRequestException("setting the creation time for non-finished jobs is not allowed");
 				}
+				// finished jobs won't be run, so let's not break the import of old sessions
+				this.checkMetadataFiles(job);
 			}
 		}
 
@@ -275,6 +278,28 @@ public class SessionJobResource {
 		} else {
 
 			throw new ForbiddenException("modification of job inputs is not allowed");
+		}
+	}
+
+	/**
+	 * Check the metadata files of the job
+	 *
+	 * Comp writes these files to the job's working directory. Comp checks the
+	 * names too, but let's not store anything that it would refuse.
+	 *
+	 * @param job
+	 */
+	private void checkMetadataFiles(Job job) {
+		if (job.getMetadataFiles() == null) {
+			return;
+		}
+		for (MetadataFile metadataFile : job.getMetadataFiles()) {
+			if (!MetadataFile.isValidJobName(metadataFile.getName())) {
+				throw new BadRequestException("illegal metadata file name: " + metadataFile.getName());
+			}
+			if (metadataFile.getContent() == null) {
+				throw new BadRequestException("metadata file " + metadataFile.getName() + " has no content");
+			}
 		}
 	}
 
@@ -355,6 +380,9 @@ public class SessionJobResource {
 
 		// check that inputs (datasetIds to be precise) were not modified
 		this.checkOldInputs(requestJob, dbJob);
+
+		// client can modify the job before comp gets it
+		this.checkMetadataFiles(requestJob);
 
 		sessionDbApi.updateJob(requestJob, sessionId, getHibernate().session());
 
