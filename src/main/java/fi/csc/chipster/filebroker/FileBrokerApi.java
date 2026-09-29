@@ -287,15 +287,19 @@ public class FileBrokerApi {
         return dataset;
     }
 
+    public static final String TYPE_HTML = MediaType.TEXT_HTML;
+    public static final String TYPE_PDF = "application/pdf";
+
     String getType(Dataset dataset) {
         String type = null;
         // we should store the recognized type so that client could rely on it
         if (dataset.getName().toLowerCase().endsWith(".html")) {
-            // required for visualizing html files in an iFrame
-            type = MediaType.TEXT_HTML_TYPE.toString();
+            // required for showing html files opened in a new tab (the html visualization
+            // of the app fetches the file itself and doesn't need this)
+            type = TYPE_HTML;
         } else if (dataset.getName().toLowerCase().endsWith(".pdf")) {
-            // required for visualizing html files in an iFrame
-            type = "application/pdf";
+            // required for opening pdf files in a new tab in Chrome
+            type = TYPE_PDF;
         }
         return type;
     }

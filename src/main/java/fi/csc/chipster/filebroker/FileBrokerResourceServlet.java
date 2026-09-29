@@ -51,6 +51,7 @@ public class FileBrokerResourceServlet extends HttpServlet {
     public static final String QP_TYPE = "type";
 
     public static final String HEADER_RANGE = "Range";
+    public static final String HEADER_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options";
 
     private static Logger logger = LogManager.getLogger();
 
@@ -114,24 +115,50 @@ public class FileBrokerResourceServlet extends HttpServlet {
              * carry the filename and type of the file, because then the browser would
              * save the error message as the file.
              */
+
+            /*
+             * HTTP messages should contain content-type. but it's not required. The old
+             * servlet implementation didn't set it and the browsers were guessing it fine.
+             */
+            String contentType = null;
+
+            if (type) {
+                // the browsers need the Content-Type header to show html and pdf files opened
+                // in a new tab
+                contentType = this.fileBrokerApi.getType(dataset);
+            }
+
             if (!download) {
                 RestUtils.configureFilename(response, dataset.getName());
             } else {
                 RestUtils.configureForDownload(response, dataset.getName());
 
                 // otherwise firefox opens pdf files when trying to download it
-                response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+                contentType = MediaType.APPLICATION_OCTET_STREAM;
             }
 
-            if (type) {
-                // rendering a html file in an iFrame requires the Content-Type header
-                // and Chrome needs it to open pdf file in new tab
-                response.setContentType(this.fileBrokerApi.getType(dataset));
-            } else {
+            if (contentType != null) {
+                response.setContentType(contentType);
                 /*
-                 * HTTP messages should contain content-type. but it's not required. The old
-                 * servlet implementation didn't set it and the browsers were guessing it fine.
+                 * Don't let the browser guess some other type, e.g. html for a pdf file. When
+                 * no type is set, the browser has to guess it as before (text is shown, binary
+                 * files are downloaded), and the sandbox keeps the file safe even if it's
+                 * guessed to be html.
                  */
+                response.setHeader(HEADER_CONTENT_TYPE_OPTIONS, "nosniff");
+            }
+
+            if (FileBrokerApi.TYPE_PDF.equals(contentType)) {
+                /*
+                 * Browsers don't show pdf files in a sandbox (Chrome shows an empty page). A
+                 * pdf file can't run scripts on the page, and with the type and nosniff above
+                 * the browser won't take it for anything else.
+                 *
+                 * The header was set by ContentSecurityPolicyFilter. Jetty removes a header
+                 * when it's set to null (the servlet spec doesn't say), see
+                 * FileResourceTest.getPdfNotSandboxed().
+                 */
+                response.setHeader(ContentSecurityPolicyFilter.HEADER_CONTENT_SECURITY_POLICY, null);
             }
 
             response.setStatus(HttpServletResponse.SC_OK);

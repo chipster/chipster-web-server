@@ -346,8 +346,10 @@ public class FileResourceTest {
         UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
 
         // try to upload a file, but claim a different length in a query parameter
-        assertEquals(400, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
-                new DummyInputStream(length), length - 1).getStatus());
+        Response response = uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+                new DummyInputStream(length), length - 1);
+        assertEquals(400, response.getStatus());
+        assertSandboxed(response);
     }
 
     // @Test
@@ -619,5 +621,125 @@ public class FileResourceTest {
         assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
         assertEquals(403, fileBrokerTarget1.path(getDatasetPath(sessionId2, datasetId)).request().get(Response.class)
                 .getStatus());
+    }
+
+    /**
+     * A html file is sandboxed also when it's shown as html
+     */
+    @Test
+    public void getHtmlSandboxed() throws IOException, RestException {
+        Response response = getNamedFile("report.html", "type");
+        assertEquals(200, response.getStatus());
+        assertMediaType(FileBrokerApi.TYPE_HTML, response);
+        assertSandboxed(response);
+        assertEquals("nosniff", response.getHeaderString(FileBrokerResourceServlet.HEADER_CONTENT_TYPE_OPTIONS));
+    }
+
+    /**
+     * Without a type the browser guesses it, so the file must be sandboxed
+     */
+    @Test
+    public void getWithoutTypeSandboxed() throws IOException, RestException {
+        Response response = getNamedFile("report.html");
+        assertEquals(200, response.getStatus());
+        assertSandboxed(response);
+        // let the browser guess the type as before
+        assertNull(response.getHeaderString(FileBrokerResourceServlet.HEADER_CONTENT_TYPE_OPTIONS));
+    }
+
+    @Test
+    public void getDownloadSandboxed() throws IOException, RestException {
+        Response response = getNamedFile("report.html", "download");
+        assertEquals(200, response.getStatus());
+        assertMediaType(MediaType.APPLICATION_OCTET_STREAM, response);
+        assertSandboxed(response);
+        assertEquals("nosniff", response.getHeaderString(FileBrokerResourceServlet.HEADER_CONTENT_TYPE_OPTIONS));
+    }
+
+    /**
+     * A download is a download also when the type is asked
+     */
+    @Test
+    public void getPdfDownloadSandboxed() throws IOException, RestException {
+        Response response = getNamedFile("report.pdf", "download", "type");
+        assertEquals(200, response.getStatus());
+        assertMediaType(MediaType.APPLICATION_OCTET_STREAM, response);
+        assertSandboxed(response);
+        assertEquals("nosniff", response.getHeaderString(FileBrokerResourceServlet.HEADER_CONTENT_TYPE_OPTIONS));
+    }
+
+    /**
+     * Browsers don't show pdf files in a sandbox, so a pdf file isn't sandboxed
+     * when the browser is told that it's a pdf file
+     */
+    @Test
+    public void getPdfNotSandboxed() throws IOException, RestException {
+        Response response = getNamedFile("report.pdf", "type");
+        assertEquals(200, response.getStatus());
+        assertMediaType(FileBrokerApi.TYPE_PDF, response);
+        assertNull(response.getHeaderString(ContentSecurityPolicyFilter.HEADER_CONTENT_SECURITY_POLICY));
+        assertEquals("nosniff", response.getHeaderString(FileBrokerResourceServlet.HEADER_CONTENT_TYPE_OPTIONS));
+    }
+
+    /**
+     * A file named like a pdf could be anything, if the browser has to guess
+     */
+    @Test
+    public void getPdfWithoutTypeSandboxed() throws IOException, RestException {
+        Response response = getNamedFile("report.pdf");
+        assertEquals(200, response.getStatus());
+        assertSandboxed(response);
+    }
+
+    /**
+     * The error messages are sandboxed too
+     */
+    @Test
+    public void getErrorSandboxed() throws IOException, RestException {
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+        assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
+        Response response = fileBrokerTarget1.path(getDatasetPath(sessionId2, datasetId)).request()
+                .get(Response.class);
+        assertEquals(403, response.getStatus());
+        assertSandboxed(response);
+    }
+
+    /**
+     * The header is set by a filter, so also the responses which the servlet doesn't
+     * write are sandboxed
+     */
+    @Test
+    public void unsupportedMethodSandboxed() throws IOException, RestException {
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+        Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+                .post(Entity.text(""), Response.class);
+        assertEquals(405, response.getStatus());
+        assertSandboxed(response);
+    }
+
+    private Response getNamedFile(String name, String... queryParameters) throws IOException, RestException {
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setName(name);
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, dataset);
+        assertEquals(204, uploadFile(fileBrokerTarget1, sessionId1, datasetId).getStatus());
+
+        WebTarget target = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId));
+        for (String queryParameter : queryParameters) {
+            target = target.queryParam(queryParameter, "");
+        }
+        return target.request().get(Response.class);
+    }
+
+    /**
+     * Compare the type without a possible charset parameter
+     */
+    private void assertMediaType(String expected, Response response) {
+        MediaType mediaType = response.getMediaType();
+        assertEquals(expected, mediaType.getType() + "/" + mediaType.getSubtype());
+    }
+
+    private void assertSandboxed(Response response) {
+        assertEquals(ContentSecurityPolicyFilter.CONTENT_SECURITY_POLICY,
+                response.getHeaderString(ContentSecurityPolicyFilter.HEADER_CONTENT_SECURITY_POLICY));
     }
 }

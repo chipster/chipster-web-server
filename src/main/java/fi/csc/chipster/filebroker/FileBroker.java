@@ -90,6 +90,8 @@ public class FileBroker implements ServerComponent {
         servletHandler.addServlet(
                 new ServletHolder(new FileBrokerResourceServlet(this.fileBrokerApi, useChunkedEncoding)),
                 "/*");
+        // first, so that the header is set before any response is written
+        servletHandler.addFilter(new FilterHolder(new ContentSecurityPolicyFilter()), "/*", null);
         servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()),
                 "/*", null);
         servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), "/*", null);
