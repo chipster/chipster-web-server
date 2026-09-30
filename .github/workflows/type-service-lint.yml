@@ -1,0 +1,58 @@
+name: Type-service lint
+
+# Only type-service is checked, so the rest of the repository doesn't
+# trigger a run.
+on:
+  pull_request:
+    paths:
+      - js/type-service/**
+      - .github/workflows/type-service-lint.yml
+  push:
+    branches: [master]
+    paths:
+      - js/type-service/**
+      - .github/workflows/type-service-lint.yml
+  workflow_dispatch:
+
+# The check only reads the repository.
+permissions:
+  contents: read
+
+# A new push to a pull request makes an in-progress run redundant. On
+# master, a run that has started is left to finish. GitHub keeps only one
+# waiting run per group, though, so when merges land in quick succession a
+# waiting run is replaced by the newer one, and the commit in between gets
+# no result of its own.
+concurrency:
+  group: type-service-lint-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: js/type-service
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    # The lint itself takes seconds, the rest is the install.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # .nvmrc holds the Node version that the base-node image runs
+          # type-service with, and .npmrc sets engine-strict, so an older
+          # Node would fail the install rather than run the check against the
+          # wrong toolchain.
+          node-version-file: js/type-service/.nvmrc
+          cache: npm
+          cache-dependency-path: js/type-service/package-lock.json
+
+      # ESLint and its plugins are pure JavaScript, so the dependency
+      # scripts are skipped, same as in the format workflow. The resolver
+      # of eslint-import-resolver-typescript comes as a prebuilt optional
+      # dependency, which npm installs without its postinstall.
+      - run: npm ci --ignore-scripts
+
+      - run: npm run lint
