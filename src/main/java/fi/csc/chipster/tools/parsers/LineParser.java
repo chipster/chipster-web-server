@@ -11,11 +11,11 @@ import fi.csc.chipster.tools.model.Region;
  */
 public interface LineParser {
 
-	public Region getRegion();
+    public Region getRegion();
 
-	public boolean setLine(String line);
+    public boolean setLine(String line);
 
-	public boolean isContentLine();
+    public boolean isContentLine();
 
-	public FileLine getFileLine();
+    public FileLine getFileLine();
 }

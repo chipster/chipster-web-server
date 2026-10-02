@@ -21,40 +21,40 @@ import jakarta.xml.bind.JAXBException;
  */
 public class XmlParserTest {
 
-	private static final String SESSION = "<session format-version=\"2\"/>";
-	private static final String SESSION_WITH_DOCTYPE = "<!DOCTYPE session>" + SESSION;
+    private static final String SESSION = "<session format-version=\"2\"/>";
+    private static final String SESSION_WITH_DOCTYPE = "<!DOCTYPE session>" + SESSION;
 
-	private static InputStream toStream(String str) {
-		return new ByteArrayInputStream(str.getBytes(StandardCharsets.UTF_8));
-	}
+    private static InputStream toStream(String str) {
+        return new ByteArrayInputStream(str.getBytes(StandardCharsets.UTF_8));
+    }
 
-	@Test
-	public void xmlUtil() throws Exception {
-		assertEquals("session", XmlUtil.parseReader(new StringReader(SESSION)).getDocumentElement().getLocalName());
-	}
+    @Test
+    public void xmlUtil() throws Exception {
+        assertEquals("session", XmlUtil.parseReader(new StringReader(SESSION)).getDocumentElement().getLocalName());
+    }
 
-	@Test
-	public void xmlUtilDoctype() {
-		assertThrows(SAXParseException.class, () -> XmlUtil.parseReader(new StringReader(SESSION_WITH_DOCTYPE)));
-	}
+    @Test
+    public void xmlUtilDoctype() {
+        assertThrows(SAXParseException.class, () -> XmlUtil.parseReader(new StringReader(SESSION_WITH_DOCTYPE)));
+    }
 
-	@Test
-	public void sessionVersion() throws Exception {
-		assertEquals("2", SessionLoader.getSessionVersion(toStream(SESSION)));
-	}
+    @Test
+    public void sessionVersion() throws Exception {
+        assertEquals("2", SessionLoader.getSessionVersion(toStream(SESSION)));
+    }
 
-	@Test
-	public void sessionVersionDoctype() {
-		assertThrows(SAXParseException.class, () -> SessionLoader.getSessionVersion(toStream(SESSION_WITH_DOCTYPE)));
-	}
+    @Test
+    public void sessionVersionDoctype() {
+        assertThrows(SAXParseException.class, () -> SessionLoader.getSessionVersion(toStream(SESSION_WITH_DOCTYPE)));
+    }
 
-	@Test
-	public void parseXml() throws Exception {
-		assertNotNull(SessionLoaderImpl2.parseXml(toStream(SESSION)));
-	}
+    @Test
+    public void parseXml() throws Exception {
+        assertNotNull(SessionLoaderImpl2.parseXml(toStream(SESSION)));
+    }
 
-	@Test
-	public void parseXmlDoctype() {
-		assertThrows(JAXBException.class, () -> SessionLoaderImpl2.parseXml(toStream(SESSION_WITH_DOCTYPE)));
-	}
+    @Test
+    public void parseXmlDoctype() {
+        assertThrows(JAXBException.class, () -> SessionLoaderImpl2.parseXml(toStream(SESSION_WITH_DOCTYPE)));
+    }
 }

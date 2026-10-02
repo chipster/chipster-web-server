@@ -23,17 +23,17 @@ import org.xml.sax.SAXException;
  */
 public class UserSession {
 
-	public static final String SESSION_DATA_FILENAME = "session.xml";
+    public static final String SESSION_DATA_FILENAME = "session.xml";
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	public static JAXBContext getJAXBContext() throws JAXBException {
-		return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2");
-	}
+    public static JAXBContext getJAXBContext() throws JAXBException {
+        return JAXBContext.newInstance("fi.csc.chipster.sessionworker.xml.schema2");
+    }
 
-	public static Schema getSchema() throws SAXException {
-		SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-		return factory.newSchema(new StreamSource(UserSession.class.getResourceAsStream("session2.xsd")));
-	}
+    public static Schema getSchema() throws SAXException {
+        SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        return factory.newSchema(new StreamSource(UserSession.class.getResourceAsStream("session2.xsd")));
+    }
 }

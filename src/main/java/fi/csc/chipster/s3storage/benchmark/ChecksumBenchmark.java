@@ -51,98 +51,98 @@ import fi.csc.chipster.s3storage.checksum.CheckedStream;
  */
 public class ChecksumBenchmark {
 
-        public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
 
-                File tmpDir = BenchmarkData.generateTestFiles(4l * 1024 * 1024 * 1024, 0, null);
+        File tmpDir = BenchmarkData.generateTestFiles(4l * 1024 * 1024 * 1024, 0, null);
 
-                File testFile = new File(tmpDir, "rand");
+        File testFile = new File(tmpDir, "rand");
 
-                test(new CRC32(), null, testFile);
-                test(new CRC32C(), null, testFile);
-                test(null, "MD5", testFile);
-                test(null, "SHA-512", testFile);
+        test(new CRC32(), null, testFile);
+        test(new CRC32C(), null, testFile);
+        test(null, "MD5", testFile);
+        test(null, "SHA-512", testFile);
 
-                FileUtils.deleteDirectory(tmpDir);
+        FileUtils.deleteDirectory(tmpDir);
+    }
+
+    public static void test(Checksum checksum, String digest, File testFile)
+            throws NoSuchAlgorithmException, IOException {
+
+        long size = testFile.length();
+
+        if (checksum != null) {
+            System.out.println(checksum.getClass().getSimpleName());
+        } else {
+            System.out.println(digest);
         }
 
-        public static void test(Checksum checksum, String digest, File testFile)
-                        throws NoSuchAlgorithmException, IOException {
+        String checksumString = null;
 
-                long size = testFile.length();
-
-                if (checksum != null) {
-                        System.out.println(checksum.getClass().getSimpleName());
-                } else {
-                        System.out.println(digest);
-                }
-
-                String checksumString = null;
-
-                long start = System.currentTimeMillis();
-                if (checksum != null) {
-                        checksumString = checksum(testFile, checksum);
-                } else {
-                        checksumString = messageDigest(testFile, digest);
-                }
-
-                long end = System.currentTimeMillis();
-                System.out.println(checksumString);
-                System.out.println(
-                                (end - start) + " ms " + (1000 * size / 1024 / 1024) / ((end - start))
-                                                + " MB/s");
+        long start = System.currentTimeMillis();
+        if (checksum != null) {
+            checksumString = checksum(testFile, checksum);
+        } else {
+            checksumString = messageDigest(testFile, digest);
         }
 
-        public static String checksum(File testFile, Checksum crc) throws IOException, NoSuchAlgorithmException {
+        long end = System.currentTimeMillis();
+        System.out.println(checksumString);
+        System.out.println(
+                (end - start) + " ms " + (1000 * size / 1024 / 1024) / ((end - start))
+                        + " MB/s");
+    }
 
-                /*
-                 * Test the performance of the ChecksumStream
-                 * 
-                 * A simple loop (below) would be a lot faster (3200 MiB/s vs. 1600 MiB/s on
-                 * M1), but this is good enough
-                 */
-                FileInputStream fileStream = new FileInputStream(testFile);
-                CheckedStream checksumStream = new CheckedStream(fileStream, null, crc, null);
+    public static String checksum(File testFile, Checksum crc) throws IOException, NoSuchAlgorithmException {
 
-                try (checksumStream) {
-                        IOUtils.copyLarge(checksumStream, OutputStream.nullOutputStream(), new byte[1 << 16]);
-                }
+        /*
+         * Test the performance of the ChecksumStream
+         * 
+         * A simple loop (below) would be a lot faster (3200 MiB/s vs. 1600 MiB/s on
+         * M1), but this is good enough
+         */
+        FileInputStream fileStream = new FileInputStream(testFile);
+        CheckedStream checksumStream = new CheckedStream(fileStream, null, crc, null);
 
-                return checksumStream.getStreamChecksum();
-
-                // InputStream in = new BufferedInputStream(new FileInputStream(testFile));
-                // byte[] buffer = new byte[1024];
-                // int numRead;
-
-                // do {
-                // numRead = in.read(buffer);
-                // if (numRead > 0) {
-                // crc.update(buffer, 0, numRead);
-                // }
-                // } while (numRead != -1);
-
-                // in.close();
-                // return Long.toHexString(crc.getValue());
+        try (checksumStream) {
+            IOUtils.copyLarge(checksumStream, OutputStream.nullOutputStream(), new byte[1 << 16]);
         }
 
-        public static String messageDigest(File testFile, String algorithm)
-                        throws IOException, NoSuchAlgorithmException {
+        return checksumStream.getStreamChecksum();
 
-                // We don't have InputStream for this yet
-                InputStream in = new BufferedInputStream(new FileInputStream(testFile));
+        // InputStream in = new BufferedInputStream(new FileInputStream(testFile));
+        // byte[] buffer = new byte[1024];
+        // int numRead;
 
-                MessageDigest md = MessageDigest.getInstance(algorithm);
-                byte[] buffer = new byte[1024];
-                int numRead;
+        // do {
+        // numRead = in.read(buffer);
+        // if (numRead > 0) {
+        // crc.update(buffer, 0, numRead);
+        // }
+        // } while (numRead != -1);
 
-                do {
-                        numRead = in.read(buffer);
-                        if (numRead > 0) {
-                                md.update(buffer, 0, numRead);
-                        }
-                } while (numRead != -1);
+        // in.close();
+        // return Long.toHexString(crc.getValue());
+    }
 
-                in.close();
+    public static String messageDigest(File testFile, String algorithm)
+            throws IOException, NoSuchAlgorithmException {
 
-                return Hex.encodeHexString(md.digest());
-        }
+        // We don't have InputStream for this yet
+        InputStream in = new BufferedInputStream(new FileInputStream(testFile));
+
+        MessageDigest md = MessageDigest.getInstance(algorithm);
+        byte[] buffer = new byte[1024];
+        int numRead;
+
+        do {
+            numRead = in.read(buffer);
+            if (numRead > 0) {
+                md.update(buffer, 0, numRead);
+            }
+        } while (numRead != -1);
+
+        in.close();
+
+        return Hex.encodeHexString(md.digest());
+    }
 }

@@ -36,151 +36,151 @@ import java.net.URL;
  */
 public class RandomAccessLineReader {
 
-	// Must be greater than length of longest row
-	public static final int HTTP_BUFFER_SIZE = 1024 * 4;
+    // Must be greater than length of longest row
+    public static final int HTTP_BUFFER_SIZE = 1024 * 4;
 
-	// File position of the buffer's first byte
-	private long position = -1;
+    // File position of the buffer's first byte
+    private long position = -1;
 
-	private String buffer;
+    private String buffer;
 
-	// Reads random access bytes from file or http
-	private ByteDataSource byteDataSource;
+    // Reads random access bytes from file or http
+    private ByteDataSource byteDataSource;
 
-	public RandomAccessLineReader(DataUrl dataUrl) throws URISyntaxException, IOException {
-		byteDataSource = new ByteDataSource(dataUrl);
-	}
+    public RandomAccessLineReader(DataUrl dataUrl) throws URISyntaxException, IOException {
+        byteDataSource = new ByteDataSource(dataUrl);
+    }
 
-	public RandomAccessLineReader(URL url, BedLineParser bedLineParser,
-			File outputFile, ChromosomeNormaliser chromosomeNormaliser) {
-		// todo: Auto-generated constructor stub
-	}
+    public RandomAccessLineReader(URL url, BedLineParser bedLineParser,
+            File outputFile, ChromosomeNormaliser chromosomeNormaliser) {
+        // todo: Auto-generated constructor stub
+    }
 
-	/**
-	 * Set file position (in bytes) where to start reading. Return value is false,
-	 * if the
-	 * requested position is outside of this file.
-	 * 
-	 * @param position File position in bytes.
-	 * @return False if this file doesn't contain requested location.
-	 * @throws IOException
-	 * @throws GBrowserException
-	 */
-	public boolean setPosition(long position) throws IOException, GBrowserException {
+    /**
+     * Set file position (in bytes) where to start reading. Return value is false,
+     * if the
+     * requested position is outside of this file.
+     * 
+     * @param position File position in bytes.
+     * @return False if this file doesn't contain requested location.
+     * @throws IOException
+     * @throws GBrowserException
+     */
+    public boolean setPosition(long position) throws IOException, GBrowserException {
 
-		// Check that position is ok
-		if (position < 0 || position > length() - 1) {
-			position = -1;
-			return false;
-		}
+        // Check that position is ok
+        if (position < 0 || position > length() - 1) {
+            position = -1;
+            return false;
+        }
 
-		if (buffer != null && position >= this.position && position < this.position + buffer.length()) {
+        if (buffer != null && position >= this.position && position < this.position + buffer.length()) {
 
-			// The buffer is still useful
-			buffer = buffer.substring((int) (position - this.position));
-		} else {
+            // The buffer is still useful
+            buffer = buffer.substring((int) (position - this.position));
+        } else {
 
-			// The old buffer is useless
-			buffer = null;
-		}
+            // The old buffer is useless
+            buffer = null;
+        }
 
-		this.position = position;
-		return true;
-	}
+        this.position = position;
+        return true;
+    }
 
-	/**
-	 * Read next line starting from the file position set with method setPosition()
-	 * or
-	 * the next line after previous line returned by this method.
-	 * 
-	 * The first call to this method after setPosition returns either partial line,
-	 * empty line or full line.
-	 * <li>Partial line is returned when the file position is in the middle of the
-	 * line.
-	 * <li>Empty line is returned if the byte at file position is new line character
-	 * and
-	 * <li>full line is returned if the file position points to first byte of the
-	 * line.
-	 * 
-	 * <br>
-	 * <br>
-	 * Return value is null when the end of file is reached.
-	 * 
-	 * @return
-	 * @throws IOException
-	 */
-	public String readLine() throws IOException {
-		if (buffer == null) {
-			fillBuffer();
-		}
+    /**
+     * Read next line starting from the file position set with method setPosition()
+     * or
+     * the next line after previous line returned by this method.
+     * 
+     * The first call to this method after setPosition returns either partial line,
+     * empty line or full line.
+     * <li>Partial line is returned when the file position is in the middle of the
+     * line.
+     * <li>Empty line is returned if the byte at file position is new line character
+     * and
+     * <li>full line is returned if the file position points to first byte of the
+     * line.
+     * 
+     * <br>
+     * <br>
+     * Return value is null when the end of file is reached.
+     * 
+     * @return
+     * @throws IOException
+     */
+    public String readLine() throws IOException {
+        if (buffer == null) {
+            fillBuffer();
+        }
 
-		int indexOfNewLine = buffer.indexOf("\n");
+        int indexOfNewLine = buffer.indexOf("\n");
 
-		while (indexOfNewLine < 0 && position + buffer.length() < length()) {
+        while (indexOfNewLine < 0 && position + buffer.length() < length()) {
 
-			// Buffer run out
-			fillBuffer();
-			indexOfNewLine = buffer.indexOf("\n");
+            // Buffer run out
+            fillBuffer();
+            indexOfNewLine = buffer.indexOf("\n");
 
-		}
+        }
 
-		if (indexOfNewLine < 0) {
-			return null; // End of file
-		}
+        if (indexOfNewLine < 0) {
+            return null; // End of file
+        }
 
-		// Get the requested line from buffer
-		String line = buffer.substring(0, indexOfNewLine);
+        // Get the requested line from buffer
+        String line = buffer.substring(0, indexOfNewLine);
 
-		// Remove requested line from buffer and mark its new position
-		buffer = buffer.substring(indexOfNewLine + 1);
-		position += indexOfNewLine + 1;
+        // Remove requested line from buffer and mark its new position
+        buffer = buffer.substring(indexOfNewLine + 1);
+        position += indexOfNewLine + 1;
 
-		return line;
-	}
+        return line;
+    }
 
-	// private int fillBufferCount = 0;
+    // private int fillBufferCount = 0;
 
-	/**
-	 * Fill internal buffer starting from the this.position.
-	 * 
-	 * @throws IOException
-	 */
-	private void fillBuffer() throws IOException {
+    /**
+     * Fill internal buffer starting from the this.position.
+     * 
+     * @throws IOException
+     */
+    private void fillBuffer() throws IOException {
 
-		// System.out.println("FillbufferCount: " + fillBufferCount++);
+        // System.out.println("FillbufferCount: " + fillBufferCount++);
 
-		if (buffer == null) {
-			buffer = "";
-		}
+        if (buffer == null) {
+            buffer = "";
+        }
 
-		long refillPosition = position + buffer.length();
+        long refillPosition = position + buffer.length();
 
-		byte[] bytes = byteDataSource.read(refillPosition, HTTP_BUFFER_SIZE);
-		buffer = buffer + new String(bytes);
+        byte[] bytes = byteDataSource.read(refillPosition, HTTP_BUFFER_SIZE);
+        buffer = buffer + new String(bytes);
 
-		// System.out.println("RandomAccessLineReader.fillBuffer() Position: " +
-		// position/1024/1024 + " MB \t Length: " + buffer.lastIndexOf("\n") + "
-		// bytes");
-	}
+        // System.out.println("RandomAccessLineReader.fillBuffer() Position: " +
+        // position/1024/1024 + " MB \t Length: " + buffer.lastIndexOf("\n") + "
+        // bytes");
+    }
 
-	/**
-	 * Close file.
-	 * 
-	 */
-	public void close() {
+    /**
+     * Close file.
+     * 
+     */
+    public void close() {
 
-		if (byteDataSource != null) {
-			byteDataSource.close();
-			byteDataSource = null;
-		}
-	}
+        if (byteDataSource != null) {
+            byteDataSource.close();
+            byteDataSource = null;
+        }
+    }
 
-	/**
-	 * @return File length in bytes.
-	 * @throws IOException
-	 */
-	public long length() throws IOException {
+    /**
+     * @return File length in bytes.
+     * @throws IOException
+     */
+    public long length() throws IOException {
 
-		return byteDataSource.length();
-	}
+        return byteDataSource.length();
+    }
 }

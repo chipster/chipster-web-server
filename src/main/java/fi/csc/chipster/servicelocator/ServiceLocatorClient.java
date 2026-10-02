@@ -20,173 +20,173 @@ import jakarta.ws.rs.core.MediaType;
 
 public class ServiceLocatorClient {
 
-	public static final String CONF_KEY_USE_EXTERNAL_ADDRESSES = "use-external-addresses";
+    public static final String CONF_KEY_USE_EXTERNAL_ADDRESSES = "use-external-addresses";
 
-	private static final String CONF_KEY_URL_INT_OVERRIDE_PREFIX = "url-int-override-";
-	private static final String CONF_KEY_URL_EXT_OVERRIDE_PREFIX = "url-ext-override-";
+    private static final String CONF_KEY_URL_INT_OVERRIDE_PREFIX = "url-int-override-";
+    private static final String CONF_KEY_URL_EXT_OVERRIDE_PREFIX = "url-ext-override-";
 
-	private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-	private String baseUri;
-	private CredentialsProvider credentials;
+    private String baseUri;
+    private CredentialsProvider credentials;
 
-	private boolean useExternalAddresses;
+    private boolean useExternalAddresses;
 
-	private Config config;
+    private Config config;
 
-	public ServiceLocatorClient(Config config) throws IOException {
-		this.config = config;
-		this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
-		this.useExternalAddresses = config.getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
-		logger.info("get services from " + baseUri);
-	}
+    public ServiceLocatorClient(Config config) throws IOException {
+        this.config = config;
+        this.baseUri = config.getInternalServiceUrls().get(Role.SERVICE_LOCATOR);
+        this.useExternalAddresses = config.getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
+        logger.info("get services from " + baseUri);
+    }
 
-	public ServiceLocatorClient(String baseUri) {
-		this.baseUri = baseUri;
-		// get config default
-		this.useExternalAddresses = new Config().getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
-	}
+    public ServiceLocatorClient(String baseUri) {
+        this.baseUri = baseUri;
+        // get config default
+        this.useExternalAddresses = new Config().getBoolean(CONF_KEY_USE_EXTERNAL_ADDRESSES);
+    }
 
-	/**
-	 * Public resource returns full Service objects but most fields are null
-	 * 
-	 * @return
-	 */
-	public List<Service> getPublicServices() {
+    /**
+     * Public resource returns full Service objects but most fields are null
+     * 
+     * @return
+     */
+    public List<Service> getPublicServices() {
 
-		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri)
-				.path(ServiceResource.PATH_SERVICES);
+        WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri)
+                .path(ServiceResource.PATH_SERVICES);
 
-		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+        String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 
-		@SuppressWarnings("unchecked")
-		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
+        @SuppressWarnings("unchecked")
+        List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
 
-		return services;
-	}
+        return services;
+    }
 
-	public List<Service> getInternalServices() {
-		if (credentials == null) {
-			throw new IllegalArgumentException("only public URIs are available without the authentication");
-		}
+    public List<Service> getInternalServices() {
+        if (credentials == null) {
+            throw new IllegalArgumentException("only public URIs are available without the authentication");
+        }
 
-		return getInternalServices(credentials.getUsername(), credentials.getPassword());
-	}
+        return getInternalServices(credentials.getUsername(), credentials.getPassword());
+    }
 
-	public List<Service> getInternalServices(String username, String password) {
+    public List<Service> getInternalServices(String username, String password) {
 
-		WebTarget serviceTarget = AuthenticationClient.getClient(username, password, true)
-				.target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
+        WebTarget serviceTarget = AuthenticationClient.getClient(username, password, true)
+                .target(baseUri).path(ServiceResource.PATH_SERVICES).path(ServiceResource.PATH_INTERNAL);
 
-		String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+        String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 
-		@SuppressWarnings("unchecked")
-		List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
+        @SuppressWarnings("unchecked")
+        List<Service> services = RestUtils.parseJson(List.class, Service.class, servicesJson);
 
-		// use external addresses in the services that don't run in the same private
-		// network
-		if (this.useExternalAddresses) {
-			for (Service service : services) {
-				if (service.getPublicUri() != null) {
-					service.setUri(service.getPublicUri());
-				}
-			}
-		}
+        // use external addresses in the services that don't run in the same private
+        // network
+        if (this.useExternalAddresses) {
+            for (Service service : services) {
+                if (service.getPublicUri() != null) {
+                    service.setUri(service.getPublicUri());
+                }
+            }
+        }
 
-		return services;
-	}
+        return services;
+    }
 
-	/**
-	 * Public URIs are available without authentication
-	 * 
-	 * @param role
-	 * @return
-	 */
-	public String getPublicUri(String role) {
+    /**
+     * Public URIs are available without authentication
+     * 
+     * @param role
+     * @return
+     */
+    public String getPublicUri(String role) {
 
-		if (config != null) {
-			// allow addresses from service locator to be overridden in config (file or env)
-			String configUri = config.getString(CONF_KEY_URL_EXT_OVERRIDE_PREFIX + role);
+        if (config != null) {
+            // allow addresses from service locator to be overridden in config (file or env)
+            String configUri = config.getString(CONF_KEY_URL_EXT_OVERRIDE_PREFIX + role);
 
-			if (configUri != null && !configUri.isEmpty()) {
-				logger.info("external address for " + role + " overridden in configuration: " + configUri);
-				return configUri;
-			}
-		}
+            if (configUri != null && !configUri.isEmpty()) {
+                logger.info("external address for " + role + " overridden in configuration: " + configUri);
+                return configUri;
+            }
+        }
 
-		return filterByRole(getPublicServices(), role).getPublicUri();
-	}
+        return filterByRole(getPublicServices(), role).getPublicUri();
+    }
 
-	public String getInternalUri(String role) {
+    public String getInternalUri(String role) {
 
-		if (config != null) {
+        if (config != null) {
 
-			// allow addresses from service locator to be overridden in config (file or env)
-			String configUri = config.getString(CONF_KEY_URL_INT_OVERRIDE_PREFIX + role);
+            // allow addresses from service locator to be overridden in config (file or env)
+            String configUri = config.getString(CONF_KEY_URL_INT_OVERRIDE_PREFIX + role);
 
-			if (configUri != null && !configUri.isEmpty()) {
-				logger.info("internal address for " + role + " overridden in configuration: " + configUri);
-				return configUri;
-			}
-		}
+            if (configUri != null && !configUri.isEmpty()) {
+                logger.info("internal address for " + role + " overridden in configuration: " + configUri);
+                return configUri;
+            }
+        }
 
-		return filterByRole(getInternalServices(), role).getUri();
-	}
+        return filterByRole(getInternalServices(), role).getUri();
+    }
 
-	public Service getInternalService(String role) {
+    public Service getInternalService(String role) {
 
-		return filterByRole(getInternalServices(), role);
-	}
+        return filterByRole(getInternalServices(), role);
+    }
 
-	public Set<Service> getPublicServices(String role) {
+    public Set<Service> getPublicServices(String role) {
 
-		return getPublicServices().stream()
-				.filter(s -> s.getRole().startsWith(role))
-				.collect(Collectors.toSet());
-	}
+        return getPublicServices().stream()
+                .filter(s -> s.getRole().startsWith(role))
+                .collect(Collectors.toSet());
+    }
 
-	public Set<Service> getInternalServices(String role) {
+    public Set<Service> getInternalServices(String role) {
 
-		return getInternalServices().stream()
-				.filter(s -> s.getRole().startsWith(role))
-				.collect(Collectors.toSet());
-	}
+        return getInternalServices().stream()
+                .filter(s -> s.getRole().startsWith(role))
+                .collect(Collectors.toSet());
+    }
 
-	public Set<String> getPublicUris(String role) {
+    public Set<String> getPublicUris(String role) {
 
-		return getPublicServices(role).stream()
-				.map(s -> s.getPublicUri())
-				.collect(Collectors.toSet());
-	}
+        return getPublicServices(role).stream()
+                .map(s -> s.getPublicUri())
+                .collect(Collectors.toSet());
+    }
 
-	public Set<String> getInternalUris(String role) {
+    public Set<String> getInternalUris(String role) {
 
-		return getInternalServices(role).stream()
-				.map(s -> s.getPublicUri())
-				.collect(Collectors.toSet());
-	}
+        return getInternalServices(role).stream()
+                .map(s -> s.getPublicUri())
+                .collect(Collectors.toSet());
+    }
 
-	private Service filterByRole(List<Service> services, String role) {
-		services = services.stream()
-				.filter(s -> role.equals(s.getRole()))
-				.collect(Collectors.toList());
+    private Service filterByRole(List<Service> services, String role) {
+        services = services.stream()
+                .filter(s -> role.equals(s.getRole()))
+                .collect(Collectors.toList());
 
-		if (services.isEmpty()) {
-			throw new IllegalStateException("service " + role + " not found");
-		}
+        if (services.isEmpty()) {
+            throw new IllegalStateException("service " + role + " not found");
+        }
 
-		if (services.size() > 1) {
-			logger.warn(services.size() + " " + role + " services, using the first one");
-		}
+        if (services.size() > 1) {
+            logger.warn(services.size() + " " + role + " services, using the first one");
+        }
 
-		return services.get(0);
-	}
+        return services.get(0);
+    }
 
-	public void setCredentials(CredentialsProvider credentials) {
-		this.credentials = credentials;
-	}
+    public void setCredentials(CredentialsProvider credentials) {
+        this.credentials = credentials;
+    }
 
-	public String getBaseUri() {
-		return this.baseUri;
-	}
+    public String getBaseUri() {
+        return this.baseUri;
+    }
 }

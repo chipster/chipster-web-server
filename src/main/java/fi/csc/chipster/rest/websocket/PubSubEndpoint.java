@@ -36,173 +36,174 @@ import jakarta.ws.rs.NotFoundException;
 @ServerEndpoint(value = "/")
 public class PubSubEndpoint {
 
-	public static final Logger logger = LogManager.getLogger();
+    public static final Logger logger = LogManager.getLogger();
 
-	public static final String TOPIC_KEY = "topic";
+    public static final String TOPIC_KEY = "topic";
 
-	private PubSubServer server;
+    private PubSubServer server;
 
-	@OnOpen
-	public void onOpen(final Session session, EndpointConfig config) {
+    @OnOpen
+    public void onOpen(final Session session, EndpointConfig config) {
 
-		session.setMaxIdleTimeout(this.server.getIdleTimeout());
+        session.setMaxIdleTimeout(this.server.getIdleTimeout());
 
-		Map<String, List<String>> requestParameters = session.getRequestParameterMap();
+        Map<String, List<String>> requestParameters = session.getRequestParameterMap();
 
-		List<String> tokenParameters = requestParameters.get("token");
+        List<String> tokenParameters = requestParameters.get("token");
 
-		try {
-			if (tokenParameters == null) {
-				logger.debug("no token parameter");
-				/*
-				 * Throwing an exception allows a clear way to interrupt execution of this
-				 * method
-				 * before the connnection is subscribed to get any real content.
-				 * 
-				 * session.close(); return; would work too, but it would be too easy forget the
-				 * return clause.
-				 */
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
-			}
+        try {
+            if (tokenParameters == null) {
+                logger.debug("no token parameter");
+                /*
+                 * Throwing an exception allows a clear way to interrupt execution of this
+                 * method
+                 * before the connnection is subscribed to get any real content.
+                 * 
+                 * session.close(); return; would work too, but it would be too easy forget the
+                 * return clause.
+                 */
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
+            }
 
-			String tokenKey = tokenParameters.get(0);
+            String tokenKey = tokenParameters.get(0);
 
-			if (tokenKey == null) {
-				logger.debug("no token");
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
-			}
+            if (tokenKey == null) {
+                logger.debug("no token");
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "no token in request");
+            }
 
-			// doesn't have to be a Principal anymore, because it's not passed in
-			// ServletRequest, ValidToken would enough
-			AuthPrincipal principal = null;
+            // doesn't have to be a Principal anymore, because it's not passed in
+            // ServletRequest, ValidToken would enough
+            AuthPrincipal principal = null;
 
-			try {
-				principal = server.getTopicConfig().getUserPrincipal(tokenKey);
+            try {
+                principal = server.getTopicConfig().getUserPrincipal(tokenKey);
 
-			} catch (NotFoundException e) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
-						"not found: " + e.getMessage());
+            } catch (NotFoundException e) {
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
+                        "not found: " + e.getMessage());
 
-			} catch (ForbiddenException e) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
-						"forbidden: " + e.getMessage());
+            } catch (ForbiddenException e) {
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
+                        "forbidden: " + e.getMessage());
 
-			} catch (jakarta.ws.rs.NotAuthorizedException e) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
-						"not authorized: " + e.getMessage());
+            } catch (jakarta.ws.rs.NotAuthorizedException e) {
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY,
+                        "not authorized: " + e.getMessage());
 
-			} catch (Exception e) {
-				logger.error("error in websocket authentication", e);
-				throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION,
-						"internal server error");
-			}
+            } catch (Exception e) {
+                logger.error("error in websocket authentication", e);
+                throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION,
+                        "internal server error");
+            }
 
-			if (principal == null) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "access denied");
-			}
+            if (principal == null) {
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "access denied");
+            }
 
-			// get topic
-			List<String> topics = requestParameters.get(TOPIC_KEY);
-			String topic = null;
+            // get topic
+            List<String> topics = requestParameters.get(TOPIC_KEY);
+            String topic = null;
 
-			if (topics != null && topics.size() == 1) {
-				topic = decodeTopic(topics.get(0));
-			}
+            if (topics != null && topics.size() == 1) {
+                topic = decodeTopic(topics.get(0));
+            }
 
-			boolean isAuthorized = this.server.isTopicAuthorized(principal, topic);
+            boolean isAuthorized = this.server.isTopicAuthorized(principal, topic);
 
-			if (!isAuthorized) {
-				throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "token not accepted");
-			}
+            if (!isAuthorized) {
+                throw new WebSocketClosedException(CloseReason.CloseCodes.VIOLATED_POLICY, "token not accepted");
+            }
 
-			// authentication ok
-			logger.debug("authentication ok");
+            // authentication ok
+            logger.debug("authentication ok");
 
-			// store topic to user properties, because we need it when we unsubscribe
-			session.getUserProperties().put(TOPIC_KEY, topic);
+            // store topic to user properties, because we need it when we unsubscribe
+            session.getUserProperties().put(TOPIC_KEY, topic);
 
-			// subscribe for server messages
+            // subscribe for server messages
 
-			Subscriber subscriber = null;
-			try {
-				subscriber = Subscriber.create(
-						session,
-						principal.getName(),
-						server.getMaxQueueSize());
-				this.server.subscribe(topic, subscriber);
-			} catch (RuntimeException e) {
-				if (subscriber != null) {
-					// stop the sender thread unconditionally — if subscribe() threw before
-					// topic.add(s), unsubscribe() would not find the subscriber and would not
-					// stop it, leaving the virtual thread blocked on queue.take() forever.
-					subscriber.stop();
-					// remove from the topic map if it was added; no-op otherwise
-					server.unsubscribe(topic, subscriber.getRemote());
-				}
-				logger.error("failed to subscribe websocket client", e);
-				throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION, "internal server error");
-			}
+            Subscriber subscriber = null;
+            try {
+                subscriber = Subscriber.create(
+                        session,
+                        principal.getName(),
+                        server.getMaxQueueSize());
+                this.server.subscribe(topic, subscriber);
+            } catch (RuntimeException e) {
+                if (subscriber != null) {
+                    // stop the sender thread unconditionally — if subscribe() threw before
+                    // topic.add(s), unsubscribe() would not find the subscriber and would not
+                    // stop it, leaving the virtual thread blocked on queue.take() forever.
+                    subscriber.stop();
+                    // remove from the topic map if it was added; no-op otherwise
+                    server.unsubscribe(topic, subscriber.getRemote());
+                }
+                logger.error("failed to subscribe websocket client", e);
+                throw new WebSocketClosedException(CloseReason.CloseCodes.UNEXPECTED_CONDITION,
+                        "internal server error");
+            }
 
-			// listen for client replies
-			Whole<String> messageHandler = this.server.getMessageHandler();
-			if (messageHandler != null) {
-				session.addMessageHandler(messageHandler);
-			}
+            // listen for client replies
+            Whole<String> messageHandler = this.server.getMessageHandler();
+            if (messageHandler != null) {
+                session.addMessageHandler(messageHandler);
+            }
 
-		} catch (WebSocketClosedException e) {
-			try {
-				session.close(e.getCloseReason());
-			} catch (IOException e2) {
-				logger.warn("websocket close failed", e2);
-			}
-		}
-	}
+        } catch (WebSocketClosedException e) {
+            try {
+                session.close(e.getCloseReason());
+            } catch (IOException e2) {
+                logger.warn("websocket close failed", e2);
+            }
+        }
+    }
 
-	public static String decodeTopic(String topic) {
-		if (topic == null) {
-			return null;
-		}
-		// the topic is url encoded to allow slash characters
-		try {
-			String decoded = URLDecoder.decode(topic, StandardCharsets.UTF_8.toString());
-			return decoded;
+    public static String decodeTopic(String topic) {
+        if (topic == null) {
+            return null;
+        }
+        // the topic is url encoded to allow slash characters
+        try {
+            String decoded = URLDecoder.decode(topic, StandardCharsets.UTF_8.toString());
+            return decoded;
 
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException("topic decode failed", e);
-		}
-	}
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("topic decode failed", e);
+        }
+    }
 
-	private void unsubscribe(Session session) {
-		if (!session.getUserProperties().containsKey(TOPIC_KEY)) {
-			logger.debug("onClose/onError before auth completed, nothing to unsubscribe");
-			return;
-		}
-		String topic = (String) session.getUserProperties().get(TOPIC_KEY);
-		this.server.unsubscribe(topic, session.getBasicRemote());
-	}
+    private void unsubscribe(Session session) {
+        if (!session.getUserProperties().containsKey(TOPIC_KEY)) {
+            logger.debug("onClose/onError before auth completed, nothing to unsubscribe");
+            return;
+        }
+        String topic = (String) session.getUserProperties().get(TOPIC_KEY);
+        this.server.unsubscribe(topic, session.getBasicRemote());
+    }
 
-	@OnClose
-	public void onClose(Session session, CloseReason closeReason) {
-		logger.info("client has closed the websocket: " + closeReason.getReasonPhrase());
-		unsubscribe(session);
-	}
+    @OnClose
+    public void onClose(Session session, CloseReason closeReason) {
+        logger.info("client has closed the websocket: " + closeReason.getReasonPhrase());
+        unsubscribe(session);
+    }
 
-	@OnError
-	public void onError(Session session, Throwable thr) {
-		if (thr instanceof SocketTimeoutException) {
-			logger.warn("idle timeout, unsubscribe a pub-sub client " + PubSubConfigurator.clientAddress(session));
+    @OnError
+    public void onError(Session session, Throwable thr) {
+        if (thr instanceof SocketTimeoutException) {
+            logger.warn("idle timeout, unsubscribe a pub-sub client " + PubSubConfigurator.clientAddress(session));
 
-		} else if (thr instanceof ClosedChannelException) {
-			// don't print stacktrace when ServerLauncher is closed
-			logger.error("websocket error: " + thr.getClass().getSimpleName() + " " + thr.getMessage() + ", topic: "
-					+ session.getUserProperties().get(TOPIC_KEY));
-		} else {
-			logger.error("websocket error", thr);
-		}
-		unsubscribe(session);
-	}
+        } else if (thr instanceof ClosedChannelException) {
+            // don't print stacktrace when ServerLauncher is closed
+            logger.error("websocket error: " + thr.getClass().getSimpleName() + " " + thr.getMessage() + ", topic: "
+                    + session.getUserProperties().get(TOPIC_KEY));
+        } else {
+            logger.error("websocket error", thr);
+        }
+        unsubscribe(session);
+    }
 
-	public void setServer(PubSubServer server) {
-		this.server = server;
-	}
+    public void setServer(PubSubServer server) {
+        this.server = server;
+    }
 }

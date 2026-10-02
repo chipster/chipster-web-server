@@ -27,54 +27,54 @@ import jakarta.ws.rs.core.SecurityContext;
 
 public class BackupAdminResource extends AdminResource {
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	private List<DbBackup> dbBackups;
+    private List<DbBackup> dbBackups;
 
-	public BackupAdminResource(List<DbBackup> dbBackups, Config config) {
-		super(config, dbBackups.toArray(new StatusSource[0]));
+    public BackupAdminResource(List<DbBackup> dbBackups, Config config) {
+        super(config, dbBackups.toArray(new StatusSource[0]));
 
-		this.dbBackups = dbBackups;
-	}
+        this.dbBackups = dbBackups;
+    }
 
-	// unauthenticated but firewalled monitoring tap
-	@GET
-	@Path("monitoring/backup")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response backupMonitoring(@Context SecurityContext sc) {
-		for (DbBackup dbBackup : dbBackups) {
-			if (!dbBackup.monitoringCheck()) {
-				return Response.status(Status.NOT_FOUND.getStatusCode(), dbBackup.getRole() + " backup failed").build();
-			}
-		}
-		return Response.ok().build();
-	}
+    // unauthenticated but firewalled monitoring tap
+    @GET
+    @Path("monitoring/backup")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response backupMonitoring(@Context SecurityContext sc) {
+        for (DbBackup dbBackup : dbBackups) {
+            if (!dbBackup.monitoringCheck()) {
+                return Response.status(Status.NOT_FOUND.getStatusCode(), dbBackup.getRole() + " backup failed").build();
+            }
+        }
+        return Response.ok().build();
+    }
 
-	@POST
-	@Path("backup/{role}")
-	@RolesAllowed({ Role.ADMIN })
-	@Transaction
-	public Response startBackup(@PathParam("role") String role, @Context SecurityContext sc) {
+    @POST
+    @Path("backup/{role}")
+    @RolesAllowed({ Role.ADMIN })
+    @Transaction
+    public Response startBackup(@PathParam("role") String role, @Context SecurityContext sc) {
 
-		Optional<DbBackup> dbBackupOptional = dbBackups.stream()
-				.filter(b -> b.getRole().equals(role))
-				.findFirst();
+        Optional<DbBackup> dbBackupOptional = dbBackups.stream()
+                .filter(b -> b.getRole().equals(role))
+                .findFirst();
 
-		if (dbBackupOptional.isPresent()) {
+        if (dbBackupOptional.isPresent()) {
 
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					dbBackupOptional.get().cleanUpAndBackup();
-				}
-			}).start();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    dbBackupOptional.get().cleanUpAndBackup();
+                }
+            }).start();
 
-			return Response.ok().build();
-		} else {
-			throw new NotFoundException("service " + role + " not found");
-		}
+            return Response.ok().build();
+        } else {
+            throw new NotFoundException("service " + role + " not found");
+        }
 
-	}
+    }
 }

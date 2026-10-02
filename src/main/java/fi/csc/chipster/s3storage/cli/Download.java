@@ -16,36 +16,36 @@ import fi.csc.chipster.s3storage.client.S3StorageClient;
  */
 public class Download {
 
-	public static void main(String args[]) throws InterruptedException, IOException {
+    public static void main(String args[]) throws InterruptedException, IOException {
 
-		if (args.length != 3) {
-			System.out.println("Usage: Download BUCKET OBJECT_KEY FILE");
-			System.exit(1);
-		}
+        if (args.length != 3) {
+            System.out.println("Usage: Download BUCKET OBJECT_KEY FILE");
+            System.exit(1);
+        }
 
-		String bucket = args[0];
-		String objectKey = args[1];
-		File file = new File(args[2]);
+        String bucket = args[0];
+        String objectKey = args[1];
+        File file = new File(args[2]);
 
-		Config config = new Config();
-		ChipsterS3Client s3 = S3StorageClient.getOneChipsterS3Client(config);
+        Config config = new Config();
+        ChipsterS3Client s3 = S3StorageClient.getOneChipsterS3Client(config);
 
-		download(s3, bucket, file, objectKey);
-	}
+        download(s3, bucket, file, objectKey);
+    }
 
-	public static void download(ChipsterS3Client s3Client, String bucket, File file, String objectKey)
-			throws InterruptedException, IOException {
+    public static void download(ChipsterS3Client s3Client, String bucket, File file, String objectKey)
+            throws InterruptedException, IOException {
 
-		long t = System.currentTimeMillis();
+        long t = System.currentTimeMillis();
 
-		s3Client.downloadFile(bucket, objectKey, file);
+        s3Client.downloadFile(bucket, objectKey, file);
 
-		long dt = System.currentTimeMillis() - t;
+        long dt = System.currentTimeMillis() - t;
 
-		long fileSize = file.length();
+        long fileSize = file.length();
 
-		System.out.println(
-				"download " + file.getPath() + " " + (fileSize * 1000 / dt / 1024 / 1024) + " MiB/s \t" + dt
-						+ " ms \t");
-	}
+        System.out.println(
+                "download " + file.getPath() + " " + (fileSize * 1000 / dt / 1024 / 1024) + " MiB/s \t" + dt
+                        + " ms \t");
+    }
 }

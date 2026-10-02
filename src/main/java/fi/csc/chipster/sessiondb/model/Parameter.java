@@ -7,63 +7,63 @@ import fi.csc.chipster.toolbox.sadl.SADLSyntax.ParameterType;
 
 public class Parameter implements DeepCopyable {
 
-	public static final String PARAMETER_LIST_JSON_TYPE = "ParameterListJsonType";
+    public static final String PARAMETER_LIST_JSON_TYPE = "ParameterListJsonType";
 
-	private String parameterId;
-	private String displayName;
-	@Lob
-	private String description;
-	private ParameterType type;
-	private String value;
+    private String parameterId;
+    private String displayName;
+    @Lob
+    private String description;
+    private ParameterType type;
+    private String value;
 
-	public String getParameterId() {
-		return parameterId;
-	}
+    public String getParameterId() {
+        return parameterId;
+    }
 
-	public void setParameterId(String parameterId) {
-		this.parameterId = parameterId;
-	}
+    public void setParameterId(String parameterId) {
+        this.parameterId = parameterId;
+    }
 
-	public String getDisplayName() {
-		return displayName;
-	}
+    public String getDisplayName() {
+        return displayName;
+    }
 
-	public void setDisplayName(String displayName) {
-		this.displayName = displayName;
-	}
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
 
-	public String getDescription() {
-		return description;
-	}
+    public String getDescription() {
+        return description;
+    }
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-	public ParameterType getType() {
-		return type;
-	}
+    public ParameterType getType() {
+        return type;
+    }
 
-	public void setType(ParameterType type) {
-		this.type = type;
-	}
+    public void setType(ParameterType type) {
+        this.type = type;
+    }
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public void setValue(String value) {
-		this.value = value;
-	}
+    public void setValue(String value) {
+        this.value = value;
+    }
 
-	@Override
-	public Object deepCopy() {
-		Parameter p = new Parameter();
-		p.parameterId = parameterId;
-		p.displayName = displayName;
-		p.description = description;
-		p.type = type;
-		p.value = value;
-		return p;
-	}
+    @Override
+    public Object deepCopy() {
+        Parameter p = new Parameter();
+        p.parameterId = parameterId;
+        p.displayName = displayName;
+        p.description = description;
+        p.type = type;
+        p.value = value;
+        return p;
+    }
 }

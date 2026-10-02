@@ -17,20 +17,20 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenException> {
 
-	private ExceptionLogger exceptionLogger;
+    private ExceptionLogger exceptionLogger;
 
-	@Context
-	UriInfo uriInfo;
+    @Context
+    UriInfo uriInfo;
 
-	public ForbiddenExceptionMapper(ExceptionLogger exceptionLogger) {
-		this.exceptionLogger = exceptionLogger;
-	}
+    public ForbiddenExceptionMapper(ExceptionLogger exceptionLogger) {
+        this.exceptionLogger = exceptionLogger;
+    }
 
-	@Override
-	public Response toResponse(ForbiddenException e) {
+    @Override
+    public Response toResponse(ForbiddenException e) {
 
-		this.exceptionLogger.log(e, uriInfo);
+        this.exceptionLogger.log(e, uriInfo);
 
-		return Response.status(Status.FORBIDDEN).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
-	}
+        return Response.status(Status.FORBIDDEN).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
+    }
 }

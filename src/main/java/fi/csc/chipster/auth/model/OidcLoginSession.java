@@ -14,81 +14,81 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @Table
 public class OidcLoginSession {
 
-	@Id
-	private UUID oidcLoginId;
-	private String state;
-	private String nonce;
-	private Instant created;
-	private String oidcName;
-	private String sourceIp;
-	@Lob
-	private String code;
+    @Id
+    private UUID oidcLoginId;
+    private String state;
+    private String nonce;
+    private Instant created;
+    private String oidcName;
+    private String sourceIp;
+    @Lob
+    private String code;
 
-	public OidcLoginSession() {
-	}
+    public OidcLoginSession() {
+    }
 
-	public OidcLoginSession(UUID oidcLoginId, Instant created, String oidcName,
-			String sourceIp) {
+    public OidcLoginSession(UUID oidcLoginId, Instant created, String oidcName,
+            String sourceIp) {
 
-		this.oidcLoginId = oidcLoginId;
-		this.created = created;
-		this.oidcName = oidcName;
-		this.sourceIp = sourceIp;
-	}
+        this.oidcLoginId = oidcLoginId;
+        this.created = created;
+        this.oidcName = oidcName;
+        this.sourceIp = sourceIp;
+    }
 
-	public String getOidcName() {
-		return oidcName;
-	}
+    public String getOidcName() {
+        return oidcName;
+    }
 
-	public void setOidcName(String oidcName) {
-		this.oidcName = oidcName;
-	}
+    public void setOidcName(String oidcName) {
+        this.oidcName = oidcName;
+    }
 
-	public Instant getCreated() {
-		return created;
-	}
+    public Instant getCreated() {
+        return created;
+    }
 
-	public void setCreated(Instant created) {
-		this.created = created;
-	}
+    public void setCreated(Instant created) {
+        this.created = created;
+    }
 
-	public UUID getOidcLoginId() {
-		return oidcLoginId;
-	}
+    public UUID getOidcLoginId() {
+        return oidcLoginId;
+    }
 
-	public void setOidcLoginId(UUID oidcLoginId) {
-		this.oidcLoginId = oidcLoginId;
-	}
+    public void setOidcLoginId(UUID oidcLoginId) {
+        this.oidcLoginId = oidcLoginId;
+    }
 
-	public String getState() {
-		return state;
-	}
+    public String getState() {
+        return state;
+    }
 
-	public void setState(String state) {
-		this.state = state;
-	}
+    public void setState(String state) {
+        this.state = state;
+    }
 
-	public String getNonce() {
-		return nonce;
-	}
+    public String getNonce() {
+        return nonce;
+    }
 
-	public void setNonce(String nonce) {
-		this.nonce = nonce;
-	}
+    public void setNonce(String nonce) {
+        this.nonce = nonce;
+    }
 
-	public String getSourceIp() {
-		return sourceIp;
-	}
+    public String getSourceIp() {
+        return sourceIp;
+    }
 
-	public void setSourceIp(String sourceIp) {
-		this.sourceIp = sourceIp;
-	}
+    public void setSourceIp(String sourceIp) {
+        this.sourceIp = sourceIp;
+    }
 
-	public String getCode() {
-		return this.code;
-	}
+    public String getCode() {
+        return this.code;
+    }
 
-	public void setCode(String code) {
-		this.code = code;
-	}
+    public void setCode(String code) {
+        this.code = code;
+    }
 }

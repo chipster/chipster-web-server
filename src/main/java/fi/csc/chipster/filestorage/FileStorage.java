@@ -55,153 +55,153 @@ import fi.csc.chipster.sessiondb.SessionDbTopicConfig;
  */
 public class FileStorage implements ServerComponent {
 
-	private Logger logger = LogManager.getLogger();
+    private Logger logger = LogManager.getLogger();
 
-	private AuthenticationClient authService;
-	private ServiceLocatorClient serviceLocator;
-	private Config config;
-	@SuppressWarnings("unused")
-	private String serviceId;
+    private AuthenticationClient authService;
+    private ServiceLocatorClient serviceLocator;
+    private Config config;
+    @SuppressWarnings("unused")
+    private String serviceId;
 
-	private SessionDbClient sessionDbClient;
+    private SessionDbClient sessionDbClient;
 
-	private Server server;
+    private Server server;
 
-	private HttpServer adminServer;
+    private HttpServer adminServer;
 
-	private StatusSource stats;
+    private StatusSource stats;
 
-	private FileStorageBackup backup;
+    private FileStorageBackup backup;
 
-	private SessionDbAdminClient sessionDbAdminClient;
+    private SessionDbAdminClient sessionDbAdminClient;
 
-	public FileStorage(Config config) {
-		this.config = config;
-	}
+    public FileStorage(Config config) {
+        this.config = config;
+    }
 
-	/**
-	 * Starts a HTTP server exposing the REST resources defined in this application.
-	 * 
-	 * @return
-	 * @throws Exception
-	 */
-	public void startServer() throws Exception {
+    /**
+     * Starts a HTTP server exposing the REST resources defined in this application.
+     * 
+     * @return
+     * @throws Exception
+     */
+    public void startServer() throws Exception {
 
-		String username = Role.FILE_STORAGE;
-		String password = config.getPassword(username);
+        String username = Role.FILE_STORAGE;
+        String password = config.getPassword(username);
 
-		String storageId = config.getString("file-storage-id");
-		if (storageId == null || storageId.isEmpty()) {
-			storageId = InetAddress.getLocalHost().getHostName();
-		}
+        String storageId = config.getString("file-storage-id");
+        if (storageId == null || storageId.isEmpty()) {
+            storageId = InetAddress.getLocalHost().getHostName();
+        }
 
-		logger.info("file-storage storageId '" + storageId + "'");
+        logger.info("file-storage storageId '" + storageId + "'");
 
-		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-		this.serviceLocator.setCredentials(authService.getCredentials());
+        this.serviceLocator = new ServiceLocatorClient(config);
+        this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+        this.serviceLocator.setCredentials(authService.getCredentials());
 
-		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
+        this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+        this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
 
-		this.serviceLocator.setCredentials(authService.getCredentials());
+        this.serviceLocator.setCredentials(authService.getCredentials());
 
-		File storage = new File("storage");
-		storage.mkdir();
+        File storage = new File("storage");
+        storage.mkdir();
 
-		// resolve symlinks before giving it to Jetty, because AliasCheck fails if the
-		// served file is outside of the base path
-		if (Files.isSymbolicLink(storage.toPath())) {
-			storage = storage.toPath().toRealPath().toFile();
-			logger.info("resolved symlink 'storage' to " + storage);
-		}
+        // resolve symlinks before giving it to Jetty, because AliasCheck fails if the
+        // served file is outside of the base path
+        if (Files.isSymbolicLink(storage.toPath())) {
+            storage = storage.toPath().toRealPath().toFile();
+            logger.info("resolved symlink 'storage' to " + storage);
+        }
 
-		backup = new FileStorageBackup(storage.toPath(), true, config, storageId);
+        backup = new FileStorageBackup(storage.toPath(), true, config, storageId);
 
-		URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_STORAGE));
+        URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_STORAGE));
 
-		server = new Server();
-		RestUtils.configureJettyThreads(server, Role.FILE_STORAGE, config);
+        server = new Server();
+        RestUtils.configureJettyThreads(server, Role.FILE_STORAGE, config);
 
-		ServerConnector connector = new ServerConnector(server);
-		connector.setPort(baseUri.getPort());
-		connector.setHost(baseUri.getHost());
+        ServerConnector connector = new ServerConnector(server);
+        connector.setPort(baseUri.getPort());
+        connector.setHost(baseUri.getHost());
 
-		server.addConnector(connector);
+        server.addConnector(connector);
 
-		ServletContextHandler contextHandler = new ServletContextHandler("/", false, false);
+        ServletContextHandler contextHandler = new ServletContextHandler("/", false, false);
 
-		contextHandler.setBaseResourceAsPath(storage.toPath().toRealPath());
+        contextHandler.setBaseResourceAsPath(storage.toPath().toRealPath());
 
-		FileServlet fileServlet = new FileServlet(storage, authService, config);
-		contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
-		contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
+        FileServlet fileServlet = new FileServlet(storage, authService, config);
+        contextHandler.addServlet(new ServletHolder(fileServlet), "/*");
+        contextHandler.addFilter(new FilterHolder(new ExceptionServletFilter()), "/*", null);
 
-		server.setHandler(contextHandler);
+        server.setHandler(contextHandler);
 
-		CustomRequestLog requestLog = new CustomRequestLog("logs/yyyy_mm_dd.request.log",
-				"%t %{client}a %{x-forwarded-for}i \"%r\" %k %X %s %{ms}T ms %{CLF}I B %{CLF}O B %{connection}i %{connection}o");
-		server.setRequestLog(requestLog);
+        CustomRequestLog requestLog = new CustomRequestLog("logs/yyyy_mm_dd.request.log",
+                "%t %{client}a %{x-forwarded-for}i \"%r\" %k %X %s %{ms}T ms %{CLF}I B %{CLF}O B %{connection}i %{connection}o");
+        server.setRequestLog(requestLog);
 
-		stats = RestUtils.createStatisticsListener(server);
+        stats = RestUtils.createStatisticsListener(server);
 
-		/*
-		 * Listen for file deletions here in each file-storage. If the file-brokers
-		 * would listen for these
-		 * events, there might be many file-broker replicas, and all those would try to
-		 * delete the file
-		 * from the file-storage at the same time.
-		 */
-		sessionDbClient.subscribe(SessionDbTopicConfig.ALL_FILES_TOPIC, fileServlet, "file-storage-file-listener");
+        /*
+         * Listen for file deletions here in each file-storage. If the file-brokers
+         * would listen for these
+         * events, there might be many file-broker replicas, and all those would try to
+         * delete the file
+         * from the file-storage at the same time.
+         */
+        sessionDbClient.subscribe(SessionDbTopicConfig.ALL_FILES_TOPIC, fileServlet, "file-storage-file-listener");
 
-		server.start();
+        server.start();
 
-		FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbAdminClient,
-				storage,
-				storageId, config);
-		adminResource.addFileSystem("storage", storage);
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_STORAGE, config, authService,
-				this.serviceLocator);
-	}
+        FileStorageAdminResource adminResource = new FileStorageAdminResource(stats, backup, sessionDbAdminClient,
+                storage,
+                storageId, config);
+        adminResource.addFileSystem("storage", storage);
+        this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_STORAGE, config, authService,
+                this.serviceLocator);
+    }
 
-	/**
-	 * Main method.
-	 * 
-	 * @param args
-	 * @throws Exception
-	 * @throws InterruptedException s
-	 */
-	public static void main(String[] args) throws Exception {
-		FileStorage fileBroker = new FileStorage(new Config());
-		try {
-			fileBroker.startServer();
-		} catch (Exception e) {
-			System.err.println("file-storage startup failed, exiting");
-			e.printStackTrace(System.err);
-			fileBroker.close();
-			System.exit(1);
-		}
-		RestUtils.shutdownGracefullyOnInterrupt(
-				fileBroker.server,
-				fileBroker.config.getInt(Config.KEY_FILE_BROKER_SHUTDOWN_TIMEOUT),
-				"file-storage");
-	}
+    /**
+     * Main method.
+     * 
+     * @param args
+     * @throws Exception
+     * @throws InterruptedException s
+     */
+    public static void main(String[] args) throws Exception {
+        FileStorage fileBroker = new FileStorage(new Config());
+        try {
+            fileBroker.startServer();
+        } catch (Exception e) {
+            System.err.println("file-storage startup failed, exiting");
+            e.printStackTrace(System.err);
+            fileBroker.close();
+            System.exit(1);
+        }
+        RestUtils.shutdownGracefullyOnInterrupt(
+                fileBroker.server,
+                fileBroker.config.getInt(Config.KEY_FILE_BROKER_SHUTDOWN_TIMEOUT),
+                "file-storage");
+    }
 
-	public void close() {
-		try {
-			try {
-				if (sessionDbClient != null) {
-					// shutdown websocket first (see ServerLauncher.stop())
-					sessionDbClient.close();
-				}
-				authService.close();
-			} catch (IOException e) {
-				logger.warn("failed to shutdown session-db client", e);
-			}
-			server.stop();
-		} catch (Exception e) {
-			logger.warn("failed to stop the file-storage", e);
-		}
-		RestUtils.shutdown("file-storage-admin", adminServer);
-	}
+    public void close() {
+        try {
+            try {
+                if (sessionDbClient != null) {
+                    // shutdown websocket first (see ServerLauncher.stop())
+                    sessionDbClient.close();
+                }
+                authService.close();
+            } catch (IOException e) {
+                logger.warn("failed to shutdown session-db client", e);
+            }
+            server.stop();
+        } catch (Exception e) {
+            logger.warn("failed to stop the file-storage", e);
+        }
+        RestUtils.shutdown("file-storage-admin", adminServer);
+    }
 }

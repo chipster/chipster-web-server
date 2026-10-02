@@ -8,26 +8,26 @@ import jakarta.xml.bind.ValidationEventHandler;
 
 public class NonStoppingValidationEventHandler implements ValidationEventHandler {
 
-	private List<ValidationEvent> validationEvents = new LinkedList<ValidationEvent>();
+    private List<ValidationEvent> validationEvents = new LinkedList<ValidationEvent>();
 
-	/**
-	 * Continue, no matter what.
-	 */
-	@Override
-	public boolean handleEvent(ValidationEvent event) {
-		this.validationEvents.add(event);
-		return true;
-	}
+    /**
+     * Continue, no matter what.
+     */
+    @Override
+    public boolean handleEvent(ValidationEvent event) {
+        this.validationEvents.add(event);
+        return true;
+    }
 
-	public boolean hasEvents() {
-		return validationEvents.size() > 0;
-	}
+    public boolean hasEvents() {
+        return validationEvents.size() > 0;
+    }
 
-	public String getValidationEventsAsString() {
-		String s = "";
-		for (ValidationEvent event : validationEvents) {
-			s += event.getMessage() + "\n";
-		}
-		return s;
-	}
+    public String getValidationEventsAsString() {
+        String s = "";
+        for (ValidationEvent event : validationEvents) {
+            s += event.getMessage() + "\n";
+        }
+        return s;
+    }
 }

@@ -14,20 +14,20 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 public class ExceptionLogger {
 
-	private static Logger logger = LogManager.getLogger();
+    private static Logger logger = LogManager.getLogger();
 
-	private boolean logExceptions;
+    private boolean logExceptions;
 
-	public ExceptionLogger(boolean logExceptions) {
-		this.logExceptions = logExceptions;
-	}
+    public ExceptionLogger(boolean logExceptions) {
+        this.logExceptions = logExceptions;
+    }
 
-	public void log(Exception e, UriInfo uriInfo) {
-		if (logExceptions) {
-			// hide requests from chrome developer tools
-			if (!".well-known/appspecific/com.chrome.devtools.json".equals(uriInfo.getPath())) {
-				logger.warn(e.getClass().getSimpleName() + ": " + e.getMessage() + " (" + uriInfo.getPath() + ")");
-			}
-		}
-	}
+    public void log(Exception e, UriInfo uriInfo) {
+        if (logExceptions) {
+            // hide requests from chrome developer tools
+            if (!".well-known/appspecific/com.chrome.devtools.json".equals(uriInfo.getPath())) {
+                logger.warn(e.getClass().getSimpleName() + ": " + e.getMessage() + " (" + uriInfo.getPath() + ")");
+            }
+        }
+    }
 }

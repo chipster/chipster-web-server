@@ -24,267 +24,267 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @Table(indexes = { @Index(columnList = "sessionId", name = "job_sessionid_index"), })
 public class Job {
 
-	@EmbeddedId // db
-	@JsonUnwrapped
-	private JobIdPair jobIdPair;
+    @EmbeddedId // db
+    @JsonUnwrapped
+    private JobIdPair jobIdPair;
 
-	private String toolId;
-	private JobState state;
-	private String toolCategory;
-	private String toolName;
-	@Lob
-	private String toolDescription;
-	private Instant created;
-	private Instant startTime;
-	private Instant endTime;
-	private String module;
-	@Lob
-	private String sourceCode;
-	@Lob
-	private String screenOutput;
-	@Lob
-	private String stateDetail;
-	private Long memoryUsage;
-	private Long storageUsage;
-	private Long memoryLimit;
-	private Integer cpuLimit;
-	private Long storageLimit;
-	private Integer slotLimit;
+    private String toolId;
+    private JobState state;
+    private String toolCategory;
+    private String toolName;
+    @Lob
+    private String toolDescription;
+    private Instant created;
+    private Instant startTime;
+    private Instant endTime;
+    private String module;
+    @Lob
+    private String sourceCode;
+    @Lob
+    private String screenOutput;
+    @Lob
+    private String stateDetail;
+    private Long memoryUsage;
+    private Long storageUsage;
+    private Long memoryLimit;
+    private Integer cpuLimit;
+    private Long storageLimit;
+    private Integer slotLimit;
 
-	private String createdBy;
-	private String comp;
+    private String createdBy;
+    private String comp;
 
-	@Column
-	@JdbcTypeCode(SqlTypes.JSON)
-	private List<Parameter> parameters = new ArrayList<>();
+    @Column
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Parameter> parameters = new ArrayList<>();
 
-	@Column
-	@JdbcTypeCode(SqlTypes.JSON)
-	private List<Input> inputs = new ArrayList<>();
+    @Column
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Input> inputs = new ArrayList<>();
 
-	@Column
-	@JdbcTypeCode(SqlTypes.JSON)
-	private List<Output> outputs = new ArrayList<>();
+    @Column
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Output> outputs = new ArrayList<>();
 
-	@Column
-	@JdbcTypeCode(SqlTypes.JSON)
-	private List<MetadataFile> metadataFiles = new ArrayList<>();
+    @Column
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<MetadataFile> metadataFiles = new ArrayList<>();
 
-	public UUID getJobId() {
-		if (jobIdPair == null) {
-			return null;
-		}
-		return this.jobIdPair.getJobId();
-	}
+    public UUID getJobId() {
+        if (jobIdPair == null) {
+            return null;
+        }
+        return this.jobIdPair.getJobId();
+    }
 
-	public String getToolId() {
-		return toolId;
-	}
+    public String getToolId() {
+        return toolId;
+    }
 
-	public void setToolId(String toolId) {
-		this.toolId = toolId;
-	}
+    public void setToolId(String toolId) {
+        this.toolId = toolId;
+    }
 
-	public String getToolCategory() {
-		return toolCategory;
-	}
+    public String getToolCategory() {
+        return toolCategory;
+    }
 
-	public void setToolCategory(String toolCategory) {
-		this.toolCategory = toolCategory;
-	}
+    public void setToolCategory(String toolCategory) {
+        this.toolCategory = toolCategory;
+    }
 
-	public String getToolName() {
-		return toolName;
-	}
+    public String getToolName() {
+        return toolName;
+    }
 
-	public void setToolName(String toolName) {
-		this.toolName = toolName;
-	}
+    public void setToolName(String toolName) {
+        this.toolName = toolName;
+    }
 
-	public String getToolDescription() {
-		return toolDescription;
-	}
+    public String getToolDescription() {
+        return toolDescription;
+    }
 
-	public void setToolDescription(String toolDescription) {
-		this.toolDescription = toolDescription;
-	}
+    public void setToolDescription(String toolDescription) {
+        this.toolDescription = toolDescription;
+    }
 
-	public Instant getStartTime() {
-		return startTime;
-	}
+    public Instant getStartTime() {
+        return startTime;
+    }
 
-	public void setStartTime(Instant startTime) {
-		this.startTime = startTime;
-	}
+    public void setStartTime(Instant startTime) {
+        this.startTime = startTime;
+    }
 
-	public Instant getEndTime() {
-		return endTime;
-	}
+    public Instant getEndTime() {
+        return endTime;
+    }
 
-	public void setEndTime(Instant endTime) {
-		this.endTime = endTime;
-	}
+    public void setEndTime(Instant endTime) {
+        this.endTime = endTime;
+    }
 
-	public Instant getCreated() {
-		return created;
-	}
+    public Instant getCreated() {
+        return created;
+    }
 
-	public void setCreated(Instant created) {
-		this.created = created;
-	}
+    public void setCreated(Instant created) {
+        this.created = created;
+    }
 
-	public JobState getState() {
-		return state;
-	}
+    public JobState getState() {
+        return state;
+    }
 
-	public void setState(JobState state) {
-		this.state = state;
-	}
+    public void setState(JobState state) {
+        this.state = state;
+    }
 
-	public List<Parameter> getParameters() {
-		return parameters;
-	}
+    public List<Parameter> getParameters() {
+        return parameters;
+    }
 
-	public void setParameters(List<Parameter> parameters) {
-		this.parameters = parameters;
-	}
+    public void setParameters(List<Parameter> parameters) {
+        this.parameters = parameters;
+    }
 
-	public List<Input> getInputs() {
-		return inputs;
-	}
+    public List<Input> getInputs() {
+        return inputs;
+    }
 
-	public void setInputs(List<Input> inputs) {
-		this.inputs = inputs;
-	}
+    public void setInputs(List<Input> inputs) {
+        this.inputs = inputs;
+    }
 
-	public String getModule() {
-		return module;
-	}
+    public String getModule() {
+        return module;
+    }
 
-	public void setModule(String module) {
-		this.module = module;
-	}
+    public void setModule(String module) {
+        this.module = module;
+    }
 
-	public String getSourceCode() {
-		return sourceCode;
-	}
+    public String getSourceCode() {
+        return sourceCode;
+    }
 
-	public void setSourceCode(String sourceCode) {
-		this.sourceCode = sourceCode;
-	}
+    public void setSourceCode(String sourceCode) {
+        this.sourceCode = sourceCode;
+    }
 
-	public String getScreenOutput() {
-		return screenOutput;
-	}
+    public String getScreenOutput() {
+        return screenOutput;
+    }
 
-	public void setScreenOutput(String screenOutput) {
-		this.screenOutput = screenOutput;
-	}
+    public void setScreenOutput(String screenOutput) {
+        this.screenOutput = screenOutput;
+    }
 
-	public String getStateDetail() {
-		return stateDetail;
-	}
+    public String getStateDetail() {
+        return stateDetail;
+    }
 
-	public void setStateDetail(String stateDetail) {
-		this.stateDetail = stateDetail;
-	}
+    public void setStateDetail(String stateDetail) {
+        this.stateDetail = stateDetail;
+    }
 
-	public UUID getSessionId() {
-		if (jobIdPair == null) {
-			return null;
-		}
-		return jobIdPair.getSessionId();
-	}
+    public UUID getSessionId() {
+        if (jobIdPair == null) {
+            return null;
+        }
+        return jobIdPair.getSessionId();
+    }
 
-	public String getCreatedBy() {
-		return createdBy;
-	}
+    public String getCreatedBy() {
+        return createdBy;
+    }
 
-	public void setCreatedBy(String createdBy) {
-		this.createdBy = createdBy;
-	}
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
 
-	public Long getMemoryUsage() {
-		return memoryUsage;
-	}
+    public Long getMemoryUsage() {
+        return memoryUsage;
+    }
 
-	public void setMemoryUsage(Long memoryUsage) {
-		this.memoryUsage = memoryUsage;
-	}
+    public void setMemoryUsage(Long memoryUsage) {
+        this.memoryUsage = memoryUsage;
+    }
 
-	public JobIdPair getJobIdPair() {
-		return jobIdPair;
-	}
+    public JobIdPair getJobIdPair() {
+        return jobIdPair;
+    }
 
-	public void setJobIdPair(JobIdPair jobIdPair) {
-		this.jobIdPair = jobIdPair;
-	}
+    public void setJobIdPair(JobIdPair jobIdPair) {
+        this.jobIdPair = jobIdPair;
+    }
 
-	public void setJobIdPair(UUID sessionId, UUID jobId) {
-		setJobIdPair(new JobIdPair(sessionId, jobId));
-	}
+    public void setJobIdPair(UUID sessionId, UUID jobId) {
+        setJobIdPair(new JobIdPair(sessionId, jobId));
+    }
 
-	public List<MetadataFile> getMetadataFiles() {
-		return metadataFiles;
-	}
+    public List<MetadataFile> getMetadataFiles() {
+        return metadataFiles;
+    }
 
-	public void setMetadataFiles(List<MetadataFile> metadataFiles) {
-		this.metadataFiles = metadataFiles;
-	}
+    public void setMetadataFiles(List<MetadataFile> metadataFiles) {
+        this.metadataFiles = metadataFiles;
+    }
 
-	public String getComp() {
-		return comp;
-	}
+    public String getComp() {
+        return comp;
+    }
 
-	public void setComp(String comp) {
-		this.comp = comp;
-	}
+    public void setComp(String comp) {
+        this.comp = comp;
+    }
 
-	public Long getStorageUsage() {
-		return storageUsage;
-	}
+    public Long getStorageUsage() {
+        return storageUsage;
+    }
 
-	public void setStorageUsage(Long storageUsage) {
-		this.storageUsage = storageUsage;
-	}
+    public void setStorageUsage(Long storageUsage) {
+        this.storageUsage = storageUsage;
+    }
 
-	public Long getMemoryLimit() {
-		return memoryLimit;
-	}
+    public Long getMemoryLimit() {
+        return memoryLimit;
+    }
 
-	public void setMemoryLimit(Long memoryLimit) {
-		this.memoryLimit = memoryLimit;
-	}
+    public void setMemoryLimit(Long memoryLimit) {
+        this.memoryLimit = memoryLimit;
+    }
 
-	public Integer getCpuLimit() {
-		return cpuLimit;
-	}
+    public Integer getCpuLimit() {
+        return cpuLimit;
+    }
 
-	public void setCpuLimit(Integer cpuLimit) {
-		this.cpuLimit = cpuLimit;
-	}
+    public void setCpuLimit(Integer cpuLimit) {
+        this.cpuLimit = cpuLimit;
+    }
 
-	public List<Output> getOutputs() {
-		return outputs;
-	}
+    public List<Output> getOutputs() {
+        return outputs;
+    }
 
-	public void setOutputs(List<Output> outputs) {
-		this.outputs = outputs;
-	}
+    public void setOutputs(List<Output> outputs) {
+        this.outputs = outputs;
+    }
 
-	public Long getStorageLimit() {
-		return this.storageLimit;
-	}
+    public Long getStorageLimit() {
+        return this.storageLimit;
+    }
 
-	public void setStorageLimit(Long storageLimit) {
-		this.storageLimit = storageLimit;
-	}
+    public void setStorageLimit(Long storageLimit) {
+        this.storageLimit = storageLimit;
+    }
 
-	public Integer getSlotLimit() {
-		return this.slotLimit;
-	}
+    public Integer getSlotLimit() {
+        return this.slotLimit;
+    }
 
-	public void setSlotLimit(Integer slotLimit) {
-		this.slotLimit = slotLimit;
-	}
+    public void setSlotLimit(Integer slotLimit) {
+        this.slotLimit = slotLimit;
+    }
 }

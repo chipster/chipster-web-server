@@ -24,34 +24,34 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement // json
 public class UserToken extends ChipsterToken {
 
-	private Instant created;
-	private String name;
+    private Instant created;
+    private String name;
 
-	public UserToken() {
-		// JAX-B needs this
-	}
+    public UserToken() {
+        // JAX-B needs this
+    }
 
-	public UserToken(String username,
-			Instant validUntil, Instant created, Set<String> roles) {
+    public UserToken(String username,
+            Instant validUntil, Instant created, Set<String> roles) {
 
-		super(username, validUntil, roles);
+        super(username, validUntil, roles);
 
-		this.created = created;
-	}
+        this.created = created;
+    }
 
-	public Instant getCreated() {
-		return created;
-	}
+    public Instant getCreated() {
+        return created;
+    }
 
-	public void setCreated(Instant created) {
-		this.created = created;
-	}
+    public void setCreated(Instant created) {
+        this.created = created;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 }

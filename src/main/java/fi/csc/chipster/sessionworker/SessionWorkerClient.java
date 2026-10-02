@@ -19,99 +19,99 @@ import jakarta.ws.rs.core.Response;
 
 public class SessionWorkerClient {
 
-	private static Logger logger = LogManager.getLogger();
+    private static Logger logger = LogManager.getLogger();
 
-	private WebTarget sessionWorkerTarget;
-	private SessionDbClient sessionDbClient;
-	private RestFileBrokerClient fileBrokerClient;
+    private WebTarget sessionWorkerTarget;
+    private SessionDbClient sessionDbClient;
+    private RestFileBrokerClient fileBrokerClient;
 
-	public SessionWorkerClient(WebTarget sessionWorkerTarget1, SessionDbClient sessionDbClient1,
-			RestFileBrokerClient fileBrokerClient1) {
-		this.sessionWorkerTarget = sessionWorkerTarget1;
-		this.sessionDbClient = sessionDbClient1;
-		this.fileBrokerClient = fileBrokerClient1;
-	}
+    public SessionWorkerClient(WebTarget sessionWorkerTarget1, SessionDbClient sessionDbClient1,
+            RestFileBrokerClient fileBrokerClient1) {
+        this.sessionWorkerTarget = sessionWorkerTarget1;
+        this.sessionDbClient = sessionDbClient1;
+        this.fileBrokerClient = fileBrokerClient1;
+    }
 
-	public UUID packageSessionToZip(UUID sessionId1) throws RestException {
-		WebTarget target = sessionWorkerTarget.path("sessions").path(sessionId1.toString());
-		Response response = target.request().post(null);
+    public UUID packageSessionToZip(UUID sessionId1) throws RestException {
+        WebTarget target = sessionWorkerTarget.path("sessions").path(sessionId1.toString());
+        Response response = target.request().post(null);
 
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("packaging session zip failed", response, target.getUri());
-		}
+        if (!RestUtils.isSuccessful(response.getStatus())) {
+            throw new RestException("packaging session zip failed", response, target.getUri());
+        }
 
-		@SuppressWarnings("unchecked")
-		HashMap<String, Object> responseMap = response.readEntity(HashMap.class);
+        @SuppressWarnings("unchecked")
+        HashMap<String, Object> responseMap = response.readEntity(HashMap.class);
 
-		@SuppressWarnings("unchecked")
-		List<String> errors = (List<String>) responseMap.get("errors");
+        @SuppressWarnings("unchecked")
+        List<String> errors = (List<String>) responseMap.get("errors");
 
-		if (!errors.isEmpty()) {
-			throw new RestException("packaging session zip failed: " + RestUtils.asJson(errors));
-		}
+        if (!errors.isEmpty()) {
+            throw new RestException("packaging session zip failed: " + RestUtils.asJson(errors));
+        }
 
-		return UUID.fromString((String) responseMap.get("datasetId"));
-	}
+        return UUID.fromString((String) responseMap.get("datasetId"));
+    }
 
-	public UUID uploadZipSession(InputStream zipBytes, long length) throws RestException {
+    public UUID uploadZipSession(InputStream zipBytes, long length) throws RestException {
 
-		Session session = new Session();
+        Session session = new Session();
 
-		UUID sessionId = sessionDbClient.createSession(session);
+        UUID sessionId = sessionDbClient.createSession(session);
 
-		return uploadZipSession(zipBytes, sessionId, length);
-	}
+        return uploadZipSession(zipBytes, sessionId, length);
+    }
 
-	public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, long length) throws RestException {
+    public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, long length) throws RestException {
 
-		Dataset zipDataset = new Dataset();
+        Dataset zipDataset = new Dataset();
 
-		// create a dataset for the zip upload
-		UUID zipDatasetId = sessionDbClient.createDataset(sessionId, zipDataset);
+        // create a dataset for the zip upload
+        UUID zipDatasetId = sessionDbClient.createDataset(sessionId, zipDataset);
 
-		return uploadZipSession(zipBytes, sessionId, zipDatasetId, length);
-	}
+        return uploadZipSession(zipBytes, sessionId, zipDatasetId, length);
+    }
 
-	public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, UUID zipDatasetId, long length)
-			throws RestException {
+    public UUID uploadZipSession(InputStream zipBytes, UUID sessionId, UUID zipDatasetId, long length)
+            throws RestException {
 
-		// upload the zip
-		fileBrokerClient.upload(sessionId, zipDatasetId, zipBytes, length);
+        // upload the zip
+        fileBrokerClient.upload(sessionId, zipDatasetId, zipBytes, length);
 
-		return extractZipSession(sessionId, zipDatasetId);
-	}
+        return extractZipSession(sessionId, zipDatasetId);
+    }
 
-	public UUID extractZipSession(UUID sessionId, UUID zipDatasetId) throws RestException {
+    public UUID extractZipSession(UUID sessionId, UUID zipDatasetId) throws RestException {
 
-		WebTarget target = sessionWorkerTarget
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(zipDatasetId.toString());
+        WebTarget target = sessionWorkerTarget
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(zipDatasetId.toString());
 
-		// extract the zip
-		Response response = target.request().post(null, Response.class);
+        // extract the zip
+        Response response = target.request().post(null, Response.class);
 
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw new RestException("session extraction failed", response, target.getUri());
-		}
+        if (!RestUtils.isSuccessful(response.getStatus())) {
+            throw new RestException("session extraction failed", response, target.getUri());
+        }
 
-		@SuppressWarnings("unchecked")
-		HashMap<String, Object> extractionResult = response.readEntity(HashMap.class);
+        @SuppressWarnings("unchecked")
+        HashMap<String, Object> extractionResult = response.readEntity(HashMap.class);
 
-		@SuppressWarnings("unchecked")
-		List<String> errors = (List<String>) extractionResult.get("errors");
-		@SuppressWarnings("unchecked")
-		List<String> warnings = (List<String>) extractionResult.get("warnings");
+        @SuppressWarnings("unchecked")
+        List<String> errors = (List<String>) extractionResult.get("errors");
+        @SuppressWarnings("unchecked")
+        List<String> warnings = (List<String>) extractionResult.get("warnings");
 
-		if (errors != null && !errors.isEmpty()) {
-			throw new RestException("zip session extraction failed: " + RestUtils.asJson(errors));
-		}
+        if (errors != null && !errors.isEmpty()) {
+            throw new RestException("zip session extraction failed: " + RestUtils.asJson(errors));
+        }
 
-		if (warnings != null && !warnings.isEmpty()) {
-			logger.warn("warnings in zip session extraction: " + RestUtils.asJson(warnings));
-		}
+        if (warnings != null && !warnings.isEmpty()) {
+            logger.warn("warnings in zip session extraction: " + RestUtils.asJson(warnings));
+        }
 
-		this.sessionDbClient.deleteDataset(sessionId, zipDatasetId);
+        this.sessionDbClient.deleteDataset(sessionId, zipDatasetId);
 
-		return sessionId;
-	}
+        return sessionId;
+    }
 }

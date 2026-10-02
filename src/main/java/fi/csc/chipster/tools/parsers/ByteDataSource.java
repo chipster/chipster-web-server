@@ -24,120 +24,120 @@ import fi.csc.chipster.util.IOUtils;
  */
 public class ByteDataSource extends DataSource {
 
-	private FileChannel fileChannel;
-	RandomAccessFile raFile;
+    private FileChannel fileChannel;
+    RandomAccessFile raFile;
 
-	private Long length = null;
+    private Long length = null;
 
-	public ByteDataSource(DataUrl dataUrl) throws URISyntaxException, IOException {
-		super(dataUrl);
+    public ByteDataSource(DataUrl dataUrl) throws URISyntaxException, IOException {
+        super(dataUrl);
 
-		if (file != null) { // Initialized by super constructor if file is local
-			raFile = new RandomAccessFile(file.getPath(), "r");
-			fileChannel = raFile.getChannel();
-		}
-	}
+        if (file != null) { // Initialized by super constructor if file is local
+            raFile = new RandomAccessFile(file.getPath(), "r");
+            fileChannel = raFile.getChannel();
+        }
+    }
 
-	/**
-	 * Method for getting a range from the file.
-	 * 
-	 * @param filePosition
-	 * @param length
-	 * @return array of bytes
-	 * @throws IOException
-	 */
-	public byte[] read(long filePosition, long length) throws IOException {
+    /**
+     * Method for getting a range from the file.
+     * 
+     * @param filePosition
+     * @param length
+     * @return array of bytes
+     * @throws IOException
+     */
+    public byte[] read(long filePosition, long length) throws IOException {
 
-		if (fileChannel != null) {
-			InputStream in = Channels.newInputStream(fileChannel.position(filePosition));
-			try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        if (fileChannel != null) {
+            InputStream in = Channels.newInputStream(fileChannel.position(filePosition));
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-				IO.copy(in, out, length);
+                IO.copy(in, out, length);
 
-				return out.toByteArray();
-			}
+                return out.toByteArray();
+            }
 
-		} else {
+        } else {
 
-			long endFilePosition = filePosition + length - 1;
+            long endFilePosition = filePosition + length - 1;
 
-			// Make sure that we won't make requests outside the file end
-			if (endFilePosition > length()) {
-				endFilePosition = length();
-			}
+            // Make sure that we won't make requests outside the file end
+            if (endFilePosition > length()) {
+                endFilePosition = length();
+            }
 
-			HttpURLConnection connection = null;
-			try {
+            HttpURLConnection connection = null;
+            try {
 
-				connection = (HttpURLConnection) url.openConnection();
-				connection.setRequestProperty("Range", "bytes=" + filePosition + "-" + endFilePosition);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestProperty("Range", "bytes=" + filePosition + "-" + endFilePosition);
 
-				try (InputStream in = connection.getInputStream();
-						ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                try (InputStream in = connection.getInputStream();
+                        ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-					IOUtils.copy(in, out);
-					return out.toByteArray();
-				}
+                    IOUtils.copy(in, out);
+                    return out.toByteArray();
+                }
 
-			} catch (IOException e) {
-				if (e.getMessage().contains("HTTP") && e.getMessage().contains(" 416 ")) {
-					// Requested Range Not Satisfiable
-					// This happens often when data files have bigger coordinates than annotations,
-					// just ignore
-				} else {
-					throw e;
-				}
-			} finally {
-				IOUtils.disconnectIfPossible(connection);
-			}
-		}
-		return null;
-	}
+            } catch (IOException e) {
+                if (e.getMessage().contains("HTTP") && e.getMessage().contains(" 416 ")) {
+                    // Requested Range Not Satisfiable
+                    // This happens often when data files have bigger coordinates than annotations,
+                    // just ignore
+                } else {
+                    throw e;
+                }
+            } finally {
+                IOUtils.disconnectIfPossible(connection);
+            }
+        }
+        return null;
+    }
 
-	/**
-	 * Get all bytes from the file. Obviously this shouldn't be used for huge files,
-	 * because
-	 * all the data is read to the RAM.
-	 * 
-	 * @return
-	 */
-	public byte[] readAll() throws IOException {
+    /**
+     * Get all bytes from the file. Obviously this shouldn't be used for huge files,
+     * because
+     * all the data is read to the RAM.
+     * 
+     * @return
+     */
+    public byte[] readAll() throws IOException {
 
-		return read(0, length());
-	}
+        return read(0, length());
+    }
 
-	public long length() throws IOException {
-		if (length == null) {
-			if (fileChannel != null) {
-				length = file.length();
+    public long length() throws IOException {
+        if (length == null) {
+            if (fileChannel != null) {
+                length = file.length();
 
-			} else {
-				HttpURLConnection connection = null;
-				try {
-					connection = (HttpURLConnection) url.openConnection();
-					// connection.getContentLength() returns int, which is not enough
-					String string = connection.getHeaderField("content-length");
-					if (string == null) {
-						throw new IOException("content-length unavailable for " + url);
-					}
-					length = Long.parseLong(connection.getHeaderField("content-length"));
-				} finally {
-					IOUtils.disconnectIfPossible(connection);
-				}
-			}
-		}
-		return length;
-	}
+            } else {
+                HttpURLConnection connection = null;
+                try {
+                    connection = (HttpURLConnection) url.openConnection();
+                    // connection.getContentLength() returns int, which is not enough
+                    String string = connection.getHeaderField("content-length");
+                    if (string == null) {
+                        throw new IOException("content-length unavailable for " + url);
+                    }
+                    length = Long.parseLong(connection.getHeaderField("content-length"));
+                } finally {
+                    IOUtils.disconnectIfPossible(connection);
+                }
+            }
+        }
+        return length;
+    }
 
-	public void close() {
-		if (raFile != null) {
-			try {
-				raFile.close();
-			} catch (IOException e) {
-				// No problem
-			}
-			fileChannel = null;
-			raFile = null;
-		}
-	}
+    public void close() {
+        if (raFile != null) {
+            try {
+                raFile.close();
+            } catch (IOException e) {
+                // No problem
+            }
+            fileChannel = null;
+            raFile = null;
+        }
+    }
 }

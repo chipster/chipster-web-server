@@ -6,21 +6,21 @@ import fi.csc.chipster.auth.resource.AuthPrincipal;
 
 public abstract class ChipsterTopicConfig implements TopicConfig {
 
-	private AuthenticationClient authService;
+    private AuthenticationClient authService;
 
-	public ChipsterTopicConfig(AuthenticationClient authService) {
-		this.authService = authService;
-	}
+    public ChipsterTopicConfig(AuthenticationClient authService) {
+        this.authService = authService;
+    }
 
-	@Override
-	public AuthPrincipal getUserPrincipal(String token) {
+    @Override
+    public AuthPrincipal getUserPrincipal(String token) {
 
-		UserToken validToken = authService.validateUserToken(token);
+        UserToken validToken = authService.validateUserToken(token);
 
-		if (validToken != null) {
-			return new AuthPrincipal(validToken, token);
-		} else {
-			return null;
-		}
-	}
+        if (validToken != null) {
+            return new AuthPrincipal(validToken, token);
+        } else {
+            return null;
+        }
+    }
 }

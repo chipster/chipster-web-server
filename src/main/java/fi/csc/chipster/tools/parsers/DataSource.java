@@ -23,30 +23,30 @@ import java.net.URL;
  */
 public abstract class DataSource {
 
-	protected DataUrl dataUrl;
-	protected File file = null;
-	protected URL url = null;
-	protected String name;
+    protected DataUrl dataUrl;
+    protected File file = null;
+    protected URL url = null;
+    protected String name;
 
-	public DataSource(DataUrl dataUrl) throws URISyntaxException, IOException {
+    public DataSource(DataUrl dataUrl) throws URISyntaxException, IOException {
 
-		this.dataUrl = dataUrl;
-		this.url = dataUrl.getUrl();
+        this.dataUrl = dataUrl;
+        this.url = dataUrl.getUrl();
 
-		if (url != null) {
-			if ("file".equals(url.getProtocol())) {
-				file = new File(url.toURI());
-			}
-			this.name = url.toString();
-		}
-	}
+        if (url != null) {
+            if ("file".equals(url.getProtocol())) {
+                file = new File(url.toURI());
+            }
+            this.name = url.toString();
+        }
+    }
 
-	@Override
-	public String toString() {
-		return name;
-	}
+    @Override
+    public String toString() {
+        return name;
+    }
 
-	public DataUrl getDataUrl() {
-		return dataUrl;
-	}
+    public DataUrl getDataUrl() {
+        return dataUrl;
+    }
 }

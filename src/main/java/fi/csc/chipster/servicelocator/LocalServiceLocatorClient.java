@@ -22,34 +22,34 @@ import fi.csc.chipster.servicelocator.resource.Service;
  */
 public class LocalServiceLocatorClient extends ServiceLocatorClient {
 
-	private ArrayList<Service> publicServices;
-	private ArrayList<Service> allServices;
+    private ArrayList<Service> publicServices;
+    private ArrayList<Service> allServices;
 
-	public LocalServiceLocatorClient(ArrayList<Service> publicServices, ArrayList<Service> allServices, Config config)
-			throws IOException {
-		super(config);
+    public LocalServiceLocatorClient(ArrayList<Service> publicServices, ArrayList<Service> allServices, Config config)
+            throws IOException {
+        super(config);
 
-		this.publicServices = publicServices;
-		this.allServices = allServices;
-	}
+        this.publicServices = publicServices;
+        this.allServices = allServices;
+    }
 
-	public List<Service> getPublicServices() {
+    public List<Service> getPublicServices() {
 
-		return publicServices;
-	}
+        return publicServices;
+    }
 
-	public List<Service> getInternalServices() {
+    public List<Service> getInternalServices() {
 
-		return allServices;
-	}
+        return allServices;
+    }
 
-	public String getPublicUri(String role) {
+    public String getPublicUri(String role) {
 
-		return super.getPublicUri(role);
-	}
+        return super.getPublicUri(role);
+    }
 
-	public Service getInternalService(String role) {
+    public Service getInternalService(String role) {
 
-		return super.getInternalService(role);
-	}
+        return super.getInternalService(role);
+    }
 }

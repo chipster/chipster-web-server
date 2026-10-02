@@ -29,50 +29,50 @@ import jakarta.ws.rs.core.SecurityContext;
 
 public class AuthAdminResource extends AdminResource {
 
-	private static Logger logger = LogManager.getLogger();
-	public static final String PATH_USERS = "users";
+    private static Logger logger = LogManager.getLogger();
+    public static final String PATH_USERS = "users";
 
-	private HibernateUtil hibernate;
-	private UserTable userTable;
+    private HibernateUtil hibernate;
+    private UserTable userTable;
 
-	public AuthAdminResource(HibernateUtil hibernate,
-			List<Class<?>> classes, JerseyStatisticsSource jerseyStats, UserTable userTable, Config config) {
-		super(hibernate, classes, config, jerseyStats);
-		this.userTable = userTable;
-		this.hibernate = hibernate;
-	}
+    public AuthAdminResource(HibernateUtil hibernate,
+            List<Class<?>> classes, JerseyStatisticsSource jerseyStats, UserTable userTable, Config config) {
+        super(hibernate, classes, config, jerseyStats);
+        this.userTable = userTable;
+        this.hibernate = hibernate;
+    }
 
-	/**
-	 * Could also return simple string, but returning json, since most other api
-	 * methods return json.
-	 * 
-	 * @param userId
-	 * @param sc
-	 * @return
-	 */
-	@DELETE
-	@Path(PATH_USERS)
-	@RolesAllowed({ Role.ADMIN })
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response deleteUser(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
-		logger.info("deleting user " + userId);
+    /**
+     * Could also return simple string, but returning json, since most other api
+     * methods return json.
+     * 
+     * @param userId
+     * @param sc
+     * @return
+     */
+    @DELETE
+    @Path(PATH_USERS)
+    @RolesAllowed({ Role.ADMIN })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response deleteUser(@NotNull @QueryParam("userId") List<String> userId, @Context SecurityContext sc) {
+        logger.info("deleting user " + userId);
 
-		List<String> deletedUserIds = new ArrayList<String>();
-		for (String idString : userId) {
-			UserId id = new UserId(idString);
-			User user = userTable.get(id, hibernate.session());
-			if (user == null) {
-				throw new NotFoundRollbackException(RestUtils.asJson(new String[] { idString }));
-				// return Response.status(404, "User " + idString + " not
-				// found").entity(deletedUserIds).build();
-			}
+        List<String> deletedUserIds = new ArrayList<String>();
+        for (String idString : userId) {
+            UserId id = new UserId(idString);
+            User user = userTable.get(id, hibernate.session());
+            if (user == null) {
+                throw new NotFoundRollbackException(RestUtils.asJson(new String[] { idString }));
+                // return Response.status(404, "User " + idString + " not
+                // found").entity(deletedUserIds).build();
+            }
 
-			HibernateUtil.delete(user, id, hibernate.session());
-			deletedUserIds.add(idString);
-		}
+            HibernateUtil.delete(user, id, hibernate.session());
+            deletedUserIds.add(idString);
+        }
 
-		return Response.ok(deletedUserIds).build();
-	}
+        return Response.ok(deletedUserIds).build();
+    }
 
 }

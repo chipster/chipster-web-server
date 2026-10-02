@@ -5,52 +5,52 @@ import java.time.temporal.ChronoUnit;
 
 public class OfferJob {
 
-	private Instant lastScheduleTimestamp;
-	private Instant heartbeatTimestamp;
-	private Instant runnableTimestamp;
+    private Instant lastScheduleTimestamp;
+    private Instant heartbeatTimestamp;
+    private Instant runnableTimestamp;
 
-	public OfferJob() {
-		this.lastScheduleTimestamp = Instant.now();
-	}
+    public OfferJob() {
+        this.lastScheduleTimestamp = Instant.now();
+    }
 
-	public Instant getLastScheduleTimestamp() {
-		return lastScheduleTimestamp;
-	}
+    public Instant getLastScheduleTimestamp() {
+        return lastScheduleTimestamp;
+    }
 
-	public Instant getHeartbeatTimestamp() {
-		return heartbeatTimestamp;
-	}
+    public Instant getHeartbeatTimestamp() {
+        return heartbeatTimestamp;
+    }
 
-	public void setHeartbeatTimestamp() {
-		this.heartbeatTimestamp = Instant.now();
-	}
+    public void setHeartbeatTimestamp() {
+        this.heartbeatTimestamp = Instant.now();
+    }
 
-	/**
-	 * Check if the job is in SCHEDULED state, i.e. doesn't have heartbeat yet
-	 * 
-	 * @return
-	 */
-	public boolean isScheduled() {
-		return heartbeatTimestamp == null;
-	}
+    /**
+     * Check if the job is in SCHEDULED state, i.e. doesn't have heartbeat yet
+     * 
+     * @return
+     */
+    public boolean isScheduled() {
+        return heartbeatTimestamp == null;
+    }
 
-	public boolean hasHeartbeat() {
-		return heartbeatTimestamp != null;
-	}
+    public boolean hasHeartbeat() {
+        return heartbeatTimestamp != null;
+    }
 
-	public long getTimeSinceLastScheduled() {
-		return lastScheduleTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
-	}
+    public long getTimeSinceLastScheduled() {
+        return lastScheduleTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
+    }
 
-	public long getTimeSinceLastHeartbeat() {
-		return heartbeatTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
-	}
+    public long getTimeSinceLastHeartbeat() {
+        return heartbeatTimestamp.until(Instant.now(), ChronoUnit.SECONDS);
+    }
 
-	public void setRunnableTimestamp() {
-		runnableTimestamp = Instant.now();
-	}
+    public void setRunnableTimestamp() {
+        runnableTimestamp = Instant.now();
+    }
 
-	public boolean isRunnable() {
-		return runnableTimestamp != null;
-	}
+    public boolean isRunnable() {
+        return runnableTimestamp != null;
+    }
 }

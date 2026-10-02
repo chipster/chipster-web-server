@@ -17,36 +17,36 @@ import java.net.URISyntaxException;
  */
 public class LineDataSource extends DataSource {
 
-	public LineDataSource(DataUrl indexUrl) throws URISyntaxException, IOException {
-		super(indexUrl);
-	}
+    public LineDataSource(DataUrl indexUrl) throws URISyntaxException, IOException {
+        super(indexUrl);
+    }
 
-	BufferedReader reader;
+    BufferedReader reader;
 
-	public String readLine() throws IOException {
-		if (file != null) {
+    public String readLine() throws IOException {
+        if (file != null) {
 
-			if (reader == null) {
-				reader = new BufferedReader(new FileReader(file));
-			}
+            if (reader == null) {
+                reader = new BufferedReader(new FileReader(file));
+            }
 
-		} else {
+        } else {
 
-			if (reader == null) {
+            if (reader == null) {
 
-				HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-				// KeyAndTrustManager.configureForChipsterCertificate(connection);
-				reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-			}
-		}
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                // KeyAndTrustManager.configureForChipsterCertificate(connection);
+                reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            }
+        }
 
-		String result = reader.readLine();
+        String result = reader.readLine();
 
-		if (result == null) {
-			reader.close();
-			reader = null;
-		}
+        if (result == null) {
+            reader.close();
+            reader = null;
+        }
 
-		return result;
-	}
+        return result;
+    }
 }
