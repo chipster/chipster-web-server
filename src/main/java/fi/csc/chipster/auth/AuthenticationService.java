@@ -46,7 +46,8 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 public class AuthenticationService implements ServerComponent {
 
 	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
-	private static final String KEY_ALLOW_DEFAULT_PASSWORDS = "auth-allow-default-passwords";
+	// package-private for the tests
+	static final String KEY_ALLOW_DEFAULT_PASSWORDS = "auth-allow-default-passwords";
 	private static final String KEY_OIDC_SESSION_IN_DB = "auth-oidc-session-in-db";
 
 	private Logger logger = LogManager.getLogger();
@@ -180,8 +181,10 @@ public class AuthenticationService implements ServerComponent {
 	 *
 	 * Call this before starting anything that creates threads, otherwise the
 	 * process doesn't exit after the exception.
+	 * 
+	 * Package-private for the tests.
 	 */
-	private void checkDefaultPasswords() {
+	void checkDefaultPasswords() {
 
 		List<String> blankKeys = config.getBlankPasswordKeys();
 
