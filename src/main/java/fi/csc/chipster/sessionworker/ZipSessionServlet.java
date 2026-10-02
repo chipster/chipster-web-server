@@ -17,7 +17,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -163,7 +165,7 @@ public class ZipSessionServlet extends HttpServlet {
 
 			OutputStream respoonseOutput = response.getOutputStream();
 
-			keepAliveWithSpaces(respoonseOutput, latch);
+			Future<?> keepAlive = keepAliveWithSpaces(respoonseOutput, latch, null);
 
 			try {
 				JsonSession.packageSession(sessionDb, fileBroker, session, sessionId, entries);
@@ -259,9 +261,8 @@ public class ZipSessionServlet extends HttpServlet {
 
 			logger.info("response: " + RestUtils.asJson(json, true));
 
-			// stop the keep-alive before writing the json. This doesn't wait for a write
-			// that is already in progress, but prevents all the following ones.
-			latch.countDown();
+			// stop the keep-alive before writing the json
+			stopKeepAlive(latch, keepAlive);
 			respoonseOutput.write(RestUtils.asJson(json).getBytes());
 			respoonseOutput.close();
 
@@ -409,26 +410,34 @@ public class ZipSessionServlet extends HttpServlet {
 		ArrayList<String> errors = new ArrayList<>();
 
 		CountDownLatch latch = new CountDownLatch(1);
+		// the keep-alive thread cancels the wait when the client disconnects
+		ImportCapacity.Waiter waiter = new ImportCapacity.Waiter();
 
 		boolean slotAcquired = false;
+		Future<?> keepAlive = null;
+
+		// datasets created in the session-db by this import, deleted if it doesn't
+		// finish
+		ArrayList<UUID> createdDatasetIds = new ArrayList<>();
+		boolean imported = false;
 
 		try {
 
-			keepAliveWithSpaces(output, latch);
+			keepAlive = keepAliveWithSpaces(output, latch, waiter);
 
 			// the keep-alive keeps the connection open while waiting
-			importCapacity.acquire(username);
+			importCapacity.acquire(username, waiter);
 			slotAcquired = true;
 
 			long zipSize = zipDataset.getFile().getSize();
 
 			// the limits are counted per extraction, so each attempt gets its own instance
 			ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId,
-					zipSize, new SessionLimits(config));
+					zipSize, new SessionLimits(config), createdDatasetIds);
 
 			if (sessionData == null) {
 				sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId, tempDir,
-						zipSize, new SessionLimits(config), importCapacity);
+						zipSize, new SessionLimits(config), importCapacity, createdDatasetIds);
 			}
 
 			if (sessionData == null) {
@@ -440,6 +449,7 @@ public class ZipSessionServlet extends HttpServlet {
 			errors.addAll(sessionData.getErrors());
 
 			warnings.addAll(updateSession(sessionDb, sessionId, sessionData));
+			imported = true;
 
 		} catch (RestException e) {
 			errors.add("session extraction failed: " + e.getMessage());
@@ -462,6 +472,19 @@ public class ZipSessionServlet extends HttpServlet {
 				logger.error("session extraction failed", e);
 			}
 		} finally {
+			if (!imported) {
+				/*
+				 * Don't leave a half-built session behind. Both extractors create a dummy
+				 * dataset for each data file before the metadata is complete. The dummy
+				 * datasets would be useless without the metadata and would make a retry fail,
+				 * because the dataset IDs exist already.
+				 */
+				int left = deleteDatasets(sessionDb, sessionId, createdDatasetIds);
+				if (left > 0) {
+					errors.add(left + " incomplete datasets of the failed import could not be deleted, "
+							+ "please delete them manually");
+				}
+			}
 			if (slotAcquired) {
 				importCapacity.release(username);
 			}
@@ -473,17 +496,36 @@ public class ZipSessionServlet extends HttpServlet {
 		json.put("warnings", warnings);
 		json.put("errors", errors);
 
-		latch.countDown();
+		stopKeepAlive(latch, keepAlive);
+
+		if (waiter.isCancelled()) {
+			// the write would fail anyway
+			logger.warn("client disconnected during the session import, not sending the result: " + errors);
+			return;
+		}
+
 		output.write(RestUtils.asJson(json).getBytes());
 		output.close();
 
 	}
 
-	private void keepAliveWithSpaces(OutputStream output, CountDownLatch latch) {
-		// keep sending 1k bytes every second to keep the connection open
-		// jersey will buffer for 8kB and the OpenShift router expects to get the first
-		// bytes in 30 seconds
-		this.executor.submit(() -> {
+	/**
+	 * Keep sending 1k bytes every second to keep the connection open
+	 *
+	 * Jersey will buffer for 8kB and the OpenShift router expects to get the first
+	 * bytes in 30 seconds.
+	 *
+	 * The writes fail when the client disconnects. This is the only way to notice
+	 * it, so cancel the waiter then, if there is one. Otherwise the import would
+	 * hold its slot and request thread for the whole wait timeout and then run for
+	 * nobody.
+	 *
+	 * @param waiter wait to cancel when the client disconnects, or null
+	 * @return the keep-alive task, for stopKeepAlive()
+	 */
+	private Future<?> keepAliveWithSpaces(OutputStream output, CountDownLatch latch,
+			ImportCapacity.Waiter waiter) {
+		return this.executor.submit(() -> {
 
 			try {
 				// respond with space characters that will be ignored in json deserialization
@@ -499,10 +541,72 @@ public class ZipSessionServlet extends HttpServlet {
 					output.write(spaces.getBytes());
 					output.flush();
 				}
-			} catch (InterruptedException | IOException e) {
+			} catch (IOException e) {
+				logger.warn("client disconnected, keep-alive failed: " + e.getMessage());
+				if (waiter != null) {
+					waiter.cancel();
+				}
+			} catch (Exception e) {
+				// nobody checks the Future of this task, so log everything here. Without the
+				// keep-alive the connection will be closed soon anyway, so cancel the wait.
 				logger.error("error in keep-alive thread", e);
+				if (waiter != null) {
+					waiter.cancel();
+				}
 			}
 		});
+	}
+
+	/**
+	 * Stop the keep-alive and wait until it has really stopped
+	 *
+	 * The ServletOutputStream isn't thread-safe. Writing the response while the
+	 * keep-alive is still writing its spaces could mix them up or fail, so wait for
+	 * the write in progress. It's a write of 1k bytes, so this is quick.
+	 *
+	 * @param keepAlive task from keepAliveWithSpaces(), or null if it wasn't
+	 *                  started
+	 */
+	private void stopKeepAlive(CountDownLatch latch, Future<?> keepAlive) {
+		latch.countDown();
+		if (keepAlive == null) {
+			return;
+		}
+		try {
+			keepAlive.get();
+		} catch (InterruptedException | ExecutionException e) {
+			// the task catches its own exceptions, so this is unexpected. Try to write the
+			// response anyway.
+			logger.warn("failed to wait for the keep-alive thread", e);
+		}
+	}
+
+	/**
+	 * Delete the datasets created by an import that didn't finish
+	 *
+	 * Stops at the first error, because the session-db is probably down then and
+	 * each further attempt would wait for its timeout while the import holds its
+	 * slot.
+	 *
+	 * @return the number of datasets that were not deleted
+	 */
+	private int deleteDatasets(SessionDbClient sessionDb, UUID sessionId, List<UUID> datasetIds) {
+		if (datasetIds.isEmpty()) {
+			return 0;
+		}
+		logger.warn("session import didn't finish, deleting " + datasetIds.size() + " datasets created so far");
+		int deleted = 0;
+		for (UUID datasetId : datasetIds) {
+			try {
+				sessionDb.deleteDataset(sessionId, datasetId);
+				deleted++;
+			} catch (Exception e) {
+				logger.error("failed to delete dataset " + datasetId + " of the unfinished session import, "
+						+ (datasetIds.size() - deleted) + " datasets are left in the session", e);
+				return datasetIds.size() - deleted;
+			}
+		}
+		return 0;
 	}
 
 	/**

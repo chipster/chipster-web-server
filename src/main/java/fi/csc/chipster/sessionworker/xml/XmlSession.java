@@ -59,9 +59,17 @@ public class XmlSession {
 
 	private static final Logger logger = LogManager.getLogger();
 
+	/**
+	 * Extract an XML session zip
+	 *
+	 * @param createdDatasetIds the IDs of the datasets created in the session-db
+	 *                          are added here, also when this fails, so that the
+	 *                          caller can delete them
+	 * @return null if the zip isn't an XML session
+	 */
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
 			UUID sessionId, UUID zipDatasetId, File tempDir, long zipSize, SessionLimits limits,
-			ImportCapacity importCapacity) {
+			ImportCapacity importCapacity, List<UUID> createdDatasetIds) {
 
 		try {
 			if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize, limits)) {
@@ -135,6 +143,7 @@ public class XmlSession {
 							dummyDataset.setDatasetIdPair(sessionId, datasetId);
 
 							sessionDb.createDataset(sessionId, dummyDataset);
+							createdDatasetIds.add(datasetId);
 
 							/*
 							 * Size should be available
@@ -168,7 +177,8 @@ public class XmlSession {
 
 			fixModificationParents(sessionType, session, datasetMap, jobMap);
 
-			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap, limits);
+			convertPhenodata(sessionType, session, sessionId, fileBroker, sessionDb, datasetMap, limits,
+					createdDatasetIds);
 
 			return new ExtractedSession(session, datasetMap, jobMap, new HashMap<>(), warnings, errors);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
@@ -255,7 +265,7 @@ public class XmlSession {
 
 	private static void convertPhenodata(SessionType sessionType, Session session, UUID sessionId,
 			RestFileBrokerClient fileBroker, SessionDbClient sessionDb, Map<UUID, Dataset> datasetMap,
-			SessionLimits limits) throws RestException, ZipException {
+			SessionLimits limits, List<UUID> createdDatasetIds) throws RestException, ZipException {
 
 		HashSet<UUID> convertedPhenodatas = new HashSet<>();
 
@@ -289,6 +299,8 @@ public class XmlSession {
 		UUID datasetId : convertedPhenodatas) {
 			sessionDb.deleteDataset(sessionId, datasetId);
 			datasetMap.remove(datasetId);
+			// nothing to clean up anymore, if the import fails later
+			createdDatasetIds.remove(datasetId);
 		}
 	}
 
