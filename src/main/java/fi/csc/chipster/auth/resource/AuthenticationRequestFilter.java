@@ -83,9 +83,6 @@ public class AuthenticationRequestFilter implements ContainerRequestFilter {
 		jaasPrefix = config.getString(Config.KEY_AUTH_JAAS_PREFIX);
 
 		String monitoringPassword = config.getString(Config.KEY_MONITORING_PASSWORD);
-		if (config.getDefault(Config.KEY_MONITORING_PASSWORD).equals(monitoringPassword)) {
-			logger.warn("default password for username " + Role.MONITORING);
-		}
 
 		monitoringAccounts = new HashMap<String, String>() {
 			{

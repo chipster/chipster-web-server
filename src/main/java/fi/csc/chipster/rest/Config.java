@@ -18,6 +18,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -332,18 +333,69 @@ public class Config {
 	 * to alter this list in configuration. Passwords have to be configurable
 	 * so those are of course collected from all normal configuration locations.
 	 * 
+	 * Default passwords are not logged here, because the only caller is auth, which
+	 * checks them with getDefaultPasswordKeys() before this.
+	 *
 	 * @return a map where keys are the service names and values are the service
 	 *         passwords
 	 */
 	public Map<String, String> getServicePasswords() {
 
-		List<String> services = readFile(DEFAULT_CONF_PATH).keySet().stream()
+		return getServiceNames().stream()
+				.collect(Collectors.toMap(service -> service, service -> getString(getPasswordConfigKey(service))));
+	}
+
+	/**
+	 * Collect the names of all services that have a service password entry
+	 *
+	 * @return service names
+	 */
+	public List<String> getServiceNames() {
+		return readFile(DEFAULT_CONF_PATH).keySet().stream()
 				.filter(confKey -> confKey.startsWith(SERVICE_PASSWORD_PREFIX))
 				.map(confKey -> confKey.replace(SERVICE_PASSWORD_PREFIX, ""))
 				.collect(Collectors.toList());
+	}
 
-		return services.stream()
-				.collect(Collectors.toMap(service -> service, service -> getPassword(service)));
+	/**
+	 * Configuration keys of the service account and monitoring passwords
+	 *
+	 * @return configuration keys
+	 */
+	private Stream<String> getPasswordKeys() {
+		return Stream.concat(
+				getServiceNames().stream().map(service -> getPasswordConfigKey(service)),
+				Stream.of(KEY_MONITORING_PASSWORD));
+	}
+
+	/**
+	 * Find service account and monitoring passwords that are still their default
+	 * values
+	 *
+	 * The default passwords are public, so they aren't safe in a deployment.
+	 *
+	 * @return the configuration keys of the default passwords, sorted
+	 */
+	public List<String> getDefaultPasswordKeys() {
+		return getPasswordKeys()
+				.filter(key -> isDefault(key))
+				.sorted()
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * Find service account and monitoring passwords that are blank
+	 *
+	 * A blank password would accept a blank Basic auth password, so it isn't safe
+	 * anywhere.
+	 *
+	 * @return the configuration keys of the blank passwords, sorted
+	 */
+	public List<String> getBlankPasswordKeys() {
+		return getPasswordKeys()
+				.filter(key -> getString(key).isBlank())
+				.sorted()
+				.collect(Collectors.toList());
 	}
 
 	public Set<String> getAdminAccounts() {
