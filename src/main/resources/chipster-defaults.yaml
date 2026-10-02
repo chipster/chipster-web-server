@@ -190,6 +190,13 @@ chipster-build-version: ""
 auth-monitoring-password: monitoring
 auth-jaas-prefix: jaas
 
+# auth refuses to start if any service-password-* or auth-monitoring-password still has its default value or is blank
+# every service account listed above needs a password, whether or not that service is deployed, because auth
+# accepts logins for all of them
+# set to true only in a development environment, never to silence the check for some of the keys in a deployment
+# blank passwords are refused regardless of this flag
+auth-allow-default-passwords: false
+
 db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
 

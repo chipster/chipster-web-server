@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,7 +65,7 @@ public class RuleTable {
 	public RuleTable(HibernateUtil hibernate) {
 		this.hibernate = hibernate;
 		this.config = new Config();
-		this.servicesAccounts = config.getServicePasswords().keySet();
+		this.servicesAccounts = new HashSet<>(config.getServiceNames());
 		this.restrictSharingToEveryone = config
 				.getConfigEntries(Config.KEY_SESSION_DB_RESTRICT_SHARING_TO_EVERYONE + "-");
 	}

@@ -46,6 +46,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 public class AuthenticationService implements ServerComponent {
 
 	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
+	private static final String KEY_ALLOW_DEFAULT_PASSWORDS = "auth-allow-default-passwords";
 	private static final String KEY_OIDC_SESSION_IN_DB = "auth-oidc-session-in-db";
 
 	private Logger logger = LogManager.getLogger();
@@ -83,6 +84,8 @@ public class AuthenticationService implements ServerComponent {
 	 * @throws SQLException
 	 */
 	public void startServer() throws IOException, InterruptedException, URISyntaxException {
+
+		checkDefaultPasswords();
 
 		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
@@ -168,8 +171,45 @@ public class AuthenticationService implements ServerComponent {
 	}
 
 	/**
+	 * Refuse to start if any service account or the monitoring account has a blank
+	 * password or still has its default password
+	 *
+	 * The default passwords are public, so a deployment must not use them. They
+	 * can be allowed in a development environment with a configuration flag, blank
+	 * passwords never.
+	 *
+	 * Call this before starting anything that creates threads, otherwise the
+	 * process doesn't exit after the exception.
+	 */
+	private void checkDefaultPasswords() {
+
+		List<String> blankKeys = config.getBlankPasswordKeys();
+
+		if (!blankKeys.isEmpty()) {
+			throw new IllegalStateException("blank passwords in configuration: " + String.join(", ", blankKeys)
+					+ ". Set new passwords for these keys");
+		}
+
+		List<String> defaultKeys = config.getDefaultPasswordKeys();
+
+		if (defaultKeys.isEmpty()) {
+			return;
+		}
+
+		if (config.getBoolean(KEY_ALLOW_DEFAULT_PASSWORDS)) {
+			logger.warn("default passwords allowed by " + KEY_ALLOW_DEFAULT_PASSWORDS + ": "
+					+ String.join(", ", defaultKeys));
+			return;
+		}
+
+		throw new IllegalStateException("default passwords in configuration: " + String.join(", ", defaultKeys)
+				+ ". Set new passwords for these keys, or set " + KEY_ALLOW_DEFAULT_PASSWORDS
+				+ ": true in a development environment");
+	}
+
+	/**
 	 * Main method.
-	 * 
+	 *
 	 * @param args
 	 * @throws IOException
 	 * @throws IllegalConfigurationException
