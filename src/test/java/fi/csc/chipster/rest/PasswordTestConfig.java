@@ -12,8 +12,8 @@ import java.util.Map;
  * checks
  * 
  * Config caches each file after the first read, so each yaml is written to a
- * new file in the test's temporary directory. The caller has to call
- * Config.resetTestConfFilePaths() after the test.
+ * new file in the test's temporary directory. The Configs ignore the
+ * environment variables, see Config(List, boolean).
  */
 public class PasswordTestConfig {
 
@@ -45,8 +45,7 @@ public class PasswordTestConfig {
 	 * Config that reads only the defaults
 	 */
 	public static Config defaultsOnly() {
-		Config.setTestConfFilePaths(List.of());
-		return new Config();
+		return new Config(List.of(), false);
 	}
 
 	/**
@@ -55,8 +54,7 @@ public class PasswordTestConfig {
 	public static Config fromYaml(Path tempDir, String yaml) throws IOException {
 		Path file = tempDir.resolve("chipster-" + (fileCounter++) + ".yaml");
 		Files.writeString(file, yaml);
-		Config.setTestConfFilePaths(List.of(file.toString()));
-		return new Config();
+		return new Config(List.of(file.toString()), false);
 	}
 
 	/**

@@ -2,6 +2,8 @@ package fi.csc.chipster.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -10,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,9 +26,14 @@ public class ConfigTest {
 	@TempDir
 	Path tempDir;
 
-	@AfterEach
-	public void resetTestConfFilePaths() {
-		Config.resetTestConfFilePaths();
+	@Test
+	public void testConfigIgnoresEnvironment() {
+		// PATH is set in every environment, but isn't a configuration key, so only
+		// the environment lookup can find it
+		assertNull(PasswordTestConfig.defaultsOnly().getString("PATH", true, false, false));
+
+		// a normal Config still reads the environment
+		assertNotNull(new Config().getString("PATH", true, false, false));
 	}
 
 	@Test
