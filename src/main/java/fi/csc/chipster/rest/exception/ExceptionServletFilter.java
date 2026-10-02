@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.ServiceUnavailableException;
 
 public class ExceptionServletFilter implements Filter {
 
@@ -65,6 +66,11 @@ public class ExceptionServletFilter implements Filter {
 		} catch (ConflictException e) {
 			logger.error("servlet error", e);
 			sendError(response, HttpServletResponse.SC_CONFLICT, e.getMessage());
+			return;
+		} catch (ServiceUnavailableException e) {
+			// the message tells the user to try again later
+			logger.warn("servlet error", e);
+			sendError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, e.getMessage());
 			return;
 		} catch (InsufficientStorageException e) {
 

@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,7 +33,9 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
+import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.filebroker.FileBrokerApi;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
@@ -103,9 +106,12 @@ public class ZipSessionServlet extends HttpServlet {
 
 	private ImportCapacity importCapacity;
 
-	public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config) {
+	private AuthenticationClient authService;
+
+	public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config, AuthenticationClient authService) {
 		this.serviceLocator = serviceLocator;
 		this.config = config;
+		this.authService = authService;
 
 		// all files in this directory will be deleted
 		tempDir = new File("tmp/session-worker");
@@ -392,6 +398,8 @@ public class ZipSessionServlet extends HttpServlet {
 			throw ServletUtils.extractRestException(e);
 		}
 
+		String username = getUsername(credentials.getPassword());
+
 		response.setStatus(HttpServletResponse.SC_OK);
 		response.setContentType(MediaType.APPLICATION_JSON);
 
@@ -409,7 +417,7 @@ public class ZipSessionServlet extends HttpServlet {
 			keepAliveWithSpaces(output, latch);
 
 			// the keep-alive keeps the connection open while waiting
-			importCapacity.acquire();
+			importCapacity.acquire(username);
 			slotAcquired = true;
 
 			long zipSize = zipDataset.getFile().getSize();
@@ -455,7 +463,7 @@ public class ZipSessionServlet extends HttpServlet {
 			}
 		} finally {
 			if (slotAcquired) {
-				importCapacity.release();
+				importCapacity.release(username);
 			}
 		}
 
@@ -495,6 +503,23 @@ public class ZipSessionServlet extends HttpServlet {
 				logger.error("error in keep-alive thread", e);
 			}
 		});
+	}
+
+	/**
+	 * Get the username of the token for the import limits of the user
+	 *
+	 * Session-db accepted the token already, so it's valid. The public key is
+	 * fetched from auth once and cached. Only that fetch can fail here.
+	 */
+	private String getUsername(String token) {
+		PublicKey publicKey;
+		try {
+			publicKey = authService.getJwtPublicKeyCached();
+		} catch (RuntimeException e) {
+			logger.error("failed to get the public key for the session import", e);
+			throw new ServiceUnavailableException("the authentication service is not available, please try again later");
+		}
+		return AuthTokens.validateSignature(token, publicKey).getPayload().getSubject();
 	}
 
 	private StaticCredentials getUserCredentials(HttpServletRequest request) {
