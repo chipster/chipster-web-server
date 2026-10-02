@@ -690,6 +690,17 @@ session-worker-max-xml-size: 32
 # total of all other metadata read to memory: JSON files and XML screen outputs, in MiB.
 # Takes about 2x its size in heap.
 session-worker-max-metadata-size: 64
+# number of entries in the zip file. Each data file creates a dataset.
+session-worker-max-entries: 10000
+# number of imports running at the same time. With the limits above, each import
+# can take about 300 MiB of heap. Others wait for their turn.
+session-worker-max-concurrent-imports: 4
+# how long an import can wait for its turn, in minutes. Each waiting import holds a
+# request thread (see server-threads-worker-max).
+session-worker-import-wait-timeout: 30
+# disk space to keep free in session-worker, in MiB. The old XML sessions are
+# downloaded to the local disk before the extraction.
+session-worker-min-free-disk-space: 1024
 
 # shared
 
