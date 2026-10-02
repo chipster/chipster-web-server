@@ -109,6 +109,10 @@ public class JsonSession {
 					// parse datasets right away to get the file sizes
 					// there has been no need for the migrations here so far
 					datasetMap = parseDatasets(jsonDatasets);
+					// Chipster writes the metadata before the data files, so this fails before
+					// any dataset is created. countEntry() below catches the zips made by other
+					// tools.
+					limits.checkEntryCount(datasetMap.size());
 					zipInputStream.closeEntry();
 
 				} else if (entryName.equals(JOBS_JSON)) {
@@ -120,6 +124,9 @@ public class JsonSession {
 					zipInputStream.closeEntry();
 
 				} else {
+					// count only the data files, like checkEntryCount() above
+					limits.countEntry();
+
 					// Create only dummy datasets now and update them with real dataset data later.
 					// This way we don't make assumptions about the entry order.
 					UUID datasetId = UUID.fromString(entryName);

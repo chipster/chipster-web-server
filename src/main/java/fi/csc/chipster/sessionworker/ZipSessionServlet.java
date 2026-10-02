@@ -56,6 +56,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.ServiceUnavailableException;
 import jakarta.ws.rs.core.MediaType;
 
 /**
@@ -100,6 +101,8 @@ public class ZipSessionServlet extends HttpServlet {
 
 	private Config config;
 
+	private ImportCapacity importCapacity;
+
 	public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config) {
 		this.serviceLocator = serviceLocator;
 		this.config = config;
@@ -115,6 +118,8 @@ public class ZipSessionServlet extends HttpServlet {
 		}
 
 		this.executor = Executors.newCachedThreadPool();
+
+		this.importCapacity = new ImportCapacity(config, tempDir);
 	}
 
 	@Override
@@ -397,18 +402,25 @@ public class ZipSessionServlet extends HttpServlet {
 
 		CountDownLatch latch = new CountDownLatch(1);
 
+		boolean slotAcquired = false;
+
 		try {
 
 			keepAliveWithSpaces(output, latch);
 
-			SessionLimits limits = new SessionLimits(config);
+			// the keep-alive keeps the connection open while waiting
+			importCapacity.acquire();
+			slotAcquired = true;
 
+			long zipSize = zipDataset.getFile().getSize();
+
+			// the limits are counted per extraction, so each attempt gets its own instance
 			ExtractedSession sessionData = JsonSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId,
-					zipDataset.getFile().getSize(), limits);
+					zipSize, new SessionLimits(config));
 
 			if (sessionData == null) {
 				sessionData = XmlSession.extractSession(fileBroker, sessionDb, sessionId, zipDatasetId, tempDir,
-						zipDataset.getFile().getSize(), limits);
+						zipSize, new SessionLimits(config), importCapacity);
 			}
 
 			if (sessionData == null) {
@@ -425,19 +437,25 @@ public class ZipSessionServlet extends HttpServlet {
 			errors.add("session extraction failed: " + e.getMessage());
 			logger.warn("session extraction failed", e);
 
-		} catch (BadRequestException e) {
+		} catch (BadRequestException | ServiceUnavailableException e) {
 			// the message explains what was wrong with the request, e.g. unrecognized
-			// file format or too many labels
+			// file format or too many labels, or why it can't be handled now
 			errors.add("session extraction failed: " + e.getMessage());
 			logger.warn("session extraction failed", e);
 
 		} catch (Exception e) {
-			if (ExceptionUtils.getRootCause(e) instanceof ZipException) {
-				errors.add("session extraction failed: " + e.getMessage());
+			Throwable rootCause = ExceptionUtils.getRootCause(e);
+			if (rootCause instanceof ZipException) {
+				// XmlSession wraps the exceptions, show the message of the size limit
+				errors.add("session extraction failed: " + rootCause.getMessage());
 				logger.warn("session extraction failed", e);
 			} else {
 				errors.add("internal server error");
 				logger.error("session extraction failed", e);
+			}
+		} finally {
+			if (slotAcquired) {
+				importCapacity.release();
 			}
 		}
 

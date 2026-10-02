@@ -41,6 +41,7 @@ import fi.csc.chipster.sessiondb.model.MetadataFile;
 import fi.csc.chipster.sessiondb.model.Parameter;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessionworker.ExtractedSession;
+import fi.csc.chipster.sessionworker.ImportCapacity;
 import fi.csc.chipster.sessionworker.SessionLimits;
 import fi.csc.chipster.sessionworker.xml.DataBean.Link;
 import fi.csc.chipster.sessionworker.xml.DataManager.StorageMethod;
@@ -59,7 +60,8 @@ public class XmlSession {
 	private static final Logger logger = LogManager.getLogger();
 
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId, File tempDir, long zipSize, SessionLimits limits) {
+			UUID sessionId, UUID zipDatasetId, File tempDir, long zipSize, SessionLimits limits,
+			ImportCapacity importCapacity) {
 
 		try {
 			if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize, limits)) {
@@ -84,12 +86,16 @@ public class XmlSession {
 			 * Seems to work fine if we first download the file, but requires potentially
 			 * hundreds of gigabytes of disk space on the session-worker.
 			 */
-			File localTempZip = new File(tempDir, sessionId + ".zip");
-			logger.info("donwload session to " + localTempZip.toString());
-			fileBroker.download(sessionId, zipDatasetId, localTempZip);
+			// the same zip can be imported more than once at the same time, e.g. when the
+			// client retries. Files.copy() in the download refuses to overwrite.
+			File localTempZip = new File(tempDir, zipDatasetId + "-" + UUID.randomUUID() + ".zip");
+			downloadToTempFile(fileBroker, sessionId, zipDatasetId, zipSize, localTempZip, importCapacity);
 
 			logger.info("extract session " + localTempZip.toString());
 			try (ZipFile zipFile = new ZipFile(localTempZip)) {
+
+				// fail before creating any datasets
+				limits.checkEntryCount(zipFile.size());
 
 				Enumeration<? extends ZipEntry> entries = zipFile.entries();
 
@@ -167,6 +173,32 @@ public class XmlSession {
 			return new ExtractedSession(session, datasetMap, jobMap, new HashMap<>(), warnings, errors);
 		} catch (IOException | RestException | SAXException | ParserConfigurationException | JAXBException e) {
 			throw new InternalServerErrorException("failed to extract the session", e);
+		}
+	}
+
+	/**
+	 * Download the zip to the local disk
+	 *
+	 * Reserve the disk space only for the download. After that the file is on the
+	 * disk and the usable space has decreased accordingly. Delete the partial file
+	 * if the download fails, so that it doesn't eat the disk space of the later
+	 * imports.
+	 */
+	private static void downloadToTempFile(RestFileBrokerClient fileBroker, UUID sessionId, UUID zipDatasetId,
+			long zipSize, File localTempZip, ImportCapacity importCapacity) throws RestException, IOException {
+
+		importCapacity.reserveDiskSpace(zipSize);
+		boolean downloaded = false;
+		try {
+			logger.info("donwload session to " + localTempZip.toString());
+			fileBroker.download(sessionId, zipDatasetId, localTempZip);
+			downloaded = true;
+		} finally {
+			importCapacity.releaseDiskSpace(zipSize);
+			if (!downloaded) {
+				// also when an Error is thrown
+				localTempZip.delete();
+			}
 		}
 	}
 
