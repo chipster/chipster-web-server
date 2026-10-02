@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -24,11 +23,6 @@ public class DefaultPasswordCheckTest {
 
 	@TempDir
 	Path tempDir;
-
-	@AfterEach
-	public void resetTestConfFilePaths() {
-		Config.resetTestConfFilePaths();
-	}
 
 	private void check(Config config) {
 		new AuthenticationService(config).checkDefaultPasswords();

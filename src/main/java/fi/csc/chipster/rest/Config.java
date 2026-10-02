@@ -78,10 +78,10 @@ public class Config {
 
 	private static HashMap<String, HashMap<String, String>> confFileCache = new HashMap<>();
 
-	private static List<String> confFilePaths = getConfFilePaths();
+	private final List<String> confFilePaths;
 
-	// tests disable the environment variables, see setTestConfFilePaths()
-	private static boolean readEnvironment = true;
+	// tests disable the environment variables, see Config(List, boolean)
+	private final boolean readEnvironment;
 
 	/**
 	 * Get the paths of the configuration files
@@ -125,43 +125,32 @@ public class Config {
 				.collect(Collectors.toList());
 	}
 
-	/**
-	 * Read only the given configuration files, for tests
-	 * 
-	 * The paths are normally read once per JVM from the conf_path environment
-	 * variable, which a test can't set. Environment variables are ignored too,
-	 * because the ci-test image sets auth_allow_default_passwords for the whole
-	 * container, and a test must get the same result there. Each file is cached
-	 * after the first read, so a test has to write a new file instead of changing
-	 * an existing one.
-	 * 
-	 * This changes static state shared by all Config instances in the JVM, so call
-	 * resetTestConfFilePaths() after the test and don't run tests that use this in
-	 * parallel with other tests.
-	 * 
-	 * @param paths paths of the configuration files, an empty list to use only
-	 *              the defaults
-	 */
-	public static void setTestConfFilePaths(List<String> paths) {
-		confFilePaths = List.copyOf(paths);
-		readEnvironment = false;
-	}
-
-	/**
-	 * Read the configuration file paths and environment variables again, after
-	 * setTestConfFilePaths()
-	 */
-	public static void resetTestConfFilePaths() {
-		confFilePaths = getConfFilePaths();
-		readEnvironment = true;
-	}
-
 	private static Logger logger;
 
 	@SuppressWarnings("unused")
 	private LoggerContext log4jContext;
 
 	public Config() {
+		this(getConfFilePaths(), true);
+	}
+
+	/**
+	 * Read only the given configuration files, for tests
+	 * 
+	 * The paths are normally read from the conf_path environment variable, which
+	 * a test can't set. Tests ignore the environment variables too, because the
+	 * ci-test image sets auth_allow_default_passwords for the whole container,
+	 * and a test must get the same result there. Each file is cached after the
+	 * first read, so a test has to write a new file instead of changing an
+	 * existing one.
+	 * 
+	 * @param confFilePaths   paths of the configuration files, an empty list to
+	 *                        use only the defaults
+	 * @param readEnvironment false to ignore the environment variables
+	 */
+	Config(List<String> confFilePaths, boolean readEnvironment) {
+		this.confFilePaths = List.copyOf(confFilePaths);
+		this.readEnvironment = readEnvironment;
 		configureLog4j();
 	}
 

@@ -324,6 +324,10 @@ whatever is already there (and `stop()` does nothing). Without a running
 backend, every test fails in `@BeforeAll` with a `ConnectException`, which
 looks like a broken test rather than a missing prerequisite.
 
+The exceptions are `ConfigTest` and `DefaultPasswordCheckTest`, which test the
+service password checks against a temporary configuration file and run
+without a backend.
+
 So this needs two terminals: start PostgreSQL and `./gradlew run --no-daemon`
 as described above, wait for `"up and running"`, then in a second terminal:
 
