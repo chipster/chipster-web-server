@@ -50,156 +50,156 @@ import fi.csc.chipster.sessiondb.resource.UserResource;
 @SuppressWarnings("unused")
 public class SessionDb implements ServerComponent {
 
-	private Logger logger = LogManager.getLogger();
+    private Logger logger = LogManager.getLogger();
 
-	private static HibernateUtil hibernate;
+    private static HibernateUtil hibernate;
 
-	private String serviceId;
+    private String serviceId;
 
-	private ServiceLocatorClient serviceLocator;
-	private AuthenticationClient authService;
+    private ServiceLocatorClient serviceLocator;
+    private AuthenticationClient authService;
 
-	private Config config;
+    private Config config;
 
-	private HttpServer httpServer;
-	private PubSubServer pubSubServer;
+    private HttpServer httpServer;
+    private PubSubServer pubSubServer;
 
-	private SessionResource sessionResource;
+    private SessionResource sessionResource;
 
-	private RuleTable ruleTable;
-	private SessionDbApi sessionDbApi;
+    private RuleTable ruleTable;
+    private SessionDbApi sessionDbApi;
 
-	private SessionDbAdminResource adminResource;
+    private SessionDbAdminResource adminResource;
 
-	private GlobalJobResource globalJobResource;
+    private GlobalJobResource globalJobResource;
 
-	private SessionDbTokenResource datasetTokenResource;
+    private SessionDbTokenResource datasetTokenResource;
 
-	private TokenRequestFilter tokenRequestFilter;
+    private TokenRequestFilter tokenRequestFilter;
 
-	private HttpServer adminServer;
+    private HttpServer adminServer;
 
-	private UserResource userResource;
+    private UserResource userResource;
 
-	private NewsResource newsResource;
+    private NewsResource newsResource;
 
-	private NewsApi newsApi;
+    private NewsApi newsApi;
 
-	public SessionDb(Config config) {
-		this.config = config;
-	}
+    public SessionDb(Config config) {
+        this.config = config;
+    }
 
-	/**
-	 * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
-	 * application.
-	 * 
-	 * @return Grizzly HTTP server.
-	 * @throws Exception
-	 */
-	public void startServer() throws Exception {
+    /**
+     * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
+     * application.
+     * 
+     * @return Grizzly HTTP server.
+     * @throws Exception
+     */
+    public void startServer() throws Exception {
 
-		String username = Role.SESSION_DB;
-		String password = config.getPassword(username);
+        String username = Role.SESSION_DB;
+        String password = config.getPassword(username);
 
-		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-		this.serviceLocator.setCredentials(authService.getCredentials());
+        this.serviceLocator = new ServiceLocatorClient(config);
+        this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+        this.serviceLocator.setCredentials(authService.getCredentials());
 
-		List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
-				Job.class, File.class, News.class, Label.class);
+        List<Class<?>> hibernateClasses = Arrays.asList(Rule.class, Session.class, Dataset.class,
+                Job.class, File.class, News.class, Label.class);
 
-		// init Hibernate
-		hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
+        // init Hibernate
+        hibernate = new HibernateUtil(config, Role.SESSION_DB, hibernateClasses);
 
-		this.tokenRequestFilter = new TokenRequestFilter(authService);
+        this.tokenRequestFilter = new TokenRequestFilter(authService);
 
-		this.ruleTable = new RuleTable(hibernate);
-		this.sessionDbApi = new SessionDbApi(hibernate, ruleTable);
-		this.datasetTokenResource = new SessionDbTokenResource(ruleTable, authService);
-		this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
-		this.globalJobResource = new GlobalJobResource(hibernate);
-		this.userResource = new UserResource(ruleTable);
-		this.newsApi = new NewsApi(hibernate, sessionDbApi);
-		this.newsResource = new NewsResource(newsApi);
+        this.ruleTable = new RuleTable(hibernate);
+        this.sessionDbApi = new SessionDbApi(hibernate, ruleTable);
+        this.datasetTokenResource = new SessionDbTokenResource(ruleTable, authService);
+        this.sessionResource = new SessionResource(hibernate, sessionDbApi, ruleTable, config);
+        this.globalJobResource = new GlobalJobResource(hibernate);
+        this.userResource = new UserResource(ruleTable);
+        this.newsApi = new NewsApi(hibernate, sessionDbApi);
+        this.newsResource = new NewsResource(newsApi);
 
-		String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
+        String pubSubUri = config.getBindUrl(Role.SESSION_DB_EVENTS);
 
-		SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(authService, hibernate, sessionResource);
-		this.pubSubServer = new PubSubServer(pubSubUri, null, topicConfig, "session-db-events");
-		this.pubSubServer.setIdleTimeout(config.getLong(PubSubServer.KEY_WEBSOCKET_IDLE_TIMEOUT));
-		this.pubSubServer.setPingInterval(config.getLong(PubSubServer.KEY_WEBSOCKET_PING_INTERVAL));
-		this.pubSubServer.setMaxQueueSize(config.getInt(PubSubServer.KEY_WEBSOCKET_SUBSCRIBER_QUEUE_SIZE));
-		this.pubSubServer.start();
+        SessionDbTopicConfig topicConfig = new SessionDbTopicConfig(authService, hibernate, sessionResource);
+        this.pubSubServer = new PubSubServer(pubSubUri, null, topicConfig, "session-db-events");
+        this.pubSubServer.setIdleTimeout(config.getLong(PubSubServer.KEY_WEBSOCKET_IDLE_TIMEOUT));
+        this.pubSubServer.setPingInterval(config.getLong(PubSubServer.KEY_WEBSOCKET_PING_INTERVAL));
+        this.pubSubServer.setMaxQueueSize(config.getInt(PubSubServer.KEY_WEBSOCKET_SUBSCRIBER_QUEUE_SIZE));
+        this.pubSubServer.start();
 
-		sessionDbApi.setPubSubServer(pubSubServer);
+        sessionDbApi.setPubSubServer(pubSubServer);
 
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
-				.register(datasetTokenResource)
-				.register(ruleTable)
-				.register(sessionResource)
-				.register(globalJobResource)
-				.register(userResource)
-				.register(newsResource)
-				.register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
-				// .register(RestUtils.getLoggingFeature("session-db"))
-				.register(tokenRequestFilter);
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig(this.serviceLocator)
+                .register(datasetTokenResource)
+                .register(ruleTable)
+                .register(sessionResource)
+                .register(globalJobResource)
+                .register(userResource)
+                .register(newsResource)
+                .register(new HibernateRequestFilter(hibernate)).register(new HibernateResponseFilter(hibernate))
+                // .register(RestUtils.getLoggingFeature("session-db"))
+                .register(tokenRequestFilter);
 
-		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
-		this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
-				hibernateClasses.toArray(new Class[0]), newsApi, sessionDbApi, ruleTable, this.config);
+        JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+        this.adminResource = new SessionDbAdminResource(hibernate, jerseyStatisticsSource, pubSubServer,
+                hibernateClasses.toArray(new Class[0]), newsApi, sessionDbApi, ruleTable, this.config);
 
-		// create and start a new instance of grizzly http server
-		// exposing the Jersey application at BASE_URI
-		URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
+        // create and start a new instance of grizzly http server
+        // exposing the Jersey application at BASE_URI
+        URI baseUri = URI.create(this.config.getBindUrl(Role.SESSION_DB));
 
-		httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
-		RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false, config);
-		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SESSION_DB, LogType.API);
+        httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+        RestUtils.configureGrizzlyThreads(this.httpServer, Role.SESSION_DB, false, config);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.SESSION_DB, LogType.API);
 
-		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+        jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 
-		httpServer.start();
+        httpServer.start();
 
-		adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService,
-				this.serviceLocator);
-	}
+        adminServer = RestUtils.startAdminServer(adminResource, hibernate, Role.SESSION_DB, config, authService,
+                this.serviceLocator);
+    }
 
-	public PubSubServer getPubSubServer() {
-		return pubSubServer;
-	}
+    public PubSubServer getPubSubServer() {
+        return pubSubServer;
+    }
 
-	/**
-	 * Main method.
-	 * 
-	 * @param args
-	 * @throws Exception
-	 */
-	public static void main(String[] args) throws Exception {
+    /**
+     * Main method.
+     * 
+     * @param args
+     * @throws Exception
+     */
+    public static void main(String[] args) throws Exception {
 
-		final SessionDb service = new SessionDb(new Config());
-		service.startServer();
+        final SessionDb service = new SessionDb(new Config());
+        service.startServer();
 
-		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.SESSION_DB);
+        RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.SESSION_DB);
 
-		RestUtils.waitForShutdown("session-db", service.getHttpServer());
+        RestUtils.waitForShutdown("session-db", service.getHttpServer());
 
-		hibernate.getSessionFactory().close();
-	}
+        hibernate.getSessionFactory().close();
+    }
 
-	public static HibernateUtil getHibernate() {
-		return hibernate;
-	}
+    public static HibernateUtil getHibernate() {
+        return hibernate;
+    }
 
-	public void close() {
-		RestUtils.shutdown("session-db-admin", adminServer);
-		getPubSubServer().stop();
-		hibernate.getSessionFactory().close();
-		RestUtils.shutdown("session-db", httpServer);
+    public void close() {
+        RestUtils.shutdown("session-db-admin", adminServer);
+        getPubSubServer().stop();
+        hibernate.getSessionFactory().close();
+        RestUtils.shutdown("session-db", httpServer);
 
-		authService.close();
-	}
+        authService.close();
+    }
 
-	public HttpServer getHttpServer() {
-		return httpServer;
-	}
+    public HttpServer getHttpServer() {
+        return httpServer;
+    }
 }

@@ -25,32 +25,32 @@ import fi.csc.chipster.toolbox.runtime.Runtime;
  */
 public class PythonJobFactory extends InterpreterJobFactory {
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	public PythonJobFactory(HashMap<String, String> parameters, Config config)
-			throws IOException {
-		super(parameters, config);
-	}
+    public PythonJobFactory(HashMap<String, String> parameters, Config config)
+            throws IOException {
+        super(parameters, config);
+    }
 
-	@Override
-	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout, Job dbJob, Runtime runtime, Config config) throws CompException {
-		ToolDescription description = createToolDescription(tool, dbJob, runtime);
+    @Override
+    public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
+            int jobTimeout, Job dbJob, Runtime runtime, Config config) throws CompException {
+        ToolDescription description = createToolDescription(tool, dbJob, runtime);
 
-		PythonCompJob analysisJob = new PythonCompJob();
-		analysisJob.construct(message, description, resultHandler, jobTimeout, config);
-		analysisJob.setProcessPool(this.processPool);
-		return analysisJob;
-	}
+        PythonCompJob analysisJob = new PythonCompJob();
+        analysisJob.construct(message, description, resultHandler, jobTimeout, config);
+        analysisJob.setProcessPool(this.processPool);
+        return analysisJob;
+    }
 
-	@Override
-	protected String getStringDelimeter() {
-		return PythonCompJob.STRING_DELIMETER;
-	}
+    @Override
+    protected String getStringDelimeter() {
+        return PythonCompJob.STRING_DELIMETER;
+    }
 
-	@Override
-	protected String getVariableNameSeparator() {
-		return "_";
-	}
+    @Override
+    protected String getVariableNameSeparator() {
+        return "_";
+    }
 }

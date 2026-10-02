@@ -18,56 +18,56 @@ import jakarta.websocket.Session;
  */
 public class WebSocketClientEndpoint extends Endpoint {
 
-	public static interface EndpointListener {
-		public void onClose(CloseReason reason);
+    public static interface EndpointListener {
+        public void onClose(CloseReason reason);
 
-		public void onError(Throwable thr);
-	}
+        public void onError(Throwable thr);
+    }
 
-	private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-	private final MessageHandler.Whole<String> messageHandler;
-	private final EndpointListener endpointListener;
+    private final MessageHandler.Whole<String> messageHandler;
+    private final EndpointListener endpointListener;
 
-	// written on a container thread, read by the reconnect thread
-	private volatile CloseReason closeReason;
+    // written on a container thread, read by the reconnect thread
+    private volatile CloseReason closeReason;
 
-	public WebSocketClientEndpoint(MessageHandler.Whole<String> messageHandler, EndpointListener endpointListener) {
-		this.messageHandler = messageHandler;
-		this.endpointListener = endpointListener;
-	}
+    public WebSocketClientEndpoint(MessageHandler.Whole<String> messageHandler, EndpointListener endpointListener) {
+        this.messageHandler = messageHandler;
+        this.endpointListener = endpointListener;
+    }
 
-	@Override
-	public void onOpen(Session session, EndpointConfig config) {
-		logger.debug("WebSocket client onOpen");
+    @Override
+    public void onOpen(Session session, EndpointConfig config) {
+        logger.debug("WebSocket client onOpen");
 
-		if (messageHandler != null) {
-			session.addMessageHandler(String.class, messageHandler);
-		}
-	}
+        if (messageHandler != null) {
+            session.addMessageHandler(String.class, messageHandler);
+        }
+    }
 
-	@Override
-	public void onClose(Session session, CloseReason reason) {
-		logger.debug("WebSocket client onClose: " + reason);
+    @Override
+    public void onClose(Session session, CloseReason reason) {
+        logger.debug("WebSocket client onClose: " + reason);
 
-		closeReason = reason;
-		endpointListener.onClose(reason);
-	}
+        closeReason = reason;
+        endpointListener.onClose(reason);
+    }
 
-	@Override
-	public void onError(Session session, Throwable thr) {
-		logger.debug("WebSocket client onError: " + thr.getMessage());
+    @Override
+    public void onError(Session session, Throwable thr) {
+        logger.debug("WebSocket client onError: " + thr.getMessage());
 
-		endpointListener.onError(thr);
-	}
+        endpointListener.onError(thr);
+    }
 
-	/**
-	 * Why the server closed this connection, or null if it hasn't closed it (or
-	 * closed it without saying why). The client uses it to fail an attempt as
-	 * soon as the server refuses it, and to say why in the exception. Every
-	 * close code is retried - see RetryHandler.
-	 */
-	public CloseReason getCloseReason() {
-		return closeReason;
-	}
+    /**
+     * Why the server closed this connection, or null if it hasn't closed it (or
+     * closed it without saying why). The client uses it to fail an attempt as
+     * soon as the server refuses it, and to say why in the exception. Every
+     * close code is retried - see RetryHandler.
+     */
+    public CloseReason getCloseReason() {
+        return closeReason;
+    }
 }

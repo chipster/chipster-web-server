@@ -31,30 +31,30 @@ import jakarta.ws.rs.ext.Provider;
 @Transaction
 public class HibernateResponseFilter implements ContainerResponseFilter {
 
-	private HibernateUtil hibernate;
+    private HibernateUtil hibernate;
 
-	public HibernateResponseFilter(HibernateUtil hibernate) {
-		this.hibernate = hibernate;
-	}
+    public HibernateResponseFilter(HibernateUtil hibernate) {
+        this.hibernate = hibernate;
+    }
 
-	@Override
-	public void filter(ContainerRequestContext requestContext,
-			ContainerResponseContext responseContext) {
+    @Override
+    public void filter(ContainerRequestContext requestContext,
+            ContainerResponseContext responseContext) {
 
-		if (requestContext.getProperty(HibernateRequestFilter.PROP_HIBERNATE_SESSION) == null) {
-			// nothing to do if HibernateRequestFilter didn't run, e.g. on
-			// AuthenticationRequestFilter errors
-			return;
-		}
+        if (requestContext.getProperty(HibernateRequestFilter.PROP_HIBERNATE_SESSION) == null) {
+            // nothing to do if HibernateRequestFilter didn't run, e.g. on
+            // AuthenticationRequestFilter errors
+            return;
+        }
 
-		if (responseContext instanceof ContainerResponse) {
-			ContainerResponse response = (ContainerResponse) responseContext;
+        if (responseContext instanceof ContainerResponse) {
+            ContainerResponse response = (ContainerResponse) responseContext;
 
-			if (response.isMappedFromException()) {
-				hibernate.rollbackAndUnbind();
-				return;
-			}
-		}
-		hibernate.commitAndUnbind();
-	}
+            if (response.isMappedFromException()) {
+                hibernate.rollbackAndUnbind();
+                return;
+            }
+        }
+        hibernate.commitAndUnbind();
+    }
 }

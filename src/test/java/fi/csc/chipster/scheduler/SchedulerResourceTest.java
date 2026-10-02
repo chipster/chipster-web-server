@@ -15,24 +15,24 @@ import fi.csc.chipster.scheduler.resource.SchedulerResource;
 
 public class SchedulerResourceTest {
 
-	private static TestServerLauncher launcher;
+    private static TestServerLauncher launcher;
 
-	@BeforeAll
-	public static void setUp() throws Exception {
-		Config config = new Config();
-		launcher = new TestServerLauncher(config);
-	}
+    @BeforeAll
+    public static void setUp() throws Exception {
+        Config config = new Config();
+        launcher = new TestServerLauncher(config);
+    }
 
-	@AfterAll
-	public static void tearDown() throws Exception {
-		launcher.stop();
-	}
+    @AfterAll
+    public static void tearDown() throws Exception {
+        launcher.stop();
+    }
 
-	@Test
-	public void getQuotas() throws IOException {
+    @Test
+    public void getQuotas() throws IOException {
 
-		SchedulerClient client = new SchedulerClient(launcher.getTargetUri(Role.SCHEDULER));
+        SchedulerClient client = new SchedulerClient(launcher.getTargetUri(Role.SCHEDULER));
 
-		assertEquals(200, client.getJobQuota().get(SchedulerResource.KEY_DEFAULT_STORAGE));
-	}
+        assertEquals(200, client.getJobQuota().get(SchedulerResource.KEY_DEFAULT_STORAGE));
+    }
 }

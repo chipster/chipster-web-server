@@ -35,92 +35,92 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
  */
 public class Backup implements ServerComponent {
 
-	private Logger logger = LogManager.getLogger();
+    private Logger logger = LogManager.getLogger();
 
-	private List<DbBackup> dbBackups;
-	private HttpServer adminServer;
+    private List<DbBackup> dbBackups;
+    private HttpServer adminServer;
 
-	private ServiceLocatorClient serviceLocator;
+    private ServiceLocatorClient serviceLocator;
 
-	private AuthenticationClient authService;
+    private AuthenticationClient authService;
 
-	private Config config;
+    private Config config;
 
-	@SuppressWarnings("unused")
-	private Timer backupTimer;
+    @SuppressWarnings("unused")
+    private Timer backupTimer;
 
-	public Backup(Config config) throws IOException {
+    public Backup(Config config) throws IOException {
 
-		this.config = config;
+        this.config = config;
 
-		String username = Role.BACKUP;
-		String password = config.getPassword(username);
+        String username = Role.BACKUP;
+        String password = config.getPassword(username);
 
-		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-		this.serviceLocator.setCredentials(authService.getCredentials());
+        this.serviceLocator = new ServiceLocatorClient(config);
+        this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+        this.serviceLocator.setCredentials(authService.getCredentials());
 
-		Path backupRoot = Paths.get(DbBackup.DB_BACKUPS);
+        Path backupRoot = Paths.get(DbBackup.DB_BACKUPS);
 
-		Set<String> roles = config.getDbBackupRoles();
+        Set<String> roles = config.getDbBackupRoles();
 
-		dbBackups = roles.stream().map(role -> {
+        dbBackups = roles.stream().map(role -> {
 
-			String url = config.getString(HibernateUtil.CONF_DB_URL, role);
-			String user = config.getString(HibernateUtil.CONF_DB_USER, role);
-			String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);
+            String url = config.getString(HibernateUtil.CONF_DB_URL, role);
+            String user = config.getString(HibernateUtil.CONF_DB_USER, role);
+            String dbPassword = config.getString(HibernateUtil.CONF_DB_PASS, role);
 
-			logger.info("backup " + role + " db in " + url);
-			try {
-				return new DbBackup(config, role, url, user, dbPassword, backupRoot);
-			} catch (IOException | InterruptedException e) {
-				logger.error("backup error", e);
-				return null;
-			}
+            logger.info("backup " + role + " db in " + url);
+            try {
+                return new DbBackup(config, role, url, user, dbPassword, backupRoot);
+            } catch (IOException | InterruptedException e) {
+                logger.error("backup error", e);
+                return null;
+            }
 
-		}).collect(Collectors.toList());
+        }).collect(Collectors.toList());
 
-		logger.info("starting the admin rest server");
-		BackupAdminResource adminResource = new BackupAdminResource(dbBackups, config);
-		adminResource.addFileSystem("db-backup", backupRoot.toFile());
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.BACKUP, config, authService,
-				serviceLocator);
-	}
+        logger.info("starting the admin rest server");
+        BackupAdminResource adminResource = new BackupAdminResource(dbBackups, config);
+        adminResource.addFileSystem("db-backup", backupRoot.toFile());
+        this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.BACKUP, config, authService,
+                serviceLocator);
+    }
 
-	public void start() {
+    public void start() {
 
-		this.backupTimer = GpgBackupUtils.startBackupTimer(new TimerTask() {
-			@Override
-			public void run() {
-				try {
+        this.backupTimer = GpgBackupUtils.startBackupTimer(new TimerTask() {
+            @Override
+            public void run() {
+                try {
 
-					dbBackups.stream().forEach(b -> {
-						b.cleanUpAndBackup();
-					});
+                    dbBackups.stream().forEach(b -> {
+                        b.cleanUpAndBackup();
+                    });
 
-				} catch (Exception e) {
-					logger.error("backup error", e);
-				}
-			}
-		}, config);
+                } catch (Exception e) {
+                    logger.error("backup error", e);
+                }
+            }
+        }, config);
 
-		dbBackups.stream().forEach(b -> {
-			logger.info(
-					"save " + b.getRole() + " backups to bucket:  "
-							+ GpgBackupUtils.getBackupBucket(config, b.getRole()));
-		});
-	}
+        dbBackups.stream().forEach(b -> {
+            logger.info(
+                    "save " + b.getRole() + " backups to bucket:  "
+                            + GpgBackupUtils.getBackupBucket(config, b.getRole()));
+        });
+    }
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		final Backup service = new Backup(new Config());
-		service.start();
+        final Backup service = new Backup(new Config());
+        service.start();
 
-		RestUtils.waitForShutdown("backup service", (HttpServer) null);
-	}
+        RestUtils.waitForShutdown("backup service", (HttpServer) null);
+    }
 
-	public void close() {
-		RestUtils.shutdown("backup-admin", adminServer);
-		authService.close();
-	}
+    public void close() {
+        RestUtils.shutdown("backup-admin", adminServer);
+        authService.close();
+    }
 }

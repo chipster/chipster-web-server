@@ -42,153 +42,153 @@ import jakarta.ws.rs.core.SecurityContext;
 @Path("tokens")
 public class SessionDbTokenResource {
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	/*
-	 * The longest validity that clients can ask for and the default when the
-	 * client doesn't ask for anything
-	 *
-	 * These tokens can't be revoked, so they must not be valid for long. The
-	 * defaults are enough for the web app, which doesn't set the validity at all.
-	 * The defaults are set here and not left for auth, so that the max holds even
-	 * if the defaults of auth change. Scheduler creates longer session tokens for
-	 * jobs.
-	 */
-	static final Duration SESSION_TOKEN_MAX_VALID = Duration.ofHours(24);
-	static final Duration DATASET_TOKEN_MAX_VALID = Duration.ofMinutes(10);
-	static final Duration SESSION_TOKEN_DEFAULT_VALID = Duration.ofHours(24);
-	static final Duration DATASET_TOKEN_DEFAULT_VALID = Duration.ofSeconds(60);
+    /*
+     * The longest validity that clients can ask for and the default when the
+     * client doesn't ask for anything
+     *
+     * These tokens can't be revoked, so they must not be valid for long. The
+     * defaults are enough for the web app, which doesn't set the validity at all.
+     * The defaults are set here and not left for auth, so that the max holds even
+     * if the defaults of auth change. Scheduler creates longer session tokens for
+     * jobs.
+     */
+    static final Duration SESSION_TOKEN_MAX_VALID = Duration.ofHours(24);
+    static final Duration DATASET_TOKEN_MAX_VALID = Duration.ofMinutes(10);
+    static final Duration SESSION_TOKEN_DEFAULT_VALID = Duration.ofHours(24);
+    static final Duration DATASET_TOKEN_DEFAULT_VALID = Duration.ofSeconds(60);
 
-	public static final String QP_READ_WRITE = "readWrite";
+    public static final String QP_READ_WRITE = "readWrite";
 
-	private RuleTable ruleTable;
+    private RuleTable ruleTable;
 
-	private AuthenticationClient authService;
+    private AuthenticationClient authService;
 
-	public SessionDbTokenResource(RuleTable ruleTable, AuthenticationClient authService) {
-		this.ruleTable = ruleTable;
-		this.authService = authService;
-	}
+    public SessionDbTokenResource(RuleTable ruleTable, AuthenticationClient authService) {
+        this.ruleTable = ruleTable;
+        this.authService = authService;
+    }
 
-	@POST
-	@RolesAllowed({ Role.CLIENT, Role.SCHEDULER })
-	@Path("sessions/{sessionId}")
-	@Produces(MediaType.TEXT_PLAIN)
-	@Transaction
-	public Response postSessionToken(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString,
-			@QueryParam(QP_READ_WRITE) String readWriteString, @Context SecurityContext sc) throws IOException {
+    @POST
+    @RolesAllowed({ Role.CLIENT, Role.SCHEDULER })
+    @Path("sessions/{sessionId}")
+    @Produces(MediaType.TEXT_PLAIN)
+    @Transaction
+    public Response postSessionToken(@PathParam("sessionId") UUID sessionId, @QueryParam("valid") String validString,
+            @QueryParam(QP_READ_WRITE) String readWriteString, @Context SecurityContext sc) throws IOException {
 
-		AuthPrincipal authPrincipal = (AuthPrincipal) sc.getUserPrincipal();
+        AuthPrincipal authPrincipal = (AuthPrincipal) sc.getUserPrincipal();
 
-		boolean readWrite = false;
+        boolean readWrite = false;
 
-		if (readWriteString != null) {
-			readWrite = Boolean.parseBoolean(readWriteString);
-		}
+        if (readWriteString != null) {
+            readWrite = Boolean.parseBoolean(readWriteString);
+        }
 
-		// client can create read-only tokens for session-worker
-		String username = sc.getUserPrincipal().getName();
-		Access access;
+        // client can create read-only tokens for session-worker
+        String username = sc.getUserPrincipal().getName();
+        Access access;
 
-		if (readWrite) {
-			access = Access.READ_WRITE;
-		} else {
-			access = Access.READ_ONLY;
-		}
+        if (readWrite) {
+            access = Access.READ_WRITE;
+        } else {
+            access = Access.READ_ONLY;
+        }
 
-		// scheduler can create read-write tokens for jobs
-		if (authPrincipal.getRoles().contains(Role.SCHEDULER)) {
-			username = Role.SINGLE_SHOT_COMP;
-			access = Access.READ_WRITE;
-		}
+        // scheduler can create read-write tokens for jobs
+        if (authPrincipal.getRoles().contains(Role.SCHEDULER)) {
+            username = Role.SINGLE_SHOT_COMP;
+            access = Access.READ_WRITE;
+        }
 
-		boolean requireReadWrite = access == Access.READ_WRITE;
+        boolean requireReadWrite = access == Access.READ_WRITE;
 
-		// check that the user is allowed to access the session (with auth token)
-		Session session = ruleTable.checkSessionAuthorization(sc, sessionId, requireReadWrite, false);
+        // check that the user is allowed to access the session (with auth token)
+        Session session = ruleTable.checkSessionAuthorization(sc, sessionId, requireReadWrite, false);
 
-		Instant valid = AuthTokens.parseValid(validString);
+        Instant valid = AuthTokens.parseValid(validString);
 
-		if (!authPrincipal.getRoles().contains(Role.SCHEDULER)) {
-			valid = defaultOrCheckMaxValid(valid, SESSION_TOKEN_DEFAULT_VALID, SESSION_TOKEN_MAX_VALID);
-		}
+        if (!authPrincipal.getRoles().contains(Role.SCHEDULER)) {
+            valid = defaultOrCheckMaxValid(valid, SESSION_TOKEN_DEFAULT_VALID, SESSION_TOKEN_MAX_VALID);
+        }
 
-		if (session.getSessionId() == null) {
-			throw new IllegalArgumentException("cannot create token for null session");
-		}
+        if (session.getSessionId() == null) {
+            throw new IllegalArgumentException("cannot create token for null session");
+        }
 
-		String sessionDbToken;
-		try {
-			sessionDbToken = authService.createSessionToken(username, sessionId, valid, access);
+        String sessionDbToken;
+        try {
+            sessionDbToken = authService.createSessionToken(username, sessionId, valid, access);
 
-		} catch (RestException e) {
-			throw new InternalServerErrorException("failed to get restricted token from auth", e);
-		}
+        } catch (RestException e) {
+            throw new InternalServerErrorException("failed to get restricted token from auth", e);
+        }
 
-		return Response.ok(sessionDbToken).build();
-	}
+        return Response.ok(sessionDbToken).build();
+    }
 
-	@POST
-	@RolesAllowed(Role.CLIENT)
-	@Path("sessions/{sessionId}/datasets/{datasetId}")
-	@Produces(MediaType.TEXT_PLAIN)
-	@Transaction
-	public Response postDatasetToken(@PathParam("sessionId") UUID sessionId, @PathParam("datasetId") UUID datasetId,
-			@QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
+    @POST
+    @RolesAllowed(Role.CLIENT)
+    @Path("sessions/{sessionId}/datasets/{datasetId}")
+    @Produces(MediaType.TEXT_PLAIN)
+    @Transaction
+    public Response postDatasetToken(@PathParam("sessionId") UUID sessionId, @PathParam("datasetId") UUID datasetId,
+            @QueryParam("valid") String validString, @Context SecurityContext sc) throws IOException {
 
-		// check that the user is allowed to access the session (with auth token)
-		// read-only access is enough, because this doesn't change the session (and is
-		// needed for example sessions)
-		Dataset dataset = ruleTable.checkDatasetReadAuthorization(sc, sessionId, datasetId);
+        // check that the user is allowed to access the session (with auth token)
+        // read-only access is enough, because this doesn't change the session (and is
+        // needed for example sessions)
+        Dataset dataset = ruleTable.checkDatasetReadAuthorization(sc, sessionId, datasetId);
 
-		Session session = ruleTable.getSession(dataset.getSessionId());
+        Session session = ruleTable.getSession(dataset.getSessionId());
 
-		Instant valid = AuthTokens.parseValid(validString);
+        Instant valid = AuthTokens.parseValid(validString);
 
-		valid = defaultOrCheckMaxValid(valid, DATASET_TOKEN_DEFAULT_VALID, DATASET_TOKEN_MAX_VALID);
+        valid = defaultOrCheckMaxValid(valid, DATASET_TOKEN_DEFAULT_VALID, DATASET_TOKEN_MAX_VALID);
 
-		String username = sc.getUserPrincipal().getName();
+        String username = sc.getUserPrincipal().getName();
 
-		if (session.getSessionId() == null) {
-			throw new IllegalArgumentException("cannot create token for null session");
-		}
+        if (session.getSessionId() == null) {
+            throw new IllegalArgumentException("cannot create token for null session");
+        }
 
-		if (dataset.getDatasetId() == null) {
-			throw new IllegalArgumentException("cannot create token for null dataset");
-		}
+        if (dataset.getDatasetId() == null) {
+            throw new IllegalArgumentException("cannot create token for null dataset");
+        }
 
-		String datasetToken = null;
-		try {
-			datasetToken = authService.createDatasetToken(username, sessionId, datasetId, valid);
+        String datasetToken = null;
+        try {
+            datasetToken = authService.createDatasetToken(username, sessionId, datasetId, valid);
 
-		} catch (RestException e) {
-			throw new InternalServerErrorException("failed to get restricted token from auth");
-		}
+        } catch (RestException e) {
+            throw new InternalServerErrorException("failed to get restricted token from auth");
+        }
 
-		return Response.ok(datasetToken).build();
-	}
+        return Response.ok(datasetToken).build();
+    }
 
-	/**
-	 * Apply the default validity or refuse validity that is longer than the max
-	 *
-	 * The client computes the expiration from its own clock before the request, so
-	 * allow a bit of slack for the clock difference and the transit time. Without
-	 * it a request for exactly the max validity would fail intermittently.
-	 *
-	 * @param valid        requested validity or null for the default
-	 * @param defaultValid
-	 * @param max
-	 * @return the validity to use, never null
-	 */
-	private static Instant defaultOrCheckMaxValid(Instant valid, Duration defaultValid, Duration max) {
-		if (valid == null) {
-			return Instant.now().plus(defaultValid);
-		}
-		if (valid.isAfter(Instant.now().plus(max).plus(Duration.ofMinutes(1)))) {
-			String maxString = max.toMinutes() < 60 ? max.toMinutes() + " minutes" : max.toHours() + " hours";
-			throw new BadRequestException("token can't be valid for longer than " + maxString);
-		}
-		return valid;
-	}
+    /**
+     * Apply the default validity or refuse validity that is longer than the max
+     *
+     * The client computes the expiration from its own clock before the request, so
+     * allow a bit of slack for the clock difference and the transit time. Without
+     * it a request for exactly the max validity would fail intermittently.
+     *
+     * @param valid        requested validity or null for the default
+     * @param defaultValid
+     * @param max
+     * @return the validity to use, never null
+     */
+    private static Instant defaultOrCheckMaxValid(Instant valid, Duration defaultValid, Duration max) {
+        if (valid == null) {
+            return Instant.now().plus(defaultValid);
+        }
+        if (valid.isAfter(Instant.now().plus(max).plus(Duration.ofMinutes(1)))) {
+            String maxString = max.toMinutes() < 60 ? max.toMinutes() + " minutes" : max.toHours() + " hours";
+            throw new BadRequestException("token can't be valid for longer than " + maxString);
+        }
+        return valid;
+    }
 }

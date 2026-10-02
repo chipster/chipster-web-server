@@ -27,139 +27,139 @@ import fi.csc.chipster.sessiondb.SessionDbClient;
 
 public class FileBroker implements ServerComponent {
 
-	private static final String CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING = "file-broker-chunked-encoding";
+    private static final String CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING = "file-broker-chunked-encoding";
 
-	private Logger logger = LogManager.getLogger();
+    private Logger logger = LogManager.getLogger();
 
-	private AuthenticationClient authService;
-	private ServiceLocatorClient serviceLocator;
-	private Config config;
-	@SuppressWarnings("unused")
-	private String serviceId;
+    private AuthenticationClient authService;
+    private ServiceLocatorClient serviceLocator;
+    private Config config;
+    @SuppressWarnings("unused")
+    private String serviceId;
 
-	private SessionDbClient sessionDbClient;
+    private SessionDbClient sessionDbClient;
 
-	private HttpServer adminServer;
+    private HttpServer adminServer;
 
-	private Server httpServer;
+    private Server httpServer;
 
-	private FileStorageDiscovery storageDiscovery;
+    private FileStorageDiscovery storageDiscovery;
 
-	private S3StorageClient s3StorageClient;
+    private S3StorageClient s3StorageClient;
 
-	private SessionDbAdminClient sessionDbAdminClient;
+    private SessionDbAdminClient sessionDbAdminClient;
 
-	private FileBrokerApi fileBrokerApi;
+    private FileBrokerApi fileBrokerApi;
 
-	public FileBroker(Config config) {
-		this.config = config;
-	}
+    public FileBroker(Config config) {
+        this.config = config;
+    }
 
-	/**
-	 * Starts a HTTP server exposing the REST resources defined in this application.
-	 * 
-	 * @return
-	 * @throws Exception
-	 */
-	public void startServer() throws Exception {
+    /**
+     * Starts a HTTP server exposing the REST resources defined in this application.
+     * 
+     * @return
+     * @throws Exception
+     */
+    public void startServer() throws Exception {
 
-		String username = Role.FILE_BROKER;
-		String password = config.getPassword(username);
+        String username = Role.FILE_BROKER;
+        String password = config.getPassword(username);
 
-		this.serviceLocator = new ServiceLocatorClient(config);
-		this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
-		this.serviceLocator.setCredentials(authService.getCredentials());
+        this.serviceLocator = new ServiceLocatorClient(config);
+        this.authService = new AuthenticationClient(serviceLocator, username, password, Role.SERVER);
+        this.serviceLocator.setCredentials(authService.getCredentials());
 
-		this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
-		this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
-		this.s3StorageClient = new S3StorageClient(config, Role.FILE_BROKER);
+        this.sessionDbClient = new SessionDbClient(serviceLocator, authService.getCredentials(), Role.SERVER);
+        this.sessionDbAdminClient = new SessionDbAdminClient(serviceLocator, authService.getCredentials());
+        this.s3StorageClient = new S3StorageClient(config, Role.FILE_BROKER);
 
-		this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
-		this.fileBrokerApi = new FileBrokerApi(this.s3StorageClient, this.storageDiscovery, this.sessionDbAdminClient,
-				this.sessionDbClient, this.serviceLocator);
+        this.storageDiscovery = new FileStorageDiscovery(this.serviceLocator, authService, config);
+        this.fileBrokerApi = new FileBrokerApi(this.s3StorageClient, this.storageDiscovery, this.sessionDbAdminClient,
+                this.sessionDbClient, this.serviceLocator);
 
-		// FileBrokerResourceServlet is implemented as servlet to be able report errors
-		// to browser
-		ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-		servletHandler.setContextPath("/");
+        // FileBrokerResourceServlet is implemented as servlet to be able report errors
+        // to browser
+        ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+        servletHandler.setContextPath("/");
 
-		URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
+        URI baseUri = URI.create(this.config.getBindUrl(Role.FILE_BROKER));
 
-		boolean useChunkedEncoding = this.config.getBoolean(CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING);
+        boolean useChunkedEncoding = this.config.getBoolean(CONF_KEY_FILE_BROKER_CHUNKED_ENCONDING);
 
-		servletHandler.addServlet(
-				new ServletHolder(new FileBrokerResourceServlet(this.fileBrokerApi, useChunkedEncoding)),
-				"/*");
-		servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()),
-				"/*", null);
-		servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), "/*", null);
+        servletHandler.addServlet(
+                new ServletHolder(new FileBrokerResourceServlet(this.fileBrokerApi, useChunkedEncoding)),
+                "/*");
+        servletHandler.addFilter(new FilterHolder(new ExceptionServletFilter()),
+                "/*", null);
+        servletHandler.addFilter(new FilterHolder(new CORSServletFilter(serviceLocator)), "/*", null);
 
-		httpServer = new Server();
-		RestUtils.configureJettyThreads(httpServer, Role.FILE_BROKER, config);
+        httpServer = new Server();
+        RestUtils.configureJettyThreads(httpServer, Role.FILE_BROKER, config);
 
-		ServerConnector connector = new ServerConnector(httpServer);
-		connector.setPort(baseUri.getPort());
-		connector.setHost(baseUri.getHost());
-		httpServer.addConnector(connector);
+        ServerConnector connector = new ServerConnector(httpServer);
+        connector.setPort(baseUri.getPort());
+        connector.setHost(baseUri.getHost());
+        httpServer.addConnector(connector);
 
-		httpServer.setHandler(servletHandler);
+        httpServer.setHandler(servletHandler);
 
-		StatusSource stats = RestUtils.createStatisticsListener(httpServer);
+        StatusSource stats = RestUtils.createStatisticsListener(httpServer);
 
-		httpServer.start();
+        httpServer.start();
 
-		FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, storageDiscovery,
-				sessionDbAdminClient, s3StorageClient, fileBrokerApi, config);
+        FileBrokerAdminResource adminResource = new FileBrokerAdminResource(stats, storageDiscovery,
+                sessionDbAdminClient, s3StorageClient, fileBrokerApi, config);
 
-		this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
-				this.serviceLocator);
-	}
+        this.adminServer = RestUtils.startAdminServer(adminResource, null, Role.FILE_BROKER, config, authService,
+                this.serviceLocator);
+    }
 
-	/**
-	 * Main method.
-	 * 
-	 * @param args
-	 * @throws Exception
-	 * @throws InterruptedException s
-	 */
-	public static void main(String[] args) throws Exception {
-		FileBroker fileBroker = new FileBroker(new Config());
-		try {
-			fileBroker.startServer();
-		} catch (Exception e) {
-			System.err.println("file-broker startup failed, exiting");
-			e.printStackTrace(System.err);
-			fileBroker.close();
-			System.exit(1);
-		}
-		RestUtils.shutdownGracefullyOnInterrupt(
-				fileBroker.httpServer,
-				fileBroker.config.getInt(Config.KEY_FILE_BROKER_SHUTDOWN_TIMEOUT),
-				"file-broker");
-	}
+    /**
+     * Main method.
+     * 
+     * @param args
+     * @throws Exception
+     * @throws InterruptedException s
+     */
+    public static void main(String[] args) throws Exception {
+        FileBroker fileBroker = new FileBroker(new Config());
+        try {
+            fileBroker.startServer();
+        } catch (Exception e) {
+            System.err.println("file-broker startup failed, exiting");
+            e.printStackTrace(System.err);
+            fileBroker.close();
+            System.exit(1);
+        }
+        RestUtils.shutdownGracefullyOnInterrupt(
+                fileBroker.httpServer,
+                fileBroker.config.getInt(Config.KEY_FILE_BROKER_SHUTDOWN_TIMEOUT),
+                "file-broker");
+    }
 
-	public void close() {
-		RestUtils.shutdown("file-broker-admin", adminServer);
+    public void close() {
+        RestUtils.shutdown("file-broker-admin", adminServer);
 
-		try {
-			if (httpServer != null) {
-				httpServer.stop();
-			}
-		} catch (Exception e) {
-			logger.warn("failed to stop the file-broker", e);
-		}
+        try {
+            if (httpServer != null) {
+                httpServer.stop();
+            }
+        } catch (Exception e) {
+            logger.warn("failed to stop the file-broker", e);
+        }
 
-		try {
-			if (authService != null) {
-				authService.close();
-			}
-		} catch (Exception e) {
-			logger.warn("failed to stop the file-broker auth client", e);
-		}
+        try {
+            if (authService != null) {
+                authService.close();
+            }
+        } catch (Exception e) {
+            logger.warn("failed to stop the file-broker auth client", e);
+        }
 
-		// after httpServer.stop(), because requests submit tasks to its executor
-		if (storageDiscovery != null) {
-			storageDiscovery.close();
-		}
-	}
+        // after httpServer.stop(), because requests submit tasks to its executor
+        if (storageDiscovery != null) {
+            storageDiscovery.close();
+        }
+    }
 }

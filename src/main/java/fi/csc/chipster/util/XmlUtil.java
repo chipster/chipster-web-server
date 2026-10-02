@@ -21,70 +21,70 @@ import org.w3c.dom.NodeList;
  */
 public class XmlUtil {
 
-	public static Document parseReader(Reader reader)
-			throws org.xml.sax.SAXException, IOException, ParserConfigurationException {
-		return newDocumentBuilder().parse(new org.xml.sax.InputSource(reader));
-	}
+    public static Document parseReader(Reader reader)
+            throws org.xml.sax.SAXException, IOException, ParserConfigurationException {
+        return newDocumentBuilder().parse(new org.xml.sax.InputSource(reader));
+    }
 
-	/**
-	 * Gets the child elements of a parent element. Unlike DOM's
-	 * getElementsByTagName, this does no recursion,
-	 * uses local name (namespace free) instead of tag name, result is a proper Java
-	 * data structure and result
-	 * needs no casting. In other words, this method does not suck unlike DOM.
-	 * 
-	 * @param parent the XML parent element
-	 * @param name   name of the child elements, if null then all are returned
-	 */
-	public static List<Element> getChildElements(Element parent, String name) {
-		List<Element> childElements = new ArrayList<Element>();
-		NodeList childNodes = parent.getChildNodes();
+    /**
+     * Gets the child elements of a parent element. Unlike DOM's
+     * getElementsByTagName, this does no recursion,
+     * uses local name (namespace free) instead of tag name, result is a proper Java
+     * data structure and result
+     * needs no casting. In other words, this method does not suck unlike DOM.
+     * 
+     * @param parent the XML parent element
+     * @param name   name of the child elements, if null then all are returned
+     */
+    public static List<Element> getChildElements(Element parent, String name) {
+        List<Element> childElements = new ArrayList<Element>();
+        NodeList childNodes = parent.getChildNodes();
 
-		for (int i = 0; i < childNodes.getLength(); i++) {
-			// get elements
-			if (childNodes.item(i).getNodeType() == Node.ELEMENT_NODE) {
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            // get elements
+            if (childNodes.item(i).getNodeType() == Node.ELEMENT_NODE) {
 
-				// match element name
-				Element childElement = (Element) childNodes.item(i);
-				if (name == null || childElement.getLocalName().equals(name)) {
-					childElements.add(childElement);
-				}
-			}
-		}
+                // match element name
+                Element childElement = (Element) childNodes.item(i);
+                if (name == null || childElement.getLocalName().equals(name)) {
+                    childElements.add(childElement);
+                }
+            }
+        }
 
-		return childElements;
-	}
+        return childElements;
+    }
 
-	public static Element getChildElement(Element parent, String name) {
-		return getChildElement(parent, name, false);
-	}
+    public static Element getChildElement(Element parent, String name) {
+        return getChildElement(parent, name, false);
+    }
 
-	public static Element getChildElement(Element parent, String name, boolean strict) {
-		List<Element> childElements = getChildElements(parent, name);
-		if (strict && childElements.size() != 1) {
-			throw new IllegalArgumentException("parent must contain exactly one element with the given name");
-		}
+    public static Element getChildElement(Element parent, String name, boolean strict) {
+        List<Element> childElements = getChildElements(parent, name);
+        if (strict && childElements.size() != 1) {
+            throw new IllegalArgumentException("parent must contain exactly one element with the given name");
+        }
 
-		return childElements.isEmpty() ? null : childElements.get(0);
-	}
+        return childElements.isEmpty() ? null : childElements.get(0);
+    }
 
-	private static DocumentBuilder newDocumentBuilder() throws ParserConfigurationException {
-		// SAXParsers are not concurrency compatible, so always return a new instance to
-		// prevent thread issues
-		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-		dbf.setNamespaceAware(true);
+    private static DocumentBuilder newDocumentBuilder() throws ParserConfigurationException {
+        // SAXParsers are not concurrency compatible, so always return a new instance to
+        // prevent thread issues
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setNamespaceAware(true);
 
-		// prevent XXE, none of the parsed documents need a DOCTYPE
-		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-		dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
-		dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-		dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-		dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-		dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-		dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-		dbf.setXIncludeAware(false);
-		dbf.setExpandEntityReferences(false);
+        // prevent XXE, none of the parsed documents need a DOCTYPE
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        dbf.setXIncludeAware(false);
+        dbf.setExpandEntityReferences(false);
 
-		return dbf.newDocumentBuilder();
-	}
+        return dbf.newDocumentBuilder();
+    }
 }

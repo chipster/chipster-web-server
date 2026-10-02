@@ -10,26 +10,26 @@ import fi.csc.chipster.toolbox.SADLTool.ParsedScript;
 
 public class HeaderAsCommentParser implements ToolPartsParser {
 
-	private String commentString;
-	private String toolPath;
+    private String commentString;
+    private String toolPath;
 
-	public HeaderAsCommentParser(String commentString, String toolPath) {
-		this.commentString = commentString;
-		this.toolPath = toolPath;
-	}
+    public HeaderAsCommentParser(String commentString, String toolPath) {
+        this.commentString = commentString;
+        this.toolPath = toolPath;
+    }
 
-	@Override
-	public ParsedScript parse(Path moduleDir, String toolFilename) throws IOException {
+    @Override
+    public ParsedScript parse(Path moduleDir, String toolFilename) throws IOException {
 
-		Path toolFile = moduleDir.resolve(toolPath).resolve(toolFilename);
+        Path toolFile = moduleDir.resolve(toolPath).resolve(toolFilename);
 
-		SADLTool.ParsedScript parsedScript;
-		try (InputStream scriptSource = Files.newInputStream(toolFile)) {
+        SADLTool.ParsedScript parsedScript;
+        try (InputStream scriptSource = Files.newInputStream(toolFile)) {
 
-			// read the SADL from the comment block in the beginning of file
-			// and the actual source code
-			parsedScript = new SADLTool(commentString).parseScript(scriptSource);
-		}
-		return parsedScript;
-	}
+            // read the SADL from the comment block in the beginning of file
+            // and the actual source code
+            parsedScript = new SADLTool(commentString).parseScript(scriptSource);
+        }
+        return parsedScript;
+    }
 }

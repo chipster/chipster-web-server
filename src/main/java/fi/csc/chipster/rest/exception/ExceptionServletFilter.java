@@ -23,111 +23,111 @@ import jakarta.ws.rs.ServiceUnavailableException;
 
 public class ExceptionServletFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-	@Override
-	public void init(FilterConfig filterConfig) throws ServletException {
-	}
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+    }
 
-	@Override
-	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
-			throws IOException, ServletException {
+    @Override
+    public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
+            throws IOException, ServletException {
 
-		HttpServletRequest request = (HttpServletRequest) req;
-		HttpServletResponse response = (HttpServletResponse) resp;
+        HttpServletRequest request = (HttpServletRequest) req;
+        HttpServletResponse response = (HttpServletResponse) resp;
 
-		try {
+        try {
 
-			chain.doFilter(request, response);
-		} catch (ForbiddenException e) {
-			logger.error("servlet error", e);
-			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
-			return;
-		} catch (NotFoundException e) {
-			logger.error("servlet error", e);
-			sendError(response, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-			return;
-		} catch (UploadCancelledException e) {
-			// logged already in FileServlet
-			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
-			return;
-		} catch (DownloadCancelledException e) {
-			// logged already in FileBrokerResourceServlet
-			sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
-			return;
-		} catch (BadRequestException e) {
-			logger.error("servlet error", e);
-			sendError(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-			return;
-		} catch (jakarta.ws.rs.NotAuthorizedException e) {
-			logger.error("servlet error", e);
-			sendError(response, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
-			return;
-		} catch (ConflictException e) {
-			logger.error("servlet error", e);
-			sendError(response, HttpServletResponse.SC_CONFLICT, e.getMessage());
-			return;
-		} catch (ServiceUnavailableException e) {
-			// the message tells the user to try again later
-			logger.warn("servlet error", e);
-			if (response.isCommitted()) {
-				// Defensive: nothing throws this after the response has started at the moment.
-				// This filter wraps also the streaming file servlets, so if that changes, the
-				// status can't be set anymore. Abort the response like the generic handler
-				// below, so that the client doesn't take a truncated file for a success.
-				throw e;
-			}
-			sendError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, e.getMessage());
-			return;
-		} catch (InsufficientStorageException e) {
+            chain.doFilter(request, response);
+        } catch (ForbiddenException e) {
+            logger.error("servlet error", e);
+            sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+            return;
+        } catch (NotFoundException e) {
+            logger.error("servlet error", e);
+            sendError(response, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+            return;
+        } catch (UploadCancelledException e) {
+            // logged already in FileServlet
+            sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+            return;
+        } catch (DownloadCancelledException e) {
+            // logged already in FileBrokerResourceServlet
+            sendError(response, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+            return;
+        } catch (BadRequestException e) {
+            logger.error("servlet error", e);
+            sendError(response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            return;
+        } catch (jakarta.ws.rs.NotAuthorizedException e) {
+            logger.error("servlet error", e);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+            return;
+        } catch (ConflictException e) {
+            logger.error("servlet error", e);
+            sendError(response, HttpServletResponse.SC_CONFLICT, e.getMessage());
+            return;
+        } catch (ServiceUnavailableException e) {
+            // the message tells the user to try again later
+            logger.warn("servlet error", e);
+            if (response.isCommitted()) {
+                // Defensive: nothing throws this after the response has started at the moment.
+                // This filter wraps also the streaming file servlets, so if that changes, the
+                // status can't be set anymore. Abort the response like the generic handler
+                // below, so that the client doesn't take a truncated file for a success.
+                throw e;
+            }
+            sendError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, e.getMessage());
+            return;
+        } catch (InsufficientStorageException e) {
 
-			logger.error(e.getClass().getSimpleName() + " " + e.getMessage());
-			try {
-				// try to avoid "unconsumed input" error
-				req.getInputStream().skip(Long.MAX_VALUE);
-			} catch (Exception e2) {
-				logger.warn("couldn't consume useless input", e2.getMessage());
-			}
+            logger.error(e.getClass().getSimpleName() + " " + e.getMessage());
+            try {
+                // try to avoid "unconsumed input" error
+                req.getInputStream().skip(Long.MAX_VALUE);
+            } catch (Exception e2) {
+                logger.warn("couldn't consume useless input", e2.getMessage());
+            }
 
-			sendError(response, InsufficientStorageException.STATUS_CODE, e.getMessage());
+            sendError(response, InsufficientStorageException.STATUS_CODE, e.getMessage());
 
-			return;
-		} catch (EofException e) {
-			// client closed connection, no need for stack trace
-			logger.warn("servlet error: " + e.getMessage());
-			throw e;
-		} catch (Exception e) {
-			logger.error("servlet error", e);
-			sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
-			// abort download from session-worker if there is an error. Otherwise the user
-			// thinks
-			// that the download was successful
-			throw e;
-		}
-	}
+            return;
+        } catch (EofException e) {
+            // client closed connection, no need for stack trace
+            logger.warn("servlet error: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("servlet error", e);
+            sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
+            // abort download from session-worker if there is an error. Otherwise the user
+            // thinks
+            // that the download was successful
+            throw e;
+        }
+    }
 
-	/**
-	 * Send an HTTP error with plain text message
-	 * 
-	 * response.sendError() would send a html error, which is difficult use further
-	 * 
-	 * @param response
-	 * @param statusCode
-	 * @param message
-	 * @throws IOException
-	 */
-	public void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
-		response.setStatus(statusCode);
-		try {
-			response.getOutputStream().write(message.getBytes());
-		} catch (IllegalStateException e) {
-			// Jetty response can be in "STREAM" "WRITER" or undefined mode
-			// What happens if something has been written already?
-			response.getWriter().write(message);
-		}
-	}
+    /**
+     * Send an HTTP error with plain text message
+     * 
+     * response.sendError() would send a html error, which is difficult use further
+     * 
+     * @param response
+     * @param statusCode
+     * @param message
+     * @throws IOException
+     */
+    public void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
+        response.setStatus(statusCode);
+        try {
+            response.getOutputStream().write(message.getBytes());
+        } catch (IllegalStateException e) {
+            // Jetty response can be in "STREAM" "WRITER" or undefined mode
+            // What happens if something has been written already?
+            response.getWriter().write(message);
+        }
+    }
 
-	@Override
-	public void destroy() {
-	}
+    @Override
+    public void destroy() {
+    }
 }

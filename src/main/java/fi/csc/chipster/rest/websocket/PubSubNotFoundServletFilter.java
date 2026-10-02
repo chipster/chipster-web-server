@@ -30,30 +30,30 @@ import jakarta.servlet.http.HttpServletResponse;
  */
 public class PubSubNotFoundServletFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-	public PubSubNotFoundServletFilter() {
-	}
+    public PubSubNotFoundServletFilter() {
+    }
 
-	@Override
-	public void init(FilterConfig filterConfig) throws ServletException {
-	}
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+    }
 
-	@Override
-	public void doFilter(ServletRequest servletRequest,
-			ServletResponse servletResponse,
-			FilterChain filterChain) throws IOException, ServletException {
+    @Override
+    public void doFilter(ServletRequest servletRequest,
+            ServletResponse servletResponse,
+            FilterChain filterChain) throws IOException, ServletException {
 
-		HttpServletRequest request = (HttpServletRequest) servletRequest;
-		HttpServletResponse response = (HttpServletResponse) servletResponse;
+        HttpServletRequest request = (HttpServletRequest) servletRequest;
+        HttpServletResponse response = (HttpServletResponse) servletResponse;
 
-		logger.warn("WebSocket request path not found: " + request.getRequestURI());
+        logger.warn("WebSocket request path not found: " + request.getRequestURI());
 
-		response.sendError(HttpServletResponse.SC_NOT_FOUND, "not found: " + request.getRequestURI());
-		return;
-	}
+        response.sendError(HttpServletResponse.SC_NOT_FOUND, "not found: " + request.getRequestURI());
+        return;
+    }
 
-	@Override
-	public void destroy() {
-	}
+    @Override
+    public void destroy() {
+    }
 }

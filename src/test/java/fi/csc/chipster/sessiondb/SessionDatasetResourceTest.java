@@ -19,249 +19,249 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
 
 public class SessionDatasetResourceTest {
-	private static TestServerLauncher launcher;
+    private static TestServerLauncher launcher;
 
-	private static SessionDbClient user1Client;
-	private static SessionDbClient user2Client;
-	private static UUID sessionId1;
-	private static UUID sessionId2;
+    private static SessionDbClient user1Client;
+    private static SessionDbClient user2Client;
+    private static UUID sessionId1;
+    private static UUID sessionId2;
 
-	private static SessionDbClient fileBrokerClient;
+    private static SessionDbClient fileBrokerClient;
 
-	@BeforeAll
-	public static void setUp() throws Exception {
-		Config config = new Config();
-		launcher = new TestServerLauncher(config);
+    @BeforeAll
+    public static void setUp() throws Exception {
+        Config config = new Config();
+        launcher = new TestServerLauncher(config);
 
-		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
-		user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
+        user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+        user2Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser2Token(), Role.CLIENT);
 
-		fileBrokerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getFileBrokerToken(),
-				Role.CLIENT);
+        fileBrokerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getFileBrokerToken(),
+                Role.CLIENT);
 
-		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
-		sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
-	}
+        sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+        sessionId2 = user2Client.createSession(RestUtils.getRandomSession());
+    }
 
-	@AfterAll
-	public static void tearDown() throws Exception {
-		launcher.stop();
-	}
+    @AfterAll
+    public static void tearDown() throws Exception {
+        launcher.stop();
+    }
 
-	@Test
-	public void post() throws RestException {
-		user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
-	}
+    @Test
+    public void post() throws RestException {
+        user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+    }
 
-	@Test
-	public void postModification() throws RestException {
-		Dataset dataset1 = RestUtils.getRandomDataset();
-		dataset1.setDatasetIdPair(null);
-		Dataset dataset2 = RestUtils.getRandomDataset();
-		dataset2.setDatasetIdPair(null);
-		// check that properties of the existing File can't be modified
+    @Test
+    public void postModification() throws RestException {
+        Dataset dataset1 = RestUtils.getRandomDataset();
+        dataset1.setDatasetIdPair(null);
+        Dataset dataset2 = RestUtils.getRandomDataset();
+        dataset2.setDatasetIdPair(null);
+        // check that properties of the existing File can't be modified
 
-		File file1 = new File();
-		file1.setFileId(RestUtils.createUUID());
-		file1.setSize(1);
+        File file1 = new File();
+        file1.setFileId(RestUtils.createUUID());
+        file1.setSize(1);
 
-		File file2 = new File();
-		file2.setFileId(file1.getFileId());
-		file2.setSize(2);
+        File file2 = new File();
+        file2.setFileId(file1.getFileId());
+        file2.setSize(2);
 
-		dataset1.setFile(file1);
+        dataset1.setFile(file1);
 
-		user1Client.createDataset(sessionId1, dataset1);
+        user1Client.createDataset(sessionId1, dataset1);
 
-		dataset1.setFile(file2);
-		dataset2.setFile(file2);
+        dataset1.setFile(file2);
+        dataset2.setFile(file2);
 
-		// client can't modify the file of the existing dataset
-		testUpdateDataset(403, sessionId1, dataset1, user1Client);
-		// or create a new dataset that would modify it
-		testCreateDataset(403, sessionId1, dataset2, user1Client);
+        // client can't modify the file of the existing dataset
+        testUpdateDataset(403, sessionId1, dataset1, user1Client);
+        // or create a new dataset that would modify it
+        testCreateDataset(403, sessionId1, dataset2, user1Client);
 
-		// but the file broker can (to modify file sizes when the donwload is finished)
-		assertEquals(204, fileBrokerClient.updateDataset(sessionId1, dataset1).getStatus());
-	}
+        // but the file broker can (to modify file sizes when the donwload is finished)
+        assertEquals(204, fileBrokerClient.updateDataset(sessionId1, dataset1).getStatus());
+    }
 
-	public static void testCreateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
-		try {
-			client.createDataset(sessionId, dataset);
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(expected, e.getResponse().getStatus());
-		}
-	}
+    public static void testCreateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
+        try {
+            client.createDataset(sessionId, dataset);
+            assertEquals(true, false);
+        } catch (RestException e) {
+            assertEquals(expected, e.getResponse().getStatus());
+        }
+    }
 
-	@Test
-	public void postWithId() throws RestException {
-		Dataset dataset = RestUtils.getRandomDataset();
-		dataset.setDatasetIdPair(sessionId1, RestUtils.createUUID());
-		user1Client.createDataset(sessionId1, dataset);
-	}
+    @Test
+    public void postWithId() throws RestException {
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setDatasetIdPair(sessionId1, RestUtils.createUUID());
+        user1Client.createDataset(sessionId1, dataset);
+    }
 
-	@Test
-	public void postWithWrongId() throws RestException {
-		Dataset dataset = RestUtils.getRandomDataset();
-		dataset.setDatasetIdPair(sessionId2, RestUtils.createUUID());
-		testCreateDataset(400, sessionId1, dataset, user1Client);
-	}
+    @Test
+    public void postWithWrongId() throws RestException {
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setDatasetIdPair(sessionId2, RestUtils.createUUID());
+        testCreateDataset(400, sessionId1, dataset, user1Client);
+    }
 
-	@Test
-	public void postWithSameDatasetId() throws RestException {
-		Dataset dataset1 = RestUtils.getRandomDataset();
-		Dataset dataset2 = RestUtils.getRandomDataset();
-		UUID datasetId = RestUtils.createUUID();
-		dataset1.setDatasetIdPair(sessionId1, datasetId);
-		dataset2.setDatasetIdPair(sessionId2, datasetId);
-		String name1 = "name1";
-		String name2 = "name2";
-		dataset1.setName(name1);
-		dataset2.setName(name2);
+    @Test
+    public void postWithSameDatasetId() throws RestException {
+        Dataset dataset1 = RestUtils.getRandomDataset();
+        Dataset dataset2 = RestUtils.getRandomDataset();
+        UUID datasetId = RestUtils.createUUID();
+        dataset1.setDatasetIdPair(sessionId1, datasetId);
+        dataset2.setDatasetIdPair(sessionId2, datasetId);
+        String name1 = "name1";
+        String name2 = "name2";
+        dataset1.setName(name1);
+        dataset2.setName(name2);
 
-		user1Client.createDataset(sessionId1, dataset1);
-		user2Client.createDataset(sessionId2, dataset2);
+        user1Client.createDataset(sessionId1, dataset1);
+        user2Client.createDataset(sessionId2, dataset2);
 
-		// check that there are really to different datasets on the server
-		assertEquals(name1, user1Client.getDataset(sessionId1, datasetId).getName());
-		assertEquals(name2, user2Client.getDataset(sessionId2, datasetId).getName());
-	}
+        // check that there are really to different datasets on the server
+        assertEquals(name1, user1Client.getDataset(sessionId1, datasetId).getName());
+        assertEquals(name2, user2Client.getDataset(sessionId2, datasetId).getName());
+    }
 
-	@Test
-	public void get() throws IOException, RestException {
+    @Test
+    public void get() throws IOException, RestException {
 
-		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
-		assertEquals(true, user1Client.getDataset(sessionId1, datasetId) != null);
+        UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+        assertEquals(true, user1Client.getDataset(sessionId1, datasetId) != null);
 
-		// wrong user
-		testGetDataset(403, sessionId1, datasetId, user2Client);
+        // wrong user
+        testGetDataset(403, sessionId1, datasetId, user2Client);
 
-		// wrong session
-		testGetDataset(403, sessionId2, datasetId, user1Client);
-		testGetDataset(404, sessionId2, datasetId, user2Client);
-	}
+        // wrong session
+        testGetDataset(403, sessionId2, datasetId, user1Client);
+        testGetDataset(404, sessionId2, datasetId, user2Client);
+    }
 
-	public static void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
-		try {
-			client.getDataset(sessionId, datasetId);
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(expected, e.getResponse().getStatus());
-		}
-	}
+    public static void testGetDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
+        try {
+            client.getDataset(sessionId, datasetId);
+            assertEquals(true, false);
+        } catch (RestException e) {
+            assertEquals(expected, e.getResponse().getStatus());
+        }
+    }
 
-	@Test
-	public void getAll() throws RestException {
+    @Test
+    public void getAll() throws RestException {
 
-		UUID id1 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
-		UUID id2 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+        UUID id1 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+        UUID id2 = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
 
-		assertEquals(true, user1Client.getDatasets(sessionId1).containsKey(id1));
-		assertEquals(true, user1Client.getDatasets(sessionId1).containsKey(id2));
+        assertEquals(true, user1Client.getDatasets(sessionId1).containsKey(id1));
+        assertEquals(true, user1Client.getDatasets(sessionId1).containsKey(id2));
 
-		// wrong user
+        // wrong user
 
-		testGetDatasets(403, sessionId1, user2Client);
+        testGetDatasets(403, sessionId1, user2Client);
 
-		// wrong session
-		assertEquals(false, user2Client.getDatasets(sessionId2).containsKey(id1));
-	}
+        // wrong session
+        assertEquals(false, user2Client.getDatasets(sessionId2).containsKey(id1));
+    }
 
-	public static void testGetDatasets(int expected, UUID sessionId, SessionDbClient client) {
-		try {
-			client.getDatasets(sessionId);
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(expected, e.getResponse().getStatus());
-		}
-	}
+    public static void testGetDatasets(int expected, UUID sessionId, SessionDbClient client) {
+        try {
+            client.getDatasets(sessionId);
+            assertEquals(true, false);
+        } catch (RestException e) {
+            assertEquals(expected, e.getResponse().getStatus());
+        }
+    }
 
-	@Test
-	public void put() throws RestException {
+    @Test
+    public void put() throws RestException {
 
-		Dataset dataset = RestUtils.getRandomDataset();
-		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
+        Dataset dataset = RestUtils.getRandomDataset();
+        UUID datasetId = user1Client.createDataset(sessionId1, dataset);
 
-		dataset.setName("new name");
-		user1Client.updateDataset(sessionId1, dataset);
-		assertEquals("new name", user1Client.getDataset(sessionId1, datasetId).getName());
+        dataset.setName("new name");
+        user1Client.updateDataset(sessionId1, dataset);
+        assertEquals("new name", user1Client.getDataset(sessionId1, datasetId).getName());
 
-		// wrong user
-		testUpdateDataset(403, sessionId1, dataset, user2Client);
+        // wrong user
+        testUpdateDataset(403, sessionId1, dataset, user2Client);
 
-		// wrong session
-		testUpdateDataset(403, sessionId2, dataset, user1Client);
-		testUpdateDataset(404, sessionId2, dataset, user2Client);
-	}
+        // wrong session
+        testUpdateDataset(403, sessionId2, dataset, user1Client);
+        testUpdateDataset(404, sessionId2, dataset, user2Client);
+    }
 
-	public static void testUpdateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
-		try {
-			client.updateDataset(sessionId, dataset);
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(expected, e.getResponse().getStatus());
-		}
-	}
+    public static void testUpdateDataset(int expected, UUID sessionId, Dataset dataset, SessionDbClient client) {
+        try {
+            client.updateDataset(sessionId, dataset);
+            assertEquals(true, false);
+        } catch (RestException e) {
+            assertEquals(expected, e.getResponse().getStatus());
+        }
+    }
 
-	@Test
-	public void delete() throws RestException {
+    @Test
+    public void delete() throws RestException {
 
-		UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
+        UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
 
-		// wrong user
-		testDeleteDataset(403, sessionId1, datasetId, user2Client);
+        // wrong user
+        testDeleteDataset(403, sessionId1, datasetId, user2Client);
 
-		// wrong session
-		testDeleteDataset(403, sessionId2, datasetId, user1Client);
-		testDeleteDataset(404, sessionId2, datasetId, user2Client);
+        // wrong session
+        testDeleteDataset(403, sessionId2, datasetId, user1Client);
+        testDeleteDataset(404, sessionId2, datasetId, user2Client);
 
-		// delete
-		user1Client.deleteDataset(sessionId1, datasetId);
+        // delete
+        user1Client.deleteDataset(sessionId1, datasetId);
 
-		// doesn't exist anymore
-		testGetDataset(404, sessionId1, datasetId, user1Client);
-	}
+        // doesn't exist anymore
+        testGetDataset(404, sessionId1, datasetId, user1Client);
+    }
 
-	public static void testDeleteDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
-		try {
-			client.deleteDataset(sessionId, datasetId);
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(expected, e.getResponse().getStatus());
-		}
-	}
+    public static void testDeleteDataset(int expected, UUID sessionId, UUID datasetId, SessionDbClient client) {
+        try {
+            client.deleteDataset(sessionId, datasetId);
+            assertEquals(true, false);
+        } catch (RestException e) {
+            assertEquals(expected, e.getResponse().getStatus());
+        }
+    }
 
-	@Test
-	public void postDatasetAtMaxLabelIds() throws RestException {
-		// the server does not require labelIds to reference real labels, so random UUIDs are fine
-		Dataset dataset = RestUtils.getRandomDataset();
-		dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS));
-		UUID datasetId = user1Client.createDataset(sessionId1, dataset);
-		assertEquals(Dataset.MAX_LABEL_IDS, user1Client.getDataset(sessionId1, datasetId).getLabelIds().size());
-	}
+    @Test
+    public void postDatasetAtMaxLabelIds() throws RestException {
+        // the server does not require labelIds to reference real labels, so random UUIDs are fine
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS));
+        UUID datasetId = user1Client.createDataset(sessionId1, dataset);
+        assertEquals(Dataset.MAX_LABEL_IDS, user1Client.getDataset(sessionId1, datasetId).getLabelIds().size());
+    }
 
-	@Test
-	public void postDatasetOverMaxLabelIds() throws RestException {
-		Dataset dataset = RestUtils.getRandomDataset();
-		dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS + 1));
-		testCreateDataset(400, sessionId1, dataset, user1Client);
-	}
+    @Test
+    public void postDatasetOverMaxLabelIds() throws RestException {
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS + 1));
+        testCreateDataset(400, sessionId1, dataset, user1Client);
+    }
 
-	@Test
-	public void putDatasetOverMaxLabelIds() throws RestException {
-		Dataset dataset = RestUtils.getRandomDataset();
-		user1Client.createDataset(sessionId1, dataset);
+    @Test
+    public void putDatasetOverMaxLabelIds() throws RestException {
+        Dataset dataset = RestUtils.getRandomDataset();
+        user1Client.createDataset(sessionId1, dataset);
 
-		dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS + 1));
-		testUpdateDataset(400, sessionId1, dataset, user1Client);
-	}
+        dataset.setLabelIds(randomLabelIds(Dataset.MAX_LABEL_IDS + 1));
+        testUpdateDataset(400, sessionId1, dataset, user1Client);
+    }
 
-	private static List<UUID> randomLabelIds(int count) {
-		List<UUID> ids = new ArrayList<>(count);
-		for (int i = 0; i < count; i++) {
-			ids.add(RestUtils.createUUID());
-		}
-		return ids;
-	}
+    private static List<UUID> randomLabelIds(int count) {
+        List<UUID> ids = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            ids.add(RestUtils.createUUID());
+        }
+        return ids;
+    }
 }

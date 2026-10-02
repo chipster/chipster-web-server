@@ -21,37 +21,37 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement // json
 public class SessionToken extends ChipsterToken {
 
-	public enum Access {
-		READ_ONLY, READ_WRITE
-	}
+    public enum Access {
+        READ_ONLY, READ_WRITE
+    }
 
-	private UUID sessionId;
-	private Access access;
+    private UUID sessionId;
+    private Access access;
 
-	public SessionToken() {
-		/* for JSON */ }
+    public SessionToken() {
+        /* for JSON */ }
 
-	public SessionToken(String username, UUID sessionId, Instant valid, Access access) {
+    public SessionToken(String username, UUID sessionId, Instant valid, Access access) {
 
-		super(username, valid, Role.SESSION_TOKEN);
+        super(username, valid, Role.SESSION_TOKEN);
 
-		this.sessionId = sessionId;
-		this.access = access;
-	}
+        this.sessionId = sessionId;
+        this.access = access;
+    }
 
-	public UUID getSessionId() {
-		return sessionId;
-	}
+    public UUID getSessionId() {
+        return sessionId;
+    }
 
-	public void setSessionId(UUID sessionId) {
-		this.sessionId = sessionId;
-	}
+    public void setSessionId(UUID sessionId) {
+        this.sessionId = sessionId;
+    }
 
-	public Access getAccess() {
-		return access;
-	}
+    public Access getAccess() {
+        return access;
+    }
 
-	public void setAccess(Access access) {
-		this.access = access;
-	}
+    public void setAccess(Access access) {
+        this.access = access;
+    }
 }

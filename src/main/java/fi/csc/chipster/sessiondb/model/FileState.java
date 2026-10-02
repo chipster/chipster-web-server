@@ -6,6 +6,6 @@ package fi.csc.chipster.sessiondb.model;
  *
  */
 public enum FileState {
-	UPLOADING,
-	COMPLETE,
+    UPLOADING,
+    COMPLETE,
 }

@@ -36,54 +36,54 @@ import jakarta.websocket.server.ServerEndpointConfig.Configurator;
  */
 public class PubSubConfigurator extends Configurator {
 
-	public static final String X_FORWARDED_FOR = "X-Forwarded-For";
+    public static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
-	@SuppressWarnings("unused")
-	private static final Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static final Logger logger = LogManager.getLogger();
 
-	private PubSubServer server;
+    private PubSubServer server;
 
-	public PubSubConfigurator(PubSubServer pubSubServer) {
-		this.server = pubSubServer;
-	}
+    public PubSubConfigurator(PubSubServer pubSubServer) {
+        this.server = pubSubServer;
+    }
 
-	public static String remoteAddress(Session session) {
-		InetSocketAddress addr = (InetSocketAddress) session.getUserProperties()
-				.get(JakartaWebSocketCreator.PROP_REMOTE_ADDRESS);
-		return addr != null ? addr.getAddress().getHostAddress() : "unknown";
-	}
+    public static String remoteAddress(Session session) {
+        InetSocketAddress addr = (InetSocketAddress) session.getUserProperties()
+                .get(JakartaWebSocketCreator.PROP_REMOTE_ADDRESS);
+        return addr != null ? addr.getAddress().getHostAddress() : "unknown";
+    }
 
-	public static String xForwardedFor(Session session) {
-		return (String) session.getUserProperties().get(X_FORWARDED_FOR);
-	}
+    public static String xForwardedFor(Session session) {
+        return (String) session.getUserProperties().get(X_FORWARDED_FOR);
+    }
 
-	public static String clientAddress(Session session) {
-		String xff = xForwardedFor(session);
-		return xff != null ? remoteAddress(session) + " (X-Forwarded-For: " + xff + ")" : remoteAddress(session);
-	}
+    public static String clientAddress(Session session) {
+        String xff = xForwardedFor(session);
+        return xff != null ? remoteAddress(session) + " (X-Forwarded-For: " + xff + ")" : remoteAddress(session);
+    }
 
-	@Override
-	public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
+    @Override
+    public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
 
-		super.modifyHandshake(config, request, response);
+        super.modifyHandshake(config, request, response);
 
-		List<String> xForwaredForList = request.getHeaders().get(X_FORWARDED_FOR);
-		String xForwaredFor = null;
+        List<String> xForwaredForList = request.getHeaders().get(X_FORWARDED_FOR);
+        String xForwaredFor = null;
 
-		if (xForwaredForList != null && xForwaredForList.size() > 0) {
-			xForwaredFor = xForwaredForList.get(0);
-		}
+        if (xForwaredForList != null && xForwaredForList.size() > 0) {
+            xForwaredFor = xForwaredForList.get(0);
+        }
 
-		config.getUserProperties().put(X_FORWARDED_FOR, xForwaredFor);
-	}
+        config.getUserProperties().put(X_FORWARDED_FOR, xForwaredFor);
+    }
 
-	@Override
-	public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
-		// let Jetty to create the PubSubServer
-		T endpoint = super.getEndpointInstance(endpointClass);
+    @Override
+    public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
+        // let Jetty to create the PubSubServer
+        T endpoint = super.getEndpointInstance(endpointClass);
 
-		// and configure it
-		((PubSubEndpoint) endpoint).setServer(server);
-		return endpoint;
-	}
+        // and configure it
+        ((PubSubEndpoint) endpoint).setServer(server);
+        return endpoint;
+    }
 }

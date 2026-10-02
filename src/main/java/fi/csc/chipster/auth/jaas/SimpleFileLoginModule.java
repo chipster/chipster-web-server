@@ -29,116 +29,116 @@ import fi.csc.chipster.util.IOUtils;
  */
 public class SimpleFileLoginModule extends LoginModuleBase {
 
-	public static final DateFormat EXPIRATION_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-	public static final String DELIMETER_CHARACTER = ":";
-	public static final String COMMENT_CHARACTER = "#";
+    public static final DateFormat EXPIRATION_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+    public static final String DELIMETER_CHARACTER = ":";
+    public static final String COMMENT_CHARACTER = "#";
 
-	private static Logger logger = LogManager.getLogger();
+    private static Logger logger = LogManager.getLogger();
 
-	// configurable options
-	protected File passwdFile;
+    // configurable options
+    protected File passwdFile;
 
-	public void initialize(Subject subject, CallbackHandler callbackHandler, Map<String, ?> sharedState,
-			Map<String, ?> options) {
-		super.initialize(subject, callbackHandler, sharedState, options);
+    public void initialize(Subject subject, CallbackHandler callbackHandler, Map<String, ?> sharedState,
+            Map<String, ?> options) {
+        super.initialize(subject, callbackHandler, sharedState, options);
 
-		// check password file
-		String passwdFileName = (String) options.get("passwdFile");
-		this.passwdFile = new File(passwdFileName);
+        // check password file
+        String passwdFileName = (String) options.get("passwdFile");
+        this.passwdFile = new File(passwdFileName);
 
-		if (!passwdFile.exists()) {
-			logger.error("Password file " + passwdFile.getAbsolutePath()
-					+ " not found, simple file login module not started.");
-			throw new RuntimeException(passwdFile.getAbsolutePath() + " not found");
-		}
-	}
+        if (!passwdFile.exists()) {
+            logger.error("Password file " + passwdFile.getAbsolutePath()
+                    + " not found, simple file login module not started.");
+            throw new RuntimeException(passwdFile.getAbsolutePath() + " not found");
+        }
+    }
 
-	protected boolean authenticate(String username, char[] password) throws IOException {
+    protected boolean authenticate(String username, char[] password) throws IOException {
 
-		logger.debug(this.getClass().getName() + " authenticating " + username);
+        logger.debug(this.getClass().getName() + " authenticating " + username);
 
-		// passwd file
-		BufferedReader reader = null;
+        // passwd file
+        BufferedReader reader = null;
 
-		try {
-			reader = new BufferedReader(new FileReader(this.passwdFile));
-			// loop the lines of the password file
-			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+        try {
+            reader = new BufferedReader(new FileReader(this.passwdFile));
+            // loop the lines of the password file
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
 
-				// check for empty line
-				if (line.trim().length() == 0) {
-					continue;
-				}
+                // check for empty line
+                if (line.trim().length() == 0) {
+                    continue;
+                }
 
-				LookaheadStringReader tokens = new LookaheadStringReader(line);
+                LookaheadStringReader tokens = new LookaheadStringReader(line);
 
-				// check for comment line
-				if (tokens.lookahead().equals(COMMENT_CHARACTER)) {
-					continue;
-				}
+                // check for comment line
+                if (tokens.lookahead().equals(COMMENT_CHARACTER)) {
+                    continue;
+                }
 
-				// username
-				String readUsername = tokens.readTo(DELIMETER_CHARACTER);
-				if (!readUsername.equals(username)) {
-					// did not match
-					continue;
-				}
+                // username
+                String readUsername = tokens.readTo(DELIMETER_CHARACTER);
+                if (!readUsername.equals(username)) {
+                    // did not match
+                    continue;
+                }
 
-				// delimiter (:)
-				tokens.read();
+                // delimiter (:)
+                tokens.read();
 
-				// password
-				StringBuffer readPassword = tokens.readToSB(DELIMETER_CHARACTER);
-				boolean match = true;
-				for (int i = 0; i < readPassword.length(); i++) {
-					// check that we match (length checking is a bit redundant, but who cares...)
-					if (readPassword.length() != password.length || readPassword.charAt(i) != password[i]) {
-						match = false;
-					}
-					// clean password as we go
-					readPassword.setCharAt(i, (char) 0);
-				}
+                // password
+                StringBuffer readPassword = tokens.readToSB(DELIMETER_CHARACTER);
+                boolean match = true;
+                for (int i = 0; i < readPassword.length(); i++) {
+                    // check that we match (length checking is a bit redundant, but who cares...)
+                    if (readPassword.length() != password.length || readPassword.charAt(i) != password[i]) {
+                        match = false;
+                    }
+                    // clean password as we go
+                    readPassword.setCharAt(i, (char) 0);
+                }
 
-				if (!match) {
-					// did not match
-					continue;
-				}
+                if (!match) {
+                    // did not match
+                    continue;
+                }
 
-				// delimiter (:), if any
-				if (!tokens.isAtEnd() && tokens.lookahead().equals(DELIMETER_CHARACTER)) {
-					tokens.read();
+                // delimiter (:), if any
+                if (!tokens.isAtEnd() && tokens.lookahead().equals(DELIMETER_CHARACTER)) {
+                    tokens.read();
 
-					String expiration = tokens.readTo(DELIMETER_CHARACTER);
+                    String expiration = tokens.readTo(DELIMETER_CHARACTER);
 
-					if (expiration.trim().length() > 0) {
-						// check only if data is not empty
-						try {
-							Date expirationDate = EXPIRATION_DATE_FORMAT.parse(expiration);
-							if (new Date().after(expirationDate)) {
-								match = false; // authentication successful, but account has expired
-							}
-						} catch (ParseException e) {
-							logger.error(
-									"when authenticating " + username + " failed to parse exp. date: " + expiration);
-							match = false;
-						}
-					}
-				}
+                    if (expiration.trim().length() > 0) {
+                        // check only if data is not empty
+                        try {
+                            Date expirationDate = EXPIRATION_DATE_FORMAT.parse(expiration);
+                            if (new Date().after(expirationDate)) {
+                                match = false; // authentication successful, but account has expired
+                            }
+                        } catch (ParseException e) {
+                            logger.error(
+                                    "when authenticating " + username + " failed to parse exp. date: " + expiration);
+                            match = false;
+                        }
+                    }
+                }
 
-				if (match) {
-					return true;
-				}
-			}
+                if (match) {
+                    return true;
+                }
+            }
 
-		} catch (Exception e) {
-			e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
 
-		} finally {
-			IOUtils.closeIfPossible(reader);
-		}
+        } finally {
+            IOUtils.closeIfPossible(reader);
+        }
 
-		// matching line was not found
-		return false;
-	}
+        // matching line was not found
+        return false;
+    }
 
 }

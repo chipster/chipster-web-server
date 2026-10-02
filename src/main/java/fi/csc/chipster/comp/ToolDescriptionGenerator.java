@@ -15,33 +15,33 @@ import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
  */
 public class ToolDescriptionGenerator {
 
-	/**
-	 * Converts generic SADLDescription to ToolDescription.
-	 * 
-	 * @return ToolDescription
-	 */
-	public ToolDescription generate(SADLDescription source) {
-		ToolDescription description = new ToolDescription();
+    /**
+     * Converts generic SADLDescription to ToolDescription.
+     * 
+     * @return ToolDescription
+     */
+    public ToolDescription generate(SADLDescription source) {
+        ToolDescription description = new ToolDescription();
 
-		description.setID(source.getName().getID());
-		description.setDisplayName(source.getName().getDisplayName());
-		description.setComment(source.getDescription());
-		description.setSlotCount(source.getSlotCount());
+        description.setID(source.getName().getID());
+        description.setDisplayName(source.getName().getDisplayName());
+        description.setComment(source.getDescription());
+        description.setSlotCount(source.getSlotCount());
 
-		// not interested in inputs, they were figured out when job was submitted
-		// I'm interested in inputs in java jobs
-		for (Input input : source.getInputs()) {
-			description.addInputFile(input.getName(), input.isOptional());
-		}
+        // not interested in inputs, they were figured out when job was submitted
+        // I'm interested in inputs in java jobs
+        for (Input input : source.getInputs()) {
+            description.addInputFile(input.getName(), input.isOptional());
+        }
 
-		for (Output output : source.getOutputs()) {
-			description.addOutputFile(output.getName(), output.isOptional(), output.isMeta());
-		}
+        for (Output output : source.getOutputs()) {
+            description.addOutputFile(output.getName(), output.isOptional(), output.isMeta());
+        }
 
-		for (Parameter parameter : source.getParameters()) {
-			description.addParameter(parameter);
-		}
+        for (Parameter parameter : source.getParameters()) {
+            description.addParameter(parameter);
+        }
 
-		return description;
-	}
+        return description;
+    }
 }

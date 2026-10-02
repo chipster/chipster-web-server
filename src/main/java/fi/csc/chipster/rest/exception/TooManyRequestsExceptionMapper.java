@@ -14,19 +14,19 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 public class TooManyRequestsExceptionMapper implements ExceptionMapper<TooManyRequestsException> {
 
-	private ExceptionLogger exceptionLogger;
+    private ExceptionLogger exceptionLogger;
 
-	@Context
-	UriInfo uriInfo;
+    @Context
+    UriInfo uriInfo;
 
-	public TooManyRequestsExceptionMapper(ExceptionLogger exceptionLogger) {
-		this.exceptionLogger = exceptionLogger;
-	}
+    public TooManyRequestsExceptionMapper(ExceptionLogger exceptionLogger) {
+        this.exceptionLogger = exceptionLogger;
+    }
 
-	@Override
-	public Response toResponse(TooManyRequestsException e) {
-		this.exceptionLogger.log(e, uriInfo);
+    @Override
+    public Response toResponse(TooManyRequestsException e) {
+        this.exceptionLogger.log(e, uriInfo);
 
-		return e.getResponse();
-	}
+        return e.getResponse();
+    }
 }

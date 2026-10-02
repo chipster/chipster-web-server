@@ -43,83 +43,83 @@ import fi.csc.chipster.comp.resourcemonitor.ProcessResourceMonitor;
  */
 public class ResourceMonitor {
 
-	public static interface ProcessProvider {
-		public Collection<Process> getRunningJobProcesses();
-	}
+    public static interface ProcessProvider {
+        public Collection<Process> getRunningJobProcesses();
+    }
 
-	private static Logger logger = LogManager.getLogger();
+    private static Logger logger = LogManager.getLogger();
 
-	private HashMap<Process, ProcessResourceMonitor> monitors = new HashMap<>();
-	private Timer resourceMonitorTimer;
+    private HashMap<Process, ProcessResourceMonitor> monitors = new HashMap<>();
+    private Timer resourceMonitorTimer;
 
-	private ProcessProvider processProvider;
+    private ProcessProvider processProvider;
 
-	public ResourceMonitor(ProcessProvider processProvider, int monitoringInterval) {
-		if (monitoringInterval >= 0) {
-			this.processProvider = processProvider;
+    public ResourceMonitor(ProcessProvider processProvider, int monitoringInterval) {
+        if (monitoringInterval >= 0) {
+            this.processProvider = processProvider;
 
-			resourceMonitorTimer = new Timer(true);
-			resourceMonitorTimer.schedule(new ResourceMonitorTask(), monitoringInterval, monitoringInterval);
-		}
-	}
+            resourceMonitorTimer = new Timer(true);
+            resourceMonitorTimer.schedule(new ResourceMonitorTask(), monitoringInterval, monitoringInterval);
+        }
+    }
 
-	public class ResourceMonitorTask extends TimerTask {
+    public class ResourceMonitorTask extends TimerTask {
 
-		@Override
-		public void run() {
-			try {
+        @Override
+        public void run() {
+            try {
 
-				long t = System.currentTimeMillis();
+                long t = System.currentTimeMillis();
 
-				Collection<Process> runningProcesses = processProvider.getRunningJobProcesses();
+                Collection<Process> runningProcesses = processProvider.getRunningJobProcesses();
 
-				logger.debug("running processes " + runningProcesses.size());
+                logger.debug("running processes " + runningProcesses.size());
 
-				// remove monitor if the job isn't running anymore
-				monitors.keySet().retainAll(runningProcesses);
+                // remove monitor if the job isn't running anymore
+                monitors.keySet().retainAll(runningProcesses);
 
-				// create or update monitor of each running job
-				for (Process process : runningProcesses) {
-					if (!monitors.containsKey(process)) {
-						monitors.put(process, new ProcessResourceMonitor(process));
-					}
-					monitors.get(process).update();
-				}
+                // create or update monitor of each running job
+                for (Process process : runningProcesses) {
+                    if (!monitors.containsKey(process)) {
+                        monitors.put(process, new ProcessResourceMonitor(process));
+                    }
+                    monitors.get(process).update();
+                }
 
-				long dt = (System.currentTimeMillis() - t);
-				if (dt > 500) {
-					// consider getting information of all pids with a single ps process if this
-					// happens often
-					logger.warn("process monitoring took " + (System.currentTimeMillis() - t) + "ms");
-				}
+                long dt = (System.currentTimeMillis() - t);
+                if (dt > 500) {
+                    // consider getting information of all pids with a single ps process if this
+                    // happens often
+                    logger.warn("process monitoring took " + (System.currentTimeMillis() - t) + "ms");
+                }
 
-			} catch (IOException e) {
-				logger.error("failed to monitor process resource usage", e);
-			}
-		}
-	}
+            } catch (IOException e) {
+                logger.error("failed to monitor process resource usage", e);
+            }
+        }
+    }
 
-	public Long getMaxMem(Process process) {
-		// return null if monitoring is disabled (this.monitors is still initialized)
-		ProcessResourceMonitor monitor = monitors.get(process);
-		if (monitor == null) {
-			return null;
-		}
-		return monitor.getMaxMem();
-	}
+    public Long getMaxMem(Process process) {
+        // return null if monitoring is disabled (this.monitors is still initialized)
+        ProcessResourceMonitor monitor = monitors.get(process);
+        if (monitor == null) {
+            return null;
+        }
+        return monitor.getMaxMem();
+    }
 
-	public Long getCurrentMem(Process process) {
-		// return null if monitoring is disabled (this.monitors is still initialized)
-		ProcessResourceMonitor monitor = monitors.get(process);
-		if (monitor == null) {
-			return null;
-		}
-		return monitor.getCurrentMem();
-	}
+    public Long getCurrentMem(Process process) {
+        // return null if monitoring is disabled (this.monitors is still initialized)
+        ProcessResourceMonitor monitor = monitors.get(process);
+        if (monitor == null) {
+            return null;
+        }
+        return monitor.getCurrentMem();
+    }
 
-	public Long getCurrentMem() {
-		// getting nulls sometimes, avoid them
-		return monitors.values().stream().map(m -> m.getCurrentMem()).filter(Objects::nonNull)
-				.mapToLong(Long::longValue).sum();
-	}
+    public Long getCurrentMem() {
+        // getting nulls sometimes, avoid them
+        return monitors.values().stream().map(m -> m.getCurrentMem()).filter(Objects::nonNull)
+                .mapToLong(Long::longValue).sum();
+    }
 }

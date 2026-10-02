@@ -57,321 +57,321 @@ import fi.csc.chipster.sessiondb.model.Parameter;
  */
 public abstract class CompJob implements Runnable {
 
-	public static final String SCRIPT_SUCCESSFUL_STRING = "chipster-script-finished-succesfully";
-	public static final String CHIPSTER_NOTE_TOKEN = "CHIPSTER-NOTE:";
-
-	private static final Logger logger = LogManager.getLogger();
-
-	protected GenericJobMessage inputMessage;
-	protected ResultCallback resultHandler;
-	protected ToolDescription toolDescription;
-
-	private Date receiveTime;
-	private Date scheduleTime;
-
-	private int jobTimeout;
-
-	private boolean constructed = false;
-
-	private JobState state;
-	private String stateDetail;
-	private boolean toBeCanceled = false;
-	private final GenericResultMessage outputMessage;
-	public Config config;
-
-	public CompJob() {
-		outputMessage = new GenericResultMessage();
-		this.state = JobState.NEW; // updateState would check old state -> NPE
-	}
-
-	public void construct(GenericJobMessage inputMessage, ToolDescription analysis,
-			ResultCallback resultHandler, int jobTimeout, Config config) {
-		this.constructed = true;
-		this.toolDescription = analysis;
-		this.inputMessage = inputMessage;
-		this.resultHandler = resultHandler;
-		this.jobTimeout = jobTimeout;
-		this.config = config;
-
-		// initialize result message
-		outputMessage.setJobId(this.getId());
-	}
-
-	/**
-	 * Run the job. After execution, job should report results
-	 * through the ResultCallback interface.
-	 */
-	@Override
-	public void run() {
-		try {
-			this.outputMessage.setStartTime(Instant.now());
-			updateState(JobState.RUNNING, "initialising");
-
-			if (!constructed) {
-				throw new IllegalStateException("you must call construct(...) first");
-			}
-
-			// before execute
-			preExecute();
-
-			// execute
-			if (this.getState() == JobState.RUNNING) {
-				execute();
-			}
-
-			// after execute
-			if (this.getState() == JobState.RUNNING) {
-				postExecute();
-			}
-
-			// successful job, failed states are set when they happen
-			if (this.getState() == JobState.RUNNING) {
-				updateState(JobState.COMPLETED, "");
-			}
-		}
-
-		// job was cancelled, do nothing, state has already been set when calling
-		// cancel()
-		catch (JobCancelledException jce) {
-			logger.debug("job cancelled: " + this.getId());
-		}
-
-		// something unexpected happened
-		catch (Throwable e) {
-
-			logger.error("unexpected error", e);
-
-			updateState(JobState.ERROR, "running tool failed");
-			outputMessage.setErrorMessage("Running tool failed.");
-			outputMessage.setOutputText(Exceptions.getStackTrace(e));
-			outputMessage.setState(this.state);
-			outputMessage.setStateDetail(this.stateDetail);
-			resultHandler.sendResultMessage(inputMessage, outputMessage);
-		}
-
-		// clean up
-		finally {
-			try {
-				cleanUp();
-			} catch (Throwable t) {
-				logger.error("Error when cleaning up.", t);
-			}
-			resultHandler.removeRunningJob(this);
-		}
-	}
-
-	public String getId() {
-		return this.inputMessage.getJobId();
-	}
-
-	public synchronized void updateState(JobState newState) {
-		updateState(newState, "");
-	}
-
-	public synchronized void updateState(JobState newState, String stateDetail) {
-
-		// ignore if job is cancelled already
-		if (this.state == JobState.CANCELLED) {
-			logger.info("job tried to change it's state to " + newState.toString() + ", but it's already cancelled");
-			return;
-		}
-
-		// should not try to update state if already finished
-		if (this.state.isFinished()) {
-			logger.warn("trying to update state for already finished job, old state: " + this.state.toString() +
-					"new state: " + newState.toString());
-			return;
-		}
-
-		// set end time if new state is finished
-		if (newState.isFinished()) {
-			this.outputMessage.setEndTime(Instant.now());
-		}
-
-		// update state
-		this.state = newState;
-		this.stateDetail = stateDetail;
-
-		// send notification message
-		outputMessage.setState(this.state);
-		outputMessage.setStateDetail(this.stateDetail);
-		resultHandler.sendResultMessage(inputMessage, outputMessage);
-
-	}
-
-	public JobState getState() {
-		return this.state;
-	}
-
-	/**
-	 * Request the job to be canceled. The job is not canceled immediately. Instead
-	 * it is
-	 * flagged to be canceled and will cancel as soon as possible.
-	 * 
-	 */
-	public void cancel() {
-		logger.debug("Canceling job " + getId());
-		this.toBeCanceled = true;
-		updateState(JobState.CANCELLED, "");
-		cancelRequested();
-	}
-
-	/**
-	 * Check if the job should be canceled (cancel() has been called)
-	 * cancels the job by throwing the cancellation exception.
-	 * 
-	 * Should be called by subclasses in situations where it is safe to cancel the
-	 * job.
-	 * 
-	 * 
-	 * @throws JobCancelledException
-	 */
-	protected void cancelCheck() throws JobCancelledException {
-		if (toBeCanceled) {
-			throw new JobCancelledException();
-		}
-	}
-
-	/**
-	 * Will be called when the job is canceled using the cancel() method.
-	 * 
-	 * Subclasses should override this method with actions that should be taken
-	 * immediately when cancel is requested.
-	 *
-	 */
-	protected abstract void cancelRequested();
-
-	protected abstract void execute() throws JobCancelledException;
-
-	protected void preExecute() throws JobCancelledException {
-	}
-
-	protected void postExecute() throws JobCancelledException {
-
-	}
-
-	protected void cleanUp() {
-	}
-
-	public GenericJobMessage getInputMessage() {
-		return inputMessage;
-	}
-
-	public GenericResultMessage getResultMessage() {
-		return outputMessage;
-	}
-
-	public Date getReceiveTime() {
-		return receiveTime;
-	}
-
-	public void setReceiveTime(Date receiveTime) {
-		this.receiveTime = receiveTime;
-	}
-
-	public Date getScheduleTime() {
-		return scheduleTime;
-	}
-
-	public void setScheduleTime(Date scheduleTime) {
-		this.scheduleTime = scheduleTime;
-	}
-
-	public Instant getStartTime() {
-		return outputMessage.getStartTime();
-	}
-
-	public Instant getEndTime() {
-		return outputMessage.getEndTime();
-	}
-
-	public String getStateDetail() {
-		return this.stateDetail;
-	}
-
-	public void setSourceCode(String source) {
-		this.outputMessage.setSourceCode(source);
-	}
-
-	public String getErrorMessage() {
-		return this.outputMessage.getErrorMessage();
-	}
-
-	public void setErrorMessage(String message) {
-		this.outputMessage.setErrorMessage(message);
-	}
-
-	public void setOutputText(String output) {
-		this.outputMessage.setOutputText(output);
-	}
-
-	public void setParameters(LinkedHashMap<String, Parameter> parameters) {
-		this.outputMessage.setParameters(parameters);
-	}
-
-	public void appendOutputText(String s) {
-		String currentOutput = this.outputMessage.getOutputText();
-		if (currentOutput != null) {
-			this.outputMessage.setOutputText(currentOutput + "\n" + s);
-		} else {
-			this.outputMessage.setOutputText(s);
-		}
-	}
-
-	public ToolDescription getToolDescription() {
-		return toolDescription;
-	}
-
-	/**
-	 * @return Process object of the external process or null, if this Job doesn't
-	 *         have any
-	 */
-	public Process getProcess() {
-		return null;
-	}
-
-	protected int getTimeout() {
-		return this.jobTimeout;
-	}
-
-	protected void addOutputDataset(String outputId, String datasetId, String datasetName, String outputDisplayName) {
-		outputMessage.addDataset(outputId, datasetId, datasetName, outputDisplayName);
-	}
-
-	protected void addVersions(String versionsJson) {
-		outputMessage.setVersionsJson(versionsJson);
-	}
-
-	protected static String getErrorMessage(String screenOutput, String errorMessageToken, String removeLastLineToken) {
-
-		// find the error token
-		int errorTokenStartIndex = screenOutput.lastIndexOf(errorMessageToken);
-
-		if (errorTokenStartIndex != -1) {
-			String errorMessage = screenOutput.substring(errorTokenStartIndex);
-
-			// remove the line that contains the error token
-			errorMessage = StringUtils.substringAfter(errorMessage, errorMessageToken);
-
-			// remove last line if contains last line to remove token
-			if (removeLastLineToken != null) {
-				errorMessage = StringUtils.substringBeforeLast(errorMessage, removeLastLineToken);
-			}
-
-			return errorMessage.trim();
-		} else {
-			return null;
-		}
-	}
-
-	protected static String getChipsterNote(String errorMessage) {
-		// check for chipster note
-		if (errorMessage.contains(CHIPSTER_NOTE_TOKEN)) {
-			return errorMessage.substring(errorMessage.indexOf(CHIPSTER_NOTE_TOKEN) + CHIPSTER_NOTE_TOKEN.length())
-					.trim();
-		} else {
-			return null;
-		}
-	}
+    public static final String SCRIPT_SUCCESSFUL_STRING = "chipster-script-finished-succesfully";
+    public static final String CHIPSTER_NOTE_TOKEN = "CHIPSTER-NOTE:";
+
+    private static final Logger logger = LogManager.getLogger();
+
+    protected GenericJobMessage inputMessage;
+    protected ResultCallback resultHandler;
+    protected ToolDescription toolDescription;
+
+    private Date receiveTime;
+    private Date scheduleTime;
+
+    private int jobTimeout;
+
+    private boolean constructed = false;
+
+    private JobState state;
+    private String stateDetail;
+    private boolean toBeCanceled = false;
+    private final GenericResultMessage outputMessage;
+    public Config config;
+
+    public CompJob() {
+        outputMessage = new GenericResultMessage();
+        this.state = JobState.NEW; // updateState would check old state -> NPE
+    }
+
+    public void construct(GenericJobMessage inputMessage, ToolDescription analysis,
+            ResultCallback resultHandler, int jobTimeout, Config config) {
+        this.constructed = true;
+        this.toolDescription = analysis;
+        this.inputMessage = inputMessage;
+        this.resultHandler = resultHandler;
+        this.jobTimeout = jobTimeout;
+        this.config = config;
+
+        // initialize result message
+        outputMessage.setJobId(this.getId());
+    }
+
+    /**
+     * Run the job. After execution, job should report results
+     * through the ResultCallback interface.
+     */
+    @Override
+    public void run() {
+        try {
+            this.outputMessage.setStartTime(Instant.now());
+            updateState(JobState.RUNNING, "initialising");
+
+            if (!constructed) {
+                throw new IllegalStateException("you must call construct(...) first");
+            }
+
+            // before execute
+            preExecute();
+
+            // execute
+            if (this.getState() == JobState.RUNNING) {
+                execute();
+            }
+
+            // after execute
+            if (this.getState() == JobState.RUNNING) {
+                postExecute();
+            }
+
+            // successful job, failed states are set when they happen
+            if (this.getState() == JobState.RUNNING) {
+                updateState(JobState.COMPLETED, "");
+            }
+        }
+
+        // job was cancelled, do nothing, state has already been set when calling
+        // cancel()
+        catch (JobCancelledException jce) {
+            logger.debug("job cancelled: " + this.getId());
+        }
+
+        // something unexpected happened
+        catch (Throwable e) {
+
+            logger.error("unexpected error", e);
+
+            updateState(JobState.ERROR, "running tool failed");
+            outputMessage.setErrorMessage("Running tool failed.");
+            outputMessage.setOutputText(Exceptions.getStackTrace(e));
+            outputMessage.setState(this.state);
+            outputMessage.setStateDetail(this.stateDetail);
+            resultHandler.sendResultMessage(inputMessage, outputMessage);
+        }
+
+        // clean up
+        finally {
+            try {
+                cleanUp();
+            } catch (Throwable t) {
+                logger.error("Error when cleaning up.", t);
+            }
+            resultHandler.removeRunningJob(this);
+        }
+    }
+
+    public String getId() {
+        return this.inputMessage.getJobId();
+    }
+
+    public synchronized void updateState(JobState newState) {
+        updateState(newState, "");
+    }
+
+    public synchronized void updateState(JobState newState, String stateDetail) {
+
+        // ignore if job is cancelled already
+        if (this.state == JobState.CANCELLED) {
+            logger.info("job tried to change it's state to " + newState.toString() + ", but it's already cancelled");
+            return;
+        }
+
+        // should not try to update state if already finished
+        if (this.state.isFinished()) {
+            logger.warn("trying to update state for already finished job, old state: " + this.state.toString() +
+                    "new state: " + newState.toString());
+            return;
+        }
+
+        // set end time if new state is finished
+        if (newState.isFinished()) {
+            this.outputMessage.setEndTime(Instant.now());
+        }
+
+        // update state
+        this.state = newState;
+        this.stateDetail = stateDetail;
+
+        // send notification message
+        outputMessage.setState(this.state);
+        outputMessage.setStateDetail(this.stateDetail);
+        resultHandler.sendResultMessage(inputMessage, outputMessage);
+
+    }
+
+    public JobState getState() {
+        return this.state;
+    }
+
+    /**
+     * Request the job to be canceled. The job is not canceled immediately. Instead
+     * it is
+     * flagged to be canceled and will cancel as soon as possible.
+     * 
+     */
+    public void cancel() {
+        logger.debug("Canceling job " + getId());
+        this.toBeCanceled = true;
+        updateState(JobState.CANCELLED, "");
+        cancelRequested();
+    }
+
+    /**
+     * Check if the job should be canceled (cancel() has been called)
+     * cancels the job by throwing the cancellation exception.
+     * 
+     * Should be called by subclasses in situations where it is safe to cancel the
+     * job.
+     * 
+     * 
+     * @throws JobCancelledException
+     */
+    protected void cancelCheck() throws JobCancelledException {
+        if (toBeCanceled) {
+            throw new JobCancelledException();
+        }
+    }
+
+    /**
+     * Will be called when the job is canceled using the cancel() method.
+     * 
+     * Subclasses should override this method with actions that should be taken
+     * immediately when cancel is requested.
+     *
+     */
+    protected abstract void cancelRequested();
+
+    protected abstract void execute() throws JobCancelledException;
+
+    protected void preExecute() throws JobCancelledException {
+    }
+
+    protected void postExecute() throws JobCancelledException {
+
+    }
+
+    protected void cleanUp() {
+    }
+
+    public GenericJobMessage getInputMessage() {
+        return inputMessage;
+    }
+
+    public GenericResultMessage getResultMessage() {
+        return outputMessage;
+    }
+
+    public Date getReceiveTime() {
+        return receiveTime;
+    }
+
+    public void setReceiveTime(Date receiveTime) {
+        this.receiveTime = receiveTime;
+    }
+
+    public Date getScheduleTime() {
+        return scheduleTime;
+    }
+
+    public void setScheduleTime(Date scheduleTime) {
+        this.scheduleTime = scheduleTime;
+    }
+
+    public Instant getStartTime() {
+        return outputMessage.getStartTime();
+    }
+
+    public Instant getEndTime() {
+        return outputMessage.getEndTime();
+    }
+
+    public String getStateDetail() {
+        return this.stateDetail;
+    }
+
+    public void setSourceCode(String source) {
+        this.outputMessage.setSourceCode(source);
+    }
+
+    public String getErrorMessage() {
+        return this.outputMessage.getErrorMessage();
+    }
+
+    public void setErrorMessage(String message) {
+        this.outputMessage.setErrorMessage(message);
+    }
+
+    public void setOutputText(String output) {
+        this.outputMessage.setOutputText(output);
+    }
+
+    public void setParameters(LinkedHashMap<String, Parameter> parameters) {
+        this.outputMessage.setParameters(parameters);
+    }
+
+    public void appendOutputText(String s) {
+        String currentOutput = this.outputMessage.getOutputText();
+        if (currentOutput != null) {
+            this.outputMessage.setOutputText(currentOutput + "\n" + s);
+        } else {
+            this.outputMessage.setOutputText(s);
+        }
+    }
+
+    public ToolDescription getToolDescription() {
+        return toolDescription;
+    }
+
+    /**
+     * @return Process object of the external process or null, if this Job doesn't
+     *         have any
+     */
+    public Process getProcess() {
+        return null;
+    }
+
+    protected int getTimeout() {
+        return this.jobTimeout;
+    }
+
+    protected void addOutputDataset(String outputId, String datasetId, String datasetName, String outputDisplayName) {
+        outputMessage.addDataset(outputId, datasetId, datasetName, outputDisplayName);
+    }
+
+    protected void addVersions(String versionsJson) {
+        outputMessage.setVersionsJson(versionsJson);
+    }
+
+    protected static String getErrorMessage(String screenOutput, String errorMessageToken, String removeLastLineToken) {
+
+        // find the error token
+        int errorTokenStartIndex = screenOutput.lastIndexOf(errorMessageToken);
+
+        if (errorTokenStartIndex != -1) {
+            String errorMessage = screenOutput.substring(errorTokenStartIndex);
+
+            // remove the line that contains the error token
+            errorMessage = StringUtils.substringAfter(errorMessage, errorMessageToken);
+
+            // remove last line if contains last line to remove token
+            if (removeLastLineToken != null) {
+                errorMessage = StringUtils.substringBeforeLast(errorMessage, removeLastLineToken);
+            }
+
+            return errorMessage.trim();
+        } else {
+            return null;
+        }
+    }
+
+    protected static String getChipsterNote(String errorMessage) {
+        // check for chipster note
+        if (errorMessage.contains(CHIPSTER_NOTE_TOKEN)) {
+            return errorMessage.substring(errorMessage.indexOf(CHIPSTER_NOTE_TOKEN) + CHIPSTER_NOTE_TOKEN.length())
+                    .trim();
+        } else {
+            return null;
+        }
+    }
 
 }

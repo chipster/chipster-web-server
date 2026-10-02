@@ -8,46 +8,46 @@ import fi.csc.chipster.toolbox.sadl.SADLDescription.Parameter;
 
 public abstract class JavaCompJobBase extends OnDiskCompJobBase {
 
-	public static class JavaParameterSecurityPolicy extends ParameterSecurityPolicy {
+    public static class JavaParameterSecurityPolicy extends ParameterSecurityPolicy {
 
-		private static final int MAX_VALUE_LENGTH = 10000;
+        private static final int MAX_VALUE_LENGTH = 10000;
 
-		@Override
-		public boolean isValueValid(String value, Parameter parameterDescription) {
+        @Override
+        public boolean isValueValid(String value, Parameter parameterDescription) {
 
-			// No need to check content, parameters are passed inside Java Strings
-			// Check only the parameter size (DOS protection)
-			return value.length() <= MAX_VALUE_LENGTH;
-		}
+            // No need to check content, parameters are passed inside Java Strings
+            // Check only the parameter size (DOS protection)
+            return value.length() <= MAX_VALUE_LENGTH;
+        }
 
-		@Override
-		public boolean allowUncheckedParameters(ToolDescription toolDescription) {
-			return "fi.csc.chipster.tools.common.DownloadFile.java".equals(toolDescription.getID());
-		}
+        @Override
+        public boolean allowUncheckedParameters(ToolDescription toolDescription) {
+            return "fi.csc.chipster.tools.common.DownloadFile.java".equals(toolDescription.getID());
+        }
 
-	}
+    }
 
-	public static JavaParameterSecurityPolicy JAVA_PARAMETER_SECURITY_POLICY = new JavaParameterSecurityPolicy();
+    public static JavaParameterSecurityPolicy JAVA_PARAMETER_SECURITY_POLICY = new JavaParameterSecurityPolicy();
 
-	@Override
-	protected void preExecute() throws JobCancelledException {
-		super.preExecute();
-	}
+    @Override
+    protected void preExecute() throws JobCancelledException {
+        super.preExecute();
+    }
 
-	@Override
-	protected void postExecute() throws JobCancelledException {
-		super.postExecute();
-	}
+    @Override
+    protected void postExecute() throws JobCancelledException {
+        super.postExecute();
+    }
 
-	@Override
-	protected void cleanUp() {
-		super.cleanUp();
-	}
+    @Override
+    protected void cleanUp() {
+        super.cleanUp();
+    }
 
-	@Override
-	protected void cancelRequested() {
-		// ignore by default
-	}
+    @Override
+    protected void cancelRequested() {
+        // ignore by default
+    }
 
-	public abstract String getSADL();
+    public abstract String getSADL();
 }

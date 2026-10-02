@@ -80,131 +80,131 @@ package fi.csc.chipster.toolbox.sadl;
  */
 public class SADLSyntax {
 
-	public static final String KEYWORD_DEFAULT = "DEFAULT";
-	public static final String KEYWORD_TO = "TO";
-	public static final String KEYWORD_FROM = "FROM";
-	public static final String KEYWORD_OPTIONAL = "OPTIONAL";
-	public static final String KEYWORD_META = "META";
-	public static final String KEYWORD_TYPE = "TYPE";
-	public static final String KEYWORD_PARAMETER = "PARAMETER";
-	public static final String KEYWORD_OUTPUT = "OUTPUT";
-	public static final String KEYWORD_INPUT = "INPUT";
-	public static final String KEYWORD_TOOL = "TOOL";
-	public static final String KEYWORD_RUNTIME = "RUNTIME";
-	public static final String KEYWORD_SLOTS = "SLOTS";
-	public static final String KEYWORD_IMAGE = "IMAGE";
-	public static final String KEYWORD_STORAGE = "STORAGE";
-	public static final String KEYWORD_TOOLS_BIN = "TOOLS_BIN";
+    public static final String KEYWORD_DEFAULT = "DEFAULT";
+    public static final String KEYWORD_TO = "TO";
+    public static final String KEYWORD_FROM = "FROM";
+    public static final String KEYWORD_OPTIONAL = "OPTIONAL";
+    public static final String KEYWORD_META = "META";
+    public static final String KEYWORD_TYPE = "TYPE";
+    public static final String KEYWORD_PARAMETER = "PARAMETER";
+    public static final String KEYWORD_OUTPUT = "OUTPUT";
+    public static final String KEYWORD_INPUT = "INPUT";
+    public static final String KEYWORD_TOOL = "TOOL";
+    public static final String KEYWORD_RUNTIME = "RUNTIME";
+    public static final String KEYWORD_SLOTS = "SLOTS";
+    public static final String KEYWORD_IMAGE = "IMAGE";
+    public static final String KEYWORD_STORAGE = "STORAGE";
+    public static final String KEYWORD_TOOLS_BIN = "TOOLS_BIN";
 
-	public static final String NAME_SET_DESIGNATOR = "{...}";
-	public static final String NAME_SEPARATOR = ":";
-	public static final String ENUM_OPEN = "[";
-	public static final String ENUM_CLOSE = "]";
-	public static final String LIST_SEPARATOR = ",";
-	public static final String COMMENT_OPEN = "(";
-	public static final String COMMENT_CLOSE = ")";
-	public static final String QUOTE = "\"";
-	public static final String ESCAPE = "\\";
+    public static final String NAME_SET_DESIGNATOR = "{...}";
+    public static final String NAME_SEPARATOR = ":";
+    public static final String ENUM_OPEN = "[";
+    public static final String ENUM_CLOSE = "]";
+    public static final String LIST_SEPARATOR = ",";
+    public static final String COMMENT_OPEN = "(";
+    public static final String COMMENT_CLOSE = ")";
+    public static final String QUOTE = "\"";
+    public static final String ESCAPE = "\\";
 
-	public static class InputType {
-		private String name;
+    public static class InputType {
+        private String name;
 
-		public InputType() {
-			// for Jackson
-		}
+        public InputType() {
+            // for Jackson
+        }
 
-		public InputType(String name) {
-			this.name = name;
-		}
+        public InputType(String name) {
+            this.name = name;
+        }
 
-		public String getName() {
-			return name;
-		}
+        public String getName() {
+            return name;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			InputType other = (InputType) obj;
-			if (name == null) {
-				if (other.name != null)
-					return false;
-			} else if (!name.equals(other.name))
-				return false;
-			return true;
-		}
-	}
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            InputType other = (InputType) obj;
+            if (name == null) {
+                if (other.name != null)
+                    return false;
+            } else if (!name.equals(other.name))
+                return false;
+            return true;
+        }
+    }
 
-	public static enum ParameterType {
-		/**
-		 * Integer number.
-		 */
-		INTEGER,
+    public static enum ParameterType {
+        /**
+         * Integer number.
+         */
+        INTEGER,
 
-		/**
-		 * Decimal number.
-		 */
-		DECIMAL,
+        /**
+         * Decimal number.
+         */
+        DECIMAL,
 
-		/**
-		 * Integer between 0 and 100 (inclusive).
-		 * 
-		 * @deprecated Use INTEGER or DECIMAL instead. Not implemented in the new web
-		 *             app due to not being used in the tools.
-		 */
-		@Deprecated
-		PERCENT,
+        /**
+         * Integer between 0 and 100 (inclusive).
+         * 
+         * @deprecated Use INTEGER or DECIMAL instead. Not implemented in the new web
+         *             app due to not being used in the tools.
+         */
+        @Deprecated
+        PERCENT,
 
-		/**
-		 * A character string.
-		 */
-		STRING,
+        /**
+         * A character string.
+         */
+        STRING,
 
-		/**
-		 * A character string that is allowed to contain any characters
-		 */
-		UNCHECKED_STRING,
+        /**
+         * A character string that is allowed to contain any characters
+         */
+        UNCHECKED_STRING,
 
-		/**
-		 * Enumeration from a set of given values (specified as this type is referred).
-		 */
-		ENUM,
+        /**
+         * Enumeration from a set of given values (specified as this type is referred).
+         */
+        ENUM,
 
-		/**
-		 * Name of input matrix column, for choosing columns from inputs.
-		 */
-		COLUMN_SEL,
+        /**
+         * Name of input matrix column, for choosing columns from inputs.
+         */
+        COLUMN_SEL,
 
-		/**
-		 * Name of metainput matrix column, for choosing columns from metainputs.
-		 */
-		METACOLUMN_SEL,
+        /**
+         * Name of metainput matrix column, for choosing columns from metainputs.
+         */
+        METACOLUMN_SEL,
 
-		/**
-		 * Name of input, for choosing from multiple input datasets.
-		 * 
-		 * @deprecated Use input bindings instead. Not implemented in the new web app
-		 *             due to not being used in the tools.
-		 */
-		@Deprecated
-		INPUT_SEL;
+        /**
+         * Name of input, for choosing from multiple input datasets.
+         * 
+         * @deprecated Use input bindings instead. Not implemented in the new web app
+         *             due to not being used in the tools.
+         */
+        @Deprecated
+        INPUT_SEL;
 
-		public static boolean isValid(String typeName) {
-			for (ParameterType type : values()) {
-				if (type.toString().equals(typeName)) {
-					return true;
-				}
-			}
-			return false;
-		}
+        public static boolean isValid(String typeName) {
+            for (ParameterType type : values()) {
+                if (type.toString().equals(typeName)) {
+                    return true;
+                }
+            }
+            return false;
+        }
 
-		public boolean isNumeric() {
-			return this == INTEGER || this == DECIMAL || this == PERCENT;
-		}
+        public boolean isNumeric() {
+            return this == INTEGER || this == DECIMAL || this == PERCENT;
+        }
 
-	}
+    }
 }

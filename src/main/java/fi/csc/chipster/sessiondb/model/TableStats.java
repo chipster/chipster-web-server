@@ -5,22 +5,22 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 public class TableStats {
 
-	private String name;
-	private long size;
+    private String name;
+    private long size;
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public long getSize() {
-		return size;
-	}
+    public long getSize() {
+        return size;
+    }
 
-	public void setSize(long size) {
-		this.size = size;
-	}
+    public void setSize(long size) {
+        this.size = size;
+    }
 }

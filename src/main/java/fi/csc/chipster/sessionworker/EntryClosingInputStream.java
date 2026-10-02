@@ -9,18 +9,18 @@ import org.apache.logging.log4j.Logger;
 
 class EntryClosingInputStream extends FilterInputStream {
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	private ZipInputStream in;
+    private ZipInputStream in;
 
-	public EntryClosingInputStream(ZipInputStream in) {
-		super(in);
-		this.in = in;
-	}
+    public EntryClosingInputStream(ZipInputStream in) {
+        super(in);
+        this.in = in;
+    }
 
-	@Override
-	public void close() throws IOException {
-		in.closeEntry();
-	}
+    @Override
+    public void close() throws IOException {
+        in.closeEntry();
+    }
 }

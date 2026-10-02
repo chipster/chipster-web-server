@@ -22,20 +22,20 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 public class GeneralExceptionMapper implements ExceptionMapper<Throwable> {
 
-	private static Logger logger = LogManager.getLogger();
+    private static Logger logger = LogManager.getLogger();
 
-	@Context
-	UriInfo uriInfo;
+    @Context
+    UriInfo uriInfo;
 
-	public GeneralExceptionMapper(ExceptionLogger exceptionLogger) {
-	}
+    public GeneralExceptionMapper(ExceptionLogger exceptionLogger) {
+    }
 
-	@Override
-	public Response toResponse(Throwable e) {
-		// always log unexpected exceptions
-		logger.error("unexpected exception", e);
-		// don't send exception message, because, it could contain some
-		// sensitive information
-		return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-	}
+    @Override
+    public Response toResponse(Throwable e) {
+        // always log unexpected exceptions
+        logger.error("unexpected exception", e);
+        // don't send exception message, because, it could contain some
+        // sensitive information
+        return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+    }
 }
