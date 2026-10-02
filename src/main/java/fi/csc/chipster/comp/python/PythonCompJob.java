@@ -6,14 +6,10 @@ package fi.csc.chipster.comp.python;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,7 +42,7 @@ import fi.csc.chipster.util.IOUtils;
 public class PythonCompJob extends OnDiskCompJobBase {
 
 	public static final String STRING_DELIMETER = "'";
-	public static final String CHIPSTER_VARIABLES_FILE = "chipster_variables.py";
+	public static final String CHIPSTER_VARIABLES_MODULE = "chipster_variables";
 
 	public static final String ERROR_MESSAGE_TOKEN = "Traceback";
 	private static final Pattern SUCCESS_STRING_PATTERN = Pattern.compile("^" + SCRIPT_SUCCESSFUL_STRING + "$");
@@ -163,29 +159,34 @@ public class PythonCompJob extends OnDiskCompJobBase {
 
 		// load work dir initialiser
 		logger.debug("job dir: " + jobDir.getPath());
-		String importOs = "import os\n";
-		String chDir = "os.chdir('" + jobDataDir.getAbsolutePath() + "')\n";
+
+		// The program comes from stdin, so Python puts the current directory first in
+		// sys.path. After the chdir that would be the job data dir, and any .py file
+		// there (inputs, files extracted by the tool) would be imported instead of the
+		// library or standard module of the same name. Keep only the absolute paths,
+		// before importing anything that isn't loaded already (sys and os always are).
+		// "-I" would do this too, but Python 2 doesn't have it. filter() instead of a
+		// list comprehension, because in Python 2 its variable would be left in the
+		// globals of the tool script.
 		String importSys = "import sys\n";
+		String importOs = "import os\n";
+		String cleanSysPath = "sys.path[:] = filter(os.path.isabs, sys.path)\n";
+		String chDir = "os.chdir('" + jobDataDir.getAbsolutePath() + "')\n";
+
+		// Python lib files such as version_utils.py import the chipster variables as a
+		// module. Create it in memory from the variables that the handler initialiser
+		// set above, so that there is no file in the job dir to replace it.
+		String variablesModule = "import types\n"
+				+ "_m = types.ModuleType('" + CHIPSTER_VARIABLES_MODULE + "')\n"
+				+ "for _k, _v in list(globals().items()):\n"
+				+ "    if _k.startswith('chipster_'):\n"
+				+ "        setattr(_m, _k, _v)\n"
+				+ "sys.modules['" + CHIPSTER_VARIABLES_MODULE + "'] = _m\n"
+				+ "del _k, _v, _m\n";
 
 		// possibly needs to be absolute because "__main__ script cannot use relative
 		// imports"
 		String appendSysPath = "sys.path.append(os.path.join(os.getcwd(), chipster_common_lib_path))\n";
-
-		// write chipster variables to a file so that they can be imported in python lib
-		// files
-		// such as version_utils.py
-		Path variablesFilePath = new File(jobDataDir, CHIPSTER_VARIABLES_FILE).toPath();
-
-		try {
-			Files.write(variablesFilePath, toolDescription.getInitialiser().getBytes(), StandardOpenOption.CREATE,
-					StandardOpenOption.TRUNCATE_EXISTING);
-
-		} catch (IOException e) {
-			this.setErrorMessage("Writing variables file failed");
-			this.setOutputText(Exceptions.getStackTrace(e));
-			updateState(JobState.ERROR);
-			return;
-		}
 
 		String importVersionUtils = "import version_utils\n";
 		String documentVersions = "version_utils.document_python_version()\n";
@@ -193,8 +194,8 @@ public class PythonCompJob extends OnDiskCompJobBase {
 		// String importVersionUtils = "from version_utils import *\n";
 		// String documentVersions = "document_python_version()\n";
 
-		inputReaders.add(new BufferedReader(new StringReader(importOs + chDir + importSys + appendSysPath
-				+ importVersionUtils + documentVersions)));
+		inputReaders.add(new BufferedReader(new StringReader(importSys + importOs + cleanSysPath + chDir
+				+ variablesModule + appendSysPath + importVersionUtils + documentVersions)));
 
 		// load input parameters
 		LinkedHashMap<String, fi.csc.chipster.sessiondb.model.Parameter> parameters;
