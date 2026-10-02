@@ -28,7 +28,7 @@ public class ImportCapacityTest {
 
 	@Test
 	public void slots() throws Exception {
-		ImportCapacity capacity = new ImportCapacity(2, 10, 10, SHORT, () -> 0, 0);
+		ImportCapacity capacity = new ImportCapacity(2, 100, 10, 10, SHORT, () -> 0, 0);
 		capacity.acquire("a");
 		capacity.acquire("b");
 		assertThrows(ServiceUnavailableException.class, () -> capacity.acquire("c"));
@@ -40,7 +40,7 @@ public class ImportCapacityTest {
 
 	@Test
 	public void userSlots() throws Exception {
-		ImportCapacity capacity = new ImportCapacity(10, 2, 10, SHORT, () -> 0, 0);
+		ImportCapacity capacity = new ImportCapacity(10, 100, 2, 10, SHORT, () -> 0, 0);
 		capacity.acquire("a");
 		capacity.acquire("a");
 		// the user has used all of their slots
@@ -54,7 +54,7 @@ public class ImportCapacityTest {
 
 	@Test
 	public void userImports() throws Exception {
-		ImportCapacity capacity = new ImportCapacity(10, 1, 2, Duration.ofSeconds(10), () -> 0, 0);
+		ImportCapacity capacity = new ImportCapacity(10, 100, 1, 2, Duration.ofSeconds(10), () -> 0, 0);
 		capacity.acquire("a");
 
 		// the second import of the user waits for the first one
@@ -89,7 +89,7 @@ public class ImportCapacityTest {
 
 	@Test
 	public void userCleanUp() throws Exception {
-		ImportCapacity capacity = new ImportCapacity(1, 1, 1, SHORT, () -> 0, 0);
+		ImportCapacity capacity = new ImportCapacity(1, 100, 1, 1, SHORT, () -> 0, 0);
 		// a failed wait must not leave the user's import counted
 		capacity.acquire("a");
 		assertThrows(ServiceUnavailableException.class, () -> capacity.acquire("b"));
@@ -104,7 +104,7 @@ public class ImportCapacityTest {
 
 	@Test
 	public void interrupted() throws Exception {
-		ImportCapacity capacity = new ImportCapacity(1, 1, 10, Duration.ofSeconds(10), () -> 0, 0);
+		ImportCapacity capacity = new ImportCapacity(1, 100, 1, 10, Duration.ofSeconds(10), () -> 0, 0);
 		capacity.acquire("a");
 
 		// the next acquire() would wait, interrupt it beforehand
@@ -121,20 +121,137 @@ public class ImportCapacityTest {
 
 	@Test
 	public void releaseWithoutAcquire() {
-		ImportCapacity capacity = new ImportCapacity(1, 1, 1, SHORT, () -> 0, 0);
+		ImportCapacity capacity = new ImportCapacity(1, 100, 1, 1, SHORT, () -> 0, 0);
 		assertThrows(IllegalStateException.class, () -> capacity.release("a"));
 	}
 
 	@Test
 	public void noSlots() {
-		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(0, 1, 1, SHORT, () -> 0, 0));
-		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(1, 0, 1, SHORT, () -> 0, 0));
-		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(1, 1, 0, SHORT, () -> 0, 0));
+		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(0, 100, 1, 1, SHORT, () -> 0, 0));
+		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(1, 0, 1, 1, SHORT, () -> 0, 0));
+		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(1, 100, 0, 1, SHORT, () -> 0, 0));
+		assertThrows(IllegalArgumentException.class, () -> new ImportCapacity(1, 100, 1, 0, SHORT, () -> 0, 0));
+	}
+
+	@Test
+	public void maxImports() throws Exception {
+		// one import can run, two can be waiting or running in total
+		ImportCapacity capacity = new ImportCapacity(1, 2, 10, 10, Duration.ofSeconds(10), () -> 0, 0);
+		capacity.acquire("a");
+
+		Thread waiting = startWaiting(capacity, "b", new ImportCapacity.Waiter(), new AtomicReference<>());
+
+		// the third is refused right away, although it's from a new user
+		long start = System.nanoTime();
+		assertThrows(ServiceUnavailableException.class, () -> capacity.acquire("c"));
+		assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5));
+
+		// the refused one isn't counted, so there is room again after the first one
+		// has finished and the waiting one has started
+		capacity.release("a");
+		waiting.join(5000);
+		assertFalse(waiting.isAlive());
+		capacity.release("b");
+		capacity.acquire("c");
+	}
+
+	@Test
+	public void cancel() throws Exception {
+		ImportCapacity capacity = new ImportCapacity(1, 10, 10, 10, Duration.ofSeconds(10), () -> 0, 0);
+		capacity.acquire("a");
+
+		ImportCapacity.Waiter waiter = new ImportCapacity.Waiter();
+		AtomicReference<Throwable> error = new AtomicReference<>();
+		Thread waiting = startWaiting(capacity, "b", waiter, error);
+
+		// the cancelled wait ends right away, without waiting for the timeout
+		long start = System.nanoTime();
+		waiter.cancel();
+		waiting.join(5000);
+		assertFalse(waiting.isAlive());
+		assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5));
+		assertTrue(error.get() instanceof ServiceUnavailableException, "unexpected error: " + error.get());
+		assertTrue(waiter.isCancelled());
+
+		// the cancelled import isn't counted and didn't take the slot
+		capacity.release("a");
+		capacity.acquire("b");
+		capacity.release("b");
+		// the user of the cancelled import has no imports left to release
+		assertThrows(IllegalStateException.class, () -> capacity.release("b"));
+	}
+
+	@Test
+	public void cancelUserSlotWait() throws Exception {
+		// the shared slots are free, the import waits for a slot of the user
+		ImportCapacity capacity = new ImportCapacity(10, 10, 1, 10, Duration.ofSeconds(10), () -> 0, 0);
+		capacity.acquire("a");
+
+		ImportCapacity.Waiter waiter = new ImportCapacity.Waiter();
+		AtomicReference<Throwable> error = new AtomicReference<>();
+		Thread waiting = startWaiting(capacity, "a", waiter, error);
+
+		long start = System.nanoTime();
+		waiter.cancel();
+		waiting.join(5000);
+		assertFalse(waiting.isAlive());
+		assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5));
+		assertTrue(error.get() instanceof ServiceUnavailableException, "unexpected error: " + error.get());
+
+		// only the first import is left to release
+		capacity.release("a");
+		assertThrows(IllegalStateException.class, () -> capacity.release("a"));
+		// and the user can import again
+		capacity.acquire("a");
+		capacity.release("a");
+	}
+
+	@Test
+	public void cancelBeforeWaiting() throws Exception {
+		ImportCapacity capacity = new ImportCapacity(1, 10, 10, 10, SHORT, () -> 0, 0);
+		ImportCapacity.Waiter waiter = new ImportCapacity.Waiter();
+		waiter.cancel();
+		assertThrows(ServiceUnavailableException.class, () -> capacity.acquire("a", waiter));
+		// a free slot is still available for others
+		capacity.acquire("b");
+	}
+
+	@Test
+	public void cancelAfterAcquire() throws Exception {
+		ImportCapacity capacity = new ImportCapacity(1, 10, 10, 10, SHORT, () -> 0, 0);
+		ImportCapacity.Waiter waiter = new ImportCapacity.Waiter();
+		capacity.acquire("a", waiter);
+		// too late to cancel, the import runs. This must not interrupt the thread.
+		waiter.cancel();
+		assertFalse(Thread.currentThread().isInterrupted());
+		capacity.release("a");
+	}
+
+	/**
+	 * Start an acquire() in a new thread and return when it's waiting for a slot
+	 */
+	private Thread startWaiting(ImportCapacity capacity, String username, ImportCapacity.Waiter waiter,
+			AtomicReference<Throwable> error) throws InterruptedException {
+		Thread waiting = new Thread(() -> {
+			try {
+				capacity.acquire(username, waiter);
+			} catch (Throwable t) {
+				error.set(t);
+			}
+		});
+		waiting.start();
+		// wait until it's parked in tryAcquire()
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		while (waiting.getState() != Thread.State.TIMED_WAITING) {
+			assertTrue(System.nanoTime() < deadline, "the import didn't start waiting");
+			Thread.sleep(1);
+		}
+		return waiting;
 	}
 
 	@Test
 	public void diskSpace() throws Exception {
-		ImportCapacity capacity = new ImportCapacity(1, 1, 1, Duration.ZERO, () -> 100, 10);
+		ImportCapacity capacity = new ImportCapacity(1, 100, 1, 1, Duration.ZERO, () -> 100, 10);
 		capacity.reserveDiskSpace(50);
 		capacity.reserveDiskSpace(40);
 		// would leave less than 10 bytes free
@@ -146,7 +263,7 @@ public class ImportCapacityTest {
 
 	@Test
 	public void diskSpaceTooLarge() {
-		ImportCapacity capacity = new ImportCapacity(1, 1, 1, Duration.ZERO, () -> 100, 10);
+		ImportCapacity capacity = new ImportCapacity(1, 100, 1, 1, Duration.ZERO, () -> 100, 10);
 		assertThrows(ServiceUnavailableException.class, () -> capacity.reserveDiskSpace(91));
 	}
 }

@@ -70,6 +70,13 @@ public class ExceptionServletFilter implements Filter {
 		} catch (ServiceUnavailableException e) {
 			// the message tells the user to try again later
 			logger.warn("servlet error", e);
+			if (response.isCommitted()) {
+				// Defensive: nothing throws this after the response has started at the moment.
+				// This filter wraps also the streaming file servlets, so if that changes, the
+				// status can't be set anymore. Abort the response like the generic handler
+				// below, so that the client doesn't take a truncated file for a success.
+				throw e;
+			}
 			sendError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, e.getMessage());
 			return;
 		} catch (InsufficientStorageException e) {

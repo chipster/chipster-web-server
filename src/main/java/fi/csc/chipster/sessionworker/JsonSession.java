@@ -51,8 +51,17 @@ public class JsonSession {
 	protected static final List<String> compressedExtensions = Arrays
 			.asList(new String[] { ".gz", ".zip", ".bam", ".Robj" });
 
+	/**
+	 * Extract a JSON session zip
+	 *
+	 * @param createdDatasetIds the IDs of the datasets created in the session-db
+	 *                          are added here, also when this fails or returns
+	 *                          null, so that the caller can delete them
+	 * @return null if the zip isn't a JSON session
+	 */
 	public static ExtractedSession extractSession(RestFileBrokerClient fileBroker, SessionDbClient sessionDb,
-			UUID sessionId, UUID zipDatasetId, long zipSize, SessionLimits limits) throws IOException, RestException {
+			UUID sessionId, UUID zipDatasetId, long zipSize, SessionLimits limits, List<UUID> createdDatasetIds)
+			throws IOException, RestException {
 
 		if (!isValid(fileBroker, sessionId, zipDatasetId, zipSize)) {
 			return null;
@@ -87,7 +96,8 @@ public class JsonSession {
 					// Method isValid() should have noticed this already for all valid JsonSessions
 					// and XmlSessions. We may end up here, if somebody adds extra files to an
 					// otherwise valid session zip. This will look ugly in the file-broker log, but
-					// that's fine for corrupted session.
+					// that's fine for corrupted session. The caller deletes the datasets created so
+					// far.
 					logger.warn("this is not JsonSession, closing connection");
 					return null;
 				}
@@ -133,6 +143,7 @@ public class JsonSession {
 					Dataset dummyDataset = new Dataset();
 					dummyDataset.setDatasetIdPair(sessionId, datasetId);
 					sessionDb.createDataset(sessionId, dummyDataset);
+					createdDatasetIds.add(datasetId);
 
 					Long size = null;
 					/*

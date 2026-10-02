@@ -22,8 +22,13 @@ import jakarta.ws.rs.ServiceUnavailableException;
  * at the same time.
  *
  * Each user can run only a few imports at the same time, so that one user
- * can't take all the slots. The number of waiting imports of a user is limited
- * too, because each one holds a request thread.
+ * can't take all the slots. The number of waiting imports is limited too,
+ * both per user and all users together, because each one holds a request
+ * thread.
+ *
+ * The client keeps the connection open while its import waits. When the client
+ * goes away, the caller cancels the wait with the Waiter, so that the slot and
+ * the request thread are freed and the import isn't run for nobody.
  *
  * The XmlSession downloads the whole zip file to the local disk. Reserve the
  * disk space before the download, so that concurrent imports can't fill the
@@ -34,6 +39,7 @@ import jakarta.ws.rs.ServiceUnavailableException;
 public class ImportCapacity {
 
 	public static final String CONF_MAX_CONCURRENT_IMPORTS = "session-worker-max-concurrent-imports";
+	public static final String CONF_MAX_IMPORTS = "session-worker-max-imports";
 	public static final String CONF_MAX_USER_CONCURRENT_IMPORTS = "session-worker-max-user-concurrent-imports";
 	public static final String CONF_MAX_USER_IMPORTS = "session-worker-max-user-imports";
 	public static final String CONF_IMPORT_WAIT_TIMEOUT = "session-worker-import-wait-timeout";
@@ -41,7 +47,11 @@ public class ImportCapacity {
 
 	private static final Logger logger = LogManager.getLogger();
 
+	private static final String MSG_CANCELLED = "session import was cancelled";
+
 	private Semaphore slots;
+	private int maxImports;
+	private int count = 0;
 	private int maxUserConcurrentImports;
 	private int maxUserImports;
 	private HashMap<String, UserImports> users = new HashMap<>();
@@ -56,6 +66,7 @@ public class ImportCapacity {
 	 */
 	public ImportCapacity(Config config, File tempDir) {
 		this(config.getInt(CONF_MAX_CONCURRENT_IMPORTS),
+				config.getInt(CONF_MAX_IMPORTS),
 				config.getInt(CONF_MAX_USER_CONCURRENT_IMPORTS),
 				config.getInt(CONF_MAX_USER_IMPORTS),
 				Duration.ofMinutes(config.getLong(CONF_IMPORT_WAIT_TIMEOUT)),
@@ -66,6 +77,8 @@ public class ImportCapacity {
 	/**
 	 * @param maxConcurrentImports     imports running at the same time, all users
 	 *                                 together
+	 * @param maxImports               imports running or waiting, all users
+	 *                                 together. More are refused right away.
 	 * @param maxUserConcurrentImports imports of one user running at the same
 	 *                                 time
 	 * @param maxUserImports           imports of one user running or waiting.
@@ -73,13 +86,19 @@ public class ImportCapacity {
 	 * @param usableSpace              free disk space in the temp dir in bytes
 	 * @param minFreeSpace             bytes to keep free
 	 */
-	public ImportCapacity(int maxConcurrentImports, int maxUserConcurrentImports, int maxUserImports,
-			Duration waitTimeout, LongSupplier usableSpace, long minFreeSpace) {
+	public ImportCapacity(int maxConcurrentImports, int maxImports, int maxUserConcurrentImports,
+			int maxUserImports, Duration waitTimeout, LongSupplier usableSpace, long minFreeSpace) {
 		checkAtLeastOne(CONF_MAX_CONCURRENT_IMPORTS, maxConcurrentImports);
+		checkAtLeastOne(CONF_MAX_IMPORTS, maxImports);
 		checkAtLeastOne(CONF_MAX_USER_CONCURRENT_IMPORTS, maxUserConcurrentImports);
 		checkAtLeastOne(CONF_MAX_USER_IMPORTS, maxUserImports);
+		if (maxImports < maxConcurrentImports) {
+			logger.warn(CONF_MAX_IMPORTS + " (" + maxImports + ") is less than " + CONF_MAX_CONCURRENT_IMPORTS + " ("
+					+ maxConcurrentImports + "), only " + maxImports + " imports can run at the same time");
+		}
 		// fair to start the imports in the order they arrived
 		this.slots = new Semaphore(maxConcurrentImports, true);
+		this.maxImports = maxImports;
 		this.maxUserConcurrentImports = maxUserConcurrentImports;
 		this.maxUserImports = maxUserImports;
 		this.waitTimeout = waitTimeout;
@@ -106,53 +125,131 @@ public class ImportCapacity {
 	}
 
 	/**
+	 * Cancels the wait of one acquire() call
+	 *
+	 * Call cancel() from another thread when there is no point to wait anymore,
+	 * e.g. because the client has disconnected. The acquire() throws then and
+	 * doesn't keep a slot, even if the cancel() came just when it was about to
+	 * return. The cancel() does nothing if the acquire() has already returned.
+	 *
+	 * This interrupts the waiting thread, but only while it's waiting in
+	 * acquire(). The interrupt flag is always cleared before acquire() returns,
+	 * so that the blocking IO of the caller isn't affected.
+	 */
+	public static class Waiter {
+		// guarded by this
+		private Thread waiting;
+		private boolean cancelled = false;
+
+		public synchronized void cancel() {
+			cancelled = true;
+			if (waiting != null) {
+				waiting.interrupt();
+			}
+		}
+
+		public synchronized boolean isCancelled() {
+			return cancelled;
+		}
+
+		private synchronized void startWaiting() {
+			if (cancelled) {
+				throw new ServiceUnavailableException(MSG_CANCELLED);
+			}
+			waiting = Thread.currentThread();
+		}
+
+		private synchronized void stopWaiting() {
+			waiting = null;
+			/*
+			 * The cancel() can't interrupt anymore, because it needs this lock. Clear the
+			 * flag, if it was set before this. Jetty interrupts its request threads when
+			 * it stops. Don't restore that either, because then the blocking writes of the
+			 * response would fail too. Finishing the request with an error is the quickest
+			 * way to give the thread back to Jetty.
+			 */
+			Thread.interrupted();
+		}
+	}
+
+	/**
+	 * Wait for a free import slot without a way to cancel the wait
+	 *
+	 * @see #acquire(String, Waiter)
+	 */
+	public void acquire(String username) {
+		acquire(username, new Waiter());
+	}
+
+	/**
 	 * Wait for a free import slot, first a slot of the user and then a shared
 	 * one
 	 *
 	 * Call release() after the import, if this returns normally.
 	 *
-	 * @throws ServiceUnavailableException if the user has too many imports already,
+	 * @param waiter for cancelling the wait from another thread
+	 * @throws ServiceUnavailableException if there are too many imports already,
 	 *                                     there was no free slot within the wait
-	 *                                     timeout or the wait was interrupted
+	 *                                     timeout or the wait was cancelled or
+	 *                                     interrupted
 	 */
-	public void acquire(String username) {
+	public void acquire(String username, Waiter waiter) {
 		UserImports user;
 		synchronized (users) {
+			// check the shared limit first, so that the first import of a user gets the
+			// message about the server load and not about their own imports
+			if (count >= maxImports) {
+				throw new ServiceUnavailableException(
+						"too many sessions are being imported at the moment, please try again later");
+			}
 			user = users.computeIfAbsent(username, u -> new UserImports(maxUserConcurrentImports));
 			if (user.count >= maxUserImports) {
 				throw new ServiceUnavailableException("you are already importing " + maxUserImports
 						+ " sessions, please wait until they are ready");
 			}
+			count++;
 			user.count++;
 		}
 
 		boolean acquired = false;
 		try {
-			// both waits together must fit in the timeout
-			long deadline = System.nanoTime() + waitTimeout.toNanos();
-
-			if (!user.slots.tryAcquire(waitTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
-				throw new ServiceUnavailableException(
-						"your other sessions are still being imported, please try again later");
-			}
+			waiter.startWaiting();
 			try {
-				if (!slots.tryAcquire(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS)) {
+				// both waits together must fit in the timeout
+				long deadline = System.nanoTime() + waitTimeout.toNanos();
+
+				if (!user.slots.tryAcquire(waitTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
 					throw new ServiceUnavailableException(
-							"too many sessions are being imported at the moment, please try again later");
+							"your other sessions are still being imported, please try again later");
 				}
-			} catch (InterruptedException | RuntimeException e) {
-				user.slots.release();
-				throw e;
+				try {
+					if (!slots.tryAcquire(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS)) {
+						throw new ServiceUnavailableException(
+								"too many sessions are being imported at the moment, please try again later");
+					}
+				} catch (InterruptedException | RuntimeException e) {
+					user.slots.release();
+					throw e;
+				}
+				acquired = true;
+
+			} finally {
+				waiter.stopWaiting();
 			}
-			acquired = true;
+
+			// the cancel() may have come after the slots were acquired, but before
+			// stopWaiting(). Don't let the caller run the import in that case.
+			if (waiter.isCancelled()) {
+				slots.release();
+				user.slots.release();
+				acquired = false;
+				throw new ServiceUnavailableException(MSG_CANCELLED);
+			}
 
 		} catch (InterruptedException e) {
-			/*
-			 * Jetty interrupts its request threads when it stops. Don't restore the
-			 * interrupt flag, because then the blocking writes of the response would fail
-			 * too. Finishing the request with this error is the quickest way to give the
-			 * thread back to Jetty.
-			 */
+			if (waiter.isCancelled()) {
+				throw new ServiceUnavailableException(MSG_CANCELLED);
+			}
 			throw new ServiceUnavailableException("session import was interrupted, please try again later");
 		} finally {
 			if (!acquired) {
@@ -176,6 +273,7 @@ public class ImportCapacity {
 
 	private void removeImport(String username, UserImports user) {
 		synchronized (users) {
+			count--;
 			user.count--;
 			// only the imports in progress refer to the user's slots
 			if (user.count == 0) {
