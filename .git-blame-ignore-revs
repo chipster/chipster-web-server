@@ -1,0 +1,11 @@
+# Commits that git blame skips, like the ones that only reformat the code.
+# GitHub uses this file automatically. Locally, run once:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Git blame fails in the branches that don't have this file yet, so use
+# "git blame --ignore-revs-file .git-blame-ignore-revs" there instead, if
+# needed.
+
+# Format the Java code with Spotless
+63784c304229f37e7342faafc1dd256bd1dc7a62
