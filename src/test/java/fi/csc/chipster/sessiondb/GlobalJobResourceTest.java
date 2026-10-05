@@ -21,51 +21,51 @@ import fi.csc.chipster.scheduler.IdPair;
 
 public class GlobalJobResourceTest {
 
-	@SuppressWarnings("unused")
-	private final Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private final Logger logger = LogManager.getLogger();
 
-	private static TestServerLauncher launcher;
+    private static TestServerLauncher launcher;
 
-	private static SessionDbClient user1Client;
-	private static SessionDbClient schedulerClient;
+    private static SessionDbClient user1Client;
+    private static SessionDbClient schedulerClient;
 
-	private static UUID sessionId1;
+    private static UUID sessionId1;
 
-	@BeforeAll
-	public static void setUp() throws Exception {
-		Config config = new Config();
-		launcher = new TestServerLauncher(config);
+    @BeforeAll
+    public static void setUp() throws Exception {
+        Config config = new Config();
+        launcher = new TestServerLauncher(config);
 
-		user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
-		schedulerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSchedulerToken(), Role.CLIENT);
+        user1Client = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+        schedulerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSchedulerToken(), Role.CLIENT);
 
-		sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
-	}
+        sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+    }
 
-	@AfterAll
-	public static void tearDown() throws Exception {
-		launcher.stop();
-	}
+    @AfterAll
+    public static void tearDown() throws Exception {
+        launcher.stop();
+    }
 
-	@Test
-	public void get() throws IOException, RestException {
+    @Test
+    public void get() throws IOException, RestException {
 
-		List<IdPair> oldJobs = schedulerClient.getJobs(JobState.NEW);
+        List<IdPair> oldJobs = schedulerClient.getJobs(JobState.NEW);
 
-		UUID jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
+        UUID jobId = user1Client.createJob(sessionId1, RestUtils.getRandomJob());
 
-		List<IdPair> newJobs = schedulerClient.getJobs(JobState.NEW);
+        List<IdPair> newJobs = schedulerClient.getJobs(JobState.NEW);
 
-		assertEquals(oldJobs.size() + 1, newJobs.size());
-		assertEquals(false, oldJobs.stream().filter(job -> job.getJobId().equals(jobId)).findAny().isPresent());
-		assertEquals(true, newJobs.stream().filter(job -> job.getJobId().equals(jobId)).findAny().isPresent());
+        assertEquals(oldJobs.size() + 1, newJobs.size());
+        assertEquals(false, oldJobs.stream().filter(job -> job.getJobId().equals(jobId)).findAny().isPresent());
+        assertEquals(true, newJobs.stream().filter(job -> job.getJobId().equals(jobId)).findAny().isPresent());
 
-		// normal user
-		try {
-			user1Client.getJobs(JobState.NEW);
-			assertEquals(true, false);
-		} catch (RestException e) {
-			assertEquals(403, e.getResponse().getStatus());
-		}
-	}
+        // normal user
+        try {
+            user1Client.getJobs(JobState.NEW);
+            assertEquals(true, false);
+        } catch (RestException e) {
+            assertEquals(403, e.getResponse().getStatus());
+        }
+    }
 }

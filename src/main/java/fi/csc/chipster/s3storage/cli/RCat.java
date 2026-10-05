@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
-
 import fi.csc.chipster.filestorage.ReadaheadFileInputStream;
 import io.jsonwebtoken.lang.Arrays;
 
@@ -18,63 +17,63 @@ import io.jsonwebtoken.lang.Arrays;
  */
 public class RCat {
 
-        public static void main(String[] args)
-                        throws IOException, NoSuchAlgorithmException, ExecutionException, InterruptedException {
+    public static void main(String[] args)
+            throws IOException, NoSuchAlgorithmException, ExecutionException, InterruptedException {
 
-                int queue = 32;
-                long chunk = 16;
+        int queue = 32;
+        long chunk = 16;
 
-                if (args.length == 0) {
-                        System.out.println("NAME");
-                        System.out.println(
-                                        "    RCat - concatenate files with readahead and print on the standard output");
-                        System.out.println();
-                        System.out.println("SYNOPSIS");
-                        System.out.println("    RCat [OPTION]... [FILE]...");
-                        System.out.println();
-                        System.out.println("OPTIONS");
-                        System.out.println("    -Q, --queue");
-                        System.out.println("        how many readahead chunks to read in parallel, default " + queue);
-                        System.out.println();
-                        System.out.println("    -c, --chunk");
-                        System.out.println("        readahead chunk size in MiB, default " + chunk);
-                        System.out.println();
-                        System.exit(1);
-                }
-
-                List<String> argsList = new LinkedList<>(Arrays.asList(args));
-
-                Iterator<String> iter = argsList.iterator();
-                while (iter.hasNext()) {
-                        String arg = iter.next();
-                        switch (arg) {
-                                case "--queue":
-                                case "-Q":
-                                        iter.remove();
-                                        queue = Integer.parseInt(iter.next());
-                                        iter.remove();
-                                        break;
-                                case "--chunk":
-                                case "-c":
-                                        iter.remove();
-                                        chunk = Long.parseLong(iter.next());
-                                        iter.remove();
-                                        break;
-                        }
-                }
-
-                // all the files are read one after another, so one set of threads is enough
-                ExecutorService executor = ReadaheadFileInputStream.createExecutor(queue);
-
-                try {
-                        for (String fileArg : argsList) {
-                                try (ReadaheadFileInputStream fileStream = new ReadaheadFileInputStream(
-                                                new File(fileArg), queue, chunk * 1024 * 1024, executor)) {
-                                        fileStream.transferTo(System.out);
-                                }
-                        }
-                } finally {
-                        executor.shutdownNow();
-                }
+        if (args.length == 0) {
+            System.out.println("NAME");
+            System.out.println(
+                    "    RCat - concatenate files with readahead and print on the standard output");
+            System.out.println();
+            System.out.println("SYNOPSIS");
+            System.out.println("    RCat [OPTION]... [FILE]...");
+            System.out.println();
+            System.out.println("OPTIONS");
+            System.out.println("    -Q, --queue");
+            System.out.println("        how many readahead chunks to read in parallel, default " + queue);
+            System.out.println();
+            System.out.println("    -c, --chunk");
+            System.out.println("        readahead chunk size in MiB, default " + chunk);
+            System.out.println();
+            System.exit(1);
         }
+
+        List<String> argsList = new LinkedList<>(Arrays.asList(args));
+
+        Iterator<String> iter = argsList.iterator();
+        while (iter.hasNext()) {
+            String arg = iter.next();
+            switch (arg) {
+            case "--queue":
+            case "-Q":
+                iter.remove();
+                queue = Integer.parseInt(iter.next());
+                iter.remove();
+                break;
+            case "--chunk":
+            case "-c":
+                iter.remove();
+                chunk = Long.parseLong(iter.next());
+                iter.remove();
+                break;
+            }
+        }
+
+        // all the files are read one after another, so one set of threads is enough
+        ExecutorService executor = ReadaheadFileInputStream.createExecutor(queue);
+
+        try {
+            for (String fileArg : argsList) {
+                try (ReadaheadFileInputStream fileStream = new ReadaheadFileInputStream(
+                        new File(fileArg), queue, chunk * 1024 * 1024, executor)) {
+                    fileStream.transferTo(System.out);
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 }

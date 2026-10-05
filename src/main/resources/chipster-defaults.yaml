@@ -190,6 +190,13 @@ chipster-build-version: ""
 auth-monitoring-password: monitoring
 auth-jaas-prefix: jaas
 
+# auth refuses to start if any service-password-* or auth-monitoring-password still has its default value or is blank
+# every service account listed above needs a password, whether or not that service is deployed, because auth
+# accepts logins for all of them
+# set to true only in a development environment, never to silence the check for some of the keys in a deployment
+# blank passwords are refused regardless of this flag
+auth-allow-default-passwords: false
+
 db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
 
@@ -690,6 +697,27 @@ session-worker-max-xml-size: 32
 # total of all other metadata read to memory: JSON files and XML screen outputs, in MiB.
 # Takes about 2x its size in heap.
 session-worker-max-metadata-size: 64
+# number of entries in the zip file. Each data file creates a dataset.
+session-worker-max-entries: 10000
+# number of imports running at the same time, all users together. With the
+# limits above, each import can take about 300 MiB of heap in the worst case, so
+# 10 imports need about 3 GiB. A usual import takes only a few MiB. Others wait
+# for their turn.
+session-worker-max-concurrent-imports: 10
+# number of imports running or waiting, all users together. More are refused
+# right away. Each waiting import holds a request thread, 200 by default
+# (server-threads-worker-max is unset for session-worker), so keep this well
+# below that to leave threads for the other requests.
+session-worker-max-imports: 50
+# number of imports of one user running at the same time
+session-worker-max-user-concurrent-imports: 2
+# number of imports of one user running or waiting. More are refused right away.
+session-worker-max-user-imports: 10
+# how long an import can wait for its turn, in minutes
+session-worker-import-wait-timeout: 30
+# disk space to keep free in session-worker, in MiB. The old XML sessions are
+# downloaded to the local disk before the extraction.
+session-worker-min-free-disk-space: 1024
 
 # shared
 

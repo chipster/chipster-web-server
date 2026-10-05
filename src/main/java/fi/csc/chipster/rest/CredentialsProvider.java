@@ -7,7 +7,7 @@ package fi.csc.chipster.rest;
  * @author klemela
  */
 public interface CredentialsProvider {
-	public String getUsername();
+    public String getUsername();
 
-	public String getPassword();
+    public String getPassword();
 }

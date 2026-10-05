@@ -1,3 +1,8 @@
+plugins {
+    // code formatting, see the spotless block below
+    id 'com.diffplug.spotless' version '8.10.3'
+}
+
 apply plugin: 'java'
 apply plugin: 'application'
 apply plugin: 'eclipse'
@@ -126,6 +131,22 @@ gradle.taskGraph.whenReady { graph ->
     }
 }
 
+
+// Format the Java code with "./gradlew spotlessApply" and check it with
+// "./gradlew spotlessCheck", which the check and build tasks run too.
+//
+// The formatter is the one of Eclipse, because the Java extension of VS Code
+// uses the same, and it is configured to read the same file in
+// .vscode/settings.json. That way the format on save gives the same result as
+// these tasks. The file is the "Eclipse [built-in]" profile of this Eclipse
+// version, except that it indents with spaces instead of tabs, doesn't format
+// comments (it would join the lines of lists in them) and doesn't join lines
+// that are wrapped already (like the builder calls, one per line).
+spotless {
+    java {
+        eclipse('4.40').configFile('config/eclipse-formatter.xml')
+    }
+}
 
 //checkstyle {
 //    configFile = 'config/checkstyle/google_checks.xml' as File

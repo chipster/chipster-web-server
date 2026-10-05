@@ -108,9 +108,14 @@ Required settings when running in the container:
 db-user: claudeuser
 variable-ext-ip: localhost
 url-ext-web-server: http://localhost:4200
+auth-allow-default-passwords: true
 ```
 
 - `db-user: claudeuser` — required because the DB was initialized as `claudeuser` (not needed in host mode)
+- `auth-allow-default-passwords: true` — auth refuses to start while any
+  `service-password-*` or `auth-monitoring-password` has its default value
+  or is blank, and the dev setup uses the defaults (needed in host mode too).
+  The flag allows the defaults; a blank password is refused regardless
 - `variable-ext-ip: localhost` — fills in `{{ext-ip}}` in the defaults, so the
   services advertise `localhost` URLs the browser can reach
 - `url-ext-web-server: http://localhost:4200` — CORS filter allows requests
@@ -267,6 +272,11 @@ That alone isn't enough, though, because the URLs the tests follow come from the
 
 Do NOT set `db-user` — leave it commented out or absent (uses the default host user).
 
+`auth-allow-default-passwords: true` is needed here too, for the same reason
+as in container mode. A `conf/chipster.yaml` written before that key existed
+makes auth fail at startup with `IllegalStateException: default passwords in
+configuration` until the line is added.
+
 ### Running Jobs as Podman Containers (host mode, verified working)
 
 ```yaml
@@ -313,6 +323,10 @@ commented out — it only creates a `ServiceLocatorClient` and connects to
 whatever is already there (and `stop()` does nothing). Without a running
 backend, every test fails in `@BeforeAll` with a `ConnectException`, which
 looks like a broken test rather than a missing prerequisite.
+
+The exceptions are `ConfigTest` and `DefaultPasswordCheckTest`, which test the
+service password checks against a temporary configuration file and run
+without a backend.
 
 So this needs two terminals: start PostgreSQL and `./gradlew run --no-daemon`
 as described above, wait for `"up and running"`, then in a second terminal:

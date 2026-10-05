@@ -6,35 +6,35 @@ import jakarta.ws.rs.core.SecurityContext;
 
 public class AuthSecurityContext implements SecurityContext {
 
-	private SecurityContext originalContext;
-	private AuthPrincipal principal;
+    private SecurityContext originalContext;
+    private AuthPrincipal principal;
 
-	public AuthSecurityContext(AuthPrincipal principal, SecurityContext originalContext) {
-		this.principal = principal;
-		this.originalContext = originalContext;
-	}
+    public AuthSecurityContext(AuthPrincipal principal, SecurityContext originalContext) {
+        this.principal = principal;
+        this.originalContext = originalContext;
+    }
 
-	@Override
-	public Principal getUserPrincipal() {
-		return principal;
-	}
+    @Override
+    public Principal getUserPrincipal() {
+        return principal;
+    }
 
-	@Override
-	public boolean isUserInRole(String role) {
-		return principal.getRoles().contains(role);
-	}
+    @Override
+    public boolean isUserInRole(String role) {
+        return principal.getRoles().contains(role);
+    }
 
-	@Override
-	public boolean isSecure() {
-		return originalContext.isSecure();
-	}
+    @Override
+    public boolean isSecure() {
+        return originalContext.isSecure();
+    }
 
-	@Override
-	public String getAuthenticationScheme() {
-		return originalContext.getAuthenticationScheme();
-	}
+    @Override
+    public String getAuthenticationScheme() {
+        return originalContext.getAuthenticationScheme();
+    }
 
-	public void setOriginalSecurityContext(SecurityContext securityContext) {
-		this.originalContext = securityContext;
-	}
+    public void setOriginalSecurityContext(SecurityContext securityContext) {
+        this.originalContext = securityContext;
+    }
 }

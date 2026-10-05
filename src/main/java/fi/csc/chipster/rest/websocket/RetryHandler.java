@@ -23,26 +23,26 @@ package fi.csc.chipster.rest.websocket;
  */
 public class RetryHandler {
 
-	private int attempts = 0;
+    private int attempts = 0;
 
-	/**
-	 * How long to wait before the next attempt, counting this one
-	 */
-	public long nextDelaySeconds() {
-		attempts++;
-		if (attempts < 15) {
-			return 1;
-		} else if (attempts < 30) {
-			return 10;
-		} else {
-			return 60;
-		}
-	}
+    /**
+     * How long to wait before the next attempt, counting this one
+     */
+    public long nextDelaySeconds() {
+        attempts++;
+        if (attempts < 15) {
+            return 1;
+        } else if (attempts < 30) {
+            return 10;
+        } else {
+            return 60;
+        }
+    }
 
-	/**
-	 * Start again from the shortest delay, after a successful connection
-	 */
-	public void reset() {
-		attempts = 0;
-	}
+    /**
+     * Start again from the shortest delay, after a successful connection
+     */
+    public void reset() {
+        attempts = 0;
+    }
 }

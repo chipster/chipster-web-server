@@ -19,24 +19,24 @@ import jakarta.ws.rs.core.SecurityContext;
 @Path(UserResource.PATH_USERS)
 public class UserResource {
 
-	public static final String PATH_USERS = "users";
+    public static final String PATH_USERS = "users";
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	private RuleTable ruleTable;
+    private RuleTable ruleTable;
 
-	public UserResource(RuleTable ruleTable) {
-		this.ruleTable = ruleTable;
-	}
+    public UserResource(RuleTable ruleTable) {
+        this.ruleTable = ruleTable;
+    }
 
-	@GET
-	@RolesAllowed({ Role.ADMIN, Role.FILE_STORAGE, Role.FILE_BROKER })
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response getAll(@Context SecurityContext sc) {
-		List<String> users = ruleTable.getUsers();
-		return Response.ok(users).build();
-	}
+    @GET
+    @RolesAllowed({ Role.ADMIN, Role.FILE_STORAGE, Role.FILE_BROKER })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response getAll(@Context SecurityContext sc) {
+        List<String> users = ruleTable.getUsers();
+        return Response.ok(users).build();
+    }
 
 }

@@ -29,184 +29,184 @@ import jakarta.ws.rs.core.Response;
 @Path("admin")
 public class FileStorageAdminClient implements StorageAdminClient {
 
-	private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-	private CredentialsProvider credentials;
+    private CredentialsProvider credentials;
 
-	private WebTarget target;
-	private WebTarget unauthenticatedTarget;
+    private WebTarget target;
+    private WebTarget unauthenticatedTarget;
 
-	public FileStorageAdminClient(URI url, CredentialsProvider credentials) {
-		this.credentials = credentials;
+    public FileStorageAdminClient(URI url, CredentialsProvider credentials) {
+        this.credentials = credentials;
 
-		init(url);
-	}
+        init(url);
+    }
 
-	private void init(URI url) {
+    private void init(URI url) {
 
-		if (this.credentials != null) {
-			target = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
-					.target(url);
-		}
-		unauthenticatedTarget = AuthenticationClient.getClient().target(url);
-	}
+        if (this.credentials != null) {
+            target = AuthenticationClient.getClient(credentials.getUsername(), credentials.getPassword(), true)
+                    .target(url);
+        }
+        unauthenticatedTarget = AuthenticationClient.getClient().target(url);
+    }
 
-	/**
-	 * Check that previous backup was successful
-	 * 
-	 * If not, throw an error.
-	 * 
-	 * @param storageId
-	 * @param sc
-	 */
-	public void checkBackup() {
+    /**
+     * Check that previous backup was successful
+     * 
+     * If not, throw an error.
+     * 
+     * @param storageId
+     * @param sc
+     */
+    public void checkBackup() {
 
-		getJson(false, "monitoring", "backup");
-	}
+        getJson(false, "monitoring", "backup");
+    }
 
-	public void startBackup() {
+    public void startBackup() {
 
-		post("backup");
-	}
+        post("backup");
+    }
 
-	public void disableBackups() {
+    public void disableBackups() {
 
-		delete("backup", "schedule");
-	}
+        delete("backup", "schedule");
+    }
 
-	public void enableBackups() {
+    public void enableBackups() {
 
-		post("backup", "schedule");
-	}
+        post("backup", "schedule");
+    }
 
-	@Override
-	public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
-			Boolean checksums) {
+    @Override
+    public void startCheck(Long uploadMaxHours, Boolean deleteDatasetsOfMissingFiles,
+            Boolean checksums) {
 
-		if (checksums != null && checksums) {
-			logger.warn("checksums are not available in file-storage");
-		}
+        if (checksums != null && checksums) {
+            logger.warn("checksums are not available in file-storage");
+        }
 
-		WebTarget checkTarget = this.target.path("admin").path("check");
+        WebTarget checkTarget = this.target.path("admin").path("check");
 
-		if (uploadMaxHours != null) {
-			checkTarget = checkTarget.queryParam("uploadMaxHours", uploadMaxHours);
-		}
+        if (uploadMaxHours != null) {
+            checkTarget = checkTarget.queryParam("uploadMaxHours", uploadMaxHours);
+        }
 
-		if (deleteDatasetsOfMissingFiles != null) {
-			checkTarget = checkTarget.queryParam("deleteDatasetsOfMissingFiles", deleteDatasetsOfMissingFiles);
-		}
+        if (deleteDatasetsOfMissingFiles != null) {
+            checkTarget = checkTarget.queryParam("deleteDatasetsOfMissingFiles", deleteDatasetsOfMissingFiles);
+        }
 
-		post(checkTarget);
-	}
+        post(checkTarget);
+    }
 
-	@Override
-	public void deleteOldOrphans() {
+    @Override
+    public void deleteOldOrphans() {
 
-		post("delete-orphans");
-	}
+        post("delete-orphans");
+    }
 
-	@Override
-	public String getStatus() {
-		return getJson(true, "status");
-	}
+    @Override
+    public String getStatus() {
+        return getJson(true, "status");
+    }
 
-	@Override
-	public String getStorageId() {
-		return getJson(true, "id");
-	}
+    @Override
+    public String getStorageId() {
+        return getJson(true, "id");
+    }
 
-	@Override
-	public String getFileStats() {
-		return getJson(true, "filestats");
-	}
+    @Override
+    public String getFileStats() {
+        return getJson(true, "filestats");
+    }
 
-	public String getJson(boolean authenticate, String... paths) {
+    public String getJson(boolean authenticate, String... paths) {
 
-		WebTarget target = this.unauthenticatedTarget;
+        WebTarget target = this.unauthenticatedTarget;
 
-		if (authenticate) {
-			if (this.target == null) {
-				throw new IllegalStateException(this.getClass().getSimpleName() + " initilised without credentials");
-			}
-			target = this.target;
-		}
+        if (authenticate) {
+            if (this.target == null) {
+                throw new IllegalStateException(this.getClass().getSimpleName() + " initilised without credentials");
+            }
+            target = this.target;
+        }
 
-		target = target.path("admin");
+        target = target.path("admin");
 
-		for (String path : paths) {
-			target = target.path(path);
-		}
+        for (String path : paths) {
+            target = target.path(path);
+        }
 
-		Builder request = target.request();
+        Builder request = target.request();
 
-		logger.info("get " + target.getUri());
+        logger.info("get " + target.getUri());
 
-		Response response = request.get(Response.class);
+        Response response = request.get(Response.class);
 
-		if (!RestUtils.isSuccessful(response.getStatus())) {
+        if (!RestUtils.isSuccessful(response.getStatus())) {
 
-			throw toException(response);
-		}
-		return response.readEntity(String.class);
-	}
+            throw toException(response);
+        }
+        return response.readEntity(String.class);
+    }
 
-	public static WebApplicationException toException(Response response) {
-		int statusCode = response.getStatus();
-		String msg = response.readEntity(String.class);
-		if (statusCode == HttpServletResponse.SC_FORBIDDEN) {
-			return new ForbiddenException(msg);
-		} else if (statusCode == HttpServletResponse.SC_UNAUTHORIZED) {
-			return new NotAuthorizedException(msg);
-		} else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
-			return new NotFoundException(msg);
-		} else {
-			return new InternalServerErrorException(statusCode + " " + msg);
-		}
-	}
+    public static WebApplicationException toException(Response response) {
+        int statusCode = response.getStatus();
+        String msg = response.readEntity(String.class);
+        if (statusCode == HttpServletResponse.SC_FORBIDDEN) {
+            return new ForbiddenException(msg);
+        } else if (statusCode == HttpServletResponse.SC_UNAUTHORIZED) {
+            return new NotAuthorizedException(msg);
+        } else if (statusCode == HttpServletResponse.SC_NOT_FOUND) {
+            return new NotFoundException(msg);
+        } else {
+            return new InternalServerErrorException(statusCode + " " + msg);
+        }
+    }
 
-	public String post(String... paths) {
+    public String post(String... paths) {
 
-		WebTarget target = this.target.path("admin");
+        WebTarget target = this.target.path("admin");
 
-		for (String path : paths) {
-			target = target.path(path);
-		}
+        for (String path : paths) {
+            target = target.path(path);
+        }
 
-		return post(target);
-	}
+        return post(target);
+    }
 
-	private String post(WebTarget target) {
+    private String post(WebTarget target) {
 
-		logger.info("post " + target.getUri());
+        logger.info("post " + target.getUri());
 
-		Builder request = target.request();
+        Builder request = target.request();
 
-		Response response = request.post(null);
+        Response response = request.post(null);
 
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw toException(response);
-		}
-		return response.readEntity(String.class);
-	}
+        if (!RestUtils.isSuccessful(response.getStatus())) {
+            throw toException(response);
+        }
+        return response.readEntity(String.class);
+    }
 
-	public String delete(String... paths) {
+    public String delete(String... paths) {
 
-		WebTarget target = this.target.path("admin");
+        WebTarget target = this.target.path("admin");
 
-		for (String path : paths) {
-			target = target.path(path);
-		}
+        for (String path : paths) {
+            target = target.path(path);
+        }
 
-		logger.info("delete " + target.getUri());
+        logger.info("delete " + target.getUri());
 
-		Builder request = target.request();
+        Builder request = target.request();
 
-		Response response = request.delete();
+        Response response = request.delete();
 
-		if (!RestUtils.isSuccessful(response.getStatus())) {
-			throw toException(response);
-		}
-		return response.readEntity(String.class);
-	}
+        if (!RestUtils.isSuccessful(response.getStatus())) {
+            throw toException(response);
+        }
+        return response.readEntity(String.class);
+    }
 }

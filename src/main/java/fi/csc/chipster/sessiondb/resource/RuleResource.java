@@ -47,173 +47,174 @@ import jakarta.ws.rs.core.UriInfo;
  * session.
  */
 public class RuleResource {
-	private UUID sessionId;
-	private RuleTable ruleTable;
-	private SessionDbApi sessionDbApi;
-	private HibernateUtil hibernate;
-	private int maxShareCount;
+    private UUID sessionId;
+    private RuleTable ruleTable;
+    private SessionDbApi sessionDbApi;
+    private HibernateUtil hibernate;
+    private int maxShareCount;
 
-	public RuleResource(SessionResource sessionResource, UUID id, SessionDbApi sessionDbApi,
-			RuleTable authorizationTable, Config config) {
-		this.sessionId = id;
-		this.ruleTable = authorizationTable;
-		this.sessionDbApi = sessionDbApi;
-		this.hibernate = sessionResource.getHibernate();
-		this.maxShareCount = config.getInt(Config.KEY_SESSION_DB_MAX_SHARE_COUNT);
+    public RuleResource(SessionResource sessionResource, UUID id, SessionDbApi sessionDbApi,
+            RuleTable authorizationTable, Config config) {
+        this.sessionId = id;
+        this.ruleTable = authorizationTable;
+        this.sessionDbApi = sessionDbApi;
+        this.hibernate = sessionResource.getHibernate();
+        this.maxShareCount = config.getInt(Config.KEY_SESSION_DB_MAX_SHARE_COUNT);
 
-	}
+    }
 
-	@GET
-	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
+    @GET
+    @Path("{id}")
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response get(@PathParam("id") UUID authorizationId, @Context SecurityContext sc) throws IOException {
 
-		ruleTable.checkSessionReadAuthorization(sc, sessionId);
-		Rule result = getSessionRule(authorizationId);
-		return Response.ok(result).build();
-	}
+        ruleTable.checkSessionReadAuthorization(sc, sessionId);
+        Rule result = getSessionRule(authorizationId);
+        return Response.ok(result).build();
+    }
 
-	/**
-	 * Get a rule of the session of this resource
-	 *
-	 * @param ruleId
-	 * @return the rule, never null
-	 * @throws NotFoundException if the rule doesn't exist or belongs to some other
-	 *                           session
-	 */
-	private Rule getSessionRule(UUID ruleId) {
-		Rule rule = ruleTable.getRule(sessionId, ruleId);
-		if (rule == null) {
-			throw new NotFoundException("rule not found");
-		}
-		return rule;
-	}
+    /**
+     * Get a rule of the session of this resource
+     *
+     * @param ruleId
+     * @return the rule, never null
+     * @throws NotFoundException if the rule doesn't exist or belongs to some other
+     *                           session
+     */
+    private Rule getSessionRule(UUID ruleId) {
+        Rule rule = ruleTable.getRule(sessionId, ruleId);
+        if (rule == null) {
+            throw new NotFoundException("rule not found");
+        }
+        return rule;
+    }
 
-	@GET
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response getBySession(@Context SecurityContext sc) {
-		ruleTable.checkSessionReadAuthorization(sc, sessionId);
-		List<Rule> rules = this.sessionDbApi.getRules(sessionId);
-		return Response.ok(rules).build();
-	}
+    @GET
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response getBySession(@Context SecurityContext sc) {
+        ruleTable.checkSessionReadAuthorization(sc, sessionId);
+        List<Rule> rules = this.sessionDbApi.getRules(sessionId);
+        return Response.ok(rules).build();
+    }
 
-	@POST
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response post(Rule newRule, @Context UriInfo uriInfo, @Context SecurityContext sc) {
+    @POST
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response post(Rule newRule, @Context UriInfo uriInfo, @Context SecurityContext sc) {
 
-		if (newRule.getRuleId() != null) {
-			throw new BadRequestException("authorization already has an id, post not allowed");
-		}
+        if (newRule.getRuleId() != null) {
+            throw new BadRequestException("authorization already has an id, post not allowed");
+        }
 
-		if (newRule.getUsername() == null ||
-				newRule.getUsername().length() < 1 ||
-				!(newRule.getUsername().equals(newRule.getUsername().trim()))) {
-			throw new BadRequestException("invalid userId " + newRule.getUsername());
-		}
+        if (newRule.getUsername() == null ||
+                newRule.getUsername().length() < 1 ||
+                !(newRule.getUsername().equals(newRule.getUsername().trim()))) {
+            throw new BadRequestException("invalid userId " + newRule.getUsername());
+        }
 
-		if (RuleTable.EVERYONE.equals(newRule.getUsername())) {
-			if (!ruleTable.isAllowedToShareToEveryone(sc.getUserPrincipal().getName())) {
-				throw new ForbiddenException("sharing to everyone is not allowed for this user");
-			}
-		}
+        if (RuleTable.EVERYONE.equals(newRule.getUsername())) {
+            if (!ruleTable.isAllowedToShareToEveryone(sc.getUserPrincipal().getName())) {
+                throw new ForbiddenException("sharing to everyone is not allowed for this user");
+            }
+        }
 
-		Session session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
+        Session session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
 
-		// don't allow client to set this
-		newRule.setSharedBy(sc.getUserPrincipal().getName());
+        // don't allow client to set this
+        newRule.setSharedBy(sc.getUserPrincipal().getName());
 
-		// rules are created here only for shares, SessionResource calls the create()
-		// method
-		// directly when creating a rule for an own session
-		if (this.maxShareCount >= 0) {
-			if (this.ruleTable.getShares(sc.getUserPrincipal().getName()).size() > this.maxShareCount) {
-				return Response.status(HttpStatus.SERVICE_UNAVAILABLE_503).entity("Too many shared sessions").build();
-			}
-		}
+        // rules are created here only for shares, SessionResource calls the create()
+        // method
+        // directly when creating a rule for an own session
+        if (this.maxShareCount >= 0) {
+            if (this.ruleTable.getShares(sc.getUserPrincipal().getName()).size() > this.maxShareCount) {
+                return Response.status(HttpStatus.SERVICE_UNAVAILABLE_503).entity("Too many shared sessions").build();
+            }
+        }
 
-		UUID ruleId = sessionDbApi.createRule(newRule, session);
+        UUID ruleId = sessionDbApi.createRule(newRule, session);
 
-		sessionDbApi.sessionModified(session, hibernate.session());
+        sessionDbApi.sessionModified(session, hibernate.session());
 
-		URI uri = uriInfo.getAbsolutePathBuilder().path(ruleId.toString()).build();
+        URI uri = uriInfo.getAbsolutePathBuilder().path(ruleId.toString()).build();
 
-		ObjectNode json = new JsonNodeFactory(false).objectNode();
-		json.put("ruleId", ruleId.toString());
+        ObjectNode json = new JsonNodeFactory(false).objectNode();
+        json.put("ruleId", ruleId.toString());
 
-		return Response.created(uri).entity(json).build();
-	}
+        return Response.created(uri).entity(json).build();
+    }
 
-	@PUT
-	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Transaction
-	public Response put(Rule newRule, @PathParam("id") UUID ruleId, @Context UriInfo uriInfo,
-			@Context SecurityContext sc) {
+    @PUT
+    @Path("{id}")
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Transaction
+    public Response put(Rule newRule, @PathParam("id") UUID ruleId, @Context UriInfo uriInfo,
+            @Context SecurityContext sc) {
 
-		Rule dbRule = getSessionRule(ruleId);
+        Rule dbRule = getSessionRule(ruleId);
 
-		// RolesAllowed annotation isn't anough for this
-		String userId = sc.getUserPrincipal().getName();
-		if (dbRule.getUsername() == null
-				|| !(dbRule.getUsername().equals(userId) || Role.SESSION_WORKER.equals(userId))) {
-			throw new ForbiddenException("wrong user");
-		}
+        // RolesAllowed annotation isn't anough for this
+        String userId = sc.getUserPrincipal().getName();
+        if (dbRule.getUsername() == null
+                || !(dbRule.getUsername().equals(userId) || Role.SESSION_WORKER.equals(userId))) {
+            throw new ForbiddenException("wrong user");
+        }
 
-		if (newRule.getSharedBy() != null) {
-			throw new BadRequestException("only sharedBy can be set to null");
-		}
+        if (newRule.getSharedBy() != null) {
+            throw new BadRequestException("only sharedBy can be set to null");
+        }
 
-		hibernate.session().detach(dbRule);
-		// the user is only allowed to set the sharedBy field to null to accept shares
-		dbRule.setSharedBy(null);
-		hibernate.update(dbRule, dbRule.getRuleId());
+        hibernate.session().detach(dbRule);
+        // the user is only allowed to set the sharedBy field to null to accept shares
+        dbRule.setSharedBy(null);
+        hibernate.update(dbRule, dbRule.getRuleId());
 
-		List<Rule> sessionRules = ruleTable.getRules(sessionId);
+        List<Rule> sessionRules = ruleTable.getRules(sessionId);
 
-		// pass the sharedBy username as extraRecipient to inform her about the
-		// acceptance
-		this.sessionDbApi.publishRuleEvent(sessionId, sessionRules, dbRule, EventType.UPDATE);
+        // pass the sharedBy username as extraRecipient to inform her about the
+        // acceptance
+        this.sessionDbApi.publishRuleEvent(sessionId, sessionRules, dbRule, EventType.UPDATE);
 
-		return Response.noContent().build();
-	}
+        return Response.noContent().build();
+    }
 
-	@DELETE
-	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
-	@Transaction
-	public Response delete(@PathParam("id") UUID ruleId, @Context SecurityContext sc) {
+    @DELETE
+    @Path("{id}")
+    @RolesAllowed({ Role.CLIENT, Role.SERVER }) // no session or dataset tokens, see the class comment
+    @Transaction
+    public Response delete(@PathParam("id") UUID ruleId, @Context SecurityContext sc) {
 
-		Rule ruleToDelete = getSessionRule(ruleId);
+        Rule ruleToDelete = getSessionRule(ruleId);
 
-		Session session = null;
+        Session session = null;
 
-		// everybody is allowed remove their own rules, even if they are read-only
-		// avoid npe. It used to be possible to create a Rule with null username.  
-		boolean isOwnRule = ruleToDelete.getUsername() != null && ruleToDelete.getUsername().equals(sc.getUserPrincipal().getName());
-		// everybody is allowed remove rules shared by them
-		boolean isSharedBy = ruleToDelete.getSharedBy() != null
-				&& ruleToDelete.getSharedBy().equals(sc.getUserPrincipal().getName());
+        // everybody is allowed remove their own rules, even if they are read-only
+        // avoid npe. It used to be possible to create a Rule with null username.  
+        boolean isOwnRule = ruleToDelete.getUsername() != null
+                && ruleToDelete.getUsername().equals(sc.getUserPrincipal().getName());
+        // everybody is allowed remove rules shared by them
+        boolean isSharedBy = ruleToDelete.getSharedBy() != null
+                && ruleToDelete.getSharedBy().equals(sc.getUserPrincipal().getName());
 
-		if (!(isOwnRule || isSharedBy)) {
-			// others need read-write permissions
-			session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
-		}
+        if (!(isOwnRule || isSharedBy)) {
+            // others need read-write permissions
+            session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
+        }
 
-		this.sessionDbApi.deleteRule(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
+        this.sessionDbApi.deleteRule(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
 
-		if (session != null) {
-			sessionDbApi.sessionModified(session, hibernate.session());
-		}
+        if (session != null) {
+            sessionDbApi.sessionModified(session, hibernate.session());
+        }
 
-		return Response.noContent().build();
-	}
+        return Response.noContent().build();
+    }
 
 }

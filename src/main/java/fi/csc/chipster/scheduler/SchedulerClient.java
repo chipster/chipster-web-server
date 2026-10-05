@@ -12,18 +12,18 @@ import jakarta.ws.rs.core.MediaType;
 
 public class SchedulerClient {
 
-	private String baseUri;
+    private String baseUri;
 
-	public SchedulerClient(String schedulerUri) {
-		this.baseUri = schedulerUri;
-	}
+    public SchedulerClient(String schedulerUri) {
+        this.baseUri = schedulerUri;
+    }
 
-	public HashMap<String, Object> getJobQuota() throws JsonMappingException, JsonProcessingException {
+    public HashMap<String, Object> getJobQuota() throws JsonMappingException, JsonProcessingException {
 
-		WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("jobQuota");
+        WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri).path("jobQuota");
 
-		String json = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
+        String json = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
 
-		return RestUtils.parseJsonToMap(json);
-	}
+        return RestUtils.parseJsonToMap(json);
+    }
 }

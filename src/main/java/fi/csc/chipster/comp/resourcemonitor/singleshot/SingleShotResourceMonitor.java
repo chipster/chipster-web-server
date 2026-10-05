@@ -40,125 +40,125 @@ import fi.csc.chipster.comp.resourcemonitor.StorageResourceMonitor;
  */
 public class SingleShotResourceMonitor {
 
-	public static interface SingleShotProcessProvider {
-		public Process getJobProcess();
+    public static interface SingleShotProcessProvider {
+        public Process getJobProcess();
 
-		public File getJobDataDir();
+        public File getJobDataDir();
 
-		void maxStorageChanged(long maxStorage);
-	}
+        void maxStorageChanged(long maxStorage);
+    }
 
-	private static Logger logger = LogManager.getLogger();
+    private static Logger logger = LogManager.getLogger();
 
-	private ProcessResourceMonitor processMonitor;
-	private Timer resourceMonitorTimer;
+    private ProcessResourceMonitor processMonitor;
+    private Timer resourceMonitorTimer;
 
-	private SingleShotProcessProvider processProvider;
+    private SingleShotProcessProvider processProvider;
 
-	private StorageResourceMonitor storageMonitor;
+    private StorageResourceMonitor storageMonitor;
 
-	public SingleShotResourceMonitor(SingleShotProcessProvider processProvider, int monitoringInterval) {
+    public SingleShotResourceMonitor(SingleShotProcessProvider processProvider, int monitoringInterval) {
 
-		if (monitoringInterval >= 0) {
+        if (monitoringInterval >= 0) {
 
-			this.processProvider = processProvider;
+            this.processProvider = processProvider;
 
-			resourceMonitorTimer = new Timer(true);
-			resourceMonitorTimer.schedule(new ResourceMonitorTask(), monitoringInterval, monitoringInterval);
-		}
-	}
+            resourceMonitorTimer = new Timer(true);
+            resourceMonitorTimer.schedule(new ResourceMonitorTask(), monitoringInterval, monitoringInterval);
+        }
+    }
 
-	public class ResourceMonitorTask extends TimerTask {
+    public class ResourceMonitorTask extends TimerTask {
 
-		@Override
-		public void run() {
-			try {
+        @Override
+        public void run() {
+            try {
 
-				updateProcessResources();
+                updateProcessResources();
 
-				updateStorageResources();
+                updateStorageResources();
 
-			} catch (IOException e) {
-				logger.error("failed to monitor job resource usage", e);
-			}
-		}
-	}
+            } catch (IOException e) {
+                logger.error("failed to monitor job resource usage", e);
+            }
+        }
+    }
 
-	private void updateProcessResources() throws IOException {
-		long t = System.currentTimeMillis();
+    private void updateProcessResources() throws IOException {
+        long t = System.currentTimeMillis();
 
-		/*
-		 * Create ProcessResouceMonitor after there is a process
-		 * 
-		 * We don't know when the CompJob has created the process.
-		 * Try to get the process on every timer event and initialize the
-		 * ProcessResourceMonitor when the process exists.
-		 */
-		Process process = processProvider.getJobProcess();
+        /*
+         * Create ProcessResouceMonitor after there is a process
+         * 
+         * We don't know when the CompJob has created the process.
+         * Try to get the process on every timer event and initialize the
+         * ProcessResourceMonitor when the process exists.
+         */
+        Process process = processProvider.getJobProcess();
 
-		if (process != null && processMonitor == null) {
-			processMonitor = new ProcessResourceMonitor(process);
-		}
+        if (process != null && processMonitor == null) {
+            processMonitor = new ProcessResourceMonitor(process);
+        }
 
-		if (processMonitor != null) {
-			processMonitor.update();
-		}
+        if (processMonitor != null) {
+            processMonitor.update();
+        }
 
-		long dt = (System.currentTimeMillis() - t);
-		if (dt > 500) {
-			// consider getting information of all pids with a single ps process if this
-			// happens often
-			logger.warn("process monitoring took " + (System.currentTimeMillis() - t) + "ms");
-		}
-	}
+        long dt = (System.currentTimeMillis() - t);
+        if (dt > 500) {
+            // consider getting information of all pids with a single ps process if this
+            // happens often
+            logger.warn("process monitoring took " + (System.currentTimeMillis() - t) + "ms");
+        }
+    }
 
-	private void updateStorageResources() throws IOException {
-		long t = System.currentTimeMillis();
+    private void updateStorageResources() throws IOException {
+        long t = System.currentTimeMillis();
 
-		File jobDataDir = processProvider.getJobDataDir();
+        File jobDataDir = processProvider.getJobDataDir();
 
-		if (jobDataDir != null && storageMonitor == null) {
-			storageMonitor = new StorageResourceMonitor(jobDataDir, this.processProvider);
-		}
+        if (jobDataDir != null && storageMonitor == null) {
+            storageMonitor = new StorageResourceMonitor(jobDataDir, this.processProvider);
+        }
 
-		if (storageMonitor != null) {
-			storageMonitor.update();
-		}
+        if (storageMonitor != null) {
+            storageMonitor.update();
+        }
 
-		long dt = (System.currentTimeMillis() - t);
+        long dt = (System.currentTimeMillis() - t);
 
-		if (dt > 500) {
-			logger.warn("storage monitoring took " + (System.currentTimeMillis() - t) + "ms");
-		}
-	}
+        if (dt > 500) {
+            logger.warn("storage monitoring took " + (System.currentTimeMillis() - t) + "ms");
+        }
+    }
 
-	public Long getMaxMem() {
-		// return null if monitoring is disabled
-		if (processMonitor == null) {
-			return null;
-		}
-		return processMonitor.getMaxMem();
-	}
+    public Long getMaxMem() {
+        // return null if monitoring is disabled
+        if (processMonitor == null) {
+            return null;
+        }
+        return processMonitor.getMaxMem();
+    }
 
-	public Long getCurrentMem() {
-		// return null if monitoring is disabled
-		if (processMonitor == null) {
-			return null;
-		}
-		return processMonitor.getCurrentMem();
-	}
+    public Long getCurrentMem() {
+        // return null if monitoring is disabled
+        if (processMonitor == null) {
+            return null;
+        }
+        return processMonitor.getCurrentMem();
+    }
 
-	public Long getMaxStorage() {
-		if (storageMonitor == null) {
-			return null;
-		}
-		return storageMonitor.getMaxStorage();
-	}
+    public Long getMaxStorage() {
+        if (storageMonitor == null) {
+            return null;
+        }
+        return storageMonitor.getMaxStorage();
+    }
 
-	public Long getCurrentStorage() {
-		if (storageMonitor == null) {
-			return null;
-		}
-		return storageMonitor.getCurrentStorage();
-	}
+    public Long getCurrentStorage() {
+        if (storageMonitor == null) {
+            return null;
+        }
+        return storageMonitor.getCurrentStorage();
+    }
 }

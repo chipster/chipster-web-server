@@ -8,21 +8,21 @@ package fi.csc.chipster.tools.model;
  * @author Petri Klemela
  */
 public enum Strand {
-	FORWARD,
-	REVERSE,
-	BOTH,
-	NONE,
-	UNRECOGNIZED;
+    FORWARD,
+    REVERSE,
+    BOTH,
+    NONE,
+    UNRECOGNIZED;
 
-	@Override
-	public String toString() {
-		switch (this) {
-			case FORWARD:
-				return "+";
-			case REVERSE:
-				return "-";
-			default:
-				return super.toString();
-		}
-	}
+    @Override
+    public String toString() {
+        switch (this) {
+        case FORWARD:
+            return "+";
+        case REVERSE:
+            return "-";
+        default:
+            return super.toString();
+        }
+    }
 }

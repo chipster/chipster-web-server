@@ -17,19 +17,19 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 public class NotAuthorizedExceptionMapper implements ExceptionMapper<NotAuthorizedException> {
 
-	private ExceptionLogger exceptionLogger;
+    private ExceptionLogger exceptionLogger;
 
-	@Context
-	UriInfo uriInfo;
+    @Context
+    UriInfo uriInfo;
 
-	public NotAuthorizedExceptionMapper(ExceptionLogger exceptionLogger) {
-		this.exceptionLogger = exceptionLogger;
-	}
+    public NotAuthorizedExceptionMapper(ExceptionLogger exceptionLogger) {
+        this.exceptionLogger = exceptionLogger;
+    }
 
-	@Override
-	public Response toResponse(NotAuthorizedException e) {
-		this.exceptionLogger.log(e, uriInfo);
+    @Override
+    public Response toResponse(NotAuthorizedException e) {
+        this.exceptionLogger.log(e, uriInfo);
 
-		return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
-	}
+        return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
+    }
 }

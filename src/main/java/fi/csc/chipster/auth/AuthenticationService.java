@@ -45,162 +45,205 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
  */
 public class AuthenticationService implements ServerComponent {
 
-	private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
-	private static final String KEY_OIDC_SESSION_IN_DB = "auth-oidc-session-in-db";
+    private static final String KEY_JAAS_CONF_PATH = "auth-jaas-conf-path";
+    // package-private for the tests
+    static final String KEY_ALLOW_DEFAULT_PASSWORDS = "auth-allow-default-passwords";
+    private static final String KEY_OIDC_SESSION_IN_DB = "auth-oidc-session-in-db";
 
-	private Logger logger = LogManager.getLogger();
+    private Logger logger = LogManager.getLogger();
 
-	private static HibernateUtil hibernate;
+    private static HibernateUtil hibernate;
 
-	private Config config;
+    private Config config;
 
-	private HttpServer httpServer;
+    private HttpServer httpServer;
 
-	private HttpServer adminServer;
+    private HttpServer adminServer;
 
-	private JaasAuthenticationProvider jaasAuthProvider;
+    private JaasAuthenticationProvider jaasAuthProvider;
 
-	private AuthenticationClient adminAuthClient;
+    private AuthenticationClient adminAuthClient;
 
-	public static List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
-			User.class,
-			OidcLoginSession.class,
-	});
+    public static List<Class<?>> hibernateClasses = Arrays.asList(new Class<?>[] {
+            User.class,
+            OidcLoginSession.class,
+    });
 
-	public AuthenticationService(Config config) {
-		this.config = config;
-	}
+    public AuthenticationService(Config config) {
+        this.config = config;
+    }
 
-	/**
-	 * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
-	 * application.
-	 * 
-	 * @return Grizzly HTTP server.
-	 * @throws IOException
-	 * @throws IllegalConfigurationException
-	 * @throws InterruptedException
-	 * @throws URISyntaxException
-	 * @throws SQLException
-	 */
-	public void startServer() throws IOException, InterruptedException, URISyntaxException {
+    /**
+     * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
+     * application.
+     * 
+     * @return Grizzly HTTP server.
+     * @throws IOException
+     * @throws IllegalConfigurationException
+     * @throws InterruptedException
+     * @throws URISyntaxException
+     * @throws SQLException
+     */
+    public void startServer() throws IOException, InterruptedException, URISyntaxException {
 
-		ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
+        checkDefaultPasswords();
 
-		// for some reason Hibernate now initializes the JAAS ConfigFile class, so make
-		// sure we have configured
-		// the JAAS config file path system property before that
-		String jaasConfPath = config.getString(KEY_JAAS_CONF_PATH);
-		if (jaasConfPath.isEmpty()) {
-			// load default from the jar to avoid handling extra files in deployment scripts
-			jaasConfPath = ClassLoader.getSystemClassLoader().getResource("jaas.config").toString();
-		}
-		logger.info("load JAAS config from " + jaasConfPath);
-		jaasAuthProvider = new JaasAuthenticationProvider(jaasConfPath);
+        ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
-		// init Hibernate
-		hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);
-		UserTable userTable = new UserTable(hibernate);
-		AuthTokens authTokens = new AuthTokens(config);
+        // for some reason Hibernate now initializes the JAAS ConfigFile class, so make
+        // sure we have configured
+        // the JAAS config file path system property before that
+        String jaasConfPath = config.getString(KEY_JAAS_CONF_PATH);
+        if (jaasConfPath.isEmpty()) {
+            // load default from the jar to avoid handling extra files in deployment scripts
+            jaasConfPath = ClassLoader.getSystemClassLoader().getResource("jaas.config").toString();
+        }
+        logger.info("load JAAS config from " + jaasConfPath);
+        jaasAuthProvider = new JaasAuthenticationProvider(jaasConfPath);
 
-		AuthTokenResource tokenResource = new AuthTokenResource(authTokens, userTable);
+        // init Hibernate
+        hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);
+        UserTable userTable = new UserTable(hibernate);
+        AuthTokens authTokens = new AuthTokens(config);
 
-		OidcLoginSessions oidcLoginSessions;
+        AuthTokenResource tokenResource = new AuthTokenResource(authTokens, userTable);
 
-		if (config.getBoolean(KEY_OIDC_SESSION_IN_DB)) {
-			oidcLoginSessions = new OidcLoginSessionsInDb(config, hibernate);
-		} else {
-			oidcLoginSessions = new OidcLoginSessionsInMemory(config);
-		}
+        OidcLoginSessions oidcLoginSessions;
 
-		OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(authTokens, userTable, config),
-				oidcLoginSessions, serviceLocator);
+        if (config.getBoolean(KEY_OIDC_SESSION_IN_DB)) {
+            oidcLoginSessions = new OidcLoginSessionsInDb(config, hibernate);
+        } else {
+            oidcLoginSessions = new OidcLoginSessionsInMemory(config);
+        }
 
-		// new ChipsterOidcLoginSessionsInMemory(config));
-		oidcResource.init(authTokens, userTable, config);
-		AuthUserResource userResource = new AuthUserResource(userTable);
-		AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable,
-				authTokens, jaasAuthProvider);
+        OidcResource oidcResource = new OidcResource(new OidcProvidersImpl(authTokens, userTable, config),
+                oidcLoginSessions, serviceLocator);
 
-		// log also client errors in auth
-		final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator, true)
-				.register(tokenResource)
-				.register(oidcResource)
-				.register(userResource)
-				.register(new HibernateRequestFilter(hibernate))
-				.register(new HibernateResponseFilter(hibernate))
-				// .register(new LoggingFilter())
-				.register(authRequestFilter);
+        // new ChipsterOidcLoginSessionsInMemory(config));
+        oidcResource.init(authTokens, userTable, config);
+        AuthUserResource userResource = new AuthUserResource(userTable);
+        AuthenticationRequestFilter authRequestFilter = new AuthenticationRequestFilter(hibernate, config, userTable,
+                authTokens, jaasAuthProvider);
 
-		JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
+        // log also client errors in auth
+        final ResourceConfig rc = RestUtils.getDefaultResourceConfig(serviceLocator, true)
+                .register(tokenResource)
+                .register(oidcResource)
+                .register(userResource)
+                .register(new HibernateRequestFilter(hibernate))
+                .register(new HibernateResponseFilter(hibernate))
+                // .register(new LoggingFilter())
+                .register(authRequestFilter);
 
-		AuthAdminResource authAdminResource = new AuthAdminResource(hibernate, hibernateClasses, jerseyStatisticsSource,
-				userTable, this.config);
+        JerseyStatisticsSource jerseyStatisticsSource = RestUtils.createJerseyStatisticsSource(rc);
 
-		// create and start a new instance of grizzly http server
-		// exposing the Jersey application at BASE_URI
-		URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
-		this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
-		RestUtils.configureGrizzlyThreads(httpServer, Role.AUTH, false, config);
-		RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.AUTH, LogType.API);
+        AuthAdminResource authAdminResource = new AuthAdminResource(hibernate, hibernateClasses, jerseyStatisticsSource,
+                userTable, this.config);
 
-		jerseyStatisticsSource.collectConnectionStatistics(httpServer);
+        // create and start a new instance of grizzly http server
+        // exposing the Jersey application at BASE_URI
+        URI baseUri = URI.create(this.config.getBindUrl(Role.AUTH));
+        this.httpServer = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc, false);
+        RestUtils.configureGrizzlyThreads(httpServer, Role.AUTH, false, config);
+        RestUtils.configureGrizzlyRequestLog(this.httpServer, Role.AUTH, LogType.API);
 
-		this.httpServer.start();
+        jerseyStatisticsSource.collectConnectionStatistics(httpServer);
 
-		/*
-		 * Authenticate admin API using the same Rest API that all other admin APIs are
-		 * using
-		 * even if it is running in this same process. We have to set the address
-		 * explicitly, because
-		 * ServiceLocator isn't running yet.
-		 */
+        this.httpServer.start();
 
-		URL bindUrl = URI.create(config.getBindUrl(Role.AUTH)).toURL();
+        /*
+         * Authenticate admin API using the same Rest API that all other admin APIs are
+         * using
+         * even if it is running in this same process. We have to set the address
+         * explicitly, because
+         * ServiceLocator isn't running yet.
+         */
 
-		String localhostUrl = new URI(bindUrl.getProtocol(), null, "localhost", bindUrl.getPort(), bindUrl.getFile(),
-				null, null).toString();
+        URL bindUrl = URI.create(config.getBindUrl(Role.AUTH)).toURL();
 
-		this.adminAuthClient = new AuthenticationClient(localhostUrl, Role.AUTH,
-				config.getPassword(Role.AUTH), Role.SERVER);
-		this.adminServer = RestUtils.startAdminServer(
-				authAdminResource, hibernate,
-				Role.AUTH, config, adminAuthClient, serviceLocator);
-	}
+        String localhostUrl = new URI(bindUrl.getProtocol(), null, "localhost", bindUrl.getPort(), bindUrl.getFile(),
+                null, null).toString();
 
-	/**
-	 * Main method.
-	 * 
-	 * @param args
-	 * @throws IOException
-	 * @throws IllegalConfigurationException
-	 * @throws InterruptedException
-	 * @throws SQLException
-	 * @throws URISyntaxException
-	 */
-	public static void main(String[] args) throws IOException, InterruptedException, SQLException, URISyntaxException {
+        this.adminAuthClient = new AuthenticationClient(localhostUrl, Role.AUTH,
+                config.getPassword(Role.AUTH), Role.SERVER);
+        this.adminServer = RestUtils.startAdminServer(
+                authAdminResource, hibernate,
+                Role.AUTH, config, adminAuthClient, serviceLocator);
+    }
 
-		final AuthenticationService service = new AuthenticationService(new Config());
-		service.startServer();
+    /**
+     * Refuse to start if any service account or the monitoring account has a blank
+     * password or still has its default password
+     *
+     * The default passwords are public, so a deployment must not use them. They
+     * can be allowed in a development environment with a configuration flag, blank
+     * passwords never.
+     *
+     * Call this before starting anything that creates threads, otherwise the
+     * process doesn't exit after the exception.
+     * 
+     * Package-private for the tests.
+     */
+    void checkDefaultPasswords() {
 
-		RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.AUTH);
+        List<String> blankKeys = config.getBlankPasswordKeys();
 
-		RestUtils.waitForShutdown("authentication service", service.getHttpServer());
+        if (!blankKeys.isEmpty()) {
+            throw new IllegalStateException("blank passwords in configuration: " + String.join(", ", blankKeys)
+                    + ". Set new passwords for these keys");
+        }
 
-		hibernate.getSessionFactory().close();
-	}
+        List<String> defaultKeys = config.getDefaultPasswordKeys();
 
-	private HttpServer getHttpServer() {
-		return httpServer;
-	}
+        if (defaultKeys.isEmpty()) {
+            return;
+        }
 
-	public HibernateUtil getHibernate() {
-		return hibernate;
-	}
+        if (config.getBoolean(KEY_ALLOW_DEFAULT_PASSWORDS)) {
+            logger.warn("default passwords allowed by " + KEY_ALLOW_DEFAULT_PASSWORDS + ": "
+                    + String.join(", ", defaultKeys));
+            return;
+        }
 
-	public void close() {
-		RestUtils.shutdown("auth-admin", adminServer);
-		RestUtils.shutdown("auth", httpServer);
-		hibernate.getSessionFactory().close();
-		adminAuthClient.close();
-	}
+        throw new IllegalStateException("default passwords in configuration: " + String.join(", ", defaultKeys)
+                + ". Set new passwords for these keys, or set " + KEY_ALLOW_DEFAULT_PASSWORDS
+                + ": true in a development environment");
+    }
+
+    /**
+     * Main method.
+     *
+     * @param args
+     * @throws IOException
+     * @throws IllegalConfigurationException
+     * @throws InterruptedException
+     * @throws SQLException
+     * @throws URISyntaxException
+     */
+    public static void main(String[] args) throws IOException, InterruptedException, SQLException, URISyntaxException {
+
+        final AuthenticationService service = new AuthenticationService(new Config());
+        service.startServer();
+
+        RestUtils.shutdownGracefullyOnInterrupt(service.getHttpServer(), Role.AUTH);
+
+        RestUtils.waitForShutdown("authentication service", service.getHttpServer());
+
+        hibernate.getSessionFactory().close();
+    }
+
+    private HttpServer getHttpServer() {
+        return httpServer;
+    }
+
+    public HibernateUtil getHibernate() {
+        return hibernate;
+    }
+
+    public void close() {
+        RestUtils.shutdown("auth-admin", adminServer);
+        RestUtils.shutdown("auth", httpServer);
+        hibernate.getSessionFactory().close();
+        adminAuthClient.close();
+    }
 }

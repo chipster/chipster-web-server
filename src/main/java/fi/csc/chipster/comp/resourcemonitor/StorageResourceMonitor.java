@@ -11,36 +11,36 @@ import fi.csc.chipster.comp.resourcemonitor.singleshot.SingleShotResourceMonitor
 
 public class StorageResourceMonitor {
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	private File jobDataDir;
-	private Long maxStorage;
-	private Long currentStorage;
+    private File jobDataDir;
+    private Long maxStorage;
+    private Long currentStorage;
 
-	private SingleShotProcessProvider processProvider;
+    private SingleShotProcessProvider processProvider;
 
-	public StorageResourceMonitor(File jobDataDir, SingleShotProcessProvider processProvider) {
-		this.jobDataDir = jobDataDir;
-		this.processProvider = processProvider;
-	}
+    public StorageResourceMonitor(File jobDataDir, SingleShotProcessProvider processProvider) {
+        this.jobDataDir = jobDataDir;
+        this.processProvider = processProvider;
+    }
 
-	public Long getMaxStorage() {
-		return maxStorage;
-	}
+    public Long getMaxStorage() {
+        return maxStorage;
+    }
 
-	public Long getCurrentStorage() {
-		return currentStorage;
-	}
+    public Long getCurrentStorage() {
+        return currentStorage;
+    }
 
-	public void update() throws IOException {
+    public void update() throws IOException {
 
-		this.currentStorage = FileUtils.sizeOfDirectory(this.jobDataDir);
+        this.currentStorage = FileUtils.sizeOfDirectory(this.jobDataDir);
 
-		if (this.maxStorage == null || currentStorage > this.maxStorage) {
-			this.maxStorage = currentStorage;
+        if (this.maxStorage == null || currentStorage > this.maxStorage) {
+            this.maxStorage = currentStorage;
 
-			this.processProvider.maxStorageChanged(maxStorage);
-		}
-	}
+            this.processProvider.maxStorageChanged(maxStorage);
+        }
+    }
 }

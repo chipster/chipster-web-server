@@ -15,179 +15,179 @@ import fi.csc.chipster.tools.model.Strand;
  */
 public class BedLineParser extends AbstractTsvLineParser {
 
-	public enum Column {
+    public enum Column {
 
-		CHROM("Chromosome"),
-		CHROM_START("Start"),
-		CHROM_END("End"),
-		NAME("Name"),
-		SCORE("Score"),
-		STRAND("Strand"),
-		THICK_START("Thick start"),
-		THICK_END("Thick end"),
-		ITEM_RGB("Item rgb"),
-		BLOCK_COUNT("Block count"),
-		BLOCK_SIZES("Block sizes"),
-		BLOCK_STARTS("Block starts");
+        CHROM("Chromosome"),
+        CHROM_START("Start"),
+        CHROM_END("End"),
+        NAME("Name"),
+        SCORE("Score"),
+        STRAND("Strand"),
+        THICK_START("Thick start"),
+        THICK_END("Thick end"),
+        ITEM_RGB("Item rgb"),
+        BLOCK_COUNT("Block count"),
+        BLOCK_SIZES("Block sizes"),
+        BLOCK_STARTS("Block starts");
 
-		private final String name;
+        private final String name;
 
-		Column(String name) {
-			this.name = name;
-		}
+        Column(String name) {
+            this.name = name;
+        }
 
-		public String toString() {
-			return name;
-		}
-	}
+        public String toString() {
+            return name;
+        }
+    }
 
-	private boolean convertCoordinates;
+    private boolean convertCoordinates;
 
-	/**
-	 * @param convertCoordinates Convert coordinates from bed file 0-based
-	 *                           coordinate system to genome browser 1-based
-	 *                           coordinates.
-	 */
-	public BedLineParser(boolean convertCoordinates) {
-		this.convertCoordinates = convertCoordinates;
-	}
+    /**
+     * @param convertCoordinates Convert coordinates from bed file 0-based
+     *                           coordinate system to genome browser 1-based
+     *                           coordinates.
+     */
+    public BedLineParser(boolean convertCoordinates) {
+        this.convertCoordinates = convertCoordinates;
+    }
 
-	@Override
-	public Region getRegion() {
+    @Override
+    public Region getRegion() {
 
-		if (isContentLine()) {
+        if (isContentLine()) {
 
-			long start = getLong(Column.CHROM_START.ordinal());
-			long end = getLong(Column.CHROM_END.ordinal());
-			Chromosome chr = new Chromosome(getString(Column.CHROM.ordinal()));
+            long start = getLong(Column.CHROM_START.ordinal());
+            long end = getLong(Column.CHROM_END.ordinal());
+            Chromosome chr = new Chromosome(getString(Column.CHROM.ordinal()));
 
-			if (convertCoordinates) {
-				start++;
-				end++;
-			}
+            if (convertCoordinates) {
+                start++;
+                end++;
+            }
 
-			return new Region(start, end, chr);
+            return new Region(start, end, chr);
 
-		} else {
+        } else {
 
-			return null;
-		}
-	}
+            return null;
+        }
+    }
 
-	@Override
-	public BedLine getFileLine() {
-		BedLine line = new BedLine();
+    @Override
+    public BedLine getFileLine() {
+        BedLine line = new BedLine();
 
-		Region region = getRegion();
+        Region region = getRegion();
 
-		line.setChrom(region.start.chr);
-		line.setChromStart(region.start.bp);
-		line.setChromEnd(region.end.bp);
+        line.setChrom(region.start.chr);
+        line.setChromStart(region.start.bp);
+        line.setChromEnd(region.end.bp);
 
-		int columnCount = values.length;
-		int column;
+        int columnCount = values.length;
+        int column;
 
-		column = Column.NAME.ordinal();
+        column = Column.NAME.ordinal();
 
-		if (columnCount > column) {
-			line.setName(getString(column));
-		}
+        if (columnCount > column) {
+            line.setName(getString(column));
+        }
 
-		column = Column.SCORE.ordinal();
+        column = Column.SCORE.ordinal();
 
-		if (columnCount > column) {
-			line.setScore(getFloat(column));
-		}
+        if (columnCount > column) {
+            line.setScore(getFloat(column));
+        }
 
-		column = Column.SCORE.ordinal();
+        column = Column.SCORE.ordinal();
 
-		if (columnCount > column) {
-			line.setScore(getFloat(column));
-		}
+        if (columnCount > column) {
+            line.setScore(getFloat(column));
+        }
 
-		column = Column.STRAND.ordinal();
+        column = Column.STRAND.ordinal();
 
-		if (columnCount > column) {
+        if (columnCount > column) {
 
-			String strandString = getString(column);
+            String strandString = getString(column);
 
-			if ("+".equals(strandString)) {
-				line.setStrand(Strand.FORWARD);
-			} else if ("-".equals(strandString)) {
-				line.setStrand(Strand.REVERSE);
-			}
-		}
+            if ("+".equals(strandString)) {
+                line.setStrand(Strand.FORWARD);
+            } else if ("-".equals(strandString)) {
+                line.setStrand(Strand.REVERSE);
+            }
+        }
 
-		column = Column.THICK_START.ordinal();
+        column = Column.THICK_START.ordinal();
 
-		if (columnCount > column) {
-			line.setThickStart(getLong(column));
-		}
+        if (columnCount > column) {
+            line.setThickStart(getLong(column));
+        }
 
-		column = Column.THICK_END.ordinal();
+        column = Column.THICK_END.ordinal();
 
-		if (columnCount > column) {
-			line.setThickEnd(getLong(column));
-		}
+        if (columnCount > column) {
+            line.setThickEnd(getLong(column));
+        }
 
-		column = Column.ITEM_RGB.ordinal();
+        column = Column.ITEM_RGB.ordinal();
 
-		if (columnCount > column) {
-			String string = getString(column);
-			List<Long> rgb = splitStringToList(string);
+        if (columnCount > column) {
+            String string = getString(column);
+            List<Long> rgb = splitStringToList(string);
 
-			// don't care if the color parsing fails, for example '0'
-			if (rgb.size() == 3) {
-				int r = (int) (long) rgb.get(0);
-				int g = (int) (long) rgb.get(1);
-				int b = (int) (long) rgb.get(2);
-				Color c = new Color(r, g, b);
-				line.setItemRgb(c);
-			}
-		}
+            // don't care if the color parsing fails, for example '0'
+            if (rgb.size() == 3) {
+                int r = (int) (long) rgb.get(0);
+                int g = (int) (long) rgb.get(1);
+                int b = (int) (long) rgb.get(2);
+                Color c = new Color(r, g, b);
+                line.setItemRgb(c);
+            }
+        }
 
-		column = Column.BLOCK_COUNT.ordinal();
+        column = Column.BLOCK_COUNT.ordinal();
 
-		if (columnCount > column) {
-			line.setBlockCount(getInteger(column));
-		}
+        if (columnCount > column) {
+            line.setBlockCount(getInteger(column));
+        }
 
-		column = Column.BLOCK_SIZES.ordinal();
+        column = Column.BLOCK_SIZES.ordinal();
 
-		if (columnCount > column) {
+        if (columnCount > column) {
 
-			String string = getString(column);
-			line.setBlockSizes(splitStringToList(string));
-		}
+            String string = getString(column);
+            line.setBlockSizes(splitStringToList(string));
+        }
 
-		column = Column.BLOCK_STARTS.ordinal();
+        column = Column.BLOCK_STARTS.ordinal();
 
-		if (columnCount > column) {
+        if (columnCount > column) {
 
-			String string = getString(column);
-			line.setBlockStarts(splitStringToList(string));
-		}
+            String string = getString(column);
+            line.setBlockStarts(splitStringToList(string));
+        }
 
-		return line;
-	}
+        return line;
+    }
 
-	private List<Long> splitStringToList(String string) {
-		String[] splitted = string.split(",");
-		List<Long> list = new LinkedList<>();
+    private List<Long> splitStringToList(String string) {
+        String[] splitted = string.split(",");
+        List<Long> list = new LinkedList<>();
 
-		for (String size : splitted) {
-			list.add(Long.parseLong(size));
-		}
+        for (String size : splitted) {
+            list.add(Long.parseLong(size));
+        }
 
-		return list;
-	}
+        return list;
+    }
 
-	public int getColumnCount() {
-		return values.length;
-	}
+    public int getColumnCount() {
+        return values.length;
+    }
 
-	@Override
-	public String getHeaderStart() {
-		return "track";
-	}
+    @Override
+    public String getHeaderStart() {
+        return "track";
+    }
 }

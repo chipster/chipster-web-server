@@ -5,13 +5,13 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 public class SessionListStats {
 
-	private long size;
+    private long size;
 
-	public long getSize() {
-		return size;
-	}
+    public long getSize() {
+        return size;
+    }
 
-	public void setSize(long size) {
-		this.size = size;
-	}
+    public void setSize(long size) {
+        this.size = size;
+    }
 }

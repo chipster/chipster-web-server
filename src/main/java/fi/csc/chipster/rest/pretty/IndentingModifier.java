@@ -12,12 +12,12 @@ import jakarta.ws.rs.core.MultivaluedMap;
 
 public class IndentingModifier extends ObjectWriterModifier {
 
-	@Override
-	public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
-			Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
+    @Override
+    public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
+            Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
 
-		g.useDefaultPrettyPrinter();
+        g.useDefaultPrettyPrinter();
 
-		return w;
-	}
+        return w;
+    }
 }

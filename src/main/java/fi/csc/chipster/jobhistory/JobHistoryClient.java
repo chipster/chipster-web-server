@@ -19,56 +19,56 @@ import fi.csc.chipster.sessiondb.model.JobIdPair;
 
 public class JobHistoryClient {
 
-	private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-	@SuppressWarnings("unused")
-	private ServiceLocatorClient serviceLocator;
-	private CredentialsProvider credentials;
+    @SuppressWarnings("unused")
+    private ServiceLocatorClient serviceLocator;
+    private CredentialsProvider credentials;
 
-	private WebTarget jobHistoryTarget;
+    private WebTarget jobHistoryTarget;
 
-	public JobHistoryClient(ServiceLocatorClient serviceLocator,
-			CredentialsProvider credentials) {
-		this.serviceLocator = serviceLocator;
-		this.credentials = credentials;
+    public JobHistoryClient(ServiceLocatorClient serviceLocator,
+            CredentialsProvider credentials) {
+        this.serviceLocator = serviceLocator;
+        this.credentials = credentials;
 
-		String jobHistoryUri = serviceLocator.getInternalService(
-				Role.JOB_HISTORY).getAdminUri();
-		System.out.println(" Creating Job History test client" + jobHistoryUri);
-		if (credentials != null) {
-			jobHistoryTarget = AuthenticationClient.getClient(
-					this.credentials.getUsername(),
-					this.credentials.getPassword(), true).target(jobHistoryUri);
-		}
-	}
+        String jobHistoryUri = serviceLocator.getInternalService(
+                Role.JOB_HISTORY).getAdminUri();
+        System.out.println(" Creating Job History test client" + jobHistoryUri);
+        if (credentials != null) {
+            jobHistoryTarget = AuthenticationClient.getClient(
+                    this.credentials.getUsername(),
+                    this.credentials.getPassword(), true).target(jobHistoryUri);
+        }
+    }
 
-	private WebTarget getJobHistoryTarget() {
-		return jobHistoryTarget.path("admin/jobhistory");
-	}
+    private WebTarget getJobHistoryTarget() {
+        return jobHistoryTarget.path("admin/jobhistory");
+    }
 
-	// methods
-	public HashMap<JobIdPair, JobHistory> getJobHistoryList()
-			throws RestException {
-		logger.info("JobHistory target" + getJobHistoryTarget());
-		List<JobHistory> jobHistoryList = RestMethods.getList(
-				getJobHistoryTarget(), JobHistory.class);
+    // methods
+    public HashMap<JobIdPair, JobHistory> getJobHistoryList()
+            throws RestException {
+        logger.info("JobHistory target" + getJobHistoryTarget());
+        List<JobHistory> jobHistoryList = RestMethods.getList(
+                getJobHistoryTarget(), JobHistory.class);
 
-		HashMap<JobIdPair, JobHistory> map = new HashMap<>();
+        HashMap<JobIdPair, JobHistory> map = new HashMap<>();
 
-		for (JobHistory js : jobHistoryList) {
-			map.put(js.getJobIdPair(), js);
-		}
+        for (JobHistory js : jobHistoryList) {
+            map.put(js.getJobIdPair(), js);
+        }
 
-		return map;
-	}
+        return map;
+    }
 
-	public Response get() throws RestException {
-		Response response = getJobHistoryTarget().request().get(Response.class);
-		return response;
-	}
+    public Response get() throws RestException {
+        Response response = getJobHistoryTarget().request().get(Response.class);
+        return response;
+    }
 
-	public void saveTestJob(JobHistory jobHistory) throws RestException {
-		logger.info("Target uri" + getJobHistoryTarget());
-		RestMethods.put(getJobHistoryTarget(), jobHistory);
-	}
+    public void saveTestJob(JobHistory jobHistory) throws RestException {
+        logger.info("Target uri" + getJobHistoryTarget());
+        RestMethods.put(getJobHistoryTarget(), jobHistory);
+    }
 }

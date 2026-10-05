@@ -17,24 +17,24 @@ import fi.csc.chipster.sessiondb.model.Parameter;
  */
 public interface GenericJobMessage {
 
-	public Job getJob();
+    public Job getJob();
 
-	public String getJobId();
+    public String getJobId();
 
-	public String getUsername();
+    public String getUsername();
 
-	public String getToolId();
+    public String getToolId();
 
-	public Set<String> getKeys() throws Exception;
+    public Set<String> getKeys() throws Exception;
 
-	public String getId(String fileName);
+    public String getId(String fileName);
 
-	public String getName(String fileName);
+    public String getName(String fileName);
 
-	public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy,
-			ToolDescription description) throws ParameterValidityException;
+    public LinkedHashMap<String, Parameter> getParameters(ParameterSecurityPolicy securityPolicy,
+            ToolDescription description) throws ParameterValidityException;
 
-	public UUID getSessionId();
+    public UUID getSessionId();
 
-	public void preExecute(File jobWorkDir);
+    public void preExecute(File jobWorkDir);
 }

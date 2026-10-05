@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Check staged files of js/type-service with Prettier and ESLint before
+# committing. Git runs hooks at the top of the working tree, and
+# core.hooksPath is set for the whole repository by `npm install` in
+# js/type-service (its prepare script).
+#
+# lint-staged does the work: it selects the staged files matching the
+# patterns in js/type-service/package.json, makes the working tree match the
+# staged content so the checks see what is actually being committed, and runs
+# each tool once on just those files. It only looks at files under the
+# directory it runs in, so the rest of the repository is not checked.
+#
+# ESLint fails the commit on errors only, not on the warnings that
+# eslint.config.mjs leaves non-blocking on purpose. Run `npm run lint` to
+# see those: lint-staged prints nothing for a check that passes.
+#
+# Bypass with: git commit --no-verify
+#
+type_service=js/type-service
+
+# commits that don't touch type-service don't need its node_modules
+if [ -z "$(git diff --cached --name-only --diff-filter=ACMR -- "$type_service")" ]; then
+  exit 0
+fi
+
+cd "$type_service" || exit 1
+
+lint_staged=./node_modules/.bin/lint-staged
+
+if [ ! -x "$lint_staged" ]; then
+  echo "pre-commit: $type_service/$lint_staged not found. Run 'npm ci' in $type_service first." >&2
+  exit 1
+fi
+
+exec "$lint_staged"

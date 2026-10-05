@@ -29,204 +29,204 @@ import jakarta.ws.rs.core.Response;
 
 public class TypeTagResourceTest {
 
-	private static TestServerLauncher launcher;
-	private static WebTarget fileBrokerTarget;
-	private static SessionDbClient sessionDbClient;
-	private static UUID sessionId;
-	private static WebTarget typeServiceTarget1;
-	private static UUID tsvDatasetId;
-	private static UUID pngDatasetId;
-	private static WebTarget typeServiceTarget2;
-	private static UUID emptySessionId;
+    private static TestServerLauncher launcher;
+    private static WebTarget fileBrokerTarget;
+    private static SessionDbClient sessionDbClient;
+    private static UUID sessionId;
+    private static WebTarget typeServiceTarget1;
+    private static UUID tsvDatasetId;
+    private static UUID pngDatasetId;
+    private static WebTarget typeServiceTarget2;
+    private static UUID emptySessionId;
 
-	@BeforeAll
-	public static void setUp() throws Exception {
-		Config config = new Config();
-		launcher = new TestServerLauncher(config);
+    @BeforeAll
+    public static void setUp() throws Exception {
+        Config config = new Config();
+        launcher = new TestServerLauncher(config);
 
-		sessionDbClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
+        sessionDbClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getUser1Token(), Role.CLIENT);
 
-		fileBrokerTarget = launcher.getUser1Target(Role.FILE_BROKER);
-		typeServiceTarget1 = launcher.getUser1Target(Role.TYPE_SERVICE);
-		typeServiceTarget2 = launcher.getUser2Target(Role.TYPE_SERVICE);
+        fileBrokerTarget = launcher.getUser1Target(Role.FILE_BROKER);
+        typeServiceTarget1 = launcher.getUser1Target(Role.TYPE_SERVICE);
+        typeServiceTarget2 = launcher.getUser2Target(Role.TYPE_SERVICE);
 
-		sessionId = sessionDbClient.createSession(RestUtils.getRandomSession());
-		emptySessionId = sessionDbClient.createSession(RestUtils.getRandomSession());
+        sessionId = sessionDbClient.createSession(RestUtils.getRandomSession());
+        emptySessionId = sessionDbClient.createSession(RestUtils.getRandomSession());
 
-		Dataset tsv = RestUtils.getRandomDataset();
-		tsv.setName("file.tsv");
-		Dataset png = RestUtils.getRandomDataset();
-		png.setName("file.png");
+        Dataset tsv = RestUtils.getRandomDataset();
+        tsv.setName("file.tsv");
+        Dataset png = RestUtils.getRandomDataset();
+        png.setName("file.png");
 
-		tsvDatasetId = sessionDbClient.createDataset(sessionId, tsv);
-		pngDatasetId = sessionDbClient.createDataset(sessionId, png);
+        tsvDatasetId = sessionDbClient.createDataset(sessionId, tsv);
+        pngDatasetId = sessionDbClient.createDataset(sessionId, png);
 
-		String contents1 = "chip.1	chip.2";
-		String contents2 = "abc";
-		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, tsvDatasetId,
-				RestUtils.toInputStream(contents1), contents1.length());
-		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, pngDatasetId,
-				RestUtils.toInputStream(contents2), contents2.length());
-	}
+        String contents1 = "chip.1	chip.2";
+        String contents2 = "abc";
+        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, tsvDatasetId,
+                RestUtils.toInputStream(contents1), contents1.length());
+        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, pngDatasetId,
+                RestUtils.toInputStream(contents2), contents2.length());
+    }
 
-	@AfterAll
-	public static void tearDown() throws Exception {
-		launcher.stop();
-	}
+    @AfterAll
+    public static void tearDown() throws Exception {
+        launcher.stop();
+    }
 
-	@Test
-	public void getAll() throws RestException, JsonParseException, JsonMappingException, IOException {
+    @Test
+    public void getAll() throws RestException, JsonParseException, JsonMappingException, IOException {
 
-		Response resp = typeServiceTarget1.path("sessions").path(sessionId.toString()).request().get();
-		assertEquals(200, resp.getStatus());
-		String json = IOUtils.toString((InputStream) resp.getEntity(), StandardCharsets.UTF_8.name());
+        Response resp = typeServiceTarget1.path("sessions").path(sessionId.toString()).request().get();
+        assertEquals(200, resp.getStatus());
+        String json = IOUtils.toString((InputStream) resp.getEntity(), StandardCharsets.UTF_8.name());
 
-		// test that both datasets were typed
-		assertEquals(true, json.contains(tsvDatasetId.toString()));
-		assertEquals(true, json.contains(pngDatasetId.toString()));
+        // test that both datasets were typed
+        assertEquals(true, json.contains(tsvDatasetId.toString()));
+        assertEquals(true, json.contains(pngDatasetId.toString()));
 
-		// check fast tags
-		assertEquals(true, json.contains("TSV"));
-		assertEquals(true, json.contains("PNG"));
+        // check fast tags
+        assertEquals(true, json.contains("TSV"));
+        assertEquals(true, json.contains("PNG"));
 
-		// check slow tags
-		assertEquals(true, json.contains("GENE_EXPRS"));
-	}
+        // check slow tags
+        assertEquals(true, json.contains("GENE_EXPRS"));
+    }
 
-	@Test
-	public void getEmpty() throws RestException, JsonParseException, JsonMappingException, IOException {
+    @Test
+    public void getEmpty() throws RestException, JsonParseException, JsonMappingException, IOException {
 
-		Response resp = typeServiceTarget1.path("sessions").path(emptySessionId.toString()).request().get();
-		assertEquals(200, resp.getStatus());
-		String json = RestUtils.toString((InputStream) resp.getEntity());
-		assertEquals("{}", json);
-	}
+        Response resp = typeServiceTarget1.path("sessions").path(emptySessionId.toString()).request().get();
+        assertEquals(200, resp.getStatus());
+        String json = RestUtils.toString((InputStream) resp.getEntity());
+        assertEquals("{}", json);
+    }
 
-	@Test
-	public void getOne() throws RestException, JsonParseException, JsonMappingException, IOException {
+    @Test
+    public void getOne() throws RestException, JsonParseException, JsonMappingException, IOException {
 
-		Response resp = typeServiceTarget1
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(pngDatasetId.toString())
-				.request().get();
+        Response resp = typeServiceTarget1
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(pngDatasetId.toString())
+                .request().get();
 
-		assertEquals(200, resp.getStatus());
-		String json = RestUtils.toString((InputStream) resp.getEntity());
+        assertEquals(200, resp.getStatus());
+        String json = RestUtils.toString((InputStream) resp.getEntity());
 
-		assertEquals(true, json.contains(pngDatasetId.toString()));
-		assertEquals(true, json.contains("PNG"));
-	}
+        assertEquals(true, json.contains(pngDatasetId.toString()));
+        assertEquals(true, json.contains("PNG"));
+    }
 
-	@Test
-	public void update() throws RestException, JsonParseException, JsonMappingException, IOException {
+    @Test
+    public void update() throws RestException, JsonParseException, JsonMappingException, IOException {
 
-		Dataset dataset = RestUtils.getRandomDataset();
-		dataset.setName("file.png");
-		UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setName("file.png");
+        UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
 
-		// upload a file content, because TypeService skips files without content
-		// why other tests work?
-		String contents = "abc";
-		FileResourceTest.uploadInputStream(launcher.getUser1Target(Role.FILE_BROKER), sessionId, datasetId,
-				IOUtils.toInputStream(contents, "UTF-8"), contents.length());
+        // upload a file content, because TypeService skips files without content
+        // why other tests work?
+        String contents = "abc";
+        FileResourceTest.uploadInputStream(launcher.getUser1Target(Role.FILE_BROKER), sessionId, datasetId,
+                IOUtils.toInputStream(contents, "UTF-8"), contents.length());
 
-		Response resp = typeServiceTarget1
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(datasetId.toString())
-				.request().get();
+        Response resp = typeServiceTarget1
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(datasetId.toString())
+                .request().get();
 
-		String json = RestUtils.toString((InputStream) resp.getEntity());
-		assertEquals(true, json.contains("PNG"));
+        String json = RestUtils.toString((InputStream) resp.getEntity());
+        assertEquals(true, json.contains("PNG"));
 
-		// rename the file name and check that the file type is changed
-		dataset.setName("file.txt");
-		sessionDbClient.updateDataset(sessionId, dataset);
+        // rename the file name and check that the file type is changed
+        dataset.setName("file.txt");
+        sessionDbClient.updateDataset(sessionId, dataset);
 
-		resp = typeServiceTarget1
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(datasetId.toString())
-				.request().get();
+        resp = typeServiceTarget1
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(datasetId.toString())
+                .request().get();
 
-		json = RestUtils.toString((InputStream) resp.getEntity());
-		assertEquals(false, json.contains("PNG"));
-		assertEquals(true, json.contains("TEXT"));
-	}
+        json = RestUtils.toString((InputStream) resp.getEntity());
+        assertEquals(false, json.contains("PNG"));
+        assertEquals(true, json.contains("TEXT"));
+    }
 
-	@Test
-	public void updateTsv() throws RestException, JsonParseException, JsonMappingException, IOException {
+    @Test
+    public void updateTsv() throws RestException, JsonParseException, JsonMappingException, IOException {
 
-		Dataset dataset = RestUtils.getRandomDataset();
-		dataset.setName("file.tsv");
-		UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setName("file.tsv");
+        UUID datasetId = sessionDbClient.createDataset(sessionId, dataset);
 
-		String contents = "chip.1\tchip.2";
-		FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, datasetId,
-				RestUtils.toInputStream(contents), contents.length());
+        String contents = "chip.1\tchip.2";
+        FileResourceTest.uploadInputStream(fileBrokerTarget, sessionId, datasetId,
+                RestUtils.toInputStream(contents), contents.length());
 
-		Response resp = typeServiceTarget1
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(datasetId.toString())
-				.request().get();
+        Response resp = typeServiceTarget1
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(datasetId.toString())
+                .request().get();
 
-		String json = RestUtils.toString((InputStream) resp.getEntity());
-		// the slow tags are parsed from the file contents and cached
-		assertEquals(true, json.contains("GENE_EXPRS"));
+        String json = RestUtils.toString((InputStream) resp.getEntity());
+        // the slow tags are parsed from the file contents and cached
+        assertEquals(true, json.contains("GENE_EXPRS"));
 
-		// rename, so that the file isn't a tsv file anymore
-		dataset.setName("file.bam");
-		sessionDbClient.updateDataset(sessionId, dataset);
+        // rename, so that the file isn't a tsv file anymore
+        dataset.setName("file.bam");
+        sessionDbClient.updateDataset(sessionId, dataset);
 
-		resp = typeServiceTarget1
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(datasetId.toString())
-				.request().get();
+        resp = typeServiceTarget1
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(datasetId.toString())
+                .request().get();
 
-		json = RestUtils.toString((InputStream) resp.getEntity());
-		assertEquals(true, json.contains("BAM"));
-		// the cached slow tags of the old name must not be used anymore
-		assertEquals(false, json.contains("GENE_EXPRS"));
-	}
+        json = RestUtils.toString((InputStream) resp.getEntity());
+        assertEquals(true, json.contains("BAM"));
+        // the cached slow tags of the old name must not be used anymore
+        assertEquals(false, json.contains("GENE_EXPRS"));
+    }
 
-	@Test
-	public void getWrongUser() throws FileNotFoundException, RestException {
-		Response resp = typeServiceTarget2
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(pngDatasetId.toString())
-				.request().get();
+    @Test
+    public void getWrongUser() throws FileNotFoundException, RestException {
+        Response resp = typeServiceTarget2
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(pngDatasetId.toString())
+                .request().get();
 
-		assertEquals(403, resp.getStatus());
-	}
+        assertEquals(403, resp.getStatus());
+    }
 
-	@Test
-	public void getAuthFail() throws RestException, IOException {
+    @Test
+    public void getAuthFail() throws RestException, IOException {
 
-		Response resp = launcher.getAuthFailTarget(Role.TYPE_SERVICE)
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(pngDatasetId.toString())
-				.request().get();
+        Response resp = launcher.getAuthFailTarget(Role.TYPE_SERVICE)
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(pngDatasetId.toString())
+                .request().get();
 
-		assertEquals(401, resp.getStatus());
+        assertEquals(401, resp.getStatus());
 
-	}
+    }
 
-	@Test
-	public void getTokenFail() throws FileNotFoundException, RestException {
+    @Test
+    public void getTokenFail() throws FileNotFoundException, RestException {
 
-		Response resp = launcher.getWrongTokenTarget(Role.TYPE_SERVICE)
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(pngDatasetId.toString())
-				.request().get();
+        Response resp = launcher.getWrongTokenTarget(Role.TYPE_SERVICE)
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(pngDatasetId.toString())
+                .request().get();
 
-		assertEquals(403, resp.getStatus());
-	}
+        assertEquals(403, resp.getStatus());
+    }
 
-	@Test
-	public void getUnparseableToken() throws FileNotFoundException, RestException {
-		Response resp = launcher.getUnparseableTokenTarget(Role.TYPE_SERVICE)
-				.path("sessions").path(sessionId.toString())
-				.path("datasets").path(pngDatasetId.toString())
-				.request().get();
+    @Test
+    public void getUnparseableToken() throws FileNotFoundException, RestException {
+        Response resp = launcher.getUnparseableTokenTarget(Role.TYPE_SERVICE)
+                .path("sessions").path(sessionId.toString())
+                .path("datasets").path(pngDatasetId.toString())
+                .request().get();
 
-		assertEquals(401, resp.getStatus());
-	}
+        assertEquals(401, resp.getStatus());
+    }
 }

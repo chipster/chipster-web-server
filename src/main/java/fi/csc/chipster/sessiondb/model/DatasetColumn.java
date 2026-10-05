@@ -15,31 +15,31 @@ import jakarta.persistence.MapKeyColumn;
 @Entity
 public class DatasetColumn {
 
-	@Id
-	@GeneratedValue
-	private int columnId;
+    @Id
+    @GeneratedValue
+    private int columnId;
 
-	private String name;
+    private String name;
 
-	@ElementCollection(fetch = FetchType.EAGER)
-	@MapKeyColumn(name = "key")
-	@Column(name = "value")
-	@CollectionTable(name = "ColumnMetadata", joinColumns = @JoinColumn(name = "columnId"))
-	private Map<String, String> metadata;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @MapKeyColumn(name = "key")
+    @Column(name = "value")
+    @CollectionTable(name = "ColumnMetadata", joinColumns = @JoinColumn(name = "columnId"))
+    private Map<String, String> metadata;
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setName(String column) {
-		this.name = column;
-	}
+    public void setName(String column) {
+        this.name = column;
+    }
 
-	public Map<String, String> getMetadata() {
-		return metadata;
-	}
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
 
-	public void setMetadata(Map<String, String> metadata) {
-		this.metadata = metadata;
-	}
+    public void setMetadata(Map<String, String> metadata) {
+        this.metadata = metadata;
+    }
 }

@@ -17,70 +17,70 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @Table(indexes = { @Index(columnList = "sessionId", name = "label_sessionid_index"), })
 public class Label {
 
-	public static final int MAX_NAME_LENGTH = 30;
-	// the database column is varchar(64)
-	public static final int MAX_COLOR_LENGTH = 64;
-	public static final int MAX_LABELS_PER_SESSION = 100;
+    public static final int MAX_NAME_LENGTH = 30;
+    // the database column is varchar(64)
+    public static final int MAX_COLOR_LENGTH = 64;
+    public static final int MAX_LABELS_PER_SESSION = 100;
 
-	@EmbeddedId // db
-	@JsonUnwrapped
-	private LabelIdPair labelIdPair;
+    @EmbeddedId // db
+    @JsonUnwrapped
+    private LabelIdPair labelIdPair;
 
-	private String name;
-	@Column(length = MAX_COLOR_LENGTH)
-	private String color;
-	private Instant created;
+    private String name;
+    @Column(length = MAX_COLOR_LENGTH)
+    private String color;
+    private Instant created;
 
-	public Label() {
-	} // JAXB needs this
+    public Label() {
+    } // JAXB needs this
 
-	public UUID getLabelId() {
-		if (labelIdPair == null) {
-			return null;
-		}
-		return labelIdPair.getLabelId();
-	}
+    public UUID getLabelId() {
+        if (labelIdPair == null) {
+            return null;
+        }
+        return labelIdPair.getLabelId();
+    }
 
-	public UUID getSessionId() {
-		if (labelIdPair == null) {
-			return null;
-		}
-		return labelIdPair.getSessionId();
-	}
+    public UUID getSessionId() {
+        if (labelIdPair == null) {
+            return null;
+        }
+        return labelIdPair.getSessionId();
+    }
 
-	public LabelIdPair getLabelIdPair() {
-		return labelIdPair;
-	}
+    public LabelIdPair getLabelIdPair() {
+        return labelIdPair;
+    }
 
-	public void setLabelIdPair(LabelIdPair labelIdPair) {
-		this.labelIdPair = labelIdPair;
-	}
+    public void setLabelIdPair(LabelIdPair labelIdPair) {
+        this.labelIdPair = labelIdPair;
+    }
 
-	public void setLabelIdPair(UUID sessionId, UUID labelId) {
-		setLabelIdPair(new LabelIdPair(sessionId, labelId));
-	}
+    public void setLabelIdPair(UUID sessionId, UUID labelId) {
+        setLabelIdPair(new LabelIdPair(sessionId, labelId));
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public String getColor() {
-		return color;
-	}
+    public String getColor() {
+        return color;
+    }
 
-	public void setColor(String color) {
-		this.color = color;
-	}
+    public void setColor(String color) {
+        this.color = color;
+    }
 
-	public Instant getCreated() {
-		return created;
-	}
+    public Instant getCreated() {
+        return created;
+    }
 
-	public void setCreated(Instant created) {
-		this.created = created;
-	}
+    public void setCreated(Instant created) {
+        this.created = created;
+    }
 }

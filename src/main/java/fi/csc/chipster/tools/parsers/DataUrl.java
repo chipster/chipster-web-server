@@ -19,72 +19,72 @@ import java.net.URL;
  */
 public class DataUrl {
 
-	private URL url;
-	private String name;
+    private URL url;
+    private String name;
 
-	public DataUrl(URL data, String name) {
-		this.url = data;
-		this.name = name;
-	}
+    public DataUrl(URL data, String name) {
+        this.url = data;
+        this.name = name;
+    }
 
-	public DataUrl(File file) throws MalformedURLException {
-		this(file.toURI().toURL(), file.getName());
-	}
+    public DataUrl(File file) throws MalformedURLException {
+        this(file.toURI().toURL(), file.getName());
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public InputStream getInputStream() throws IOException, URISyntaxException {
+    public InputStream getInputStream() throws IOException, URISyntaxException {
 
-		// Assume local
-		return new FileInputStream(new File(url.toURI()));
-	}
+        // Assume local
+        return new FileInputStream(new File(url.toURI()));
+    }
 
-	public File getLocalFile() throws IOException, URISyntaxException {
-		// Assume local
-		return new File(url.toURI());
-	}
+    public File getLocalFile() throws IOException, URISyntaxException {
+        // Assume local
+        return new File(url.toURI());
+    }
 
-	public URL getUrl() throws IOException {
-		return url;
-	}
+    public URL getUrl() throws IOException {
+        return url;
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((url == null) ? 0 : url.hashCode());
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((name == null) ? 0 : name.hashCode());
+        result = prime * result + ((url == null) ? 0 : url.hashCode());
+        return result;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (!(obj instanceof DataUrl)) {
-			return false;
-		}
-		DataUrl other = (DataUrl) obj;
-		if (name == null) {
-			if (other.name != null) {
-				return false;
-			}
-		} else if (!name.equals(other.name)) {
-			return false;
-		}
-		if (url == null) {
-			if (other.url != null) {
-				return false;
-			}
-		} else if (!url.equals(other.url)) {
-			return false;
-		}
-		return true;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof DataUrl)) {
+            return false;
+        }
+        DataUrl other = (DataUrl) obj;
+        if (name == null) {
+            if (other.name != null) {
+                return false;
+            }
+        } else if (!name.equals(other.name)) {
+            return false;
+        }
+        if (url == null) {
+            if (other.url != null) {
+                return false;
+            }
+        } else if (!url.equals(other.url)) {
+            return false;
+        }
+        return true;
+    }
 }

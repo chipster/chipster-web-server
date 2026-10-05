@@ -19,34 +19,34 @@ import fi.csc.chipster.toolbox.runtime.Runtime;
 
 public class RJobFactory extends InterpreterJobFactory {
 
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
 
-	public RJobFactory(HashMap<String, String> parameters, Config config)
-			throws IOException {
-		super(parameters, config);
-	}
+    public RJobFactory(HashMap<String, String> parameters, Config config)
+            throws IOException {
+        super(parameters, config);
+    }
 
-	@Override
-	public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
-			int jobTimeout, Job dbJob, Runtime runtime, Config config) throws CompException {
+    @Override
+    public CompJob createCompJob(GenericJobMessage message, ToolboxTool tool, ResultCallback resultHandler,
+            int jobTimeout, Job dbJob, Runtime runtime, Config config) throws CompException {
 
-		ToolDescription description = createToolDescription(tool, dbJob, runtime);
+        ToolDescription description = createToolDescription(tool, dbJob, runtime);
 
-		RCompJob analysisJob = new RCompJob();
-		analysisJob.construct(message, description, resultHandler, jobTimeout, config);
-		analysisJob.setProcessPool(this.processPool);
-		return analysisJob;
-	}
+        RCompJob analysisJob = new RCompJob();
+        analysisJob.construct(message, description, resultHandler, jobTimeout, config);
+        analysisJob.setProcessPool(this.processPool);
+        return analysisJob;
+    }
 
-	@Override
-	protected String getStringDelimeter() {
-		return RCompJob.STRING_DELIMETER;
-	}
+    @Override
+    protected String getStringDelimeter() {
+        return RCompJob.STRING_DELIMETER;
+    }
 
-	@Override
-	protected String getVariableNameSeparator() {
-		return ".";
-	}
+    @Override
+    protected String getVariableNameSeparator() {
+        return ".";
+    }
 
 }

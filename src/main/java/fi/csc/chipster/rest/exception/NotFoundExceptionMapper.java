@@ -17,19 +17,19 @@ import jakarta.ws.rs.ext.Provider;
 @Provider
 public class NotFoundExceptionMapper implements ExceptionMapper<NotFoundException> {
 
-	private ExceptionLogger exceptionLogger;
+    private ExceptionLogger exceptionLogger;
 
-	@Context
-	UriInfo uriInfo;
+    @Context
+    UriInfo uriInfo;
 
-	public NotFoundExceptionMapper(ExceptionLogger exceptionLogger) {
-		this.exceptionLogger = exceptionLogger;
-	}
+    public NotFoundExceptionMapper(ExceptionLogger exceptionLogger) {
+        this.exceptionLogger = exceptionLogger;
+    }
 
-	@Override
-	public Response toResponse(NotFoundException e) {
-		this.exceptionLogger.log(e, uriInfo);
+    @Override
+    public Response toResponse(NotFoundException e) {
+        this.exceptionLogger.log(e, uriInfo);
 
-		return Response.status(Status.NOT_FOUND).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
-	}
+        return Response.status(Status.NOT_FOUND).entity(e.getMessage()).type(MediaType.TEXT_PLAIN).build();
+    }
 }

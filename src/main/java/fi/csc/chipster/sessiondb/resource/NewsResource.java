@@ -19,33 +19,33 @@ import jakarta.ws.rs.core.MediaType;
 @Path(NewsResource.PATH_NEWS)
 public class NewsResource {
 
-	public static final String PATH_NEWS = "news";
-	@SuppressWarnings("unused")
-	private static Logger logger = LogManager.getLogger();
-	private NewsApi newsApi;
+    public static final String PATH_NEWS = "news";
+    @SuppressWarnings("unused")
+    private static Logger logger = LogManager.getLogger();
+    private NewsApi newsApi;
 
-	public NewsResource(NewsApi newsApi) {
-		this.newsApi = newsApi;
-	}
+    public NewsResource(NewsApi newsApi) {
+        this.newsApi = newsApi;
+    }
 
-	@GET
-	@Path("{id}")
-	@RolesAllowed({ Role.CLIENT })
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public News get(@PathParam("id") UUID newsId) {
+    @GET
+    @Path("{id}")
+    @RolesAllowed({ Role.CLIENT })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public News get(@PathParam("id") UUID newsId) {
 
-		return this.newsApi.getNews(newsId);
-	}
+        return this.newsApi.getNews(newsId);
+    }
 
-	@GET
-	@RolesAllowed({ Role.CLIENT })
-	@Produces(MediaType.APPLICATION_JSON)
-	@Transaction
-	public List<News> getAll() {
+    @GET
+    @RolesAllowed({ Role.CLIENT })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Transaction
+    public List<News> getAll() {
 
-		// curl 'http://127.0.0.1:8004/news' -H "Authorization: Basic $TOKEN"
+        // curl 'http://127.0.0.1:8004/news' -H "Authorization: Basic $TOKEN"
 
-		return this.newsApi.getAll();
-	}
+        return this.newsApi.getAll();
+    }
 }

@@ -10,95 +10,95 @@ import fi.csc.chipster.toolbox.runtime.Runtime;
 
 public class SchedulerJobs {
 
-	HashMap<IdPair, SchedulerJob> jobs = new HashMap<>();
+    HashMap<IdPair, SchedulerJob> jobs = new HashMap<>();
 
-	public Map<IdPair, SchedulerJob> getRunningJobs() {
-		Map<IdPair, SchedulerJob> runningJobs = jobs.entrySet().stream()
-				.filter(entry -> entry.getValue().isRunning())
-				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-		return runningJobs;
-	}
+    public Map<IdPair, SchedulerJob> getRunningJobs() {
+        Map<IdPair, SchedulerJob> runningJobs = jobs.entrySet().stream()
+                .filter(entry -> entry.getValue().isRunning())
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        return runningJobs;
+    }
 
-	public Map<IdPair, SchedulerJob> getScheduledJobs() {
-		Map<IdPair, SchedulerJob> runningJobs = jobs.entrySet().stream()
-				.filter(entry -> entry.getValue().isScheduled())
-				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-		return runningJobs;
-	}
+    public Map<IdPair, SchedulerJob> getScheduledJobs() {
+        Map<IdPair, SchedulerJob> runningJobs = jobs.entrySet().stream()
+                .filter(entry -> entry.getValue().isScheduled())
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        return runningJobs;
+    }
 
-	public Map<IdPair, SchedulerJob> getNewJobs() {
-		Map<IdPair, SchedulerJob> newJobs = jobs.entrySet().stream()
-				.filter(entry -> entry.getValue().isNew())
-				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
-		return newJobs;
-	}
+    public Map<IdPair, SchedulerJob> getNewJobs() {
+        Map<IdPair, SchedulerJob> newJobs = jobs.entrySet().stream()
+                .filter(entry -> entry.getValue().isNew())
+                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        return newJobs;
+    }
 
-	public int getRunningSlots(String userId) {
-		return getSlots(getRunningJobs().values(), userId);
-	}
+    public int getRunningSlots(String userId) {
+        return getSlots(getRunningJobs().values(), userId);
+    }
 
-	public int getScheduledSlots(String userId) {
-		return getSlots(getScheduledJobs().values(), userId);
-	}
+    public int getScheduledSlots(String userId) {
+        return getSlots(getScheduledJobs().values(), userId);
+    }
 
-	public int getNewSlots(String userId) {
-		return getSlots(getNewJobs().values(), userId);
-	}
+    public int getNewSlots(String userId) {
+        return getSlots(getNewJobs().values(), userId);
+    }
 
-	public int getRunningStorage(String userId) {
-		return getStorage(getRunningJobs().values(), userId);
-	}
+    public int getRunningStorage(String userId) {
+        return getStorage(getRunningJobs().values(), userId);
+    }
 
-	public int getScheduledStorage(String userId) {
-		return getStorage(getScheduledJobs().values(), userId);
-	}
+    public int getScheduledStorage(String userId) {
+        return getStorage(getScheduledJobs().values(), userId);
+    }
 
-	public int getNewStorage(String userId) {
-		return getStorage(getNewJobs().values(), userId);
-	}
+    public int getNewStorage(String userId) {
+        return getStorage(getNewJobs().values(), userId);
+    }
 
-	public static int getSlots(Collection<SchedulerJob> jobs) {
-		return jobs.stream()
-				.mapToInt(j -> j.getSlots())
-				.sum();
-	}
+    public static int getSlots(Collection<SchedulerJob> jobs) {
+        return jobs.stream()
+                .mapToInt(j -> j.getSlots())
+                .sum();
+    }
 
-	public int getSlots(Collection<SchedulerJob> jobs, String userId) {
-		return jobs.stream()
-				.filter(j -> userId.equals(j.getUserId()))
-				.mapToInt(j -> j.getSlots())
-				.sum();
-	}
+    public int getSlots(Collection<SchedulerJob> jobs, String userId) {
+        return jobs.stream()
+                .filter(j -> userId.equals(j.getUserId()))
+                .mapToInt(j -> j.getSlots())
+                .sum();
+    }
 
-	public int getStorage(Collection<SchedulerJob> jobs, String userId) {
-		return jobs.stream()
-				.filter(j -> userId.equals(j.getUserId()))
-				// will count only special requests for now
-				.filter(j -> j.getStorage() != null)
-				.mapToInt(j -> j.getStorage())
-				.sum();
-	}
+    public int getStorage(Collection<SchedulerJob> jobs, String userId) {
+        return jobs.stream()
+                .filter(j -> userId.equals(j.getUserId()))
+                // will count only special requests for now
+                .filter(j -> j.getStorage() != null)
+                .mapToInt(j -> j.getStorage())
+                .sum();
+    }
 
-	public SchedulerJob remove(IdPair jobId) {
-		return jobs.remove(jobId);
-	}
+    public SchedulerJob remove(IdPair jobId) {
+        return jobs.remove(jobId);
+    }
 
-	public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, Integer storage, ToolboxTool tool,
-			Runtime runtime) {
-		SchedulerJob jobState = new SchedulerJob(userId, slots, storage, tool, runtime);
-		jobs.put(idPair, jobState);
-		return jobState;
-	}
+    public SchedulerJob addNewJob(IdPair idPair, String userId, int slots, Integer storage, ToolboxTool tool,
+            Runtime runtime) {
+        SchedulerJob jobState = new SchedulerJob(userId, slots, storage, tool, runtime);
+        jobs.put(idPair, jobState);
+        return jobState;
+    }
 
-	public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, Integer storage, ToolboxTool tool,
-			Runtime runtime) {
-		SchedulerJob job = new SchedulerJob(userId, slots, storage, tool, runtime);
-		job.setRunningTimestamp();
-		jobs.put(idPair, job);
-		return job;
-	}
+    public SchedulerJob addRunningJob(IdPair idPair, String userId, int slots, Integer storage, ToolboxTool tool,
+            Runtime runtime) {
+        SchedulerJob job = new SchedulerJob(userId, slots, storage, tool, runtime);
+        job.setRunningTimestamp();
+        jobs.put(idPair, job);
+        return job;
+    }
 
-	public SchedulerJob get(IdPair jobIdPair) {
-		return jobs.get(jobIdPair);
-	}
+    public SchedulerJob get(IdPair jobIdPair) {
+        return jobs.get(jobIdPair);
+    }
 }

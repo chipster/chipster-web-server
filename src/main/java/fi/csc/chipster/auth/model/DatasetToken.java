@@ -21,33 +21,33 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 @XmlRootElement // json
 public class DatasetToken extends ChipsterToken {
 
-	private UUID sessionId;
-	private UUID datasetId;
+    private UUID sessionId;
+    private UUID datasetId;
 
-	public DatasetToken() {
-		/* for JSON */ }
+    public DatasetToken() {
+        /* for JSON */ }
 
-	public DatasetToken(String username, UUID sessionId, UUID datasetId, Instant valid) {
+    public DatasetToken(String username, UUID sessionId, UUID datasetId, Instant valid) {
 
-		super(username, valid, Role.DATASET_TOKEN);
+        super(username, valid, Role.DATASET_TOKEN);
 
-		this.sessionId = sessionId;
-		this.datasetId = datasetId;
-	}
+        this.sessionId = sessionId;
+        this.datasetId = datasetId;
+    }
 
-	public UUID getSessionId() {
-		return sessionId;
-	}
+    public UUID getSessionId() {
+        return sessionId;
+    }
 
-	public void setSessionId(UUID sessionId) {
-		this.sessionId = sessionId;
-	}
+    public void setSessionId(UUID sessionId) {
+        this.sessionId = sessionId;
+    }
 
-	public UUID getDatasetId() {
-		return datasetId;
-	}
+    public UUID getDatasetId() {
+        return datasetId;
+    }
 
-	public void setDatasetId(UUID datasetId) {
-		this.datasetId = datasetId;
-	}
+    public void setDatasetId(UUID datasetId) {
+        this.datasetId = datasetId;
+    }
 }

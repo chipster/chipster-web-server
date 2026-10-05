@@ -9,10 +9,19 @@
     "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
     "test": "rm -rf lib-test && npx tsc -p tsconfig.test.json && node --test --test-timeout=60000 --test-force-exit \"lib-test/**/*.spec.js\"",
     "test:auto": "./node_modules/nodemon/bin/nodemon.js -e ts --exec \"npm test\"",
+    "prepare": "git config core.hooksPath .githooks || true",
     "prettier": "npx prettier --check \"src/**/*.ts\" \"*.{mjs,json}\"",
     "prettier-write": "npx prettier --write \"src/**/*.ts\" \"*.{mjs,json}\"",
     "lint": "npx eslint src/ eslint.config.mjs",
     "lint-fix": "npx eslint --fix src/ eslint.config.mjs"
+  },
+  "lint-staged": {
+    "*.{ts,mjs,json}": "prettier --check",
+    "*.{ts,mjs}": "eslint --no-warn-ignored"
+  },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
   },
   "repository": {
     "type": "git",
@@ -38,6 +47,7 @@
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
     "globals": "^17.12.0",
+    "lint-staged": "^17.6.0",
     "nodemon": "^3.0.3",
     "prettier": "^3.9.8",
     "typescript": "^5.3.3",

@@ -13,11 +13,11 @@ import fi.csc.chipster.util.XmlUtil;
 
 public class SessionLoader {
 
-	public static String getSessionVersion(InputStream inputStream)
-			throws SAXException, IOException, ParserConfigurationException {
-		try (InputStreamReader metadataReader = new InputStreamReader(inputStream)) {
-			Document doc = XmlUtil.parseReader(metadataReader);
-			return doc.getDocumentElement().getAttribute("format-version");
-		}
-	}
+    public static String getSessionVersion(InputStream inputStream)
+            throws SAXException, IOException, ParserConfigurationException {
+        try (InputStreamReader metadataReader = new InputStreamReader(inputStream)) {
+            Document doc = XmlUtil.parseReader(metadataReader);
+            return doc.getDocumentElement().getAttribute("format-version");
+        }
+    }
 }
