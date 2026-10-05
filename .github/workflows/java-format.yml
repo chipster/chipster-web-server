@@ -1,0 +1,67 @@
+name: Java format
+
+# The Java code, and what decides how it's formatted or how the check runs:
+# the formatter settings, the Spotless configuration in build.gradle, the
+# Gradle wrapper and .gitattributes, which Spotless takes the line endings
+# from. A commit that changes only the formatter settings has no Java files
+# for the pre-commit hook to check, so this is the place where those get
+# checked against the code.
+on:
+  pull_request:
+    paths:
+      - src/main/java/**
+      - src/test/java/**
+      - config/eclipse-formatter.xml
+      - build.gradle
+      - settings.gradle
+      - gradlew
+      - gradle/wrapper/**
+      - .gitattributes
+      - .github/workflows/java-format.yml
+  push:
+    branches: [master]
+    paths:
+      - src/main/java/**
+      - src/test/java/**
+      - config/eclipse-formatter.xml
+      - build.gradle
+      - settings.gradle
+      - gradlew
+      - gradle/wrapper/**
+      - .gitattributes
+      - .github/workflows/java-format.yml
+  workflow_dispatch:
+
+# The check only reads the repository.
+permissions:
+  contents: read
+
+# A new push to a pull request makes an in-progress run redundant. On
+# master, a run that has started is left to finish. GitHub keeps only one
+# waiting run per group, though, so when merges land in quick succession a
+# waiting run is replaced by the newer one, and the commit in between gets
+# no result of its own.
+concurrency:
+  group: java-format-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  spotless:
+    runs-on: ubuntu-latest
+    # The check takes seconds, the rest is downloading Gradle and the
+    # formatter; this only bounds a hung download.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # The same JDK as the base-java image that the services run on. The
+      # build targets Java 21 (javaVersion in build.gradle) either way.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: 25
+          cache: gradle
+
+      # Only the check, not the build: spotlessCheck doesn't compile, so
+      # the gitHooks task that compileJava depends on doesn't run either.
+      - run: ./gradlew spotlessCheck
