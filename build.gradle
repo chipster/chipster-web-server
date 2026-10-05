@@ -142,10 +142,44 @@ gradle.taskGraph.whenReady { graph ->
 // version, except that it indents with spaces instead of tabs, doesn't format
 // comments (it would join the lines of lists in them) and doesn't join lines
 // that are wrapped already (like the builder calls, one per line).
+//
+// The pre-commit hook in .githooks checks the staged content instead of the
+// working tree: it copies the staged Java files to a directory of its own,
+// gives it in the spotlessStagedDir property and runs the check of the
+// javaStaged format, which exists only then. A format of its own leaves the
+// state of spotlessJava alone, so that the next build doesn't check all the
+// files again.
+def eclipseVersion = '4.40'
+def eclipseConfig = 'config/eclipse-formatter.xml'
 spotless {
     java {
-        eclipse('4.40').configFile('config/eclipse-formatter.xml')
+        eclipse(eclipseVersion).configFile(eclipseConfig)
     }
+    if (project.hasProperty('spotlessStagedDir')) {
+        format 'javaStaged', com.diffplug.gradle.spotless.JavaExtension, {
+            target fileTree(project.property('spotlessStagedDir')) {
+                include '**/*.java'
+            }
+            eclipse(eclipseVersion).configFile(eclipseConfig)
+        }
+    }
+}
+
+// Take the hooks of .githooks into use, so that the pre-commit hook is on for
+// those who only build the Java code. .githooks/install decides whether to,
+// see the reasons there, the same way as for "npm install" in js/type-service.
+// The script is for sh, so it's skipped on Windows, where starting it would
+// fail the build.
+def gitDir = file('.git')
+def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+tasks.register('gitHooks', Exec) {
+    description = 'Points core.hooksPath of this clone to .githooks'
+    onlyIf { gitDir.exists() && !windows }
+    commandLine 'sh', '.githooks/install'
+    ignoreExitValue = true
+}
+tasks.named('compileJava') {
+    dependsOn 'gitHooks'
 }
 
 //checkstyle {

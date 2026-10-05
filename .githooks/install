@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# Take the hooks of this directory into use by pointing core.hooksPath here.
+# Run by the gitHooks task of build.gradle and by the prepare script of
+# js/type-service, so that `./gradlew build` or `npm install` there is enough.
+# Works in any directory of the clone. Not a hook itself, because git only
+# runs the files that are named after a hook.
+#
+# Does nothing when:
+#  - git isn't installed or this isn't a git clone of chipster-web-server,
+#    like in the container image builds, which copy the clone with its .git
+#    directory to an image without git, or in a copy of the sources inside
+#    some other repository
+#  - chipster.installHooks is false, to turn these off (see README.md)
+#  - core.hooksPath is set already, whether to this directory or to hooks of
+#    your own
+#  - the default hooks directory has hooks of your own, which git would stop
+#    running if core.hooksPath pointed here
+#
+# Never fails, because a build or an install must not fail because of this.
+
+command -v git >/dev/null 2>&1 || exit 0
+top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+[ -f "$top/.githooks/install" ] || exit 0
+[ "$(git config --get --bool chipster.installHooks)" = false ] && exit 0
+git config --get core.hooksPath >/dev/null 2>&1 && exit 0
+
+# git runs only the executable files, so the others don't count
+hooks_dir=$(git rev-parse --git-path hooks 2>/dev/null) || exit 0
+for hook in "$hooks_dir"/*; do
+  case "$hook" in
+    *.sample) ;;
+    *) [ -f "$hook" ] && [ -x "$hook" ] && exit 0 ;;
+  esac
+done
+
+git config core.hooksPath .githooks || true
+exit 0
