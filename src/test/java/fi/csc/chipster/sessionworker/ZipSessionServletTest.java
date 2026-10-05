@@ -301,6 +301,24 @@ public class ZipSessionServletTest {
     }
 
     @Test
+    public void postWithoutUpload() throws RestException, IOException {
+
+        UUID sessionId = sessionDbClient1.createSession(RestUtils.getRandomSession());
+
+        // a dataset without a file, like when the upload of the zip never finished
+        UUID zipDatasetId = sessionDbClient1.createDataset(sessionId, RestUtils.getRandomDataset());
+
+        try {
+            sessionWorkerClient1.extractZipSession(sessionId, zipDatasetId);
+            Assertions.fail();
+        } catch (RestException e) {
+            assertEquals(400, e.getResponse().getStatus());
+        }
+
+        sessionDbClient1.deleteSession(sessionId);
+    }
+
+    @Test
     public void getAuthFail() throws RestException {
         SessionWorkerClient client = new SessionWorkerClient(launcher.getAuthFailTarget(Role.SESSION_WORKER),
                 sessionDbClient1, fileBrokerClient1);
