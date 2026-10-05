@@ -12,6 +12,10 @@ The Java code is formatted with the Eclipse formatter, using the settings in
 ./gradlew spotlessCheck   # check, run by "./gradlew check" and "./gradlew build" too
 ```
 
+The "Java format" workflow in `.github/workflows/java-format.yml` runs
+`spotlessCheck` on pull requests and on master, when the Java code, the
+formatter settings or the Gradle build changes.
+
 The settings are the "Eclipse [built-in]" profile, except that the indentation
 uses 4 spaces instead of tabs, comments are not formatted, and lines that are
 wrapped already are not joined.
