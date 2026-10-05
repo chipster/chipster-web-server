@@ -4,6 +4,10 @@
 #
 # username:password:expiration date (yyyy-mm-dd):comment
 #
+# These passwords are public. auth refuses to start with them unless
+# auth-allow-default-passwords is true, which is meant only for a development
+# environment. Set new passwords in a deployment.
+#
 chipster:chipster::Default user
 admin:admin::Remove or change in production
 example_session_owner:example_session_owner::Remove or change in production

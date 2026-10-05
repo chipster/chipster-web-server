@@ -1,13 +1,14 @@
 package fi.csc.chipster.auth.jaas;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.Map;
 
 import javax.security.auth.Subject;
@@ -16,22 +17,21 @@ import javax.security.auth.callback.CallbackHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import fi.csc.chipster.util.IOUtils;
-
 /**
  * Login module for Chipster type user lists. They have format
  * username:password:expiration, where expiration is optional and there can by
- * anything after the actual content of the line. Also comments (#) can be used,
- * but they must start at first character of the line.
- * 
+ * anything after the actual content of the line. Also comments (#) can be used.
+ * See UsersFile for the parser.
+ *
  * @author Taavi Hupponen, Aleksi Kallio
- * 
+ *
  */
 public class SimpleFileLoginModule extends LoginModuleBase {
 
-    public static final DateFormat EXPIRATION_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-    public static final String DELIMETER_CHARACTER = ":";
-    public static final String COMMENT_CHARACTER = "#";
+    /**
+     * Option for the path of the users file in the JAAS configuration
+     */
+    public static final String OPTION_PASSWD_FILE = "passwdFile";
 
     private static Logger logger = LogManager.getLogger();
 
@@ -43,7 +43,7 @@ public class SimpleFileLoginModule extends LoginModuleBase {
         super.initialize(subject, callbackHandler, sharedState, options);
 
         // check password file
-        String passwdFileName = (String) options.get("passwdFile");
+        String passwdFileName = (String) options.get(OPTION_PASSWD_FILE);
         this.passwdFile = new File(passwdFileName);
 
         if (!passwdFile.exists()) {
@@ -53,92 +53,95 @@ public class SimpleFileLoginModule extends LoginModuleBase {
         }
     }
 
+    /**
+     * An IOException of the users file propagates to LoginModuleBase, which
+     * reports it as a LoginException, so that it isn't mistaken for a wrong
+     * password.
+     */
     protected boolean authenticate(String username, char[] password) throws IOException {
 
         logger.debug(this.getClass().getName() + " authenticating " + username);
 
-        // passwd file
-        BufferedReader reader = null;
+        for (UsersFile.Account account : UsersFile.read(this.passwdFile)) {
 
-        try {
-            reader = new BufferedReader(new FileReader(this.passwdFile));
-            // loop the lines of the password file
-            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+            if (!account.username().equals(username)) {
+                // did not match
+                continue;
+            }
 
-                // check for empty line
-                if (line.trim().length() == 0) {
+            if (!passwordMatches(account.password(), password)) {
+                // did not match, but the same username may be on a later line
+                continue;
+            }
+
+            if (!account.expiration().isEmpty()) {
+                LocalDate expiration;
+                try {
+                    expiration = UsersFile.parseExpiration(account.expiration());
+                } catch (DateTimeParseException e) {
+                    logger.error("when authenticating " + username + " failed to parse exp. date: "
+                            + account.expiration());
                     continue;
                 }
-
-                LookaheadStringReader tokens = new LookaheadStringReader(line);
-
-                // check for comment line
-                if (tokens.lookahead().equals(COMMENT_CHARACTER)) {
+                if (isExpired(expiration, LocalDate.now())) {
+                    // authentication successful, but account has expired
                     continue;
-                }
-
-                // username
-                String readUsername = tokens.readTo(DELIMETER_CHARACTER);
-                if (!readUsername.equals(username)) {
-                    // did not match
-                    continue;
-                }
-
-                // delimiter (:)
-                tokens.read();
-
-                // password
-                StringBuffer readPassword = tokens.readToSB(DELIMETER_CHARACTER);
-                boolean match = true;
-                for (int i = 0; i < readPassword.length(); i++) {
-                    // check that we match (length checking is a bit redundant, but who cares...)
-                    if (readPassword.length() != password.length || readPassword.charAt(i) != password[i]) {
-                        match = false;
-                    }
-                    // clean password as we go
-                    readPassword.setCharAt(i, (char) 0);
-                }
-
-                if (!match) {
-                    // did not match
-                    continue;
-                }
-
-                // delimiter (:), if any
-                if (!tokens.isAtEnd() && tokens.lookahead().equals(DELIMETER_CHARACTER)) {
-                    tokens.read();
-
-                    String expiration = tokens.readTo(DELIMETER_CHARACTER);
-
-                    if (expiration.trim().length() > 0) {
-                        // check only if data is not empty
-                        try {
-                            Date expirationDate = EXPIRATION_DATE_FORMAT.parse(expiration);
-                            if (new Date().after(expirationDate)) {
-                                match = false; // authentication successful, but account has expired
-                            }
-                        } catch (ParseException e) {
-                            logger.error(
-                                    "when authenticating " + username + " failed to parse exp. date: " + expiration);
-                            match = false;
-                        }
-                    }
-                }
-
-                if (match) {
-                    return true;
                 }
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        } finally {
-            IOUtils.closeIfPossible(reader);
+            return true;
         }
 
         // matching line was not found
         return false;
     }
 
+    /**
+     * Compare the password of the users file with the given password
+     *
+     * A blank password in the file never matches, not even a blank login
+     * password, because a blank password would be a typo rather than a decision
+     * to let anyone in.
+     *
+     * MessageDigest.isEqual() takes the same time whatever the lengths and
+     * contents of the passwords, so that the response time doesn't tell how many
+     * characters of a guess were right. It also handles an empty password in the
+     * file correctly, which the earlier character loop didn't: it had no
+     * characters to compare and matched everything.
+     *
+     * The login password is encoded without a String copy and the bytes are
+     * cleared afterwards, like LoginModuleBase clears its char[]. The passwords of
+     * the file are Strings, as they have always been, because the file is read as
+     * text.
+     */
+    static boolean passwordMatches(String filePassword, char[] password) {
+
+        if (filePassword.isBlank()) {
+            return false;
+        }
+
+        ByteBuffer encoded = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password));
+        byte[] passwordBytes = new byte[encoded.remaining()];
+        encoded.get(passwordBytes);
+
+        try {
+            return MessageDigest.isEqual(filePassword.getBytes(StandardCharsets.UTF_8), passwordBytes);
+        } finally {
+            Arrays.fill(passwordBytes, (byte) 0);
+            if (encoded.hasArray()) {
+                Arrays.fill(encoded.array(), (byte) 0);
+            }
+        }
+    }
+
+    /**
+     * The account expires at the start of its expiration date
+     *
+     * @param expiration
+     * @param today
+     * @return true when today is the expiration date or later
+     */
+    static boolean isExpired(LocalDate expiration, LocalDate today) {
+        return !today.isBefore(expiration);
+    }
 }
