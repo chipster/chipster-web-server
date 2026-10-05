@@ -48,6 +48,7 @@ import fi.csc.chipster.servicelocator.ServiceLocatorClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Label;
@@ -397,6 +398,12 @@ public class ZipSessionServlet extends HttpServlet {
             zipDataset = sessionDb.getDataset(sessionId, zipDatasetId, true);
         } catch (RestException e) {
             throw ServletUtils.extractRestException(e);
+        }
+
+        // check before the response starts, to respond with a status code. Files
+        // created before the state column was added have null state, but are complete
+        if (zipDataset.getFile() == null || zipDataset.getFile().getState() == FileState.UPLOADING) {
+            throw new BadRequestException("the upload of the zip file hasn't finished");
         }
 
         String username = getUsername(credentials.getPassword());
