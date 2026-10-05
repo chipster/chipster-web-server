@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,9 +22,9 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Rule;
-import fi.csc.chipster.sessiondb.model.Session;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.mail.MessagingException;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -97,14 +96,6 @@ public class SupportResource {
 
             logger.info("got feedback from: " + user.getUserId().toUserIdString());
 
-            if (feedback.getSession() != null) {
-                try {
-                    acceptShare(feedback.getSession(), userId);
-                } catch (RestException e) {
-                    logger.error("accepting session share failed", e);
-                }
-            }
-
             String emailBody = getEmailBody(feedback, user);
             String emailSubject = getEmailSubject(feedback, user);
             String emailReplyTo = getEmailReplyTo(feedback, user);
@@ -113,6 +104,14 @@ public class SupportResource {
                 logger.warn(
                         "support request from " + user.getUserId().toUserIdString() + " rejected: payload too large");
                 return Response.status(HttpStatus.PAYLOAD_TOO_LARGE_413).build();
+            }
+
+            if (feedback.getSession() != null) {
+                try {
+                    acceptShare(feedback.getSession(), userId);
+                } catch (RestException e) {
+                    logger.error("accepting session share failed", e);
+                }
             }
 
             // allow different support addresses to be configured for different apps
@@ -152,39 +151,53 @@ public class SupportResource {
         }
     }
 
+    /**
+     * Give the session copy of a support request to the support account
+     * 
+     * The client copies the user's session and shares the copy to the support
+     * account. Accept that share and delete the user's own rule to hide the copy
+     * from the user.
+     * 
+     * Accept only a session that has exactly these two rules, because the copy
+     * isn't marked in any other way and other users' access to any other session
+     * must not be changed.
+     */
     private void acceptShare(String sessionUrl, String userId) throws RestException {
-        String sessionIdString = RestUtils.basename(sessionUrl);
-        UUID sessionId = UUID.fromString(sessionIdString);
+        UUID sessionId;
+        try {
+            sessionId = UUID.fromString(RestUtils.basename(sessionUrl));
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("invalid session url");
+        }
 
-        Session session = sessionDb.getSession(sessionId);
+        // only the rules, getSession() would update the accessed time of the session
+        List<Rule> rules = sessionDb.getRules(sessionId);
 
-        // make sure the user has read-write access to this session
-        Rule userRule = session.getRules().stream()
-                .filter(r -> userId.equals(r.getUsername()))
-                .filter(r -> r.isReadWrite())
-                .findAny().get();
-
-        if (userRule == null) {
+        if (rules == null || rules.size() != 2) {
             throw new ForbiddenException("session access denied");
         }
 
-        Rule shareRule = session.getRules().stream()
+        // the user's read-write rule, not a pending share
+        Rule userRule = rules.stream()
+                .filter(r -> userId.equals(r.getUsername()))
+                .filter(r -> r.isReadWrite())
+                .filter(r -> r.getSharedBy() == null)
+                .findAny()
+                .orElseThrow(() -> new ForbiddenException("session access denied"));
+
+        // read-write share from the user to the support account
+        Rule shareRule = rules.stream()
                 .filter(r -> this.supportSessionOwner.equals(r.getUsername()))
-                .findAny().get();
+                .filter(r -> r.isReadWrite())
+                .filter(r -> userId.equals(r.getSharedBy()))
+                .findAny()
+                .orElseThrow(() -> new ForbiddenException("session not shared to support"));
 
         shareRule.setSharedBy(null);
         sessionDb.updateRule(sessionId, shareRule);
 
-        // delete all other rules to hide it from the user
-        // this is a copy of the original session made by client
-        List<Rule> otherRules = session.getRules().stream()
-                .filter(r -> !shareRule.getRuleId().equals(r.getRuleId()))
-                .collect(Collectors.toList());
-
-        // service accounts have read-write rules to everything
-        for (Rule rule : otherRules) {
-            sessionDb.deleteRule(sessionId, rule.getRuleId());
-        }
+        // hide the copy from the user
+        sessionDb.deleteRule(sessionId, userRule.getRuleId());
     }
 
     private String getEmailBody(SupportRequest feedback, User user) {
