@@ -1,10 +1,12 @@
 package fi.csc.chipster.auth;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -15,6 +17,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import fi.csc.chipster.auth.jaas.JaasAuthenticationProvider;
+import fi.csc.chipster.auth.jaas.UsersFile;
 import fi.csc.chipster.auth.model.OidcLoginSession;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.model.User;
@@ -88,8 +91,6 @@ public class AuthenticationService implements ServerComponent {
 
         checkDefaultPasswords();
 
-        ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
-
         // for some reason Hibernate now initializes the JAAS ConfigFile class, so make
         // sure we have configured
         // the JAAS config file path system property before that
@@ -100,6 +101,10 @@ public class AuthenticationService implements ServerComponent {
         }
         logger.info("load JAAS config from " + jaasConfPath);
         jaasAuthProvider = new JaasAuthenticationProvider(jaasConfPath);
+
+        checkUsersFiles(jaasAuthProvider.getPasswordFiles());
+
+        ServiceLocatorClient serviceLocator = new ServiceLocatorClient(config);
 
         // init Hibernate
         hibernate = new HibernateUtil(config, Role.AUTH, hibernateClasses);
@@ -185,28 +190,105 @@ public class AuthenticationService implements ServerComponent {
      * Package-private for the tests.
      */
     void checkDefaultPasswords() {
+        refuseBlankAndDefaultPasswords("configuration", "keys", config.getBlankPasswordKeys(),
+                config.getDefaultPasswordKeys());
+    }
 
-        List<String> blankKeys = config.getBlankPasswordKeys();
+    /**
+     * Refuse to start if any account in the users files of the JAAS configuration
+     * has a blank password or one of the public passwords of the security/users
+     * file in the repository
+     *
+     * The same rules as in checkDefaultPasswords(): the flag allows the default
+     * passwords in a development environment, blank passwords never. An
+     * expiration date that SimpleFileLoginModule can't parse is only logged,
+     * because that account can't log in, but the others can, and the earlier
+     * lenient date parser may have accepted it.
+     *
+     * A missing file is only logged, because a deployment that authenticates only
+     * with OIDC doesn't need one, and SimpleFileLoginModule fails those logins
+     * anyway. A file that exists but can't be read is an error, because then
+     * there is no way to tell whether it has default passwords.
+     *
+     * Call this before starting anything that creates threads, see
+     * checkDefaultPasswords().
+     *
+     * Package-private for the tests.
+     *
+     * The problems of all files are collected before refusing, so that the
+     * operator sees everything at once instead of one file per restart.
+     *
+     * @param usersFiles passwdFile of each SimpleFileLoginModule, see
+     *                   JaasAuthenticationProvider.getPasswordFiles()
+     * @throws IOException if a users file can't be read
+     */
+    void checkUsersFiles(List<File> usersFiles) throws IOException {
 
-        if (!blankKeys.isEmpty()) {
-            throw new IllegalStateException("blank passwords in configuration: " + String.join(", ", blankKeys)
-                    + ". Set new passwords for these keys");
+        // "file: user1, user2" for each file that has such users
+        List<String> blank = new ArrayList<>();
+        List<String> defaults = new ArrayList<>();
+
+        for (File usersFile : usersFiles) {
+
+            if (!usersFile.exists()) {
+                logger.warn("users file " + usersFile.getAbsolutePath() + " not found, logins against it will fail");
+                continue;
+            }
+
+            List<UsersFile.Account> accounts = UsersFile.read(usersFile);
+
+            List<String> invalidExpirations = UsersFile.getInvalidExpirationUsernames(accounts);
+
+            if (!invalidExpirations.isEmpty()) {
+                logger.warn("invalid expiration dates in " + usersFile + ": " + String.join(", ", invalidExpirations)
+                        + ". These users can't log in, use the format yyyy-MM-dd");
+            }
+
+            List<String> blankUsers = UsersFile.getBlankPasswordUsernames(accounts);
+            if (!blankUsers.isEmpty()) {
+                blank.add(usersFile + ": " + String.join(", ", blankUsers));
+            }
+
+            List<String> defaultUsers = UsersFile.getDefaultPasswordUsernames(accounts);
+            if (!defaultUsers.isEmpty()) {
+                defaults.add(usersFile + ": " + String.join(", ", defaultUsers));
+            }
         }
 
-        List<String> defaultKeys = config.getDefaultPasswordKeys();
+        refuseBlankAndDefaultPasswords("users files", "users", blank, defaults);
+    }
 
-        if (defaultKeys.isEmpty()) {
+    /**
+     * Refuse blank passwords always and default passwords unless the flag allows
+     * them
+     *
+     * @param location "configuration" or "users files", for the messages
+     * @param items    "keys" or "users", what the lists contain
+     * @param blank    configuration keys, or "file: users" entries, with a blank
+     *                 password
+     * @param defaults configuration keys, or "file: users" entries, with a default
+     *                 password
+     */
+    private void refuseBlankAndDefaultPasswords(String location, String items, List<String> blank,
+            List<String> defaults) {
+
+        if (!blank.isEmpty()) {
+            throw new IllegalStateException("blank passwords in " + location + ": " + String.join("; ", blank)
+                    + ". Set new passwords for these " + items);
+        }
+
+        if (defaults.isEmpty()) {
             return;
         }
 
         if (config.getBoolean(KEY_ALLOW_DEFAULT_PASSWORDS)) {
-            logger.warn("default passwords allowed by " + KEY_ALLOW_DEFAULT_PASSWORDS + ": "
-                    + String.join(", ", defaultKeys));
+            logger.warn("default passwords in " + location + " allowed by " + KEY_ALLOW_DEFAULT_PASSWORDS + ": "
+                    + String.join("; ", defaults));
             return;
         }
 
-        throw new IllegalStateException("default passwords in configuration: " + String.join(", ", defaultKeys)
-                + ". Set new passwords for these keys, or set " + KEY_ALLOW_DEFAULT_PASSWORDS
+        throw new IllegalStateException("default passwords in " + location + ": " + String.join("; ", defaults)
+                + ". Set new passwords for these " + items + ", or set " + KEY_ALLOW_DEFAULT_PASSWORDS
                 + ": true in a development environment");
     }
 

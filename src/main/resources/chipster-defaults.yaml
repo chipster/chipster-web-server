@@ -193,6 +193,9 @@ auth-jaas-prefix: jaas
 # auth refuses to start if any service-password-* or auth-monitoring-password still has its default value or is blank
 # every service account listed above needs a password, whether or not that service is deployed, because auth
 # accepts logins for all of them
+# auth refuses to start also if any account in the users file of the JAAS SimpleFileLoginModule (security/users
+# by default, see auth-jaas-conf-path) has a blank password or a public password: the same as the username or
+# one of the passwords in the security/users file of the source repository
 # set to true only in a development environment, never to silence the check for some of the keys in a deployment
 # blank passwords are refused regardless of this flag
 auth-allow-default-passwords: false
@@ -201,6 +204,7 @@ db-url-auth: jdbc:postgresql://localhost:5432/auth_db
 db-pass-auth: ""
 
 # path to JAAS config file, set to empty to use the default (which authenticates against the file security/users)
+# auth refuses to start if the file is missing or invalid
 auth-jaas-conf-path: ""
 
 # auth OpenID Connect

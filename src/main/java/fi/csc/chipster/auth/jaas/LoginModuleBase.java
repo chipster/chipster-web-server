@@ -1,7 +1,6 @@
 package fi.csc.chipster.auth.jaas;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.util.Map;
 
 import javax.security.auth.Subject;
@@ -99,7 +98,9 @@ public abstract class LoginModuleBase implements LoginModule {
         try {
             authSuccessful = authenticate(username, password);
         } catch (IOException e1) {
-            throw new LoginException("Could not verify username and password for " + username);
+            LoginException e = new LoginException("Could not verify username and password for " + username);
+            e.initCause(e1);
+            throw e;
         } finally {
             // clear our copy of password
             for (int i = 0; i < password.length; i++) {
@@ -180,51 +181,4 @@ public abstract class LoginModuleBase implements LoginModule {
     }
 
     protected abstract boolean authenticate(String username, char[] password) throws IOException;
-
-    protected static void skipToLineEnd(Reader reader) throws IOException {
-        int next;
-        for (next = reader.read(); next != -1; next = reader.read()) {
-            if (isNewLineChar((char) next)) {
-                return;
-            }
-        }
-    }
-
-    protected static int readToken(char[] target, Reader reader) throws IOException {
-
-        int input;
-        int i;
-        for (i = 0; i < target.length; i++) {
-            input = reader.read();
-
-            // end of file reached
-            if (input == -1) {
-                if (i == 0) {
-                    return -1;
-                }
-
-                break;
-            }
-
-            // end of line
-            else if (isNewLineChar((char) input)) {
-                break;
-            }
-
-            // store char
-            else {
-                target[i] = (char) input;
-            }
-        }
-        return i;
-    }
-
-    protected static boolean isNewLineChar(char c) {
-        if (c == '\n' || c == '\r') {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
 }
