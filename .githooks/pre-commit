@@ -1,9 +1,81 @@
 #!/bin/sh
 #
-# Check staged files of js/type-service with Prettier and ESLint before
-# committing. Git runs hooks at the top of the working tree, and
-# core.hooksPath is set for the whole repository by `npm install` in
-# js/type-service (its prepare script).
+# Check the staged files before committing: the Java code with Spotless and
+# the files of js/type-service with Prettier and ESLint. Git runs hooks at the
+# top of the working tree. .githooks/install sets core.hooksPath for the whole
+# repository, run by the Gradle build (its gitHooks task) and by
+# `npm install` in js/type-service (its prepare script).
+#
+# Both checks see the staged content, i.e. what is actually being committed,
+# not the working tree. Commits that don't touch the files of a check skip it,
+# so a commit of Java code doesn't need the node_modules of type-service, for
+# example. Both checks run even when the first one fails, to show everything
+# at once.
+#
+# Bypass with: git commit --no-verify
+#
+status=0
+
+# The pathspecs below are globs where * matches / too, which is what git
+# does by default. Git clients can change that for the git commands they run,
+# hooks included (Magit sets GIT_LITERAL_PATHSPECS, for example), which would
+# make the pathspecs match nothing and skip the checks without a word.
+unset GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS
+
+# The git diff calls below decide whether to check at all, by the exit value
+# of --quiet. --no-ext-diff keeps an external diff tool of your own out of it:
+# with diff.trustExitCode, its exit value would decide instead.
+
+# Java
+#
+# Spotless checks the files on disk, so the staged versions of the Java files
+# are copied to a directory of their own, and the spotlessStagedDir property
+# makes build.gradle add a format that checks that directory. Its messages
+# show the files under that directory.
+#
+# The files are the ones that spotlessCheck of the build checks: the Java
+# files of the main and test source sets.
+staged_java() {
+  git diff --cached --no-ext-diff "$@" --diff-filter=ACMR -- 'src/main/java/*.java' 'src/test/java/*.java'
+}
+staged_dir=build/pre-commit
+
+if ! staged_java --quiet; then
+  # remove the copy also when interrupted with Ctrl-C or a closed terminal
+  trap 'rm -rf "$staged_dir"' EXIT
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  rm -rf "$staged_dir"
+
+  # A failed copy has to fail the commit, because the check passes when the
+  # directory is empty. The list of files goes through a file instead of a
+  # pipe, which would hide a failure of its first command.
+  #
+  # The skip-worktree files of a sparse checkout are in the index too. Git
+  # 2.36 and later copy them only with --ignore-skip-worktree-bits, and the
+  # older ones copy them anyway, but don't know the option.
+  list="$staged_dir/files"
+  skip_worktree=
+  if git checkout-index -h 2>&1 | grep -q ignore-skip-worktree-bits; then
+    skip_worktree=--ignore-skip-worktree-bits
+  fi
+  if ! { mkdir -p "$staged_dir" &&
+    staged_java --name-only -z >"$list" &&
+    git checkout-index --stdin -z $skip_worktree --prefix="$staged_dir/" <"$list"; }; then
+    echo "pre-commit: copying the staged Java files to $staged_dir failed." >&2
+    status=1
+
+  # the build fails also for other reasons than the formatting, like a
+  # missing JDK, which Gradle explains in its own message above this one
+  elif ! ./gradlew spotlessJavaStagedCheck --quiet -PspotlessStagedDir="$staged_dir"; then
+    echo "pre-commit: spotlessCheck failed, see above. If the staged Java files are not formatted, run './gradlew spotlessApply' and stage the changes. It formats the working tree, so stage with 'git add -p' the files that you have staged only partly." >&2
+    status=1
+  fi
+fi
+
+# js/type-service
 #
 # lint-staged does the work: it selects the staged files matching the
 # patterns in js/type-service/package.json, makes the working tree match the
@@ -14,23 +86,17 @@
 # ESLint fails the commit on errors only, not on the warnings that
 # eslint.config.mjs leaves non-blocking on purpose. Run `npm run lint` to
 # see those: lint-staged prints nothing for a check that passes.
-#
-# Bypass with: git commit --no-verify
-#
 type_service=js/type-service
 
-# commits that don't touch type-service don't need its node_modules
-if [ -z "$(git diff --cached --name-only --diff-filter=ACMR -- "$type_service")" ]; then
-  exit 0
+if ! git diff --cached --no-ext-diff --quiet --diff-filter=ACMR -- "$type_service"; then
+  lint_staged=node_modules/.bin/lint-staged
+
+  if [ ! -x "$type_service/$lint_staged" ]; then
+    echo "pre-commit: $type_service/$lint_staged not found. Run 'npm ci' in $type_service first." >&2
+    status=1
+  elif ! (cd "$type_service" && "./$lint_staged"); then
+    status=1
+  fi
 fi
 
-cd "$type_service" || exit 1
-
-lint_staged=./node_modules/.bin/lint-staged
-
-if [ ! -x "$lint_staged" ]; then
-  echo "pre-commit: $type_service/$lint_staged not found. Run 'npm ci' in $type_service first." >&2
-  exit 1
-fi
-
-exec "$lint_staged"
+exit $status

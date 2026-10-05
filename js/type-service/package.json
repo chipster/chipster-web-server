@@ -9,7 +9,7 @@
     "dev": "./node_modules/nodemon/bin/nodemon.js -e ts  --exec \"npm run compile\"",
     "test": "rm -rf lib-test && npx tsc -p tsconfig.test.json && node --test --test-timeout=60000 --test-force-exit \"lib-test/**/*.spec.js\"",
     "test:auto": "./node_modules/nodemon/bin/nodemon.js -e ts --exec \"npm test\"",
-    "prepare": "git config core.hooksPath .githooks || true",
+    "prepare": "sh ../../.githooks/install || exit 0",
     "prettier": "npx prettier --check \"src/**/*.ts\" \"*.{mjs,json}\"",
     "prettier-write": "npx prettier --write \"src/**/*.ts\" \"*.{mjs,json}\"",
     "lint": "npx eslint src/ eslint.config.mjs",
