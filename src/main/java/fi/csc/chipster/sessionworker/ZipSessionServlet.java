@@ -400,9 +400,13 @@ public class ZipSessionServlet extends HttpServlet {
             throw ServletUtils.extractRestException(e);
         }
 
-        // check before the response starts, to respond with a status code. Files
-        // created before the state column was added have null state, but are complete
-        if (zipDataset.getFile() == null || zipDataset.getFile().getState() == FileState.UPLOADING) {
+        // check before the response starts, to respond with a status code
+        if (zipDataset.getFile() == null) {
+            // never uploaded, or a failed upload was deleted
+            throw new BadRequestException("the zip file hasn't been uploaded");
+        }
+        // files created before the state column was added have null state, but are complete
+        if (zipDataset.getFile().getState() == FileState.UPLOADING) {
             throw new BadRequestException("the upload of the zip file hasn't finished");
         }
 
