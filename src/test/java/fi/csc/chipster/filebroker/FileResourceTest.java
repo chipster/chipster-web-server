@@ -197,44 +197,49 @@ public class FileResourceTest {
         Dataset htmlDataset = RestUtils.getRandomDataset();
         htmlDataset.setName(htmlDataset.getName() + ".html");
         UUID datasetId = sessionDbClient1.createDataset(sessionId1, htmlDataset);
+        try {
 
-        // send only the first of two chunks, like a browser upload that was paused or
-        // interrupted. The file stays in the UPLOADING state
-        long chunkLength = 1024;
-        WebTarget target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
-                .queryParam("flowChunkNumber", "1")
-                .queryParam("flowChunkSize", "" + chunkLength)
-                .queryParam("flowTotalChunks", "2");
-        assertEquals(204, putInputStream(target, new DummyInputStream(chunkLength)).getStatus());
+            // send only the first of two chunks, like a browser upload that was paused or
+            // interrupted. The file stays in the UPLOADING state
+            long chunkLength = 1024;
+            WebTarget target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
+                    .queryParam("flowChunkNumber", "1")
+                    .queryParam("flowChunkSize", "" + chunkLength)
+                    .queryParam("flowTotalChunks", "2");
+            assertEquals(204, putInputStream(target, new DummyInputStream(chunkLength)).getStatus());
 
-        Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
-        assertEquals(FileState.UPLOADING, dataset.getFile().getState());
+            Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+            assertEquals(FileState.UPLOADING, dataset.getFile().getState());
 
-        // readers would get a truncated file
-        Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request().get();
-        assertEquals(409, response.getStatus());
-        assertEquals("the upload of the file hasn't finished", response.readEntity(String.class));
+            // readers would get a truncated file
+            Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request().get();
+            assertEquals(409, response.getStatus());
+            assertEquals("the upload of the file hasn't finished", response.readEntity(String.class));
 
-        // a download link must not make the browser save the error as the file
-        response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId))
-                .queryParam(FileBrokerResourceServlet.QP_DOWNLOAD, "")
-                .queryParam(FileBrokerResourceServlet.QP_TYPE, "")
-                .request().get();
-        assertEquals(409, response.getStatus());
-        assertNull(response.getHeaderString("Content-Disposition"));
-        // the browser must get the type of the message, not the type of the file
-        assertEquals(MediaType.TEXT_PLAIN_TYPE, response.getMediaType());
+            // a download link must not make the browser save the error as the file
+            response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId))
+                    .queryParam(FileBrokerResourceServlet.QP_DOWNLOAD, "")
+                    .queryParam(FileBrokerResourceServlet.QP_TYPE, "")
+                    .request().get();
+            assertEquals(409, response.getStatus());
+            assertNull(response.getHeaderString("Content-Disposition"));
+            // the browser must get the type of the message, not the type of the file
+            assertEquals(MediaType.TEXT_PLAIN_TYPE, response.getMediaType());
 
-        // the rest of the file makes it readable
-        target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
-                .queryParam("flowChunkNumber", "2")
-                .queryParam("flowChunkSize", "" + chunkLength)
-                .queryParam("flowTotalChunks", "2");
-        assertEquals(204, putInputStream(target, new DummyInputStream(chunkLength)).getStatus());
+            // the rest of the file makes it readable
+            target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
+                    .queryParam("flowChunkNumber", "2")
+                    .queryParam("flowChunkSize", "" + chunkLength)
+                    .queryParam("flowTotalChunks", "2");
+            assertEquals(204, putInputStream(target, new DummyInputStream(chunkLength)).getStatus());
 
-        InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
-                .get(InputStream.class);
-        assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(2 * chunkLength)));
+            InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+                    .get(InputStream.class);
+            assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(2 * chunkLength)));
+
+        } finally {
+            sessionDbClient1.deleteDataset(sessionId1, datasetId);
+        }
     }
 
     @Test
@@ -251,30 +256,33 @@ public class FileResourceTest {
         Dataset htmlDataset = RestUtils.getRandomDataset();
         htmlDataset.setName(htmlDataset.getName() + ".html");
         UUID datasetId = sessionDbClient1.createDataset(sessionId1, htmlDataset);
-        assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
-                new DummyInputStream(length), length).getStatus());
+        try {
+            assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+                    new DummyInputStream(length), length).getStatus());
 
-        // change size on server
-        Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
-        fi.csc.chipster.sessiondb.model.File file = dataset.getFile();
-        fi.csc.chipster.sessiondb.model.File brokenFile = (fi.csc.chipster.sessiondb.model.File) file.clone();
-        brokenFile.setSize(file.getSize() + 1);
-        sessionDbForFileBrokerClient.updateFile(brokenFile);
+            // change size on server
+            Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+            fi.csc.chipster.sessiondb.model.File file = dataset.getFile();
+            fi.csc.chipster.sessiondb.model.File brokenFile = (fi.csc.chipster.sessiondb.model.File) file.clone();
+            brokenFile.setSize(file.getSize() + 1);
+            sessionDbForFileBrokerClient.updateFile(brokenFile);
 
-        Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId))
-                .queryParam(FileBrokerResourceServlet.QP_DOWNLOAD, "")
-                .queryParam(FileBrokerResourceServlet.QP_TYPE, "")
-                .request().get();
+            Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId))
+                    .queryParam(FileBrokerResourceServlet.QP_DOWNLOAD, "")
+                    .queryParam(FileBrokerResourceServlet.QP_TYPE, "")
+                    .request().get();
 
-        logger.info("status: " + response.getStatus() + ", headers: " + response.getHeaders());
+            logger.info("status: " + response.getStatus() + ", headers: " + response.getHeaders());
 
-        assertEquals(500, response.getStatus());
-        assertNull(response.getHeaderString("Content-Disposition"));
-        assertEquals(MediaType.TEXT_PLAIN_TYPE, response.getMediaType());
-        // the message of the filter, not the html error page of Jetty or the content of the file
-        assertEquals("servlet error", response.readEntity(String.class));
+            assertEquals(500, response.getStatus());
+            assertNull(response.getHeaderString("Content-Disposition"));
+            assertEquals(MediaType.TEXT_PLAIN_TYPE, response.getMediaType());
+            // the message of the filter, not the html error page of Jetty or the content of the file
+            assertEquals("servlet error", response.readEntity(String.class));
 
-        sessionDbClient1.deleteDataset(sessionId1, datasetId);
+        } finally {
+            sessionDbClient1.deleteDataset(sessionId1, datasetId);
+        }
     }
 
     @Test
@@ -283,22 +291,27 @@ public class FileResourceTest {
         long length = 1024;
 
         UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
-        assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
-                new DummyInputStream(length), length).getStatus());
+        try {
+            assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+                    new DummyInputStream(length), length).getStatus());
 
-        // files created before the state column was added have null state, but are
-        // complete and must stay readable
-        Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
-        fi.csc.chipster.sessiondb.model.File oldFile = (fi.csc.chipster.sessiondb.model.File) dataset.getFile()
-                .clone();
-        oldFile.setState(null);
-        sessionDbForFileBrokerClient.updateFile(oldFile);
+            // files created before the state column was added have null state, but are
+            // complete and must stay readable
+            Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+            fi.csc.chipster.sessiondb.model.File oldFile = (fi.csc.chipster.sessiondb.model.File) dataset.getFile()
+                    .clone();
+            oldFile.setState(null);
+            sessionDbForFileBrokerClient.updateFile(oldFile);
 
-        assertEquals(null, sessionDbClient1.getDataset(sessionId1, datasetId).getFile().getState());
+            assertEquals(null, sessionDbClient1.getDataset(sessionId1, datasetId).getFile().getState());
 
-        InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
-                .get(InputStream.class);
-        assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+            InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+                    .get(InputStream.class);
+            assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+
+        } finally {
+            sessionDbClient1.deleteDataset(sessionId1, datasetId);
+        }
     }
 
     @Test
