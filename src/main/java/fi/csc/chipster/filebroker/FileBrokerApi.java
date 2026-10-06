@@ -16,6 +16,7 @@ import fi.csc.chipster.filestorage.client.FileStorageDiscovery;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
+import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.InsufficientStorageException;
 import fi.csc.chipster.s3storage.checksum.ChecksumException;
 import fi.csc.chipster.s3storage.checksum.FileLengthException;
@@ -90,6 +91,18 @@ public class FileBrokerApi {
 
         if (dataset.getFile() == null || dataset.getFile().getFileId() == null) {
             throw new NotFoundException("file id is null");
+        }
+
+        /*
+         * Don't serve a file whose upload hasn't finished. File-storage would return
+         * the chunks uploaded so far and S3 wouldn't have the object yet, so readers
+         * (session import, type-service, jobs) would fail later with internal errors.
+         * Files created before the state column was added have null state, but are
+         * complete.
+         */
+        FileState state = dataset.getFile().getState();
+        if (state != null && state != FileState.COMPLETE) {
+            throw new ConflictException("the upload of the file hasn't finished");
         }
 
         String storageId = dataset.getFile().getStorage();

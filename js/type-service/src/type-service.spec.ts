@@ -111,6 +111,7 @@ function cacheOwner(slowTags: object = {}) {
     requestedNames: requestedNames,
     getFromCache: TypeService.prototype.getFromCache,
     addToCache: TypeService.prototype.addToCache,
+    getSlowTypeTagsCached: TypeService.prototype.getSlowTypeTagsCached,
     getSlowTypeTagsForDataset: (sessionId, requestedDataset, _token) => {
       requestedNames.push(requestedDataset.name);
       return observableOf(slowTags);
@@ -118,8 +119,12 @@ function cacheOwner(slowTags: object = {}) {
   };
 }
 
-function newDataset(name: string, fileId = "file1", size = 1000) {
-  return { datasetId: "dataset1", name: name, fileId: fileId, size: size };
+function newDataset(name: string, fileId = "file1", size = 1000, state?: string) {
+  return { datasetId: "dataset1", name: name, fileId: fileId, size: size, state: state };
+}
+
+function getTypeTags(owner, dataset) {
+  return getValue(TypeService.prototype.getTypeTags.call(owner, "session1", dataset, "token1"));
 }
 
 /* Get the value of a synchronous observable */
@@ -208,6 +213,25 @@ describe("Test slow type tag cache", () => {
     assert.equal(owner.cache.size, MAX_CACHE_SIZE);
     assert.notEqual(owner.getFromCache(key(0), "signature"), null);
     assert.equal(owner.getFromCache(key(1), "signature"), null);
+  });
+
+  it("read the file only when its upload has finished", () => {
+    const owner = cacheOwner({ [Tags.GENELIST.id]: null });
+
+    // file-broker would refuse to serve the file, so the slow tags are left out
+    assert.deepEqual(getTypeTags(owner, newDataset("results.tsv", "file1", 1000, "UPLOADING")), [
+      "dataset1",
+      TypeTags.getFastTypeTags("results.tsv"),
+    ]);
+    assert.deepEqual(owner.requestedNames, []);
+
+    // old files without a state are complete
+    assert.deepEqual(getTypeTags(owner, newDataset("results.tsv", "file1", 1000, null)), [
+      "dataset1",
+      Object.assign({}, TypeTags.getFastTypeTags("results.tsv"), { [Tags.GENELIST.id]: null }),
+    ]);
+    getTypeTags(owner, newDataset("results.tsv", "file2", 1000, "COMPLETE"));
+    assert.deepEqual(owner.requestedNames, ["results.tsv", "results.tsv"]);
   });
 
   it("forget an entry when the signature has changed", () => {
