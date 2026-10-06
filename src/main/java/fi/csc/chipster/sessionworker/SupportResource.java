@@ -100,17 +100,23 @@ public class SupportResource {
             String emailSubject = getEmailSubject(feedback, user);
             String emailReplyTo = getEmailReplyTo(feedback, user);
 
-            if (emailBody.length() + emailSubject.length() + emailReplyTo.length() > MAX_EMAIL_BYTES) {
+            // no reply-to address when neither the request nor the authentication has one
+            int replyToLength = emailReplyTo != null ? emailReplyTo.length() : 0;
+
+            if (emailBody.length() + emailSubject.length() + replyToLength > MAX_EMAIL_BYTES) {
                 logger.warn(
                         "support request from " + user.getUserId().toUserIdString() + " rejected: payload too large");
                 return Response.status(HttpStatus.PAYLOAD_TOO_LARGE_413).build();
             }
 
+            // check the session before sending the email, so that a refused request
+            // doesn't send one
+            SupportCopy supportCopy = null;
             if (feedback.getSession() != null) {
                 try {
-                    acceptShare(feedback.getSession(), userId);
+                    supportCopy = getSupportCopy(feedback.getSession(), userId);
                 } catch (RestException e) {
-                    logger.error("accepting session share failed", e);
+                    logger.error("checking the session of the support request failed", e);
                 }
             }
 
@@ -127,7 +133,6 @@ public class SupportResource {
             if (supportEmail != null && !supportEmail.isEmpty()) {
                 try {
                     this.emails.send(emailSubject, emailBody, supportEmail, emailReplyTo);
-                    return Response.noContent().build();
 
                 } catch (UnsupportedEncodingException | MessagingException e) {
                     throw new InternalServerErrorException("sending support email failed", e);
@@ -138,8 +143,21 @@ public class SupportResource {
                 logger.info("Subject: " + emailSubject);
                 logger.info("Reply-To: " + emailReplyTo);
                 logger.info("Body: \n" + emailBody);
-                return Response.noContent().build();
             }
+
+            // hide the copy from the user only after the email was sent. If the email
+            // failed, the user still sees the copy and can send the request again. If
+            // this fails, the user still sees the copy and the support account still has
+            // its share, pending or accepted, from the link in the email.
+            if (supportCopy != null) {
+                try {
+                    acceptShare(supportCopy);
+                } catch (RestException e) {
+                    logger.error("accepting session share failed", e);
+                }
+            }
+
+            return Response.noContent().build();
 
         } else {
             // + 1 to round up
@@ -152,17 +170,27 @@ public class SupportResource {
     }
 
     /**
-     * Give the session copy of a support request to the support account
+     * The two rules of the session copy of a support request
+     * 
+     * @param sessionId the session copy
+     * @param userRule  the user's own read-write rule
+     * @param shareRule the user's read-write share to the support account
+     */
+    private record SupportCopy(UUID sessionId, Rule userRule, Rule shareRule) {
+    }
+
+    /**
+     * Find the rules of the session copy of a support request
      * 
      * The client copies the user's session and shares the copy to the support
-     * account. Accept that share and delete the user's own rule to hide the copy
-     * from the user.
+     * account. Accept only a session that has exactly these two rules, because the
+     * copy isn't marked in any other way and other users' access to any other
+     * session must not be changed.
      * 
-     * Accept only a session that has exactly these two rules, because the copy
-     * isn't marked in any other way and other users' access to any other session
-     * must not be changed.
+     * @throws BadRequestException if the url doesn't end in a session id
+     * @throws ForbiddenException  if the session has other rules
      */
-    private void acceptShare(String sessionUrl, String userId) throws RestException {
+    private SupportCopy getSupportCopy(String sessionUrl, String userId) throws RestException {
         UUID sessionId;
         try {
             sessionId = UUID.fromString(RestUtils.basename(sessionUrl));
@@ -193,11 +221,21 @@ public class SupportResource {
                 .findAny()
                 .orElseThrow(() -> new ForbiddenException("session not shared to support"));
 
-        shareRule.setSharedBy(null);
-        sessionDb.updateRule(sessionId, shareRule);
+        return new SupportCopy(sessionId, userRule, shareRule);
+    }
+
+    /**
+     * Give the session copy of a support request to the support account
+     * 
+     * Accept the share to the support account and delete the user's own rule to
+     * hide the copy from the user.
+     */
+    private void acceptShare(SupportCopy copy) throws RestException {
+        copy.shareRule().setSharedBy(null);
+        sessionDb.updateRule(copy.sessionId(), copy.shareRule());
 
         // hide the copy from the user
-        sessionDb.deleteRule(sessionId, userRule.getRuleId());
+        sessionDb.deleteRule(copy.sessionId(), copy.userRule().getRuleId());
     }
 
     private String getEmailBody(SupportRequest feedback, User user) {
