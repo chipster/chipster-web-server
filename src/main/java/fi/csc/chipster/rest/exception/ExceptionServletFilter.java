@@ -98,11 +98,14 @@ public class ExceptionServletFilter implements Filter {
             throw e;
         } catch (Exception e) {
             logger.error("servlet error", e);
+            if (response.isCommitted()) {
+                // the status can't be changed anymore. Abort the download instead,
+                // otherwise the user thinks that the download was successful
+                throw e;
+            }
+            // rethrowing here would make Jetty replace this with its html error page
             sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "servlet error");
-            // abort download from session-worker if there is an error. Otherwise the user
-            // thinks
-            // that the download was successful
-            throw e;
+            return;
         }
     }
 
@@ -117,6 +120,20 @@ public class ExceptionServletFilter implements Filter {
      * @throws IOException
      */
     public void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
+        if (!response.isCommitted()) {
+            /*
+             * The servlet may have set the headers and buffered the content of a file
+             * already, for example when the length check fails at the end of a small
+             * file. Don't send them with the error, the browser would save the error
+             * message as the file. Don't reset() the whole response, because the CORS
+             * filter inside this filter has set its headers already.
+             */
+            response.resetBuffer();
+            // Jetty removes the header when the value is null
+            response.setHeader("Content-Disposition", null);
+            response.setContentType(null);
+            response.setContentLengthLong(-1);
+        }
         response.setStatus(statusCode);
         try {
             response.getOutputStream().write(message.getBytes());

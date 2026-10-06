@@ -106,28 +106,33 @@ public class FileBrokerResourceServlet extends HttpServlet {
             throw ServletUtils.extractRestException(e);
         }
 
-        // configure filename for response
-        if (!download) {
-            RestUtils.configureFilename(response, dataset.getName());
-        } else {
-            RestUtils.configureForDownload(response, dataset.getName());
-
-            // otherwise firefox opens pdf files when trying to download it
-            response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        }
-
-        if (type) {
-            // rendering a html file in an iFrame requires the Content-Type header
-            // and Chrome needs it to open pdf file in new tab
-            response.setContentType(this.fileBrokerApi.getType(dataset));
-        } else {
-            /*
-             * HTTP messages should contain content-type. but it's not required. The old
-             * servlet implementation didn't set it and the browsers were guessing it fine.
-             */
-        }
-
         try (InputStream fileStream = this.fileBrokerApi.getDataset(dataset, range, userToken)) {
+
+            /*
+             * Configure the headers for the file only after the file was found. An error
+             * response (e.g. no file, upload not finished, storage unavailable) must not
+             * carry the filename and type of the file, because then the browser would
+             * save the error message as the file.
+             */
+            if (!download) {
+                RestUtils.configureFilename(response, dataset.getName());
+            } else {
+                RestUtils.configureForDownload(response, dataset.getName());
+
+                // otherwise firefox opens pdf files when trying to download it
+                response.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            }
+
+            if (type) {
+                // rendering a html file in an iFrame requires the Content-Type header
+                // and Chrome needs it to open pdf file in new tab
+                response.setContentType(this.fileBrokerApi.getType(dataset));
+            } else {
+                /*
+                 * HTTP messages should contain content-type. but it's not required. The old
+                 * servlet implementation didn't set it and the browsers were guessing it fine.
+                 */
+            }
 
             response.setStatus(HttpServletResponse.SC_OK);
 

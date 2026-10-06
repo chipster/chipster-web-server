@@ -1,6 +1,8 @@
 package fi.csc.chipster.filebroker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
@@ -192,7 +194,10 @@ public class FileResourceTest {
     @Test
     public void getUploadNotFinished() throws RestException, IOException {
 
-        UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+        // the type of html files is set in the response
+        Dataset htmlDataset = RestUtils.getRandomDataset();
+        htmlDataset.setName(htmlDataset.getName() + ".html");
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, htmlDataset);
 
         // send only the first of two chunks, like a browser upload that was paused or
         // interrupted. The file stays in the UPLOADING state
@@ -211,6 +216,16 @@ public class FileResourceTest {
         assertEquals(409, response.getStatus());
         assertEquals("the upload of the file hasn't finished", response.readEntity(String.class));
 
+        // a download link must not make the browser save the error as the file
+        response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId))
+                .queryParam(FileBrokerResourceServlet.QP_DOWNLOAD, "")
+                .queryParam(FileBrokerResourceServlet.QP_TYPE, "")
+                .request().get();
+        assertEquals(409, response.getStatus());
+        assertNull(response.getHeaderString("Content-Disposition"));
+        // the browser must not get the type of the file
+        assertNotEquals(MediaType.TEXT_HTML_TYPE, response.getMediaType());
+
         // the rest of the file makes it readable
         target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
                 .queryParam("flowChunkNumber", "2")
@@ -221,6 +236,47 @@ public class FileResourceTest {
         InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
                 .get(InputStream.class);
         assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(2 * chunkLength)));
+    }
+
+    @Test
+    public void getErrorSmallFile() throws RestException, IOException, CloneNotSupportedException {
+
+        /*
+         * A small file fits in the response buffer, so the response hasn't been
+         * committed when the length check fails at the end of the file. The error
+         * must not go out with the headers that were set for the file, because then
+         * the browser would save the error message as the file.
+         */
+        long length = 16;
+
+        Dataset htmlDataset = RestUtils.getRandomDataset();
+        htmlDataset.setName(htmlDataset.getName() + ".html");
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, htmlDataset);
+        assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+                new DummyInputStream(length), length).getStatus());
+
+        // change size on server
+        Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+        fi.csc.chipster.sessiondb.model.File file = dataset.getFile();
+        fi.csc.chipster.sessiondb.model.File brokenFile = (fi.csc.chipster.sessiondb.model.File) file.clone();
+        brokenFile.setSize(file.getSize() + 1);
+        sessionDbForFileBrokerClient.updateFile(brokenFile);
+
+        Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId))
+                .queryParam(FileBrokerResourceServlet.QP_DOWNLOAD, "")
+                .queryParam(FileBrokerResourceServlet.QP_TYPE, "")
+                .request().get();
+
+        logger.info("status: " + response.getStatus() + ", headers: " + response.getHeaders());
+
+        assertEquals(500, response.getStatus());
+        assertNull(response.getHeaderString("Content-Disposition"));
+        assertNotEquals(MediaType.TEXT_HTML_TYPE, response.getMediaType());
+        assertNotEquals(MediaType.APPLICATION_OCTET_STREAM_TYPE, response.getMediaType());
+        // the message of the filter, not the html error page of Jetty or the content of the file
+        assertEquals("servlet error", response.readEntity(String.class));
+
+        sessionDbClient1.deleteDataset(sessionId1, datasetId);
     }
 
     @Test
