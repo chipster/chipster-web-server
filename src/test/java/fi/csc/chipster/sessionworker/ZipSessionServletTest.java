@@ -18,7 +18,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -326,21 +328,57 @@ public class ZipSessionServletTest {
         UUID sessionId = sessionDbClient1.createSession(RestUtils.getRandomSession());
         UUID zipDatasetId = sessionDbClient1.createDataset(sessionId, RestUtils.getRandomDataset());
 
-        // send only the first of two chunks, like a browser upload that was paused or
-        // interrupted. The file stays in the UPLOADING state
+        uploadFirstChunk(sessionId, zipDatasetId);
+
+        assertExtractionRefused(sessionId, zipDatasetId, "the upload of the zip file hasn't finished");
+
+        sessionDbClient1.deleteSession(sessionId);
+    }
+
+    @Test
+    public void packageSessionWithUnfinishedUpload() throws RestException, IOException {
+
+        UUID sessionId1 = sessionDbClient1.createSession(RestUtils.getRandomSession());
+
+        Dataset completeDataset = RestUtils.getRandomDataset();
+        UUID completeDatasetId = sessionDbClient1.createDataset(sessionId1, completeDataset);
+        fileBrokerClient1.upload(sessionId1, completeDatasetId, new File(TEST_FILE));
+
+        // file-broker refuses to serve this file, so the export must leave it out
+        // instead of failing
+        Dataset uploadingDataset = RestUtils.getRandomDataset();
+        UUID uploadingDatasetId = sessionDbClient1.createDataset(sessionId1, uploadingDataset);
+        uploadFirstChunk(sessionId1, uploadingDatasetId);
+
+        UUID zipDatasetId = sessionWorkerClient1.packageSessionToZip(sessionId1);
+        byte[] zipBytes = IOUtils.toByteArray(fileBrokerClient1.download(sessionId1, zipDatasetId));
+
+        UUID sessionId2 = sessionWorkerClient2.uploadZipSession(new ByteArrayInputStream(zipBytes),
+                zipBytes.length);
+
+        List<String> names = sessionDbClient2.getDatasets(sessionId2).values().stream()
+                .map(Dataset::getName)
+                .collect(Collectors.toList());
+        assertEquals(List.of(completeDataset.getName()), names);
+
+        sessionDbClient1.deleteSession(sessionId1);
+        sessionDbClient2.deleteSession(sessionId2);
+    }
+
+    /**
+     * Send only the first of two chunks, like a browser upload that was paused or
+     * interrupted. The file stays in the UPLOADING state
+     */
+    private void uploadFirstChunk(UUID sessionId, UUID datasetId) {
         byte[] chunk = "first chunk".getBytes();
         WebTarget target = launcher.getUser1Target(Role.FILE_BROKER)
-                .path("sessions").path(sessionId.toString()).path("datasets").path(zipDatasetId.toString())
+                .path("sessions").path(sessionId.toString()).path("datasets").path(datasetId.toString())
                 .queryParam(FileBrokerResourceServlet.QP_FLOW_CHUNK_NUMBER, 1)
                 .queryParam(FileBrokerResourceServlet.QP_FLOW_CHUNK_SIZE, chunk.length)
                 .queryParam(FileBrokerResourceServlet.QP_FLOW_TOTAL_CHUNKS, 2)
                 .queryParam(FileBrokerResourceServlet.QP_FLOW_TOTAL_SIZE, 2 * chunk.length);
         Response response = target.request().put(Entity.entity(chunk, MediaType.APPLICATION_OCTET_STREAM));
         assertEquals(204, response.getStatus());
-
-        assertExtractionRefused(sessionId, zipDatasetId, "the upload of the zip file hasn't finished");
-
-        sessionDbClient1.deleteSession(sessionId);
     }
 
     private void assertExtractionRefused(UUID sessionId, UUID zipDatasetId, String expectedMessage) {
