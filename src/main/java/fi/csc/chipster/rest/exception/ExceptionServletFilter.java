@@ -20,6 +20,7 @@ import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.ServiceUnavailableException;
+import jakarta.ws.rs.core.MediaType;
 
 public class ExceptionServletFilter implements Filter {
 
@@ -131,8 +132,10 @@ public class ExceptionServletFilter implements Filter {
             response.resetBuffer();
             // Jetty removes the header when the value is null
             response.setHeader("Content-Disposition", null);
-            response.setContentType(null);
             response.setContentLengthLong(-1);
+            // declare the message, instead of leaving the type of the file (or none) in place.
+            // Setting a type is allowed also when the servlet has taken a writer, clearing isn't
+            response.setContentType(MediaType.TEXT_PLAIN);
         }
         response.setStatus(statusCode);
         try {

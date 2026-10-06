@@ -2,6 +2,7 @@ package fi.csc.chipster.sessionworker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -317,7 +318,7 @@ public class ZipSessionServletTest {
         // a dataset without a file, like when the upload of the zip never started
         UUID zipDatasetId = sessionDbClient1.createDataset(sessionId, RestUtils.getRandomDataset());
 
-        assertExtractionRefused(sessionId, zipDatasetId, "the zip file hasn't been uploaded");
+        assertExtractionRefused(sessionId, zipDatasetId, 400, "the zip file hasn't been uploaded");
 
         sessionDbClient1.deleteSession(sessionId);
     }
@@ -330,7 +331,8 @@ public class ZipSessionServletTest {
 
         uploadFirstChunk(sessionId, zipDatasetId);
 
-        assertExtractionRefused(sessionId, zipDatasetId, "the upload of the zip file hasn't finished");
+        // the same status as file-broker gives for the file
+        assertExtractionRefused(sessionId, zipDatasetId, 409, "the upload of the zip file hasn't finished");
 
         sessionDbClient1.deleteSession(sessionId);
     }
@@ -381,15 +383,19 @@ public class ZipSessionServletTest {
         assertEquals(204, response.getStatus());
     }
 
-    private void assertExtractionRefused(UUID sessionId, UUID zipDatasetId, String expectedMessage) {
+    private void assertExtractionRefused(UUID sessionId, UUID zipDatasetId, int expectedStatus,
+            String expectedMessage) {
         try {
             sessionWorkerClient1.extractZipSession(sessionId, zipDatasetId);
             Assertions.fail();
         } catch (RestException e) {
             // without a response the extraction failed after the response started, with errors in the body
             assertNotNull(e.getResponse(), e.getMessage());
-            assertEquals(400, e.getResponse().getStatus());
+            assertEquals(expectedStatus, e.getResponse().getStatus());
             assertTrue(e.getMessage().contains(expectedMessage), e.getMessage());
+            // a plain text message, not a download or the json of the extraction
+            assertNull(e.getResponse().getHeaderString("Content-Disposition"));
+            assertEquals(MediaType.TEXT_PLAIN_TYPE, e.getResponse().getMediaType());
         }
     }
 

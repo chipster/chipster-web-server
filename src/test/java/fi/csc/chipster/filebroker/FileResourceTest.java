@@ -1,7 +1,6 @@
 package fi.csc.chipster.filebroker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -223,8 +222,8 @@ public class FileResourceTest {
                 .request().get();
         assertEquals(409, response.getStatus());
         assertNull(response.getHeaderString("Content-Disposition"));
-        // the browser must not get the type of the file
-        assertNotEquals(MediaType.TEXT_HTML_TYPE, response.getMediaType());
+        // the browser must get the type of the message, not the type of the file
+        assertEquals(MediaType.TEXT_PLAIN_TYPE, response.getMediaType());
 
         // the rest of the file makes it readable
         target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
@@ -271,8 +270,7 @@ public class FileResourceTest {
 
         assertEquals(500, response.getStatus());
         assertNull(response.getHeaderString("Content-Disposition"));
-        assertNotEquals(MediaType.TEXT_HTML_TYPE, response.getMediaType());
-        assertNotEquals(MediaType.APPLICATION_OCTET_STREAM_TYPE, response.getMediaType());
+        assertEquals(MediaType.TEXT_PLAIN_TYPE, response.getMediaType());
         // the message of the filter, not the html error page of Jetty or the content of the file
         assertEquals("servlet error", response.readEntity(String.class));
 
