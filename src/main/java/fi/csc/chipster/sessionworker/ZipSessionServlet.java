@@ -46,10 +46,10 @@ import fi.csc.chipster.rest.ServletUtils;
 import fi.csc.chipster.rest.StaticCredentials;
 import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.servicelocator.ServiceLocatorClient;
+import fi.csc.chipster.sessiondb.FileUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
-import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Label;
@@ -402,14 +402,12 @@ public class ZipSessionServlet extends HttpServlet {
         }
 
         // check before the response starts, to respond with a status code
-        if (zipDataset.getFile() == null) {
-            // never uploaded, or a failed upload was deleted
+        // the same checks as in file-broker, which would refuse to serve the file
+        if (!FileUtils.hasFile(zipDataset)) {
             throw new BadRequestException("the zip file hasn't been uploaded");
         }
-        // the same check and status as in file-broker, which would refuse to serve the file.
-        // Files created before the state column was added have null state, but are complete
-        FileState state = zipDataset.getFile().getState();
-        if (state != null && state != FileState.COMPLETE) {
+        // the same status as in file-broker too
+        if (!FileUtils.isUploadFinished(zipDataset.getFile())) {
             throw new ConflictException("the upload of the zip file hasn't finished");
         }
 
