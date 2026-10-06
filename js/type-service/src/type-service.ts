@@ -2,6 +2,7 @@ import { from, Observable, of as observableOf } from "rxjs";
 import { map, mergeMap, tap } from "rxjs/operators";
 import { Tag, Tags, TypeTagMap, TypeTags } from "./type-tags.js";
 import { Dataset, Service } from "chipster-js-common";
+import { FileState } from "chipster-js-common/lib/model/dataset.js";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
 import { Config } from "chipster-nodejs-core/lib/config.js";
@@ -300,10 +301,17 @@ export default class TypeService {
     return obj;
   }
 
-  getTypeTags(sessionId, dataset, token) {
+  getTypeTags(sessionId, dataset: Dataset, token) {
     if (dataset.fileId != null) {
       // always calculate fast type tags, because it's difficult to know when the name has changed
       const fastTags = TypeTags.getFastTypeTags(dataset.name);
+
+      if (!TypeService.isFileComplete(dataset)) {
+        /* File-broker refuses to serve the file until the upload has finished, and
+        the client doesn't show the dataset before that either. Don't fail the
+        tagging of the whole session because of it. */
+        return observableOf([dataset.datasetId, fastTags]);
+      }
 
       return this.getSlowTypeTagsCached(sessionId, dataset, token, fastTags).pipe(
         map((slowTags) => Object.assign({}, fastTags, slowTags)),
@@ -313,6 +321,14 @@ export default class TypeService {
     /* The dataset has been created, but the file hasn't been uploaded.
       No need to add type tags */
     return observableOf([dataset.datasetId, {}]);
+  }
+
+  /**
+   * Files created before the state column was added have null state, but are
+   * complete
+   */
+  static isFileComplete(dataset: Dataset): boolean {
+    return dataset.state == null || dataset.state === FileState.Complete;
   }
 
   /**

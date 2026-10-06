@@ -32,6 +32,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbAdminClient;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.FileState;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
@@ -185,6 +186,64 @@ public class FileResourceTest {
         InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
                 .get(InputStream.class);
 
+        assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
+    }
+
+    @Test
+    public void getUploadNotFinished() throws RestException, IOException {
+
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+
+        // send only the first of two chunks, like a browser upload that was paused or
+        // interrupted. The file stays in the UPLOADING state
+        long chunkLength = 1024;
+        WebTarget target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
+                .queryParam("flowChunkNumber", "1")
+                .queryParam("flowChunkSize", "" + chunkLength)
+                .queryParam("flowTotalChunks", "2");
+        assertEquals(204, putInputStream(target, new DummyInputStream(chunkLength)).getStatus());
+
+        Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+        assertEquals(FileState.UPLOADING, dataset.getFile().getState());
+
+        // readers would get a truncated file
+        Response response = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request().get();
+        assertEquals(409, response.getStatus());
+        assertEquals("the upload of the file hasn't finished", response.readEntity(String.class));
+
+        // the rest of the file makes it readable
+        target = getChunkedTarget(fileBrokerTarget1, sessionId1, datasetId, 2 * chunkLength)
+                .queryParam("flowChunkNumber", "2")
+                .queryParam("flowChunkSize", "" + chunkLength)
+                .queryParam("flowTotalChunks", "2");
+        assertEquals(204, putInputStream(target, new DummyInputStream(chunkLength)).getStatus());
+
+        InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+                .get(InputStream.class);
+        assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(2 * chunkLength)));
+    }
+
+    @Test
+    public void getFileWithoutState() throws RestException, IOException, CloneNotSupportedException {
+
+        long length = 1024;
+
+        UUID datasetId = sessionDbClient1.createDataset(sessionId1, RestUtils.getRandomDataset());
+        assertEquals(204, uploadInputStream(fileBrokerTarget1, sessionId1, datasetId,
+                new DummyInputStream(length), length).getStatus());
+
+        // files created before the state column was added have null state, but are
+        // complete and must stay readable
+        Dataset dataset = sessionDbClient1.getDataset(sessionId1, datasetId);
+        fi.csc.chipster.sessiondb.model.File oldFile = (fi.csc.chipster.sessiondb.model.File) dataset.getFile()
+                .clone();
+        oldFile.setState(null);
+        sessionDbForFileBrokerClient.updateFile(oldFile);
+
+        assertEquals(null, sessionDbClient1.getDataset(sessionId1, datasetId).getFile().getState());
+
+        InputStream remoteStream = fileBrokerTarget1.path(getDatasetPath(sessionId1, datasetId)).request()
+                .get(InputStream.class);
         assertEquals(true, IOUtils.contentEquals(remoteStream, new DummyInputStream(length)));
     }
 

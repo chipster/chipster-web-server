@@ -405,8 +405,10 @@ public class ZipSessionServlet extends HttpServlet {
             // never uploaded, or a failed upload was deleted
             throw new BadRequestException("the zip file hasn't been uploaded");
         }
-        // files created before the state column was added have null state, but are complete
-        if (zipDataset.getFile().getState() == FileState.UPLOADING) {
+        // the same check as in file-broker, which would refuse to serve the file.
+        // Files created before the state column was added have null state, but are complete
+        FileState state = zipDataset.getFile().getState();
+        if (state != null && state != FileState.COMPLETE) {
             throw new BadRequestException("the upload of the zip file hasn't finished");
         }
 
