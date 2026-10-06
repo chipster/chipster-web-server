@@ -25,7 +25,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 /**
- * Each run sends three support requests as user1 and three as user2, which
+ * Each run sends four support requests as user1 and three as user2, which
  * session-worker throttles per user (session-worker-support-throttle-request-count
  * in 24 hours by default), so restart the backend if the tests start to get 429
  * responses.
@@ -137,7 +137,15 @@ public class SupportResourceTest {
     @Test
     public void invalidSessionUrl() {
         WebTarget target = launcher.getUser1Target(Role.SESSION_WORKER);
-        assertEquals(400, postSupportRequest(target, "https://example.com/analyze/not-a-session-id"));
+        assertEquals(400, postSupportRequest(target, "https://example.com/analyze/not-a-session-id", true));
+    }
+
+    @Test
+    public void noMail() {
+        // the test users have no email address in auth either, so there is no
+        // reply-to address at all
+        WebTarget target = launcher.getUser1Target(Role.SESSION_WORKER);
+        assertEquals(204, postSupportRequest(target, null, false));
     }
 
     private void deleteRule(UUID sessionId, String username) throws RestException {
@@ -155,14 +163,16 @@ public class SupportResourceTest {
     }
 
     private static int postSupportRequest(WebTarget sessionWorkerTarget, UUID sessionId) {
-        return postSupportRequest(sessionWorkerTarget, "https://example.com/analyze/" + sessionId);
+        return postSupportRequest(sessionWorkerTarget, "https://example.com/analyze/" + sessionId, true);
     }
 
-    private static int postSupportRequest(WebTarget sessionWorkerTarget, String sessionUrl) {
+    private static int postSupportRequest(WebTarget sessionWorkerTarget, String sessionUrl, boolean withMail) {
         SupportRequest request = new SupportRequest();
         request.setMessage("test message");
-        // the client requires it
-        request.setMail("test@example.com");
+        if (withMail) {
+            // the web app requires it
+            request.setMail("test@example.com");
+        }
         request.setSession(sessionUrl);
 
         try (Response response = sessionWorkerTarget.path("support").path("request").request()
