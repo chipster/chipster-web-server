@@ -24,6 +24,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.MetadataFile;
@@ -338,6 +339,15 @@ public class JsonSession {
                     if (d.getFile() == null || d.getFile().getFileId() == null) {
                         logger.info("skipping null dataset, sessionId " + session.getSessionId() + " datasetId "
                                 + d.getDatasetId());
+                        return false;
+                    }
+                    // file-broker refuses to serve a file whose upload hasn't finished, and the client
+                    // doesn't show the dataset either. Files created before the state column was
+                    // added have null state, but are complete
+                    FileState state = d.getFile().getState();
+                    if (state != null && state != FileState.COMPLETE) {
+                        logger.info("skipping dataset of an unfinished upload, sessionId " + session.getSessionId()
+                                + " datasetId " + d.getDatasetId());
                         return false;
                     }
                     return true;
