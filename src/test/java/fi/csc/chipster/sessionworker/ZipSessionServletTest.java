@@ -17,6 +17,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +44,7 @@ import fi.csc.chipster.s3storage.client.S3StorageClient;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import fi.csc.chipster.sessiondb.model.Dataset;
+import fi.csc.chipster.sessiondb.model.Input;
 import fi.csc.chipster.sessiondb.model.Job;
 import fi.csc.chipster.sessiondb.model.Label;
 import fi.csc.chipster.sessiondb.model.Session;
@@ -352,16 +354,47 @@ public class ZipSessionServletTest {
         UUID uploadingDatasetId = sessionDbClient1.createDataset(sessionId1, uploadingDataset);
         uploadFirstChunk(sessionId1, uploadingDatasetId);
 
+        // a job that reads both datasets is exported as it is, so the import has to
+        // notice that one of its inputs is no longer in the session
+        Input completeInput = RestUtils.getRandomInput(completeDatasetId);
+        completeInput.setInputId("completeFile");
+        Input uploadingInput = RestUtils.getRandomInput(uploadingDatasetId);
+        uploadingInput.setInputId("uploadingFile");
+
+        Job job = RestUtils.getRandomJob();
+        // only finished jobs can be imported with their created timestamp
+        job.setState(JobState.COMPLETED);
+        job.setInputs(new ArrayList<>(List.of(completeInput, uploadingInput)));
+        UUID jobId = sessionDbClient1.createJob(sessionId1, job);
+
         UUID zipDatasetId = sessionWorkerClient1.packageSessionToZip(sessionId1);
         byte[] zipBytes = IOUtils.toByteArray(fileBrokerClient1.download(sessionId1, zipDatasetId));
 
-        UUID sessionId2 = sessionWorkerClient2.uploadZipSession(new ByteArrayInputStream(zipBytes),
-                zipBytes.length);
+        UUID sessionId2 = sessionDbClient2.createSession(RestUtils.getRandomSession());
+        UUID zipDatasetId2 = sessionDbClient2.createDataset(sessionId2, new Dataset());
+        fileBrokerClient2.upload(sessionId2, zipDatasetId2, new ByteArrayInputStream(zipBytes),
+                (long) zipBytes.length);
+        List<String> warnings = sessionWorkerClient2.extractZipSessionWithWarnings(sessionId2, zipDatasetId2);
 
         List<String> names = sessionDbClient2.getDatasets(sessionId2).values().stream()
                 .map(Dataset::getName)
                 .collect(Collectors.toList());
         assertEquals(List.of(completeDataset.getName()), names);
+
+        // the job is imported without the input of the skipped dataset
+        Job resultJob = sessionDbClient2.getJob(sessionId2, jobId);
+        List<String> inputIds = resultJob.getInputs().stream()
+                .map(Input::getInputId)
+                .collect(Collectors.toList());
+        assertEquals(List.of(completeInput.getInputId()), inputIds);
+
+        // and the user is told about it. There are other warnings too, because
+        // getRandomDataset() sets a source job that isn't in the session.
+        List<String> inputWarnings = warnings.stream()
+                .filter(w -> w.contains("has input"))
+                .collect(Collectors.toList());
+        assertEquals(1, inputWarnings.size(), warnings.toString());
+        assertTrue(inputWarnings.get(0).contains("'" + uploadingInput.getInputId() + "'"), inputWarnings.get(0));
 
         sessionDbClient1.deleteSession(sessionId1);
         sessionDbClient2.deleteSession(sessionId2);
