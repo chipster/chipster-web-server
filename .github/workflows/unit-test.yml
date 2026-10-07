@@ -1,0 +1,63 @@
+name: Unit test
+
+# The Java code, its resources (like chipster-defaults.yaml, which the
+# tests read), security/users (which UsersFileTest checks) and the build.
+# Changes elsewhere, like in js/, don't trigger a run.
+on:
+  pull_request:
+    paths:
+      - src/**
+      - build.gradle
+      - settings.gradle
+      - gradle/wrapper/**
+      - gradlew
+      - security/users
+      - .github/workflows/unit-test.yml
+  push:
+    branches: [master]
+    paths:
+      - src/**
+      - build.gradle
+      - settings.gradle
+      - gradle/wrapper/**
+      - gradlew
+      - security/users
+      - .github/workflows/unit-test.yml
+  workflow_dispatch:
+
+# The check only reads the repository.
+permissions:
+  contents: read
+
+# A new push to a pull request makes an in-progress run redundant. On
+# master, a run that has started is left to finish. GitHub keeps only one
+# waiting run per group, though, so when merges land in quick succession a
+# waiting run is replaced by the newer one, and the commit in between gets
+# no result of its own.
+concurrency:
+  group: unit-test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  junit:
+    runs-on: ubuntu-latest
+    # The tests take well under a minute, the rest is the dependency
+    # download and the compile.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # The same JDK as the base-java image that the services run on. The
+      # build targets Java 21 (javaVersion in build.gradle) either way.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: 25
+          cache: gradle
+
+      # Only the unit tests: the integration tests need a running backend
+      # and the chipster-tools repository, see the Java tests section of
+      # CLAUDE.md. The defaults in chipster-defaults.yaml are enough for the
+      # unit tests, so conf/chipster.yaml, which isn't in the repository,
+      # isn't needed either.
+      - run: ./gradlew unitTest
