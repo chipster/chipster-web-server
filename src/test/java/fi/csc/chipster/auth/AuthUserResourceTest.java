@@ -9,6 +9,7 @@ import jakarta.ws.rs.client.Client;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -19,6 +20,7 @@ import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
+@Tag("integration")
 public class AuthUserResourceTest {
 
     private static TestServerLauncher launcher;

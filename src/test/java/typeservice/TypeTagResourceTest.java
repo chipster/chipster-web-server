@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -27,6 +28,7 @@ import fi.csc.chipster.sessiondb.model.Dataset;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.Response;
 
+@Tag("integration")
 public class TypeTagResourceTest {
 
     private static TestServerLauncher launcher;

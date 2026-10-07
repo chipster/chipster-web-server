@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -17,6 +18,7 @@ import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 import jakarta.ws.rs.client.Client;
 
+@Tag("integration")
 public class AuthAdminResourceTest {
 
     private static TestServerLauncher launcher;

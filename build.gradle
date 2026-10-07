@@ -192,11 +192,43 @@ tasks.named('compileJava') {
 //}
 
 // allow tests to be run on command line with "./gradlew [ cleanTest ] test [ --info ]"
-test {
+//
+// The tests are split in two with the JUnit tag "integration":
+//
+//     ./gradlew test               # all tests
+//     ./gradlew unitTest           # the tests that need nothing else
+//     ./gradlew integrationTest    # the tests tagged "integration"
+//
+// The integration tests need something outside this repository: a running
+// backend (see TestServerLauncher) or the chipster-tools checkout next to
+// this one (ToolboxLoadTest). Untagged tests are unit tests, so a new test
+// that needs the backend but lacks the tag fails visibly in unitTest instead
+// of quietly never running there.
+tasks.withType(Test).configureEach {
     useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
         // events "passed", "skipped", "failed", "standardOut", "standardError"
+    }
+}
+
+tasks.register("unitTest", Test) {
+    group = "verification"
+    description = "Runs the tests that don't need a running backend or chipster-tools"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        excludeTags "integration"
+    }
+}
+
+tasks.register("integrationTest", Test) {
+    group = "verification"
+    description = "Runs the tests that need a running backend or chipster-tools"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags "integration"
     }
 }
 

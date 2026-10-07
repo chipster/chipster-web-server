@@ -11,6 +11,7 @@ import org.hibernate.Session;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.nimbusds.jose.JOSEException;
@@ -46,6 +47,7 @@ import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import jakarta.ws.rs.ForbiddenException;
 
+@Tag("integration")
 public class OidcResourceTest {
 
     private static final String OIDC_NAME_SIMPLE = "oidcNameSimple";

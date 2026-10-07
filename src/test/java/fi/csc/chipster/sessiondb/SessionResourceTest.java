@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -18,6 +19,7 @@ import fi.csc.chipster.sessiondb.model.File;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionState;
 
+@Tag("integration")
 public class SessionResourceTest {
 
     private static TestServerLauncher launcher;

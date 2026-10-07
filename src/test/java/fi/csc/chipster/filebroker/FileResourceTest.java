@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.ClientProperties;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -39,6 +40,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
+@Tag("integration")
 public class FileResourceTest {
 
     private Logger logger = LogManager.getLogger();

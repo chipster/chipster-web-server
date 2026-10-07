@@ -13,6 +13,7 @@ import jakarta.ws.rs.core.Response;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -25,6 +26,7 @@ import fi.csc.chipster.servicelocator.resource.ServiceResource;
 import fi.csc.chipster.sessiondb.RestException;
 import fi.csc.chipster.sessiondb.SessionDbClient;
 
+@Tag("integration")
 public class ServiceResourceTest {
 
     public static final String PATH_SERVICES = ServiceResource.PATH_SERVICES;
