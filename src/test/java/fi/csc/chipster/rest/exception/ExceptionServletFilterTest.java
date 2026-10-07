@@ -2,8 +2,11 @@ package fi.csc.chipster.rest.exception;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +36,7 @@ public class ExceptionServletFilterTest {
      * type, so that the filter can call them freely.
      */
     private static class ResponseStub {
+        boolean committed;
         Integer status;
         String contentType;
         Map<String, String> headers = new HashMap<>();
@@ -58,6 +62,8 @@ public class ExceptionServletFilterTest {
             return (HttpServletResponse) Proxy.newProxyInstance(getClass().getClassLoader(),
                     new Class<?>[] { HttpServletResponse.class }, (p, method, args) -> {
                         switch (method.getName()) {
+                        case "isCommitted":
+                            return committed;
                         case "setStatus":
                             status = (Integer) args[0];
                             return null;
@@ -133,5 +139,24 @@ public class ExceptionServletFilterTest {
         assertEquals(500, response.status);
         assertEquals("servlet error", response.content.toString());
         assertEquals(MediaType.TEXT_PLAIN, response.contentType);
+    }
+
+    @Test
+    public void abortCommittedResponseGeneric() throws Exception {
+        // e.g. storage failed in the middle of a download
+        ResponseStub response = new ResponseStub();
+        response.committed = true;
+
+        IOException thrown = new IOException("storage failed in the middle of the file");
+
+        IOException e = assertThrows(IOException.class, () -> filter(response, (req, resp) -> {
+            throw thrown;
+        }));
+
+        // rethrown for Jetty to abort the response, so that the client doesn't take a
+        // truncated file for a success
+        assertSame(thrown, e);
+        assertNull(response.status);
+        assertEquals(0, response.content.size());
     }
 }
