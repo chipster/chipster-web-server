@@ -10,6 +10,7 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -18,6 +19,7 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+@Tag("integration")
 public class AdminResourceTest {
 
     private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;

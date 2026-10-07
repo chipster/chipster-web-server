@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -24,6 +25,7 @@ import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.resource.RuleTable;
 
+@Tag("integration")
 public class RuleResourceTest {
 
     private static TestServerLauncher launcher;

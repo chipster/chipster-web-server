@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -13,6 +14,7 @@ import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.scheduler.resource.SchedulerResource;
 
+@Tag("integration")
 public class SchedulerResourceTest {
 
     private static TestServerLauncher launcher;

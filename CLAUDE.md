@@ -187,8 +187,9 @@ Two things to know when writing addresses in a conf file:
 - service-locator reads them at startup, so restart the backend after changing
   them
 
-Run `./gradlew test` against a backend started with a plain `./gradlew run`,
-i.e. **not** in the proxy mode. The
+Run `./gradlew integrationTest` (or `./gradlew test`, which includes it)
+against a backend started with a plain `./gradlew run`, i.e. **not** in the
+proxy mode. The
 integration tests target the public addresses (see
 `TestServerLauncher.getTargetUri()`), so in proxy mode they go through the dev
 server, and `FileResourceTest.getError()` hangs forever: it expects a truncated
@@ -321,25 +322,43 @@ Applies to both modes.
 
 ### Java tests (JUnit)
 
-**The backend must already be running.** `TestServerLauncher` looks like it
-starts the servers, but its `new ServerLauncher(config, false)` line is
-commented out — it only creates a `ServiceLocatorClient` and connects to
-whatever is already there (and `stop()` does nothing). Without a running
-backend, every test fails in `@BeforeAll` with a `ConnectException`, which
-looks like a broken test rather than a missing prerequisite.
+The tests are split in two with the JUnit tag `@Tag("integration")`:
 
-The exceptions are `ConfigTest` and `DefaultPasswordCheckTest`, which test the
-service and user password checks against temporary configuration and users
-files, and the `auth.jaas` tests (`UsersFileTest`, `SimpleFileLoginModuleTest`,
-`JaasAuthenticationProviderTest`), which call the login module and the
-configuration parser directly. These run without a backend.
+```
+./gradlew test --no-daemon               # all tests
+./gradlew unitTest --no-daemon           # unit tests, need nothing else
+./gradlew integrationTest --no-daemon    # integration tests, need the backend
+```
+
+**Unit tests** are the untagged ones. They run without a backend or any
+other checkout, and take well under a minute. A new test is a unit test unless
+it is tagged, so a test that needs the backend but lacks the tag fails visibly
+in `unitTest` instead of quietly never running there.
+
+**Integration tests** need something outside this repository, and are tagged
+`@Tag("integration")` on the class:
+- every test that uses `TestServerLauncher` needs a running backend
+- `ToolboxLoadTest` reads the tool scripts from `../chipster-tools`, so it
+  needs that repository checked out next to this one (`./gradlew checkTools`
+  runs the same check)
+
+`./gradlew build` and `./gradlew check` run `test`, so they run the
+integration tests too and fail without a backend.
+
+**For the integration tests the backend must already be running.**
+`TestServerLauncher` looks like it starts the servers, but its
+`new ServerLauncher(config, false)` line is commented out — it only creates a
+`ServiceLocatorClient` and connects to whatever is already there (and `stop()`
+does nothing). Without a running backend, every integration test fails in
+`@BeforeAll` with a `ConnectException`, which looks like a broken test rather
+than a missing prerequisite.
 
 So this needs two terminals: start PostgreSQL and `./gradlew run --no-daemon`
 as described above, wait for `"up and running"`, then in a second terminal:
 
 ```
-./gradlew test --no-daemon                             # all tests
-./gradlew test --no-daemon --tests '*TypeTagResourceTest*'   # one test class
+./gradlew integrationTest --no-daemon                             # all integration tests
+./gradlew integrationTest --no-daemon --tests '*TypeTagResourceTest*'   # one test class
 ```
 
 The tests read `conf/chipster.yaml` to find the services and then talk to them

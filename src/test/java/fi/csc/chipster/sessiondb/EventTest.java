@@ -11,6 +11,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.AuthenticationClient;
@@ -36,6 +37,7 @@ import jakarta.websocket.CloseReason.CloseCodes;
 import jakarta.websocket.MessageHandler;
 import jakarta.ws.rs.core.UriBuilder;
 
+@Tag("integration")
 public class EventTest {
 
     private static TestServerLauncher launcher;
