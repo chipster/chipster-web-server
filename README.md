@@ -72,3 +72,24 @@ your clone with:
 git config --unset core.hooksPath
 git config chipster.installHooks false
 ```
+
+## Tests
+
+The Java tests are split in two with the JUnit tag `@Tag("integration")`:
+
+```
+./gradlew test               # all tests
+./gradlew unitTest           # unit tests, need nothing else
+./gradlew integrationTest    # integration tests
+```
+
+The integration tests need something outside this repository: the ones that
+use `TestServerLauncher` need a running backend, and `ToolboxLoadTest` needs
+the chipster-tools repository checked out next to this one. Untagged tests
+are unit tests, so tag a new test that needs either of those. `./gradlew
+check` and `./gradlew build` run `test`, so they need the backend too.
+
+The "Unit test" workflow in `.github/workflows/unit-test.yml` runs `unitTest`
+on pull requests and on master, when the Java code, its resources, the Gradle
+build or `security/users` changes. The integration tests are not run in
+GitHub Actions.
