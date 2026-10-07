@@ -1,6 +1,7 @@
 package fi.csc.chipster.sessionworker;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -83,6 +84,23 @@ public class SessionWorkerClient {
 
     public UUID extractZipSession(UUID sessionId, UUID zipDatasetId) throws RestException {
 
+        List<String> warnings = extractZipSessionWithWarnings(sessionId, zipDatasetId);
+
+        if (!warnings.isEmpty()) {
+            logger.warn("warnings in zip session extraction: " + RestUtils.asJson(warnings));
+        }
+
+        return sessionId;
+    }
+
+    /**
+     * Extract a session zip and return the warnings of the extraction
+     * 
+     * @return the warnings, empty when there were none
+     * @throws RestException if the extraction failed
+     */
+    public List<String> extractZipSessionWithWarnings(UUID sessionId, UUID zipDatasetId) throws RestException {
+
         WebTarget target = sessionWorkerTarget
                 .path("sessions").path(sessionId.toString())
                 .path("datasets").path(zipDatasetId.toString());
@@ -106,12 +124,8 @@ public class SessionWorkerClient {
             throw new RestException("zip session extraction failed: " + RestUtils.asJson(errors));
         }
 
-        if (warnings != null && !warnings.isEmpty()) {
-            logger.warn("warnings in zip session extraction: " + RestUtils.asJson(warnings));
-        }
-
         this.sessionDbClient.deleteDataset(sessionId, zipDatasetId);
 
-        return sessionId;
+        return warnings != null ? warnings : new ArrayList<>();
     }
 }
