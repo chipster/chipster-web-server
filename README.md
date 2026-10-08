@@ -89,10 +89,10 @@ the chipster-tools repository checked out next to this one. Untagged tests
 are unit tests, so tag a new test that needs either of those. `./gradlew
 check` and `./gradlew build` run `test`, so they need the backend too.
 
-The "Unit test" workflow in `.github/workflows/unit-test.yml` runs `unitTest`
-on pull requests and on master, when the Java code, its resources, the Gradle
-build or `security/users` changes. The integration tests are not run in
-GitHub Actions.
+The "Java unit test" workflow in `.github/workflows/java-unit-test.yml` runs
+`unitTest` on pull requests and on master, when the Java code, its resources,
+the Gradle build or `security/users` changes. The integration tests are not
+run in GitHub Actions.
 
 The type-service tests don't need a backend:
 
