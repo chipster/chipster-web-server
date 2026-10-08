@@ -1,0 +1,65 @@
+name: Type-service test
+
+# Only type-service is tested, so the rest of the repository doesn't trigger
+# a run. The tests read only files under js/type-service, like the sample
+# files in test-files.
+on:
+  pull_request:
+    paths:
+      - js/type-service/**
+      - .github/workflows/type-service-test.yml
+  push:
+    branches: [master]
+    paths:
+      - js/type-service/**
+      - .github/workflows/type-service-test.yml
+  workflow_dispatch:
+
+# The check only reads the repository.
+permissions:
+  contents: read
+
+# A new push to a pull request makes an in-progress run redundant. On
+# master, a run that has started is left to finish. GitHub keeps only one
+# waiting run per group, though, so when merges land in quick succession a
+# waiting run is replaced by the newer one, and the commit in between gets
+# no result of its own.
+concurrency:
+  group: type-service-test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: js/type-service
+
+jobs:
+  node-test:
+    runs-on: ubuntu-latest
+    # The build and the tests take seconds, the rest is the install.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # .nvmrc holds the Node version that the base-node image runs
+          # type-service with, and .npmrc sets engine-strict, so an older
+          # Node would fail the install rather than run the tests against the
+          # wrong toolchain.
+          node-version-file: js/type-service/.nvmrc
+          cache: npm
+          cache-dependency-path: js/type-service/package-lock.json
+
+      # The dependency scripts are skipped, same as in the format and lint
+      # workflows. The build and the tests need only tsc and Node.
+      - run: npm ci --ignore-scripts
+
+      # The build of the deployed code into lib/. The test build below
+      # compiles the same code and the specs too, but a failure here points
+      # at the deployed code directly.
+      - run: npm run build
+
+      # The tests don't need a running backend: they use stub requests and
+      # the files in test-files, and parent-monitor.spec.ts starts sh and
+      # node as child processes.
+      - run: npm test

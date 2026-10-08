@@ -379,4 +379,5 @@ cd js/type-service && npm test
 ```
 
 This compiles with `tsc` and runs the built-in Node test runner (`node --test`)
-against `lib/`.
+against `lib-test/`. The "Type-service test" workflow runs it in GitHub
+Actions.
