@@ -1,4 +1,4 @@
-name: Unit test
+name: Java unit test
 
 # The Java code, its resources (like chipster-defaults.yaml, which the
 # tests read), security/users (which UsersFileTest checks) and the build.
@@ -12,7 +12,7 @@ on:
       - gradle/wrapper/**
       - gradlew
       - security/users
-      - .github/workflows/unit-test.yml
+      - .github/workflows/java-unit-test.yml
   push:
     branches: [master]
     paths:
@@ -22,7 +22,7 @@ on:
       - gradle/wrapper/**
       - gradlew
       - security/users
-      - .github/workflows/unit-test.yml
+      - .github/workflows/java-unit-test.yml
   workflow_dispatch:
 
 # The check only reads the repository.
@@ -35,7 +35,7 @@ permissions:
 # waiting run is replaced by the newer one, and the commit in between gets
 # no result of its own.
 concurrency:
-  group: unit-test-${{ github.ref }}
+  group: java-unit-test-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
