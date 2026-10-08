@@ -93,3 +93,13 @@ The "Unit test" workflow in `.github/workflows/unit-test.yml` runs `unitTest`
 on pull requests and on master, when the Java code, its resources, the Gradle
 build or `security/users` changes. The integration tests are not run in
 GitHub Actions.
+
+The type-service tests don't need a backend:
+
+```
+cd js/type-service && npm test
+```
+
+The "Type-service test" workflow in `.github/workflows/type-service-test.yml`
+runs `npm run build` and `npm test` on pull requests and on master, when
+type-service changes.
