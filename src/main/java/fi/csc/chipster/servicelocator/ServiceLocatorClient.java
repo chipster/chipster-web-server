@@ -1,12 +1,14 @@
 package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.client.ClientProperties;
 
 import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
@@ -15,6 +17,7 @@ import fi.csc.chipster.rest.CredentialsProvider;
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.servicelocator.resource.Service;
 import fi.csc.chipster.servicelocator.resource.ServiceResource;
+import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 
@@ -53,8 +56,30 @@ public class ServiceLocatorClient {
      * @return
      */
     public List<Service> getPublicServices() {
+        return getPublicServices(AuthenticationClient.getClient());
+    }
 
-        WebTarget serviceTarget = AuthenticationClient.getClient().target(baseUri)
+    /**
+     * Get the public services, but give up if the service-locator doesn't respond
+     * in time
+     * 
+     * @param timeout for connecting and for reading the response, each
+     * @return
+     */
+    public List<Service> getPublicServices(Duration timeout) {
+        Client client = AuthenticationClient.getClient()
+                .property(ClientProperties.CONNECT_TIMEOUT, (int) timeout.toMillis())
+                .property(ClientProperties.READ_TIMEOUT, (int) timeout.toMillis());
+        try {
+            return getPublicServices(client);
+        } finally {
+            client.close();
+        }
+    }
+
+    private List<Service> getPublicServices(Client client) {
+
+        WebTarget serviceTarget = client.target(baseUri)
                 .path(ServiceResource.PATH_SERVICES);
 
         String servicesJson = serviceTarget.request(MediaType.APPLICATION_JSON).get(String.class);
@@ -155,6 +180,21 @@ public class ServiceLocatorClient {
     public Set<String> getPublicUris(String role) {
 
         return getPublicServices(role).stream()
+                .map(s -> s.getPublicUri())
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Get the public URIs of a role, but give up if the service-locator doesn't
+     * respond in time
+     * 
+     * @param role
+     * @param timeout for connecting and for reading the response, each
+     * @return
+     */
+    public Set<String> getPublicUris(String role, Duration timeout) {
+        return getPublicServices(timeout).stream()
+                .filter(s -> s.getRole().startsWith(role))
                 .map(s -> s.getPublicUri())
                 .collect(Collectors.toSet());
     }
