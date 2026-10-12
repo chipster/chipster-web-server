@@ -1,5 +1,6 @@
 package fi.csc.chipster.rest;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -24,9 +25,12 @@ public class CORSFilter {
 
     private Logger logger = LogManager.getLogger();
 
+    // for connecting and for reading the response, each, so that the requests
+    // don't hang if the service-locator does
+    private static final Duration SERVICE_LOCATOR_TIMEOUT = Duration.ofSeconds(1);
+
     private ServiceLocatorClient serviceLocator;
     private volatile Set<String> webServerUris;
-    private volatile boolean isRequesting;
 
     public CORSFilter(ServiceLocatorClient serviceLocator) {
         // get web-server uri only when it's needed, because auth initializes this
@@ -36,22 +40,33 @@ public class CORSFilter {
 
     public HashMap<String, String> getCorsHeaders(String origin) {
 
-        // double checked locking with volatile field
-        // http://rpktech.com/2015/02/04/lazy-initialization-in-multi-threaded-environment/
-        // to make this safe and relatively fast for multi-thread usage
-        if (webServerUris == null && !isRequesting) {
-            synchronized (CORSResponseFilter.class) {
+        HashMap<String, String> headers = new HashMap<>();
 
-                if (webServerUris == null) {
-                    isRequesting = true;
-                    webServerUris = getWebServerUris(serviceLocator);
-                    isRequesting = false;
-                }
+        // the caller isn't a browser and doesn't need the headers
+        if (origin == null) {
+            return headers;
+        }
+
+        /*
+         * No lock: each request gets the uris until one of them has stored them.
+         * After a start that costs a few extra requests to the service-locator,
+         * but a request doesn't go without the headers only because another
+         * request is getting them at the same time. If the service-locator
+         * doesn't respond, every browser request waits for its own request to
+         * time out (up to 2 seconds) and goes without the headers.
+         */
+        Set<String> webServerUris = this.webServerUris;
+        if (webServerUris == null) {
+            webServerUris = getWebServerUris(serviceLocator);
+            if (webServerUris != null) {
+                this.webServerUris = webServerUris;
             }
         }
 
-        HashMap<String, String> headers = new HashMap<>();
-        if (webServerUris != null) {
+        if (webServerUris == null) {
+            logger.warn("cors headers not added for origin: '" + origin
+                    + "', because the allowed origins are not available yet");
+        } else {
 
             if (webServerUris.contains(origin)) {
 
@@ -64,9 +79,7 @@ public class CORSFilter {
                 // headers.put("Access-Control-Max-Age", "1"); // makes debugging easier
 
             } else {
-                if (origin != null) {
-                    logger.info("cors headers not added for origin: '" + origin + "'");
-                }
+                logger.info("cors headers not added for origin: '" + origin + "'");
             }
         }
         return headers;
@@ -80,7 +93,7 @@ public class CORSFilter {
             t = System.currentTimeMillis();
 
             // allow one backend to serve multiple web-servers (Chipster and Mylly)
-            return serviceLocator.getPublicUris(Role.WEB_SERVER);
+            return serviceLocator.getPublicUris(Role.WEB_SERVER, SERVICE_LOCATOR_TIMEOUT);
 
         } catch (Exception e) {
             logger.warn("cors headers not yeat available (request took " + (System.currentTimeMillis() - t) + "ms)");

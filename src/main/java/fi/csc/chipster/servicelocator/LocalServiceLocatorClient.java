@@ -1,6 +1,7 @@
 package fi.csc.chipster.servicelocator;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +35,11 @@ public class LocalServiceLocatorClient extends ServiceLocatorClient {
     }
 
     public List<Service> getPublicServices() {
+
+        return publicServices;
+    }
+
+    public List<Service> getPublicServices(Duration timeout) {
 
         return publicServices;
     }
