@@ -314,9 +314,7 @@ public class SessionDbAdminResource extends AdminResource {
                  */
                 List<Job> jobs = SessionDbApi.getJobs(hibernate.session(), session);
 
-                long sessionSize = datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
-                        .collect(Collectors.toMap(file -> file.getFileId(), file -> file)).values().stream()
-                        .collect(Collectors.summingLong(file -> file.getSize()));
+                long sessionSize = getSessionSize(datasets);
 
                 long datasetsCount = datasets.size();
                 long jobCount = jobs.size();
@@ -345,6 +343,22 @@ public class SessionDbAdminResource extends AdminResource {
             results.add(singleResult);
         }
         return Response.ok(results).build();
+    }
+
+    /**
+     * Sum the sizes of the session's files
+     *
+     * Several datasets can point to the same File, so each File is counted only
+     * once.
+     *
+     * @param datasets
+     * @return
+     */
+    static long getSessionSize(List<Dataset> datasets) {
+        return datasets.stream().map(dataset -> dataset.getFile()).filter(file -> file != null)
+                .collect(Collectors.toMap(file -> file.getFileId(), file -> file, (file1, file2) -> file1))
+                .values().stream()
+                .collect(Collectors.summingLong(file -> file.getSize()));
     }
 
     /**
