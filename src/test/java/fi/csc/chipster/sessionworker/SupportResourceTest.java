@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import fi.csc.chipster.auth.model.Role;
@@ -30,6 +31,7 @@ import jakarta.ws.rs.core.Response;
  * in 24 hours by default), so restart the backend if the tests start to get 429
  * responses.
  */
+@Tag("integration")
 public class SupportResourceTest {
 
     private static TestServerLauncher launcher;
