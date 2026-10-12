@@ -127,13 +127,20 @@ public class SupportResourceTest {
 
         // the user's own rule is a share that the user hasn't accepted
         UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
-        user1Client.createRule(sessionId, new Rule(user2, true));
-        user2Client.createRule(sessionId, new Rule(supportSessionOwner, true));
-        deleteRule(sessionId, user1);
+        try {
+            user1Client.createRule(sessionId, new Rule(user2, true));
+            user2Client.createRule(sessionId, new Rule(supportSessionOwner, true));
+            deleteRule(sessionId, user1);
 
-        assertEquals(403, postSupportRequest(launcher.getUser2Target(Role.SESSION_WORKER), sessionId));
+            assertEquals(403, postSupportRequest(launcher.getUser2Target(Role.SESSION_WORKER), sessionId));
 
-        assertEquals(Set.of(user2, supportSessionOwner), getUsernames(sessionId));
+            assertEquals(Set.of(user2, supportSessionOwner), getUsernames(sessionId));
+        } finally {
+            // user1's share to user2 would still count in user1's shares and break
+            // RuleResourceTest.deleteShares(). Neither user is sure to have access
+            // anymore, but session-worker has access to all sessions
+            sessionWorkerClient.deleteSession(sessionId);
+        }
     }
 
     @Test
