@@ -1,23 +1,16 @@
 name: Java format
 
-# The Java code, and what decides how it's formatted or how the check runs:
-# the formatter settings, the Spotless configuration in build.gradle, the
-# Gradle wrapper and .gitattributes, which Spotless takes the line endings
-# from. A commit that changes only the formatter settings has no Java files
-# for the pre-commit hook to check, so this is the place where those get
-# checked against the code.
+# Every pull request is checked, so that the branch rules can require this
+# check: a required check that a path filter skips never reports, and the
+# pull request can't be merged. On master, only the Java code and what decides
+# how it's formatted or how the check runs trigger a run: the formatter
+# settings, the Spotless configuration in build.gradle, the Gradle wrapper and
+# .gitattributes, which Spotless takes the line endings from. A commit that
+# changes only the formatter settings has no Java files for the pre-commit
+# hook to check, so this is the place where those get checked against the
+# code.
 on:
   pull_request:
-    paths:
-      - src/main/java/**
-      - src/test/java/**
-      - config/eclipse-formatter.xml
-      - build.gradle
-      - settings.gradle
-      - gradlew
-      - gradle/wrapper/**
-      - .gitattributes
-      - .github/workflows/java-format.yml
   push:
     branches: [master]
     paths:

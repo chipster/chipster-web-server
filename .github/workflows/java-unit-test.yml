@@ -1,18 +1,13 @@
 name: Java unit test
 
-# The Java code, its resources (like chipster-defaults.yaml, which the
-# tests read), security/users (which UsersFileTest checks) and the build.
-# Changes elsewhere, like in js/, don't trigger a run.
+# Every pull request is tested, so that the branch rules can require this
+# check: a required check that a path filter skips never reports, and the
+# pull request can't be merged. On master, only the Java code, its resources
+# (like chipster-defaults.yaml, which the tests read), security/users (which
+# UsersFileTest checks) and the build trigger a run. Changes elsewhere, like
+# in js/, don't.
 on:
   pull_request:
-    paths:
-      - src/**
-      - build.gradle
-      - settings.gradle
-      - gradle/wrapper/**
-      - gradlew
-      - security/users
-      - .github/workflows/java-unit-test.yml
   push:
     branches: [master]
     paths:

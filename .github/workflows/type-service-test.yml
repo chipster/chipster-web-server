@@ -1,13 +1,12 @@
 name: Type-service test
 
-# Only type-service is tested, so the rest of the repository doesn't trigger
-# a run. The tests read only files under js/type-service, like the sample
-# files in test-files.
+# Every pull request is tested, so that the branch rules can require this
+# check: a required check that a path filter skips never reports, and the
+# pull request can't be merged. On master, only type-service is tested, so the
+# rest of the repository doesn't trigger a run. The tests read only files
+# under js/type-service, like the sample files in test-files.
 on:
   pull_request:
-    paths:
-      - js/type-service/**
-      - .github/workflows/type-service-test.yml
   push:
     branches: [master]
     paths:
