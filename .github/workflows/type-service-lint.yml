@@ -1,12 +1,11 @@
 name: Type-service lint
 
-# Only type-service is checked, so the rest of the repository doesn't
-# trigger a run.
+# Every pull request is checked, so that the branch rules can require this
+# check: a required check that a path filter skips never reports, and the
+# pull request can't be merged. On master, only type-service is checked, so
+# the rest of the repository doesn't trigger a run.
 on:
   pull_request:
-    paths:
-      - js/type-service/**
-      - .github/workflows/type-service-lint.yml
   push:
     branches: [master]
     paths:
