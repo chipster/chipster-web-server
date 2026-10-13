@@ -13,7 +13,7 @@ The Java code is formatted with the Eclipse formatter, using the settings in
 ```
 
 The "Java format" workflow in `.github/workflows/java-format.yml` runs
-`spotlessCheck` on pull requests and on master, when the Java code, the
+`spotlessCheck` on every pull request, and on master when the Java code, the
 formatter settings or the Gradle build changes.
 
 The settings are the "Eclipse [built-in]" profile, except that the indentation
@@ -90,8 +90,8 @@ are unit tests, so tag a new test that needs either of those. `./gradlew
 check` and `./gradlew build` run `test`, so they need the backend too.
 
 The "Java unit test" workflow in `.github/workflows/java-unit-test.yml` runs
-`unitTest` on pull requests and on master, when the Java code, its resources,
-the Gradle build or `security/users` changes. The integration tests are not
+`unitTest` on every pull request, and on master when the Java code, its
+resources, the Gradle build or `security/users` changes. The integration tests are not
 run in GitHub Actions.
 
 The type-service tests don't need a backend:
@@ -101,5 +101,5 @@ cd js/type-service && npm test
 ```
 
 The "Type-service test" workflow in `.github/workflows/type-service-test.yml`
-runs `npm run build` and `npm test` on pull requests and on master, when
+runs `npm run build` and `npm test` on every pull request, and on master when
 type-service changes.
