@@ -172,7 +172,7 @@ export default class CliClient {
     jobRunSubparser.add_argument("--input", "-i", {
       help:
         "INPUT_NAME=DATASET_NAME_OR_ID. For a phenodata (META) input, the content of the dataset is used " +
-        "as the phenodata. Without it, the phenodata of the input datasets is used, like in the web app",
+        "as the phenodata. Without it, the phenodata of the input datasets is used, if they lead to one phenodata",
       action: "append",
     });
     jobRunSubparser.add_argument("--parameter", "-p", {

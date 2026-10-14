@@ -8,7 +8,7 @@ import {
 } from "chipster-js-common";
 import { RestClient } from "chipster-nodejs-core";
 import { padStart } from "lodash-es";
-import { Observable, Subject, forkJoin, from, of } from "rxjs";
+import { Observable, Subject, defer, forkJoin, from, of } from "rxjs";
 import { defaultIfEmpty, map, mergeMap, tap } from "rxjs/operators";
 import VError from "verror";
 
@@ -261,10 +261,28 @@ export default class ChipsterUtils {
    *
    * A META input given in inputMap gets the content of that dataset, e.g. an uploaded
    * phenodata file. The others get the phenodata of the input datasets or their
-   * ancestors, like in the web app, but only when there is a single unbound META input
-   * and the inputs lead to a single phenodata.
+   * ancestors, like the web app does, but only when there is a single unbound META input
+   * and the inputs lead to a single phenodata. The web app takes the first phenodata it
+   * finds; here an ambiguous case is an error, because nobody is looking at the result.
    */
   static getPhenodataFiles(
+    restClient: RestClient,
+    sessionId: string,
+    tool: Tool,
+    inputMap: Map<string, Dataset>,
+  ): Observable<MetadataFile[]> {
+    // defer: errors thrown below go to the subscriber, not to the caller
+    return defer(() =>
+      ChipsterUtils.getPhenodataFilesSync(
+        restClient,
+        sessionId,
+        tool,
+        inputMap,
+      ),
+    );
+  }
+
+  private static getPhenodataFilesSync(
     restClient: RestClient,
     sessionId: string,
     tool: Tool,
@@ -334,24 +352,24 @@ export default class ChipsterUtils {
     datasetsMap: Map<string, Dataset>,
     jobsMap: Map<string, Job>,
   ): MetadataFile[] {
-    const phenodataDatasets = dataInputs
-      .map((dataset) =>
-        PhenodataUtils.getPhenodataDataset(
-          datasetsMap.get(dataset.datasetId) ?? dataset,
-          jobsMap,
-          datasetsMap,
-          (d) => ChipsterUtils.phenodataTypeCheck(d),
-        ),
-      )
-      .filter((d) => d != null);
-    const uniqueIds = Array.from(
-      new Set(phenodataDatasets.map((d) => d.datasetId)),
-    );
+    // one dataset per datasetId, several inputs may lead to the same phenodata
+    const phenodataDatasets = new Map<string, Dataset>();
+    dataInputs.forEach((dataset) => {
+      const phenodataDataset = PhenodataUtils.getPhenodataDataset(
+        datasetsMap.get(dataset.datasetId) ?? dataset,
+        jobsMap,
+        datasetsMap,
+        (d) => ChipsterUtils.phenodataTypeCheck(d),
+      );
+      if (phenodataDataset != null) {
+        phenodataDatasets.set(phenodataDataset.datasetId, phenodataDataset);
+      }
+    });
 
     const mandatory = unboundInputs.filter((i) => !i.optional);
-    if (unboundInputs.length === 1 && uniqueIds.length === 1) {
+    if (unboundInputs.length === 1 && phenodataDatasets.size === 1) {
       const phenodata = PhenodataUtils.getOwnPhenodata(
-        datasetsMap.get(uniqueIds[0]),
+        phenodataDatasets.values().next().value,
       );
       return [{ name: unboundInputs[0].name.id, content: phenodata }];
     }
@@ -361,7 +379,7 @@ export default class ChipsterUtils {
     let reason: string;
     if (unboundInputs.length > 1) {
       reason = "the tool has several phenodata inputs";
-    } else if (uniqueIds.length === 0) {
+    } else if (phenodataDatasets.size === 0) {
       reason = "the input datasets have no phenodata";
     } else {
       reason = "the input datasets have different phenodata";
