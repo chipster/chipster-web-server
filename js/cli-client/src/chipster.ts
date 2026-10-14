@@ -170,7 +170,9 @@ export default class CliClient {
     let jobRunSubparser = jobSubparsers.add_parser("run");
     jobRunSubparser.add_argument("tool", { help: "tool name or id" });
     jobRunSubparser.add_argument("--input", "-i", {
-      help: "INPUT_NAME=DATASET_NAME_OR_ID",
+      help:
+        "INPUT_NAME=DATASET_NAME_OR_ID. For a phenodata (META) input, the content of the dataset is used " +
+        "as the phenodata. Without it, the phenodata of the input datasets is used, like in the web app",
       action: "append",
     });
     jobRunSubparser.add_argument("--parameter", "-p", {
@@ -713,16 +715,26 @@ export default class CliClient {
         }
       }),
       mergeMap(() => this.getToolByNameOrId(args.tool)),
-      mergeMap((tool) => {
-        const paramMap = ChipsterUtils.parseArgArray(args.parameter);
-        return ChipsterUtils.jobRun(
+      mergeMap((tool) =>
+        ChipsterUtils.getPhenodataFiles(
           this.restClient,
           sessionId,
           tool,
-          paramMap,
           inputMap,
-        );
-      }),
+        ).pipe(
+          mergeMap((metadataFiles) => {
+            const paramMap = ChipsterUtils.parseArgArray(args.parameter);
+            return ChipsterUtils.jobRunWithMetadata(
+              this.restClient,
+              sessionId,
+              tool,
+              paramMap,
+              inputMap,
+              metadataFiles,
+            );
+          }),
+        ),
+      ),
       tap((id) => (jobId = id)),
       mergeMap(() => {
         if (!wsClient) {
@@ -773,6 +785,8 @@ export default class CliClient {
 
         return jobState$;
       }),
+      // also when posting the job fails, e.g. on a missing input, the open websocket would keep the process running
+      finalize(() => wsClient?.disconnect()),
     );
   }
 
