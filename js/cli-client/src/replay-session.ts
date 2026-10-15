@@ -490,7 +490,7 @@ export default class ReplaySession {
   }
 
   phenodataTypeCheck(dataset: Dataset) {
-    return dataset.name.endsWith(".tsv") || dataset.name.endsWith(".TSV");
+    return ChipsterUtils.phenodataTypeCheck(dataset);
   }
 
   getSessionFiles(sessionPath) {

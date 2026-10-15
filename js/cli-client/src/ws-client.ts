@@ -47,6 +47,10 @@ export default class WsClient {
   connect(sessionId: string, quiet = false) {
     this.sessionId = sessionId;
     return this.restClient.getSessionDbEventsUri().subscribe((url) => {
+      if (this.closing) {
+        // disconnected before the uri was resolved, e.g. a job run that failed right away
+        return;
+      }
       let topic = "sessions/" + sessionId;
       url =
         url +
@@ -196,8 +200,8 @@ export default class WsClient {
   }
 
   disconnect() {
+    this.closing = true;
     if (this.ws != null) {
-      this.closing = true;
       this.ws.close();
     }
   }

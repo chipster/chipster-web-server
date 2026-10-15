@@ -1,13 +1,15 @@
 import {
   Dataset,
+  Job,
   MetadataFile,
+  PhenodataUtils,
   Tool,
   ToolInput,
 } from "chipster-js-common";
 import { RestClient } from "chipster-nodejs-core";
 import { padStart } from "lodash-es";
-import { Observable, Subject, from } from "rxjs";
-import { map, mergeMap, tap } from "rxjs/operators";
+import { Observable, Subject, defer, forkJoin, from, of } from "rxjs";
+import { defaultIfEmpty, map, mergeMap, tap } from "rxjs/operators";
 import VError from "verror";
 
 import path = require("path");
@@ -16,6 +18,9 @@ import { read } from "read";
 export const missingInputError = "MissingInputError";
 
 export default class ChipsterUtils {
+  // the same as the limit of phenodata outputs in comp (OnDiskCompJobBase)
+  static readonly PHENODATA_MAX_SIZE = 1024 * 1024;
+
   static printStatus(args, status, value = null) {
     if (!args.quiet) {
       if (value != null) {
@@ -185,23 +190,6 @@ export default class ChipsterUtils {
       );
   }
 
-  static jobRun(
-    restClient: RestClient,
-    sessionId: string,
-    tool: Tool,
-    paramMap: Map<string, string>,
-    inputMap: Map<string, Dataset>,
-  ) {
-    return ChipsterUtils.jobRunWithMetadata(
-      restClient,
-      sessionId,
-      tool,
-      paramMap,
-      inputMap,
-      null,
-    );
-  }
-
   static jobRunWithMetadata(
     restClient: RestClient,
     sessionId: string,
@@ -221,7 +209,7 @@ export default class ChipsterUtils {
       toolDescription: tool.description,
       state: "NEW",
       parameters: [],
-      inputs: [],
+      inputs: ChipsterUtils.getJobInputs(tool, inputMap),
       metadataFiles: metadata,
     };
 
@@ -233,9 +221,17 @@ export default class ChipsterUtils {
       });
     });
 
+    return restClient.postJob(sessionId, job);
+  }
+
+  /**
+   * The data inputs of the job. Throws a missingInputError if a mandatory input has no dataset.
+   */
+  static getJobInputs(tool: Tool, inputMap: Map<string, Dataset>) {
+    const inputs = [];
     tool.inputs.forEach((i) => {
-      if (i.name.id === "phenodata.tsv" || i.name.id === "phenodata2.tsv") {
-        // phenodata will be generated in comp
+      if (i.meta) {
+        // phenodata is sent in metadataFiles, comp writes it to the job dir
         return;
       } else if (i.name.spliced) {
         // multi input
@@ -243,7 +239,7 @@ export default class ChipsterUtils {
           const inputId = i.name.prefix + padStart(j, 3, "0") + i.name.postfix;
           if (inputMap.has(inputId)) {
             const input = ChipsterUtils.getInput(inputId, i, inputMap);
-            job.inputs.push(input);
+            inputs.push(input);
           } else {
             break;
           }
@@ -253,12 +249,156 @@ export default class ChipsterUtils {
         const input = ChipsterUtils.getInput(i.name.id, i, inputMap);
         // dont' add optional unbound inputs
         if (input != null) {
-          job.inputs.push(input);
+          inputs.push(input);
         }
       }
     });
+    return inputs;
+  }
 
-    return restClient.postJob(sessionId, job);
+  /**
+   * Phenodata for the META inputs of the tool, to be sent in the job's metadataFiles.
+   *
+   * A META input given in inputMap gets the content of that dataset, e.g. an uploaded
+   * phenodata file. The others get the phenodata of the input datasets or their
+   * ancestors, like the web app does, but only when there is a single unbound META input
+   * and the inputs lead to a single phenodata. The web app takes the first phenodata it
+   * finds; here an ambiguous case is an error, because nobody is looking at the result.
+   */
+  static getPhenodataFiles(
+    restClient: RestClient,
+    sessionId: string,
+    tool: Tool,
+    inputMap: Map<string, Dataset>,
+  ): Observable<MetadataFile[]> {
+    // defer: errors thrown below go to the subscriber, not to the caller
+    return defer(() =>
+      ChipsterUtils.getPhenodataFilesSync(
+        restClient,
+        sessionId,
+        tool,
+        inputMap,
+      ),
+    );
+  }
+
+  private static getPhenodataFilesSync(
+    restClient: RestClient,
+    sessionId: string,
+    tool: Tool,
+    inputMap: Map<string, Dataset>,
+  ): Observable<MetadataFile[]> {
+    // report a missing data input first, the phenodata comes from the data inputs
+    ChipsterUtils.getJobInputs(tool, inputMap);
+
+    const metaInputs = tool.inputs.filter((i) => i.meta);
+    const givenInputs = metaInputs.filter((i) => inputMap.has(i.name.id));
+    const unboundInputs = metaInputs.filter((i) => !inputMap.has(i.name.id));
+
+    const given$ = givenInputs.map((i) => {
+      const dataset = inputMap.get(i.name.id);
+      if (dataset.size == null) {
+        throw new VError(
+          'dataset "' + dataset.name + '" for ' + i.name.id + " has no content",
+        );
+      }
+      if (dataset.size > ChipsterUtils.PHENODATA_MAX_SIZE) {
+        throw new VError(
+          'dataset "' +
+            dataset.name +
+            '" for ' +
+            i.name.id +
+            " is too large for phenodata (" +
+            dataset.size +
+            " bytes)",
+        );
+      }
+      return restClient
+        .getFile(sessionId, dataset.datasetId, dataset.size)
+        .pipe(map((content: string) => ({ name: i.name.id, content })));
+    });
+
+    const unbound$ =
+      unboundInputs.length === 0
+        ? of([])
+        : forkJoin({
+            datasets: restClient.getDatasets(sessionId),
+            jobs: restClient.getJobs(sessionId),
+          }).pipe(
+            map(({ datasets, jobs }) =>
+              ChipsterUtils.bindPhenodata(
+                unboundInputs,
+                // the data inputs, not the META inputs given in inputMap
+                Array.from(inputMap.entries())
+                  .filter(
+                    ([inputId]) =>
+                      !metaInputs.some((i) => i.name.id === inputId),
+                  )
+                  .map(([, dataset]) => dataset),
+                new Map((datasets as Dataset[]).map((d) => [d.datasetId, d])),
+                new Map((jobs as Job[]).map((j) => [j.jobId, j])),
+              ),
+            ),
+          );
+
+    return forkJoin([forkJoin(given$).pipe(defaultIfEmpty([])), unbound$]).pipe(
+      map(([given, unbound]) => [...given, ...unbound]),
+    );
+  }
+
+  static bindPhenodata(
+    unboundInputs: ToolInput[],
+    dataInputs: Dataset[],
+    datasetsMap: Map<string, Dataset>,
+    jobsMap: Map<string, Job>,
+  ): MetadataFile[] {
+    // one dataset per datasetId, several inputs may lead to the same phenodata
+    const phenodataDatasets = new Map<string, Dataset>();
+    dataInputs.forEach((dataset) => {
+      const phenodataDataset = PhenodataUtils.getPhenodataDataset(
+        datasetsMap.get(dataset.datasetId) ?? dataset,
+        jobsMap,
+        datasetsMap,
+        (d) => ChipsterUtils.phenodataTypeCheck(d),
+      );
+      if (phenodataDataset != null) {
+        phenodataDatasets.set(phenodataDataset.datasetId, phenodataDataset);
+      }
+    });
+
+    const mandatory = unboundInputs.filter((i) => !i.optional);
+    if (unboundInputs.length === 1 && phenodataDatasets.size === 1) {
+      const phenodata = PhenodataUtils.getOwnPhenodata(
+        phenodataDatasets.values().next().value,
+      );
+      return [{ name: unboundInputs[0].name.id, content: phenodata }];
+    }
+    if (mandatory.length === 0) {
+      return [];
+    }
+    let reason: string;
+    if (unboundInputs.length > 1) {
+      reason = "the tool has several phenodata inputs";
+    } else if (phenodataDatasets.size === 0) {
+      reason = "the input datasets have no phenodata";
+    } else {
+      reason = "the input datasets have different phenodata";
+    }
+    throw new VError(
+      {
+        name: missingInputError,
+        info: { inputId: mandatory[0].name.id },
+      },
+      "can't choose the phenodata for " +
+        mandatory.map((i) => i.name.id).join(", ") +
+        ", because " +
+        reason +
+        ". Give a phenodata file for each with -i INPUT_ID=DATASET",
+    );
+  }
+
+  static phenodataTypeCheck(dataset: Dataset) {
+    return dataset.name.endsWith(".tsv") || dataset.name.endsWith(".TSV");
   }
 
   static getInput(
