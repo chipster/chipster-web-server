@@ -20,7 +20,7 @@ if [ -n "$TOOLS_BIN_NAME" ]; then
   else
     echo "mount tools-bin from PVC $TOOLS_BIN_NAME to $TOOLS_BIN_PATH"
     pod_patch="$pod_patch |
-      .spec.volumes += [{\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"tools-bin-$TOOLS_BIN_NAME\"}}]"
+      .spec.volumes += [{\"name\": \"tools-bin\", \"persistentVolumeClaim\": { \"claimName\": \"tools-bin-$TOOLS_BIN_NAME\", \"readOnly\": true}}]"
   fi
 else
   echo "do not mount tools-bin for this tool"

@@ -6,6 +6,17 @@ metadata:
     comp-job: ""
     comp-job-anti-affinity: yes
 spec:
+  automountServiceAccountToken: false
+  # gid 0 like in OpenShift, because the images allow the root group to write to $HOME and /opt/chipster
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 0
+    # make the PVC working directory writable for the group, on storage classes that support fsGroup
+    fsGroup: 0
+    fsGroupChangePolicy: OnRootMismatch
+    seccompProfile:
+      type: RuntimeDefault
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -23,6 +34,10 @@ spec:
       image: ""
       imagePullPolicy: ""
       command: ["java", "-cp", "lib/*:", "fi.csc.chipster.comp.SingleShotComp"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
       volumeMounts:
         - mountPath: /opt/chipster/conf
           name: conf
