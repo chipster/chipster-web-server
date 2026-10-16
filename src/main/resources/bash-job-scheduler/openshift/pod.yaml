@@ -6,6 +6,7 @@ metadata:
     comp-job: ""
     comp-job-anti-affinity: yes
 spec:
+  automountServiceAccountToken: false
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
