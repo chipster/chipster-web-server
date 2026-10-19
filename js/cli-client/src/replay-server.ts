@@ -69,7 +69,7 @@ export default class ReplayServer {
       action: "append",
     });
     parser.add_argument("--influxdb", "-i", {
-      help: "influxdb url for statistics, e.g. http://influxdb:8086/write?db=db",
+      help: "influxdb url for statistics, e.g. http://influxdb:8086/write?db=db. Credentials are read from env variables INFLUXDB_USERNAME and INFLUXDB_PASSWORD",
     });
     parser.add_argument("--port", "-P", {
       help: "HTTP port for serving the result files",
@@ -325,7 +325,16 @@ export default class ReplayServer {
 
     if (influxdb != null) {
       logger.debug("post to InfluxDB " + testSet + " " + influxdb);
-      return restClient.post(influxdb, null, data);
+      // send credentials in a header, because RestClient logs failed urls
+      let headers = null;
+      if (process.env.INFLUXDB_PASSWORD) {
+        const credentials =
+          process.env.INFLUXDB_USERNAME + ":" + process.env.INFLUXDB_PASSWORD;
+        headers = {
+          Authorization: "Basic " + Buffer.from(credentials).toString("base64"),
+        };
+      }
+      return restClient.post(influxdb, headers, data);
     } else {
       return of(null);
     }
