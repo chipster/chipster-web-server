@@ -564,15 +564,7 @@ export default class ReplaySession {
     let replaySessionId: string;
     let filteredJobs: Job[];
 
-    const toolsMap = new Map<string, Tool>();
-
-    allTools.forEach((module) => {
-      module.categories.forEach((category) => {
-        category.tools.forEach((tool) => {
-          toolsMap.set(tool.name.id, tool);
-        });
-      });
-    });
+    const toolsMap = ChipsterUtils.getAllTools(allTools);
 
     const originalSessionId = originalSession.sessionId;
 
@@ -1207,15 +1199,7 @@ export default class ReplaySession {
   ): Observable<any> {
     this.removeAllFiles(this.resultsPath);
 
-    const allToolIds = new Set<string>();
-
-    allTools.forEach((module) => {
-      module.categories.forEach((category) => {
-        category.tools.forEach((tool) => {
-          allToolIds.add(tool.name.id);
-        });
-      });
-    });
+    const allToolIds = new Set(ChipsterUtils.getAllTools(allTools).keys());
 
     this.writeResultsSync(
       results,

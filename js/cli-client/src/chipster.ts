@@ -6,11 +6,9 @@ import {
   Rule,
   Service,
   Session,
-  Tool,
 } from "chipster-js-common";
 import { Logger } from "chipster-nodejs-core/lib/logger.js";
 import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
-import { flatten } from "lodash-es";
 import {
   empty as observableEmpty,
   forkJoin,
@@ -890,21 +888,30 @@ export default class CliClient {
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getTools()),
       map((modules: Module[]) => {
-        const categoryArrays = modules.map((module) => module.categories);
-        const categories = flatten(categoryArrays);
-        const toolArrays = categories.map((category) => category.tools);
-        return flatten(toolArrays);
-      }),
-      map((tools: Array<Tool>) =>
-        tools.filter((t) => {
-          return t.name.id === search || t.name.displayName === search;
-        }),
-      ),
-      map((tools) => {
-        if (tools.length !== 1) {
-          throw new Error("found " + tools.length + " tools");
+        const tools = ChipsterUtils.getAllTools(modules);
+
+        // an exact id match wins over another tool with the same display name
+        if (tools.has(search)) {
+          return tools.get(search);
         }
-        return tools[0];
+
+        const toolsByName = Array.from(tools.values()).filter(
+          (t) => t.name.displayName === search,
+        );
+        if (toolsByName.length === 0) {
+          throw new Error("no tool with id or name '" + search + "'");
+        }
+        if (toolsByName.length > 1) {
+          throw new Error(
+            "found " +
+              toolsByName.length +
+              " tools with name '" +
+              search +
+              "': " +
+              toolsByName.map((t) => t.name.id).join(", "),
+          );
+        }
+        return toolsByName[0];
       }),
     );
   }
