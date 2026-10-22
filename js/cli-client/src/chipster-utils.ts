@@ -2,6 +2,7 @@ import {
   Dataset,
   Job,
   MetadataFile,
+  Module,
   PhenodataUtils,
   Tool,
   ToolInput,
@@ -222,6 +223,24 @@ export default class ChipsterUtils {
     });
 
     return restClient.postJob(sessionId, job);
+  }
+
+  /**
+   * All tools of the modules by their id. A tool can be in several categories and modules,
+   * but it's the same tool with the same id, so the first copy is kept.
+   */
+  static getAllTools(modules: Module[]): Map<string, Tool> {
+    const tools = new Map<string, Tool>();
+    modules.forEach((module) => {
+      module.categories.forEach((category) => {
+        category.tools.forEach((tool) => {
+          if (!tools.has(tool.name.id)) {
+            tools.set(tool.name.id, tool);
+          }
+        });
+      });
+    });
+    return tools;
   }
 
   /**
