@@ -901,8 +901,10 @@ export default class CliClient {
         }),
       ),
       map((tools) => {
-        if (tools.length !== 1) {
-          throw new Error("found " + tools.length + " tools");
+        // a tool can be in several categories, count each tool only once
+        const toolIds = new Set(tools.map((t) => t.name.id));
+        if (toolIds.size !== 1) {
+          throw new Error("found " + toolIds.size + " tools");
         }
         return tools[0];
       }),
