@@ -23,9 +23,8 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-public class RestFileBrokerClient {
+public class RestFileBrokerClient implements AutoCloseable {
 
-    @SuppressWarnings("unused")
     private static final Logger logger = LogManager.getLogger();
 
     private WebTarget fileBrokerTarget;
@@ -67,6 +66,23 @@ public class RestFileBrokerClient {
         this.finickyHttpClient = new FinickyHttpClient(credentials.getUsername(), credentials.getPassword(),
                 downloadTlsVersion, downloadHttp2, downloadCipher,
                 Verbosity.CHOSEN_VERSIONS);
+    }
+
+    /**
+     * Stop the threads of the download client
+     *
+     * Each instance starts a Jetty HttpClient with its own thread pool for the
+     * downloads. Its threads keep running until this is called, so a service
+     * that creates a client for each request must close it at the end of the
+     * request, e.g. with try-with-resources. Downloads still in progress fail.
+     */
+    @Override
+    public void close() {
+        try {
+            this.finickyHttpClient.stop();
+        } catch (Exception e) {
+            logger.warn("failed to stop the file-broker download client", e);
+        }
     }
 
     // targets
