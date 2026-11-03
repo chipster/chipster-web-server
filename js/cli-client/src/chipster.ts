@@ -414,7 +414,17 @@ export default class CliClient {
   }
 
   getApp() {
-    return this.env.get("app");
+    // the same default as in login(), for an env file of an older CLI that didn't save the app
+    return this.env.get("app").pipe(map((app) => app ?? "chipster"));
+  }
+
+  /**
+   * The read-only sessions shared with everyone by the app's example session owner
+   */
+  getExampleSessions() {
+    return this.getApp().pipe(
+      mergeMap((appId) => this.restClient.getExampleSessions(appId)),
+    );
   }
 
   login(args) {
@@ -512,12 +522,8 @@ export default class CliClient {
 
   sessionList() {
     return this.checkLogin().pipe(
-      mergeMap(() => this.getApp()),
-      mergeMap((appId) =>
-        forkJoin(
-          this.restClient.getSessions(),
-          this.restClient.getExampleSessions(appId),
-        ),
+      mergeMap(() =>
+        forkJoin(this.restClient.getSessions(), this.getExampleSessions()),
       ),
       map((res) => {
         const ownSessions = <Session[]>res[0];
@@ -833,13 +839,20 @@ export default class CliClient {
   }
 
   getSessionByNameOrId(search: string) {
+    const matches = (sessions: Array<Session>) =>
+      sessions.filter(
+        (s) => s.name === search || s.sessionId.startsWith(search),
+      );
     return this.checkLogin().pipe(
       mergeMap(() => this.restClient.getSessions()),
-      map((sessions: Array<Session>) =>
-        sessions.filter(
-          (s) => s.name === search || s.sessionId.startsWith(search),
-        ),
-      ),
+      // if none of the own sessions match, look in the example sessions, which are read-only.
+      // Then their datasets and jobs can be listed and downloaded, and the server refuses changes
+      mergeMap((ownSessions: Array<Session>) => {
+        const own = matches(ownSessions);
+        return own.length > 0
+          ? observableOf(own)
+          : this.getExampleSessions().pipe(map(matches));
+      }),
       map((sessions) => {
         if (sessions.length !== 1) {
           throw new Error("found " + sessions.length + " sessions");
