@@ -35,6 +35,7 @@ import {
 } from "rxjs/operators";
 import VError from "verror";
 import ChipsterUtils, { missingInputError } from "./chipster-utils.js";
+import CliEnvironment from "./cli-environment.js";
 import WsClient from "./ws-client.js";
 import humanizeDuration from "humanize-duration";
 
@@ -53,6 +54,8 @@ interface ReplayOptions {
   resultName?: string;
   tempRoot?: string;
   jobTimeout?: number;
+  // without a password, use the token of the CLI login. Only for the command line, not replay-server
+  cliLogin?: boolean;
 }
 
 /**
@@ -119,7 +122,7 @@ export default class ReplaySession {
       help: "username for the server",
     });
     parser.add_argument("--password", "-p", {
-      help: "password for the server",
+      help: "password for the server, without it the token of the CLI login is used",
     });
     parser.add_argument("--debug", "-d", {
       help: "do not delete the test session",
@@ -176,6 +179,7 @@ export default class ReplaySession {
       resultName: args.resultName,
       tempRoot: args.tempRoot,
       jobTimeout: args.jobTimeout != null ? parseInt(args.jobTimeout) : null,
+      cliLogin: true,
     };
 
     const replay$ =
@@ -200,6 +204,46 @@ export default class ReplaySession {
       () => logger.info("session replay done"),
       (err) => logger.error(new VError(err, "session replay error")),
       // () => logger.info("session replay completed")
+    );
+  }
+
+  /**
+   * Log in with the password, or use the token of the CLI login when there is no password and
+   * cliLogin is set
+   */
+  getToken(URL: string, username: string, password: string, cliLogin: boolean) {
+    if (password != null || !cliLogin) {
+      logger.info("login as " + username);
+      return ChipsterUtils.getToken(URL, username, password, this.restClient);
+    }
+    if (username != null) {
+      // the token of the CLI login is of the account that was logged in, don't let a username
+      // on the command line make it look like the replay runs as some other account
+      return throwError(
+        () =>
+          new Error(
+            "--username needs --password, without them the token of the CLI login is used",
+          ),
+      );
+    }
+    return new CliEnvironment().read().pipe(
+      mergeMap((env: any) => {
+        if (!env.token) {
+          return throwError(
+            () =>
+              new Error(
+                "no password given and the CLI isn't logged in, log in with 'chipster login'",
+              ),
+          );
+        }
+        logger.info(
+          "use the token of the CLI login, logged in as " +
+            env.username +
+            " to " +
+            env.webServerUri,
+        );
+        return of(env.token);
+      }),
     );
   }
 
@@ -382,14 +426,8 @@ export default class ReplaySession {
     let jobPlanCount = 0;
     let allTools: Module[];
 
-    logger.info("login as " + username);
     this.restClient = new RestClient(true, null, null);
-    return ChipsterUtils.getToken(
-      URL,
-      username,
-      password,
-      this.restClient,
-    ).pipe(
+    return this.getToken(URL, username, password, options?.cliLogin).pipe(
       mergeMap((token: string) =>
         ChipsterUtils.configureRestClient(URL, token, this.restClient),
       ),
@@ -694,6 +732,8 @@ export default class ReplaySession {
     let tool: Tool;
     let metadataFiles: MetadataFile[] = [];
     let replayJobId;
+    // shown in the results next to the job, in addition to the log
+    const warnings: string[] = [];
 
     const timeout$ = new Subject();
     let timeoutSubscription;
@@ -760,6 +800,45 @@ export default class ReplaySession {
         ),
       ),
       tap((t: Tool) => (tool = t)),
+      tap(() => {
+        // comp rejects a job with parameters that the tool doesn't have. Skip the ones removed
+        // from the tool after the original job, the session should be updated. The warning goes
+        // also to the results, the log of the daily run is rarely read
+        const toolParameterIds = new Set(tool.parameters.map((p) => p.name.id));
+        Array.from(parameterMap.keys())
+          .filter((id) => !toolParameterIds.has(id))
+          .forEach((id) => {
+            parameterMap.delete(id);
+            const message =
+              "the tool doesn't have the parameter " +
+              id +
+              " of the session anymore, skipped";
+            logger.warn(
+              job.toolId + " " + plan.originalSession.name + ": " + message,
+            );
+            warnings.push(message);
+          });
+        // send the default of the parameters added after the original job, or "" if an optional one
+        // has none, like the web app sends "" for an unset value. For a missing parameter comp writes
+        // None, e.g. "x <- None" in R. A new mandatory parameter without a default isn't sent: the
+        // web app doesn't let the user run the tool without it either, and comp's "mandatory
+        // parameter is not set" error tells that the session needs a value for it
+        tool.parameters
+          .filter(
+            (p) =>
+              !parameterMap.has(p.name.id) &&
+              (p.defaultValue != null || p.optional),
+          )
+          .forEach((p) => {
+            const value = p.defaultValue != null ? p.defaultValue : "";
+            parameterMap.set(p.name.id, value);
+            if (!quiet) {
+              logger.info(
+                "set parameter " + p.name.id + " " + value + " (default)",
+              );
+            }
+          });
+      }),
       tap(() => {
         metadataFiles = this.bindPhenodata(
           job,
@@ -880,6 +959,10 @@ export default class ReplaySession {
           plan,
         ),
       ),
+      map((result: ReplayResult) => {
+        result.messages = warnings.concat(result.messages);
+        return result;
+      }),
       catchError((err) => {
         if (VError.hasCauseWithName(err, this.toolNotFoundError)) {
           logger.warn("tool not found: " + err.message);
