@@ -39,6 +39,8 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.filebroker.FileBrokerApi;
+import fi.csc.chipster.filebroker.FinickyHttpClient;
+import fi.csc.chipster.filebroker.FinickyHttpClient.Verbosity;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -64,6 +66,7 @@ import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.ServiceUnavailableException;
+import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.core.MediaType;
 
 /**
@@ -112,6 +115,17 @@ public class ZipSessionServlet extends HttpServlet {
 
     private AuthenticationClient authService;
 
+    /**
+     * HTTP clients of the file-broker, shared by all requests
+     *
+     * A RestFileBrokerClient is created for each request, because each request
+     * uses the credentials of its own user, but the HTTP clients are shared:
+     * starting a Jetty HttpClient for each request would leave its thread pool
+     * running, or make each request wait for it to stop.
+     */
+    private Client fileBrokerJerseyClient;
+    private FinickyHttpClient fileBrokerDownloadClient;
+
     public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config, AuthenticationClient authService) {
         this.serviceLocator = serviceLocator;
         this.config = config;
@@ -130,11 +144,21 @@ public class ZipSessionServlet extends HttpServlet {
         this.executor = Executors.newCachedThreadPool();
 
         this.importCapacity = new ImportCapacity(config, tempDir);
+
+        this.fileBrokerJerseyClient = RestFileBrokerClient.newJerseyClient();
+        this.fileBrokerDownloadClient = new FinickyHttpClient(null, false, null, Verbosity.CHOSEN_VERSIONS);
     }
 
     @Override
     public void destroy() {
         executor.shutdown();
+
+        try {
+            fileBrokerDownloadClient.stop();
+        } catch (Exception e) {
+            logger.warn("failed to stop the file-broker download client", e);
+        }
+        fileBrokerJerseyClient.close();
     }
 
     private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,
@@ -358,11 +382,7 @@ public class ZipSessionServlet extends HttpServlet {
             // localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a -I -X POST
             // --user token:<TOKEN>
 
-            // closed after packageSession() has closed the zip stream, so that a zip
-            // thread still running after a failure stops too
-            try (RestFileBrokerClient fileBroker = newFileBrokerClient(credentials)) {
-                this.packageSession(response, credentials, sessionId, fileBroker);
-            }
+            this.packageSession(response, credentials, sessionId, newFileBrokerClient(credentials));
 
         } else {
 
@@ -380,24 +400,19 @@ public class ZipSessionServlet extends HttpServlet {
 
             UUID zipDatasetId = UUID.fromString(path[3]);
 
-            try (RestFileBrokerClient fileBroker = newFileBrokerClient(credentials)) {
-                extractSession(response, credentials, sessionId, zipDatasetId, fileBroker);
-            }
+            extractSession(response, credentials, sessionId, zipDatasetId, newFileBrokerClient(credentials));
         }
     }
 
     /**
-     * Create a file-broker client for one request
-     *
-     * The client has its own thread pool, so close it at the end of the request.
-     * Otherwise each request would leave its threads running, until the
-     * session-worker can't start new threads anymore.
+     * Create a file-broker client for one request, with the shared HTTP clients
      */
     private RestFileBrokerClient newFileBrokerClient(StaticCredentials credentials) {
         // use client creds for the actual file operations (to check the access rights)
         // but use the server creds (stored in serviceLocator) to get the internal
         // addresses
-        return new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
+        return new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER, fileBrokerJerseyClient,
+                fileBrokerDownloadClient);
     }
 
     private void extractSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,

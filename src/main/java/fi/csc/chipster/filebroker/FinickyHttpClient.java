@@ -38,6 +38,11 @@ import fi.csc.chipster.sessiondb.RestException;
  * Http client which demands specific TLS, HTTP and cipher versions to
  * workaround problems in default versions.
  * 
+ * Starting an instance is heavy: it starts a Jetty HttpClient with its own
+ * thread pool and loads the trust store. The instance is thread-safe and holds
+ * no per-user state (the credentials are given per download), so create one per
+ * process or per servlet, share it between the requests and stop() it at the
+ * end.
  */
 public class FinickyHttpClient {
 
@@ -53,15 +58,8 @@ public class FinickyHttpClient {
 
     private Verbosity verbosity;
 
-    private String username;
+    public FinickyHttpClient(String tlsVersion, boolean http2, String cipher, Verbosity verbosity) {
 
-    private String password;
-
-    public FinickyHttpClient(String username, String password, String tlsVersion, boolean http2, String cipher,
-            Verbosity verbosity) {
-
-        this.username = username;
-        this.password = password;
         this.verbosity = verbosity;
 
         HttpClientTransport transport = null;
@@ -106,7 +104,7 @@ public class FinickyHttpClient {
     }
 
     public InputStream downloadInputStream(URI uri) throws RestException {
-        return this.downloadInputStream(uri, null, null);
+        return this.downloadInputStream(uri, null, null, null, null);
     }
 
     /**
@@ -121,10 +119,15 @@ public class FinickyHttpClient {
      *                 provide a non-zero maximum request size here and let this
      *                 method handle the special case of small or empty files.
      * @param fileSize Size of the file or null.
+     * @param username Username of the basic authentication, or null to send no
+     *                 Authorization header. Given per request, so that one
+     *                 instance can serve downloads of different users.
+     * @param password Password of the basic authentication, or null.
      * @return
      * @throws RestException
      */
-    public InputStream downloadInputStream(URI uri, Long maxBytes, Long fileSize) throws RestException {
+    public InputStream downloadInputStream(URI uri, Long maxBytes, Long fileSize, String username, String password)
+            throws RestException {
 
         // Perform a simple GET and wait for the response.
 
@@ -154,7 +157,7 @@ public class FinickyHttpClient {
             }
         }
 
-        if (this.username != null && this.password != null) {
+        if (username != null && password != null) {
 
             // send Authorization header directly without waiting servers 401 response
             Authentication.Result authn = new BasicAuthentication.BasicResult(uri, username, password);
