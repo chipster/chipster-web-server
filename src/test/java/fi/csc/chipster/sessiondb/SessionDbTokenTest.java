@@ -77,6 +77,8 @@ public class SessionDbTokenTest {
 
     @AfterAll
     public static void tearDown() throws Exception {
+        fileBrokerClient1.close();
+        fileBrokerClient2.close();
         launcher.stop();
     }
 
@@ -90,10 +92,11 @@ public class SessionDbTokenTest {
     public void getFileWithClientToken() throws RestException, IOException {
         String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, null);
 
-        RestFileBrokerClient fileBroker = new RestFileBrokerClient(
-                launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);
-        InputStream is = fileBroker.download(sessionId1, datasetId1);
-        assertEquals(TEST_FILE_CONTENT, RestUtils.toString(is));
+        try (RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+                launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT)) {
+            InputStream is = fileBroker.download(sessionId1, datasetId1);
+            assertEquals(TEST_FILE_CONTENT, RestUtils.toString(is));
+        }
     }
 
     @Test
@@ -351,19 +354,20 @@ public class SessionDbTokenTest {
     public void datasetTokenExpire() throws RestException, IOException, InterruptedException {
         String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId1, 2);
 
-        RestFileBrokerClient fileBroker = new RestFileBrokerClient(
-                launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);
+        try (RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+                launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT)) {
 
-        // now this should work
-        fileBroker.download(sessionId1, datasetId1);
-
-        Thread.sleep(2000);
-        try {
-            // and now the token should have expired
+            // now this should work
             fileBroker.download(sessionId1, datasetId1);
-            assertEquals(true, false);
-        } catch (RestException e) {
-            assertEquals(401, e.getStatus());
+
+            Thread.sleep(2000);
+            try {
+                // and now the token should have expired
+                fileBroker.download(sessionId1, datasetId1);
+                assertEquals(true, false);
+            } catch (RestException e) {
+                assertEquals(401, e.getStatus());
+            }
         }
     }
 
@@ -371,9 +375,8 @@ public class SessionDbTokenTest {
     public void sessionTokenForClientExpire() throws RestException, IOException, InterruptedException {
         String sessionToken = user1Client.createSessionToken(sessionId1, 1l);
         Thread.sleep(1000);
-        try {
-            RestFileBrokerClient fileBroker = new RestFileBrokerClient(
-                    launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
+        try (RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+                launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT)) {
             fileBroker.download(sessionId1, datasetId1);
             assertEquals(true, false);
         } catch (RestException e) {
@@ -385,9 +388,8 @@ public class SessionDbTokenTest {
     public void sessionTokenForCompExpire() throws RestException, IOException, InterruptedException {
         String sessionToken = schedulerClient.createSessionToken(sessionId1, 1l);
         Thread.sleep(1000);
-        try {
-            RestFileBrokerClient fileBroker = new RestFileBrokerClient(
-                    launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT);
+        try (RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+                launcher.getServiceLocator(), new StaticCredentials("token", sessionToken), Role.CLIENT)) {
             fileBroker.download(sessionId1, datasetId1);
             assertEquals(true, false);
         } catch (RestException e) {
@@ -399,9 +401,8 @@ public class SessionDbTokenTest {
     public void datasetTokenUpload() throws RestException, IOException, InterruptedException {
         UUID datasetId = user1Client.createDataset(sessionId1, RestUtils.getRandomDataset());
         String datasetToken = user1Client.createDatasetToken(sessionId1, datasetId, 60);
-        try {
-            RestFileBrokerClient fileBroker = new RestFileBrokerClient(
-                    launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT);
+        try (RestFileBrokerClient fileBroker = new RestFileBrokerClient(
+                launcher.getServiceLocator(), new StaticCredentials("token", datasetToken), Role.CLIENT)) {
             // DatasetToken is for read-only operations
             fileBroker.upload(sessionId1, datasetId, RestUtils.toInputStream(TEST_FILE_CONTENT),
                     (long) TEST_FILE_CONTENT.length());
