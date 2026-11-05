@@ -395,8 +395,10 @@ public class XmlSession {
          */
         long maxBytes = limits.getMaxXmlCheckSize();
 
-        byte[] sessionStartBytes = IOUtils.toByteArray(
-                fileBroker.download(sessionId, zipDatasetId, maxBytes, zipSize));
+        byte[] sessionStartBytes;
+        try (InputStream remoteStream = fileBroker.download(sessionId, zipDatasetId, maxBytes, zipSize)) {
+            sessionStartBytes = IOUtils.toByteArray(remoteStream);
+        }
 
         try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(sessionStartBytes))) {
             ZipEntry entry = zipInputStream.getNextEntry();

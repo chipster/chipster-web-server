@@ -34,14 +34,53 @@ public class RestFileBrokerClient implements AutoCloseable {
 
     private CredentialsProvider credentials;
 
-    private Client jerseyClient;
-
-    private FinickyHttpClient finickyHttpClient;
+    private HttpClients clients;
 
     /**
-     * Whether this instance created the clients and has to stop them in close()
+     * Whether this instance created the clients and has to close them in close()
      */
     private boolean ownsClients;
+
+    /**
+     * The HTTP clients of a RestFileBrokerClient
+     *
+     * A Jersey client for the uploads and a FinickyHttpClient for the downloads.
+     * Neither holds per-user state: the credentials are sent as a header in each
+     * request, so one pair can serve the requests of all users. A service that
+     * creates a RestFileBrokerClient for each request should create the pair once
+     * with newHttpClients(), give it to each RestFileBrokerClient and close() it
+     * at the end, instead of starting a new thread pool for each request.
+     *
+     * Only RestFileBrokerClient can create the pair, which guarantees that the
+     * Jersey client has no credentials of its own: a client with fixed credentials
+     * would send them whenever a request has none, as the wrong user.
+     */
+    public static class HttpClients implements AutoCloseable {
+
+        private final Client jerseyClient;
+        private final FinickyHttpClient downloadClient;
+
+        private HttpClients(Client jerseyClient, FinickyHttpClient downloadClient) {
+            this.jerseyClient = jerseyClient;
+            this.downloadClient = downloadClient;
+        }
+
+        /**
+         * Stop the clients
+         *
+         * The Jetty HttpClient of the downloads has its own thread pool, which
+         * keeps running until the client is stopped.
+         */
+        @Override
+        public void close() {
+            try {
+                this.downloadClient.stop();
+            } catch (Exception e) {
+                logger.warn("failed to stop the file-broker download client", e);
+            }
+            this.jerseyClient.close();
+        }
+    }
 
     /**
      * Create a client with its own HTTP clients
@@ -70,61 +109,66 @@ public class RestFileBrokerClient implements AutoCloseable {
 
         // resolve the address first: it asks the service-locator, and if that fails,
         // nobody could stop the clients that were started already
-        this(getFileBrokerUri(serviceLocator, role), credentials, newJerseyClient(),
-                new FinickyHttpClient(downloadTlsVersion, downloadHttp2, downloadCipher, Verbosity.CHOSEN_VERSIONS),
-                true);
+        this(getFileBrokerUri(serviceLocator, role), credentials,
+                newHttpClients(downloadTlsVersion, downloadHttp2, downloadCipher), true);
     }
 
     /**
      * Create a client that uses shared HTTP clients
      *
-     * The HTTP clients hold no per-user state: the credentials are sent as a
-     * header in each request. So one Jersey client and one FinickyHttpClient can
-     * serve the requests of all users, and a service that creates a
-     * RestFileBrokerClient for each request should create them once and share
-     * them, instead of starting a new thread pool for each request. The caller
-     * owns the clients, close() doesn't stop them.
+     * See {@link HttpClients}. The caller owns the clients, close() doesn't stop
+     * them.
      *
      * @param serviceLocator
-     * @param credentials       see the other constructor
-     * @param role              see the other constructor
-     * @param jerseyClient      shared client for the uploads, from
-     *                          newJerseyClient()
-     * @param finickyHttpClient shared client for the downloads
+     * @param credentials    see the other constructor
+     * @param role           see the other constructor
+     * @param clients        shared clients from newHttpClients()
      */
     public RestFileBrokerClient(ServiceLocatorClient serviceLocator, CredentialsProvider credentials, String role,
-            Client jerseyClient, FinickyHttpClient finickyHttpClient) {
+            HttpClients clients) {
 
-        this(getFileBrokerUri(serviceLocator, role), credentials, jerseyClient, finickyHttpClient, false);
+        this(getFileBrokerUri(serviceLocator, role), credentials, clients, false);
     }
 
-    private RestFileBrokerClient(String fileBrokerUri, CredentialsProvider credentials, Client jerseyClient,
-            FinickyHttpClient finickyHttpClient, boolean ownsClients) {
-
-        if (!jerseyClient.getConfiguration().isRegistered(HttpAuthenticationFeature.class)) {
-            throw new IllegalArgumentException("the Jersey client must be created with newJerseyClient()");
-        }
+    private RestFileBrokerClient(String fileBrokerUri, CredentialsProvider credentials, HttpClients clients,
+            boolean ownsClients) {
 
         this.credentials = credentials;
-        this.jerseyClient = jerseyClient;
-        this.finickyHttpClient = finickyHttpClient;
+        this.clients = clients;
         this.ownsClients = ownsClients;
 
         // the credentials are added to each request, so the client itself can be
         // shared between users
-        this.fileBrokerTarget = jerseyClient.target(fileBrokerUri);
+        this.fileBrokerTarget = clients.jerseyClient.target(fileBrokerUri);
     }
 
     /**
-     * Create a Jersey client for the uploads
+     * Create the HTTP clients for sharing between RestFileBrokerClients, see
+     * {@link HttpClients}
+     */
+    public static HttpClients newHttpClients() {
+        return newHttpClients(null, false, null);
+    }
+
+    private static HttpClients newHttpClients(String downloadTlsVersion, boolean downloadHttp2,
+            String downloadCipher) {
+
+        // the Jetty client is the one that can fail to start, so create it first:
+        // then a failure leaves no Jersey client behind
+        FinickyHttpClient downloadClient = new FinickyHttpClient(downloadTlsVersion, downloadHttp2, downloadCipher,
+                Verbosity.CHOSEN_VERSIONS);
+
+        return new HttpClients(newJerseyClient(), downloadClient);
+    }
+
+    /**
+     * Create the Jersey client for the uploads
      *
      * Its authentication feature has no credentials of its own: they are given
      * in the properties of each request, so the client can be shared between
-     * users. Creating a Jersey client is heavy, so a service that creates a
-     * RestFileBrokerClient for each request should create this once and give it
-     * to the constructor.
+     * users.
      */
-    public static Client newJerseyClient() {
+    private static Client newJerseyClient() {
         return AuthenticationClient.getClient().register(HttpAuthenticationFeature.basicBuilder().build());
     }
 
@@ -138,33 +182,42 @@ public class RestFileBrokerClient implements AutoCloseable {
     }
 
     /**
-     * Stop the HTTP clients, if this instance created them
+     * Close the HTTP clients, if this instance created them
      *
-     * The Jetty HttpClient of the downloads has its own thread pool, which keeps
-     * running until the client is stopped. Does nothing when the clients were
-     * given to the constructor: their owner stops them.
+     * Does nothing when the clients were given to the constructor: their owner
+     * closes them.
      */
     @Override
     public void close() {
-        if (!ownsClients) {
-            return;
+        if (ownsClients) {
+            this.clients.close();
         }
-        try {
-            this.finickyHttpClient.stop();
-        } catch (Exception e) {
-            logger.warn("failed to stop the file-broker download client", e);
-        }
-        this.jerseyClient.close();
     }
 
     /**
-     * Whether to send the credentials
+     * Username and password of one request
+     */
+    private record BasicCredentials(String username, String password) {
+    }
+
+    /**
+     * The credentials to send in a request, or null to send none
      *
      * The same rule for the uploads and the downloads: nothing is sent when there
-     * are no credentials or either part of them is null.
+     * are no credentials or either part of them is null. Read once per request:
+     * the provider may check or refresh its token on each read, and a refresh
+     * between two reads could pair a username with the password of another token.
      */
-    private boolean hasCredentials() {
-        return credentials != null && credentials.getUsername() != null && credentials.getPassword() != null;
+    private BasicCredentials readCredentials() {
+        if (credentials == null) {
+            return null;
+        }
+        String username = credentials.getUsername();
+        String password = credentials.getPassword();
+        if (username == null || password == null) {
+            return null;
+        }
+        return new BasicCredentials(username, password);
     }
 
     // targets
@@ -205,14 +258,15 @@ public class RestFileBrokerClient implements AutoCloseable {
 
         Invocation.Builder request = target.request();
 
-        if (hasCredentials()) {
+        BasicCredentials basicCredentials = readCredentials();
+        if (basicCredentials != null) {
             // the feature of newJerseyClient() sends these as a preemptive basic
             // authentication header
             request = request
                     .property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_USERNAME,
-                            credentials.getUsername())
+                            basicCredentials.username())
                     .property(HttpAuthenticationFeature.HTTP_AUTHENTICATION_BASIC_PASSWORD,
-                            credentials.getPassword());
+                            basicCredentials.password());
         }
 
         Response response = request.put(Entity.entity(inputStream, MediaType.APPLICATION_OCTET_STREAM),
@@ -238,13 +292,15 @@ public class RestFileBrokerClient implements AutoCloseable {
 
         String username = null;
         String password = null;
-        if (hasCredentials()) {
-            username = credentials.getUsername();
-            password = credentials.getPassword();
+        BasicCredentials basicCredentials = readCredentials();
+        if (basicCredentials != null) {
+            username = basicCredentials.username();
+            password = basicCredentials.password();
         }
 
         // FinickyHttpClient configured to use specific protocol versions
-        return this.finickyHttpClient.downloadInputStream(target.getUri(), maxBytes, fileSize, username, password);
+        return this.clients.downloadClient.downloadInputStream(target.getUri(), maxBytes, fileSize, username,
+                password);
 
         // simple download with the default client:
 

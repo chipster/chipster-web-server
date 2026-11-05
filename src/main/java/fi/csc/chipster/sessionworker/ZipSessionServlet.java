@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
@@ -39,8 +40,6 @@ import fi.csc.chipster.auth.AuthenticationClient;
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.auth.resource.AuthTokens;
 import fi.csc.chipster.filebroker.FileBrokerApi;
-import fi.csc.chipster.filebroker.FinickyHttpClient;
-import fi.csc.chipster.filebroker.FinickyHttpClient.Verbosity;
 import fi.csc.chipster.filebroker.RestFileBrokerClient;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
@@ -66,7 +65,6 @@ import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.ServiceUnavailableException;
-import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.core.MediaType;
 
 /**
@@ -123,8 +121,7 @@ public class ZipSessionServlet extends HttpServlet {
      * starting a Jetty HttpClient for each request would leave its thread pool
      * running, or make each request wait for it to stop.
      */
-    private Client fileBrokerJerseyClient;
-    private FinickyHttpClient fileBrokerDownloadClient;
+    private RestFileBrokerClient.HttpClients fileBrokerClients;
 
     public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config, AuthenticationClient authService) {
         this.serviceLocator = serviceLocator;
@@ -145,20 +142,13 @@ public class ZipSessionServlet extends HttpServlet {
 
         this.importCapacity = new ImportCapacity(config, tempDir);
 
-        this.fileBrokerJerseyClient = RestFileBrokerClient.newJerseyClient();
-        this.fileBrokerDownloadClient = new FinickyHttpClient(null, false, null, Verbosity.CHOSEN_VERSIONS);
+        this.fileBrokerClients = RestFileBrokerClient.newHttpClients();
     }
 
     @Override
     public void destroy() {
         executor.shutdown();
-
-        try {
-            fileBrokerDownloadClient.stop();
-        } catch (Exception e) {
-            logger.warn("failed to stop the file-broker download client", e);
-        }
-        fileBrokerJerseyClient.close();
+        fileBrokerClients.close();
     }
 
     private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,
@@ -229,17 +219,21 @@ public class ZipSessionServlet extends HttpServlet {
             OutputStream output2 = new PipedOutputStream();
             in = new PipedInputStream((PipedOutputStream) output2);
 
+            Future<?> zipTask = null;
+
             if (errors.isEmpty()) {
                 // start creating the zip stream in background thread (may complete before all
-                // data is uploaded)
+                // data is uploaded). The task doesn't touch errors, which isn't thread-safe:
+                // this thread reads the task's result from the Future.
                 try {
-                    executor.submit(() -> {
+                    zipTask = executor.submit(() -> {
                         try {
                             streamZip(entries, output2);
                         } catch (IOException e) {
                             logger.error("failed to package zip session", e);
-                            errors.add("failed to package zip session: " + e.getMessage());
+                            throw e;
                         }
+                        return null;
                     });
                 } catch (RejectedExecutionException e) {
                     // destroy() has shut down the executor, i.e. this session-worker is stopping
@@ -259,6 +253,25 @@ public class ZipSessionServlet extends HttpServlet {
                 } catch (RestException e) {
                     logger.error("upload failed", e);
                     errors.add("failed to package zip session: " + e.getMessage());
+                }
+            }
+
+            // The upload succeeds also when the zip thread failed, because streamZip()
+            // closes the pipe on an error and the upload sees it as the end of the stream.
+            // So check the zip thread's result too. It has already closed the pipe, so it
+            // finishes right away.
+            if (errors.isEmpty()) {
+                try {
+                    zipTask.get(60, TimeUnit.SECONDS);
+                } catch (ExecutionException e) {
+                    errors.add("failed to package zip session: " + e.getCause().getMessage());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.error("interrupted while waiting for the zip packaging", e);
+                    errors.add("failed to package zip session: interrupted");
+                } catch (TimeoutException e) {
+                    logger.error("zip packaging didn't finish after the upload", e);
+                    errors.add("failed to package zip session: timeout");
                 }
             }
 
@@ -411,8 +424,7 @@ public class ZipSessionServlet extends HttpServlet {
         // use client creds for the actual file operations (to check the access rights)
         // but use the server creds (stored in serviceLocator) to get the internal
         // addresses
-        return new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER, fileBrokerJerseyClient,
-                fileBrokerDownloadClient);
+        return new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER, fileBrokerClients);
     }
 
     private void extractSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,

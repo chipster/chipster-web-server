@@ -20,6 +20,7 @@ import org.eclipse.jetty.client.InputStreamResponseListener;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
+import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
@@ -91,6 +92,16 @@ public class FinickyHttpClient {
 
         jettyHttpClient = new HttpClient(transport);
 
+        // the client is shared between users, so don't store cookies: the default store
+        // would send a cookie set on one user's download with the next user's request
+        jettyHttpClient.setHttpCookieStore(new HttpCookieStore.Empty());
+
+        // a shared client serves the downloads of all requests, and each download holds
+        // a connection for its whole duration. Requests beyond the limit wait in a queue,
+        // and the wait counts against the 15 s header timeout in downloadInputStream().
+        // Jetty's default is 64.
+        jettyHttpClient.setMaxConnectionsPerDestination(128);
+
         // Add the SslHandshakeListener as bean to HttpClient.
         // The listener will be notified of TLS handshakes success and failure.
         jettyHttpClient.addBean(getSslHandshakeListener(verbosity));
@@ -98,6 +109,13 @@ public class FinickyHttpClient {
         try {
             jettyHttpClient.start();
         } catch (Exception e) {
+            // the beans that were started before the failure, e.g. the thread pool, keep
+            // running until the client is stopped
+            try {
+                jettyHttpClient.stop();
+            } catch (Exception stopException) {
+                e.addSuppressed(stopException);
+            }
             throw new RuntimeException("failed to start Jetty HTTP client", e);
         }
 
@@ -196,17 +214,20 @@ public class FinickyHttpClient {
                 return remoteStream;
 
             } else {
-
-                RestException exception = new RestException("getting input stream failed: " + response.getReason(),
-                        response, uri);
-
-                response.abort(exception);
-
-                throw exception;
-
+                throw new RestException("getting input stream failed: " + response.getReason(), response, uri);
             }
         } catch (InterruptedException | TimeoutException | ExecutionException | IOException e) {
+            // listener.get() doesn't abort the request when it times out or is interrupted,
+            // so the request would keep its pooled connection of the shared client until the
+            // response arrives or the idle timeout fires. Abort is a no-op if the request has
+            // already completed or failed.
+            request.abort(e);
             throw new RuntimeException("getting input stream failed", e);
+        } catch (RestException | RuntimeException e) {
+            // also abort on the other failures before the stream is handed over to the
+            // caller: an error status, or e.g. a malformed Content-Length
+            request.abort(e);
+            throw e;
         }
     }
 
@@ -244,5 +265,12 @@ public class FinickyHttpClient {
 
     public void stop() throws Exception {
         this.jettyHttpClient.stop();
+    }
+
+    /**
+     * The Jetty client, for the tests to inspect its connection pool
+     */
+    HttpClient getJettyHttpClient() {
+        return this.jettyHttpClient;
     }
 }
