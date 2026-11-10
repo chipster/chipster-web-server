@@ -136,10 +136,10 @@ public class AdminResource {
         collectContainerNetStats(status);
         collectContainerCpuStats(status);
 
-        status.put("mem.max", parseLongOrString(fileToString("/sys/fs/cgroup/memory.max")));
-        status.put("mem.current", parseLongOrString(fileToString("/sys/fs/cgroup/memory.current")));
-        status.put("mem.peak", parseLongOrString(fileToString("/sys/fs/cgroup/memory.peak")));
-        status.put("mem.swap.current", parseLongOrString(fileToString("/sys/fs/cgroup/memory.swap.current")));
+        status.put("mem.max", fileToValue("/sys/fs/cgroup/memory.max"));
+        status.put("mem.current", fileToValue("/sys/fs/cgroup/memory.current"));
+        status.put("mem.peak", fileToValue("/sys/fs/cgroup/memory.peak"));
+        status.put("mem.swap.current", fileToValue("/sys/fs/cgroup/memory.swap.current"));
 
         return status;
     }
@@ -155,6 +155,27 @@ public class AdminResource {
         } catch (NumberFormatException e) {
             return valueString;
         }
+    }
+
+    /**
+     * Read a file that contains a single value, like the cgroup memory.max
+     *
+     * Surrounding whitespace is removed, because otherwise a value like
+     * "9223372036854771712\n" wouldn't parse as a number and would be reported as a
+     * string.
+     *
+     * @param path file to read
+     * @return Long, String, or null if the file doesn't exist or can't be read
+     */
+    static Object fileToValue(String path) {
+
+        String valueString = fileToString(path);
+
+        if (valueString == null) {
+            return null;
+        }
+
+        return parseLongOrString(valueString.trim());
     }
 
     private static String fileToString(String path) {
