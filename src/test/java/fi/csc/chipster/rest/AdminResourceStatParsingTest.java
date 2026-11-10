@@ -2,11 +2,35 @@ package fi.csc.chipster.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class AdminResourceStatParsingTest {
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    public void fileToValue() throws IOException {
+
+        Path numberFile = tempDir.resolve("memory.max");
+        Files.writeString(numberFile, "9223372036854771712\n");
+
+        assertEquals(Long.valueOf(9223372036854771712L), AdminResource.fileToValue(numberFile.toString()));
+
+        // memory.max of a container without a memory limit
+        Path stringFile = tempDir.resolve("memory.max.unlimited");
+        Files.writeString(stringFile, "max\n");
+
+        assertEquals("max", AdminResource.fileToValue(stringFile.toString()));
+
+        assertEquals(null, AdminResource.fileToValue(tempDir.resolve("no-such-file").toString()));
+    }
 
     @Test
     public void parseContainerCpuStats() {
