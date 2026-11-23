@@ -94,6 +94,18 @@ export default class ReplaySession {
   static readonly quietDefault = false;
   static readonly debugDefault = false;
   static readonly jobTimeoutDefault = 600;
+  /*
+   * How many sessions to plan or delete at the same time
+   *
+   * Without a limit the planning of a few hundred sessions sends a thousand requests at
+   * once and the deletion of their temp sessions a few hundred. session-db handles only a
+   * few requests at a time (its worker threads), so the last ones wait in its queue for
+   * about as long as the whole burst takes, and got cut off by the 30 s timeout of the
+   * ingress. The limit keeps the queue short and leaves most of session-db's threads
+   * (4 in production) for the users. The stages still take only about a minute, because
+   * session-db's throughput is the limit either way.
+   */
+  static readonly sessionRequestParallel = 2;
 
   startTime: Date;
   restClient: any;
@@ -446,8 +458,9 @@ export default class ReplaySession {
       mergeMap(() =>
         fileSessions$.pipe(merge(serverSessions$), merge(exampleSessions$)),
       ),
-      mergeMap((session: Session) =>
-        this.getSessionJobPlans(session, quiet, allTools),
+      mergeMap(
+        (session: Session) => this.getSessionJobPlans(session, quiet, allTools),
+        ReplaySession.sessionRequestParallel,
       ),
       tap((jobPlans: JobPlan[]) => {
         jobPlanCount += jobPlans.length;
@@ -565,7 +578,7 @@ export default class ReplaySession {
       mergeMap((session: Session) => {
         logger.info("delete session " + session.name);
         return this.restClient.deleteSession(session.sessionId);
-      }),
+      }, ReplaySession.sessionRequestParallel),
       toArray(),
     );
   }
@@ -574,7 +587,7 @@ export default class ReplaySession {
     return from(tempSessionIds).pipe(
       mergeMap((sessionId) => {
         return this.restClient.deleteSession(sessionId);
-      }),
+      }, ReplaySession.sessionRequestParallel),
       toArray(),
     );
   }
