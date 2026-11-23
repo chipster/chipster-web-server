@@ -20,6 +20,7 @@ import org.eclipse.jetty.client.InputStreamResponseListener;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
+import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
@@ -38,6 +39,11 @@ import fi.csc.chipster.sessiondb.RestException;
  * Http client which demands specific TLS, HTTP and cipher versions to
  * workaround problems in default versions.
  * 
+ * Starting an instance is heavy: it starts a Jetty HttpClient with its own
+ * thread pool and loads the trust store. The instance is thread-safe and holds
+ * no per-user state (the credentials are given per download), so create one per
+ * process or per servlet, share it between the requests and stop() it at the
+ * end.
  */
 public class FinickyHttpClient {
 
@@ -53,15 +59,8 @@ public class FinickyHttpClient {
 
     private Verbosity verbosity;
 
-    private String username;
+    public FinickyHttpClient(String tlsVersion, boolean http2, String cipher, Verbosity verbosity) {
 
-    private String password;
-
-    public FinickyHttpClient(String username, String password, String tlsVersion, boolean http2, String cipher,
-            Verbosity verbosity) {
-
-        this.username = username;
-        this.password = password;
         this.verbosity = verbosity;
 
         HttpClientTransport transport = null;
@@ -93,6 +92,16 @@ public class FinickyHttpClient {
 
         jettyHttpClient = new HttpClient(transport);
 
+        // the client is shared between users, so don't store cookies: the default store
+        // would send a cookie set on one user's download with the next user's request
+        jettyHttpClient.setHttpCookieStore(new HttpCookieStore.Empty());
+
+        // a shared client serves the downloads of all requests, and each download holds
+        // a connection for its whole duration. Requests beyond the limit wait in a queue,
+        // and the wait counts against the 15 s header timeout in downloadInputStream().
+        // Jetty's default is 64.
+        jettyHttpClient.setMaxConnectionsPerDestination(128);
+
         // Add the SslHandshakeListener as bean to HttpClient.
         // The listener will be notified of TLS handshakes success and failure.
         jettyHttpClient.addBean(getSslHandshakeListener(verbosity));
@@ -100,13 +109,20 @@ public class FinickyHttpClient {
         try {
             jettyHttpClient.start();
         } catch (Exception e) {
+            // the beans that were started before the failure, e.g. the thread pool, keep
+            // running until the client is stopped
+            try {
+                jettyHttpClient.stop();
+            } catch (Exception stopException) {
+                e.addSuppressed(stopException);
+            }
             throw new RuntimeException("failed to start Jetty HTTP client", e);
         }
 
     }
 
     public InputStream downloadInputStream(URI uri) throws RestException {
-        return this.downloadInputStream(uri, null, null);
+        return this.downloadInputStream(uri, null, null, null, null);
     }
 
     /**
@@ -121,10 +137,15 @@ public class FinickyHttpClient {
      *                 provide a non-zero maximum request size here and let this
      *                 method handle the special case of small or empty files.
      * @param fileSize Size of the file or null.
+     * @param username Username of the basic authentication, or null to send no
+     *                 Authorization header. Given per request, so that one
+     *                 instance can serve downloads of different users.
+     * @param password Password of the basic authentication, or null.
      * @return
      * @throws RestException
      */
-    public InputStream downloadInputStream(URI uri, Long maxBytes, Long fileSize) throws RestException {
+    public InputStream downloadInputStream(URI uri, Long maxBytes, Long fileSize, String username, String password)
+            throws RestException {
 
         // Perform a simple GET and wait for the response.
 
@@ -154,7 +175,7 @@ public class FinickyHttpClient {
             }
         }
 
-        if (this.username != null && this.password != null) {
+        if (username != null && password != null) {
 
             // send Authorization header directly without waiting servers 401 response
             Authentication.Result authn = new BasicAuthentication.BasicResult(uri, username, password);
@@ -193,17 +214,20 @@ public class FinickyHttpClient {
                 return remoteStream;
 
             } else {
-
-                RestException exception = new RestException("getting input stream failed: " + response.getReason(),
-                        response, uri);
-
-                response.abort(exception);
-
-                throw exception;
-
+                throw new RestException("getting input stream failed: " + response.getReason(), response, uri);
             }
         } catch (InterruptedException | TimeoutException | ExecutionException | IOException e) {
+            // listener.get() doesn't abort the request when it times out or is interrupted,
+            // so the request would keep its pooled connection of the shared client until the
+            // response arrives or the idle timeout fires. Abort is a no-op if the request has
+            // already completed or failed.
+            request.abort(e);
             throw new RuntimeException("getting input stream failed", e);
+        } catch (RestException | RuntimeException e) {
+            // also abort on the other failures before the stream is handed over to the
+            // caller: an error status, or e.g. a malformed Content-Length
+            request.abort(e);
+            throw e;
         }
     }
 
@@ -241,5 +265,12 @@ public class FinickyHttpClient {
 
     public void stop() throws Exception {
         this.jettyHttpClient.stop();
+    }
+
+    /**
+     * The Jetty client, for the tests to inspect its connection pool
+     */
+    HttpClient getJettyHttpClient() {
+        return this.jettyHttpClient;
     }
 }

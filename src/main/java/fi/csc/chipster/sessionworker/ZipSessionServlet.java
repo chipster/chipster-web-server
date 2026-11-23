@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
@@ -112,6 +113,16 @@ public class ZipSessionServlet extends HttpServlet {
 
     private AuthenticationClient authService;
 
+    /**
+     * HTTP clients of the file-broker, shared by all requests
+     *
+     * A RestFileBrokerClient is created for each request, because each request
+     * uses the credentials of its own user, but the HTTP clients are shared:
+     * starting a Jetty HttpClient for each request would leave its thread pool
+     * running, or make each request wait for it to stop.
+     */
+    private RestFileBrokerClient.HttpClients fileBrokerClients;
+
     public ZipSessionServlet(ServiceLocatorClient serviceLocator, Config config, AuthenticationClient authService) {
         this.serviceLocator = serviceLocator;
         this.config = config;
@@ -130,20 +141,19 @@ public class ZipSessionServlet extends HttpServlet {
         this.executor = Executors.newCachedThreadPool();
 
         this.importCapacity = new ImportCapacity(config, tempDir);
+
+        this.fileBrokerClients = RestFileBrokerClient.newHttpClients();
     }
 
     @Override
     public void destroy() {
         executor.shutdown();
+        fileBrokerClients.close();
     }
 
-    private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId)
-            throws IOException {
+    private void packageSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,
+            RestFileBrokerClient fileBroker) throws IOException {
 
-        // use client creds for the actual file operations (to check the access rights)
-        // but use the server creds (stored in serviceLocator) to get the internal
-        // addresses
-        RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
         SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 
         ArrayList<InputStreamEntry> entries = new ArrayList<>();
@@ -209,17 +219,21 @@ public class ZipSessionServlet extends HttpServlet {
             OutputStream output2 = new PipedOutputStream();
             in = new PipedInputStream((PipedOutputStream) output2);
 
+            Future<?> zipTask = null;
+
             if (errors.isEmpty()) {
                 // start creating the zip stream in background thread (may complete before all
-                // data is uploaded)
+                // data is uploaded). The task doesn't touch errors, which isn't thread-safe:
+                // this thread reads the task's result from the Future.
                 try {
-                    executor.submit(() -> {
+                    zipTask = executor.submit(() -> {
                         try {
                             streamZip(entries, output2);
                         } catch (IOException e) {
                             logger.error("failed to package zip session", e);
-                            errors.add("failed to package zip session: " + e.getMessage());
+                            throw e;
                         }
+                        return null;
                     });
                 } catch (RejectedExecutionException e) {
                     // destroy() has shut down the executor, i.e. this session-worker is stopping
@@ -239,6 +253,25 @@ public class ZipSessionServlet extends HttpServlet {
                 } catch (RestException e) {
                     logger.error("upload failed", e);
                     errors.add("failed to package zip session: " + e.getMessage());
+                }
+            }
+
+            // The upload succeeds also when the zip thread failed, because streamZip()
+            // closes the pipe on an error and the upload sees it as the end of the stream.
+            // So check the zip thread's result too. It has already closed the pipe, so it
+            // finishes right away.
+            if (errors.isEmpty()) {
+                try {
+                    zipTask.get(60, TimeUnit.SECONDS);
+                } catch (ExecutionException e) {
+                    errors.add("failed to package zip session: " + e.getCause().getMessage());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.error("interrupted while waiting for the zip packaging", e);
+                    errors.add("failed to package zip session: interrupted");
+                } catch (TimeoutException e) {
+                    logger.error("zip packaging didn't finish after the upload", e);
+                    errors.add("failed to package zip session: timeout");
                 }
             }
 
@@ -362,7 +395,7 @@ public class ZipSessionServlet extends HttpServlet {
             // localhost:8009/sessions/8997e0d1-1c0a-4295-af3f-f191c96e589a -I -X POST
             // --user token:<TOKEN>
 
-            this.packageSession(response, credentials, sessionId);
+            this.packageSession(response, credentials, sessionId, newFileBrokerClient(credentials));
 
         } else {
 
@@ -380,15 +413,23 @@ public class ZipSessionServlet extends HttpServlet {
 
             UUID zipDatasetId = UUID.fromString(path[3]);
 
-            extractSession(response, credentials, sessionId, zipDatasetId);
+            extractSession(response, credentials, sessionId, zipDatasetId, newFileBrokerClient(credentials));
         }
     }
 
-    private void extractSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,
-            UUID zipDatasetId) throws IOException {
-
+    /**
+     * Create a file-broker client for one request, with the shared HTTP clients
+     */
+    private RestFileBrokerClient newFileBrokerClient(StaticCredentials credentials) {
         // use client creds for the actual file operations (to check the access rights)
-        RestFileBrokerClient fileBroker = new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER);
+        // but use the server creds (stored in serviceLocator) to get the internal
+        // addresses
+        return new RestFileBrokerClient(serviceLocator, credentials, Role.SERVER, fileBrokerClients);
+    }
+
+    private void extractSession(HttpServletResponse response, StaticCredentials credentials, UUID sessionId,
+            UUID zipDatasetId, RestFileBrokerClient fileBroker) throws IOException {
+
         SessionDbClient sessionDb = new SessionDbClient(serviceLocator, credentials, Role.SERVER);
 
         Dataset zipDataset;

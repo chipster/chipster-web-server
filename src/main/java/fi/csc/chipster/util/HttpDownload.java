@@ -102,7 +102,7 @@ public class HttpDownload {
             verbosity = Verbosity.ENABLED_VERSIONS;
         }
 
-        FinickyHttpClient finickyHttpClient = new FinickyHttpClient(null, null, tlsVersion, http2, cipher, verbosity);
+        FinickyHttpClient finickyHttpClient = new FinickyHttpClient(tlsVersion, http2, cipher, verbosity);
 
         try (InputStream is = finickyHttpClient.downloadInputStream(url.toURI())) {
 

@@ -93,6 +93,8 @@ public class ZipSessionServletTest {
 
     @AfterAll
     public static void tearDown() throws Exception {
+        fileBrokerClient1.close();
+        fileBrokerClient2.close();
         launcher.stop();
     }
 
