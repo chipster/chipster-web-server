@@ -188,17 +188,9 @@ public class SessionDbApi {
 
         /*
          * All datasets have to be removed first, because the dataset owns the reference
-         * between the dataset and the session. This also generates the necessary events
-         * e.g. to remove files.
+         * between the dataset and the session.
          */
-        for (Dataset dataset : SessionDbApi.getDatasets(hibernate.session(), session)) {
-            deleteDataset(dataset, sessionId);
-        }
-
-        // see the note about datasets above
-        for (Job job : getJobs(hibernate.session(), session)) {
-            deleteJob(job, sessionId, hibernate.session());
-        }
+        deleteDatasetsAndJobs(session);
 
         // see the note about datasets above
         for (Rule rule : ruleTable.getRules(sessionId)) {
@@ -223,6 +215,77 @@ public class SessionDbApi {
         SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,
                 session.getState());
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
+    }
+
+    /**
+     * Delete all datasets and jobs of the session, and the files that no other dataset uses
+     *
+     * Each table is deleted with one statement, whatever the size of the session. Deleting the
+     * rows one by one with deleteDataset() and deleteJob() took two statements for each row,
+     * because Hibernate updated each row before deleting it (it doesn't see the JSON columns as
+     * unchanged), and a query for each dataset's file.
+     *
+     * The events are the same as from deleteDataset(), deleteJob() and deleteFile().
+     *
+     * @param session
+     */
+    private void deleteDatasetsAndJobs(Session session) {
+
+        UUID sessionId = session.getSessionId();
+        org.hibernate.Session hibernateSession = hibernate.session();
+
+        List<Dataset> datasets = SessionDbApi.getDatasets(hibernateSession, session);
+        List<Job> jobs = getJobs(hibernateSession, session);
+
+        // files of this session's datasets that no dataset of other sessions uses
+        List<File> files = hibernateSession.createQuery(
+                "select distinct d.file from Dataset d where d.datasetIdPair.sessionId = :sessionId "
+                        + "and not exists (from Dataset other where other.file = d.file "
+                        + "and other.datasetIdPair.sessionId <> :sessionId)",
+                File.class)
+                .setParameter("sessionId", sessionId)
+                .list();
+
+        hibernateSession.createMutationQuery("delete from Dataset d where d.datasetIdPair.sessionId = :sessionId")
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
+
+        hibernateSession.createMutationQuery("delete from Job j where j.jobIdPair.sessionId = :sessionId")
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
+
+        // the JDBC driver allows at most 32767 parameters in one statement
+        List<UUID> fileIds = files.stream().map(File::getFileId).collect(Collectors.toList());
+        for (int i = 0; i < fileIds.size(); i += 1000) {
+            hibernateSession.createMutationQuery("delete from File f where f.fileId in (:fileIds)")
+                    .setParameterList("fileIds", fileIds.subList(i, Math.min(i + 1000, fileIds.size())))
+                    .executeUpdate();
+        }
+
+        // the bulk deletes bypass the Hibernate session, so don't let it keep the deleted objects
+        datasets.forEach(hibernateSession::detach);
+        jobs.forEach(hibernateSession::detach);
+        files.forEach(hibernateSession::detach);
+
+        for (File file : files) {
+            // delete from storage
+            publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
+                    new SessionEvent(null, ResourceType.FILE, file.getFileId(), EventType.DELETE, null,
+                            RestUtils.asJson(file), null),
+                    hibernateSession);
+        }
+
+        for (Dataset dataset : datasets) {
+            publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+                    new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE),
+                    hibernateSession);
+        }
+
+        for (Job job : jobs) {
+            publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+                    new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE, job.getState()),
+                    hibernateSession);
+        }
     }
 
     public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
