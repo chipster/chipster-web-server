@@ -669,8 +669,38 @@ public class RestUtils {
     }
 
     /**
+     * Default number of Grizzly worker threads: 4 per processor, at least 8 and at most 32
+     *
+     * A request thread spends part of its time waiting for the database, so a couple of threads
+     * per processor are needed to keep the CPU busy. In a session-db benchmark, 8 threads already
+     * used about 4 cores (when not limited) and more threads helped less and less. The minimum is
+     * for containers with small CPU limits, where the JVM sees e.g. 2 processors for a limit of 1.6
+     * cores. The maximum keeps the database pool (16 more by default, see HibernateUtil) below
+     * Postgres' max_connections (100 by default) on hosts with many cores. Raise
+     * server-threads-worker-max-<role>, db-c3p0-max-size-<role> and Postgres' max_connections
+     * together to go further.
+     */
+    public static int getDefaultWorkerThreads() {
+        return Math.min(32, Math.max(8, 4 * Runtime.getRuntime().availableProcessors()));
+    }
+
+    /**
+     * Maximum number of worker threads of a Grizzly service, from the config or the default
+     *
+     * The same as configureGrizzlyThreads() sets for the service's public API.
+     */
+    public static int getWorkerThreadsMax(Config config, String name) {
+        String max = config.getString(CONF_SERVER_THREADS_WORKER_MAX, name);
+        if (!max.isEmpty()) {
+            return Integer.parseInt(max);
+        }
+        String min = config.getString(CONF_SERVER_THREADS_WORKER_MIN, name);
+        return min.isEmpty() ? getDefaultWorkerThreads() : Math.max(getDefaultWorkerThreads(), Integer.parseInt(min));
+    }
+
+    /**
      * Configure Grizzly threads
-     * 
+     *
      * Threads are given a name to make debugging easier. Admin APIs get a lower
      * number of threads, mostly for the same reason.
      * 
@@ -711,8 +741,8 @@ public class RestUtils {
         int defaultKernelThreads = transport.getSelectorRunnersCount();
 
         int kernelThreads = defaultKernelThreads;
-        int workerThreadsCore = workerConfig.getCorePoolSize();
-        int workerThreadsMax = workerConfig.getMaxPoolSize();
+        int workerThreadsCore = getDefaultWorkerThreads();
+        int workerThreadsMax = getDefaultWorkerThreads();
 
         if (isAdminAPI) {
             // two threads should still reveal simplest concurrency issues
@@ -736,6 +766,13 @@ public class RestUtils {
 
             if (!configWorkerThreadsMax.isEmpty()) {
                 workerThreadsMax = Integer.parseInt(configWorkerThreadsMax);
+            }
+
+            // when only one of them is configured, adjust the other so that core <= max
+            if (configWorkerThreadsMax.isEmpty()) {
+                workerThreadsMax = Math.max(workerThreadsMax, workerThreadsCore);
+            } else if (configWorkerThreadsCore.isEmpty()) {
+                workerThreadsCore = Math.min(workerThreadsCore, workerThreadsMax);
             }
         }
 

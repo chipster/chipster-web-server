@@ -21,6 +21,7 @@ import org.hibernate.tool.schema.spi.SchemaManagementException;
 import org.postgresql.util.PSQLException;
 
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.RestUtils;
 import jakarta.persistence.EntityManager;
 
 public class HibernateUtil {
@@ -159,7 +160,14 @@ public class HibernateUtil {
         hibernateConf.setProperty(Environment.CURRENT_SESSION_CONTEXT_CLASS, "managed");
         hibernateConf.setProperty(Environment.JDBC_TIME_ZONE, "UTC");
         hibernateConf.setProperty("hibernate.c3p0.min_size", config.getString(CONF_DB_C3P0_MIN_SIZE, role));
-        hibernateConf.setProperty("hibernate.c3p0.max_size", config.getString(CONF_DB_C3P0_MAX_SIZE, role));
+        /*
+         * By default one connection for each request thread of the public API, so that they don't wait
+         * for connections, and 16 more for the admin API (up to 16 threads by default), the session-db events
+         * (a transaction for each subscription) and the background tasks.
+         */
+        String c3p0MaxSize = config.getString(CONF_DB_C3P0_MAX_SIZE, role);
+        hibernateConf.setProperty("hibernate.c3p0.max_size",
+                c3p0MaxSize.isEmpty() ? "" + (RestUtils.getWorkerThreadsMax(config, role) + 16) : c3p0MaxSize);
         hibernateConf.setProperty("hibernate.c3p0.acquireRetryAttempts", "1"); // throw on connection errors immediately
                                                                                // in startup
         hibernateConf.setProperty("hibernate.hbm2ddl.auto", hbm2ddlAuto);
