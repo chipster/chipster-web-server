@@ -25,6 +25,7 @@ import {
 import { last } from "rxjs/internal/operators/last";
 import {
   catchError,
+  filter,
   finalize,
   map,
   merge,
@@ -574,21 +575,56 @@ export default class ReplaySession {
           return s.name.startsWith(nameStart1) || s.name.startsWith(nameStart2);
         });
       }),
-      mergeMap((sessions: Session[]) => from(sessions)),
-      mergeMap((session: Session) => {
-        logger.info("delete session " + session.name);
-        return this.restClient.deleteSession(session.sessionId);
-      }, ReplaySession.sessionRequestParallel),
-      toArray(),
+      mergeMap((sessions: Session[]) => this.deleteSessions(sessions)),
     );
   }
 
   private deleteTempSessions(tempSessionIds: string[]) {
-    return from(tempSessionIds).pipe(
-      mergeMap((sessionId) => {
-        return this.restClient.deleteSession(sessionId);
+    return this.deleteSessions(
+      tempSessionIds.map((sessionId) => ({ sessionId })),
+    );
+  }
+
+  /**
+   * Delete sessions a few at a time and fail only after trying all of them
+   *
+   * The deletes run only a few at a time, so an error that is let through
+   * right away would stop the queued deletes from ever starting and leave
+   * those sessions in place until the next run. Log each failure, try the
+   * rest and throw in the end if any of them failed. The name is logged
+   * before the delete if it's given.
+   */
+  private deleteSessions(sessions: { sessionId: string; name?: string }[]) {
+    return from(sessions).pipe(
+      mergeMap((session) => {
+        if (session.name != null) {
+          logger.info("delete session " + session.name);
+        }
+        return this.restClient.deleteSession(session.sessionId).pipe(
+          catchError((err) => {
+            // VError formats the message, so a "%" in the name needs %s
+            const error = new VError(
+              err,
+              "failed to delete session %s",
+              session.name ?? session.sessionId,
+            );
+            logger.error(error);
+            return of(error);
+          }),
+        );
       }, ReplaySession.sessionRequestParallel),
+      filter((result) => result instanceof VError),
       toArray(),
+      tap((failed: VError[]) => {
+        if (failed.length > 0) {
+          throw new VError(
+            new VError.MultiError(failed),
+            "%d of %d sessions not deleted",
+            failed.length,
+            sessions.length,
+          );
+        }
+      }),
     );
   }
 
