@@ -172,6 +172,11 @@ public abstract class OidcLoginSessions {
             throw new BadRequestException("oidc login session already has code");
         }
 
+        // Postgres text can't store NUL characters, and a valid code doesn't have them
+        if (code != null && code.indexOf('\0') >= 0) {
+            throw new BadRequestException("invalid code");
+        }
+
         loginSession.setCode(code);
 
         this.update(loginSession);

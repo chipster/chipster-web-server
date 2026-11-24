@@ -15,7 +15,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
@@ -32,17 +31,17 @@ public class Job {
     private JobState state;
     private String toolCategory;
     private String toolName;
-    @Lob
+    @Column(columnDefinition = "text")
     private String toolDescription;
     private Instant created;
     private Instant startTime;
     private Instant endTime;
     private String module;
-    @Lob
+    @Column(columnDefinition = "text")
     private String sourceCode;
-    @Lob
+    @Column(columnDefinition = "text")
     private String screenOutput;
-    @Lob
+    @Column(columnDefinition = "text")
     private String stateDetail;
     private Long memoryUsage;
     private Long storageUsage;
