@@ -130,9 +130,23 @@ To run Python jobs (system only has `python3`, not `python`):
 toolbox-runtime-command-python: python3
 ```
 
-**Job scheduling:** When running in the container, the scheduler cannot start new containers — use "process" scripts to run jobs directly as processes.
+**Job scheduling:** When running in the container, the scheduler cannot start new containers, so
+the jobs run directly as processes. Select the `process-classpath` scripts:
+```yaml
+scheduler-bash-script-dir-in-jar: "bash-job-scheduler/process-classpath"
+```
+They start each job's `SingleShotComp` with the java and the classpath of the running backend. The
+default `process` scripts build a distribution for each job with `./gradlew clean distTar`, and the
+`clean` deletes `build/classes`, which `./gradlew run` and `runProxy` have on their classpath. Those
+work only when the backend runs from the IDE, whose classes are in `bin/`. With `process-classpath`
+a job starts in seconds, but runs the backend's code: restart the backend after changing comp.
 
-Create an empty `~/.bash_profile` if missing, to suppress a non-fatal job script warning:
+Only the tools that need nothing but the plain runtime can run, e.g. the Tests category of the misc
+module (`test-data-in-out.R`, `test-data-in-out-without-tools-bin.py`): the container has R and
+python3, but neither tools-bin nor the R packages of the real tools.
+
+Create an empty `~/.bash_profile` if missing, to suppress a non-fatal job script warning of the
+`process` scripts:
 ```
 touch /home/claudeuser/.bash_profile
 ```

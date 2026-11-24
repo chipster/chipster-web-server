@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -61,6 +62,8 @@ public class BashJobScheduler implements JobScheduler {
     private static final String ENV_TOOLS_BIN_HOST_MOUNT_PATH = "TOOLS_BIN_HOST_MOUNT_PATH";
     private static final String ENV_POD_ANTI_AFFINITY = "POD_ANTI_AFFINITY";
     private static final String ENV_ENV_PREFIX = "ENV_PREFIX";
+    private static final String ENV_BACKEND_JAVA = "BACKEND_JAVA";
+    private static final String ENV_BACKEND_CLASSPATH = "BACKEND_CLASSPATH";
 
     private static final String CONF_BASH_THREADS = "scheduler-bash-threads";
     private static final String CONF_BASH_SCRIPT_DIR_IN_JAR = "scheduler-bash-script-dir-in-jar";
@@ -502,6 +505,10 @@ public class BashJobScheduler implements JobScheduler {
             Integer storage, String sessionToken) {
 
         HashMap<String, String> env = getEnv(tool, storage, idPair, runtime);
+
+        // for the process-classpath scripts, which run the job with the java and classpath of this JVM
+        env.put(ENV_BACKEND_JAVA, Paths.get(System.getProperty("java.home"), "bin", "java").toString());
+        env.put(ENV_BACKEND_CLASSPATH, System.getProperty("java.class.path"));
 
         env.put(ENV_ENABLE_RESOURCE_LIMITS, "" + this.enableResourceLimits);
 
