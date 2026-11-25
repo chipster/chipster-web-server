@@ -224,10 +224,7 @@ public class SessionDbClient {
      * @throws RestException
      */
     public fi.csc.chipster.sessiondb.model.Session getSession(UUID sessionId) throws RestException {
-
-        Session session = RestMethods.get(getSessionTarget(sessionId), Session.class);
-
-        return session;
+        return getSession(sessionId, false);
     }
 
     /**

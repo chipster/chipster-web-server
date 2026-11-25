@@ -225,11 +225,31 @@ public class SessionDbApi {
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
     }
 
+    /**
+     * Update only the state of a session
+     * 
+     * The Session object was loaded at the start of the request, so writing it
+     * back whole like updateSession() does would undo a PUT that committed in
+     * between, see updateSessionAccessed(). The state of the object is set too,
+     * for the caller.
+     * 
+     * @param session
+     * @param state
+     * @param hibernateSession
+     */
     public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
+        UUID sessionId = session.getSessionId();
+
         session.setState(state);
-        // otherwise Hibernate won't recognize the change
-        hibernateSession.detach(session);
-        this.updateSession(session, hibernateSession);
+
+        hibernateSession
+                .createMutationQuery("update Session set state = :state where sessionId = :sessionId")
+                .setParameter("state", state)
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
+
+        SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE, state);
+        publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
     }
 
     public void updateSession(Session session, org.hibernate.Session hibernateSession) {
@@ -248,7 +268,8 @@ public class SessionDbApi {
      * SessionResource.get() updates it on every open of a session. Writing the
      * whole Session back like updateSession() does would undo a concurrent PUT,
      * e.g. the new name or the READY state of a renamed temporary session, with
-     * the stale copy of this GET.
+     * the stale copy of this GET. setSessionState() has the same problem and the
+     * same fix.
      * 
      * @param sessionId
      * @param accessed
