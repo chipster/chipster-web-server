@@ -107,6 +107,10 @@ public class SessionDbTokenResource {
 
         // check that the user is allowed to access the session (with auth token)
         Session session = ruleTable.checkSessionAuthorization(sc, sessionId, requireReadWrite, false);
+        if (requireReadWrite) {
+            // e.g. the scheduler's tokens for jobs
+            RuleTable.checkNotDeleting(session);
+        }
 
         Instant valid = AuthTokens.parseValid(validString);
 

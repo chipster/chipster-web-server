@@ -3,7 +3,10 @@ package fi.csc.chipster.sessiondb;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,6 +19,7 @@ import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.TestServerLauncher;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.File;
+import fi.csc.chipster.sessiondb.model.FileState;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionState;
 
@@ -36,6 +40,7 @@ public class SessionResourceTest {
     private static SessionDbClient sessionWorkerClient;
     private static SessionDbClient signatureFailClient;
     private static SessionDbClient unsignedTokenClient;
+    private static SessionDbAdminClient fileBrokerClient;
 
     @BeforeAll
     public static void setUp() throws Exception {
@@ -63,6 +68,9 @@ public class SessionResourceTest {
         noAuthClient = new SessionDbClient(launcher.getServiceLocator(), null, Role.CLIENT);
         sessionWorkerClient = new SessionDbClient(launcher.getServiceLocator(), launcher.getSessionWorkerToken(),
                 Role.CLIENT);
+        // file-broker's role can list the files of a storage
+        fileBrokerClient = new SessionDbAdminClient(launcher.getServiceLocatorForScheduler(),
+                launcher.getFileBrokerToken());
     }
 
     @AfterAll
@@ -356,5 +364,126 @@ public class SessionResourceTest {
         } catch (RestException e) {
             assertEquals(expected, e.getResponse().getStatus());
         }
+    }
+
+    /**
+     * Deleting a session deletes the files that only its datasets use, also when two of its datasets
+     * have the same file, and keeps the files that datasets of other sessions use.
+     */
+    @Test
+    public void deleteFiles() throws RestException {
+
+        // a storage of its own, so that the files of this test can be listed
+        String storageId = "test-" + RestUtils.createUUID();
+
+        UUID sessionId1 = user1Client.createSession(RestUtils.getRandomSession());
+        UUID sessionId2 = user1Client.createSession(RestUtils.getRandomSession());
+
+        UUID onlyHere = createDatasetWithFile(sessionId1, getRandomFile(storageId));
+        UUID shared = createDatasetWithFile(sessionId1, getRandomFile(storageId));
+        UUID twice = createDatasetWithFile(sessionId1, getRandomFile(storageId));
+
+        File onlyHereFile = user1Client.getDataset(sessionId1, onlyHere).getFile();
+        File sharedFile = user1Client.getDataset(sessionId1, shared).getFile();
+        File twiceFile = user1Client.getDataset(sessionId1, twice).getFile();
+
+        // the same file in another dataset of the same session, and in a dataset of another session
+        createDatasetWithFile(sessionId1, twiceFile);
+        UUID otherSessionDataset = createDatasetWithFile(sessionId2, sharedFile);
+
+        assertEquals(Set.of(onlyHereFile.getFileId(), sharedFile.getFileId(), twiceFile.getFileId()),
+                getFileIds(storageId));
+
+        user1Client.deleteSession(sessionId1);
+
+        // only the file of the other session is left, and its dataset still has it
+        assertEquals(Set.of(sharedFile.getFileId()), getFileIds(storageId));
+        assertEquals(sharedFile.getFileId(),
+                user1Client.getDataset(sessionId2, otherSessionDataset).getFile().getFileId());
+
+        user1Client.deleteSession(sessionId2);
+
+        assertEquals(Set.of(), getFileIds(storageId));
+    }
+
+    /**
+     * Delete a session with more files than fit in one delete statement
+     */
+    @Test
+    public void deleteManyFiles() throws RestException {
+
+        String storageId = "test-" + RestUtils.createUUID();
+        UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+
+        int count = 2500;
+        Set<UUID> fileIds = new HashSet<>();
+        for (int i = 0; i < count; i++) {
+            File file = getRandomFile(storageId);
+            fileIds.add(file.getFileId());
+            createDatasetWithFile(sessionId, file);
+        }
+        assertEquals(fileIds, getFileIds(storageId));
+
+        long t = System.currentTimeMillis();
+        user1Client.deleteSession(sessionId);
+        System.out.println("deleted a session of " + count + " datasets and files in "
+                + (System.currentTimeMillis() - t) + " ms");
+
+        assertEquals(Set.of(), getFileIds(storageId));
+        testGetSession(404, sessionId, user1Client);
+    }
+
+    /**
+     * Only the deletion sets the state DELETE, because it refuses all writes to the session
+     */
+    @Test
+    public void putDeleteState() throws RestException {
+
+        Session newSession = RestUtils.getRandomSession();
+        newSession.setState(SessionState.DELETE);
+        assertStatus(400, () -> user1Client.createSession(newSession));
+
+        UUID sessionId = user1Client.createSession(RestUtils.getRandomSession());
+
+        Session session = user1Client.getSession(sessionId);
+        session.setState(SessionState.DELETE);
+        assertStatus(400, () -> user1Client.updateSession(session));
+
+        // the session can still be modified and deleted
+        user1Client.createDataset(sessionId, RestUtils.getRandomDataset());
+        user1Client.deleteSession(sessionId);
+        testGetSession(404, sessionId, user1Client);
+    }
+
+    private interface RestCall {
+        void run() throws RestException;
+    }
+
+    private static void assertStatus(int expected, RestCall call) {
+        try {
+            call.run();
+            assertEquals(true, false, "expected " + expected);
+        } catch (RestException e) {
+            assertEquals(expected, e.getResponse().getStatus());
+        }
+    }
+
+    private static File getRandomFile(String storageId) {
+        File file = new File();
+        file.setFileId(RestUtils.createUUID());
+        file.setSize(1);
+        file.setStorage(storageId);
+        file.setState(FileState.COMPLETE);
+        return file;
+    }
+
+    private static UUID createDatasetWithFile(UUID sessionId, File file) throws RestException {
+        Dataset dataset = RestUtils.getRandomDataset();
+        dataset.setFile(file);
+        return user1Client.createDataset(sessionId, dataset);
+    }
+
+    private static Set<UUID> getFileIds(String storageId) throws RestException {
+        return fileBrokerClient.getFiles(storageId, null).stream().map(File::getFileId).collect(Collectors.toSet());
     }
 }

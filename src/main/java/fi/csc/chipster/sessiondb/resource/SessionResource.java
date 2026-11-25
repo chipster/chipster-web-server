@@ -252,6 +252,11 @@ public class SessionResource {
             throw new BadRequestException("session already has an id, post not allowed");
         }
 
+        // only the deletion sets this state, and it refuses all writes to the session
+        if (SessionState.DELETE == session.getState()) {
+            throw new BadRequestException("the state DELETE can't be set");
+        }
+
         UUID id = RestUtils.createUUID();
         session.setSessionId(id);
         session.setCreated(Instant.now());
@@ -294,6 +299,11 @@ public class SessionResource {
         // get the state before this object is updated
         SessionState dbSessionState = dbSession.getState();
 
+        // only the deletion sets this state, and it refuses all writes to the session
+        if (SessionState.DELETE == requestSession.getState()) {
+            throw new BadRequestException("the state DELETE can't be set, delete the session instead");
+        }
+
         requestSession.setAccessed(Instant.now());
 
         this.sessionDbApi.updateSession(requestSession, getHibernate().session());
@@ -313,8 +323,9 @@ public class SessionResource {
     @Transaction
     public Response delete(@PathParam("id") UUID id, @Context SecurityContext sc) {
 
-        // check authorization
-        Session session = ruleTable.checkSessionReadWriteAuthorization(sc, id);
+        // check authorization. Allow the deletion of a session that is being deleted, to retry a
+        // deletion that failed
+        Session session = ruleTable.checkSessionAuthorization(sc, id, true, false);
 
         this.sessionDbApi.deleteSession(session);
 
