@@ -11,8 +11,11 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.SessionEventListener;
+import org.hibernate.StaleStateException;
+import org.hibernate.exception.ConstraintViolationException;
 
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.rest.websocket.PubSubServer;
@@ -32,6 +35,8 @@ import fi.csc.chipster.sessiondb.model.SessionEvent;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import fi.csc.chipster.sessiondb.model.SessionEvent.ResourceType;
 import fi.csc.chipster.sessiondb.model.SessionState;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PersistenceException;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.JoinType;
@@ -131,6 +136,11 @@ public class SessionDbApi {
         hibernateSession.addEventListeners(new SessionEventListener() {
             @Override
             public void transactionCompletion(boolean successful) {
+                // nothing changed if the transaction was rolled back. Especially file-storage
+                // must not delete the files of datasets that still exist
+                if (!successful) {
+                    return;
+                }
                 // publish the original event
                 events.publish(topic, obj);
 
@@ -150,6 +160,9 @@ public class SessionDbApi {
         hibernateSession.addEventListeners(new SessionEventListener() {
             @Override
             public void transactionCompletion(boolean successful) {
+                if (!successful) {
+                    return;
+                }
                 events.publishAllTopics(event, topicsToSkip);
             }
         });
@@ -172,39 +185,68 @@ public class SessionDbApi {
     public void deleteSession(Session session) {
 
         UUID sessionId = session.getSessionId();
+        SessionState previousState = session.getState();
 
         /*
          * Run in separate transaction so that others will see the state change
          * immediately. The method sessionFactory.getCurrentSession() will still return
          * the original session, so be careful to use the innerSession only.
          */
-        HibernateUtil.runInTransaction(new HibernateRunnable<Void>() {
+        Boolean stateChanged = HibernateUtil.runInTransaction(new HibernateRunnable<Boolean>() {
             @Override
-            public Void run(org.hibernate.Session innerSession) {
+            public Boolean run(org.hibernate.Session innerSession) {
                 setSessionState(session, SessionState.DELETE, innerSession);
-                return null;
+                return true;
             }
         }, hibernate.getSessionFactory(), false);
 
+        // runInTransaction() only logs the errors. Without the state, the checks at the end would
+        // always fail as if the session was modified
+        if (stateChanged == null) {
+            throw new IllegalStateException("failed to change the state of session " + sessionId + " to DELETE");
+        }
+
+        /*
+         * If this transaction fails, the session and its contents stay, so put the previous state
+         * back. Otherwise the session would stay read-only. This covers also the deletions of
+         * several sessions in one transaction, e.g. when an admin deletes a user.
+         */
+        hibernate.session().addEventListeners(new SessionEventListener() {
+            @Override
+            public void transactionCompletion(boolean successful) {
+                if (successful) {
+                    return;
+                }
+                HibernateUtil.runInTransaction(innerSession -> {
+                    Session dbSession = innerSession.find(Session.class, sessionId);
+                    if (dbSession != null && SessionState.DELETE == dbSession.getState()) {
+                        setSessionState(dbSession, previousState, innerSession);
+                    }
+                    return null;
+                }, hibernate.getSessionFactory(), false);
+            }
+        });
+
         /*
          * All datasets have to be removed first, because the dataset owns the reference
-         * between the dataset and the session. This also generates the necessary events
-         * e.g. to remove files.
+         * between the dataset and the session.
          */
-        for (Dataset dataset : SessionDbApi.getDatasets(hibernate.session(), session)) {
-            deleteDataset(dataset, sessionId);
-        }
+        deleteDatasetsAndJobs(session);
 
         // see the note about datasets above
-        for (Job job : getJobs(hibernate.session(), session)) {
-            deleteJob(job, sessionId, hibernate.session());
-        }
-
-        // see the note about datasets above
-        for (Rule rule : ruleTable.getRules(sessionId)) {
-            // argument "deleteSessionIfLastRule" is set to false, because it would call
-            // this method again
-            deleteRule(session, rule, hibernate.session(), false);
+        try {
+            for (Rule rule : ruleTable.getRules(sessionId)) {
+                // argument "deleteSessionIfLastRule" is set to false, because it would call
+                // this method again
+                deleteRule(session, rule, hibernate.session(), false);
+            }
+        } catch (PersistenceException e) {
+            // a user deleted their own rule at the same time (that doesn't check the session
+            // state), so the rule was already gone
+            if (!isCausedBy(e, OptimisticLockException.class, StaleStateException.class)) {
+                throw e;
+            }
+            throw sessionModifiedDuringDeletion(sessionId);
         }
 
         // Labels have no JPA relationship or database cascade to the session, so
@@ -218,11 +260,154 @@ public class SessionDbApi {
                     hibernate.session());
         }
 
-        HibernateUtil.delete(session, session.getSessionId(), hibernate.session());
+        /*
+         * Writes to the session are refused after the state change above, but a write that
+         * checked the state just before it may still commit during the deletion. Its rows would
+         * be left behind without a session (or a new rule would fail the deletion of the session
+         * on its foreign key), so fail and let the client try again.
+         */
+        String countQuery = "select count(*) from %s x where x.%s = :sessionId";
+        for (String[] entity : new String[][] { { "Dataset", "datasetIdPair.sessionId" },
+                { "Job", "jobIdPair.sessionId" }, { "Label", "labelIdPair.sessionId" },
+                { "Rule", "session.sessionId" } }) {
+            long left = hibernate.session()
+                    .createQuery(String.format(countQuery, entity[0], entity[1]), Long.class)
+                    .setParameter("sessionId", sessionId).getSingleResult();
+            if (left > 0) {
+                throw sessionModifiedDuringDeletion(sessionId);
+            }
+        }
+
+        /*
+         * A session update that checked the state just before the state change can still
+         * overwrite it with its old state, which would let writes through again. Query the
+         * state, because the Hibernate session would return its own copy.
+         */
+        SessionState state = hibernate.session()
+                .createQuery("select s.state from Session s where s.sessionId = :sessionId", SessionState.class)
+                .setParameter("sessionId", sessionId).getSingleResult();
+        if (SessionState.DELETE != state) {
+            throw sessionModifiedDuringDeletion(sessionId);
+        }
+
+        try {
+            HibernateUtil.delete(session, session.getSessionId(), hibernate.session());
+        } catch (PersistenceException e) {
+            // a rule created after the check above
+            if (!isCausedBy(e, ConstraintViolationException.class)) {
+                throw e;
+            }
+            throw sessionModifiedDuringDeletion(sessionId);
+        }
 
         SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,
                 session.getState());
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
+    }
+
+    /**
+     * Delete all datasets and jobs of the session, and the files that no other dataset uses
+     *
+     * Each table is deleted with one statement, whatever the size of the session. Deleting the
+     * rows one by one with deleteDataset() and deleteJob() took two statements for each row,
+     * because Hibernate updated each row before deleting it (it doesn't see the JSON columns as
+     * unchanged), and a query for each dataset's file.
+     *
+     * The events are the same as from deleteDataset(), deleteJob() and deleteFile().
+     *
+     * @param session
+     */
+    private void deleteDatasetsAndJobs(Session session) {
+
+        UUID sessionId = session.getSessionId();
+        org.hibernate.Session hibernateSession = hibernate.session();
+
+        List<Dataset> datasets = SessionDbApi.getDatasets(hibernateSession, session);
+        List<Job> jobs = getJobs(hibernateSession, session);
+
+        // files of this session's datasets that no dataset of other sessions uses
+        List<File> files = hibernateSession.createQuery(
+                "select distinct d.file from Dataset d where d.datasetIdPair.sessionId = :sessionId "
+                        + "and not exists (from Dataset other where other.file = d.file "
+                        + "and other.datasetIdPair.sessionId <> :sessionId)",
+                File.class)
+                .setParameter("sessionId", sessionId)
+                .list();
+
+        int deletedDatasets = hibernateSession
+                .createMutationQuery("delete from Dataset d where d.datasetIdPair.sessionId = :sessionId")
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
+
+        int deletedJobs = hibernateSession
+                .createMutationQuery("delete from Job j where j.jobIdPair.sessionId = :sessionId")
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
+
+        // a dataset or job committed after the listing above would be deleted without its events
+        // and its file
+        if (deletedDatasets != datasets.size() || deletedJobs != jobs.size()) {
+            throw sessionModifiedDuringDeletion(sessionId);
+        }
+
+        // the JDBC driver allows at most 32767 parameters in one statement
+        List<UUID> fileIds = files.stream().map(File::getFileId).collect(Collectors.toList());
+        try {
+            for (int i = 0; i < fileIds.size(); i += 1000) {
+                hibernateSession.createMutationQuery("delete from File f where f.fileId in (:fileIds)")
+                        .setParameterList("fileIds", fileIds.subList(i, Math.min(i + 1000, fileIds.size())))
+                        .executeUpdate();
+            }
+        } catch (PersistenceException e) {
+            if (!isCausedBy(e, ConstraintViolationException.class)) {
+                throw e;
+            }
+            // a dataset of another session started to use the file after the query above, e.g. when
+            // the dataset was copied there. The next try sees it and keeps the file.
+            throw sessionModifiedDuringDeletion(sessionId);
+        }
+
+        // the bulk deletes bypass the Hibernate session, so don't let it keep the deleted objects
+        datasets.forEach(hibernateSession::detach);
+        jobs.forEach(hibernateSession::detach);
+        files.forEach(hibernateSession::detach);
+
+        for (File file : files) {
+            // delete from storage
+            publish(SessionDbTopicConfig.ALL_FILES_TOPIC,
+                    new SessionEvent(null, ResourceType.FILE, file.getFileId(), EventType.DELETE, null,
+                            RestUtils.asJson(file), null),
+                    hibernateSession);
+        }
+
+        for (Dataset dataset : datasets) {
+            publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+                    new SessionEvent(sessionId, ResourceType.DATASET, dataset.getDatasetId(), EventType.DELETE),
+                    hibernateSession);
+        }
+
+        for (Job job : jobs) {
+            publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(),
+                    new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.DELETE, job.getState()),
+                    hibernateSession);
+        }
+    }
+
+    @SafeVarargs
+    static boolean isCausedBy(Throwable e, Class<? extends Throwable>... types) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            for (Class<? extends Throwable> type : types) {
+                if (type.isInstance(t)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static ConflictException sessionModifiedDuringDeletion(UUID sessionId) {
+        logger.warn("session " + sessionId + " was modified during the deletion");
+        return new ConflictException("the session was modified during the deletion, try again");
     }
 
     public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {

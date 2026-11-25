@@ -6,18 +6,22 @@ import java.util.List;
 import java.util.UUID;
 
 import org.eclipse.jetty.http.HttpStatus;
+import org.hibernate.StaleStateException;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import fi.csc.chipster.auth.model.Role;
 import fi.csc.chipster.rest.Config;
+import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.Transaction;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
 import fi.csc.chipster.sessiondb.model.SessionEvent.EventType;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PersistenceException;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -171,6 +175,9 @@ public class RuleResource {
             throw new BadRequestException("only sharedBy can be set to null");
         }
 
+        // the deletion of the session deletes this rule too
+        RuleTable.checkNotDeleting(dbRule.getSession());
+
         hibernate.session().detach(dbRule);
         // the user is only allowed to set the sharedBy field to null to accept shares
         dbRule.setSharedBy(null);
@@ -204,11 +211,20 @@ public class RuleResource {
                 && ruleToDelete.getSharedBy().equals(sc.getUserPrincipal().getName());
 
         if (!(isOwnRule || isSharedBy)) {
-            // others need read-write permissions
-            session = ruleTable.checkSessionReadWriteAuthorization(sc, sessionId);
+            // others need read-write permissions. Allowed also while the session is being deleted,
+            // like the deletion of the session itself
+            session = ruleTable.checkSessionAuthorization(sc, sessionId, true, false);
         }
 
-        this.sessionDbApi.deleteRule(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
+        try {
+            this.sessionDbApi.deleteRule(ruleToDelete.getSession(), ruleToDelete, hibernate.session(), true);
+        } catch (PersistenceException e) {
+            // the deletion of the session deleted the same rule at the same time
+            if (!SessionDbApi.isCausedBy(e, OptimisticLockException.class, StaleStateException.class)) {
+                throw e;
+            }
+            throw new ConflictException("the rule was deleted at the same time, try again");
+        }
 
         if (session != null) {
             sessionDbApi.sessionModified(session, hibernate.session());

@@ -29,12 +29,14 @@ import fi.csc.chipster.auth.model.UserToken;
 import fi.csc.chipster.auth.resource.AuthPrincipal;
 import fi.csc.chipster.rest.Config;
 import fi.csc.chipster.rest.RestUtils;
+import fi.csc.chipster.rest.exception.ConflictException;
 import fi.csc.chipster.rest.exception.NotAuthorizedException;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
 import fi.csc.chipster.rest.hibernate.HibernateUtil.HibernateRunnable;
 import fi.csc.chipster.sessiondb.model.Dataset;
 import fi.csc.chipster.sessiondb.model.Rule;
 import fi.csc.chipster.sessiondb.model.Session;
+import fi.csc.chipster.sessiondb.model.SessionState;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -426,7 +428,12 @@ public class RuleTable {
         if (token instanceof UserToken) {
 
             // check that the user has an Rule which allows access to the session
-            checkSessionAuthorization(token, requestSessionId, requireReadWrite, hibernateSession, false);
+            Session session = checkSessionAuthorization(token, requestSessionId, requireReadWrite, hibernateSession,
+                    false);
+            if (requireReadWrite) {
+                // e.g. file-broker checks this before an upload
+                checkNotDeleting(session);
+            }
             Dataset dataset = SessionDbApi.getDataset(requestSessionId, requestDatasetId, hibernateSession);
 
             if (dataset == null) {
@@ -438,7 +445,11 @@ public class RuleTable {
         } else if (token instanceof SessionToken) {
 
             // this is a token for the whole session
-            checkSessionAuthorization(token, requestSessionId, requireReadWrite, hibernateSession, false);
+            Session session = checkSessionAuthorization(token, requestSessionId, requireReadWrite, hibernateSession,
+                    false);
+            if (requireReadWrite) {
+                checkNotDeleting(session);
+            }
             Dataset dataset = SessionDbApi.getDataset(requestSessionId, requestDatasetId, hibernateSession);
 
             if (dataset == null) {
@@ -536,16 +547,32 @@ public class RuleTable {
         return checkSessionAuthorization(token, sessionId, false, hibernateSession, allowAdmin);
     }
 
+    /**
+     * Check the authorization to modify the session
+     * 
+     * Refuse modifications while the session is being deleted, because the deletion would leave
+     * behind or miss whatever is created meanwhile. Use checkSessionAuthorization() for the
+     * deletion itself.
+     */
     public Session checkSessionReadWriteAuthorization(SecurityContext sc, UUID sessionId) {
-        ChipsterToken token = getChipsterToken(sc);
-        org.hibernate.Session hibernateSession = hibernate.session();
-        return checkSessionAuthorization(token, sessionId, true, hibernateSession, false);
+        return checkSessionReadWriteAuthorization(sc, sessionId, false);
     }
 
     public Session checkSessionReadWriteAuthorization(SecurityContext sc, UUID sessionId, boolean allowAdmin) {
         ChipsterToken token = getChipsterToken(sc);
         org.hibernate.Session hibernateSession = hibernate.session();
-        return checkSessionAuthorization(token, sessionId, true, hibernateSession, allowAdmin);
+        Session session = checkSessionAuthorization(token, sessionId, true, hibernateSession, allowAdmin);
+        checkNotDeleting(session);
+        return session;
+    }
+
+    /**
+     * Refuse writes to a session that is being deleted, see checkSessionReadWriteAuthorization()
+     */
+    public static void checkNotDeleting(Session session) {
+        if (session != null && SessionState.DELETE == session.getState()) {
+            throw new ConflictException("the session is being deleted");
+        }
     }
 
     public Session checkSessionAuthorization(SecurityContext sc, UUID sessionId, boolean requireReadWrite,
