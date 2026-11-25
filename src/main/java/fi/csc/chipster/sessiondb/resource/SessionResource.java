@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -51,7 +52,7 @@ import jakarta.ws.rs.core.UriInfo;
 public class SessionResource {
 
     public static final String PATH_SHARES = "shares";
-    private static final String QUERY_PARAM_PREVIEW = "preview";
+    public static final String QUERY_PARAM_PREVIEW = "preview";
     public static final String QUERY_PARAM_USER_ID = "userId";
     public static final String QUERY_PARAM_APP_ID = "appId";
 
@@ -127,8 +128,13 @@ public class SessionResource {
         // empty string when set, otherwise null (boolean without value would have been
         // false)
         if (preview == null) {
-            dbSession.setAccessed(Instant.now());
-            getHibernate().update(dbSession, sessionId);
+            // the db keeps microseconds, so this is what later gets return too
+            Instant accessed = Instant.now().truncatedTo(ChronoUnit.MICROS);
+            // update only the accessed column, see SessionDbApi.updateSessionAccessed()
+            sessionDbApi.updateSessionAccessed(sessionId, accessed, getHibernate().session());
+            // the entity is read-only in this Hibernate session, so this changes only the
+            // response
+            dbSession.setAccessed(accessed);
         }
 
         return Response.ok(dbSession).build();
@@ -316,7 +322,10 @@ public class SessionResource {
         // check authorization
         Session session = ruleTable.checkSessionReadWriteAuthorization(sc, id);
 
-        this.sessionDbApi.deleteSession(session);
+        if (!this.sessionDbApi.deleteSession(session)) {
+            // deleted in between
+            throw new NotFoundException();
+        }
 
         return Response.noContent().build();
     }

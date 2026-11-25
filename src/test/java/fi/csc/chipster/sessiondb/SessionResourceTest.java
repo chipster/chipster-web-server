@@ -103,6 +103,10 @@ public class SessionResourceTest {
 
         assertEquals(sessionId1, getSession1.getSessionId());
         assertEquals(session1.getName(), getSession1.getName());
+
+        // the get stores its accessed time, and a preview get reads it without updating it
+        assertEquals(getSession1.getAccessed(), user1Client.getSession(sessionId1, true).getAccessed());
+        assertEquals(getSession1.getAccessed(), user1Client.getSession(sessionId1, true).getAccessed());
         // check that user2Client works, other tests rely on it
         assertEquals(true, user2Client.getSession(sessionId2) != null);
         // servers can read any session
@@ -316,6 +320,31 @@ public class SessionResourceTest {
         assertEquals(SessionState.TEMPORARY_MODIFIED, user1Client.getSession(sessionId).getState());
 
         user1Client.deleteSession(sessionId);
+    }
+
+    @Test
+    public void sessionModified() throws RestException {
+
+        // a change in a temporary session marks it modified
+        Session temporary = RestUtils.getRandomSession();
+        temporary.setState(SessionState.TEMPORARY_UNMODIFIED);
+        UUID temporaryId = user1Client.createSession(temporary);
+
+        user1Client.createDataset(temporaryId, RestUtils.getRandomDataset());
+
+        assertEquals(SessionState.TEMPORARY_MODIFIED, user1Client.getSession(temporaryId).getState());
+
+        // a saved session stays saved
+        Session ready = RestUtils.getRandomSession();
+        ready.setState(SessionState.READY);
+        UUID readyId = user1Client.createSession(ready);
+
+        user1Client.createDataset(readyId, RestUtils.getRandomDataset());
+
+        assertEquals(SessionState.READY, user1Client.getSession(readyId).getState());
+
+        user1Client.deleteSession(temporaryId);
+        user1Client.deleteSession(readyId);
     }
 
     public static void testUpdateSession(int expected, Session newSession, SessionDbClient client) {

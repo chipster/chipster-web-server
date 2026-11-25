@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.SessionEventListener;
+import org.hibernate.query.MutationQuery;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -39,6 +40,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.core.SecurityContext;
 
 public class SessionDbApi {
@@ -163,13 +165,21 @@ public class SessionDbApi {
 
         if (count == 0) {
             logger.debug("last rule deleted, delete the session too");
+            // false if it was deleted in between, which is what we wanted anyway
             deleteSession(session);
         } else {
             logger.debug(count + " rules left, session kept");
         }
     }
 
-    public void deleteSession(Session session) {
+    /**
+     * Delete a session
+     * 
+     * @param session
+     * @return false if the session was already deleted in between, e.g. by another
+     *         request of the same client, and nothing was done
+     */
+    public boolean deleteSession(Session session) {
 
         UUID sessionId = session.getSessionId();
 
@@ -178,13 +188,22 @@ public class SessionDbApi {
          * immediately. The method sessionFactory.getCurrentSession() will still return
          * the original session, so be careful to use the innerSession only.
          */
-        HibernateUtil.runInTransaction(new HibernateRunnable<Void>() {
+        Boolean found = HibernateUtil.runInTransaction(new HibernateRunnable<Boolean>() {
             @Override
-            public Void run(org.hibernate.Session innerSession) {
-                setSessionState(session, SessionState.DELETE, innerSession);
-                return null;
+            public Boolean run(org.hibernate.Session innerSession) {
+                return setSessionState(session, SessionState.DELETE, null, innerSession);
             }
         }, hibernate.getSessionFactory(), false);
+
+        if (found == null) {
+            // runInTransaction() logged the exception
+            throw new InternalServerErrorException("setting the state of the session " + sessionId + " failed");
+        }
+
+        if (!found) {
+            logger.info("session " + sessionId + " was deleted already");
+            return false;
+        }
 
         /*
          * All datasets have to be removed first, because the dataset owns the reference
@@ -223,13 +242,53 @@ public class SessionDbApi {
         SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,
                 session.getState());
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
+
+        return true;
     }
 
-    public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
+    /**
+     * Update only the state of a session
+     * 
+     * The Session object was loaded at the start of the request, so writing it
+     * back whole like updateSession() does would undo a PUT that committed in
+     * between, see updateSessionAccessed(). For the same reason the state in the
+     * object may be stale, and expectedState lets the caller check the state in
+     * the db instead.
+     * 
+     * @param session
+     * @param state
+     * @param expectedState    update only if the session has this state in the db,
+     *                         null to update in any state
+     * @param hibernateSession
+     * @return false if nothing was updated: the session wasn't in the expected
+     *         state, or it was deleted in between
+     */
+    public boolean setSessionState(Session session, SessionState state, SessionState expectedState,
+            org.hibernate.Session hibernateSession) {
+        UUID sessionId = session.getSessionId();
+
+        String hql = "update Session set state = :state where sessionId = :sessionId";
+        if (expectedState != null) {
+            hql += " and state = :expectedState";
+        }
+
+        MutationQuery query = hibernateSession.createMutationQuery(hql)
+                .setParameter("state", state)
+                .setParameter("sessionId", sessionId);
+        if (expectedState != null) {
+            query.setParameter("expectedState", expectedState);
+        }
+
+        if (query.executeUpdate() == 0) {
+            return false;
+        }
+
         session.setState(state);
-        // otherwise Hibernate won't recognize the change
-        hibernateSession.detach(session);
-        this.updateSession(session, hibernateSession);
+
+        SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE, state);
+        publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
+
+        return true;
     }
 
     public void updateSession(Session session, org.hibernate.Session hibernateSession) {
@@ -240,6 +299,27 @@ public class SessionDbApi {
         SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE,
                 session.getState());
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
+    }
+
+    /**
+     * Update only the accessed time of a session
+     * 
+     * SessionResource.get() updates it on every open of a session. Writing the
+     * whole Session back like updateSession() does would undo a concurrent PUT,
+     * e.g. the new name or the READY state of a renamed temporary session, with
+     * the stale copy of this GET. setSessionState() has the same problem and the
+     * same fix.
+     * 
+     * @param sessionId
+     * @param accessed
+     * @param hibernateSession
+     */
+    public void updateSessionAccessed(UUID sessionId, Instant accessed, org.hibernate.Session hibernateSession) {
+        hibernateSession
+                .createMutationQuery("update Session set accessed = :accessed where sessionId = :sessionId")
+                .setParameter("accessed", accessed)
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
     }
 
     public List<Rule> getRules(UUID sessionId) {
@@ -475,8 +555,14 @@ public class SessionDbApi {
     }
 
     public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
+        // the state in the object is from the start of this request, so this check
+        // only saves the db update for the sessions that aren't temporary, which is
+        // most of them
         if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
-            setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);
+            // the db decides: a PUT that saved the session (READY) in between must not
+            // be undone
+            setSessionState(session, SessionState.TEMPORARY_MODIFIED, SessionState.TEMPORARY_UNMODIFIED,
+                    hibernateSession);
         }
     }
 
