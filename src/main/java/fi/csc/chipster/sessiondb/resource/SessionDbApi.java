@@ -242,6 +242,26 @@ public class SessionDbApi {
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
     }
 
+    /**
+     * Update only the accessed time of a session
+     * 
+     * SessionResource.get() updates it on every open of a session. Writing the
+     * whole Session back like updateSession() does would undo a concurrent PUT,
+     * e.g. the new name or the READY state of a renamed temporary session, with
+     * the stale copy of this GET.
+     * 
+     * @param sessionId
+     * @param accessed
+     * @param hibernateSession
+     */
+    public void updateSessionAccessed(UUID sessionId, Instant accessed, org.hibernate.Session hibernateSession) {
+        hibernateSession
+                .createMutationQuery("update Session set accessed = :accessed where sessionId = :sessionId")
+                .setParameter("accessed", accessed)
+                .setParameter("sessionId", sessionId)
+                .executeUpdate();
+    }
+
     public List<Rule> getRules(UUID sessionId) {
         return ruleTable.getRules(sessionId);
     }

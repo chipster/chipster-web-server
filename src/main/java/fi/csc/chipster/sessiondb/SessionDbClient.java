@@ -230,6 +230,25 @@ public class SessionDbClient {
         return session;
     }
 
+    /**
+     * @param sessionId
+     * @param preview   true to not update the accessed time of the session
+     * @return get a session object
+     * @throws RestException
+     */
+    public fi.csc.chipster.sessiondb.model.Session getSession(UUID sessionId, boolean preview)
+            throws RestException {
+
+        WebTarget target = getSessionTarget(sessionId);
+
+        if (preview) {
+            // the server checks only that the parameter is there, like in "?preview"
+            target = target.queryParam(SessionResource.QUERY_PARAM_PREVIEW, "");
+        }
+
+        return RestMethods.get(target, Session.class);
+    }
+
     public SessionListStats getStats() throws RestException {
 
         return RestMethods.get(getStatsTarget(), SessionListStats.class);
