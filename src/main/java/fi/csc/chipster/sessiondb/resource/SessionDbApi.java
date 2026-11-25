@@ -40,6 +40,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.SecurityContext;
 
 public class SessionDbApi {
@@ -179,13 +180,17 @@ public class SessionDbApi {
          * immediately. The method sessionFactory.getCurrentSession() will still return
          * the original session, so be careful to use the innerSession only.
          */
-        HibernateUtil.runInTransaction(new HibernateRunnable<Void>() {
+        boolean found = HibernateUtil.runInTransaction(new HibernateRunnable<Boolean>() {
             @Override
-            public Void run(org.hibernate.Session innerSession) {
-                setSessionState(session, SessionState.DELETE, innerSession);
-                return null;
+            public Boolean run(org.hibernate.Session innerSession) {
+                return setSessionState(session, SessionState.DELETE, null, innerSession);
             }
         }, hibernate.getSessionFactory(), false);
+
+        if (!found) {
+            // deleted in between, e.g. by another request of the same client
+            throw new NotFoundException("session not found");
+        }
 
         /*
          * All datasets have to be removed first, because the dataset owns the reference
