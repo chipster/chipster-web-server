@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.SessionEventListener;
+import org.hibernate.query.MutationQuery;
 
 import fi.csc.chipster.rest.RestUtils;
 import fi.csc.chipster.rest.hibernate.HibernateUtil;
@@ -225,31 +226,53 @@ public class SessionDbApi {
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
     }
 
+    public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
+        setSessionState(session, state, null, hibernateSession);
+    }
+
     /**
      * Update only the state of a session
      * 
      * The Session object was loaded at the start of the request, so writing it
      * back whole like updateSession() does would undo a PUT that committed in
-     * between, see updateSessionAccessed(). The state of the object is set too,
-     * for the caller.
+     * between, see updateSessionAccessed(). For the same reason the state in the
+     * object may be stale, and expectedState lets the caller check the state in
+     * the db instead.
      * 
      * @param session
      * @param state
+     * @param expectedState    update only if the session has this state in the db,
+     *                         null to update in any state
      * @param hibernateSession
+     * @return false if nothing was updated: the session wasn't in the expected
+     *         state, or it was deleted in between
      */
-    public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
+    public boolean setSessionState(Session session, SessionState state, SessionState expectedState,
+            org.hibernate.Session hibernateSession) {
         UUID sessionId = session.getSessionId();
+
+        String hql = "update Session set state = :state where sessionId = :sessionId";
+        if (expectedState != null) {
+            hql += " and state = :expectedState";
+        }
+
+        MutationQuery query = hibernateSession.createMutationQuery(hql)
+                .setParameter("state", state)
+                .setParameter("sessionId", sessionId);
+        if (expectedState != null) {
+            query.setParameter("expectedState", expectedState);
+        }
+
+        if (query.executeUpdate() == 0) {
+            return false;
+        }
 
         session.setState(state);
 
-        hibernateSession
-                .createMutationQuery("update Session set state = :state where sessionId = :sessionId")
-                .setParameter("state", state)
-                .setParameter("sessionId", sessionId)
-                .executeUpdate();
-
         SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, sessionId, EventType.UPDATE, state);
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
+
+        return true;
     }
 
     public void updateSession(Session session, org.hibernate.Session hibernateSession) {
@@ -517,7 +540,10 @@ public class SessionDbApi {
 
     public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
         if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
-            setSessionState(session, SessionState.TEMPORARY_MODIFIED, hibernateSession);
+            // the state in the object is from the start of this request: a PUT that
+            // saved the session (READY) in between must not be undone
+            setSessionState(session, SessionState.TEMPORARY_MODIFIED, SessionState.TEMPORARY_UNMODIFIED,
+                    hibernateSession);
         }
     }
 

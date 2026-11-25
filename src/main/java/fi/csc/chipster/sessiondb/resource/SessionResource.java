@@ -3,6 +3,7 @@ package fi.csc.chipster.sessiondb.resource;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -127,7 +128,8 @@ public class SessionResource {
         // empty string when set, otherwise null (boolean without value would have been
         // false)
         if (preview == null) {
-            Instant accessed = Instant.now();
+            // the db keeps microseconds, so this is what later gets return too
+            Instant accessed = Instant.now().truncatedTo(ChronoUnit.MICROS);
             // update only the accessed column, see SessionDbApi.updateSessionAccessed()
             sessionDbApi.updateSessionAccessed(sessionId, accessed, getHibernate().session());
             // the entity is read-only in this Hibernate session, so this changes only the

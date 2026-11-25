@@ -1,11 +1,8 @@
 package fi.csc.chipster.sessiondb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
@@ -108,11 +105,8 @@ public class SessionResourceTest {
         assertEquals(session1.getName(), getSession1.getName());
 
         // the get stores its accessed time, and a preview get reads it without updating it
-        Instant accessed = user1Client.getSession(sessionId1, true).getAccessed();
-        // the db rounds to microseconds
-        assertTrue(Duration.between(getSession1.getAccessed(), accessed).abs().toNanos() <= 1000,
-                "the get returned accessed " + getSession1.getAccessed() + " but stored " + accessed);
-        assertEquals(accessed, user1Client.getSession(sessionId1, true).getAccessed());
+        assertEquals(getSession1.getAccessed(), user1Client.getSession(sessionId1, true).getAccessed());
+        assertEquals(getSession1.getAccessed(), user1Client.getSession(sessionId1, true).getAccessed());
         // check that user2Client works, other tests rely on it
         assertEquals(true, user2Client.getSession(sessionId2) != null);
         // servers can read any session
