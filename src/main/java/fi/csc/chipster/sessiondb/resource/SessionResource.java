@@ -322,7 +322,10 @@ public class SessionResource {
         // check authorization
         Session session = ruleTable.checkSessionReadWriteAuthorization(sc, id);
 
-        this.sessionDbApi.deleteSession(session);
+        if (!this.sessionDbApi.deleteSession(session)) {
+            // deleted in between
+            throw new NotFoundException();
+        }
 
         return Response.noContent().build();
     }

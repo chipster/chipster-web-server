@@ -40,7 +40,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
-import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.core.SecurityContext;
 
 public class SessionDbApi {
@@ -165,13 +165,21 @@ public class SessionDbApi {
 
         if (count == 0) {
             logger.debug("last rule deleted, delete the session too");
+            // false if it was deleted in between, which is what we wanted anyway
             deleteSession(session);
         } else {
             logger.debug(count + " rules left, session kept");
         }
     }
 
-    public void deleteSession(Session session) {
+    /**
+     * Delete a session
+     * 
+     * @param session
+     * @return false if the session was already deleted in between, e.g. by another
+     *         request of the same client, and nothing was done
+     */
+    public boolean deleteSession(Session session) {
 
         UUID sessionId = session.getSessionId();
 
@@ -180,16 +188,21 @@ public class SessionDbApi {
          * immediately. The method sessionFactory.getCurrentSession() will still return
          * the original session, so be careful to use the innerSession only.
          */
-        boolean found = HibernateUtil.runInTransaction(new HibernateRunnable<Boolean>() {
+        Boolean found = HibernateUtil.runInTransaction(new HibernateRunnable<Boolean>() {
             @Override
             public Boolean run(org.hibernate.Session innerSession) {
                 return setSessionState(session, SessionState.DELETE, null, innerSession);
             }
         }, hibernate.getSessionFactory(), false);
 
+        if (found == null) {
+            // runInTransaction() logged the exception
+            throw new InternalServerErrorException("setting the state of the session " + sessionId + " failed");
+        }
+
         if (!found) {
-            // deleted in between, e.g. by another request of the same client
-            throw new NotFoundException("session not found");
+            logger.info("session " + sessionId + " was deleted already");
+            return false;
         }
 
         /*
@@ -229,10 +242,8 @@ public class SessionDbApi {
         SessionEvent event = new SessionEvent(sessionId, ResourceType.SESSION, null, EventType.DELETE,
                 session.getState());
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernate.session());
-    }
 
-    public void setSessionState(Session session, SessionState state, org.hibernate.Session hibernateSession) {
-        setSessionState(session, state, null, hibernateSession);
+        return true;
     }
 
     /**
@@ -544,9 +555,12 @@ public class SessionDbApi {
     }
 
     public void sessionModified(Session session, org.hibernate.Session hibernateSession) {
+        // the state in the object is from the start of this request, so this check
+        // only saves the db update for the sessions that aren't temporary, which is
+        // most of them
         if (SessionState.TEMPORARY_UNMODIFIED == session.getState()) {
-            // the state in the object is from the start of this request: a PUT that
-            // saved the session (READY) in between must not be undone
+            // the db decides: a PUT that saved the session (READY) in between must not
+            // be undone
             setSessionState(session, SessionState.TEMPORARY_MODIFIED, SessionState.TEMPORARY_UNMODIFIED,
                     hibernateSession);
         }
