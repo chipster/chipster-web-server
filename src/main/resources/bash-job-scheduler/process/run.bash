@@ -1,20 +1,25 @@
-echo "run in process, slots: $SLOTS, image: $IMAGE, pod name: $POD_NAME"
+# Run the job in a process, with the java and the classpath of the running backend. BashJobScheduler
+# gives them in BACKEND_JAVA and BACKEND_CLASSPATH.
+#
+# This works however the backend runs: from the IDE, or from build/ with "./gradlew run" or
+# "./gradlew runProxy". Building a distribution for each job instead, with "./gradlew clean distTar",
+# would delete the classes of a backend that runs from build/. Jobs start in seconds and see the
+# same code as the backend, which also means that they run the old code until the backend is
+# restarted.
 
-echo "[STATE_BUILDING]" > logs/SingleShotComp-run-${POD_NAME}.log
+echo "run in process with the backend's classpath, slots: $SLOTS, pod name: $POD_NAME"
 
-echo "source .bash_profile to set JAVA_HOME when using sdkman"
-source ~/.bash_profile
+log="logs/SingleShotComp-run-${POD_NAME}.log"
+pgid_file="logs/SingleShotComp-run-${POD_NAME}.pgid"
 
-# otherwise old libs are never removed
-echo "delete previous builds"
-rm -rf build/tmp/chipster-web-server
+# Fail before the log exists: heartbeat.bash fails without it, and the scheduler ends the job when
+# the heartbeat has been lost for scheduler-heartbeat-lost-timeout
+if [ -z "$BACKEND_JAVA" ] || [ -z "$BACKEND_CLASSPATH" ]; then
+    echo "BACKEND_JAVA or BACKEND_CLASSPATH is not set, is the backend older than these scripts?" >&2
+    exit 1
+fi
 
-echo "build SingleShotComp"
-./gradlew clean
-./gradlew distTar
-pushd build/tmp/
-tar -xzf ../distributions/chipster-web-server.tar.gz
-popd
+echo "[STATE_STARTING]" > "$log"
 
 for prefixed_name in $(env | grep "ENV_PREFIX_" | cut -d "=" -f 1); do
     name="$(echo "$prefixed_name" | sed s/ENV_PREFIX_//)"
@@ -22,7 +27,31 @@ for prefixed_name in $(env | grep "ENV_PREFIX_" | cut -d "=" -f 1); do
     export $name="$value"
 done
 
-bash -c "java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $SESSION_TOKEN  >> logs/SingleShotComp-run-${POD_NAME}.log 2>&1" &
-echo "[STATE_RUNNING]" >> logs/SingleShotComp-run-${POD_NAME}.log
-#bash -c "sleep 5; java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $SESSION_TOKEN  > logs/SingleShotComp-run-${POD_NAME}.log 2>&1" &
-#java -cp build/tmp/chipster-web-server/lib/*: fi.csc.chipster.comp.SingleShotComp $SESSION_ID $JOB_ID $SESSION_TOKEN
+# The classpath goes in CLASSPATH, which java reads when there is no -cp, so that it doesn't have to
+# be quoted. POD_NAME is on the command line for heartbeat.bash, which finds the process by it.
+# Without -Xmx each job could take a quarter of the memory, next to the backend; comp only streams
+# the files, so 512 MB is enough.
+#
+# With job control (set -m) the background job gets a process group of its own, which the tool
+# script that java starts shares. cancel.bash and finished.bash kill the group, because java doesn't
+# end the tool script when it's killed. setsid would do the same, but macOS doesn't have it.
+set -m
+CLASSPATH="$BACKEND_CLASSPATH" "$BACKEND_JAVA" -Xmx512m -Dchipster.pod-name="$POD_NAME" \
+    fi.csc.chipster.comp.SingleShotComp "$SESSION_ID" "$JOB_ID" "$SESSION_TOKEN" >> "$log" 2>&1 &
+set +m
+pid=$!
+
+# The group is java's own only if java leads it. Otherwise it may be the backend's, and killing it
+# would kill the backend, so end the job instead: its log goes to the backend's log, and without
+# the job log the heartbeat fails.
+pgid=$(ps -o pgid= -p $pid | tr -d ' ')
+if [ "$pgid" != "$pid" ]; then
+    echo "java $pid ended at once or isn't the leader of its process group '$pgid', ending the job" >&2
+    cat "$log" >&2
+    kill $pid 2> /dev/null
+    rm "$log"
+    exit 1
+fi
+
+echo "$pgid" > "$pgid_file"
+echo "[STATE_RUNNING]" >> "$log"

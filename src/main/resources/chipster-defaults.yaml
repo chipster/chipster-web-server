@@ -367,8 +367,7 @@ scheduler-bash-token-valid-time: 14
 scheduler-bash-enabled: true
 
 # load default bash-job-scheduler scripts from the jar package. Change to "bash-job-scheduler/k3s" if running in K3s.
-# "bash-job-scheduler/process" builds a distribution for each job, "bash-job-scheduler/process-classpath" runs the
-# job with the classpath of the running backend, see their run.bash
+# "bash-job-scheduler/process" runs the job in a process with the classpath of the running backend, see its run.bash
 scheduler-bash-script-dir-in-jar: "bash-job-scheduler/process"
 
 # use a custom bash-job-scheduler script instead
