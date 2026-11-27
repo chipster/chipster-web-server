@@ -234,6 +234,7 @@ public class SessionDbApi {
 
     public void updateSession(Session session, org.hibernate.Session hibernateSession) {
         UUID sessionId = session.getSessionId();
+        session.setNotes(removeNulCharacters(session.getNotes(), "notes of session " + sessionId));
         // persist
         HibernateUtil.update(session, session.getSessionId(), hibernateSession);
 
@@ -320,6 +321,9 @@ public class SessionDbApi {
     public void updateDataset(Dataset newDataset, Dataset dbDataset, UUID sessionId,
             org.hibernate.Session hibernateSession) {
 
+        newDataset.setNotes(
+                removeNulCharacters(newDataset.getNotes(), "notes of dataset " + newDataset.getDatasetId()));
+
         FileState fileState = null;
 
         if (newDataset.getFile() != null) {
@@ -340,6 +344,9 @@ public class SessionDbApi {
     }
 
     public void createDataset(Dataset dataset, UUID sessionId, org.hibernate.Session hibernateSession) {
+
+        dataset.setNotes(
+                removeNulCharacters(dataset.getNotes(), "notes of dataset " + dataset.getDatasetId()));
 
         checkFileModification(dataset, hibernateSession);
 
@@ -421,6 +428,7 @@ public class SessionDbApi {
     }
 
     public void createJob(Job job, UUID sessionId, org.hibernate.Session hibernateSession) {
+        removeNulCharacters(job);
         HibernateUtil.persist(job, hibernateSession);
         SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.CREATE,
                 job.getState());
@@ -428,13 +436,37 @@ public class SessionDbApi {
     }
 
     public void updateJob(Job job, UUID sessionId, org.hibernate.Session hibernateSession) {
+        removeNulCharacters(job);
         HibernateUtil.update(job, job.getJobIdPair(), hibernateSession);
         SessionEvent event = new SessionEvent(sessionId, ResourceType.JOB, job.getJobId(), EventType.UPDATE,
                 job.getState());
         publish(SessionDbTopicConfig.SESSIONS_TOPIC_PREFIX + sessionId.toString(), event, hibernateSession);
     }
 
+    private void removeNulCharacters(Job job) {
+        String id = " of job " + job.getJobId();
+        job.setScreenOutput(removeNulCharacters(job.getScreenOutput(), "screen output" + id));
+        job.setStateDetail(removeNulCharacters(job.getStateDetail(), "state detail" + id));
+        job.setSourceCode(removeNulCharacters(job.getSourceCode(), "source code" + id));
+        job.setToolDescription(removeNulCharacters(job.getToolDescription(), "tool description" + id));
+    }
+
+    /**
+     * Postgres text can't store NUL characters, but a tool's screen output may contain them, and so
+     * may the error message that comp takes from it, or an old session from a zip file. Remove them,
+     * so that the update doesn't fail and e.g. lose the job's results.
+     */
+    private static String removeNulCharacters(String text, String description) {
+        if (text == null || text.indexOf('\0') < 0) {
+            return text;
+        }
+        String cleaned = text.replace("\0", "");
+        logger.warn("removed " + (text.length() - cleaned.length()) + " NUL characters from the " + description);
+        return cleaned;
+    }
+
     public void createSession(Session session, Rule auth, org.hibernate.Session hibernateSession) {
+        session.setNotes(removeNulCharacters(session.getNotes(), "notes of session " + session.getSessionId()));
         HibernateUtil.persist(session, hibernateSession);
 
         createRule(auth, session);

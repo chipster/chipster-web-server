@@ -7,7 +7,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
@@ -32,7 +31,7 @@ public class JobHistory {
     private Instant endTime;
     private Instant created;
     private String createdBy;
-    @Lob
+    @Column(columnDefinition = "text")
     private String screenOutput;
     private String state;
     private String stateDetail;

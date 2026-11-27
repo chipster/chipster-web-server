@@ -16,7 +16,6 @@ import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlRootElement;
@@ -33,7 +32,7 @@ public class Dataset {
     @JsonUnwrapped
     private DatasetIdPair datasetIdPair;
     private String name;
-    @Lob
+    @Column(columnDefinition = "text")
     private String notes;
 
     @Column

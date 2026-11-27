@@ -8,7 +8,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
@@ -23,7 +22,7 @@ public class Session {
     @Column(columnDefinition = "uuid", updatable = false) // uuid instead of binary
     private UUID sessionId;
     private String name;
-    @Lob
+    @Column(columnDefinition = "text")
     private String notes;
     private Instant created;
     private Instant accessed;

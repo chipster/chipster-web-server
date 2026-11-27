@@ -3,9 +3,9 @@ package fi.csc.chipster.auth.model;
 import java.time.Instant;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
@@ -21,7 +21,7 @@ public class OidcLoginSession {
     private Instant created;
     private String oidcName;
     private String sourceIp;
-    @Lob
+    @Column(columnDefinition = "text")
     private String code;
 
     public OidcLoginSession() {

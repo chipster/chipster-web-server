@@ -12,7 +12,7 @@
         endTime timestamp(6) with time zone,
         memoryUsage bigint,
         module varchar(255),
-        screenOutput oid,
+        screenOutput text,
         startTime timestamp(6) with time zone,
         state varchar(255),
         stateDetail varchar(255),

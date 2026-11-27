@@ -130,6 +130,7 @@ use-external-addresses: false
 
 db-show-sql: false
 db-c3p0-min-size: ""
+# empty: the service's worker threads (server-threads-worker-max) + 16 for the admin API (16 threads by default), events and background tasks
 db-c3p0-max-size: ""
 db-dialect: fi.csc.chipster.rest.hibernate.ChipsterPostgreSQLDialect
 db-driver: org.postgresql.Driver
@@ -175,6 +176,8 @@ jws-private-key-session-db: ""
 jws-algorithm: ES512
 
 # Server thread counts. Can be changed with these config keys for all the services or overridden with <key>-<role> for individual services
+# Empty worker counts mean 4 per processor, 8-32, for the Grizzly services (RestUtils.getDefaultWorkerThreads()).
+# To go above 32, raise the db pool (db-c3p0-max-size-<role>) and Postgres' max_connections too.
 server-threads-selector: ""
 server-threads-worker-min: ""
 server-threads-worker-max: ""

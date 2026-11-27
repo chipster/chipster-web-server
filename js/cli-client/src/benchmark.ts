@@ -1,6 +1,7 @@
 import { Dataset, Job, Session } from "chipster-js-common";
-import { Logger, RestClient, HttpResponse } from "chipster-nodejs-core";
-import { empty, from, of, range, timer } from "rxjs";
+import { Logger } from "chipster-nodejs-core/lib/logger.js";
+import { RestClient } from "chipster-nodejs-core/lib/rest-client.js";
+import { defer, empty, forkJoin, from, of, range, timer } from "rxjs";
 import {
   catchError,
   concatAll,
@@ -11,9 +12,10 @@ import {
   toArray,
 } from "rxjs/operators";
 import ChipsterUtils from "./chipster-utils.js";
+import CliEnvironment from "./cli-environment.js";
+import argparse from "argparse";
 import { fileURLToPath } from "url";
 
-const ArgumentParser = require("argparse").ArgumentParser;
 const logger = Logger.getLogger(fileURLToPath(import.meta.url));
 
 export default class Benchmark {
@@ -33,8 +35,16 @@ export default class Benchmark {
     "dolore eu fugiat nulla pariatur.Excepteur sint occaecat cupidatat non proident, " +
     "sunt in culpa qui officia deserunt mollit anim id est laborum.\n";
 
-  readonly screenOutput =
-    'print("Hello World!")\n[1] "Hello World!"\n\n'.repeat(100);
+  // Sizes of the job texts from the example sessions (2026-11, 4376 jobs): screenOutput
+  // median 6 kB, sourceCode 4 kB, toolDescription 200 characters, about 13 kB for the whole job.
+  // A line of 100 characters (newline included).
+  readonly line = "x".repeat(99) + "\n";
+  readonly screenOutput = this.line.repeat(60);
+  readonly sourceCode = this.line.repeat(40);
+  readonly toolDescription = this.line.repeat(2);
+  // only 1 in 100 datasets has notes in the example sessions
+  readonly datasetNotes = this.line;
+  readonly datasetNotesInterval = 100;
 
   influxUrl;
   results = "";
@@ -43,6 +53,7 @@ export default class Benchmark {
 
   maxRequestCount: number;
   maxTime: number;
+  parallel: number[];
 
   constructor() {
     this.parseCommand();
@@ -51,7 +62,7 @@ export default class Benchmark {
   parseCommand() {
     const version = "Chipster server benchmark version 0.2.0";
 
-    const parser = new ArgumentParser({
+    const parser = new argparse.ArgumentParser({
       add_help: true,
       description: "Chipster server benchmark",
     });
@@ -62,9 +73,12 @@ export default class Benchmark {
       help: "show program's version nubmer and exit",
     });
 
-    parser.add_argument("URL", { help: "url of the app server" });
+    parser.add_argument("URL", {
+      help: "url of the app server, default: the one of the CLI login",
+      nargs: "?",
+    });
     parser.add_argument("--username", "-u", {
-      help: "username for the Chipster server",
+      help: "username for the Chipster server, default: use the token of the CLI login (chipster login)",
     });
     parser.add_argument("--password", "-p", {
       help: "password for the Chipster server",
@@ -87,29 +101,77 @@ export default class Benchmark {
       default: 100,
     });
     parser.add_argument("--time", "-t", {
-      help: "max test duration in milliseconds",
+      help:
+        "max test duration in milliseconds. Requests still running at the end are left out of the " +
+        "results, so with a slow server the median and max are too low",
       default: 1000,
+    });
+    parser.add_argument("--parallel", {
+      help:
+        "comma-separated list of the numbers of requests in flight, each test is run once with each, " +
+        "default: 1,4 (16 with --post)",
     });
 
     const args = parser.parse_args();
 
     this.onlyPost = args.post;
-    this.maxRequestCount = args.requests;
-    this.maxTime = args.time;
+    this.maxRequestCount = Number(args.requests);
+    this.maxTime = Number(args.time);
+    if (!Number.isInteger(this.maxRequestCount) || this.maxRequestCount < 1) {
+      parser.error("--requests must be a positive integer: " + args.requests);
+    }
+    if (!Number.isInteger(this.maxTime) || this.maxTime < 1) {
+      parser.error("--time must be a positive integer: " + args.time);
+    }
+    // the same form as the CLI stores
+    const url = args.URL ? ChipsterUtils.fixUri(args.URL) : null;
     this.influxUrl = args.influx;
-
-    console.log("login as", args.username);
+    this.parallel = (args.parallel || (this.onlyPost ? "16" : "1,4"))
+      .split(",")
+      .map((p: string) => Number(p));
+    if (this.parallel.some((p) => !Number.isInteger(p) || p < 1)) {
+      parser.error(
+        "--parallel must be a list of positive integers: " + args.parallel,
+      );
+    }
 
     this.restClient = new RestClient(true, null, null);
 
-    let benchmark = ChipsterUtils.getToken(
-      args.URL,
-      args.username,
-      args.password,
-      this.restClient,
-    ).pipe(
-      mergeMap((token: string) =>
-        ChipsterUtils.configureRestClient(args.URL, token, this.restClient),
+    let login$;
+    if (args.username) {
+      if (!url) {
+        parser.error("URL is needed with --username");
+      }
+      console.log("login as", args.username);
+      login$ = ChipsterUtils.getToken(
+        url,
+        args.username,
+        args.password,
+        this.restClient,
+      ).pipe(map((token: string) => [url, token]));
+    } else {
+      // the login of the CLI, like the chipster command
+      const env = new CliEnvironment();
+      login$ = forkJoin([env.get("webServerUri"), env.get("token")]).pipe(
+        map(([uri, token]) => {
+          if (!token) {
+            throw new Error("give --username or log in with the CLI");
+          }
+          if (url && url !== uri) {
+            // the token is valid only in the server where it was created
+            throw new Error(
+              "the CLI is logged in to " + uri + ", give --username for " + url,
+            );
+          }
+          console.log("using the CLI login to", uri);
+          return [uri, token];
+        }),
+      );
+    }
+
+    let benchmark = login$.pipe(
+      mergeMap(([url, token]) =>
+        ChipsterUtils.configureRestClient(url, token, this.restClient),
       ),
     );
 
@@ -297,30 +359,11 @@ export default class Benchmark {
   }
 
   measure(name, jobFunction) {
-    let loops;
-
-    if (this.onlyPost) {
-      loops = [empty(), this.loop(jobFunction, 16, name)];
-    } else {
-      loops = [
-        this.loop(jobFunction, 1, name),
-        this.loop(jobFunction, 4, name),
-      ];
-    }
-
-    return of(...loops).pipe(
-      concatAll(),
-      toArray(),
-      tap((res) => {
-        logger.info(
-          name,
-          res[0],
-          "\trequest/s (sequential), \t",
-          res[1],
-          "\trequests/s (parallel)",
-        );
-      }),
+    const loops = this.parallel.map((threads) =>
+      this.loop(jobFunction, threads, name),
     );
+
+    return of(...loops).pipe(concatAll(), toArray());
   }
 
   addResult(name, threads, value) {
@@ -342,14 +385,35 @@ export default class Benchmark {
     return of(null).pipe(
       tap(() => (t = +new Date())),
       mergeMap(() => range(0, this.maxRequestCount)),
-      mergeMap(jobFunction, null, threads),
+      mergeMap(
+        (i: number) =>
+          // time of each request from sending to the response, the server's queue included
+          defer(() => {
+            const requestStart = +new Date();
+            return jobFunction(i).pipe(map(() => +new Date() - requestStart));
+          }),
+        null,
+        threads,
+      ),
       takeUntil(timer(this.maxTime)),
       toArray(),
-      map((array) => array.length),
-      map((requestCount: number) => {
+      map((durations: number[]) => {
         const duration = +new Date() - t;
-        const throughput = (requestCount * 1000) / duration;
+        const throughput = (durations.length * 1000) / duration;
         this.addResult(name, threads, throughput);
+
+        durations.sort((a, b) => a - b);
+        // "-" if no request completed in time
+        const median = durations[Math.floor(durations.length / 2)] ?? "-";
+        const max = durations[durations.length - 1] ?? "-";
+        logger.info(
+          name,
+          "\tparallel " + threads,
+          "\t" + throughput.toFixed(1) + " requests/s",
+          "\t" + durations.length + " requests",
+          "\tmedian " + median + " ms",
+          "\tmax " + max + " ms",
+        );
 
         return throughput;
       }),
@@ -378,7 +442,7 @@ export default class Benchmark {
     return of(i).pipe(
       mergeMap(() => this.restClient.getSessionDbUri()),
       mergeMap((uri: string) => this.restClient.request("GET", uri)),
-      tap((resp: HttpResponse) => {
+      tap((resp: any) => {
         if (resp.response.statusCode != 404) {
           throw this.restClient.reponseToError(resp);
         }
@@ -422,7 +486,9 @@ export default class Benchmark {
           content: phenodata,
         });
         dataset.fileId = ChipsterUtils.uuidv4();
-        dataset.notes = this.notes;
+        if (i % this.datasetNotesInterval === 0) {
+          dataset.notes = this.datasetNotes;
+        }
 
         return dataset;
       }),
@@ -450,7 +516,8 @@ export default class Benchmark {
   getAndPutDataset(i: number, datasetIds: Map<string, string>) {
     return this.getDataset(i, datasetIds).pipe(
       mergeMap((d: Dataset) => {
-        d.notes = d.notes + "-";
+        // move the dataset like the user would do, without creating notes for most datasets
+        d.x = (d.x || 0) + 1;
         return this.restClient.putDataset(datasetIds.get(d.datasetId), d);
       }),
     );
@@ -482,18 +549,20 @@ export default class Benchmark {
           module: "misc",
           parameters: [],
           screenOutput: "",
+          sourceCode: "",
+          toolDescription: "",
           state: "RUNNING",
           stateDetail: "",
           toolCategory: "Utilitites",
           toolId: "benchmark-tool.py",
           toolName: "Fake tool",
         };
-        for (let j = 0; j < 10; j++) {
-          job.inputs.push({
-            inputId: "input" + j,
-            datasetId: datasetId,
-          });
-
+        // example sessions: 0-1 inputs, 3-4 parameters
+        job.inputs.push({
+          inputId: "input0",
+          datasetId: datasetId,
+        });
+        for (let j = 0; j < 5; j++) {
           job.parameters.push({
             parameterId: "parameter" + j,
             type: "STRING",
@@ -501,6 +570,8 @@ export default class Benchmark {
           });
         }
         job.screenOutput = this.screenOutput;
+        job.sourceCode = this.sourceCode;
+        job.toolDescription = this.toolDescription;
 
         return job;
       }),
@@ -520,7 +591,7 @@ export default class Benchmark {
     const jobSessions = Array.from(this.jobIds.values());
     const sessionId =
       jobSessions[Math.floor(Math.random() * jobSessions.length)];
-    return of(i).pipe(mergeMap((s) => this.restClient.getDatasets(sessionId)));
+    return of(i).pipe(mergeMap((s) => this.restClient.getJobs(sessionId)));
   }
 
   getAndPutJob(i: number) {
