@@ -506,7 +506,7 @@ public class BashJobScheduler implements JobScheduler {
 
         HashMap<String, String> env = getEnv(tool, storage, idPair, runtime);
 
-        // for the process-classpath scripts, which run the job with the java and classpath of this JVM
+        // for the process scripts, which run the job with the java and classpath of this JVM
         env.put(ENV_BACKEND_JAVA, Paths.get(System.getProperty("java.home"), "bin", "java").toString());
         env.put(ENV_BACKEND_CLASSPATH, System.getProperty("java.class.path"));
 

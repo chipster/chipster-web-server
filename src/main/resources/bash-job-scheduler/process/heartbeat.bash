@@ -4,6 +4,6 @@ if cat logs/SingleShotComp-run-${POD_NAME}.log | grep "\[STATE_RUNNING\]"; then
     # check if the process exists
     ps aux | grep SingleShotComp | grep -v grep | grep $POD_NAME
 else
-    # otherwise its enough that the building has started (but we won't notice if it fails)
-    cat logs/SingleShotComp-run-${POD_NAME}.log | grep "\[STATE_BUILDING\]"
+    # otherwise it's enough that run.bash has started, it starts the process right after this
+    cat logs/SingleShotComp-run-${POD_NAME}.log | grep "\[STATE_STARTING\]"
 fi
